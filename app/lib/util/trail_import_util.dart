@@ -108,10 +108,15 @@ Future<void> importTrailFile({
         // An imported file has no category yet (the user picks one on
         // trail_create_screen) — 'pedestrian' is the same fallback
         // costingForTrail itself uses for an unresolved category.
+        // `fallbackShape` is the full-resolution geometry, NOT the ≤500-point
+        // request hint: a failed/rejected snap must leave the imported track
+        // at its own resolution rather than persisting a decimation of it
+        // (WR-02).
         workingShape = await snapShapeToRoads(
           ref,
           buildNavShape(points),
           'pedestrian',
+          fallbackShape: workingShape,
         );
       }
 

@@ -786,10 +786,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
               );
           // buildNavShape's cap applies only to this outbound hint — the
           // matched path Valhalla returns replaces workingShape entirely.
+          // `fallbackShape` is what enforces that: without it a failed or
+          // rejected snap returned the hint itself, so a flaky connection
+          // silently saved a 500-point decimation of a full-resolution
+          // recording (WR-02).
           workingShape = await snapShapeToRoads(
             ref,
             buildNavShape(breadcrumbPoints),
             costing,
+            fallbackShape: workingShape,
           );
         }
 

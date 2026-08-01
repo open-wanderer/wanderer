@@ -153,15 +153,54 @@ bool snapResultAcceptable(
 /// `POST /valhalla/trace-route` proxy, using [costing] (derived from the
 /// trail's category via [costingForCategory] at the call site).
 ///
+/// [shape] is the OUTBOUND REQUEST HINT — every caller passes
+/// [buildNavShape]'s ≤500-point decimation, because that is what Valhalla's
+/// shape cap allows. [fallbackShape] is the caller's real, full-resolution
+/// geometry and is what gets returned when no snap happens. Passing it is
+/// mandatory wherever the result is persisted: returning [shape] on the
+/// fallback path silently replaced a 5000-point recorded track with a
+/// 500-point decimation because a network call failed, which is exactly the
+/// invariant `navigation_screen.dart`'s "the cap applies only to this
+/// outbound hint" comment states (WR-02). It defaults to [shape] only so a
+/// caller whose request hint IS its full geometry needs no extra argument.
+///
 /// On any error/timeout, or when [snapResultAcceptable] rejects the result
-/// as a partial map-match truncation, returns [shape] unchanged — mirrors
-/// [buildFinalPlannedGpx]'s silent-fallback precedent (no toast, no
-/// rethrow).
+/// as a partial map-match truncation, returns the fallback unchanged —
+/// mirrors [buildFinalPlannedGpx]'s silent-fallback precedent (no toast, no
+/// rethrow). Use [snapShapeToRoadsResult] instead when the caller must be
+/// able to tell a real snap from a silent fallback.
 Future<List<Map<String, double>>> snapShapeToRoads(
   WidgetRef ref,
   List<Map<String, double>> shape,
-  String costing,
-) async {
+  String costing, {
+  List<Map<String, double>>? fallbackShape,
+}) async {
+  final result = await snapShapeToRoadsResult(
+    ref,
+    shape,
+    costing,
+    fallbackShape: fallbackShape,
+  );
+  return result.shape;
+}
+
+/// [snapShapeToRoads]'s underlying implementation, additionally reporting
+/// whether a real snap actually happened.
+///
+/// `snapped: false` means the returned shape is the untouched fallback — the
+/// request threw, timed out, or [snapResultAcceptable] rejected the result.
+/// Callers that invalidate derived per-point data (elevation indices, for
+/// instance) MUST gate that invalidation on this flag: doing it
+/// unconditionally destroys good data whenever the network merely hiccuped
+/// (WR-03).
+Future<({List<Map<String, double>> shape, bool snapped})>
+snapShapeToRoadsResult(
+  WidgetRef ref,
+  List<Map<String, double>> shape,
+  String costing, {
+  List<Map<String, double>>? fallbackShape,
+}) async {
+  final fallback = fallbackShape ?? shape;
   try {
     final response = await ref
         .read(apiProvider)
@@ -180,12 +219,12 @@ Future<List<Map<String, double>>> snapShapeToRoads(
         .toList();
 
     if (snapResultAcceptable(shape, snapped)) {
-      return snapped;
+      return (shape: snapped, snapped: true);
     }
-    return shape;
-  } catch (e) {
-    // Silent fallback: proceed with the pre-snap shape.
-    return shape;
+    return (shape: fallback, snapped: false);
+  } catch (_) {
+    // Silent fallback: proceed with the caller's real geometry.
+    return (shape: fallback, snapped: false);
   }
 }
 
@@ -358,7 +397,15 @@ Future<Gpx> buildFinalPlannedGpx(
     if (toSnap.isNotEmpty) {
       final snapped = await Future.wait([
         for (final i in toSnap)
-          snapShapeToRoads(ref, buildNavShape(legPoints[i]), costing),
+          snapShapeToRoads(
+            ref,
+            buildNavShape(legPoints[i]),
+            costing,
+            // Full-resolution leg geometry, not the request hint (WR-02).
+            fallbackShape: [
+              for (final p in legPoints[i]) {'lat': p.lat, 'lon': p.lon},
+            ],
+          ),
       ]);
       for (var k = 0; k < toSnap.length; k++) {
         final i = toSnap[k];

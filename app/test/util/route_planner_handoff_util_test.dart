@@ -1351,6 +1351,107 @@ void main() {
     });
   });
 
+  // WR-02/WR-03 regression. Every caller passes buildNavShape's ≤500-point
+  // request hint, so returning `shape` on the fallback path silently
+  // persisted a decimation of a full-resolution track whenever the network
+  // hiccuped — and gave callers no way to tell a real snap from a fallback.
+  group('snapShapeToRoads fallback', () {
+    // 600 points: past buildNavShape's 500 cap, so the request hint is a
+    // strictly lossy decimation of this list.
+    final fullResolution = [
+      for (var i = 0; i < 600; i++)
+        {'lat': 47.0 + i * 0.0001, 'lon': 9.0 + i * 0.0001},
+    ];
+    final fullResolutionPoints = [
+      for (final p in fullResolution)
+        ml.Geographic(lat: p['lat']!, lon: p['lon']!),
+    ];
+
+    testWidgets('a failed request returns the caller\'s full-resolution '
+        'fallbackShape, not the downsampled request hint', (tester) async {
+      final api = _FakeSnapApi(snapShape: const [], shouldFailAll: true);
+      final ref = await _pumpSnapRef(tester, api);
+
+      final result = await tester.runAsync(
+        () => snapShapeToRoadsResult(
+          ref,
+          buildNavShape(fullResolutionPoints),
+          'pedestrian',
+          fallbackShape: fullResolution,
+        ),
+      );
+
+      expect(result!.snapped, isFalse);
+      expect(result.shape, hasLength(600));
+      expect(result.shape, same(fullResolution));
+    });
+
+    testWidgets('a snap rejected by snapResultAcceptable also returns the '
+        'full-resolution fallbackShape', (tester) async {
+      // A 2-point degenerate reply: bbox diagonal far below 0.6x the
+      // original's, so snapResultAcceptable rejects it as a truncation.
+      final api = _FakeSnapApi(
+        snapShape: [
+          {'lat': 47.0, 'lon': 9.0},
+          {'lat': 47.0001, 'lon': 9.0001},
+        ],
+      );
+      final ref = await _pumpSnapRef(tester, api);
+
+      final result = await tester.runAsync(
+        () => snapShapeToRoadsResult(
+          ref,
+          buildNavShape(fullResolutionPoints),
+          'pedestrian',
+          fallbackShape: fullResolution,
+        ),
+      );
+
+      expect(api.traceRouteCalls, 1);
+      expect(result!.snapped, isFalse);
+      expect(result.shape, hasLength(600));
+    });
+
+    testWidgets('an accepted snap reports snapped: true and returns the '
+        'matched path', (tester) async {
+      final matched = [
+        for (var i = 0; i < 40; i++)
+          {'lat': 47.0 + i * 0.0015, 'lon': 9.0 + i * 0.0015},
+      ];
+      final api = _FakeSnapApi(snapShape: matched);
+      final ref = await _pumpSnapRef(tester, api);
+
+      final result = await tester.runAsync(
+        () => snapShapeToRoadsResult(
+          ref,
+          buildNavShape(fullResolutionPoints),
+          'pedestrian',
+          fallbackShape: fullResolution,
+        ),
+      );
+
+      expect(result!.snapped, isTrue);
+      expect(result.shape, hasLength(40));
+    });
+
+    testWidgets('without fallbackShape the request hint is still the '
+        'fallback (unchanged for callers whose hint IS their geometry)',
+        (tester) async {
+      final api = _FakeSnapApi(snapShape: const [], shouldFailAll: true);
+      final ref = await _pumpSnapRef(tester, api);
+      final hint = [
+        {'lat': 47.0, 'lon': 9.0},
+        {'lat': 47.001, 'lon': 9.001},
+      ];
+
+      final result = await tester.runAsync(
+        () => snapShapeToRoads(ref, hint, 'pedestrian'),
+      );
+
+      expect(result, same(hint));
+    });
+  });
+
   group('snapResultAcceptable', () {
     // A 5-point original shape spanning a 0.010° x 0.010° bbox
     // (diagonal ~= 0.014142).
