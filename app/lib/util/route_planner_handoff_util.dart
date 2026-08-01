@@ -362,9 +362,12 @@ Future<Trail> buildDraftTrail(
 /// [segmentPolylinesFromTrack] locate anchors by EXACT coordinate match, so
 /// a snapped boundary that drifted even a fraction would make the route
 /// unreconstructable — and silently collapse every intermediate anchor — on
-/// re-edit. A snapped leg's previously-fetched elevations are invalidated
-/// (its point indices no longer align with the pre-snap heights) and
-/// re-fetched below regardless of [refetchAllHeights].
+/// re-edit. A leg that ACTUALLY snapped has its previously-fetched
+/// elevations invalidated (its point indices no longer align with the
+/// pre-snap heights) and re-fetched below regardless of [refetchAllHeights];
+/// a leg whose snap silently fell back keeps its geometry AND its elevations
+/// untouched (WR-03), which is why the snap helper has to report whether a
+/// real snap occurred rather than just handing back a shape.
 ///
 /// [refetchAllHeights] set to `true` refetches heights for every leg over
 /// its final (possibly snapped) shape; `false` keeps the existing
@@ -395,21 +398,26 @@ Future<Gpx> buildFinalPlannedGpx(
         if (legPoints[i].length >= 2) i,
     ];
     if (toSnap.isNotEmpty) {
+      // No `fallbackShape` is needed here (unlike the recording and import
+      // paths): a leg that did not snap is skipped outright below, so its
+      // `legPoints[i]` is never overwritten and keeps its full resolution by
+      // construction.
       final snapped = await Future.wait([
         for (final i in toSnap)
-          snapShapeToRoads(
-            ref,
-            buildNavShape(legPoints[i]),
-            costing,
-            // Full-resolution leg geometry, not the request hint (WR-02).
-            fallbackShape: [
-              for (final p in legPoints[i]) {'lat': p.lat, 'lon': p.lon},
-            ],
-          ),
+          snapShapeToRoadsResult(ref, buildNavShape(legPoints[i]), costing),
       ]);
       for (var k = 0; k < toSnap.length; k++) {
         final i = toSnap[k];
-        final shape = snapped[k];
+        // WR-03: a silent fallback is NOT a snap. Rewriting the leg and
+        // clearing `legElevations[i]` on the fallback path invalidated
+        // perfectly good elevations purely because a network call failed —
+        // and since the height backfill below has its own silent fallback
+        // (`if (heights.isEmpty) continue`), two independent failures left
+        // the leg with `ele: null` on every point, so the saved trail's
+        // elevation gain/loss computed to 0. Ticking "Follow roads" on a
+        // flaky connection was enough to destroy a route's elevation data.
+        if (!snapped[k].snapped) continue;
+        final shape = snapped[k].shape;
         if (shape.length < 2) continue;
         final original = legPoints[i];
         final rePinned = [

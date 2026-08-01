@@ -768,6 +768,55 @@ void main() {
       },
     );
 
+    // WR-03 regression. `legElevations[i] = null` used to run for every leg
+    // whose snap "returned" a shape, with no way to tell a real snap from
+    // snapShapeToRoads' silent fallback. Combined with the height backfill's
+    // own silent fallback, two failed network calls left every point at
+    // `ele: null` and the saved trail's elevation gain/loss at 0 — so
+    // ticking "Follow roads" on a flaky connection destroyed a route's
+    // elevation data.
+    testWidgets(
+      'snapCosting supplied but the snap fails: the legs keep their '
+      'already-resolved elevations instead of being invalidated',
+      (tester) async {
+        // Seed against a working height api so every leg carries real
+        // elevations, exactly as an online planning session would.
+        final workingRef = await _pumpHeightRef(
+          tester,
+          (shape) => List<num>.filled(shape.length, 500),
+        );
+        await _seedRoute(tester, workingRef, _twoLegRoute);
+        final seededState = workingRef.read(routeAnchorsProvider);
+        expect(seededState.segments.every((s) => s.elevations != null), isTrue);
+
+        // A session where BOTH /valhalla/trace-route and /valhalla/height
+        // fail — the flaky-connection case.
+        final failingApi = _FakeSnapApi(
+          snapShape: const [],
+          shouldFailAll: true,
+        );
+        final ref = await _pumpSnapRef(tester, failingApi);
+        ref.read(routeAnchorsProvider.notifier).state = seededState;
+
+        final gpx = (await tester.runAsync(
+          () => buildFinalPlannedGpx(ref, snapCosting: 'pedestrian'),
+        ))!;
+
+        expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
+        // Geometry is untouched (full-resolution legs, original anchors)...
+        final anchors = anchorsFromTrack(gpx);
+        expect(anchors, hasLength(3));
+        expect(anchors[0].lat, _twoLegRoute[0].first.lat);
+        expect(anchors[2].lat, _twoLegRoute[1].last.lat);
+        // ...and so are the elevations. Pre-fix these were all null.
+        for (final seg in gpx.trks.single.trksegs) {
+          for (final pt in seg.trkpts) {
+            expect(pt.ele, 500);
+          }
+        }
+      },
+    );
+
     testWidgets(
       'both flags false, api throws on any request: completes without '
       'throwing for a route whose legs already have elevations — proves '
