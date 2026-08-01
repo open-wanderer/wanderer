@@ -33,7 +33,10 @@ const kmlDoc = `<?xml version="1.0" encoding="UTF-8"?>
 </kml>`;
 
 describe("POST /api/v1/trail/convert - raw-text branch", () => {
-    it("returns the submitted GPX string unchanged with an application/gpx+xml content type", async () => {
+    // The byte-for-byte round trip is only the contract for a body that
+    // ALREADY validated as a GPX document - see the content-validation suite
+    // below for the bodies that never reach this path.
+    it("returns a *valid* submitted GPX string unchanged with an application/gpx+xml content type", async () => {
         const request = new Request("http://localhost/api/v1/trail/convert", {
             method: "POST",
             body: gpxDoc,
@@ -44,6 +47,66 @@ describe("POST /api/v1/trail/convert - raw-text branch", () => {
         expect(res.status).toBe(200);
         expect(res.headers.get("content-type")).toContain("application/gpx+xml");
         expect(await res.text()).toBe(gpxDoc);
+    });
+
+    it("hardens the success response against being rendered as a top-level navigation", async () => {
+        const request = new Request("http://localhost/api/v1/trail/convert", {
+            method: "POST",
+            body: gpxDoc,
+        });
+
+        const res = await POST(makeEvent(request));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+        expect(res.headers.get("content-disposition")).toContain("attachment");
+    });
+});
+
+// CR-04 regression. The transcode-only rewrite dropped the endpoint's only
+// content validation (previously a side effect of `gpx2trail` throwing), which
+// turned an unauthenticated, CSRF-exempt route into a verbatim reflector of
+// arbitrary request bodies under an active XML content type.
+describe("POST /api/v1/trail/convert - content validation", () => {
+    const rejected: Array<[string, string]> = [
+        ["arbitrary plain text", "just some attacker-controlled text"],
+        ["an HTML document", "<html><body><script>alert(1)</script></body></html>"],
+        [
+            "a well-formed XML document that is not GPX",
+            "<?xml version=\"1.0\"?><kml><Document/></kml>",
+        ],
+        [
+            "an XHTML payload carrying script",
+            "<?xml version=\"1.0\"?><html xmlns=\"http://www.w3.org/1999/xhtml\"><script>alert(1)</script></html>",
+        ],
+        ["malformed XML claiming to be GPX", "<gpx><trk></gpx>"],
+        ["a JSON blob", JSON.stringify({ hello: "world" })],
+    ];
+
+    for (const [label, body] of rejected) {
+        it(`400s on ${label} submitted as a raw body, and does not echo it`, async () => {
+            const request = new Request("http://localhost/api/v1/trail/convert", {
+                method: "POST",
+                body,
+            });
+
+            const res = await POST(makeEvent(request));
+
+            expect(res.status).toBe(400);
+            expect(await res.text()).not.toContain(body);
+        });
+    }
+
+    it("400s on a non-GPX body submitted through the JSON branch", async () => {
+        const request = new Request("http://localhost/api/v1/trail/convert", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ gpx: "<html><script>alert(1)</script></html>" }),
+        });
+
+        const res = await POST(makeEvent(request));
+
+        expect(res.status).toBe(400);
     });
 });
 

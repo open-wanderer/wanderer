@@ -1,7 +1,42 @@
+import GPX from "$lib/models/gpx/gpx";
 import { handleError } from "$lib/util/api_util";
 import { fromFile } from "$lib/util/gpx_util";
 import type { RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
+
+/**
+ * Rejects anything that is not a parseable GPX document with a 400.
+ *
+ * This endpoint is unauthenticated (`/api/v1/trail/convert` is absent from
+ * `privateRoutes` in `authorization_util.ts`) and `/api/v1` is CSRF-exempt
+ * (`hooks.server.ts`'s `csrf(['/api/v1'])`), so without this check a
+ * cross-origin auto-submitting `enctype="text/plain"` form could drive a
+ * top-level navigation whose response body is fully attacker-controlled and
+ * served from the victim's origin under an active XML content type. Before
+ * the endpoint became transcode-only it got this validation for free from
+ * `gpx2trail`, which threw on unparseable content; that call is gone (D-05
+ * forbids reintroducing it), so the parse is reused here as a pure
+ * VALIDATOR - nothing derived from it is computed, persisted or returned.
+ *
+ * `GPX.parse` throws for non-XML input and for XML whose root element is not
+ * `<gpx>`, which is exactly the acceptance boundary wanted here.
+ */
+function assertParsableGpx(gpxData: string): void {
+    const invalid = new ClientResponseError({
+        status: 400,
+        response: { message: "Invalid GPX content" },
+    });
+
+    let parsed: unknown;
+    try {
+        parsed = GPX.parse(gpxData);
+    } catch {
+        throw invalid;
+    }
+    if (!parsed || typeof parsed !== "object") {
+        throw invalid;
+    }
+}
 
 /**
  * @swagger
@@ -35,7 +70,9 @@ import { ClientResponseError } from "pocketbase";
  *             schema:
  *               type: string
  *       400:
- *         description: Bad Request - Invalid or empty file
+ *         description: >
+ *           Bad Request - the body was missing/empty, or its content did not parse as a GPX
+ *           document. The response body is never an echo of unvalidated input.
  *       500:
  *         description: Internal Server Error
  */
@@ -74,8 +111,21 @@ export async function POST(event: RequestEvent) {
             throw new ClientResponseError({ status: 400, response: { message: "Empty GPX data" } });
         }
 
+        // ...and that what we got is actually a GPX document, on every input
+        // branch. Without this the handler is a verbatim echo of arbitrary
+        // unauthenticated request bodies.
+        assertParsableGpx(gpxData);
+
         return new Response(gpxData, {
-            headers: { "Content-Type": "application/gpx+xml" },
+            headers: {
+                "Content-Type": "application/gpx+xml",
+                // Defence in depth on top of the validation above: `*+xml` is
+                // parsed as XML by browsers (XSLT processing instructions,
+                // XHTML-namespace script), so make the body non-sniffable and
+                // non-renderable as a top-level navigation.
+                "X-Content-Type-Options": "nosniff",
+                "Content-Disposition": "attachment; filename=\"track.gpx\"",
+            },
         });
     } catch (e) {
         return handleError(e);
