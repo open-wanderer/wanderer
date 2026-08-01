@@ -30,6 +30,10 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
+    if (!event.locals.user) {
+        return error(401, "Unauthorized");
+    }
+
     const heightUrl = getValhallaUrl() + '/height';
     const data = await event.request.json()
     if (!heightUrl) {
