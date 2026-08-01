@@ -743,6 +743,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           resumeBreadcrumb: _resumeBreadcrumb,
         ),
       );
+      // IDENTICAL family seed args as every other navigationStatsProvider
+      // read in this file (see _persistNow and build()) — a different seed
+      // would resolve a different, split-brain provider instance whose
+      // `elapsed` is zero.
+      final navStats = ref.read(
+        navigationStatsProvider(widget.response, resume: _resumeStats),
+      );
 
       final originalTrail = ref.read(trailProvider(widget.id)).value;
 
@@ -842,11 +849,18 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       final subcategory =
           originalTrail?.subcategoryId ?? selection?.subcategoryId;
 
+      // D-09: NavigationStats.elapsed is already moving time — the 1-second
+      // tick is a no-op while isPaused || isStationary, and it is already
+      // the value shown to the user during the session, so no second
+      // derivation is invented here. D-11: no planner-style estimated
+      // duration fallback is passed here — `duration` must come from the
+      // GPX so a later web recompute reproduces it.
       final trail = await buildDraftTrail(
         ref,
         gpx,
         category: category,
         subcategory: subcategory,
+        movingDuration: navStats.elapsed,
       );
 
       active_nav.clear(_store);

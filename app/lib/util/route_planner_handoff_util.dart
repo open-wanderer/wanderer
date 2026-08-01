@@ -1,6 +1,5 @@
 import 'dart:math' show sqrt;
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -184,22 +183,35 @@ Future<List<num>> fetchHeightsForShape(
   return heights;
 }
 
+/// Builds a draft [Trail] from a planner/recording session's [finalGpx]
+/// entirely on-device (PORT-03) — no convert-endpoint request. [category]/
+/// [subcategory] pre-fill the trail's operator classification;
+/// [durationSeconds] is the planner's Valhalla-estimated fallback (see
+/// below); [movingDuration] is the D-11 recording hand-off.
+///
+/// [movingDuration] is the ONLY value a recording takes from its own
+/// session — distance, elevation gain/loss and `duration` all come from the
+/// ported computation (`trailFromGpx`, reached via the local trail builder
+/// below) over the recorded GPX, so every persisted stat besides moving time
+/// stays reproducible by a later recompute over the same GPX (D-11).
 Future<Trail> buildDraftTrail(
   WidgetRef ref,
   Gpx finalGpx, {
   String? category,
   String? subcategory,
   double? durationSeconds,
+  Duration? movingDuration,
 }) async {
+  // Still produced: `expand.gpxData` is what `form_data_util.dart` uploads
+  // as the trail's track file on save.
   final xml = GpxWriter().asString(finalGpx);
-  final formData = FormData.fromMap({
-    'file': MultipartFile.fromString(
-      xml,
-      filename: 'route.gpx',
-      contentType: DioMediaType('application', 'gpx+xml'),
-    ),
-  });
-  Trail trail = await convertGpxToTrail(ref, formData);
+
+  Trail trail = await buildLocalTrail(
+    ref,
+    finalGpx,
+    movingDuration: movingDuration,
+    gpxData: xml,
+  );
 
   trail = trail.copyWith(
     category: category,
@@ -210,10 +222,13 @@ Future<Trail> buildDraftTrail(
   );
 
   // A timeless GPX (planner output, or a recording saved through the
-  // height/snap transforms) yields `duration == 0` from the server's
-  // timestamp-based `gpx2trail`. Fall back to the caller's known-good value
-  // only in that case, so a GPX that carried real timestamps keeps the
-  // server-derived duration.
+  // height/snap transforms) yields `duration == 0` from the LOCAL
+  // `trailFromGpx` computation rather than from the server's `gpx2trail`.
+  // Fall back to the caller's known-good value only in that case, so a GPX
+  // that carried real timestamps keeps its own GPX-derived duration. This is
+  // the planner's answer to what it writes into `duration`: the Valhalla
+  // estimate is used only when the planned route carries no timestamps at
+  // all, which is always the case for a never-traversed route.
   if (durationSeconds != null && durationSeconds > 0 && trail.duration <= 0) {
     trail = trail.copyWith(duration: durationSeconds);
   }
