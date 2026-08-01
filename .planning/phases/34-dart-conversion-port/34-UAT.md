@@ -1,10 +1,49 @@
 ---
-status: diagnosed
+status: complete
 phase: 34-dart-conversion-port
 source: [34-VERIFICATION.md, 34-06-PLAN.md, 34-07-PLAN.md]
 started: 2026-08-01T13:20:00Z
-updated: 2026-08-01T14:05:00Z
+updated: 2026-08-01T20:55:00Z
 ---
+
+## Resolutions
+
+All four diagnosed gaps are closed. Commits on `feature/app`:
+
+| Gap | Severity | Resolution | Commit |
+|-----|----------|------------|--------|
+| 1. Planner sheet has no purpose | minor | Sheet removed from the planner's Finish action; the now-unreachable snap block and leg-boundary re-pin deleted rather than left as maintained-looking dead code | `7b5bfac3` |
+| 2. Wrong title + clipped by nav bar | cosmetic | `TrackSaveOptionsSource` enum; sheet owns per-source title and insets; new `adjust_track` l10n key | `9dc5a69f` |
+| 3. Web/app distance disagree | major | Root cause was NOT the port — both clients' charts always used raw while the reported distance was 5 m-gated. Reported distance is now raw, superseding CONV-05 | `a84e7ab9` (quick task `260801-opr`) |
+| 4. Dead JSON content type | minor | `application/json` request branch removed; CR-04 echo guard rewritten against the raw-text path | `1a54d99d` |
+
+Two further defects were found while closing these and fixed alongside:
+
+- **Stale `elevationProfile` (`7b5bfac3`).** `_applySegment` replaced a segment's
+  polyline without clearing the height profile of the geometry it replaced. Both
+  consumers read `elevationProfile ?? polyline`, so the stale profile silently
+  outranked the polyline it contradicted — tapping Finish inside that window saved
+  the pre-edit route. Not merely a race: `_resolveElevation` degrades silently on
+  failure, so a re-edited segment could stay stale permanently. Two tests, each
+  verified to fail without the fix.
+- **`elevation_profile_test` regression (`7b5bfac3`).** The raw-distance change
+  invalidated an axis-vs-distance inequality assertion. Missed initially because
+  the quick task's verify gates ran only the `gpx` suites.
+
+### Outstanding (non-blocking)
+
+- **Test 2 substitute, human check.** Plan a 3-anchor route online, Finish (no sheet
+  now), save, reopen in the planner — should still show three anchors. This exercises
+  `anchorsFromTrack`/`segmentPolylinesFromTrack` over `buildFinalPlannedGpx`'s
+  trkseg-per-leg output, which is the live risk. The snap-specific drift path it
+  originally targeted no longer exists.
+- **Share-intent sheet inset.** `TrackSaveOptionsSource.import` covers both import
+  entry points, but the OS share-intent path (`main.dart:185`) presents on the ROOT
+  navigator via `navigatorKey.currentContext`, where there is no `BottomAppBar` — so
+  it gets ~104 px of inset it does not need. Cosmetic, and only on that path.
+- **Pre-existing, unrelated:** `settings_tab_test.dart` has 4 failing tests
+  (`AppLocalizations.of(context)!` returns null). Confirmed failing at clean HEAD
+  before any of this work.
 
 ## Current Test
 
@@ -103,12 +142,15 @@ blocked: 0
 
 Surfaced during diagnosis, outside the four gaps. Each needs its own decision.
 
-- **Latent data bug (planner).** `_applySegment` (`app/lib/provider/route_anchor_provider.dart:301-320`)
-  uses Freezed `copyWith` without clearing `elevationProfile`/`elevations`, so they survive a
-  polyline replacement until the fire-and-forget `_resolveElevation` lands. Because
-  `buildFinalPlannedGpx` *prefers* `elevationProfile` over `polyline`, tapping Finish inside that
-  window saves the leg's **pre-edit geometry**. `recalcHeights` does not fix it (it refetches over
-  the same stale profile). Deserves its own debug session.
+- ~~**Latent data bug (planner).**~~ **FIXED in `7b5bfac3`.** `_applySegment`
+  (`app/lib/provider/route_anchor_provider.dart`) used Freezed `copyWith` without clearing
+  `elevationProfile`/`elevations`, so they survived a polyline replacement until the
+  fire-and-forget `_resolveElevation` landed. Because both consumers prefer `elevationProfile`
+  over `polyline`, tapping Finish inside that window saved the leg's **pre-edit geometry**.
+  Investigation found it was worse than the race described here: `_resolveElevation` degrades
+  silently on failure, so a re-edited segment could stay stale permanently, and all three
+  `_applySegment` call sites were affected (routed and both straight-line paths), not just the
+  routed one. Two regression tests added, each verified to fail without the fix.
 - **Sibling sheets carry the same bottom-inset defect** as gap 2:
   `app/lib/components/trail/missing_coverage_sheet.dart:153` and
   `app/lib/components/base/wanderer_icon_picker.dart:166`.
@@ -138,7 +180,8 @@ Reconcile before applying fixes.
 ## Gaps
 
 - truth: "Online route planner Finish should not offer save options that cannot change the result"
-  status: failed
+  status: resolved
+  resolved_by: "7b5bfac3"
   reason: "User reported: b) partial. Why does the save options sheet appear in route planner when online? It has no purpose. The route is following roads and using valhalla elevation anyways"
   severity: minor
   test: 1
@@ -195,7 +238,8 @@ Reconcile before applying fixes.
     snap-specific drift path disappears.
 
 - truth: "The save-options sheet is correctly titled and laid out for the flow that opened it"
-  status: failed
+  status: resolved
+  resolved_by: "9dc5a69f"
   reason: "User reported: c) partial. The save options sheet has the wrong title (\"Save recordings\") and needs more bottom padding because of the bottom navigation bar"
   severity: cosmetic
   test: 1
@@ -250,7 +294,8 @@ Reconcile before applying fixes.
   debug_session: ".planning/debug/save-options-sheet-title-and-padding.md"
 
 - truth: "The same track file yields the same distance whether imported on web or in the app"
-  status: failed
+  status: resolved
+  resolved_by: "a84e7ab9 (quick task 260801-opr)"
   reason: "User reported: the same trail uploaded on the web vs. the app produces different lengths for ~/Downloads/19440058502_ACTIVITY.fit — web 10.51km, app 10.97km. Elevation matches exactly (344m up, 351m down)."
   severity: major
   test: 3
@@ -311,7 +356,8 @@ Reconcile before applying fixes.
   debug_session: ".planning/debug/web-app-distance-mismatch.md"
 
 - truth: "The convert endpoint carries no content type it no longer serves"
-  status: failed
+  status: resolved
+  resolved_by: "1a54d99d"
   reason: "User reported: Check if the json content type is still needed. If not remove it alongside the associated tests"
   severity: minor
   test: 3
