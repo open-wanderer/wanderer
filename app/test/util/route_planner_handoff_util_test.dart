@@ -145,11 +145,24 @@ class _FakeHeightApi extends Api {
 Future<WidgetRef> _pumpHeightRef(
   WidgetTester tester,
   List<num> Function(List<dynamic> shape) respond,
-) async {
+) => _pumpHeightRefWith(tester, _FakeHeightApi(respond));
+
+/// [_pumpHeightRef] with the [_FakeHeightApi] instance supplied by the caller
+/// (so its `requestCount` can be asserted on) and an explicit connectivity
+/// status. [online] defaults to `true` to match `OnlineStatus.build()`'s own
+/// optimistic default, so every pre-existing caller behaves identically.
+Future<WidgetRef> _pumpHeightRefWith(
+  WidgetTester tester,
+  _FakeHeightApi api, {
+  bool online = true,
+}) async {
   late WidgetRef capturedRef;
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [apiProvider.overrideWith(() => _FakeHeightApi(respond))],
+      overrides: [
+        apiProvider.overrideWith(() => api),
+        onlineStatusProvider.overrideWith(() => _FakeOnlineStatus(online)),
+      ],
       child: Consumer(
         builder: (context, ref, _) {
           capturedRef = ref;
@@ -232,11 +245,23 @@ class _FakeSnapApi extends Api {
   }
 }
 
-Future<WidgetRef> _pumpSnapRef(WidgetTester tester, _FakeSnapApi api) async {
+/// [online] defaults to `true` to match `OnlineStatus.build()`'s own
+/// optimistic default. The `onlineStatusProvider` override must be present
+/// even when unused: Riverpod asserts that a `ProviderScope`'s override COUNT
+/// never changes across a rebuild, and several tests pump `_pumpHeightRefWith`
+/// and then `_pumpSnapRef` within one test body.
+Future<WidgetRef> _pumpSnapRef(
+  WidgetTester tester,
+  _FakeSnapApi api, {
+  bool online = true,
+}) async {
   late WidgetRef capturedRef;
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [apiProvider.overrideWith(() => api)],
+      overrides: [
+        apiProvider.overrideWith(() => api),
+        onlineStatusProvider.overrideWith(() => _FakeOnlineStatus(online)),
+      ],
       child: Consumer(
         builder: (context, ref, _) {
           capturedRef = ref;
@@ -814,6 +839,62 @@ void main() {
             expect(pt.ele, 500);
           }
         }
+      },
+    );
+
+    // WR-07. The doc comment claimed "both underlying network steps are
+    // skipped entirely when their flag is off", but the height backfill's
+    // `pending` list was built from any leg with unresolved elevations,
+    // independently of both flags — so the real offline case (a session with
+    // an un-elevated leg) issued one request per such leg. The pre-existing
+    // "issues no network call" test sidestepped this by transplanting a
+    // fully-elevated state, which leaves `pending` empty.
+    testWidgets(
+      'offline with UN-elevated legs: the height backfill is skipped '
+      'entirely rather than attempted-and-tolerated',
+      (tester) async {
+        final api = _FakeHeightApi(
+          (shape) => throw StateError('height unavailable'),
+        );
+        final ref = await _pumpHeightRefWith(tester, api, online: false);
+        await _seedRoute(tester, ref, _twoLegRoute);
+
+        // Seeding left every leg without elevations — the case the previous
+        // test could not reach.
+        expect(
+          ref
+              .read(routeAnchorsProvider)
+              .segments
+              .every((s) => s.elevations == null),
+          isTrue,
+        );
+        api.requestCount = 0;
+
+        final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+        expect(api.requestCount, 0);
+        expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
+        expect(anchorsFromTrack(gpx), hasLength(3));
+        expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
+      },
+    );
+
+    testWidgets(
+      'online with UN-elevated legs and a failing api: the backfill IS '
+      'attempted, and its failure is tolerated',
+      (tester) async {
+        final api = _FakeHeightApi(
+          (shape) => throw StateError('height unavailable'),
+        );
+        final ref = await _pumpHeightRefWith(tester, api, online: true);
+        await _seedRoute(tester, ref, _twoLegRoute);
+        api.requestCount = 0;
+
+        final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+
+        expect(api.requestCount, greaterThan(0));
+        expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
+        expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
       },
     );
 

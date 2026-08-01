@@ -7,6 +7,7 @@ import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
@@ -371,12 +372,20 @@ Future<Trail> buildDraftTrail(
 ///
 /// [refetchAllHeights] set to `true` refetches heights for every leg over
 /// its final (possibly snapped) shape; `false` keeps the existing
-/// fetch-only-what's-missing behaviour. Both flags default `false`, and
-/// both underlying network steps are skipped entirely when their flag is
-/// off — the combination that makes this function safe to call with no
-/// network access at all (D-15's offline path). Snapping always runs before
-/// heights are read, matching the recording path's own ordering, so
-/// elevation reflects the final (possibly snapped) shape.
+/// fetch-only-what's-missing behaviour. Both flags default `false`.
+///
+/// Snapping is skipped entirely when [snapCosting] is null. The height step
+/// is NOT flag-gated in the same way — the fetch-only-what's-missing list is
+/// built from any leg with unresolved elevations regardless of
+/// [refetchAllHeights] — so it is gated on connectivity instead
+/// (`onlineStatusProvider`). Together those two gates are what make this
+/// function genuinely safe to call with no network access at all (D-15's
+/// offline path): offline it issues ZERO requests, rather than issuing one
+/// per un-elevated leg and merely tolerating the failures (WR-07).
+///
+/// Snapping always runs before heights are read, matching the recording
+/// path's own ordering, so elevation reflects the final (possibly snapped)
+/// shape.
 Future<Gpx> buildFinalPlannedGpx(
   WidgetRef ref, {
   bool refetchAllHeights = false,
@@ -433,7 +442,18 @@ Future<Gpx> buildFinalPlannedGpx(
     }
   }
 
-  final pending = refetchAllHeights
+  // WR-07: the connectivity gate is what makes this function's "safe to call
+  // with no network access at all" claim TRUE. The `pending` list below is
+  // built from every leg whose elevations are unresolved, which is
+  // independent of both flags — so a session with any un-elevated leg used to
+  // issue a `/valhalla/height` request even with `refetchAllHeights: false`
+  // and `snapCosting: null`, i.e. exactly on D-15's offline path. The
+  // behaviour was safe (fetchHeightsForShape swallows the failure) but the
+  // stated invariant was wrong and nothing tested the real case.
+  final online = ref.read(onlineStatusProvider);
+  final pending = !online
+      ? const <int>[]
+      : refetchAllHeights
       ? [for (var i = 0; i < legs.length; i++) i]
       : <int>[
           for (var i = 0; i < legs.length; i++)
