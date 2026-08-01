@@ -164,3 +164,8 @@ None - no external service configuration required.
 ---
 *Phase: 34-dart-conversion-port*
 *Completed: 2026-08-01*
+
+## Self-Check: PASSED
+
+All created/modified files confirmed present on disk; all four commit hashes
+(`07794d24`, `90f29cfd`, `2918ad6f`, `7e6c0c4f`) confirmed present in `git log`.

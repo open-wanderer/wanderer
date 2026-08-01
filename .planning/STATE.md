@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 34-05-PLAN.md
-last_updated: "2026-08-01T07:45:57.266Z"
+stopped_at: Completed 34-06-PLAN.md
+last_updated: "2026-08-01T08:14:18.221Z"
 last_activity: 2026-07-31 -- Phase 34 execution started
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 25
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 34 (dart-conversion-port) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-07-31 -- Phase 34 execution started
 
@@ -146,6 +146,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 34 P03 | 50min | 2 tasks | 31 files |
 | Phase 34-dart-conversion-port P04 | 95min | 3 tasks | 12 files |
 | Phase 34-dart-conversion-port P05 | 45min | 3 tasks | 6 files |
+| Phase 34 P06 | 26min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -336,6 +337,8 @@ Recent decisions affecting current work:
 - [Phase 34-04]: trailDisplayDuration typed on TrailSummary rather than the plan's literal Trail, so it compiles against trail_card.dart/trail_list_item.dart's TrailSummary-typed call sites — Dart's implements clause requires the exact declared type; a Trail-typed parameter would not compile at two of the three mandated call sites
 - [Phase 34-04]: TrailSummary.movingDuration is a plain abstract getter (no default body) — Dart's implements clause does not inherit default bodies, so every implementer (Trail, TrailSearchResult) declares its own override explicitly
 - [Phase 34-05]: route_planner_screen.dart doc comments reworded (outside files_modified) to satisfy the plan's whole-lib/ single-call-site grep gate for trail/convert — Rule 3 blocking-issue auto-fix; comment-only, no logic change
+- [Phase 34]: resolveTrackSaveOptions is the single online gate for showTrackSaveOptionsSheet across recording, planner and import — D-15: offline and 'declined both online' must be one code path, not two
+- [Phase 34]: A snapped planner leg forces its first/last point back onto the original anchor coordinates — T-34-28: anchorsFromTrack/segmentPolylinesFromTrack locate anchors by exact coordinate match
 
 ### Roadmap Evolution
 
@@ -487,8 +490,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-01T07:45:57.248Z
-Stopped at: Completed 34-05-PLAN.md
+Last session: 2026-08-01T08:14:18.204Z
+Stopped at: Completed 34-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
