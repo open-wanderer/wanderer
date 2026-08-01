@@ -672,6 +672,17 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
 /// every non-track field (title, description, id, visibility, photos,
 /// waypoints, category) carries through untouched.
 ///
+/// The ONE exception is `movingDuration`, which is cleared (WR-10). Moving
+/// time describes a traversal of a specific track; once the geometry is
+/// replaced it describes nothing, yet the display rule
+/// (`moving_duration > 0 ? moving_duration : duration`) would keep PREFERRING
+/// it over the correctly-recomputed `duration` everywhere the trail is
+/// rendered. It is cleared as `0` rather than `null` because Freezed's
+/// `copyWith` cannot assign null and `form_data_util`'s write guard skips a
+/// null field — so only `0` actually reaches PocketBase and overwrites the
+/// stale value. `0` is also exactly what the display rule reads as "no
+/// moving time".
+///
 /// Sets both `expand.gpxData` and `expand.gpx` — setting only one produces a
 /// trail that saves with no track, or previews incorrectly.
 ///
@@ -689,6 +700,10 @@ Trail mergeRouteIntoTrail(
     // An edited route's Gpx still carries no `time`, so re-derive `duration`
     // from the planner's own estimate rather than the stale pre-edit value.
     duration: estimatedDurationSeconds ?? existing.duration,
+    // WR-10: the geometry just changed, so any recorded moving time no longer
+    // describes this track. Left alone it would keep winning the display rule
+    // over the freshly-recomputed `duration`.
+    movingDuration: 0,
     lat: bounds != null
         ? (bounds.latitudeNorth + bounds.latitudeSouth) / 2
         : existing.lat,

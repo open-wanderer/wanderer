@@ -1284,6 +1284,28 @@ void main() {
       },
     );
 
+    // WR-10 regression. `movingDuration` was carried through untouched, so a
+    // recorded trail whose route was re-drawn in the planner kept the OLD
+    // route's moving time — and `trailDisplayDuration`'s
+    // `moving_duration > 0 ? moving_duration : duration` rule then preferred
+    // it over the freshly-recomputed `duration` in every rendering site.
+    test('clears a stale movingDuration when the geometry is replaced', () {
+      final existing = buildSampleTrail().copyWith(movingDuration: 3600);
+      final finalGpx = buildFinalGpx();
+
+      final result = mergeRouteIntoTrail(
+        existing,
+        finalGpx,
+        estimatedDurationSeconds: 900,
+      );
+
+      // 0, not null: Freezed's copyWith cannot assign null, form_data_util
+      // skips a null field, and 0 is what the display rule reads as "no
+      // moving time" — so 0 is what actually overwrites the stored value.
+      expect(result.movingDuration, 0);
+      expect(result.duration, 900);
+    });
+
     test('recomputes lat/lon/bounds from the finalGpx bounds', () {
       final existing = buildSampleTrail();
       final finalGpx = buildFinalGpx();

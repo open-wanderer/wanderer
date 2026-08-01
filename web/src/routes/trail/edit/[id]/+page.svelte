@@ -1612,6 +1612,19 @@
             duration: totals.duration / 1000,
             elevation_gain: totals.elevationGain,
             elevation_loss: totals.elevationLoss,
+            // WR-10: this function is the single choke point for every route
+            // mutation (nudge/undo/redo/crop/reverse/reset), so it is also the
+            // one place that can guarantee a replaced track does not keep a
+            // recording's `moving_duration`. Moving time describes a traversal
+            // of a specific geometry; once the geometry is replaced it
+            // describes nothing, yet `trailDisplayDuration` would keep
+            // PREFERRING it over the `duration` just recomputed above -
+            // showing the old route's moving time on the new route in every
+            // card, list item, table row and map popup. Cleared as `0`, not
+            // `undefined`: `buildFormData` skips null/undefined outright, so
+            // only an explicit `0` overwrites the stored value - and `0` is
+            // exactly what the display rule reads as "no moving time".
+            moving_duration: 0,
         });
     }
 
