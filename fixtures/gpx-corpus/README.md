@@ -39,7 +39,9 @@ fixtures/gpx-corpus/
 ├── 10-realistic-track/
 │   ├── input.gpx
 │   └── expected.json               (no DERIVATION.md — this fixture is seeded, see below)
-└── 11-malformed-time/
+├── 11-malformed-time/
+│   └── ... (same three files)
+└── 12-dense-switchback/
     └── ... (same three files)
 ```
 
@@ -68,7 +70,7 @@ Every `expected.json` has exactly this top-level shape:
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `distance` | number | smoothed total distance, metres |
+| `distance` | number | raw (unsmoothed) total distance, metres — the sum of every consecutive-pair haversine hop (CONV-05 superseded 2026-08-01) |
 | `elevationGain` | number | `finalElevationGain` — **not** `totalElevationGainSmoothed` |
 | `elevationLoss` | number | `finalElevationLoss` — **not** `totalElevationLossSmoothed` |
 | `durationMs` | number | last trkpt time minus first trkpt time, milliseconds |
@@ -166,10 +168,11 @@ Every `expected.json` records how its values were produced, in its `derivation` 
 | `05-stationary-noise-returns` | CONV-04 | A fully-stationary altitude oscillation returning to its start elevation reports 0/0, not a ratcheted total |
 | `06-stationary-ends-mid-swing` | CONV-04, D-04 | A track ending mid-excursion reports the genuine un-cancelled net displacement |
 | `07-rolling-terrain` | CONV-04 | Noise rejection never eats real terrain when genuine horizontal movement accompanies every swing |
-| `08-jittery-track` | CONV-05 | Reported distance is the smoothed accumulator, not the raw jitter-inflated sum |
+| `08-jittery-track` | CONV-05 | Reported distance is the raw accumulator (CONV-05 superseded); the smoothed accumulator, ~9% smaller, is recorded as the counterfactual |
 | `09-multi-segment-planner-route` | CONV-01 | No per-segment metrics-anchor reset — a multi-leg planner route measures continuously through its shared anchor points |
 | `10-realistic-track` | PORT-01 | A plausible, realistic multi-point hike with metadata, waypoints, and timestamps exercises the whole pipeline end to end |
 | `11-malformed-time` | WR-06 | A non-empty but unparseable `<time>` body is "no time" in BOTH languages — the TS side used to build an `Invalid Date`, which is truthy, and so reported a `NaN` duration where Dart reported `0` |
+| `12-dense-switchback` | CONV-05 | Real-watch-density guard (~3.852 m mean hop, 41 points): pins the raw ~154 m total against the superseded 5 m gate's ~77 m counterfactual, so re-introducing the gate fails loudly |
 
 ## How to add a fixture
 

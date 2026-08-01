@@ -45,7 +45,7 @@ class _CorpusFixture {
 }
 
 /// Reads every fixture directory under fixtures/gpx-corpus/ from disk.
-/// T-34-20: asserts at least 11 fixtures are discovered so a corpus that
+/// T-34-20: asserts at least 12 fixtures are discovered so a corpus that
 /// silently shrinks (a fixture accidentally deleted or excluded) fails this
 /// suite rather than passing vacuously.
 List<_CorpusFixture> _loadFixtures() {
@@ -69,9 +69,9 @@ List<_CorpusFixture> _loadFixtures() {
   // `expect()` cannot run outside a `test()` body (main() runs at load
   // time), so a shrunk corpus is surfaced as a thrown StateError here,
   // matching the existsSync guard above's loud-failure style.
-  if (fixtures.length < 11) {
+  if (fixtures.length < 12) {
     throw StateError(
-      'GPX corpus at ${_corpusRoot.path} shrank below 11 fixtures '
+      'GPX corpus at ${_corpusRoot.path} shrank below 12 fixtures '
       '(found ${fixtures.length})',
     );
   }
