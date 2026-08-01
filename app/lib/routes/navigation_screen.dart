@@ -150,8 +150,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   Timer? _persistTimer;
 
   /// Guards [_saveRecordedTrack] against a double-tap firing two concurrent
-  /// `/trail/convert` uploads/navigations, and drives the completion
-  /// banner's loading state.
+  /// conversions/navigations, and drives the completion banner's loading
+  /// state.
   bool _savingTrack = false;
 
   /// Latest *animated* GPS fix, driving both the custom [_LocationMarkerLayer]
@@ -696,11 +696,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   /// Builds a stub [Trail] from the recorded breadcrumb (via the same
-  /// `/trail/convert` round-trip the Route Planner and GPX-file import use)
-  /// and hands off to `trail_create_screen`. Callers must only invoke this
-  /// with a breadcrumb of >=2 points (see the completion-banner and
-  /// exit-dialog guards) — the server-side conversion isn't meaningful for a
-  /// near-empty track.
+  /// on-device conversion the Route Planner and GPX-file import use, since
+  /// 34-05 — see `buildDraftTrail`) and hands off to `trail_create_screen`.
+  /// Callers must only invoke this with a breadcrumb of >=2 points (see the
+  /// completion-banner and exit-dialog guards) — the conversion isn't
+  /// meaningful for a near-empty track.
   ///
   /// Reads `navState` via `ref.read` with the IDENTICAL family seed args used
   /// everywhere else in this file — a different seed would resolve a
@@ -711,7 +711,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `_finishing`). On failure (e.g. offline), shows an error toast and
   /// leaves the session intact so the user can retry — matching
   /// `trail_import_util.dart`'s `importTrailFile` precedent for this same
-  /// `/trail/convert` call.
+  /// toast-and-stay behaviour.
   ///
   /// Opens [showTrackSaveOptionsSheet] FIRST, before the [_savingTrack]
   /// guard, so both call sites (exit-dialog and completion-banner) inherit

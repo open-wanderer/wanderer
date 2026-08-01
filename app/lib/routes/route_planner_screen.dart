@@ -493,13 +493,14 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
   /// Hands the finished route off: in edit mode pops the ele-merged [Gpx]
   /// back to the awaiting `trail_create_screen`; otherwise invokes
-  /// [finishPlanning] to forward-push a draft Trail (which now round-trips
-  /// through `/trail/convert`). Guarded by [_finishing] so a double-tap can't
-  /// fire two `/valhalla/height`/`/trail/convert` requests or navigations.
+  /// [finishPlanning] to forward-push a draft Trail (built entirely
+  /// on-device since 34-05 — see `buildDraftTrail`). Guarded by [_finishing]
+  /// so a double-tap can't fire two `/valhalla/height` requests or
+  /// navigations.
   ///
   /// On failure (e.g. offline), shows an error toast and stays on this
   /// screen so the user can retry — matching `trail_import_util.dart`'s
-  /// `importTrailFile` precedent for this same `/trail/convert` call.
+  /// `importTrailFile` precedent for this same toast-and-stay behaviour.
   Future<void> _onFinish() async {
     if (_finishing) return;
     setState(() => _finishing = true);

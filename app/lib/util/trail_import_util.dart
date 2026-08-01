@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +10,10 @@ import 'package:path/path.dart' as p;
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
+import 'package:wanderer/util/reverse_geocode_util.dart';
 
 /// Supported trail file extensions for both the in-app picker and inbound
 /// share intents. `allowedExtensions` on the file picker is only a hint, so
@@ -24,6 +28,11 @@ Trail? pendingImportedTrail;
 /// Uploads a local trail file for conversion, parses the returned GPX, and
 /// navigates to the trail create/edit screen with the resulting [Trail].
 /// Shared by the Import picker and the OS share-sheet handler.
+///
+/// PORT-03: a `.gpx` file is read and converted entirely on-device — no
+/// network call. Every other supported extension is transcoded server-side
+/// via [transcodeToGpx] (PORT-05) and then measured locally, same as a
+/// native `.gpx`.
 ///
 /// Shows an error toast (and does not navigate) on an unsupported extension
 /// or a conversion failure.
@@ -54,20 +63,17 @@ Future<void> importTrailFile({
   }
 
   try {
-    final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(path, filename: name),
-    });
-    Trail trail = await convertGpxToTrail(ref, formData);
+    final gpxXml = ext == 'gpx'
+        ? await File(path).readAsString()
+        : await transcodeToGpx(ref, path, name);
 
-    // Parse the inline raw GPX client-side (Gpx isn't serializable) so the
-    // route can be drawn on the map.
-    final gpxData = trail.expand?.gpxData;
-    if (gpxData != null && gpxData.isNotEmpty && trail.expand?.gpx == null) {
-      final parsedGpx = GpxReader().fromString(sanitizeGpxEmail(gpxData));
-      trail = trail.copyWith(
-        expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: parsedGpx),
-      );
-    }
+    final gpx = parseGpxSafely(gpxXml);
+    final trail = await buildLocalTrail(
+      ref,
+      gpx,
+      fallbackName: name,
+      gpxData: gpxXml,
+    );
 
     pendingImportedTrail = trail;
     if (!navContext.mounted) return;
@@ -77,32 +83,88 @@ Future<void> importTrailFile({
   }
 }
 
-Future<Trail> convertGpxToTrail(WidgetRef ref, FormData formData) async {
+/// The sole remaining caller of the convert endpoint's `POST` route in the
+/// app (PORT-03). Reached only for a non-GPX extension (kml/kmz/tcx/fit)
+/// that the app cannot parse itself — the server transcodes it to GPX,
+/// which the app then measures on its own via [buildLocalTrail] (PORT-05:
+/// server transcodes, app computes).
+///
+/// Tolerates BOTH response shapes the endpoint may return: a raw
+/// `application/gpx+xml` body (a [String] `res.data` — what plan 34-07 makes
+/// the endpoint return) and the legacy JSON body with
+/// `expand.gpx_data` (a [Map] `res.data` — what it returns today, before
+/// 34-07 lands). This is deliberate CLIENT tolerance for server/app version
+/// skew in self-hosted setups (D-05's rationale: "self-hosters control their
+/// own server/app pairing"), not a server-versioning scheme, and it keeps no
+/// trail-computing behaviour alive on the server.
+Future<String> transcodeToGpx(WidgetRef ref, String path, String name) async {
+  final formData = FormData.fromMap({
+    'file': await MultipartFile.fromFile(path, filename: name),
+  });
   final res = await ref
       .read(apiProvider)
       .post('/trail/convert', data: formData);
-  // Not persisted yet, so id/created/updated are missing from the server
-  // response; supply placeholders (required, non-nullable on the model)
-  // for both the trail and any nested waypoints, or parsing throws.
-  final data = res.data as Map<String, dynamic>;
-  final now = DateTime.now().toIso8601String();
-  final expand = data['expand'] as Map<String, dynamic>?;
-  final waypoints = expand?['waypoints_via_trail'] as List<dynamic>?;
-  if (waypoints != null) {
-    for (var i = 0; i < waypoints.length; i++) {
-      waypoints[i] = {
-        'id': '',
-        'created': now,
-        'updated': now,
-        ...waypoints[i] as Map<String, dynamic>,
-      };
+
+  final data = res.data;
+  if (data is String && data.isNotEmpty) {
+    return data;
+  }
+  if (data is Map) {
+    final expand = data['expand'] as Map<String, dynamic>?;
+    final gpxData = expand?['gpx_data'] as String?;
+    if (gpxData != null && gpxData.isNotEmpty) {
+      return gpxData;
     }
   }
-  var trail = Trail.fromJson({
-    'id': '',
-    'created': now,
-    'updated': now,
-    ...data,
-  });
+  throw StateError(
+    'transcodeToGpx: convert endpoint response contained no usable GPX data',
+  );
+}
+
+/// Builds a complete, unsaved [Trail] from a parsed [gpx] entirely on-device
+/// (PORT-01/PORT-03) via [trailFromGpx], then performs D-07's optional,
+/// best-effort reverse-geocode fill for `location`.
+///
+/// The geocode step runs only when [ref]'s [onlineStatusProvider] is true
+/// AND the trail has a start coordinate; any failure (offline flip mid-call,
+/// no address for the point, network error) is swallowed and the trail is
+/// still returned with `location` left null — offline, the field is simply
+/// empty for the user to type (D-07). `includeRoad: false` and `fullLabel`
+/// reproduce the old server behaviour this replaces (the convert endpoint's
+/// `+server.ts:87-99`, which called `searchLocationReverse` with an empty
+/// options object — i.e. `includeRoad` falsy — and used `fullLabel`,
+/// warning-and-continuing on failure).
+Future<Trail> buildLocalTrail(
+  WidgetRef ref,
+  Gpx gpx, {
+  String? fallbackName,
+  Duration? movingDuration,
+  String? gpxData,
+}) async {
+  final trail = trailFromGpx(
+    gpx,
+    fallbackName: fallbackName,
+    movingDuration: movingDuration,
+    gpxData: gpxData,
+  );
+
+  final lat = trail.lat;
+  final lon = trail.lon;
+  if (ref.read(onlineStatusProvider) && lat != null && lon != null) {
+    try {
+      final result = await searchLocationReverseStructured(
+        ref.read(apiProvider),
+        lat,
+        lon,
+        includeRoad: false,
+      );
+      if (result != null && result.fullLabel.isNotEmpty) {
+        return trail.copyWith(location: result.fullLabel);
+      }
+    } catch (_) {
+      // Best-effort only — never blocks the save (D-07).
+    }
+  }
+
   return trail;
 }
