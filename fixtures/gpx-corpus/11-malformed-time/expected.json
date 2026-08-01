@@ -1,0 +1,31 @@
+{
+  "id": "11-malformed-time",
+  "covers": ["WR-06"],
+  "derivation": "hand",
+  "notes": "Pins the two languages to the same answer for a non-empty but unparseable <time> body. The TS side used to do a bare `new Date(object.time)`; an Invalid Date is a truthy object, so getTotals()'s `startTime && endTime` guard passed and `endTime.getTime() - startTime.getTime()` evaluated to NaN, making the whole trail's duration NaN. The Dart side, whose sanitizer rewrites an unparseable <time> to a self-closing tag, reported 0 for the same document. Both now report 0. The last point carries a genuine ISO-8601 time so the fixture proves the guard fails on the START time specifically, not merely on a timeless track.",
+  "metrics": {
+    "distance": 269.18400325278367,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 3,
+    "boundingBox": { "minLat": 47.0, "maxLat": 47.002, "minLon": 11.0, "maxLon": 11.002 },
+    "centroid": { "lat": 47.001000000000005, "lon": 11.001 }
+  },
+  "trail": {
+    "name": "Malformed Time",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 269.18400325278367,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 0,
+    "minLat": 47.0,
+    "maxLat": 47.002,
+    "minLon": 11.0,
+    "maxLon": 11.002,
+    "waypoints": []
+  }
+}

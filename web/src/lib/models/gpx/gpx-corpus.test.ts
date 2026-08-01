@@ -74,7 +74,7 @@ type CorpusFixture = {
 
 /**
  * Reads every fixture directory under fixtures/gpx-corpus/ from disk. T-34-11/T-34-14: asserts
- * at least 10 fixtures are discovered so a corpus that silently shrinks (a fixture accidentally
+ * at least 11 fixtures are discovered so a corpus that silently shrinks (a fixture accidentally
  * deleted or excluded) fails this suite rather than passing vacuously.
  */
 function loadCorpusFixtures(): CorpusFixture[] {
@@ -91,7 +91,7 @@ function loadCorpusFixtures(): CorpusFixture[] {
     return { dir, inputGpx, expected };
   });
 
-  expect(fixtures.length).toBeGreaterThanOrEqual(10);
+  expect(fixtures.length).toBeGreaterThanOrEqual(11);
   return fixtures;
 }
 

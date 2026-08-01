@@ -36,9 +36,11 @@ fixtures/gpx-corpus/
 ├── 02-first-point-extremes/
 │   └── ... (same three files)
 ├── ...
-└── 10-realistic-track/
-    ├── input.gpx
-    └── expected.json               (no DERIVATION.md — this fixture is seeded, see below)
+├── 10-realistic-track/
+│   ├── input.gpx
+│   └── expected.json               (no DERIVATION.md — this fixture is seeded, see below)
+└── 11-malformed-time/
+    └── ... (same three files)
 ```
 
 One directory per fixture, named `NN-slug`. Every fixture directory contains `input.gpx` and
@@ -137,7 +139,7 @@ algorithmic divergence, not floating-point noise.
 
 Every `expected.json` records how its values were produced, in its `derivation` field:
 
-- **`"hand"`** (fixtures `01` through `09`): every expected value was derived **from first
+- **`"hand"`** (fixtures `01` through `09`, plus `11`): every expected value was derived **from first
   principles**, independently of the implementation under test, and the derivation is written
   down in that fixture's own `DERIVATION.md`. Distance figures come from a haversine formula
   transcribed fresh in a scratch `node -e` one-liner (`R = 6371000`), never from calling
@@ -167,6 +169,7 @@ Every `expected.json` records how its values were produced, in its `derivation` 
 | `08-jittery-track` | CONV-05 | Reported distance is the smoothed accumulator, not the raw jitter-inflated sum |
 | `09-multi-segment-planner-route` | CONV-01 | No per-segment metrics-anchor reset — a multi-leg planner route measures continuously through its shared anchor points |
 | `10-realistic-track` | PORT-01 | A plausible, realistic multi-point hike with metadata, waypoints, and timestamps exercises the whole pipeline end to end |
+| `11-malformed-time` | WR-06 | A non-empty but unparseable `<time>` body is "no time" in BOTH languages — the TS side used to build an `Invalid Date`, which is truthy, and so reported a `NaN` duration where Dart reported `0` |
 
 ## How to add a fixture
 

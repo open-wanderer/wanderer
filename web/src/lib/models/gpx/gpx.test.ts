@@ -225,6 +225,45 @@ describe("GPX.getTotals — CONV-05 does not regress the planner route", () => {
   });
 });
 
+// WR-06: an unparseable-but-non-empty <time> body used to become an
+// `Invalid Date`, which is a truthy object — so getTotals()'s
+// `startTime && endTime` guard passed and produced a NaN duration, while the
+// Dart port reported 0 for the same document. Times are now parsed with the
+// grammar Dart's DateTime.parse accepts.
+describe("Waypoint.time — WR-06 Dart-aligned <time> parsing", () => {
+  const rejected: Array<[string, string]> = [
+    ["a non-numeric body", "N/A"],
+    ["a whitespace-only body", "   "],
+    ["a legacy US format V8 accepts but Dart does not", "Jan 1 2024"],
+    ["a slash-separated date V8 accepts but Dart does not", "2024/01/01"],
+    ["a bare year", "2024"],
+  ];
+
+  for (const [label, raw] of rejected) {
+    it(`leaves time undefined for ${label}`, () => {
+      // @ts-expect-error xml2js hands the constructor a raw string here.
+      expect(new Waypoint({ $: { lat: 47, lon: 11 }, time: raw }).time).toBeUndefined();
+    });
+  }
+
+  it("still accepts a conforming ISO-8601 instant", () => {
+    // @ts-expect-error xml2js hands the constructor a raw string here.
+    const wpt = new Waypoint({ $: { lat: 47, lon: 11 }, time: "2024-01-01T10:30:00Z" });
+    expect(wpt.time?.toISOString()).toBe("2024-01-01T10:30:00.000Z");
+  });
+
+  it("reports a 0 duration - never NaN - when the start time is unparseable", () => {
+    // @ts-expect-error xml2js hands the constructor a raw string here.
+    const start = new Waypoint({ $: { lat: 47.0, lon: 11.0 }, time: "N/A" });
+    // @ts-expect-error xml2js hands the constructor a raw string here.
+    const end = new Waypoint({ $: { lat: 47.001, lon: 11.001 }, time: "2024-01-01T10:30:00Z" });
+    const gpx = gpxFromSegments([[start, end]]);
+
+    expect(Number.isNaN(gpx.features.duration)).toBe(false);
+    expect(gpx.features.duration).toBe(0);
+  });
+});
+
 function waypointAt(lat: number, lon: number, ele?: number): Waypoint {
   return new Waypoint({ $: { lat, lon }, ele });
 }
