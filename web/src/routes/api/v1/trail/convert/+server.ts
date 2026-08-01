@@ -44,10 +44,9 @@ function assertParsableGpx(gpxData: string): void {
  *   post:
  *     summary: Transcode an uploaded file to GPX.
  *     description: >
- *       Accepts a GPX/KML/KMZ/TCX/FIT file (multipart), or a GPX string (JSON body with
- *       `gpx`/`gpxData`, or a raw text body), and returns the equivalent GPX document. It does
- *       NOT compute or persist a trail - clients compute trail metrics themselves.
- *       Breaking change: prior to this version the endpoint returned a JSON `Trail`.
+ *       Accepts a GPX/KML/KMZ/TCX/FIT file (multipart), or a GPX string as a raw text body,
+ *       and returns the equivalent GPX document. It does NOT compute or persist a trail -
+ *       clients compute trail metrics themselves.
  *     tags:
  *       - Trails
  *     requestBody:
@@ -97,12 +96,18 @@ export async function POST(event: RequestEvent) {
             // The `name` field is accepted-and-ignored rather than rejected as a 400: the
             // endpoint no longer names anything, but rejecting it would break older app
             // builds harder than necessary for no benefit.
-        } else if (contentType.includes("application/json")) {
-            // 2. Handle JSON / Direct String Input
-            const body = await event.request.json();
-            gpxData = body.gpx || body.gpxData || "";
         } else {
-            // 3. Fallback: Treat raw body text as the GPX string directly
+            // 2. Fallback: treat the raw body text as the GPX string directly.
+            //
+            // There is deliberately no `application/json` branch. One existed
+            // (reading `body.gpx`/`body.gpxData`) from the commit that first
+            // made the app call this endpoint, but no client ever sent JSON:
+            // the app posts multipart FormData and the web transcodes
+            // client-side. It was speculative generality, and it was never a
+            // declared request media type in the generated OpenAPI spec, so
+            // removing it narrows nothing that was published. A JSON request
+            // now falls through here and is rejected by assertParsableGpx
+            // below as unparsable GPX.
             gpxData = await event.request.text();
         }
 

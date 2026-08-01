@@ -97,46 +97,24 @@ describe("POST /api/v1/trail/convert - content validation", () => {
         });
     }
 
-    it("400s on a non-GPX body submitted through the JSON branch", async () => {
+    // CR-04 guard. Preserved through the removal of the `application/json`
+    // request branch: the endpoint must never echo an attacker-controlled
+    // body, and an `application/json` content-type must not be a way around
+    // that. With no JSON branch left, such a request falls through to the
+    // raw-text path and is rejected there — this asserts the outcome, not the
+    // route it took.
+    it("400s on an attacker-controlled body sent with an application/json content-type, and does not echo it", async () => {
+        const payload = JSON.stringify({ gpx: "<html><script>alert(1)</script></html>" });
         const request = new Request("http://localhost/api/v1/trail/convert", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ gpx: "<html><script>alert(1)</script></html>" }),
+            body: payload,
         });
 
         const res = await POST(makeEvent(request));
 
         expect(res.status).toBe(400);
-    });
-});
-
-describe("POST /api/v1/trail/convert - JSON branch", () => {
-    it("accepts the `gpx` key", async () => {
-        const request = new Request("http://localhost/api/v1/trail/convert", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ gpx: gpxDoc }),
-        });
-
-        const res = await POST(makeEvent(request));
-
-        expect(res.status).toBe(200);
-        expect(res.headers.get("content-type")).toContain("application/gpx+xml");
-        expect(await res.text()).toBe(gpxDoc);
-    });
-
-    it("accepts the `gpxData` key", async () => {
-        const request = new Request("http://localhost/api/v1/trail/convert", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ gpxData: gpxDoc }),
-        });
-
-        const res = await POST(makeEvent(request));
-
-        expect(res.status).toBe(200);
-        expect(res.headers.get("content-type")).toContain("application/gpx+xml");
-        expect(await res.text()).toBe(gpxDoc);
+        expect(await res.text()).not.toContain("alert(1)");
     });
 });
 
