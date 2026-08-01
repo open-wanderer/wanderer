@@ -1,7 +1,7 @@
 ---
 phase: 34-dart-conversion-port
 verified: 2026-08-01T11:11:40Z
-status: human_needed
+status: passed
 score: 6/6 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -14,6 +14,29 @@ re_verification:
   gaps_remaining: []
   regressions:
     - "Round-2 code review (34-REVIEW.md) found 3 NEW criticals introduced by the round-1 fix pass: a coordinate-less first <trkpt> permanently zeroing distance (addAndFilter anchor-seeding), an elevation-chart x-axis change that destroyed the gradient colouring (46/60 points reading 0.0% on a true 10% grade) and silently dropped waypoint markers. All three were independently re-confirmed FIXED in this round: the anchor-seed guard and the chart-axis revert are both present in current code (commit 867e19b9), the full Flutter suite passes (659/1/4, matching the documented pre-existing baseline), and a dedicated regression test asserts near-10% gradients on a synthetic constant-grade fixture."
+human_verification_discharged:
+  by: "34-UAT.md (status: complete, 2026-08-01)"
+  outcome: |
+    All three deferred <human-check> blocks below were run as UAT tests 1-3.
+    Two were performed and found real defects, since fixed; one was superseded
+    rather than executed. Detail:
+      - Item 1 (offline flows) -> UAT Test 1. PERFORMED. Offline behaviour under
+        test passed on all three flows. Two ONLINE save-sheet defects surfaced
+        and were fixed (7b5bfac3, 9dc5a69f).
+      - Item 2 (anchor round trip through the save-options transforms) -> UAT
+        Test 2. NOT PERFORMED — SUPERSEDED. Its setup step (enable both toggles
+        on the planner's save-options sheet) no longer exists: the sheet was
+        removed from the planner in 7b5bfac3 as UAT gap 1, and the snap/re-pin
+        path it exercised was deleted with it. A substitute check that covers
+        the surviving risk (plan 3 anchors, Finish, save, reopen -> still 3
+        anchors, exercising anchorsFromTrack over the trkseg-per-leg output) is
+        recorded as outstanding in 34-UAT.md. This item is closed by removal of
+        the feature, not by verification of it.
+      - Item 3 (transcode round trip + published API docs) -> UAT Test 3.
+        PERFORMED. All three sub-checks passed. A cross-client distance
+        disagreement the test did not cover was found and traced to a
+        pre-existing defect outside this phase (the 5m-gated distance metric
+        from Phase 33 CONV-05), fixed in a84e7ab9.
 human_verification:
   - test: "(PLAN-deferred, 34-06) With the device in airplane mode: (a) record a short track and save — the save-options sheet must not appear, app lands on trail_create_screen with the track drawn; (b) plan a 3-anchor route and tap Finish — no error toast, no stall, app lands on trail_create_screen with all three anchors intact; (c) import a .gpx file from the share sheet — no options sheet, trail created with correct distance/elevation."
     expected: "All three offline flows complete with no network call and no dead end (D-15/D-16's stated fix for route_planner_screen.dart:513-524's pre-phase offline stranding)."
@@ -30,7 +53,7 @@ human_verification:
 
 **Phase Goal:** The app computes a trail's name, waypoints, distance, elevation, duration, and bounding box from a GPX entirely on-device — for recordings, route-planner output, and file imports — proven identical to the corrected web implementation; the server's convert endpoint stops computing trails at all.
 **Verified:** 2026-08-01T11:11:40Z
-**Status:** human_needed
+**Status:** passed (human verification discharged by 34-UAT.md, 2026-08-01)
 **Re-verification:** Yes — second round, after round-1 gap closure AND a round-2 code review's own regression-fix pass
 
 ## Goal Achievement
