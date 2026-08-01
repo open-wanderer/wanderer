@@ -570,7 +570,15 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
       }
     }
     if (idx == -1) {
-      for (var k = i; k < anchors.length - 1; k++) {
+      // Resume at the pair the main loop has NOT yet emitted. On reaching
+      // anchor `i` the loop has emitted pairs (0,1)…(i-2,i-1) — `i-1`
+      // entries — so the (i-1, i) pair is still outstanding and must be the
+      // first straight line, not the second. Starting at `k = i` dropped it,
+      // leaving `anchors.length - 2` polylines for `anchors.length - 1`
+      // segments; since `seedFromTrack` indexes this list POSITIONALLY, every
+      // segment from `i-1` on then received the next pair's polyline and the
+      // last one silently degraded to a straight line (WR-01).
+      for (var k = i > 0 ? i - 1 : 0; k < anchors.length - 1; k++) {
         polylines.add([anchors[k], anchors[k + 1]]);
       }
       return polylines;

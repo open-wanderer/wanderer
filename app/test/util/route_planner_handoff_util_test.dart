@@ -1016,6 +1016,72 @@ void main() {
     test('fewer than 2 anchors yields an empty list', () {
       expect(segmentPolylinesFromTrack(Gpx(), const []), isEmpty);
     });
+
+    // WR-01 regression. The not-found fallback used to resume at `k = i`,
+    // dropping the still-outstanding (i-1, i) pair — so the list came back
+    // one short AND mis-ordered relative to the anchor pairs. Its consumer
+    // (`RouteAnchorsNotifier.seedFromTrack`) indexes positionally.
+    group('not-found fallback (defensive path)', () {
+      Gpx trackOf(List<(double, double)> pts) {
+        final gpx = Gpx();
+        gpx.trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [for (final p in pts) Wpt(lat: p.$1, lon: p.$2)],
+              ),
+            ],
+          ),
+        ];
+        return gpx;
+      }
+
+      test('still returns anchors.length - 1 polylines when a middle anchor '
+          'is absent from the track', () {
+        final gpx = trackOf(const [
+          (47.000, 9.000),
+          (47.001, 9.001),
+          (47.002, 9.002),
+        ]);
+        final anchors = [
+          ml.Geographic(lat: 47.000, lon: 9.000),
+          ml.Geographic(lat: 47.001, lon: 9.001),
+          // Not on the track at all.
+          ml.Geographic(lat: 48.500, lon: 10.500),
+          ml.Geographic(lat: 47.002, lon: 9.002),
+        ];
+
+        final polylines = segmentPolylinesFromTrack(gpx, anchors);
+
+        expect(polylines, hasLength(anchors.length - 1));
+        // Pair 0 was resolved against the real track...
+        expect(polylines[0].first.lat, 47.000);
+        expect(polylines[0].last.lat, 47.001);
+        // ...and every remaining pair is the straight line for ITS OWN pair.
+        expect(polylines[1].first.lat, 47.001);
+        expect(polylines[1].last.lat, 48.500);
+        expect(polylines[2].first.lat, 48.500);
+        expect(polylines[2].last.lat, 47.002);
+      });
+
+      test('still returns anchors.length - 1 polylines when the FIRST anchor '
+          'is absent from the track', () {
+        final gpx = trackOf(const [(47.000, 9.000), (47.001, 9.001)]);
+        final anchors = [
+          ml.Geographic(lat: 48.500, lon: 10.500),
+          ml.Geographic(lat: 47.000, lon: 9.000),
+          ml.Geographic(lat: 47.001, lon: 9.001),
+        ];
+
+        final polylines = segmentPolylinesFromTrack(gpx, anchors);
+
+        expect(polylines, hasLength(anchors.length - 1));
+        expect(polylines[0].first.lat, 48.500);
+        expect(polylines[0].last.lat, 47.000);
+        expect(polylines[1].first.lat, 47.000);
+        expect(polylines[1].last.lat, 47.001);
+      });
+    });
   });
 
   group('mergeRouteIntoTrail', () {
