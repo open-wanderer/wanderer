@@ -829,38 +829,91 @@ void main() {
     });
   });
 
-  group('a coordinate-less first point does not poison the run', () {
-    // Reachable only since the vendored reader leaves lat/lon null for a
-    // <trkpt> missing them instead of throwing. Seeding the XY anchors with
-    // such a point made every subsequent haversine NaN, so the smoothed
-    // threshold never fired, the filtered anchor never advanced, and a ~2 km
-    // track measured 0.0 m with a null trail lat/lon — and importTrailFile's
-    // emptiness guard does not catch it, so the trail was offered for saving.
-    Gpx trackWithLeadingBadPoint() {
-      final pts = <Wpt>[Wpt(lat: null, lon: null, ele: 1000)];
+  group('points without a usable position are dropped, not absorbed', () {
+    // Round-3 finding: the first version of this guard sat inside
+    // addAndFilter's INITIALISATION branch and tested only for `null`, so it
+    // covered neither a NaN coordinate nor a bad point mid-track. The original
+    // fixture put the bad point at index 0, where the guard did fire — so the
+    // assertion passed while both real holes stayed open.
+    Gpx flatTrack({Wpt? leading, Wpt? atIndex10}) {
+      final pts = <Wpt>[];
+      if (leading != null) pts.add(leading);
       for (var i = 0; i < 40; i++) {
-        pts.add(Wpt(lat: 47.0 + i * 0.0002, lon: 11.0, ele: 1000 + i * 1.0));
+        pts.add(Wpt(lat: 47.0 + i * 0.0002, lon: 11.0, ele: 1000));
       }
+      if (atIndex10 != null) pts.insert(leading != null ? 11 : 10, atIndex10);
       return Gpx()
         ..trks = [
           Trk(trksegs: [Trkseg(trkpts: pts)]),
         ];
     }
 
-    test('distance is measured, not zero', () {
-      final metrics = computeTrailMetrics(trackWithLeadingBadPoint());
-      expect(metrics.distance, greaterThan(500));
+    Gpx clean() => flatTrack();
+
+    test('a leading null-coordinate point does not zero the distance', () {
+      final m = computeTrailMetrics(
+        flatTrack(leading: Wpt(lat: null, lon: null, ele: 1000)),
+      );
+      expect(m.distance, closeTo(computeTrailMetrics(clean()).distance, 1e-9));
     });
 
-    test('matches the same track with the bad point simply absent', () {
-      final withBad = computeTrailMetrics(trackWithLeadingBadPoint());
+    test('a leading NaN-coordinate point does not zero the distance', () {
+      // double.tryParse accepts "NaN" and "Infinity", so these are NOT null
+      // and slipped past a null-only guard — reproducing the exact poisoning
+      // it was written to prevent (measured: distance 0.0 on a ~2 km track).
+      final m = computeTrailMetrics(
+        flatTrack(
+          leading: Wpt(lat: double.nan, lon: double.nan, ele: 1000),
+        ),
+      );
+      expect(m.distance, closeTo(computeTrailMetrics(clean()).distance, 1e-9));
+    });
 
-      final clean = trackWithLeadingBadPoint();
-      clean.trks.single.trksegs.single.trkpts.removeAt(0);
-      final withoutBad = computeTrailMetrics(clean);
+    test('an infinite coordinate is treated the same way', () {
+      final m = computeTrailMetrics(
+        flatTrack(
+          leading: Wpt(lat: double.infinity, lon: double.infinity, ele: 1000),
+        ),
+      );
+      expect(m.distance, closeTo(computeTrailMetrics(clean()).distance, 1e-9));
+    });
 
-      expect(withBad.distance, closeTo(withoutBad.distance, 1e-9));
-      expect(withBad.elevationGain, closeTo(withoutBad.elevationGain, 1e-9));
+    test('a MID-track bad point does not fabricate elevation', () {
+      // The hole the original fixture could not see: the point still entered
+      // the elevation diff chain, so one <trkpt ele="3000"> dropped into a flat
+      // 1000 m track produced gain 2000 AND loss 2000.
+      final m = computeTrailMetrics(
+        flatTrack(atIndex10: Wpt(lat: null, lon: null, ele: 3000)),
+      );
+
+      expect(m.elevationGain, 0.0);
+      expect(m.elevationLoss, 0.0);
+      expect(m.distance, closeTo(computeTrailMetrics(clean()).distance, 1e-9));
+    });
+
+    test('a MID-track NaN-coordinate point is equally inert', () {
+      final m = computeTrailMetrics(
+        flatTrack(
+          atIndex10: Wpt(lat: double.nan, lon: double.nan, ele: 3000),
+        ),
+      );
+
+      expect(m.elevationGain, 0.0);
+      expect(m.elevationLoss, 0.0);
+    });
+
+    test('the vendored reader maps a NaN lat attribute to null', () {
+      // Closed one layer earlier too: "NaN" is not a coordinate, so it should
+      // never reach the metrics as a number at all.
+      const xml =
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t"><trk><trkseg>'
+          '<trkpt lat="NaN" lon="Infinity"><ele>1000</ele></trkpt>'
+          '</trkseg></trk></gpx>';
+
+      final wpt = parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single;
+      expect(wpt.lat, isNull);
+      expect(wpt.lon, isNull);
     });
   });
 

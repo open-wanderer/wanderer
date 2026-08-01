@@ -429,7 +429,13 @@ class GpxReader {
     String attributeName,
   ) {
     final raw = _attributeOrNull(elm, attributeName);
-    return raw == null ? null : double.tryParse(raw);
+    if (raw == null) return null;
+    final parsed = double.tryParse(raw);
+    // isFinite, not just non-null: `double.tryParse` happily accepts "NaN",
+    // "Infinity" and "1e999". Those are not coordinates, and letting them
+    // through only moves the failure downstream — NaN reaches Trail.lat, where
+    // JSON encoding throws and the form POSTs the literal "NaN".
+    return (parsed != null && parsed.isFinite) ? parsed : null;
   }
 
   // LOCAL MODIFICATION 1 (see file header): `tryParse`, not `parse`.

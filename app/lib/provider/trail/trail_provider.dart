@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/trail.dart';
@@ -76,7 +77,22 @@ class TrailNotifier extends _$TrailNotifier {
       final entity = query.findFirst();
       query.close();
 
-      if (entity != null) return entity.toModel();
+      // Guarded for the same reason as TrailLibraryNotifier.build(): toModel()
+      // parses the cached GPX and can throw. Letting it escape from inside
+      // this catch block would replace the ORIGINAL failure (why we fell back
+      // to the cache at all) with an unrelated parse error. A corrupt cache
+      // entry means "no usable cache", so fall through and surface the real
+      // cause.
+      if (entity != null) {
+        try {
+          return entity.toModel();
+        } catch (e, st) {
+          debugPrint(
+            'TrailNotifier: cached trail "$id" failed to parse, falling '
+            'through to the original error: $e\n$st',
+          );
+        }
+      }
       rethrow;
     }
   }

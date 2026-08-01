@@ -75,6 +75,15 @@ double? parseGpxElevation(double? raw) {
 /// `const r = 6371.0` haversine, which agreed to ~1e-10 m but was free to
 /// drift) — plus an open-coded `SphericalGreatCircle` loop in
 /// `GpxUtils.distanceFromStartTo`. All three now route here.
+/// Whether [p] carries a position that can actually be measured against.
+///
+/// `isFinite`, not merely non-null: the vendored reader now rejects
+/// non-finite coordinate attributes, but a `Wpt` can also be built
+/// programmatically, and `NaN`/`Infinity` silently poison every accumulator
+/// they reach.
+bool _hasUsablePosition(Wpt p) =>
+    p.lat != null && p.lon != null && p.lat!.isFinite && p.lon!.isFinite;
+
 double haversineMeters(Wpt a, Wpt b) {
   if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) {
     return double.nan;
@@ -168,27 +177,40 @@ class GpxMetricsComputation {
   /// Do not simplify this into a plain accumulator — that reintroduces the
   /// CONV-04 defect Phase 33 fixed.
   void addAndFilter(Wpt point) {
+    // A point with no usable POSITION is not a trackpoint, and is dropped
+    // before it can touch any accumulator.
+    //
+    // This guard belongs here, at the top, covering every point — an earlier
+    // version sat inside the initialisation branch below and checked only for
+    // `null`, which left two holes:
+    //
+    //   * a first `<trkpt lat="NaN" lon="NaN">` sailed through (`tryParse`
+    //     accepts "NaN"/"Infinity"), re-creating the exact poisoning it was
+    //     written to stop: every haversine from that anchor is NaN, so
+    //     `smoothedDistance >= _thresholdXYm` never fires, the filtered anchor
+    //     is never replaced, and a ~2 km track measured 0.0 m;
+    //   * a coordinate-less point MID-track was never checked at all. Its
+    //     elevation still entered the diff chain, so a single
+    //     `<trkpt ele="3000">` dropped into a flat 1000 m track fabricated
+    //     2000 m of gain AND 2000 m of loss.
+    //
+    // Skipping also keeps this in step with every other consumer of the same
+    // data — `GpxUtils.allWaypoints`, the elevation chart, and
+    // `importTrailFile`'s usability check all ignore such points — so the
+    // chart and the stats cannot disagree about the same file.
+    //
+    // No parity risk: the TS `Waypoint` falls lat/lon back to -1, so a
+    // position-less point cannot arise on that side, and no corpus fixture
+    // contains one.
+    if (!_hasUsablePosition(point)) {
+      return;
+    }
+
     if (_lastPointXY == null || _lastFilteredPointXY == null) {
       // Initialize raw and smoothed anchors with the first point. When the
       // first point has no usable elevation, leave both anchors null so
       // the first point that *does* carry elevation becomes the anchor
       // instead of diffing against a fabricated 0.
-      //
-      // Coordinates get the same treatment, for a sharper reason: seeding the
-      // XY anchors with a coordinate-less point poisons the run permanently.
-      // Every haversine from that anchor is NaN, so `smoothedDistance >=
-      // _thresholdXYm` is never true, so _lastFilteredPointXY is never
-      // replaced — measured on a ~2 km track whose first point lacked
-      // lat/lon: distance 0.0 and a null trail lat/lon. The vendored reader
-      // makes this reachable (it leaves lat/lon null rather than throwing),
-      // so the guard is not theoretical.
-      //
-      // No parity risk: the TS Waypoint falls lat/lon back to -1, so a
-      // coordinate-less point cannot occur on that side, and no corpus
-      // fixture contains one.
-      if (point.lat == null || point.lon == null) {
-        return;
-      }
       _lastPointXY = point;
       _lastFilteredPointXY = point;
       final initialElevation = parseGpxElevation(point.ele);
