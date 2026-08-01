@@ -58,6 +58,7 @@ dependencies:
     path: vendor/tiptap_flutter
   tracelet: ^3.5.0
   url_launcher: ^6.3.2
+  xml: ^6.3.0
 
 dependency_overrides:
   meta: ^1.18.0

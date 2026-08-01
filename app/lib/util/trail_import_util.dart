@@ -86,6 +86,20 @@ Future<void> importTrailFile({
 
     final gpx = parseGpxSafely(gpxXml);
 
+    final hasUsablePoint =
+        gpx.allWaypoints.isNotEmpty ||
+        gpx.rtes.any(
+          (r) => r.rtepts.any((p) => p.lat != null && p.lon != null),
+        );
+    if (!hasUsablePoint) {
+      debugPrint(
+        'importTrailFile: "$name" contains no track point with both lat '
+        'and lon; refusing to import an empty trail',
+      );
+      showError();
+      return;
+    }
+
     if (!navContext.mounted) return;
     final options = await resolveTrackSaveOptions(ref, navContext);
     if (options == null) return;

@@ -2,167 +2,46 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:gpx/gpx.dart';
+// `hide GpxReader` so the vendored, tolerant reader below is unambiguously
+// the one in scope — the models (Gpx, Wpt, Trk, Trkseg, ...) and GpxWriter
+// still come from the published package, so types are shared with the rest of
+// the app.
+import 'package:gpx/gpx.dart' hide GpxReader;
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/icon_util.dart';
-
-import 'gpx_util.dart' show sanitizeGpxEmail;
-
-/// GPX elements whose text `GpxReader` hands to a THROWING `double.parse`
-/// (`gpx_reader.dart:339-343`'s `_readDouble`, reached from `wpt.ele`,
-/// `wpt.hdop`, `wpt.vdop`, `wpt.pdop`, `wpt.ageofdgpsdata`, `wpt.magvar`
-/// and `wpt.geoidheight` at `gpx_reader.dart:292-316`).
-const _gpxDoubleTags = <String>[
-  'ele',
-  'hdop',
-  'vdop',
-  'pdop',
-  'magvar',
-  'geoidheight',
-  'ageofdgpsdata',
-];
-
-/// GPX elements whose text `GpxReader` hands to a THROWING `int.parse`
-/// (`gpx_reader.dart:344-347`'s `_readInt`, reached from `wpt.sat` and
-/// `wpt.dgpsid`).
-///
-/// `<number>` (rte/trk) and `<year>` (copyright) also reach `_readInt` and
-/// are deliberately NOT rewritten here: both tag names are generic enough
-/// that a blind, context-free rewrite could clobber same-named content
-/// inside an `<extensions>` block, and neither is part of the commonly
-/// emitted optional-element set this pass exists to survive.
-const _gpxIntTags = <String>['sat', 'dgpsid'];
-
-/// Spans whose contents are TEXT, not markup, and so must never be rewritten:
-/// a rewrite inside a `<![CDATA[...]]>` section would silently mutate a
-/// description/comment the user actually sees. Comments are protected on the
-/// same principle (cheap, and keeps the pass a pure markup transform).
-final _protectedXmlRegionPattern = RegExp(
-  r'<!\[CDATA\[[\s\S]*?\]\]>|<!--[\s\S]*?-->',
-);
-
-final Map<String, RegExp> _sanitizableTagPatterns = {
-  for (final tag in [..._gpxDoubleTags, ..._gpxIntTags, 'time'])
-    tag: RegExp('<$tag>([^<]*)</$tag>'),
-};
-
-/// Applies [rewrite] to every span of [xml] that is OUTSIDE a CDATA section
-/// or an XML comment, splicing those protected spans back verbatim.
-String _rewriteOutsideProtectedRegions(
-  String xml,
-  String Function(String) rewrite,
-) {
-  final matches = _protectedXmlRegionPattern.allMatches(xml).toList();
-  if (matches.isEmpty) return rewrite(xml);
-
-  final buffer = StringBuffer();
-  var cursor = 0;
-  for (final match in matches) {
-    buffer.write(rewrite(xml.substring(cursor, match.start)));
-    buffer.write(match[0]);
-    cursor = match.end;
-  }
-  buffer.write(rewrite(xml.substring(cursor)));
-  return buffer.toString();
-}
-
-/// Neutralises every confirmed `GpxReader` crash input that the corrected TS
-/// parser (via `parseElevation`/`Date` coercion, or `xml2js`'s
-/// never-coercing behaviour) treats as "no data": an empty-but-present,
-/// whitespace-only or non-numeric body on any of the ten numerically- or
-/// temporally-parsed GPX elements.
-///
-/// `GpxReader` (`package:gpx` 2.3.0) calls `double.parse`/`int.parse`/
-/// `DateTime.parse` directly on the accumulated element text with no
-/// empty/malformed guard (`gpx_reader.dart`'s `_readDouble`/`_readInt`/
-/// `_readDateTime`), and its `_readString` helper returns `''` — not `null` —
-/// for any non-self-closing element. So `<ele></ele>`, `<hdop></hdop>`,
-/// `<sat>   </sat>` and `<pdop>N/A</pdop>` all throw `FormatException` and
-/// abort the whole import. `<hdop>`/`<vdop>`/`<pdop>`/`<sat>` in particular
-/// are among the most commonly emitted optional GPX elements (Garmin, Locus,
-/// OsmAnd and many track loggers), and empty-element forms are routine in
-/// exporter output — before this app parsed GPX itself these files went
-/// through the server's `xml2js`, which never coerces and so never threw.
-///
-/// This mirrors [sanitizeGpxEmail]'s existing regex-rewrite precedent:
-/// rewrite the malformed body to a self-closing tag (`<ele/>`, `<hdop/>`,
-/// `<time/>`, ...), which `GpxReader` already treats as `null` (a
-/// self-closing start element short-circuits `_readString` to `null` before
-/// any `parse` call is reached).
-///
-/// Deliberate non-corruption properties:
-/// - Only an EXACT, attribute-less `<tag>` … `</tag>` pair matches, so a
-///   namespaced `<gpx:ele>` or a longer same-suffix tag (`<myele>`) is never
-///   touched.
-/// - A body is rewritten only when it fails to parse, so a genuine
-///   `<ele>0</ele>` (real sea level, CONV-03) and a pretty-printed
-///   `<ele>\n 1000.5\n</ele>` (`double.tryParse`/`int.parse` both trim
-///   surrounding whitespace) survive verbatim.
-/// - CDATA sections and comments are excluded entirely — see
-///   [_rewriteOutsideProtectedRegions]. XML forbids a raw `<` inside an
-///   attribute value, so an attribute can never contain a matchable span.
-String sanitizeGpxNumericAndTime(String xml) {
-  return _rewriteOutsideProtectedRegions(xml, _sanitizeMarkupSpan);
-}
-
-String _sanitizeMarkupSpan(String span) {
-  var out = span;
-
-  for (final tag in _gpxDoubleTags) {
-    out = out.replaceAllMapped(_sanitizableTagPatterns[tag]!, (m) {
-      final parsed = double.tryParse((m[1] ?? '').trim());
-      if (parsed != null && parsed.isFinite) {
-        return m[0]!;
-      }
-      return '<$tag/>';
-    });
-  }
-
-  for (final tag in _gpxIntTags) {
-    out = out.replaceAllMapped(_sanitizableTagPatterns[tag]!, (m) {
-      if (int.tryParse((m[1] ?? '').trim()) != null) {
-        return m[0]!;
-      }
-      return '<$tag/>';
-    });
-  }
-
-  return out.replaceAllMapped(_sanitizableTagPatterns['time']!, (m) {
-    if (DateTime.tryParse((m[1] ?? '').trim()) != null) {
-      return m[0]!;
-    }
-    return '<time/>';
-  });
-}
+import 'package:wanderer/vendor/gpx/gpx_reader.dart';
 
 /// The single sanctioned parse entry point for any GPX this app did not
 /// itself produce via [GpxWriter] — imported files, shared/received tracks,
 /// or any other third-party GPX source.
 ///
-/// Chains both pre-parse sanitize passes ([sanitizeGpxEmail],
-/// [sanitizeGpxNumericAndTime]) before handing the string to [GpxReader].
+/// Uses the vendored [GpxReader] (`lib/vendor/gpx/gpx_reader.dart`), which
+/// coerces with `tryParse` instead of the published package's throwing
+/// `parse`. That is what makes this function safe: real exporter output
+/// routinely carries `<hdop></hdop>`, `<pdop>N/A</pdop>`, `<time></time>`,
+/// the non-standard `<email>user@example.com</email>` text form, and even a
+/// `<trkpt>` missing `lat`/`lon` — every one of which aborted the entire
+/// document with the published reader. They now degrade to "no reading" on
+/// the affected field and leave the rest of the track intact.
 ///
-/// This is the ONLY place in `lib/` that may construct a [GpxReader] — the
-/// import path, the server-download path (`trail_provider.dart`) and the
+/// This replaced a pair of pre-parse regex sanitizers. Rewriting the XML
+/// could only ever chase symptoms one tag at a time and risked corrupting
+/// CDATA and comments; fixing the coercion where it happens covers every
+/// numerically-parsed element at once, including the `<number>` and `<year>`
+/// tags the sanitizer deliberately would not touch.
+///
+/// This is the ONLY place in `lib/` that may construct a [GpxReader] —
+/// import, the server-download path (`trail_provider.dart`) and the
 /// offline-cache read (`trail_entity.dart`) all route through here, and
 /// `gpx_conversion_util_test.dart`'s "single GpxReader call site" gate fails
-/// the build if a fourth appears. That gate exists because bypassing this
-/// function silently opts a call site out of the sanitize chain: the two
-/// non-import sites previously did, which made a server-authored track fail
-/// to open (swallowed by a broad `catch`) and, once cached, made it
-/// permanently un-openable offline.
-///
-/// A `<trkpt>` missing its `lat`/`lon` attribute still throws `StateError`
-/// from `GpxReader` (34-RESEARCH.md Pitfall 1) — this is a much rarer,
-/// structurally broken input the GPX spec itself requires both attributes
-/// for, and it is deliberately left to callers' existing try/catch-and-toast
-/// paths rather than handled here via string surgery.
+/// the build if a fourth appears. Bypassing this function silently opts a
+/// call site out of that tolerance: the two non-import sites previously did,
+/// which made a server-authored track fail to open (swallowed by a broad
+/// `catch`) and, once cached, permanently un-openable offline.
 Gpx parseGpxSafely(String xml) {
-  return GpxReader().fromString(
-    sanitizeGpxNumericAndTime(sanitizeGpxEmail(xml)),
-  );
+  return GpxReader().fromString(xml);
 }
 
 /// The Dart analogue of `parseElevation` (`gpx-metrics-computation.ts:15-24`).
@@ -187,8 +66,10 @@ double? parseGpxElevation(double? raw) {
 /// trail-edit crop slider, which has no Dart equivalent, so porting it
 /// would be dead code.
 class GpxMetricsComputation {
-  final double _thresholdXYm; // Distance threshold for filtering on the XY axis (latitude / longitude)
-  final double _thresholdZm; // Distance threshold for filtering on the Z axis (elevation)
+  final double
+  _thresholdXYm; // Distance threshold for filtering on the XY axis (latitude / longitude)
+  final double
+  _thresholdZm; // Distance threshold for filtering on the Z axis (elevation)
 
   Wpt? _lastPointXY;
   Wpt? _lastFilteredPointXY;

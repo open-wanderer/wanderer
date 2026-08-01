@@ -6,77 +6,89 @@ import 'package:gpx/gpx.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
 
 void main() {
-  group('sanitizeGpxNumericAndTime', () {
+  // These groups used to assert on a pair of pre-parse regex sanitizers. The
+  // tolerance now lives in the vendored reader (lib/vendor/gpx/gpx_reader.dart),
+  // so they assert on PARSED VALUES instead of rewritten strings — which is the
+  // property that actually matters and survives a change of mechanism.
+  //
+  // Each group pins the same contract twice: the PUBLISHED package:gpx reader
+  // throws on the input, and parseGpxSafely does not. That pairing is what
+  // proves the vendored reader is doing work; without it these tests would
+  // still pass if the vendoring were reverted.
+  group('vendored reader tolerance - <ele> and <time>', () {
     test('preserves a genuine <ele>0</ele> (real sea level, CONV-03)', () {
-      final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele>0</ele></trkpt>']);
-      expect(sanitizeGpxNumericAndTime(xml), contains('<ele>0</ele>'));
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><ele>0</ele></trkpt>',
+      ]);
+      expect(
+        parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single.ele,
+        0.0,
+      );
+    });
+
+    test('preserves a pretty-printed <ele> with surrounding whitespace', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><ele>\n 1000.5\n </ele></trkpt>',
+      ]);
+      expect(
+        parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single.ele,
+        1000.5,
+      );
     });
 
     test(
-      'preserves a pretty-printed <ele>\\n 1000.5\\n</ele> (double.tryParse trims)',
+      'an empty <ele></ele> becomes null where the package reader throws',
       () {
         final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><ele>\n 1000.5\n </ele></trkpt>',
+          '<trkpt lat="47.0" lon="11.0"><ele></ele></trkpt>',
         ]);
-        expect(sanitizeGpxNumericAndTime(xml), contains('<ele>\n 1000.5\n </ele>'));
+
+        expect(() => GpxReader().fromString(xml), throwsFormatException);
+        expect(
+          parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single.ele,
+          isNull,
+        );
       },
     );
 
-    test('rewrites an empty <ele></ele> to a self-closing <ele/>', () {
-      final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele></ele></trkpt>']);
-      final sanitized = sanitizeGpxNumericAndTime(xml);
-      expect(sanitized, contains('<ele/>'));
-      expect(sanitized, isNot(contains('<ele></ele>')));
-    });
-
-    test('rewrites a whitespace-only <ele>   </ele> to a self-closing <ele/>', () {
+    test('a non-numeric <ele>N/A</ele> becomes null', () {
       final xml = _gpxXml([
-        '<trkpt lat="47.0" lon="11.0"><ele>   </ele></trkpt>',
-      ]);
-      expect(sanitizeGpxNumericAndTime(xml), contains('<ele/>'));
-    });
-
-    test('rewrites a non-numeric <ele>N/A</ele> to a self-closing <ele/>', () {
-      final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele>N/A</ele></trkpt>']);
-      expect(sanitizeGpxNumericAndTime(xml), contains('<ele/>'));
-    });
-
-    test('rewrites <ele>NaN</ele> and <ele>Infinity</ele> to self-closing tags', () {
-      final xml = _gpxXml([
-        '<trkpt lat="47.0" lon="11.0"><ele>NaN</ele></trkpt>',
-        '<trkpt lat="47.001" lon="11.0"><ele>Infinity</ele></trkpt>',
-      ]);
-      final sanitized = sanitizeGpxNumericAndTime(xml);
-      expect(sanitized, isNot(contains('<ele>NaN</ele>')));
-      expect(sanitized, isNot(contains('<ele>Infinity</ele>')));
-    });
-
-    test('rewrites an empty <time></time> to a self-closing <time/>', () {
-      final xml = _gpxXml([
-        '<trkpt lat="47.0" lon="11.0"><time></time></trkpt>',
-      ]);
-      final sanitized = sanitizeGpxNumericAndTime(xml);
-      expect(sanitized, contains('<time/>'));
-      expect(sanitized, isNot(contains('<time></time>')));
-    });
-
-    test('preserves a valid <time>...</time>', () {
-      final xml = _gpxXml([
-        '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T00:00:00Z</time></trkpt>',
+        '<trkpt lat="47.0" lon="11.0"><ele>N/A</ele></trkpt>',
       ]);
       expect(
-        sanitizeGpxNumericAndTime(xml),
-        contains('<time>2024-01-01T00:00:00Z</time>'),
+        parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single.ele,
+        isNull,
+      );
+    });
+
+    test(
+      'an empty <time></time> becomes null where the package reader throws',
+      () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><time></time></trkpt>',
+        ]);
+
+        expect(() => GpxReader().fromString(xml), throwsFormatException);
+        expect(
+          parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single.time,
+          isNull,
+        );
+      },
+    );
+
+    test('a valid <time> still parses', () {
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T10:00:00Z</time></trkpt>',
+      ]);
+      expect(
+        parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single.time,
+        DateTime.utc(2024, 1, 1, 10),
       );
     });
   });
 
-  // CR-02 regression. Before this pass covered them, `GpxReader`'s
-  // `_readDouble`/`_readInt` called a THROWING `double.parse`/`int.parse` on
-  // these eight tags, so an empty/whitespace/non-numeric body from a common
-  // GPS logger aborted the entire import with a generic error toast.
-  group('sanitizeGpxNumericAndTime - the other unguarded numeric tags', () {
-    // `<sat>`/`<dgpsid>` reach `_readInt`; the rest reach `_readDouble`.
+  group('vendored reader tolerance - the other numerically-parsed tags', () {
+    // <sat>/<dgpsid> reach _readInt; the rest reach _readDouble.
     const doubleTags = [
       'hdop',
       'vdop',
@@ -87,74 +99,63 @@ void main() {
     ];
     const intTags = ['sat', 'dgpsid'];
 
+    double? readDouble(Wpt p, String tag) => switch (tag) {
+      'hdop' => p.hdop,
+      'vdop' => p.vdop,
+      'pdop' => p.pdop,
+      'magvar' => p.magvar,
+      'geoidheight' => p.geoidheight,
+      'ageofdgpsdata' => p.ageofdgpsdata,
+      _ => throw ArgumentError(tag),
+    };
+    int? readInt(Wpt p, String tag) => switch (tag) {
+      'sat' => p.sat,
+      'dgpsid' => p.dgpsid,
+      _ => throw ArgumentError(tag),
+    };
+
     for (final tag in [...doubleTags, ...intTags]) {
-      test('rewrites an empty <$tag></$tag> to a self-closing <$tag/>', () {
-        final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><$tag></$tag></trkpt>',
-        ]);
-        final sanitized = sanitizeGpxNumericAndTime(xml);
-        expect(sanitized, contains('<$tag/>'));
-        expect(sanitized, isNot(contains('<$tag></$tag>')));
-      });
+      for (final (label, body) in [
+        ('empty', ''),
+        ('whitespace-only', '   '),
+        ('non-numeric', 'N/A'),
+      ]) {
+        test('a $label <$tag> becomes null instead of throwing', () {
+          final xml = _gpxXml([
+            '<trkpt lat="47.0" lon="11.0"><$tag>$body</$tag></trkpt>',
+          ]);
 
-      test('rewrites a whitespace-only <$tag>   </$tag>', () {
-        final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><$tag>   </$tag></trkpt>',
-        ]);
-        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag/>'));
-      });
+          // Non-vacuity: prove the published reader really does throw here.
+          expect(() => GpxReader().fromString(xml), throwsFormatException);
 
-      test('rewrites a non-numeric <$tag>N/A</$tag>', () {
-        final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><$tag>N/A</$tag></trkpt>',
-        ]);
-        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag/>'));
-      });
-
-      test('parseGpxSafely survives an empty <$tag> that crashes the raw '
-          'parser', () {
-        final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><$tag></$tag></trkpt>',
-        ]);
-        expect(() => GpxReader().fromString(xml), throwsA(anything));
-        expect(() => parseGpxSafely(xml), returnsNormally);
-      });
+          final p = parseGpxSafely(
+            xml,
+          ).trks.single.trksegs.single.trkpts.single;
+          expect(
+            doubleTags.contains(tag) ? readDouble(p, tag) : readInt(p, tag),
+            isNull,
+          );
+        });
+      }
     }
 
     for (final tag in doubleTags) {
-      test('preserves a valid decimal <$tag>1.5</$tag>', () {
+      test('a valid <$tag>1.5</$tag> still parses', () {
         final xml = _gpxXml([
           '<trkpt lat="47.0" lon="11.0"><$tag>1.5</$tag></trkpt>',
         ]);
-        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag>1.5</$tag>'));
+        final p = parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single;
+        expect(readDouble(p, tag), 1.5);
       });
     }
 
     for (final tag in intTags) {
-      test('preserves a valid integer <$tag>7</$tag>', () {
+      test('a valid <$tag>7</$tag> still parses', () {
         final xml = _gpxXml([
           '<trkpt lat="47.0" lon="11.0"><$tag>7</$tag></trkpt>',
         ]);
-        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag>7</$tag>'));
-      });
-
-      test('preserves a pretty-printed <$tag> (int.parse trims too)', () {
-        final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><$tag>\n 7\n </$tag></trkpt>',
-        ]);
-        expect(
-          sanitizeGpxNumericAndTime(xml),
-          contains('<$tag>\n 7\n </$tag>'),
-        );
-        expect(() => parseGpxSafely(xml), returnsNormally);
-      });
-
-      test('rewrites a decimal <$tag>3.5</$tag>, which int.parse would '
-          'throw on', () {
-        final xml = _gpxXml([
-          '<trkpt lat="47.0" lon="11.0"><$tag>3.5</$tag></trkpt>',
-        ]);
-        expect(sanitizeGpxNumericAndTime(xml), contains('<$tag/>'));
+        final p = parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single;
+        expect(readInt(p, tag), 7);
       });
     }
 
@@ -172,8 +173,8 @@ void main() {
       ]);
 
       expect(() => GpxReader().fromString(xml), throwsA(anything));
-      final gpx = parseGpxSafely(xml);
-      final points = gpx.trks.single.trksegs.single.trkpts;
+
+      final points = parseGpxSafely(xml).trks.single.trksegs.single.trkpts;
       expect(points, hasLength(2));
       expect(points.first.ele, isNull);
       expect(points.first.sat, isNull);
@@ -184,46 +185,90 @@ void main() {
     });
   });
 
-  group('sanitizeGpxNumericAndTime - non-corruption guarantees', () {
-    test('leaves a namespaced <gpx:hdop></gpx:hdop> untouched', () {
-      const xml = '<gpx><gpx:hdop></gpx:hdop></gpx>';
-      expect(sanitizeGpxNumericAndTime(xml), xml);
-    });
+  group('vendored reader tolerance - structural and metadata inputs', () {
+    test(
+      'a <trkpt> missing lat/lon yields null coords instead of StateError',
+      () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><ele>100</ele></trkpt>',
+          '<trkpt><ele>200</ele></trkpt>',
+        ]);
 
-    test('leaves a longer same-suffix tag <myele></myele> untouched', () {
-      const xml = '<gpx><myele></myele></gpx>';
-      expect(sanitizeGpxNumericAndTime(xml), xml);
-    });
+        expect(() => GpxReader().fromString(xml), throwsStateError);
 
-    test('never rewrites inside a CDATA section', () {
+        final points = parseGpxSafely(xml).trks.single.trksegs.single.trkpts;
+        expect(points, hasLength(2));
+        expect(points.first.lat, 47.0);
+        expect(points.last.lat, isNull);
+        expect(points.last.lon, isNull);
+        // The rest of the point still parsed — tolerance is per-field.
+        expect(points.last.ele, 200.0);
+      },
+    );
+
+    test('the non-standard <email>a@b.com</email> text form parses', () {
       const xml =
-          '<gpx><desc><![CDATA[readings: <hdop></hdop> and <ele>N/A</ele>]]>'
-          '</desc><trkpt><hdop></hdop></trkpt></gpx>';
-      final sanitized = sanitizeGpxNumericAndTime(xml);
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t">'
+          '<metadata><author><name>A</name>'
+          '<email>user@example.com</email>'
+          '</author></metadata></gpx>';
+
+      expect(() => GpxReader().fromString(xml), throwsStateError);
+
+      final email = parseGpxSafely(xml).metadata!.author!.email!;
+      expect(email.id, 'user');
+      expect(email.domain, 'example.com');
+    });
+
+    test('the spec <email id domain/> attribute form still wins', () {
+      const xml =
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t">'
+          '<metadata><author><name>A</name>'
+          '<email id="spec" domain="example.org"/>'
+          '</author></metadata></gpx>';
+
+      final email = parseGpxSafely(xml).metadata!.author!.email!;
+      expect(email.id, 'spec');
+      expect(email.domain, 'example.org');
+    });
+
+    test('an <email> with no usable address leaves the fields empty', () {
+      const xml =
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t">'
+          '<metadata><author><name>A</name><email>not-an-address</email>'
+          '</author></metadata></gpx>';
+
+      final email = parseGpxSafely(xml).metadata!.author!.email!;
+      expect(email.id, isEmpty);
+      expect(email.domain, isEmpty);
+    });
+
+    test('a CDATA description survives parsing verbatim', () {
+      // The retired regex sanitizer had to explicitly exclude CDATA to avoid
+      // mutating user-visible text. Parsing has no such hazard by
+      // construction; this pins that it stays true.
+      const xml =
+          '<?xml version="1.0"?>'
+          '<gpx version="1.1" creator="t"><metadata>'
+          '<desc><![CDATA[readings: <hdop></hdop> and <ele>N/A</ele>]]></desc>'
+          '</metadata></gpx>';
 
       expect(
-        sanitized,
-        contains('<![CDATA[readings: <hdop></hdop> and <ele>N/A</ele>]]>'),
+        parseGpxSafely(xml).metadata!.desc,
+        'readings: <hdop></hdop> and <ele>N/A</ele>',
       );
-      // The real markup outside the CDATA is still sanitised.
-      expect(sanitized, contains('<trkpt><hdop/></trkpt>'));
     });
 
-    test('never rewrites inside an XML comment', () {
-      const xml = '<gpx><!-- <sat></sat> --><trkpt><sat></sat></trkpt></gpx>';
-      final sanitized = sanitizeGpxNumericAndTime(xml);
-
-      expect(sanitized, contains('<!-- <sat></sat> -->'));
-      expect(sanitized, contains('<trkpt><sat/></trkpt>'));
-    });
-
-    test('is idempotent - a second pass changes nothing', () {
+    test('a namespaced <gpx:hdop> is not mistaken for <hdop>', () {
       final xml = _gpxXml([
-        '<trkpt lat="47.0" lon="11.0"><ele></ele><hdop>N/A</hdop>'
-            '<sat>8</sat></trkpt>',
+        '<trkpt lat="47.0" lon="11.0"><gpx:hdop></gpx:hdop>'
+            '<hdop>2.5</hdop></trkpt>',
       ]);
-      final once = sanitizeGpxNumericAndTime(xml);
-      expect(sanitizeGpxNumericAndTime(once), once);
+      final p = parseGpxSafely(xml).trks.single.trksegs.single.trkpts.single;
+      expect(p.hdop, 2.5);
     });
   });
 
@@ -243,7 +288,9 @@ void main() {
     });
 
     test('a non-numeric <ele>N/A</ele> parses to a null ele', () {
-      final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele>N/A</ele></trkpt>']);
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><ele>N/A</ele></trkpt>',
+      ]);
       final gpx = parseGpxSafely(xml);
       expect(gpx.trks.single.trksegs.single.trkpts.single.ele, isNull);
     });
@@ -257,18 +304,23 @@ void main() {
     });
 
     test('a genuine <ele>0</ele> parses to 0.0, not "missing"', () {
-      final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele>0</ele></trkpt>']);
+      final xml = _gpxXml([
+        '<trkpt lat="47.0" lon="11.0"><ele>0</ele></trkpt>',
+      ]);
       final gpx = parseGpxSafely(xml);
       expect(gpx.trks.single.trksegs.single.trkpts.single.ele, 0.0);
     });
 
-    test('a pretty-printed <ele> with surrounding newlines/indent parses to 1000.5', () {
-      final xml = _gpxXml([
-        '<trkpt lat="47.0" lon="11.0"><ele>\n 1000.5\n </ele></trkpt>',
-      ]);
-      final gpx = parseGpxSafely(xml);
-      expect(gpx.trks.single.trksegs.single.trkpts.single.ele, 1000.5);
-    });
+    test(
+      'a pretty-printed <ele> with surrounding newlines/indent parses to 1000.5',
+      () {
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><ele>\n 1000.5\n </ele></trkpt>',
+        ]);
+        final gpx = parseGpxSafely(xml);
+        expect(gpx.trks.single.trksegs.single.trkpts.single.ele, 1000.5);
+      },
+    );
 
     test('an omitted <ele> parses to a null ele', () {
       final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"></trkpt>']);
@@ -279,7 +331,9 @@ void main() {
     test(
       'the unsanitised parser throws on the <ele></ele> fixture but parseGpxSafely does not',
       () {
-        final xml = _gpxXml(['<trkpt lat="47.0" lon="11.0"><ele></ele></trkpt>']);
+        final xml = _gpxXml([
+          '<trkpt lat="47.0" lon="11.0"><ele></ele></trkpt>',
+        ]);
 
         expect(() => GpxReader().fromString(xml), throwsA(anything));
         expect(() => parseGpxSafely(xml), returnsNormally);
@@ -577,10 +631,7 @@ void main() {
   <metadata><name>Metadata Name</name></metadata>
   <trk><name>Trk Name</name><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
 </gpx>''';
-      final trail = trailFromGpx(
-        parseGpxSafely(xml),
-        fallbackName: 'Fallback',
-      );
+      final trail = trailFromGpx(parseGpxSafely(xml), fallbackName: 'Fallback');
       expect(trail.name, 'Metadata Name');
     });
 
@@ -590,28 +641,19 @@ void main() {
   <metadata><name></name></metadata>
   <trk><name>Trk Name</name><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
 </gpx>''';
-      final trail = trailFromGpx(
-        parseGpxSafely(xml),
-        fallbackName: 'Fallback',
-      );
+      final trail = trailFromGpx(parseGpxSafely(xml), fallbackName: 'Fallback');
       expect(trail.name, 'Trk Name');
     });
 
-    test(
-      'name: empty metadata and trk names fall through to fallbackName',
-      () {
-        final xml = '''<?xml version="1.0" encoding="UTF-8"?>
+    test('name: empty metadata and trk names fall through to fallbackName', () {
+      final xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata><name></name></metadata>
   <trk><name></name><trkseg><trkpt lat="47.0" lon="11.0"></trkpt></trkseg></trk>
 </gpx>''';
-        final trail = trailFromGpx(
-          parseGpxSafely(xml),
-          fallbackName: 'Fallback',
-        );
-        expect(trail.name, 'Fallback');
-      },
-    );
+      final trail = trailFromGpx(parseGpxSafely(xml), fallbackName: 'Fallback');
+      expect(trail.name, 'Fallback');
+    });
 
     test(
       'description defaults to an empty string when metadata has no desc',
@@ -685,15 +727,17 @@ void main() {
     // `form_data_util.dart`'s write guard is `!= null`, not `> 0`, so a zero
     // override used to be persisted and then masked by the display rule's own
     // `> 0` fallback.
-    test('D-10: a zero-length override is "no value" (null), never a stored 0',
-        () {
-      final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
-      final trail = trailFromGpx(
-        parseGpxSafely(xml),
-        movingDuration: Duration.zero,
-      );
-      expect(trail.movingDuration, isNull);
-    });
+    test(
+      'D-10: a zero-length override is "no value" (null), never a stored 0',
+      () {
+        final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+        final trail = trailFromGpx(
+          parseGpxSafely(xml),
+          movingDuration: Duration.zero,
+        );
+        expect(trail.movingDuration, isNull);
+      },
+    );
 
     test('D-10: a sub-second override, which truncates to 0 whole seconds, '
         'is also "no value"', () {
@@ -755,59 +799,56 @@ void main() {
     // exception swallowed by a broad catch) and, once cached, was permanently
     // un-openable offline. This gate makes a fourth call site fail the build
     // rather than quietly reintroducing that class of defect.
-    test(
-      'exactly one GpxReader() construction exists in app/lib/, inside '
-      'util/gpx_conversion_util.dart',
-      () {
-        final libDir = Directory('lib');
-        expect(
-          libDir.existsSync(),
-          isTrue,
-          reason:
-              'This test must be run with `flutter test`\'s working '
-              'directory set to "app/" (e.g. "cd app && flutter test").',
-        );
+    test('exactly one GpxReader() construction exists in app/lib/, inside '
+        'util/gpx_conversion_util.dart', () {
+      final libDir = Directory('lib');
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'This test must be run with `flutter test`\'s working '
+            'directory set to "app/" (e.g. "cd app && flutter test").',
+      );
 
-        final matches = <String>[];
-        var dartFilesScanned = 0;
-        for (final entity in libDir.listSync(recursive: true)) {
-          if (entity is! File || !entity.path.endsWith('.dart')) continue;
-          dartFilesScanned++;
-          for (final line in entity.readAsLinesSync()) {
-            // Skip doc/line comments so prose naming GpxReader (including
-            // parseGpxSafely's own contract comment) doesn't trip the gate.
-            if (line.trimLeft().startsWith('//')) continue;
-            if (line.contains('GpxReader(')) matches.add(entity.path);
-          }
+      final matches = <String>[];
+      var dartFilesScanned = 0;
+      for (final entity in libDir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        dartFilesScanned++;
+        for (final line in entity.readAsLinesSync()) {
+          // Skip doc/line comments so prose naming GpxReader (including
+          // parseGpxSafely's own contract comment) doesn't trip the gate.
+          if (line.trimLeft().startsWith('//')) continue;
+          if (line.contains('GpxReader(')) matches.add(entity.path);
         }
+      }
 
-        // Non-vacuity: a typo'd glob or a wrong working directory would scan
-        // nothing and make the hasLength(1) assertion below unreachable.
-        expect(
-          dartFilesScanned,
-          greaterThan(100),
-          reason:
-              'Expected to scan the whole app/lib tree; only '
-              '$dartFilesScanned .dart files were seen, so this gate is not '
-              'actually checking anything.',
-        );
+      // Non-vacuity: a typo'd glob or a wrong working directory would scan
+      // nothing and make the hasLength(1) assertion below unreachable.
+      expect(
+        dartFilesScanned,
+        greaterThan(100),
+        reason:
+            'Expected to scan the whole app/lib tree; only '
+            '$dartFilesScanned .dart files were seen, so this gate is not '
+            'actually checking anything.',
+      );
 
-        expect(
-          matches,
-          hasLength(1),
-          reason:
-              'Every GPX the app did not itself produce must be parsed via '
-              'parseGpxSafely so it gets the sanitize chain. Found: $matches',
-        );
-        expect(
-          matches.single.replaceAll('\\', '/'),
-          endsWith('util/gpx_conversion_util.dart'),
-          reason:
-              'The sole GpxReader construction must live inside '
-              'parseGpxSafely in util/gpx_conversion_util.dart',
-        );
-      },
-    );
+      expect(
+        matches,
+        hasLength(1),
+        reason:
+            'Every GPX the app did not itself produce must be parsed via '
+            'parseGpxSafely so it gets the sanitize chain. Found: $matches',
+      );
+      expect(
+        matches.single.replaceAll('\\', '/'),
+        endsWith('util/gpx_conversion_util.dart'),
+        reason:
+            'The sole GpxReader construction must live inside '
+            'parseGpxSafely in util/gpx_conversion_util.dart',
+      );
+    });
   });
 }
 
@@ -834,7 +875,8 @@ String _gpxXml(List<String> trkpts) {
 String _gpxXmlSegments(List<List<String>> segments) {
   final trksegs = segments
       .map(
-        (trkpts) => '''<trkseg>
+        (trkpts) =>
+            '''<trkseg>
       ${trkpts.join('\n      ')}
     </trkseg>''',
       )

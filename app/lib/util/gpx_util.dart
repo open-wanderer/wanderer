@@ -1,16 +1,11 @@
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 
-/// GPX 1.1 requires `<email id="user" domain="example.com"/>` but some files
-/// use the non-standard text form `<email>user@example.com</email>`, which
-/// crashes `GpxReader` with `Bad state: No element`. Rewrites the latter into
-/// the attribute form expected by the `gpx` package before parsing.
-String sanitizeGpxEmail(String xml) {
-  return xml.replaceAllMapped(
-    RegExp(r'<email>([^@<]+)@([^<]+)</email>'),
-    (m) => '<email id="${m[1]}" domain="${m[2]}"/>',
-  );
-}
+// sanitizeGpxEmail lived here. The non-standard
+// `<email>user@example.com</email>` text form is now handled where the
+// coercion happens, in `lib/vendor/gpx/gpx_reader.dart`'s `_readEmail`
+// (LOCAL MODIFICATION 4), so no pre-parse XML rewriting is needed. Parse
+// third-party GPX with `parseGpxSafely` from `gpx_conversion_util.dart`.
 
 /// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
 /// while always preserving the first and last point.

@@ -119,51 +119,41 @@ Gpx _buildSampleGpx() {
 
 void main() {
   group('buildLocalTrail', () {
-    testWidgets(
-      'offline: issues no request and leaves location null',
-      (tester) async {
-        final gpx = _buildSampleGpx();
-        // shouldFail:true doubles as a "no request was attempted" guard —
-        // if buildLocalTrail regressed to calling the api while offline,
-        // this fake would reject and the test would surface a DioException.
-        final ref = await _pumpRef(tester, online: false, shouldFail: true);
+    testWidgets('offline: issues no request and leaves location null', (
+      tester,
+    ) async {
+      final gpx = _buildSampleGpx();
+      // shouldFail:true doubles as a "no request was attempted" guard —
+      // if buildLocalTrail regressed to calling the api while offline,
+      // this fake would reject and the test would surface a DioException.
+      final ref = await _pumpRef(tester, online: false, shouldFail: true);
 
-        final trail = await _runAsync(
-          tester,
-          () => buildLocalTrail(ref, gpx),
-        );
+      final trail = await _runAsync(tester, () => buildLocalTrail(ref, gpx));
 
-        expect(trail.location, isNull);
-      },
-    );
+      expect(trail.location, isNull);
+    });
 
-    testWidgets(
-      'online: fills location from the reverse-geocode response '
-      "(D-07's fullLabel/includeRoad:false convention)",
-      (tester) async {
-        final gpx = _buildSampleGpx();
-        final ref = await _pumpRef(
-          tester,
-          online: true,
-          response: {
-            'features': [
-              {
-                'properties': {
-                  'address': {'city': 'Testtown', 'country': 'Testland'},
-                },
+    testWidgets('online: fills location from the reverse-geocode response '
+        "(D-07's fullLabel/includeRoad:false convention)", (tester) async {
+      final gpx = _buildSampleGpx();
+      final ref = await _pumpRef(
+        tester,
+        online: true,
+        response: {
+          'features': [
+            {
+              'properties': {
+                'address': {'city': 'Testtown', 'country': 'Testland'},
               },
-            ],
-          },
-        );
+            },
+          ],
+        },
+      );
 
-        final trail = await _runAsync(
-          tester,
-          () => buildLocalTrail(ref, gpx),
-        );
+      final trail = await _runAsync(tester, () => buildLocalTrail(ref, gpx));
 
-        expect(trail.location, 'Testtown, Testland');
-      },
-    );
+      expect(trail.location, 'Testtown, Testland');
+    });
 
     testWidgets(
       'online, geocode throws: the trail is still returned with location '
@@ -172,10 +162,7 @@ void main() {
         final gpx = _buildSampleGpx();
         final ref = await _pumpRef(tester, online: true, shouldFail: true);
 
-        final trail = await _runAsync(
-          tester,
-          () => buildLocalTrail(ref, gpx),
-        );
+        final trail = await _runAsync(tester, () => buildLocalTrail(ref, gpx));
 
         expect(trail.location, isNull);
       },
@@ -341,12 +328,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            apiProvider.overrideWith(
-              () => _FakeApi(shouldFail: shouldFailAll),
-            ),
-            onlineStatusProvider.overrideWith(
-              () => _FakeOnlineStatus(online),
-            ),
+            apiProvider.overrideWith(() => _FakeApi(shouldFail: shouldFailAll)),
+            onlineStatusProvider.overrideWith(() => _FakeOnlineStatus(online)),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -391,82 +374,79 @@ void main() {
     // failure could leave a stale non-null `pendingImportedTrail` behind. The
     // catch now ends at `buildLocalTrail`, and a genuine parse failure must
     // toast AND leave the handoff global untouched.
-    testWidgets(
-      'a structurally broken GPX toasts an error and leaves '
-      'pendingImportedTrail untouched',
-      (tester) async {
-        // A <trkpt> with no lat/lon throws StateError out of GpxReader —
-        // deliberately not something parseGpxSafely rewrites.
-        final file = File('${tempDir.path}/broken.gpx');
-        file.writeAsStringSync(
-          '<?xml version="1.0"?><gpx><trk><trkseg>'
-          '<trkpt><ele>400</ele></trkpt>'
-          '</trkseg></trk></gpx>',
-        );
+    testWidgets('a structurally broken GPX toasts an error and leaves '
+        'pendingImportedTrail untouched', (tester) async {
+      // A <trkpt> with no lat/lon no longer throws — the vendored reader
+      // tolerates it per-field so one bad point cannot cost a whole file.
+      // A file with NO usable coordinate is still unimportable though, and
+      // importTrailFile's own emptiness guard is what rejects it now.
+      final file = File('${tempDir.path}/broken.gpx');
+      file.writeAsStringSync(
+        '<?xml version="1.0"?><gpx><trk><trkseg>'
+        '<trkpt><ele>400</ele></trkpt>'
+        '</trkseg></trk></gpx>',
+      );
 
-        final pumped = await pumpRouterRef(
-          tester,
-          online: false,
-          shouldFailAll: true,
-        );
-        final l10n = AppLocalizations.of(pumped.context)!;
+      final pumped = await pumpRouterRef(
+        tester,
+        online: false,
+        shouldFailAll: true,
+      );
+      final l10n = AppLocalizations.of(pumped.context)!;
 
-        await tester.runAsync(
-          () => importTrailFile(
-            ref: pumped.ref,
-            path: file.path,
-            name: 'broken.gpx',
-            navContext: pumped.context,
-            l10n: l10n,
-          ),
-        );
-        await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => importTrailFile(
+          ref: pumped.ref,
+          path: file.path,
+          name: 'broken.gpx',
+          navContext: pumped.context,
+          l10n: l10n,
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        expect(pumped.ref.read(toastProvider), isNotEmpty);
-        expect(pendingImportedTrail, isNull);
-      },
-    );
+      expect(pumped.ref.read(toastProvider), isNotEmpty);
+      expect(pendingImportedTrail, isNull);
+    });
   });
 
   group('PORT-03 gate', () {
-    test(
-      'PORT-03: exactly one "trail/convert" occurrence exists in app/lib/, '
-      'inside util/trail_import_util.dart',
-      () {
-        final libDir = Directory('lib');
-        expect(
-          libDir.existsSync(),
-          isTrue,
-          reason:
-              'This test must be run with `flutter test`\'s working '
-              'directory set to "app/" (e.g. "cd app && flutter test").',
-        );
+    test('PORT-03: exactly one "trail/convert" occurrence exists in app/lib/, '
+        'inside util/trail_import_util.dart', () {
+      final libDir = Directory('lib');
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'This test must be run with `flutter test`\'s working '
+            'directory set to "app/" (e.g. "cd app && flutter test").',
+      );
 
-        final matches = <String>[];
-        for (final entity in libDir.listSync(recursive: true)) {
-          if (entity is! File || !entity.path.endsWith('.dart')) continue;
-          final lines = entity.readAsLinesSync();
-          for (final line in lines) {
-            if (line.contains('trail/convert')) {
-              matches.add(entity.path);
-            }
+      final matches = <String>[];
+      for (final entity in libDir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final lines = entity.readAsLinesSync();
+        for (final line in lines) {
+          if (line.contains('trail/convert')) {
+            matches.add(entity.path);
           }
         }
+      }
 
-        expect(
-          matches,
-          hasLength(1),
-          reason:
-              'PORT-03 requires the app to call the convert endpoint from '
-              'exactly one place. Found matches: $matches',
-        );
-        expect(
-          matches.single.replaceAll('\\', '/'),
-          endsWith('util/trail_import_util.dart'),
-          reason: 'PORT-03: the sole call site must live in '
-              'util/trail_import_util.dart',
-        );
-      },
-    );
+      expect(
+        matches,
+        hasLength(1),
+        reason:
+            'PORT-03 requires the app to call the convert endpoint from '
+            'exactly one place. Found matches: $matches',
+      );
+      expect(
+        matches.single.replaceAll('\\', '/'),
+        endsWith('util/trail_import_util.dart'),
+        reason:
+            'PORT-03: the sole call site must live in '
+            'util/trail_import_util.dart',
+      );
+    });
   });
 }
