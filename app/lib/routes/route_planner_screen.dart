@@ -14,6 +14,7 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/route_segment_util.dart';
+import 'package:wanderer/util/track_save_options_util.dart';
 
 /// Route Planner screen — hosts the native map and wires anchor/segment
 /// gestures to the UI: tap-to-add, drag-to-reposition (handled inside
@@ -492,25 +493,43 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   }
 
   /// Hands the finished route off: in edit mode pops the ele-merged [Gpx]
-  /// back to the awaiting `trail_create_screen`; otherwise invokes
+  /// back to the awaiting `trail_create_screen` with no save-options gate
+  /// (it never persisted a trail, so there is nothing to opt into
+  /// recalculating); otherwise resolves the shared online gate (see
+  /// `track_save_options_util.dart`, D-15) ahead of [_finishing] — mirroring
+  /// `navigation_screen.dart`'s `_saveRecordedTrack` ordering — and invokes
   /// [finishPlanning] to forward-push a draft Trail (built entirely
-  /// on-device since 34-05 — see `buildDraftTrail`). Guarded by [_finishing]
-  /// so a double-tap can't fire two `/valhalla/height` requests or
-  /// navigations.
+  /// on-device since 34-05 — see `buildDraftTrail`) with the resolved
+  /// toggles. A cancelled/dismissed gate aborts with no state change.
+  /// [_finishing] still guards the forward-push branch against a double-tap
+  /// firing two concurrent conversions/navigations.
   ///
-  /// On failure (e.g. offline), shows an error toast and stays on this
-  /// screen so the user can retry — matching `trail_import_util.dart`'s
-  /// `importTrailFile` precedent for this same toast-and-stay behaviour.
+  /// D-16: with plan 34-05's local conversion plus this gate's flag-gated
+  /// transforms, an offline finish now reaches the create screen instead of
+  /// throwing — the `catch` below is not deleted, it remains a genuine
+  /// last-resort guard for anything else that could still fail (e.g. an
+  /// unexpected local error), matching `trail_import_util.dart`'s
+  /// `importTrailFile` precedent for toast-and-stay on failure.
   Future<void> _onFinish() async {
     if (_finishing) return;
-    setState(() => _finishing = true);
     try {
       if (_editMode) {
+        setState(() => _finishing = true);
         final finalGpx = await buildFinalPlannedGpx(ref);
         if (!mounted) return;
         context.pop(finalGpx);
       } else {
-        await finishPlanning(ref: ref, navContext: context);
+        final options = await resolveTrackSaveOptions(ref, context);
+        if (options == null) return;
+        if (!mounted) return;
+        setState(() => _finishing = true);
+        final (recalcHeights, followRoads) = options;
+        await finishPlanning(
+          ref: ref,
+          navContext: context,
+          recalcHeights: recalcHeights,
+          followRoads: followRoads,
+        );
       }
     } catch (_) {
       if (!mounted) return;

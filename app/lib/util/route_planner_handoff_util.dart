@@ -273,19 +273,77 @@ Future<Trail> buildDraftTrail(
 /// rather than blocking the save. Returns a bare (trackless) [Gpx] when the
 /// route has no legs — the Finish action is already disabled below 2 anchors
 /// at the call site.
-Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
+///
+/// [snapCosting], when non-null, road-snaps every leg with at least 2 points
+/// via the authenticated trace-route proxy, using [buildNavShape] as the
+/// outbound request hint — mirrors `navigation_screen.dart`'s
+/// `_saveRecordedTrack` pipeline. **After snapping, each leg's first and
+/// last point is forced back onto its original opening/closing anchor
+/// coordinates.** This is mandatory, not cosmetic: [anchorsFromTrack] and
+/// [segmentPolylinesFromTrack] locate anchors by EXACT coordinate match, so
+/// a snapped boundary that drifted even a fraction would make the route
+/// unreconstructable — and silently collapse every intermediate anchor — on
+/// re-edit. A snapped leg's previously-fetched elevations are invalidated
+/// (its point indices no longer align with the pre-snap heights) and
+/// re-fetched below regardless of [refetchAllHeights].
+///
+/// [refetchAllHeights] set to `true` refetches heights for every leg over
+/// its final (possibly snapped) shape; `false` keeps the existing
+/// fetch-only-what's-missing behaviour. Both flags default `false`, and
+/// both underlying network steps are skipped entirely when their flag is
+/// off — the combination that makes this function safe to call with no
+/// network access at all (D-15's offline path). Snapping always runs before
+/// heights are read, matching the recording path's own ordering, so
+/// elevation reflects the final (possibly snapped) shape.
+Future<Gpx> buildFinalPlannedGpx(
+  WidgetRef ref, {
+  bool refetchAllHeights = false,
+  String? snapCosting,
+}) async {
   final legs = ref.read(routeAnchorsProvider).orderedSegments;
   if (legs.isEmpty) return Gpx();
 
   // Prefer the height-resolved point set; fall back to the raw polyline for
-  // a leg whose fetch is still pending or failed.
+  // a leg whose fetch is still pending or failed. Mutated in place below by
+  // the snap step, so this must stay a growable per-leg list, not a const.
   final legPoints = [for (final s in legs) s.elevationProfile ?? s.polyline];
   final legElevations = [for (final s in legs) s.elevations];
 
-  final pending = <int>[
-    for (var i = 0; i < legs.length; i++)
-      if (legElevations[i] == null) i,
-  ];
+  final costing = snapCosting;
+  if (costing != null) {
+    final toSnap = <int>[
+      for (var i = 0; i < legs.length; i++)
+        if (legPoints[i].length >= 2) i,
+    ];
+    if (toSnap.isNotEmpty) {
+      final snapped = await Future.wait([
+        for (final i in toSnap)
+          snapShapeToRoads(ref, buildNavShape(legPoints[i]), costing),
+      ]);
+      for (var k = 0; k < toSnap.length; k++) {
+        final i = toSnap[k];
+        final shape = snapped[k];
+        if (shape.length < 2) continue;
+        final original = legPoints[i];
+        final rePinned = [
+          for (final p in shape) ml.Geographic(lat: p['lat']!, lon: p['lon']!),
+        ];
+        // Force the boundary back onto the leg's real anchors — see this
+        // function's doc comment for why this is mandatory.
+        rePinned[0] = original.first;
+        rePinned[rePinned.length - 1] = original.last;
+        legPoints[i] = rePinned;
+        legElevations[i] = null;
+      }
+    }
+  }
+
+  final pending = refetchAllHeights
+      ? [for (var i = 0; i < legs.length; i++) i]
+      : <int>[
+          for (var i = 0; i < legs.length; i++)
+            if (legElevations[i] == null) i,
+        ];
   if (pending.isNotEmpty) {
     final fetched = await Future.wait([
       for (final i in pending)
@@ -295,7 +353,9 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
     ]);
     for (var k = 0; k < pending.length; k++) {
       final heights = fetched[k];
-      // fetchHeightsForShape returns an empty list on any failure.
+      // fetchHeightsForShape returns an empty list on any failure — leaves
+      // whatever the leg already carried (null for a newly-snapped/pending
+      // leg, or its prior good elevations for a refetch that failed).
       if (heights.isEmpty) continue;
       legElevations[pending[k]] = [for (final h in heights) h.toDouble()];
     }
@@ -347,19 +407,34 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
 ///
 /// A session running a costing outside the 5 picker buckets simply yields no
 /// category pre-fill — no default bucket is ever substituted.
+///
+/// [recalcHeights]/[followRoads] are the two toggles resolved by the shared
+/// online gate (`track_save_options_util.dart`) — both default `false`,
+/// matching that gate's offline/declined-both outcome. [followRoads] maps
+/// onto [buildFinalPlannedGpx]'s `snapCosting`, derived from the session's
+/// own bucket, falling back to `'pedestrian'` when the bucket doesn't
+/// resolve one — the same fallback [costingForTrail] itself uses. No
+/// `movingDuration` is ever passed here: a planned route was never
+/// traversed (unchanged since plan 34-05).
 Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
+  bool recalcHeights = false,
+  bool followRoads = false,
 }) async {
   final anchorsState = ref.read(routeAnchorsProvider);
-  final finalGpx = await buildFinalPlannedGpx(ref);
-
-  final categories = ref.read(categoryProvider).value ?? const [];
-  final subcategories = ref.read(subcategoryProvider);
   final bucket = bucketForState(
     anchorsState.travelProfile,
     anchorsState.costingOptions,
   );
+  final finalGpx = await buildFinalPlannedGpx(
+    ref,
+    refetchAllHeights: recalcHeights,
+    snapCosting: followRoads ? (bucket?.costing ?? 'pedestrian') : null,
+  );
+
+  final categories = ref.read(categoryProvider).value ?? const [];
+  final subcategories = ref.read(subcategoryProvider);
   final selection = bucket == null
       ? null
       : categorySelectionForBucket(
