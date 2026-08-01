@@ -1,520 +1,562 @@
 ---
 phase: 34-dart-conversion-port
-reviewed: 2026-08-01T08:34:12Z
+reviewed: 2026-08-01T10:42:31Z
 depth: standard
-files_reviewed: 23
+round: 2
+files_reviewed: 18
 files_reviewed_list:
   - app/lib/util/gpx_conversion_util.dart
+  - app/lib/util/gpx_util.dart
   - app/lib/util/trail_import_util.dart
   - app/lib/util/route_planner_handoff_util.dart
   - app/lib/util/track_save_options_util.dart
-  - app/lib/util/gpx_util.dart
-  - app/lib/util/format_util.dart
+  - app/lib/vendor/gpx/gpx_reader.dart
+  - app/lib/vendor/gpx/gpx_tag.dart
+  - app/lib/components/trail/elevation_profile.dart
+  - app/lib/provider/trail/trail_provider.dart
+  - app/lib/provider/trail/trail_library_provider.dart
+  - app/lib/entities/trail_entity.dart
   - app/lib/routes/navigation_screen.dart
   - app/lib/routes/route_planner_screen.dart
-  - app/lib/models/trail.dart
-  - app/lib/models/trail_summary.dart
-  - app/lib/components/trail/elevation_profile.dart
-  - app/lib/components/trail/trail_panel.dart
-  - app/test/util/gpx_corpus_test.dart
+  - app/test/util/gpx_util_test.dart
   - app/test/util/gpx_conversion_util_test.dart
-  - app/test/util/trail_import_util_test.dart
-  - app/test/util/route_planner_handoff_util_test.dart
-  - app/test/util/track_save_options_util_test.dart
+  - app/test/util/gpx_corpus_test.dart
+  - app/test/components/trail/elevation_profile_test.dart
   - web/src/routes/api/v1/trail/convert/+server.ts
   - web/src/routes/api/v1/trail/convert/convert.test.ts
-  - web/src/lib/models/gpx/gpx-corpus.test.ts
-  - web/src/lib/util/format_util.ts
-  - db/migrations/1785300000_add_moving_duration_to_trails.go
-  - app/lib/util/form_data_util.dart
 findings:
-  critical: 4
-  warning: 12
-  info: 5
-  total: 21
+  critical: 3
+  warning: 9
+  info: 0
+  total: 12
 status: issues_found
 ---
 
-# Phase 34: Code Review Report
+# Phase 34: Code Review Report (Round 2)
 
-**Reviewed:** 2026-08-01T08:34:12Z
+**Reviewed:** 2026-08-01T10:42:31Z
 **Depth:** standard
-**Files Reviewed:** 23
+**Files Reviewed:** 18
 **Status:** issues_found
+**Diff base:** `fb381452..HEAD` (20 commits)
 
 ## Summary
 
-The core numeric port (`GpxMetricsComputation` → Dart) is genuinely faithful. I diffed it line-for-line against `web/src/lib/models/gpx/gpx-metrics-computation.ts` and `gpx.ts:97-167` and found no divergence in the defer-then-publish filter, the `finalElevationGain`/`finalElevationLoss` vs `total*Smoothed` split, the `i = 0` loop bound, or the `summedPointCount` centroid divisor. The haversine constants match exactly: I recomputed fixture 01 independently in Python at `R = 6371000` and got `134.59240148587796`, bit-identical to `expected.json`, confirming `geobase`'s `SphericalGreatCircle` and the TS `haversineDistance` share a radius rather than the corpus having been seeded from one side. Both suites pass locally (Dart 74/74, TS 38/38), read the same 10 on-disk fixtures, use the same declared tolerances (1e-6 m / 1e-9 deg), skip no fixture, and fail loudly on a wrong CWD or a shrunk corpus. The corpus is real, not theatre — with one specific exception (WR-05).
+All four round-1 criticals and all twelve warnings are genuinely closed — verified against
+current code and, where behaviour was claimed, verified by running the shipped functions rather
+than trusting the commit message. Details in "Closure verification" below.
 
-The defects are almost entirely **outside** the ported arithmetic, in the surrounding plumbing that the port displaced:
+However **the fix pass introduced three new defects**, all in the two commits the brief flagged
+as highest risk (`738a06a2` vendored reader, `afb2b434` haversine + elevation-profile rewrite).
+Two are in the elevation-profile rewrite; one is the downstream consequence of the vendored
+reader's null-lat/lon tolerance meeting an accumulator that was never taught about null
+coordinates. All three were confirmed empirically:
 
-- The import path loses user data when either post-capture toggle is enabled (CR-01).
-- The sanitizer solves four crash inputs but `package:gpx` has eight more unguarded `parse` sites, and the sanitizer was never wired into two of the three remaining GPX parse sites in the app despite the doc comment promising exactly that (CR-02, CR-03).
-- The convert endpoint's hard break removed its only content validation, turning it into an unauthenticated, CSRF-exempt verbatim echo with an active XML content type (CR-04).
+| Probe | Result |
+|---|---|
+| ~2 km track whose FIRST `<trkpt>` lacks `lat`/`lon` | `trail.distance == 0.0`, `trail.lat == null`, centroid 44.66 (should be ~47.01) |
+| 60-point track at 1.5 m spacing on a true 10 % grade | 46/60 chart points report gradient `0.0 %`; the other 14 report `2.5 %` |
+| corpus `08-jittery-track` | chart x-axis total 100.1 m vs. the `distance_from_start` scale's 110.1 m — a 10 % mismatch |
+
+The vendored reader's four local modifications are individually correct, and `diff` against
+`~/.pub-cache/hosted/pub.dev/gpx-2.3.0/lib/src/gpx_reader.dart` confirms nothing undeclared was
+changed. But the tolerance set is **incomplete**: `_readCopyright` still throws `StateError` on
+a `<copyright>` with no `author` attribute, killing an entire otherwise-valid document — the
+exact failure class this phase set out to eliminate (WR-01). And `parseGpxSafely` is not
+exception-free at all: it throws `_TypeError` on any input without a `<gpx>` root, and one of
+its three call sites is unguarded and runs once per cached trail (WR-02).
+
+## Closure verification (round 1)
+
+| ID | Claim | Verdict |
+|---|---|---|
+| CR-01 | `mergeHeightsIntoGpx` gained `Gpx? source` and merges into it | **CLOSED.** `route_planner_handoff_util.dart:62-85` copies `version`/`creator`/`metadata`/`wpts`/`rtes`/`extensions` and the first `<trk>`'s metadata; `trail_import_util.dart:160-166` passes `source: gpx`. The recording path (`navigation_screen.dart:809,816`) correctly omits it. Residual in WR-03. |
+| CR-02 | Regex sanitizers deleted; tolerance moved into a vendored reader | **CLOSED.** No `sanitizeGpx*` remains anywhere in `app/`. `diff` vs. pub-cache `gpx-2.3.0` shows exactly the 4 documented modifications plus `dart format` churn. Models still come from the published package via `hide GpxReader`, so `Gpx`/`Wpt` types stay shared with `GpxWriter`. |
+| CR-03 | `trail_provider`/`trail_entity` route through `parseGpxSafely`; repo-guard test | **CLOSED.** `trail_provider.dart:49`, `trail_entity.dart:190`. The gate at `gpx_conversion_util_test.dart:802-851` has a real non-vacuity floor (`dartFilesScanned > 100`) and pins the sole site's path. Blind spots in WR-09. |
+| CR-04 | Convert endpoint validates via `GPX.parse`; `nosniff` + `Content-Disposition` | **CLOSED.** `+server.ts:24-39, 117-128`. Verified `GPX.parse` genuinely throws for a non-`<gpx>` root (`xml.gpx.$` on `undefined`), so the HTML/XHTML/JSON reflector cases in the suite really are rejected. `gpx2trail` and reverse-geocoding are not reintroduced. Also probed the parser for an entity-expansion (billion-laughs) surface: `sax` rejects custom `<!ENTITY>` outright, so none was opened. |
+| WR-01 | `segmentPolylinesFromTrack` fallback emits the outstanding pair | **CLOSED** (`route_planner_handoff_util.dart:668`, `k = i > 0 ? i - 1 : 0`). |
+| WR-02 | `fallbackShape` = full-resolution geometry | **CLOSED** (`snapShapeToRoadsResult:204`; call sites `navigation_screen.dart:797`, `trail_import_util.dart:139`). |
+| WR-03 | Leg elevations kept on a silent snap fallback | **CLOSED** (`buildFinalPlannedGpx:428`, `if (!snapped[k].snapped) continue;`). |
+| WR-04 | Double-tap guard re-checked after the gate await | **CLOSED** (`route_planner_screen.dart:534`, `if (!mounted || _finishing) return;`). |
+| WR-05 | Corpus icon assertion made non-tautological | **CLOSED** (`gpx_corpus_test.dart:339-349` pins `fontAwesomeIconsMap[sym] != null` independently of the production expression). |
+| WR-06 | TS `<time>` semantics aligned with the Dart port | **CLOSED** (`web/src/lib/models/gpx/waypoint.ts`, `DART_DATETIME_GRAMMAR` + `parseGpxTime`, replacing the bare `new Date(...)`). |
+| WR-07 | Planner height backfill gated on connectivity | **CLOSED** (`buildFinalPlannedGpx:453-461`, `!online ? const <int>[] : ...`). |
+| WR-08 | Zero moving duration mapped to "no value" | **CLOSED** (`trailFromGpx:500-503`, `movingDuration.inSeconds > 0`; sub-second case tested). |
+| WR-09 | `moving_duration` accepted by the JSON trail request schemas | **CLOSED** (`trail_schema.ts:25, 56`). |
+| WR-10 | Stale `movingDuration` cleared when geometry is replaced | **CLOSED** (`mergeRouteIntoTrail:718`, `movingDuration: 0`, with the Freezed-can't-assign-null rationale documented). |
+| WR-11 | Zero-point leg skipped rather than emitted as an empty `Trkseg` | **CLOSED** (`buildFinalPlannedGpx:494`). |
+| WR-12 | `importTrailFile`'s `try` narrowed; exception logged | **CLOSED** (`trail_import_util.dart:81-193`; the push is outside the `try`, `debugPrint` carries `$e\n$st`). |
+
+---
 
 ## Critical Issues
 
-### CR-01: Enabling either post-capture toggle on a file import silently discards the GPX's waypoints, name and description
+### CR-01: A `<trkpt>` with null `lat`/`lon` as the FIRST point permanently freezes the smoothing anchor — the whole trail measures 0 m
 
-**File:** `app/lib/util/trail_import_util.dart:97-145`
+**File:** `app/lib/util/gpx_conversion_util.dart:170-185, 279-282` (root cause enabled by `app/lib/vendor/gpx/gpx_reader.dart:293-294`)
 
-**Issue:** When `recalcHeights || followRoads` is true, the import rebuilds the track through `mergeHeightsIntoGpx`, which constructs a **bare** `Gpx()` carrying only `trks`:
+**Issue:** `addAndFilter`'s initialisation branch seeds both XY anchors with whatever the first
+point is, guarding only elevation:
 
 ```dart
-Gpx mergeHeightsIntoGpx(...) {
-  final gpx = Gpx();          // no metadata, no wpts, no trk name
-  if (shape.isEmpty) return gpx;
-  gpx.trks = [Trk(trksegs: [...])];
-  return gpx;
+if (_lastPointXY == null || _lastFilteredPointXY == null) {
+  _lastPointXY = point;
+  _lastFilteredPointXY = point;          // <-- no coordinate guard
+  final initialElevation = parseGpxElevation(point.ele);
+  if (initialElevation != null) { ... }  // elevation IS guarded
+  return;
 }
 ```
 
-`finalGpx` is then fed to `buildLocalTrail` → `trailFromGpx`, which reads `gpx.metadata?.name`, `gpx.trks.first.name`, `gpx.rtes.first.name` and `gpx.wpts` — all now empty. Consequences on every import where the user ticks "Recalculate heights" or "Follow roads":
+`_lastFilteredPointXY` is only ever reassigned inside `if (smoothedDistance >= _thresholdXYm)`
+(line 279). If that anchor has a null coordinate, `haversineMeters` returns `double.nan` for
+every subsequent point (deliberately, per its own doc), `NaN >= 5` is always `false`, so the
+anchor is **never replaced** and `totalDistanceSmoothed` stays `0.0` for the entire remainder of
+the file. `totalDistanceSmoothed` is exactly what `computeTrailMetrics` returns as `distance`,
+which becomes `trail.distance`.
 
-1. Every `<wpt>` in the imported file is dropped (`trail.expand.waypointsViaTrail` is empty).
-2. The trail is named after the *file* (`fallbackName: name`, e.g. `"track.gpx"`) instead of the GPX's own `<metadata><name>`.
-3. `description` falls back to `''`.
-4. Line 137 re-serialises `finalGpx` into `finalGpxData`, so the stripped document is what gets **uploaded and persisted** as the track file — the loss is permanent, not just in the draft.
+This path did not exist before this phase. LOCAL MODIFICATION 2 of the vendored reader is what
+turned "a `<trkpt>` missing `lat`/`lon` throws `StateError`" into "it yields
+`Wpt(lat: null, lon: null)`". `elevation_profile_test.dart:77-92` covers a null-coordinate point
+inserted at **index 10** — never at index 0 — so the suite stays green.
 
-This is a regression against the pre-phase behaviour, where the whole file went to the server and `gpx2trail` ran over the original document. `_saveRecordedTrack` and `finishPlanning` are unaffected (they have no source waypoints to lose), so only the import path is broken — and no test covers the toggled-on import (`trail_import_util_test.dart:361-388` only exercises the offline `(false, false)` branch).
+Measured on the shipped code (one leading coordinate-less `<trkpt>`, then 19 valid points
+spanning ~2.1 km):
 
-**Fix:** Carry the source document's non-geometry content onto the transformed GPX before building the trail:
-
-```dart
-finalGpx = mergeHeightsIntoGpx(
-  workingShape,
-  heights,
-  startTime: originalWaypoints.firstOrNull?.time,
-  endTime: originalWaypoints.lastOrNull?.time,
-)
-  ..metadata = gpx.metadata
-  ..wpts = gpx.wpts
-  ..rtes = gpx.rtes;
-if (gpx.trks.isNotEmpty) {
-  finalGpx.trks.first.name = gpx.trks.first.name;
-  finalGpx.trks.first.desc = gpx.trks.first.desc;
-}
+```
+DISTANCE=0.0  pointCount=20  centroidLat=44.6595
+TRAIL lat=null lon=null distance=0.0
 ```
 
-Add a test asserting that an import with `recalcHeights: true` over a fixture containing `<wpt>` and `<metadata><name>` preserves both.
+Two further consequences of the same root cause, both confirmed by the same probe:
 
----
+- `trailFromGpx:481` takes `startPoint` from `trackPoints?.firstOrNull` (unfiltered), so
+  `trail.lat`/`trail.lon` are `null` — the trail has no map position, and `buildLocalTrail`
+  skips the reverse-geocode entirely because of its own `lat != null && lon != null` gate.
+- `computeTrailMetrics:361-363` does `totalLat += point.lat ?? 0` while incrementing
+  `summedPointCount` unconditionally, so each null-coordinate point drags the centroid toward
+  (0, 0) — 47.01 → 44.66 with a single bad point out of 20.
 
-### CR-02: The sanitizer neutralises 4 of `package:gpx`'s 12 unguarded parse sites — common real-world GPX still throws
+`importTrailFile`'s `hasUsablePoint` guard (line 89) does not catch this: it passes as soon as
+*any* point has coordinates. So the import completes, the user is navigated to the create
+screen, and a 0-metre, position-less trail is offered for saving.
 
-**File:** `app/lib/util/gpx_conversion_util.dart:33-72`
-
-**Issue:** `sanitizeGpxEleAndTime` handles `<ele>` and `<time>` only. But `gpx_reader.dart` (v2.3.0) calls `double.parse`/`int.parse` on raw accumulated element text with no guard for **eight** other elements:
-
-```dart
-double? _readDouble(Iterator<XmlEvent> iterator, String tagName) {
-  final doubleString = _readString(iterator, tagName);
-  return doubleString != null ? double.parse(doubleString) : null;   // '' -> FormatException
-}
-int? _readInt(...) => intString != null ? int.parse(intString) : null;
-```
-
-Reached for `<hdop>`, `<vdop>`, `<pdop>`, `<magvar>`, `<geoidheight>`, `<ageofdgpsdata>` (`_readDouble`, `gpx_reader.dart:292-308`) and `<sat>`, `<dgpsid>` (`_readInt`). `_readString` returns `''` — not `null` — for any non-self-closing element, so `<hdop></hdop>`, `<hdop>   </hdop>`, `<sat></sat>` and `<pdop>N/A</pdop>` all throw `FormatException` and abort the whole import with the generic `trail_source_import_error` toast.
-
-`<hdop>`/`<vdop>`/`<pdop>`/`<sat>` are among the most commonly emitted optional GPX elements (Garmin, Locus, OsmAnd, many track loggers) and empty-element forms are routine in exporter output. Before this phase these files were parsed server-side by `xml2js`, which never coerces and so never threw. The doc comment's claim that the four handled cases are "the four confirmed `GpxReader` crash inputs" is true only of the cases that were tested, not of the parser's actual surface.
-
-**Fix:** Generalise the sanitize pass over the full set of numerically-parsed tags rather than enumerating two:
+**Fix:** never let a coordinate-less point become an XY anchor, and exclude it from the centroid.
 
 ```dart
-const _numericGpxTags = [
-  'ele', 'hdop', 'vdop', 'pdop', 'magvar', 'geoidheight', 'ageofdgpsdata',
-];
-const _intGpxTags = ['sat', 'dgpsid'];
+void addAndFilter(Wpt point) {
+  final hasXY = point.lat != null && point.lon != null;
 
-String sanitizeGpxNumericAndTime(String xml) {
-  var out = xml;
-  for (final tag in _numericGpxTags) {
-    out = out.replaceAllMapped(RegExp('<$tag>([^<]*)</$tag>'), (m) {
-      final v = double.tryParse((m[1] ?? '').trim());
-      return (v != null && v.isFinite) ? m[0]! : '<$tag/>';
-    });
+  if (_lastPointXY == null || _lastFilteredPointXY == null) {
+    if (hasXY) {
+      _lastPointXY = point;
+      _lastFilteredPointXY = point;
+    }
+    final initialElevation = parseGpxElevation(point.ele);
+    if (initialElevation != null) {
+      _lastFilteredZ = initialElevation;
+      _lastFilteredZPointXY = hasXY ? point : null;
+      _lastZ = initialElevation;
+    }
+    return; // a coordinate-less leading point simply does not anchor; the next one retries
   }
-  for (final tag in _intGpxTags) {
-    out = out.replaceAllMapped(RegExp('<$tag>([^<]*)</$tag>'), (m) =>
-        int.tryParse((m[1] ?? '').trim()) != null ? m[0]! : '<$tag/>');
+  ...
+}
+```
+
+and in `computeTrailMetrics`:
+
+```dart
+if (point.lat != null && point.lon != null) {
+  totalLat += point.lat!;
+  totalLon += point.lon!;
+  summedCoordinateCount++;   // divide the centroid by THIS
+}
+summedPointCount++;          // pointCount stays a raw point count
+```
+
+and in `trailFromGpx:479-481`:
+
+```dart
+final startPoint =
+    trackPoints?.firstWhereOrNull((p) => p.lat != null && p.lon != null) ??
+    routePoints?.firstWhereOrNull((p) => p.lat != null && p.lon != null);
+```
+
+Add a regression test with the coordinate-less point at index **0**, asserting `distance > 0`
+and `trail.lat != null`.
+
+---
+
+### CR-02: The elevation chart's gradient divides a one-sample elevation delta by a multi-sample smoothed distance jump — it reads ~0 % on a real climb
+
+**File:** `app/lib/components/trail/elevation_profile.dart:703-730` (introduced by `afb2b434`)
+
+**Issue:** `distanceM` is now `metrics.totalDistanceSmoothed`, which is a **step function** — it
+only advances when a point is ≥ 5 m from the last smoothing anchor. `elevationM`, by contrast,
+still advances on every point. The gradient loop divides one by the other:
+
+```dart
+final dElev = result[i].elevationM - result[i - 1].elevationM;  // per-sample
+final dDist = result[i].distanceM - result[i - 1].distanceM;    // 0, or a ~5 m jump
+result[i].gradient = dDist > 0 ? (dElev / dDist) * 100 : 0;
+```
+
+For any track sampled denser than 5 m — i.e. every 1 Hz recording, and anything Strava/Garmin
+exports — most consecutive pairs have `dDist == 0` and get gradient `0`, while the pair that
+does step gets a ~5 m denominator against a **single sample's** elevation change. The result is
+understated by roughly the number of samples per 5 m.
+
+Measured on the shipped `buildElevationTrackPoints` with 60 points at ~1.5 m spacing on a true
+**10 %** grade:
+
+```
+POINTS=60  ZEROGRAD=46  maxDist=84.06
+grads=[0.0, 0.0, 0.0, 0.0, 2.5, 0.0, 0.0, 0.0, 2.5, 0.0, 0.0, 0.0]
+```
+
+77 % of points read `0.0 %`; the rest read `2.5 %` on a 10 % slope. This is not cosmetic —
+`gradient` drives three user-visible things:
+
+- `_gradientColor` (lines 424, 464, 729), which is the entire colour of the chart line and its
+  fill. Both `0 %` and `2.5 %` land in the `g < 3` "soft purple / flat" bucket, so a sustained
+  10 % climb now renders flat purple end to end instead of amber/orange. The gradient colouring
+  is the chart's signature visual.
+- the scrub stats header (line 116), which prints `+0.0%` for roughly 3 of every 4 scrub
+  positions.
+- `getTouchedSpotIndicator`'s dot colour (line 342).
+
+The line-gradient dedup at lines 422/462 (`if (stop <= stops.last) continue`) hides the zeros
+from the stops array, which is likely why this survived visual inspection — but it cannot fix
+the magnitude, and the tooltip and dot paths have no such dedup. No test asserts on `gradient`.
+
+**Fix:** keep the smoothed distance for the axis (that is the whole point of the change), but
+compute the gradient against the distance actually travelled between the two plotted points.
+Carry a raw cumulative distance alongside:
+
+```dart
+class TrackPoint {
+  final double distanceM;      // smoothed — axis + stats, unchanged
+  final double rawDistanceM;   // raw cumulative — gradient denominator only
+  ...
+}
+```
+
+accumulate `rawDistanceM` with `haversineMeters` over the same traversal, then:
+
+```dart
+final dDist = result[i].rawDistanceM - result[i - 1].rawDistanceM;
+result[i].gradient = dDist > 0 ? (dElev / dDist) * 100 : 0;
+```
+
+Add a test asserting that a synthetic constant-10 %-grade track sampled below the threshold
+reports gradients near 10, not near 0.
+
+---
+
+### CR-03: Waypoint markers are positioned by a raw `distance_from_start` against a now-smoothed x-axis — they drift, and tail waypoints are silently filtered out
+
+**File:** `app/lib/components/trail/elevation_profile.dart:195-199, 366, 381`
+
+**Issue:** the chart's x-axis (`maxDist = _points.last.distanceM`, line 80) is now the
+**smoothed** total, but `Waypoint.distanceFromStart` is a **raw** cumulative distance from two
+independent producers, neither of which changed:
+
+- server-side: `web/src/lib/vendor/maplibre-elevation-profile/elevationprofile.ts:965` assigns
+  `cumulatedDistanceAdjustedUnit[i] * 1000` — a raw per-point accumulation;
+- app-side: `GpxMappingUtils.distanceFromStartTo` (`gpx_util.dart:107`) sums `haversineMeters`
+  over every consecutive vertex — explicitly raw, and the commit that unified the haversines
+  deliberately kept it raw.
+
+Before `afb2b434` the chart axis was also a raw haversine sum over `allWaypoints`, so the two
+scales matched by construction. They no longer do. Two symptoms:
+
+1. **Drift.** Every marker sits too far right by the raw/smoothed ratio, growing along the
+   track. Measured on corpus `08-jittery-track`: raw 110.1 m vs. smoothed 100.1 m — a 10 % error
+   at the far end. The commit's own test fixture is 232.6 m vs. 80.6 m (2.9×).
+2. **Silent disappearance.** Line 197 filters `w.distanceFromStart! <= maxDist`. Any waypoint
+   whose raw distance exceeds the smoothed total — for a jittery track that is *every* waypoint
+   past the crossover point; for a clean track it is at minimum an end-of-trail waypoint — is
+   dropped from `waypoints` entirely: no vertical line (line 366), no icon marker (line 380).
+   The user sees fewer waypoints on the profile than the trail has, with no indication why.
+
+**Fix:** plot markers on the same scale as the axis. Both scales are monotonic over the same
+traversal, so with `rawDistanceM` on `TrackPoint` (see CR-02's fix) the mapping is a lookup:
+
+```dart
+double smoothedXFor(double rawDistance) {
+  for (var i = 1; i < _points.length; i++) {
+    if (_points[i].rawDistanceM >= rawDistance) {
+      final p0 = _points[i - 1], p1 = _points[i];
+      final span = p1.rawDistanceM - p0.rawDistanceM;
+      final t = span > 0 ? (rawDistance - p0.rawDistanceM) / span : 0.0;
+      return p0.distanceM + t * (p1.distanceM - p0.distanceM);
+    }
   }
-  return out.replaceAllMapped(RegExp(r'<time>([^<]*)</time>'), (m) =>
-      DateTime.tryParse((m[1] ?? '').trim()) != null ? m[0]! : '<time/>');
+  return _points.last.distanceM;   // clamp, do not drop
 }
 ```
 
-Add one corpus fixture or unit test per newly-covered tag.
+and replace the `<= maxDist` filter with a clamp so a tail waypoint pins to the right edge
+rather than vanishing. Add a test with a waypoint whose `distanceFromStart` exceeds the smoothed
+total, asserting it is still rendered.
 
 ---
-
-### CR-03: `parseGpxSafely` is not applied at two of the three GPX parse sites, contradicting its own contract
-
-**File:** `app/lib/util/gpx_conversion_util.dart:56-72`, `app/lib/provider/trail/trail_provider.dart:42-43`, `app/lib/entities/trail_entity.dart:187`
-
-**Issue:** The function documents itself as "The single sanctioned parse entry point for any GPX this app did not itself produce" and states that "Later plans redirect every existing `GpxReader().fromString(...)` call site in the app through this function." That redirect never happened. A repo-wide grep finds three production parse sites; two still use the old, `<ele>`/`<time>`-unsafe path:
-
-```dart
-// trail_provider.dart:42-43 — GPX downloaded from the server
-final sanitizedGpx = sanitizeGpxEmail(gpxResponse.data as String);
-final parsedGpx = GpxReader().fromString(sanitizedGpx);
-
-// trail_entity.dart:187 — GPX read back out of the offline ObjectBox cache
-gpx: gpxData != null ? GpxReader().fromString(sanitizeGpxEmail(gpxData!)) : null,
-```
-
-Both handle GPX the app did not produce (uploaded by any user on the instance, or federated in from another instance). Impact:
-
-- `trail_provider.dart`: the `FormatException` is swallowed by the broad `catch (_)` at line 54 and silently degrades to the offline-cache path — the user sees a stale trail or an error with no indication why.
-- `trail_entity.dart`: `toModel()` is invoked at line 74 of that same `catch` block, *outside* any further try, so the exception escapes the notifier and the trail becomes permanently un-openable offline once cached.
-
-Note the asymmetry this creates: the very file the app just imported successfully (via `parseGpxSafely`) can fail to re-open after being saved and re-downloaded, because `importTrailFile` uploads the *unsanitised* original text (`finalGpxData = gpxXml`, line 95) while only sanitising in memory.
-
-**Fix:** Route both call sites through `parseGpxSafely` (which already chains `sanitizeGpxEmail`):
-
-```dart
-// trail_provider.dart
-final parsedGpx = parseGpxSafely(gpxResponse.data as String);
-
-// trail_entity.dart
-gpx: gpxData != null ? parseGpxSafely(gpxData!) : null,
-```
-
-Then add a repo-guard test in the style of the existing `PORT-03 gate` test (`trail_import_util_test.dart:391-431`) asserting `GpxReader()` appears in `lib/` exactly once, inside `gpx_conversion_util.dart`.
-
----
-
-### CR-04: The convert endpoint reflects arbitrary unauthenticated request bodies verbatim with an active XML content type
-
-**File:** `web/src/routes/api/v1/trail/convert/+server.ts:63-79`
-
-**Issue:** The hard break removed the endpoint's only content validation. Previously, the raw-text and JSON branches passed through `gpx2trail`, which threw and produced a `400 "Invalid GPX content"` for anything that was not a parseable GPX document. That guard is gone; the handler now echoes whatever arrived:
-
-```ts
-} else {
-    gpxData = await event.request.text();   // arbitrary attacker-controlled bytes
-}
-if (!gpxData || !gpxData.trim().length) { /* 400 */ }
-return new Response(gpxData, {
-    headers: { "Content-Type": "application/gpx+xml" },   // no nosniff, no attachment
-});
-```
-
-The endpoint is unauthenticated (`/api/v1/trail/convert` is absent from `privateRoutes` in `web/src/lib/util/authorization_util.ts:4-8` and the handler performs no `locals.pb.authStore` check), and CSRF protection is explicitly disabled for this path — `hooks.server.ts:196` calls `csrf(['/api/v1'])`, and `hooks.server.ts:21-28` skips the origin check for any allow-listed prefix. A cross-origin auto-submitting form with `enctype="text/plain"` is therefore a simple request that reaches the `else` branch and performs a **top-level navigation** whose response body is fully attacker-controlled, served from the victim's origin as `application/gpx+xml` with no `X-Content-Type-Options: nosniff` and no `Content-Disposition: attachment`. `*+xml` types are parsed as XML by browsers, which brings XSLT processing-instruction and XHTML-namespace script vectors into range. Independently of exploitability, an unauthenticated verbatim echo of unvalidated input is a defect: `convert.test.ts:36-47` actively asserts the byte-for-byte reflection as intended behaviour, and `convert.test.ts:124-135` only rejects the empty body.
-
-**Fix:** Restore validation and neutralise the response:
-
-```ts
-try {
-    GPX.parse(gpxData);   // reuse the existing parser as the validator
-} catch {
-    throw new ClientResponseError({ status: 400, response: { message: "Invalid GPX content" } });
-}
-
-return new Response(gpxData, {
-    headers: {
-        "Content-Type": "application/gpx+xml",
-        "X-Content-Type-Options": "nosniff",
-        "Content-Disposition": "attachment; filename=\"track.gpx\"",
-    },
-});
-```
-
-Add a test asserting a non-GPX raw body 400s, and one asserting the `nosniff` header is present.
 
 ## Warnings
 
-### WR-01: Off-by-one in `segmentPolylinesFromTrack`'s not-found fallback drops one polyline and mis-pairs every following segment
+### WR-01: The vendored reader's tolerance set is incomplete — `<copyright>` without an `author` attribute still aborts the whole document
 
-**File:** `app/lib/util/route_planner_handoff_util.dart:532-537`
+**File:** `app/lib/vendor/gpx/gpx_reader.dart:590-593`
 
-**Issue:** When anchor `i` cannot be located, the fallback emits straight lines starting at `k = i`:
+**Issue:** `_readCopyright` was carried over from upstream unchanged:
 
 ```dart
-if (idx == -1) {
-  for (var k = i; k < anchors.length - 1; k++) {
-    polylines.add([anchors[k], anchors[k + 1]]);
-  }
-  return polylines;
-}
+copyright.author = elm.attributes
+    .firstWhere((attr) => attr.name == GpxTagV11.author)
+    .value;
 ```
 
-At that point the loop has added polylines for pairs `(0,1) … (i-2,i-1)` — that is `i-1` entries — and the fallback adds `n-1-i` more, for `n-2` total instead of the required `n-1`. The **missing entry is the `(i-1, i)` pair**, which should come *before* the fallback entries. The result is a list that is both one short and mis-ordered relative to the anchor pairs.
+No `orElse`. Confirmed against the shipped code, on an otherwise perfectly valid track carrying
+`<metadata><copyright><year>2024</year></copyright></metadata>`:
 
-The consumer is `RouteAnchorsNotifier.seedFromTrack`, which indexes positionally (`route_anchor_provider.dart:577`: `i < segmentPolylines.length ? segmentPolylines[i] : [straight line]`). Every segment from index `i-1` onward therefore receives the polyline belonging to the *next* anchor pair, and the last one silently degrades to a straight line — a scrambled route on re-edit rather than a clean fallback. No test covers the `idx == -1` branch.
-
-**Fix:**
-
-```dart
-if (idx == -1) {
-  for (var k = i > 0 ? i - 1 : 0; k < anchors.length - 1; k++) {
-    polylines.add([anchors[k], anchors[k + 1]]);
-  }
-  return polylines;
-}
+```
+copyright no author => THREW StateError: Bad state: No element
 ```
 
-Add a test feeding anchors that include a coordinate absent from the track and asserting `polylines.length == anchors.length - 1`.
+This is the *same* user-visible failure the phase set out to eliminate: in `trail_provider.dart`
+the throw is swallowed by the broad `catch (_)` at line 60 and silently degrades to the offline
+cache — exactly the behaviour the CR-03 commit comment describes for `<hdop></hdop>`.
 
----
+The file header asserts the numbered list is the complete tolerance set and that behaviour is
+"otherwise byte-for-byte upstream". That is literally true, but it leaves a throwing
+`firstWhere` on a required-by-spec attribute of an optional element the app never reads — which
+is precisely the shape of LOCAL MODIFICATIONS 2 and 3.
 
-### WR-02: A failed road-snap falls back to the *downsampled* shape, not the original full-resolution one
-
-**File:** `app/lib/util/route_planner_handoff_util.dart:120-150`; call sites `route_planner_handoff_util.dart:321` and `trail_import_util.dart:111-115`
-
-**Issue:** `snapShapeToRoads` returns its `shape` parameter unchanged on error or rejection — but every caller passes `buildNavShape(points)`, i.e. the ≤500-point downsampled Valhalla *request hint*, not the source geometry:
+**Fix:** reuse the same pattern and record it as LOCAL MODIFICATION 5:
 
 ```dart
-workingShape = await snapShapeToRoads(ref, buildNavShape(points), 'pedestrian');
+// LOCAL MODIFICATION 5: <copyright author> is required by spec, but <copyright> is
+// optional metadata the app never reads — losing it must not cost the track.
+final authorAttr =
+    elm.attributes.firstWhereOrNull((attr) => attr.name == GpxTagV11.author);
+copyright.author = authorAttr?.value ?? '';
 ```
 
-So a snap that fails (timeout, offline flip, 5xx) or is rejected by `snapResultAcceptable` silently replaces a full-resolution track with a 500-point decimation, which is then persisted. `navigation_screen.dart:788-793` carries an explicit comment warning that `buildNavShape`'s cap "applies only to this outbound hint" — the fallback path violates exactly that invariant. A 5000-point recorded track loses 90% of its vertices because a network call failed.
+Add a test next to the existing "`<trkpt>` missing lat/lon" case, including the
+published-reader-throws non-vacuity assertion the neighbouring tests use.
 
-**Fix:** Return the caller's real geometry on the fallback path:
+### WR-02: `parseGpxSafely` is not exception-free, and one of its three call sites is unguarded and runs once per cached trail
+
+**Files:** `app/lib/util/gpx_conversion_util.dart:43-45`, `app/lib/entities/trail_entity.dart:185-190`, `app/lib/provider/trail/trail_library_provider.dart:29`
+
+**Issue:** `parseGpxSafely`'s doc presents it as "the single sanctioned parse entry point …
+[malformed inputs] now degrade to 'no reading' on the affected field and leave the rest of the
+track intact", and `trail_entity.dart:187-189` claims the fix means a cached trail is no longer
+"permanently un-openable offline". Both overstate what was fixed. Confirmed against the shipped
+function:
+
+```
+non-gpx root    => THREW _TypeError: Null check operator used on a null value
+html error page => THREW _TypeError: Null check operator used on a null value
+plain text      => THREW _TypeError: Null check operator used on a null value
+empty string    => THREW _TypeError: Null check operator used on a null value
+```
+
+The throw is `gpx_reader.dart:70`, `iterator.current as XmlStartElementEvent`, reached when the
+scan loop never finds a `<gpx>` element. `parseEvents` is also lazy, so genuinely malformed XML
+raises `XmlParserException` mid-iteration.
+
+`TrailEntity.toModel()` calls it with no guard, and `TrailLibraryNotifier.build()` maps
+`toModel()` over **every** row in the account's library inside a synchronous provider `build()`
+with no try/catch. One unparseable cached `gpxData` therefore fails the entire offline library
+screen — a strictly *worse* blast radius than the single-trail failure the comment claims to
+have fixed.
+
+**Fix:** make the contract true and guard the call site:
 
 ```dart
-Future<List<Map<String, double>>> snapShapeToRoads(
-  WidgetRef ref,
-  List<Map<String, double>> requestShape,
-  String costing, {
-  List<Map<String, double>>? fallbackShape,
-}) async {
-  final fallback = fallbackShape ?? requestShape;
+/// Returns `null` when [xml] is not a GPX document at all (no `<gpx>` root, or
+/// malformed XML). Field-level coercion failures still degrade to "no reading".
+Gpx? tryParseGpxSafely(String xml) {
   try {
-    ...
-    return snapResultAcceptable(requestShape, snapped) ? snapped : fallback;
+    return GpxReader().fromString(xml);
   } catch (_) {
-    return fallback;
+    return null;
   }
 }
 ```
 
-and pass the full-resolution list as `fallbackShape` at all three call sites.
+then `trail_entity.dart:190` becomes `gpx: gpxData != null ? tryParseGpxSafely(gpxData!) : null`,
+so a corrupt cache entry costs one trail's track preview rather than the whole library.
 
----
+### WR-03: `mergeHeightsIntoGpx(source:)` aliases the source's mutable collections and drops every track but the first
 
-### WR-03: A silently-failed snap still invalidates the leg's elevations, which a failed refetch then destroys
+**File:** `app/lib/util/route_planner_handoff_util.dart:62-85`
 
-**File:** `app/lib/util/route_planner_handoff_util.dart:323-337`
+**Issue:** two things.
 
-**Issue:** `legElevations[i] = null` is executed for every leg whose `snapped[k].length >= 2`, with no way to distinguish "the snap succeeded and the indices really are stale" from "`snapShapeToRoads` swallowed the error and handed back the input unchanged". Combined with the height backfill's own silent fallback (`if (heights.isEmpty) continue;`, line 359), a leg that previously carried perfectly good elevations ends up with `ele: null` on every point purely because two independent network calls failed. The trail's `elevationGain`/`elevationLoss` then compute to 0 and are saved that way. Ticking "Follow roads" while on a flaky connection is enough to destroy a route's elevation data.
+1. `gpx.metadata = source.metadata; gpx.wpts = source.wpts; gpx.rtes = source.rtes;
+   gpx.extensions = source.extensions;` assigns **references**, not copies. Two `Gpx` objects now
+   share one `List<Wpt>`, one `List<Rte>`, one `Metadata` and one extensions map. Nothing mutates
+   them on today's paths, so this is latent rather than active — but it is an invisible landmine
+   for any future caller that edits waypoints on the returned document and unknowingly mutates
+   the source.
+2. `sourceTrk` is `source.trks.first` only (lines 72-74). A GPX with multiple `<trk>` elements
+   loses every track after the first, and its metadata, even though `gpx.allPoints` — which built
+   `shape` at `trail_import_util.dart:122` — flattened **all** of them into the geometry. The doc
+   comment does not mention this narrowing.
 
-**Fix:** Have `snapShapeToRoads` signal whether a real snap occurred (e.g. return a record `(shape, snapped: bool)` or `null` on fallback), and only clear `legElevations[i]` when it did.
+**Fix:** copy the collections (`gpx.wpts = [...source.wpts]`, likewise `rtes`; `Map.of(...)` for
+`extensions`), and either document the single-track narrowing explicitly or carry the remaining
+tracks' metadata through.
 
----
+### WR-04: The import path's post-capture transforms flatten every `<trkseg>` into one segment, destroying route-planner anchor structure
 
-### WR-04: `_onFinish`'s double-tap guard no longer covers the gate, contradicting its own doc comment
+**File:** `app/lib/util/trail_import_util.dart:122-170`
 
-**File:** `app/lib/routes/route_planner_screen.dart:513-533`
+**Issue:** when either toggle is on, `workingShape` is built from `gpx.allPoints`, which
+`gpx_util.dart:75-79` flattens across every `Trk` and every `Trkseg`. `mergeHeightsIntoGpx` then
+emits a **single** `Trk` with a **single** `Trkseg`, and the re-serialised `finalGpxData` (line
+170) is what gets uploaded and persisted.
 
-**Issue:** The comment states "`[_finishing]` still guards the forward-push branch against a double-tap firing two concurrent conversions/navigations", but in the non-edit branch `setState(() => _finishing = true)` is now deferred until *after* `await resolveTrackSaveOptions(...)`:
+`buildFinalPlannedGpx`'s own doc comment (`route_planner_handoff_util.dart:336-341`) states this
+exact consequence for the planner: "Emitting a single flattened segment here (as an earlier
+version did, via `buildNavShape` + `mergeHeightsIntoGpx`) collapsed every intermediate anchor to
+a bare start/end pair on re-edit." The import path now does precisely that to any imported
+multi-segment GPX — including one Wanderer's own planner produced — the moment the user ticks
+either box. `anchorsFromTrack` (line 595) derives anchors from `trkseg` boundaries, so a later
+planner edit sees only two anchors.
 
-```dart
-if (_finishing) return;
-try {
-  if (_editMode) {
-    setState(() => _finishing = true);      // set before the await
-    ...
-  } else {
-    final options = await resolveTrackSaveOptions(ref, context);   // guard still false here
-    if (options == null) return;
-    if (!mounted) return;
-    setState(() => _finishing = true);
+**Fix:** preserve segment structure through the transform — build `workingShape` per segment,
+transform each, and reassemble one `Trkseg` per source segment. At minimum, skip the transforms
+for a multi-segment source and document the narrowing on `importTrailFile`.
+
+### WR-05: The chart's x-axis range collapses to exactly zero for any track shorter than the 5 m smoothing threshold
+
+**File:** `app/lib/components/trail/elevation_profile.dart:80, 230-231`
+
+**Issue:** `maxDist = _points.last.distanceM` is now the smoothed total, which is exactly `0.0`
+whenever no point ever reaches 5 m from the start anchor. Confirmed on a 4-point, ~2 m track:
+
+```
+SHORT maxDist=0.0
 ```
 
-Before this phase the flag was set unconditionally on the first line. Now a second tap while the sheet is open (the finish action stays enabled — `_buildFinishAction:487` reads `!_finishing`) re-enters, opens a second sheet, and can drive two concurrent `finishPlanning` runs, each doing its own snap/height fetches and its own `pushReplacement`. `navigation_screen.dart:736-739` has the same shape but at least re-checks `if (_savingTrack) return;` immediately after the await; `_onFinish` has no such re-check.
+`LineChartData(minX: 0, maxX: 0)` hands fl_chart a zero horizontal range to divide by when
+mapping spots to pixels. `_niceInterval`, `_buildLineGradient` and `_buildFillGradient` all have
+explicit zero guards, and `(0.0/0.0).clamp(0.0, 1.0)` returns `1.0` rather than `NaN` (verified),
+so this is degraded rendering rather than a crash — but the whole chart collapses onto a single
+x-position. Previously only a track whose points were all *identical* could reach this; now any
+sub-5 m track does, and CR-01 makes it reachable for arbitrarily long tracks too.
 
-**Fix:** Re-check the guard after the await, mirroring `_saveRecordedTrack`:
+**Fix:** guard the render path, e.g. `final axisMax = maxDist > 0 ? maxDist : 1.0;` passed to
+`LineChartData.maxX` and `_niceInterval`, or return `_EmptyState` when `maxDist == 0`.
 
-```dart
-final options = await resolveTrackSaveOptions(ref, context);
-if (options == null) return;
-if (!mounted || _finishing) return;
-setState(() => _finishing = true);
-```
+### WR-06: Vendored BSD-3-Clause source carries no licence file, and `gpx_tag.dart` has no attribution at all
 
----
+**Files:** `app/lib/vendor/gpx/gpx_tag.dart:1`, `app/lib/vendor/gpx/` (no `LICENSE`)
 
-### WR-05: The Dart corpus's waypoint-icon assertion is tautological and cannot fail
+**Issue:** `gpx_reader.dart` names the licence in a comment but does not reproduce the notice.
+`gpx_tag.dart` is **byte-identical to upstream** (verified — `diff` produced zero output) and
+carries no header whatsoever, so nothing in the file identifies it as third-party code.
+BSD-3-Clause requires source redistributions to retain the copyright notice, the condition list
+and the disclaimer. The repo already has the right pattern one directory over:
+`app/vendor/tiptap_flutter/LICENSE`.
 
-**File:** `app/test/util/gpx_corpus_test.dart:330-338`
+**Fix:** add `app/lib/vendor/gpx/LICENSE` containing
+`~/.pub-cache/hosted/pub.dev/gpx-2.3.0/LICENSE` verbatim, and prepend a
+"Vendored from package:gpx 2.3.0 — BSD-3-Clause, see LICENSE" header to `gpx_tag.dart`.
 
-**Issue:** The expected value is computed with the identical expression the production code uses:
+### WR-07: `buildElevationTrackPoints` silently changed the chart's duration semantics — untimed gaps are now bridged
 
-```dart
-// test
-final expectedIconData = expectedIcon != null
-    ? (fontAwesomeIconsMap[expectedIcon] ?? FontAwesomeIcons.circle)
-    : FontAwesomeIcons.circle;
-expect(actualWaypoint.icon, expectedIconData);
+**File:** `app/lib/components/trail/elevation_profile.dart:665-697`
 
-// production, gpx_conversion_util.dart:467
-icon: fontAwesomeIconsMap[wpt.sym] ?? FontAwesomeIcons.circle,
-```
-
-If `fontAwesomeIconsMap` lost the `campground` or `mountain` key, *both* sides would evaluate to `FontAwesomeIcons.circle` and the assertion would still pass. Fixture 10's `notes` explicitly claims this test confirms both sym strings "are present in `app/lib/util/icon_util.dart`'s `fontAwesomeIconsMap` on the Dart side" — it does not. The TS counterpart (`gpx-corpus.test.ts:227-236`) compares against the literal `"campground"` string and is a real assertion, so the two suites are not field-for-field comparable here despite the file header claiming they are.
-
-**Fix:** Assert the map lookup succeeded before comparing:
+**Issue:** the rewrite replaced `prevTime = rawPoints[i - 1].time` with a `prevTimed` cursor that
+holds the last point which *had* a time:
 
 ```dart
-final expectedIcon = expectedWaypoint['icon'] as String?;
-if (expectedIcon != null) {
-  expect(fontAwesomeIconsMap[expectedIcon], isNotNull,
-      reason: '${fixture.dir}: sym "$expectedIcon" missing from fontAwesomeIconsMap');
-}
-expect(actualWaypoint.icon,
-    expectedIcon != null ? fontAwesomeIconsMap[expectedIcon] : FontAwesomeIcons.circle);
+final prevTime = prevTimed?.time;
+...
+if (wpt.time != null) prevTimed = wpt;
 ```
 
----
+Old behaviour: a gap spanning any untimed point contributed **nothing** to `cumDuration`.
+New behaviour: the whole gap is added when the next timed point arrives. For a track with sparse
+or partially-unparseable `<time>` elements — a class the vendored reader now produces *more* of,
+since an unparseable `<time>` becomes `null` instead of aborting the parse — the chart's
+displayed total duration changes. This may well be the better behaviour, but it is an
+undocumented, untested side effect of a commit whose stated scope was distance; neither the
+commit message nor the in-file comment mentions it.
 
-### WR-06: TS and Dart diverge on a non-empty but unparseable `<time>`, and no fixture covers it
+**Fix:** either restore the adjacent-pair semantics or state the change in the comment and pin
+it with a test (e.g. a 5-point track where points 2–4 carry no `<time>`, asserting the expected
+total).
 
-**File:** `app/lib/util/gpx_conversion_util.dart:45-53` vs `web/src/lib/models/gpx/waypoint.ts:56-58` + `web/src/lib/models/gpx/gpx.ts:116-123`
+### WR-08: `_readEmail`'s partial-attribute fallback can splice an attribute domain onto a text-form local part, fabricating an address present in neither form
 
-**Issue:** For `<time></time>` the two agree (xml2js yields `''`, which is falsy, so TS leaves `time` undefined; Dart rewrites to `<time/>` → `null`). For a **non-empty** unparseable body they do not:
+**File:** `app/lib/vendor/gpx/gpx_reader.dart:693-703`
 
-- TS: `if (object.time) this.time = new Date(object.time)` — a garbage string is truthy, producing an `Invalid Date`. `getTotals` then evaluates `startTime && endTime` as true and computes `endTime.getTime() - startTime.getTime()` → `NaN`, so `duration` is `NaN`.
-- Dart: `DateTime.tryParse` fails → `<time/>` → `null` → the segment contributes 0.
-
-The same divergence covers formats JS `Date` accepts but `DateTime.tryParse` rejects (e.g. `2024/01/01T10:00:00Z`, `Jan 1 2024`): TS yields a real duration, Dart yields 0. No corpus fixture exercises a malformed `<time>`, so the parity suite cannot see it — the phase's central claim ("proven identical to the TS by a shared fixture corpus") does not hold on this input class.
-
-**Fix:** Add a corpus fixture with a malformed `<time>` and align the TS side to the (better) Dart semantics — `parseElevation`'s sibling for dates:
-
-```ts
-if (object.time) {
-  const d = new Date(object.time);
-  if (!Number.isNaN(d.getTime())) this.time = d;
-}
-```
-
----
-
-### WR-07: `buildFinalPlannedGpx`'s "no network when both flags are off" claim is false, and the offline test is constructed to avoid the real case
-
-**File:** `app/lib/util/route_planner_handoff_util.dart:290-297, 341-362`; test `app/test/util/route_planner_handoff_util_test.dart:771-808`
-
-**Issue:** The doc comment states "both underlying network steps are skipped entirely when their flag is off — the combination that makes this function safe to call with no network access at all (D-15's offline path)". That is not what the code does: the `pending` list is built unconditionally from legs whose `legElevations[i] == null`, so any leg without resolved elevations triggers a `/valhalla/height` request even with `refetchAllHeights: false` and `snapCosting: null`. The behaviour is *safe* (`fetchHeightsForShape` swallows the failure and returns `const []`), but the stated invariant is wrong.
-
-The test that claims to prove the invariant sidesteps it: it first seeds against a *working* API so every leg resolves elevations, then transplants that state into the failing session (`ref.read(routeAnchorsProvider.notifier).state = seededState;`). `expect(failingApi.heightCalls, 0)` therefore only holds because `pending` is empty. A session with any un-elevated leg would issue N failed requests, and nothing in the suite would notice.
-
-**Fix:** Either gate the backfill on connectivity (`if (ref.read(onlineStatusProvider))`) and make the doc true, or correct the doc and add a test that seeds legs with `elevations == null` against a failing API and asserts the call is attempted-and-tolerated.
-
----
-
-### WR-08: A zero-length recording persists `moving_duration = 0`, the exact state D-10 forbids
-
-**File:** `app/lib/routes/navigation_screen.dart:861-867`, `app/lib/util/gpx_conversion_util.dart:510`, `app/lib/util/form_data_util.dart:29-35`
-
-**Issue:** `NavigationStats.elapsed` defaults to `Duration.zero` (`navigation_stats_provider.dart:29`) and stays zero until the 1-second tick starts. `_saveRecordedTrack` passes it unconditionally, `trailFromGpx` maps it to `0.0` (not `null`), and `form_data_util`'s guard is `if (movingDuration != null)` — so `moving_duration=0` is written. That is precisely what the comment two lines above says must not happen: *"sending an empty string for an absent value would write 0 into PocketBase and defeat D-10's 'no value' state."* The display rule then masks it (`> 0` falls back to `duration`), so the bad row is invisible until something else reads the field.
-
-**Fix:** Treat zero as absent at the source:
+**Issue:** the fallback fires when *either* attribute is missing, then fills each field
+independently:
 
 ```dart
-movingDuration: navStats.elapsed > Duration.zero ? navStats.elapsed : null,
-```
-
-or make `trailFromGpx` map a zero `movingDuration` to `null`.
-
----
-
-### WR-09: `moving_duration` is documented in the OpenAPI response schemas but silently stripped by the JSON API's Zod schemas
-
-**File:** `web/src/lib/models/api/trail_schema.ts:5-54` vs `web/src/lib/models/api/openapi_schemas.ts:399, 476, 534`
-
-**Issue:** Three OpenAPI response schemas now advertise `moving_duration`, and `web/src/lib/models/trail.ts` carries the field — but neither `TrailCreateSchema` nor `TrailUpdateSchema` declares it. Zod object schemas strip unknown keys by default, so a client following the published API contract and POSTing `moving_duration` to `/api/v1/trail` has it silently discarded with no error. Only the multipart `/api/v1/trail/form` route works (it bypasses Zod entirely via `uploadCreate`/`uploadUpdate`), which is why the Flutter app happens to function. The documented interface and the enforced interface disagree.
-
-**Fix:** Add `moving_duration: z.number({ coerce: true }).nonnegative().optional()` to both schemas, or remove it from the request-side OpenAPI docs and document it as response-only.
-
----
-
-### WR-10: Editing a recorded trail's route on the web leaves a stale `moving_duration` that then wins the display rule
-
-**File:** `web/src/lib/util/format_util.ts:26-34`, `web/src/lib/models/trail.ts:114`
-
-**Issue:** The phase's stated integrity property is that no recompute path can destroy moving time. The converse case is unhandled: the web trail-edit page recomputes `duration` from a newly-drawn route, but `moving_duration` is copied through untouched (`buildFormData` skips only `undefined`). `trailDisplayDuration` then prefers the stale value — so a trail whose route was replaced displays the moving time of the *old* route in preference to the correctly recomputed elapsed time, everywhere (`trail_card`, `trail_list_item`, `trail_table`, `trail_info_panel`, map popups). The same applies in the app via `mergeRouteIntoTrail` (`route_planner_handoff_util.dart:558-584`), which sets `duration` from the planner estimate and leaves `movingDuration` alone.
-
-**Fix:** Clear `moving_duration` whenever the track geometry is replaced — in the web edit page's route-replacement path and in `mergeRouteIntoTrail` (`movingDuration: null` when `finalGpx` differs from the existing track). Requires making the field explicitly nullable in the form encoder so `null` is transmitted rather than skipped.
-
----
-
-### WR-11: A zero-point leg emits an empty `<trkseg>`, which `anchorsFromTrack` then drops — losing that anchor
-
-**File:** `app/lib/util/route_planner_handoff_util.dart:375-382` and `468-488`
-
-**Issue:** The trkseg builder's inner bound explicitly handles the degenerate **1**-point leg ("A degenerate 1-point leg keeps its single point rather than emitting an empty trkseg, which `anchorsFromTrack` would skip and so lose that anchor") but a **0**-point leg falls through to `legPoints[i].length` = 0 and emits `Trkseg(trkpts: [])`. `anchorsFromTrack:473-478` filters empty segments out, so that anchor disappears on re-edit and the route silently loses a waypoint. `segmentPolylinesFromTrack` can produce a 1-point polyline (`allPoints.sublist(prevIndex, idx + 1)` with `prevIndex == idx`), and WR-01's short list feeds straight lines into the tail, so an empty `legPoints` is reachable through a combination of the defensive paths rather than being purely hypothetical.
-
-**Fix:** Skip empty legs when emitting, or better, assert/repair upstream:
-
-```dart
-for (var i = 0; i < legs.length; i++)
-  if (legPoints[i].isNotEmpty)
-    Trkseg(trkpts: [...]),
-```
-
-and document that an empty leg is unrepresentable in the round-trip format.
-
----
-
-### WR-12: `importTrailFile`'s blanket `catch` also wraps the navigation push and discards the exception entirely
-
-**File:** `app/lib/util/trail_import_util.dart:76-153`
-
-**Issue:** The single `try` spans read → transcode → parse → sheet → transforms → trail build → `pendingImportedTrail = trail` → `navContext.push(...)`, and the handler is `catch (e) { showError(); }` with `e` unused and no logging of any kind. Two consequences:
-
-1. A throw from `navContext.push` (or from anything after `pendingImportedTrail` is assigned) shows the user "import failed" for an import that in fact succeeded, and leaves a stale non-null `pendingImportedTrail` global behind.
-2. Every distinct failure mode in a ~75-line block — unreadable file, `transcodeToGpx`'s `StateError`, an unsanitised-tag `FormatException` (CR-02), a `StateError` from a `<trkpt>` missing `lat`/`lon` — collapses into one untyped toast with the exception dropped on the floor. Field diagnosis of the import path is impossible.
-
-**Fix:** Narrow the `try` to end after `buildLocalTrail`, and log the exception:
-
-```dart
-} catch (e, st) {
-  debugPrint('importTrailFile failed: $e\n$st');
-  showError();
+if (id == null || domain == null) {
+  final at = text.trim().lastIndexOf('@');
+  if (at > 0 && at < text.trim().length - 1) {
+    final trimmed = text.trim();
+    id ??= trimmed.substring(0, at);
+    domain ??= trimmed.substring(at + 1);
+  }
 }
 ```
 
-## Info
+For `<email domain="a.com">u@b.com</email>` this yields `id = "u"`, `domain = "a.com"` — i.e.
+`u@a.com`, an address that appears in neither the attributes nor the text. Verified:
 
-### IN-01: `totalElevationGain` / `totalElevationLoss` are ported dead fields
+```
+EMAIL id=u domain=a.com
+```
 
-**File:** `app/lib/util/gpx_conversion_util.dart:115-116, 208-222`
-**Issue:** The raw (unsmoothed) accumulators have zero consumers — `computeTrailMetrics` reads only `totalDistanceSmoothed`, `finalElevationGain` and `finalElevationLoss`, and no test reads them either (only `totalDistance` is asserted, at `gpx_conversion_util_test.dart:346`). This directly contradicts the file's own rationale for omitting `cumulativeDistance`: "its only consumer is the web trail-edit crop slider, which has no Dart equivalent, so porting it would be dead code."
-**Fix:** Either drop the two fields and the `if (elevation != null)` block that maintains them, or add a doc line explaining why they are retained where `cumulativeDistance` was not.
+This contradicts the modification's own comment ("Attributes still win when present; the text
+form is only consulted as a fallback"). Impact is low — nothing in the app reads
+`Metadata.author.email` — but it is a mis-parse in a function whose sole purpose is correct
+parsing, and it will silently propagate to any future consumer.
+
+**Fix:** treat the two forms as mutually exclusive, so a partially-specified attribute form is
+never completed from the text form:
+
+```dart
+if (id == null && domain == null) {   // only when the attribute form is absent entirely
+  ...
+}
+```
+
+### WR-09: The single-call-site repo guard is a plain substring grep and is trivially bypassed
+
+**File:** `app/test/util/gpx_conversion_util_test.dart:813-851`
+
+**Issue:** the gate scans for the literal `GpxReader(` on lines that do not start with `//`.
+It misses:
+
+- a construction split across lines (`GpxReader` / `()`), or `const r = GpxReader; r();`
+- any whitespace between the identifier and the paren
+- the inverse risk it does not address at all: a new file importing the **published** reader
+  instead of the vendored one. The two classes are name-identical, so a stray
+  `import 'package:gpx/gpx.dart';` without `hide GpxReader` silently opts that file out of the
+  tolerance while looking correct.
+
+It also relies on `Directory('lib')` resolving relative to `app/`, guarded only by a `> 100`
+file-count heuristic and a `reason:` string.
+
+**Fix:** gate on the import rather than the constructor — assert that every
+`import 'package:gpx/gpx.dart'` in `lib/` (outside `lib/vendor/gpx/`) carries `hide GpxReader`,
+and that `lib/vendor/gpx/gpx_reader.dart` is imported by exactly one file. That closes both the
+whitespace bypass and the wrong-reader-import case, and keeps the existing non-vacuity floor.
 
 ---
 
-### IN-02: `trailDisplayDuration` (Dart) declares a nullable return it can never produce
-
-**File:** `app/lib/util/format_util.dart:15-21`
-**Issue:** `TrailSummary.duration` is a non-nullable `double`, so the fallback branch always returns a value — the `double?` return type is unreachable-null. It forces dead null handling at all three call sites (`trail_card.dart:383` and `trail_list_item.dart:364` write `?? 0`; `trail_panel.dart:213` writes `displayDuration != null && displayDuration > 0`).
-**Fix:** Change the return type to `double` and drop the `?? 0` / `!= null` guards.
-
----
-
-### IN-03: `sanitizeGpxEmail` interpolates matched text into attribute values without XML-escaping
-
-**File:** `app/lib/util/gpx_util.dart:8-13`
-**Issue:** Pre-existing, but this phase promotes it to the sanctioned entry point for all third-party GPX via `parseGpxSafely`. `'<email id="${m[1]}" domain="${m[2]}"/>'` performs no escaping, so an `<email>` body containing `"` or `&` yields either malformed XML (parse throws, import fails) or an injected extra attribute.
-**Fix:** Escape `&`, `<`, `"` in both captures before interpolation, and skip the rewrite entirely if either capture still contains a quote.
-
----
-
-### IN-04: Fixture 10 — the only fixture with waypoints and a non-zero duration — has no DERIVATION.md
-
-**File:** `fixtures/gpx-corpus/10-realistic-track/`
-**Issue:** The integrity check only requires `DERIVATION.md` when `derivation == "hand"` (`gpx_corpus_test.dart:358-367`, `gpx-corpus.test.ts:249-252`), and fixture 10 is marked `"seeded"`. It is nonetheless the only fixture pinning `durationMs`, `date`, `description` and waypoints, and its expected values were produced by running the TS implementation over its own input — there is no independent record of the seeding procedure beyond a prose `notes` field.
-**Fix:** Add a `DERIVATION.md` recording the exact seeding command, or extend the integrity check to require one for every fixture.
-
----
-
-### IN-05: Unused catch-clause variables
-
-**File:** `app/lib/util/route_planner_handoff_util.dart:146` (`catch (e)`), `app/lib/util/trail_import_util.dart:150` (`catch (e)`)
-**Issue:** Both bind an exception variable and never use it. Elsewhere in the same files the intentional-discard form `catch (_)` is used consistently (`route_planner_handoff_util.dart:180`, `trail_import_util.dart:233`).
-**Fix:** Use `catch (_)`, or log the exception (see WR-12).
-
----
-
-_Reviewed: 2026-08-01T08:34:12Z_
+_Reviewed: 2026-08-01T10:42:31Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+_Round: 2 — verification of round-1 closures plus regression hunt across the 20 fix commits_
