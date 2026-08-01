@@ -1,5 +1,7 @@
-// Vendored from `package:gpx` 2.3.0 (`lib/src/gpx_reader.dart`), BSD-3-Clause.
-// Upstream: https://github.com/kb0/dart-gpx
+// Vendored from `package:gpx` 2.3.0 (`lib/src/gpx_reader.dart`).
+// Upstream: https://github.com/kb0/dart-gpx — Apache License 2.0.
+// The upstream LICENSE is retained beside this file (Apache 2.0 §4(a)); the
+// LOCAL MODIFICATIONS list below is the §4(b) notice of changes. See README.md.
 //
 // WHY THIS IS VENDORED
 //
