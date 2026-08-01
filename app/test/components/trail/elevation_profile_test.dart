@@ -80,30 +80,36 @@ void main() {
       }
     });
 
-    test(
-      'the axis is raw, and legitimately differs from the trail distance',
-      () {
-        // Documents a deliberate decision, not an oversight. The smoothed total
-        // is a denoised estimate of trail LENGTH; the axis is a plotting
-        // COORDINATE saying where each sample sits. Conflating them is what
-        // broke the gradient. If the axis maximum must match the reported
-        // distance, scale the axis and keep computing the gradient from raw
-        // deltas — do not swap the accumulator.
-        final gpx = _jitteryTrack();
+    test('the axis is raw, and now coincides with the trail distance', () {
+      // These two agree today because the REPORTED distance became raw
+      // (quick-260801-opr superseded CONV-05's 5 m gate, which measured
+      // -3.29% against FIT ground truth while raw measured +0.54%). They
+      // agree by coincidence of source, not because they mean the same
+      // thing: the axis is a plotting COORDINATE saying where each sample
+      // sits, while the reported distance is a trail LENGTH.
+      //
+      // So the original warning still stands even though the inequality it
+      // guarded is gone: if a denoised length estimate is ever reintroduced,
+      // do NOT drive this axis from it. A smoothed accumulator advances only
+      // once per threshold, so consecutive samples share an x and the
+      // gradient divides by zero — measured at 46 of 60 points reading 0.0%
+      // on a constant 10% grade. Scale the axis instead and keep computing
+      // the gradient from raw deltas.
+      final gpx = _jitteryTrack();
 
-        final axisMax = buildElevationTrackPoints(gpx, 1).last.distanceM;
-        final reported = computeTrailMetrics(gpx).distance;
+      final axisMax = buildElevationTrackPoints(gpx, 1).last.distanceM;
+      final reported = computeTrailMetrics(gpx).distance;
 
-        var raw = 0.0;
-        final pts = gpx.allWaypoints;
-        for (var i = 1; i < pts.length; i++) {
-          raw += haversineMeters(pts[i - 1], pts[i]);
-        }
+      var raw = 0.0;
+      final pts = gpx.allWaypoints;
+      for (var i = 1; i < pts.length; i++) {
+        raw += haversineMeters(pts[i - 1], pts[i]);
+      }
 
-        expect(axisMax, closeTo(raw, 1e-9));
-        expect(axisMax, greaterThan(reported));
-      },
-    );
+      expect(axisMax, closeTo(raw, 1e-9));
+      expect(reported, closeTo(raw, 1e-9));
+      expect(axisMax, closeTo(reported, 1e-9));
+    });
 
     test('a point with no usable coordinate is skipped, not plotted', () {
       // Reachable since the vendored reader leaves lat/lon null for a <trkpt>

@@ -175,18 +175,13 @@ Future<WidgetRef> _pumpHeightRefWith(
 /// can be exercised without a real server. [snapShape] answers any
 /// trace-route request unconditionally — one fixed shape is enough to prove
 /// the boundary re-pin, since it is deliberately built to differ from every
-/// real anchor coordinate. [heights] answers any height request; when
+/// real anchor coordinate. Height requests answer a flat zero series; when
 /// [shouldFailAll] is true, every request (either endpoint) is rejected as a
 /// connection error, doubling as a "no request was attempted" guard.
 class _FakeSnapApi extends Api {
-  _FakeSnapApi({
-    required this.snapShape,
-    this.heights,
-    this.shouldFailAll = false,
-  });
+  _FakeSnapApi({required this.snapShape, this.shouldFailAll = false});
 
   final List<Map<String, double>> snapShape;
-  final List<num> Function(List<dynamic> shape)? heights;
   final bool shouldFailAll;
 
   int traceRouteCalls = 0;
@@ -225,10 +220,7 @@ class _FakeSnapApi extends Api {
               Response(
                 requestOptions: options,
                 statusCode: 200,
-                data: {
-                  'height':
-                      heights?.call(shape) ?? List<num>.filled(shape.length, 0),
-                },
+                data: {'height': List<num>.filled(shape.length, 0)},
               ),
             );
             return;
@@ -737,96 +729,6 @@ void main() {
       expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
     });
 
-    // T-34-28 / Task 2: the leg-boundary re-pin. snapShapeToRoads's fake
-    // response is deliberately built to differ from every real anchor
-    // coordinate but keep a comparable bounding-box diagonal (so
-    // snapResultAcceptable doesn't reject it as a truncation) — proving the
-    // re-pin, not merely that the pre-snap shape happened to survive.
-    testWidgets(
-      'snapCosting supplied: a snapped leg whose endpoints differ from the '
-      "anchors still round-trips through anchorsFromTrack to the route's "
-      'original anchors, and trkseg count still equals the leg count',
-      (tester) async {
-        const driftedSnapShape = [
-          {'lat': 47.0001, 'lon': 9.0002},
-          {'lat': 47.0006, 'lon': 9.0017},
-          {'lat': 47.0011, 'lon': 9.0012},
-        ];
-        final api = _FakeSnapApi(
-          snapShape: driftedSnapShape,
-          heights: (shape) => List<num>.filled(shape.length, 500),
-        );
-        final ref = await _pumpSnapRef(tester, api);
-        await _seedRoute(tester, ref, _twoLegRoute);
-
-        final gpx = (await tester.runAsync(
-          () => buildFinalPlannedGpx(ref, snapCosting: 'pedestrian'),
-        ))!;
-
-        expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
-
-        final anchors = anchorsFromTrack(gpx);
-        expect(anchors, hasLength(3));
-        expect(anchors[0].lat, _twoLegRoute[0].first.lat);
-        expect(anchors[0].lon, _twoLegRoute[0].first.lon);
-        expect(anchors[1].lat, _twoLegRoute[0].last.lat);
-        expect(anchors[1].lon, _twoLegRoute[0].last.lon);
-        expect(anchors[2].lat, _twoLegRoute[1].last.lat);
-        expect(anchors[2].lon, _twoLegRoute[1].last.lon);
-
-        // The drifted midpoint survives (proving a real snap happened, not
-        // a silent fallback to the pre-snap shape).
-        final midEle = gpx.trks.single.trksegs.first.trkpts[1];
-        expect(midEle.lat, isNot(_twoLegRoute[0][1].lat));
-        expect(api.traceRouteCalls, greaterThan(0));
-      },
-    );
-
-    // WR-03 regression. `legElevations[i] = null` used to run for every leg
-    // whose snap "returned" a shape, with no way to tell a real snap from
-    // snapShapeToRoads' silent fallback. Combined with the height backfill's
-    // own silent fallback, two failed network calls left every point at
-    // `ele: null` and the saved trail's elevation gain/loss at 0 — so
-    // ticking "Follow roads" on a flaky connection destroyed a route's
-    // elevation data.
-    testWidgets('snapCosting supplied but the snap fails: the legs keep their '
-        'already-resolved elevations instead of being invalidated', (
-      tester,
-    ) async {
-      // Seed against a working height api so every leg carries real
-      // elevations, exactly as an online planning session would.
-      final workingRef = await _pumpHeightRef(
-        tester,
-        (shape) => List<num>.filled(shape.length, 500),
-      );
-      await _seedRoute(tester, workingRef, _twoLegRoute);
-      final seededState = workingRef.read(routeAnchorsProvider);
-      expect(seededState.segments.every((s) => s.elevations != null), isTrue);
-
-      // A session where BOTH /valhalla/trace-route and /valhalla/height
-      // fail — the flaky-connection case.
-      final failingApi = _FakeSnapApi(snapShape: const [], shouldFailAll: true);
-      final ref = await _pumpSnapRef(tester, failingApi);
-      ref.read(routeAnchorsProvider.notifier).state = seededState;
-
-      final gpx = (await tester.runAsync(
-        () => buildFinalPlannedGpx(ref, snapCosting: 'pedestrian'),
-      ))!;
-
-      expect(gpx.trks.single.trksegs, hasLength(_twoLegRoute.length));
-      // Geometry is untouched (full-resolution legs, original anchors)...
-      final anchors = anchorsFromTrack(gpx);
-      expect(anchors, hasLength(3));
-      expect(anchors[0].lat, _twoLegRoute[0].first.lat);
-      expect(anchors[2].lat, _twoLegRoute[1].last.lat);
-      // ...and so are the elevations. Pre-fix these were all null.
-      for (final seg in gpx.trks.single.trksegs) {
-        for (final pt in seg.trkpts) {
-          expect(pt.ele, 500);
-        }
-      }
-    });
-
     // WR-11 regression. A 0-point leg fell through to `legPoints[i].length`
     // = 0 and emitted `Trkseg(trkpts: [])` — a meaningless empty segment in
     // the persisted file that `anchorsFromTrack` then has to filter out. The
@@ -925,9 +827,9 @@ void main() {
     );
 
     testWidgets(
-      'both flags false, api throws on any request: completes without '
-      'throwing for a route whose legs already have elevations — proves '
-      'the offline path issues no network call',
+      'api throws on any request: completes without throwing for a route '
+      'whose legs already have elevations — proves the offline path issues '
+      'no network call',
       (tester) async {
         // Seed once against a working api so every leg resolves real
         // elevations, exactly as a genuinely-online planning session would.
@@ -941,9 +843,9 @@ void main() {
 
         // A fresh session whose api rejects every request — shouldFailAll
         // doubles as a "no request was attempted" guard: if
-        // buildFinalPlannedGpx regressed to calling the api while both
-        // flags are off, this fake would reject and the test would fail
-        // with a DioException instead of completing normally.
+        // buildFinalPlannedGpx regressed to calling the api for a route
+        // that needs nothing fetched, this fake would reject and the test
+        // would fail with a DioException instead of completing normally.
         final failingApi = _FakeSnapApi(
           snapShape: const [],
           shouldFailAll: true,

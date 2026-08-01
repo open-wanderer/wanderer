@@ -298,6 +298,25 @@ class RouteAnchors extends _$RouteAnchors {
     state = state.copyWith(segments: segments);
   }
 
+  /// Replaces [key]'s geometry with [points] and re-fetches its heights.
+  ///
+  /// Clearing `elevationProfile`/`elevations` is mandatory, not tidiness.
+  /// They describe the geometry being replaced, and `_resolveElevation`
+  /// below is fire-and-forget, so leaving them in place publishes a segment
+  /// whose profile belongs to its *previous* shape. Both consumers read
+  /// `elevationProfile ?? polyline` — `buildFinalPlannedGpx`
+  /// (route_planner_handoff_util.dart) and `plannedElevationGpx`
+  /// (planned_gpx_provider.dart) — so a stale profile silently wins over the
+  /// polyline it contradicts: tapping Finish inside that window saved the
+  /// pre-edit route, and the elevation preview drew it while the map drew
+  /// the new one. Worse than a race: `_resolveElevation` degrades silently
+  /// on failure, which leaves a re-edited segment stale permanently rather
+  /// than merely briefly.
+  ///
+  /// Nulling them costs nothing — every caller already triggers a refetch —
+  /// and degrades correctly: the `?? polyline` fallback yields the new
+  /// geometry at full resolution, and `buildFinalPlannedGpx`'s `pending`
+  /// list picks up `elevations == null` and backfills heights at save time.
   void _applySegment(
     String key, {
     required List<Geographic> points,
@@ -311,6 +330,8 @@ class RouteAnchors extends _$RouteAnchors {
             polyline: points,
             state: segmentState,
             durationSeconds: durationSeconds,
+            elevationProfile: null,
+            elevations: null,
           )
         else
           segment,

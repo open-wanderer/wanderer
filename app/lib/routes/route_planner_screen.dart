@@ -14,7 +14,6 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/route_segment_util.dart';
-import 'package:wanderer/util/track_save_options_util.dart';
 
 /// Route Planner screen — hosts the native map and wires anchor/segment
 /// gestures to the UI: tap-to-add, drag-to-reposition (handled inside
@@ -493,29 +492,29 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   }
 
   /// Hands the finished route off: in edit mode pops the ele-merged [Gpx]
-  /// back to the awaiting `trail_create_screen` with no save-options gate
-  /// (it never persisted a trail, so there is nothing to opt into
-  /// recalculating); otherwise resolves the shared online gate (see
-  /// `track_save_options_util.dart`, D-15) ahead of [_finishing] — mirroring
-  /// `navigation_screen.dart`'s `_saveRecordedTrack` ordering — and invokes
-  /// [finishPlanning] to forward-push a draft Trail (built entirely
-  /// on-device since 34-05 — see `buildDraftTrail`) with the resolved
-  /// toggles. A cancelled/dismissed gate aborts with no state change.
-  /// [_finishing] still guards the forward-push branch against a double-tap
-  /// firing two concurrent conversions/navigations. Because the gate is
-  /// awaited BEFORE the flag is set, the flag must be re-checked after that
-  /// await — the finish action stays enabled while the sheet is open
-  /// (`_buildFinishAction` reads `!_finishing`), so without the re-check a
-  /// second tap opens a second sheet and can drive two concurrent
-  /// `finishPlanning` runs, each with its own snap/height fetches and its own
-  /// `pushReplacement` (WR-04). This mirrors `_saveRecordedTrack`'s own
-  /// `if (_savingTrack) return;` immediately after its gate await.
+  /// back to the awaiting `trail_create_screen`; otherwise invokes
+  /// [finishPlanning] to forward-push a draft Trail (built entirely on-device
+  /// since 34-05 — see `buildDraftTrail`).
   ///
-  /// D-16: with plan 34-05's local conversion plus this gate's flag-gated
-  /// transforms, an offline finish now reaches the create screen instead of
-  /// throwing — the `catch` below is not deleted, it remains a genuine
-  /// last-resort guard for anything else that could still fail (e.g. an
-  /// unexpected local error), matching `trail_import_util.dart`'s
+  /// Neither branch shows a save-options sheet. The planner used to route the
+  /// forward-push branch through the shared online gate
+  /// (`track_save_options_util.dart`), but neither toggle it offered could
+  /// change a planned route's output, so it was removed — see
+  /// [finishPlanning].
+  ///
+  /// WR-04: [_finishing] guards against a double-tap firing two concurrent
+  /// conversions/navigations, and the guard is sound only because nothing is
+  /// awaited between the `if (_finishing) return;` below and the `setState`
+  /// that raises the flag. The removed gate WAS such an await, which is why
+  /// this used to need a second post-await re-check. Do not reintroduce an
+  /// await ahead of the flag without restoring that re-check — the finish
+  /// action stays enabled while the flag is down (`_buildFinishAction` reads
+  /// `!_finishing`).
+  ///
+  /// D-16: with plan 34-05's local conversion, an offline finish reaches the
+  /// create screen instead of throwing — the `catch` below is not deleted, it
+  /// remains a genuine last-resort guard for anything else that could still
+  /// fail (e.g. an unexpected local error), matching `trail_import_util.dart`'s
   /// `importTrailFile` precedent for toast-and-stay on failure.
   Future<void> _onFinish() async {
     if (_finishing) return;
@@ -526,20 +525,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         if (!mounted) return;
         context.pop(finalGpx);
       } else {
-        final options = await resolveTrackSaveOptions(ref, context);
-        if (options == null) return;
-        // Re-check `_finishing`, not just `mounted`: a concurrent tap may
-        // have opened its own sheet and won the race while this one was
-        // awaiting (WR-04).
-        if (!mounted || _finishing) return;
         setState(() => _finishing = true);
-        final (recalcHeights, followRoads) = options;
-        await finishPlanning(
-          ref: ref,
-          navContext: context,
-          recalcHeights: recalcHeights,
-          followRoads: followRoads,
-        );
+        await finishPlanning(ref: ref, navContext: context);
       }
     } catch (_) {
       if (!mounted) return;

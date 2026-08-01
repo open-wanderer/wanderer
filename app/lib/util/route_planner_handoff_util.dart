@@ -410,107 +410,48 @@ Future<Trail> buildDraftTrail(
 /// route has no legs — the Finish action is already disabled below 2 anchors
 /// at the call site.
 ///
-/// [snapCosting], when non-null, road-snaps every leg with at least 2 points
-/// via the authenticated trace-route proxy, using [buildNavShape] as the
-/// outbound request hint — mirrors `navigation_screen.dart`'s
-/// `_saveRecordedTrack` pipeline. **After snapping, each leg's first and
-/// last point is forced back onto its original opening/closing anchor
-/// coordinates.** This is mandatory, not cosmetic: [anchorsFromTrack] and
-/// [segmentPolylinesFromTrack] locate anchors by EXACT coordinate match, so
-/// a snapped boundary that drifted even a fraction would make the route
-/// unreconstructable — and silently collapse every intermediate anchor — on
-/// re-edit. A leg that ACTUALLY snapped has its previously-fetched
-/// elevations invalidated (its point indices no longer align with the
-/// pre-snap heights) and re-fetched below regardless of [refetchAllHeights];
-/// a leg whose snap silently fell back keeps its geometry AND its elevations
-/// untouched (WR-03), which is why the snap helper has to report whether a
-/// real snap occurred rather than just handing back a shape.
+/// The planner never road-snaps. Its geometry is already Valhalla-routed leg
+/// by leg as the user builds the route, and the save-options sheet that used
+/// to offer a "follow roads" pass was removed — it re-snapped an
+/// already-snapped shape through a double decimation, discarding good
+/// elevations to refetch them. A leg that is genuinely NOT road-following
+/// (auto-routing switched off, or a leg left `SegmentState.blocked` by a
+/// failed route call) stays as the user left it; re-enabling auto-routing or
+/// retrying that segment in the planner is the way to route it, not a
+/// post-hoc pass at save time.
 ///
-/// [refetchAllHeights] set to `true` refetches heights for every leg over
-/// its final (possibly snapped) shape; `false` keeps the existing
-/// fetch-only-what's-missing behaviour. Both flags default `false`.
+/// This is why [anchorsFromTrack]/[segmentPolylinesFromTrack] can locate
+/// anchors by EXACT coordinate match without a boundary re-pin step here:
+/// nothing between the planner and the emitted GPX moves a leg boundary.
+/// `elevationProfile` comes from [buildNavShape], which always preserves its
+/// input's first and last point, so every boundary already lands exactly on
+/// an anchor coordinate. Any future transform inserted here must preserve
+/// that invariant or the route becomes unreconstructable on re-edit —
+/// silently collapsing every intermediate anchor.
 ///
-/// Snapping is skipped entirely when [snapCosting] is null. The height step
-/// is NOT flag-gated in the same way — the fetch-only-what's-missing list is
-/// built from any leg with unresolved elevations regardless of
-/// [refetchAllHeights] — so it is gated on connectivity instead
-/// (`onlineStatusProvider`). Together those two gates are what make this
-/// function genuinely safe to call with no network access at all (D-15's
-/// offline path): offline it issues ZERO requests, rather than issuing one
-/// per un-elevated leg and merely tolerating the failures (WR-07).
-///
-/// Snapping always runs before heights are read, matching the recording
-/// path's own ordering, so elevation reflects the final (possibly snapped)
-/// shape.
-Future<Gpx> buildFinalPlannedGpx(
-  WidgetRef ref, {
-  bool refetchAllHeights = false,
-  String? snapCosting,
-}) async {
+/// The height step is gated on connectivity (`onlineStatusProvider`), which
+/// is what makes this function genuinely safe to call with no network access
+/// at all (D-15's offline path): offline it issues ZERO requests, rather than
+/// issuing one per un-elevated leg and merely tolerating the failures (WR-07).
+Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
   final legs = ref.read(routeAnchorsProvider).orderedSegments;
   if (legs.isEmpty) return Gpx();
 
   // Prefer the height-resolved point set; fall back to the raw polyline for
-  // a leg whose fetch is still pending or failed. Mutated in place below by
-  // the snap step, so this must stay a growable per-leg list, not a const.
+  // a leg whose fetch is still pending or failed.
   final legPoints = [for (final s in legs) s.elevationProfile ?? s.polyline];
   final legElevations = [for (final s in legs) s.elevations];
 
-  final costing = snapCosting;
-  if (costing != null) {
-    final toSnap = <int>[
-      for (var i = 0; i < legs.length; i++)
-        if (legPoints[i].length >= 2) i,
-    ];
-    if (toSnap.isNotEmpty) {
-      // No `fallbackShape` is needed here (unlike the recording and import
-      // paths): a leg that did not snap is skipped outright below, so its
-      // `legPoints[i]` is never overwritten and keeps its full resolution by
-      // construction.
-      final snapped = await Future.wait([
-        for (final i in toSnap)
-          snapShapeToRoadsResult(ref, buildNavShape(legPoints[i]), costing),
-      ]);
-      for (var k = 0; k < toSnap.length; k++) {
-        final i = toSnap[k];
-        // WR-03: a silent fallback is NOT a snap. Rewriting the leg and
-        // clearing `legElevations[i]` on the fallback path invalidated
-        // perfectly good elevations purely because a network call failed —
-        // and since the height backfill below has its own silent fallback
-        // (`if (heights.isEmpty) continue`), two independent failures left
-        // the leg with `ele: null` on every point, so the saved trail's
-        // elevation gain/loss computed to 0. Ticking "Follow roads" on a
-        // flaky connection was enough to destroy a route's elevation data.
-        if (!snapped[k].snapped) continue;
-        final shape = snapped[k].shape;
-        if (shape.length < 2) continue;
-        final original = legPoints[i];
-        final rePinned = [
-          for (final p in shape) ml.Geographic(lat: p['lat']!, lon: p['lon']!),
-        ];
-        // Force the boundary back onto the leg's real anchors — see this
-        // function's doc comment for why this is mandatory.
-        rePinned[0] = original.first;
-        rePinned[rePinned.length - 1] = original.last;
-        legPoints[i] = rePinned;
-        legElevations[i] = null;
-      }
-    }
-  }
-
   // WR-07: the connectivity gate is what makes this function's "safe to call
   // with no network access at all" claim TRUE. The `pending` list below is
-  // built from every leg whose elevations are unresolved, which is
-  // independent of both flags — so a session with any un-elevated leg used to
-  // issue a `/valhalla/height` request even with `refetchAllHeights: false`
-  // and `snapCosting: null`, i.e. exactly on D-15's offline path. The
-  // behaviour was safe (fetchHeightsForShape swallows the failure) but the
-  // stated invariant was wrong and nothing tested the real case.
+  // built from every leg whose elevations are unresolved, so a session with
+  // any un-elevated leg would otherwise issue a `/valhalla/height` request on
+  // exactly D-15's offline path. The behaviour was safe (fetchHeightsForShape
+  // swallows the failure) but the stated invariant was wrong and nothing
+  // tested the real case.
   final online = ref.read(onlineStatusProvider);
   final pending = !online
       ? const <int>[]
-      : refetchAllHeights
-      ? [for (var i = 0; i < legs.length; i++) i]
       : <int>[
           for (var i = 0; i < legs.length; i++)
             if (legElevations[i] == null) i,
@@ -525,8 +466,8 @@ Future<Gpx> buildFinalPlannedGpx(
     for (var k = 0; k < pending.length; k++) {
       final heights = fetched[k];
       // fetchHeightsForShape returns an empty list on any failure — leaves
-      // whatever the leg already carried (null for a newly-snapped/pending
-      // leg, or its prior good elevations for a refetch that failed).
+      // the leg carrying whatever it already had, which for an entry in
+      // `pending` is `null`, so it emits `ele: null` rather than blocking.
       if (heights.isEmpty) continue;
       legElevations[pending[k]] = [for (final h in heights) h.toDouble()];
     }
@@ -591,30 +532,24 @@ Future<Gpx> buildFinalPlannedGpx(
 /// A session running a costing outside the 5 picker buckets simply yields no
 /// category pre-fill — no default bucket is ever substituted.
 ///
-/// [recalcHeights]/[followRoads] are the two toggles resolved by the shared
-/// online gate (`track_save_options_util.dart`) — both default `false`,
-/// matching that gate's offline/declined-both outcome. [followRoads] maps
-/// onto [buildFinalPlannedGpx]'s `snapCosting`, derived from the session's
-/// own bucket, falling back to `'pedestrian'` when the bucket doesn't
-/// resolve one — the same fallback [costingForTrail] itself uses. No
-/// `movingDuration` is ever passed here: a planned route was never
-/// traversed (unchanged since plan 34-05).
+/// Takes no save-options toggles. The planner used to route Finish through
+/// the shared online gate (`track_save_options_util.dart`), which offered
+/// "recalculate heights" and "follow roads"; both were removed because
+/// neither could improve a planned route. Heights are already fetched per
+/// segment from the same deterministic DEM endpoint, so a refetch returned
+/// identical values, and the geometry is already Valhalla-routed — see
+/// [buildFinalPlannedGpx]. No `movingDuration` is ever passed here: a planned
+/// route was never traversed (unchanged since plan 34-05).
 Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
-  bool recalcHeights = false,
-  bool followRoads = false,
 }) async {
   final anchorsState = ref.read(routeAnchorsProvider);
   final bucket = bucketForState(
     anchorsState.travelProfile,
     anchorsState.costingOptions,
   );
-  final finalGpx = await buildFinalPlannedGpx(
-    ref,
-    refetchAllHeights: recalcHeights,
-    snapCosting: followRoads ? (bucket?.costing ?? 'pedestrian') : null,
-  );
+  final finalGpx = await buildFinalPlannedGpx(ref);
 
   final categories = ref.read(categoryProvider).value ?? const [];
   final subcategories = ref.read(subcategoryProvider);

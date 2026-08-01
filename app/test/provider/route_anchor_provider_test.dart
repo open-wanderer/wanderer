@@ -61,9 +61,18 @@ typedef _Responder =
     FutureOr<_CannedResponse> Function(RequestOptions options, int callIndex);
 
 class _FakeApi extends Api {
-  _FakeApi(this.responder);
+  _FakeApi(this.responder, {this.heightSucceeds = true});
 
   final _Responder responder;
+
+  /// When false, `/valhalla/height` is rejected instead of resolved.
+  ///
+  /// A failing height fetch is what makes the stale-profile window
+  /// observable: `_resolveElevation` degrades silently, so whatever
+  /// `_applySegment` left on the segment is what stays there. With the
+  /// default success path the refetch immediately overwrites it and the bug
+  /// is invisible to a test.
+  final bool heightSucceeds;
 
   @override
   Dio build() {
@@ -93,6 +102,15 @@ class _FakeApi extends Api {
           // out like `/geocoding/reverse` above so it never corrupts the
           // call-count assertions the tests make against `/valhalla/route`.
           if (options.path.contains('/valhalla/height')) {
+            if (!heightSucceeds) {
+              handler.reject(
+                DioException(
+                  requestOptions: options,
+                  type: DioExceptionType.badResponse,
+                ),
+              );
+              return;
+            }
             final shape = options.data is Map
                 ? (options.data as Map)['shape'] as List?
                 : null;
@@ -251,7 +269,102 @@ ProviderContainer _buildThreeAnchorSeededContainer(
   return container;
 }
 
+/// A distinctive point set standing in for a *previous* geometry's resolved
+/// height profile — deliberately nowhere near the A/B anchors so that a
+/// leaked profile is unmistakable in a failure message.
+const _stalePoint1 = Geographic(lat: 46.500, lon: 8.500);
+const _stalePoint2 = Geographic(lat: 46.501, lon: 8.501);
+
+/// Seeds one A→B segment that already carries an `elevationProfile` from an
+/// earlier shape, so a later geometry replacement can be checked for leaking
+/// it. `heightSucceeds: false` keeps `_resolveElevation` from immediately
+/// overwriting whatever `_applySegment` leaves behind.
+ProviderContainer _buildStaleProfileContainer(
+  _Responder responder, {
+  bool autoRoutingEnabled = true,
+}) {
+  final anchors = [
+    RouteAnchor(id: _anchorIdA, lat: _anchorA.lat, lon: _anchorA.lon),
+    RouteAnchor(id: _anchorIdB, lat: _anchorB.lat, lon: _anchorB.lon),
+  ];
+  final segments = [
+    const RouteSegment(
+      beforeAnchorId: _anchorIdA,
+      afterAnchorId: _anchorIdB,
+      polyline: [_anchorA, _anchorB],
+      state: SegmentState.routed,
+      elevationProfile: [_stalePoint1, _stalePoint2],
+      elevations: [111.0, 222.0],
+    ),
+  ];
+  final container = ProviderContainer(
+    overrides: [
+      apiProvider.overrideWith(
+        () => _FakeApi(responder, heightSucceeds: false),
+      ),
+      routeAnchorsProvider.overrideWith(
+        () => _SeededRouteAnchors(anchors, segments, autoRoutingEnabled),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.listen(routeAnchorsProvider, (_, _) {});
+  return container;
+}
+
 void main() {
+  group('RouteAnchors - _applySegment clears the superseded height profile', () {
+    test(
+      'a re-routed segment drops the elevationProfile belonging to its '
+      'previous shape instead of publishing it over the new polyline',
+      () async {
+        final newShape = PolylineUtil.encode([
+          _anchorA,
+          _anchorC,
+          _anchorB,
+        ], precision: 6);
+        final container = _buildStaleProfileContainer(
+          (options, index) async => _CannedResponse.success(_tripData(newShape)),
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        await notifier.retrySegment(_anchorIdA, _anchorIdB);
+        await _flushAsyncWork();
+
+        final segment = container.read(routeAnchorsProvider).segments.single;
+        expect(segment.polyline, PolylineUtil.decode(newShape, precision: 6));
+        // The height fetch fails in this container, so anything non-null here
+        // is the *old* shape's profile surviving its own geometry. Both
+        // consumers read `elevationProfile ?? polyline`, so a survivor would
+        // silently outrank the polyline asserted above.
+        expect(segment.elevationProfile, isNull);
+        expect(segment.elevations, isNull);
+      },
+    );
+
+    test(
+      'dragging an anchor with auto-routing off drops a previously routed '
+      'elevationProfile rather than pairing it with a straight 2-point leg',
+      () async {
+        final container = _buildStaleProfileContainer(
+          (options, index) async => const _CannedResponse.failure(),
+          autoRoutingEnabled: false,
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        const moved = Geographic(lat: 47.010, lon: 9.010);
+        notifier.dragAnchor(_anchorIdB, moved);
+        await _flushAsyncWork();
+
+        final segment = container.read(routeAnchorsProvider).segments.single;
+        expect(segment.state, SegmentState.straight);
+        expect(segment.polyline, [_anchorA, moved]);
+        expect(segment.elevationProfile, isNull);
+        expect(segment.elevations, isNull);
+      },
+    );
+  });
+
   group('RouteAnchors - segment resolution engine', () {
     test(
       '_resolveSegment success path decodes the shape at precision 6 and '
