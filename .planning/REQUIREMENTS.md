@@ -24,7 +24,7 @@ found by auditing the TS before porting it.
 - [x] **CONV-02**: The centroid divides by the same point count it summed, instead of summing `n − k` points and dividing by `n`
 - [x] **CONV-03**: Points with no elevation are excluded from gain/loss instead of being treated as 0 m, so a partially-elevated GPX no longer reports a phantom plunge to sea level and back
 - [x] **CONV-04**: Elevation gain/loss is sampled independently of the horizontal threshold, so a steep climb with little horizontal movement (switchbacks, scrambles) is measured rather than skipped
-- [x] **CONV-05**: Distance is computed from the smoothed accumulator rather than the raw haversine sum, so GPS jitter no longer inflates it; the dead, misaligned `cumulativeDistance` array is removed
+- [x] **CONV-05**: Distance is computed from the smoothed accumulator rather than the raw haversine sum, so GPS jitter no longer inflates it; the dead, misaligned `cumulativeDistance` array is removed. **Superseded 2026-08-01** by `.planning/quick/260801-opr-report-raw-distance-instead-of-the-5m-ga/`, scoped to the smoothed-distance half only (the `cumulativeDistance` rebuild stands): the 5 m gate chord-shortcuts switchbacks at real GPS sampling density, and FIT ground truth (`19440058502_ACTIVITY.fit`, `session.total_distance` = 10912.01 m) measured the raw accumulator at +0.54% against the gate's −3.29%. Distance is now the raw accumulator.
 - [x] **CONV-06**: A trail recorded in the app reports moving time, excluding accumulated pause time; an imported file continues to report elapsed time
 
 ### Dart Conversion Port
@@ -99,7 +99,7 @@ Populated during roadmap creation.
 | CONV-02 | Phase 33 | Complete |
 | CONV-03 | Phase 33 | Complete |
 | CONV-04 | Phase 33 | Complete |
-| CONV-05 | Phase 33 | Complete |
+| CONV-05 | Phase 33 | Superseded 2026-08-01 (quick-260801-opr) |
 | CONV-06 | Phase 34 | Complete |
 | PORT-01 | Phase 34 | Complete |
 | PORT-02 | Phase 34 | Complete |

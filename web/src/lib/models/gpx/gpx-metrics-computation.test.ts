@@ -100,7 +100,7 @@ describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stret
     expect(gpx.features.elevationLoss).toBe(0);
   });
 
-  it("keeps totalDistanceSmoothed at 0 for the same stretch (distance smoothing must stay gated)", () => {
+  it("keeps the class's now-unreported totalDistanceSmoothed field at 0 for the same stretch", () => {
     const trkpts: string[] = [];
     for (let i = 0; i < 12; i++) {
       trkpts.push(trkptXml(47 + i * 0.0000036, 11.0, String(1000 + i * 8)));
@@ -110,6 +110,8 @@ describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stret
     const metrics = new GpxMetricsComputation(5, 5);
     points.forEach((point) => metrics.addAndFilter(point));
 
+    // The reported distance is totalDistance since 2026-08-01 (CONV-05
+    // superseded); totalDistanceSmoothed survives on the class, unreported.
     expect(metrics.totalDistanceSmoothed).toBe(0);
     // finalElevationGain, not totalElevationGainSmoothed: this monotonic climb
     // ends without a confirming move, so its last 8 m step is still sitting in
@@ -193,8 +195,8 @@ describe("GpxMetricsComputation — CONV-04 rolling terrain guard", () => {
   });
 });
 
-describe("GpxMetricsComputation — distance smoothing is unchanged", () => {
-  it("suppresses GPS jitter in totalDistanceSmoothed while totalDistance stays raw", () => {
+describe("GpxMetricsComputation — the class's smoothing behavior is unchanged", () => {
+  it("still suppresses GPS jitter in the now-unreported totalDistanceSmoothed while totalDistance stays raw", () => {
     const trkpts: string[] = [trkptXml(47.0, 11.0)];
     let lat = 47.0;
     for (let i = 0; i < 5; i++) {
@@ -210,6 +212,9 @@ describe("GpxMetricsComputation — distance smoothing is unchanged", () => {
     const metrics = new GpxMetricsComputation(5, 5);
     points.forEach((point) => metrics.addAndFilter(point));
 
+    // Neither number changes here — only which one gpx.ts reports changed.
+    // The reported distance is totalDistance since 2026-08-01 (CONV-05
+    // superseded); totalDistanceSmoothed survives on the class, unreported.
     expect(metrics.totalDistanceSmoothed).toBeCloseTo(100.075, 0);
     expect(metrics.totalDistance).toBeCloseTo(110.083, 0);
   });
