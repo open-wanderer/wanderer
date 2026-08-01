@@ -1,5 +1,6 @@
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart' show haversineMeters;
 
 // sanitizeGpxEmail lived here. The non-standard
 // `<email>user@example.com</email>` text form is now handled where the
@@ -100,13 +101,10 @@ extension GpxMappingUtils on Gpx {
     for (int i = 0; i < points.length; i++) {
       final wpt = points[i];
       if (i > 0) {
-        final prev = points[i - 1];
-        final calculator = SphericalGreatCircle(
-          Geographic(lat: prev.lat!, lon: prev.lon!),
-        );
-        cumDist += calculator.distanceTo(
-          Geographic(lat: wpt.lat!, lon: wpt.lon!),
-        );
+        // Shared haversine, not an open-coded SphericalGreatCircle loop: the
+        // cumulative distance this returns is compared against distances the
+        // metrics engine produces, so the two must use one implementation.
+        cumDist += haversineMeters(points[i - 1], wpt);
       }
 
       final pointCalculator = SphericalGreatCircle(

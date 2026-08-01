@@ -57,6 +57,33 @@ double? parseGpxElevation(double? raw) {
   return raw;
 }
 
+/// Great-circle distance between two waypoints, in METRES.
+///
+/// The single haversine in the app. Delegates to `package:geobase`'s
+/// `SphericalGreatCircle` (re-exported via `package:maplibre`), verified
+/// formula-identical to the TS `haversineDistance` that the Dart/TS parity
+/// corpus pins — so this is also the function that must not drift.
+///
+/// Returns `double.nan` when either coordinate is null, reproducing the TS
+/// behaviour where an `undefined` `$.lat` propagates `NaN` out of
+/// `haversineDistance`. Do NOT "fix" this to `0`: a fabricated 0 would be
+/// silently absorbed into a distance total, whereas NaN is caught by
+/// `addAndFilter`'s `Number.isFinite` guard and skipped.
+///
+/// Two hand-rolled copies previously existed — one here inside
+/// `GpxMetricsComputation`, one in `elevation_profile.dart` (its own
+/// `const r = 6371.0` haversine, which agreed to ~1e-10 m but was free to
+/// drift) — plus an open-coded `SphericalGreatCircle` loop in
+/// `GpxUtils.distanceFromStartTo`. All three now route here.
+double haversineMeters(Wpt a, Wpt b) {
+  if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) {
+    return double.nan;
+  }
+  return SphericalGreatCircle(
+    Geographic(lat: a.lat!, lon: a.lon!),
+  ).distanceTo(Geographic(lat: b.lat!, lon: b.lon!));
+}
+
 /// Line-for-line Dart port of `gpx-metrics-computation.ts`'s
 /// `GpxMetricsComputation` class — the defer-then-publish elevation noise
 /// filter plus the threshold-gated distance-smoothing accumulator.
@@ -135,20 +162,7 @@ class GpxMetricsComputation {
     _pendingAnchorZ = null;
   }
 
-  /// Great-circle distance between two waypoints, reused (not hand-rolled)
-  /// from `package:geobase`'s `SphericalGreatCircle` (re-exported via
-  /// `package:maplibre`), verified formula-identical to the TS
-  /// `haversineDistance`. Returns `double.nan` when either coordinate is
-  /// null, reproducing the TS behaviour where an `undefined` `$.lat`
-  /// propagates `NaN` out of `haversineDistance`.
-  double _haversine(Wpt a, Wpt b) {
-    if (a.lat == null || a.lon == null || b.lat == null || b.lon == null) {
-      return double.nan;
-    }
-    return SphericalGreatCircle(
-      Geographic(lat: a.lat!, lon: a.lon!),
-    ).distanceTo(Geographic(lat: b.lat!, lon: b.lon!));
-  }
+  double _haversine(Wpt a, Wpt b) => haversineMeters(a, b);
 
   /// Line-for-line port of `addAndFilter` (`gpx-metrics-computation.ts:97-235`).
   /// Do not simplify this into a plain accumulator — that reintroduces the

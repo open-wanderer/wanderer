@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
@@ -63,55 +62,8 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     }
   }
 
-  List<TrackPoint> _parseGpx(Gpx gpx, int windowSize) {
-    final rawPoints = gpx.allWaypoints;
-
-    if (rawPoints.isEmpty) return [];
-
-    final result = <TrackPoint>[];
-    double cumDist = 0;
-    Duration cumDuration = Duration.zero;
-
-    for (int i = 0; i < rawPoints.length; i++) {
-      final wpt = rawPoints[i];
-      if (i > 0) {
-        cumDist += _haversine(rawPoints[i - 1], wpt);
-
-        final prevTime = rawPoints[i - 1].time;
-        final currTime = wpt.time;
-        if (prevTime != null && currTime != null) {
-          final delta = currTime.difference(prevTime);
-          if (delta > Duration.zero) cumDuration += delta;
-        }
-      }
-      result.add(
-        TrackPoint(
-          distanceM: cumDist,
-          elevationM: wpt.ele ?? 0,
-          lonlat: Geographic(lat: wpt.lat ?? 0, lon: wpt.lon ?? 0),
-          duration: cumDuration,
-          gradient: 0,
-          color: Colors.white,
-        ),
-      );
-    }
-
-    _smoothElevations(result, windowSize: windowSize);
-
-    for (int i = 0; i < result.length; i++) {
-      if (i == 0) {
-        result[i].gradient = 0;
-      } else {
-        final dElev = result[i].elevationM - result[i - 1].elevationM;
-        final dDist = result[i].distanceM - result[i - 1].distanceM;
-        result[i].gradient = dDist > 0 ? (dElev / dDist) * 100 : 0;
-      }
-      result[i].color = _gradientColor(result[i].gradient);
-    }
-    result[0].color = result.length > 1 ? result[1].color : _gradientColor(0);
-
-    return _simplifyTrackPoints(result, 250);
-  }
+  List<TrackPoint> _parseGpx(Gpx gpx, int windowSize) =>
+      buildElevationTrackPoints(gpx, windowSize);
 
   @override
   Widget build(BuildContext context) {
@@ -528,65 +480,6 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
       stops: stops,
     );
   }
-
-  List<TrackPoint> _simplifyTrackPoints(
-    List<TrackPoint> points,
-    int targetCount,
-  ) {
-    if (points.length <= targetCount) return points;
-
-    final numBuckets = targetCount ~/ 2;
-    final bucketSize = points.length / numBuckets;
-    final result = <TrackPoint>[];
-
-    result.add(points.first);
-
-    for (int i = 0; i < numBuckets; i++) {
-      final start = max(1, (i * bucketSize).floor());
-      final end = min(points.length - 1, ((i + 1) * bucketSize).floor());
-      if (start >= end) continue;
-
-      int minIdx = start;
-      int maxIdx = start;
-      double minEle = points[start].elevationM;
-      double maxEle = points[start].elevationM;
-
-      for (int j = start + 1; j < end; j++) {
-        final ele = points[j].elevationM;
-        if (ele < minEle) {
-          minEle = ele;
-          minIdx = j;
-        }
-        if (ele > maxEle) {
-          maxEle = ele;
-          maxIdx = j;
-        }
-      }
-
-      if (minIdx == maxIdx) {
-        result.add(points[minIdx]);
-      } else if (minIdx < maxIdx) {
-        result.add(points[minIdx]);
-        result.add(points[maxIdx]);
-      } else {
-        result.add(points[maxIdx]);
-        result.add(points[minIdx]);
-      }
-    }
-
-    if (result.last != points.last) {
-      result.add(points.last);
-    }
-
-    final uniqueResult = <TrackPoint>[];
-    for (final pt in result) {
-      if (uniqueResult.isEmpty || uniqueResult.last != pt) {
-        uniqueResult.add(pt);
-      }
-    }
-
-    return uniqueResult;
-  }
 }
 
 class TrackPoint {
@@ -655,20 +548,6 @@ Color _gradientColor(double gradientPct) {
   return const Color(0xFFD32F2F); // crimson red
 }
 
-double _haversine(Wpt a, Wpt b) {
-  const r = 6371.0;
-  final lat1 = _deg2rad(a.lat ?? 0);
-  final lat2 = _deg2rad(b.lat ?? 0);
-  final dLat = _deg2rad((b.lat ?? 0) - (a.lat ?? 0));
-  final dLon = _deg2rad((b.lon ?? 0) - (a.lon ?? 0));
-  final h =
-      sin(dLat / 2) * sin(dLat / 2) +
-      cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
-  return r * 1000 * 2 * atan2(sqrt(h), sqrt(1 - h));
-}
-
-double _deg2rad(double deg) => deg * pi / 180;
-
 double _niceInterval(double range, int targetCount) {
   if (range <= 0) return 1.0; // guard against flat/zero-range data
   final raw = range / targetCount;
@@ -708,4 +587,148 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Douglas-Peucker-style thinning for the chart. Top-level (was a State
+/// member) so buildElevationTrackPoints below can be tested outside a
+/// widget. Pure — it never touched instance state.
+List<TrackPoint> _simplifyTrackPoints(
+  List<TrackPoint> points,
+  int targetCount,
+) {
+  if (points.length <= targetCount) return points;
+
+  final numBuckets = targetCount ~/ 2;
+  final bucketSize = points.length / numBuckets;
+  final result = <TrackPoint>[];
+
+  result.add(points.first);
+
+  for (int i = 0; i < numBuckets; i++) {
+    final start = max(1, (i * bucketSize).floor());
+    final end = min(points.length - 1, ((i + 1) * bucketSize).floor());
+    if (start >= end) continue;
+
+    int minIdx = start;
+    int maxIdx = start;
+    double minEle = points[start].elevationM;
+    double maxEle = points[start].elevationM;
+
+    for (int j = start + 1; j < end; j++) {
+      final ele = points[j].elevationM;
+      if (ele < minEle) {
+        minEle = ele;
+        minIdx = j;
+      }
+      if (ele > maxEle) {
+        maxEle = ele;
+        maxIdx = j;
+      }
+    }
+
+    if (minIdx == maxIdx) {
+      result.add(points[minIdx]);
+    } else if (minIdx < maxIdx) {
+      result.add(points[minIdx]);
+      result.add(points[maxIdx]);
+    } else {
+      result.add(points[maxIdx]);
+      result.add(points[minIdx]);
+    }
+  }
+
+  if (result.last != points.last) {
+    result.add(points.last);
+  }
+
+  final uniqueResult = <TrackPoint>[];
+  for (final pt in result) {
+    if (uniqueResult.isEmpty || uniqueResult.last != pt) {
+      uniqueResult.add(pt);
+    }
+  }
+
+  return uniqueResult;
+}
+
+/// Builds the elevation chart's track points from [gpx].
+///
+/// Top-level and `@visibleForTesting` purely so it can be exercised without a
+/// widget: this was a private State method, which put the chart's distance
+/// accumulation out of reach of any unit test — and that is precisely where
+/// the raw-vs-smoothed mismatch below hid.
+@visibleForTesting
+List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
+  if (gpx.allWaypoints.isEmpty) return [];
+
+  final result = <TrackPoint>[];
+  Duration cumDuration = Duration.zero;
+  Wpt? prevTimed;
+
+  // SMOOTHED cumulative distance, not a raw haversine sum.
+  //
+  // The x-axis and the distance stat above the chart both read
+  // `_points.last.distanceM`, while every other distance in the app —
+  // trail_panel, the trail cards, the persisted `trail.distance` — comes from
+  // `computeTrailMetrics`, which is smoothed. Accumulating raw here made the
+  // same track show two different lengths depending on where the user looked,
+  // and the gap grows with GPS jitter (that gap is the whole point of the
+  // smoothing: CONV-05).
+  //
+  // Driving the ported `GpxMetricsComputation` over the SAME traversal
+  // `computeTrailMetrics` uses — every trkpt of every trkseg in order, not the
+  // coordinate-filtered `allWaypoints` — makes the agreement structural rather
+  // than coincidental: the chart's final x IS the trail's reported distance,
+  // because it is the same accumulator over the same sequence. Do not
+  // "simplify" this back to a haversine sum.
+  final metrics = GpxMetricsComputation(5, 5);
+
+  for (final track in gpx.trks) {
+    for (final segment in track.trksegs) {
+      for (final wpt in segment.trkpts) {
+        metrics.addAndFilter(wpt);
+
+        final prevTime = prevTimed?.time;
+        final currTime = wpt.time;
+        if (prevTime != null && currTime != null) {
+          final delta = currTime.difference(prevTime);
+          if (delta > Duration.zero) cumDuration += delta;
+        }
+        if (wpt.time != null) prevTimed = wpt;
+
+        // A point with no usable coordinate still advances the metrics (so the
+        // totals keep matching) but cannot be plotted.
+        if (wpt.lat == null || wpt.lon == null) continue;
+
+        result.add(
+          TrackPoint(
+            distanceM: metrics.totalDistanceSmoothed,
+            elevationM: wpt.ele ?? 0,
+            lonlat: Geographic(lat: wpt.lat!, lon: wpt.lon!),
+            duration: cumDuration,
+            gradient: 0,
+            color: Colors.white,
+          ),
+        );
+      }
+    }
+  }
+
+  if (result.isEmpty) return [];
+
+  _smoothElevations(result, windowSize: windowSize);
+
+  for (int i = 0; i < result.length; i++) {
+    if (i == 0) {
+      result[i].gradient = 0;
+    } else {
+      final dElev = result[i].elevationM - result[i - 1].elevationM;
+      final dDist = result[i].distanceM - result[i - 1].distanceM;
+      result[i].gradient = dDist > 0 ? (dElev / dDist) * 100 : 0;
+    }
+    result[i].color = _gradientColor(result[i].gradient);
+  }
+  result[0].color = result.length > 1 ? result[1].color : _gradientColor(0);
+
+  return _simplifyTrackPoints(result, 250);
 }
