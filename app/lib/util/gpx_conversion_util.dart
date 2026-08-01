@@ -489,7 +489,24 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
 /// distance, elevation gain/loss, duration and bounding box.
 ///
 /// [movingDuration] is the D-13 override: when a caller (a recording session)
-/// supplies it, it becomes `Trail.movingDuration`. `Trail.duration` NEVER
+/// supplies it, it becomes `Trail.movingDuration` — UNLESS it rounds down to
+/// zero whole seconds, in which case it is treated as absent (`null`).
+///
+/// That zero-to-null mapping is D-10's "no value" state, and it has to live
+/// here rather than at each call site: `NavigationStats.elapsed` starts at
+/// `Duration.zero` and stays there until the 1-second tick begins, so a
+/// recording saved immediately passed a zero elapsed straight through to
+/// `moving_duration = 0` — precisely the state `form_data_util.dart`'s own
+/// comment says must never be written ("sending an empty string for an
+/// absent value would write 0 into PocketBase and defeat D-10's 'no value'
+/// state"). Its write guard is `!= null`, not `> 0`, so nothing downstream
+/// catches it, and the display rule's `> 0` fallback then MASKS the bad row
+/// until something else reads the field. Note the truncation is the real
+/// boundary, not `Duration.zero`: a 500 ms elapsed also yields 0 whole
+/// seconds, which a `> Duration.zero` check at the call site would miss
+/// (WR-08).
+///
+/// `Trail.duration` NEVER
 /// comes from it — `duration` always comes from the GPX's own first/last
 /// trkpt timestamps, so every persisted stat except moving time stays
 /// reproducible by a later recompute over the same GPX (D-11). Omitting the
@@ -576,6 +593,12 @@ Trail trailFromGpx(
 
   final metrics = computeTrailMetrics(gpx);
 
+  // WR-08 / D-10: zero whole seconds is "no value", never a stored 0.
+  final movingDurationSeconds =
+      movingDuration != null && movingDuration.inSeconds > 0
+      ? movingDuration.inSeconds.toDouble()
+      : null;
+
   // Bounding box from the track. Normally computed server-side on save, but
   // an unsaved trail has none — set it here (mirroring gpx_util.ts:78-87)
   // so consumers can frame the whole track; otherwise leave the model's `0`
@@ -593,7 +616,7 @@ Trail trailFromGpx(
     elevationGain: metrics.elevationGain,
     elevationLoss: metrics.elevationLoss,
     duration: metrics.durationMs / 1000,
-    movingDuration: movingDuration?.inSeconds.toDouble(),
+    movingDuration: movingDurationSeconds,
     minLat: hasFiniteBounds ? metrics.minLat : 0,
     maxLat: hasFiniteBounds ? metrics.maxLat : 0,
     minLon: hasFiniteBounds ? metrics.minLon : 0,

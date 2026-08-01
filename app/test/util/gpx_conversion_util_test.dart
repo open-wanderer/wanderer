@@ -679,6 +679,39 @@ void main() {
       expect(trail.movingDuration, isNull);
     });
 
+    // WR-08 / D-10: `moving_duration = 0` is the exact state D-10 forbids —
+    // `form_data_util.dart`'s write guard is `!= null`, not `> 0`, so a zero
+    // override used to be persisted and then masked by the display rule's own
+    // `> 0` fallback.
+    test('D-10: a zero-length override is "no value" (null), never a stored 0',
+        () {
+      final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+      final trail = trailFromGpx(
+        parseGpxSafely(xml),
+        movingDuration: Duration.zero,
+      );
+      expect(trail.movingDuration, isNull);
+    });
+
+    test('D-10: a sub-second override, which truncates to 0 whole seconds, '
+        'is also "no value"', () {
+      final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+      final trail = trailFromGpx(
+        parseGpxSafely(xml),
+        movingDuration: const Duration(milliseconds: 500),
+      );
+      expect(trail.movingDuration, isNull);
+    });
+
+    test('a one-second override is real data and survives', () {
+      final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+      final trail = trailFromGpx(
+        parseGpxSafely(xml),
+        movingDuration: const Duration(seconds: 1),
+      );
+      expect(trail.movingDuration, 1.0);
+    });
+
     test(
       'waypoint mapping: a known sym resolves through fontAwesomeIconsMap, an unknown sym falls back to the default circle',
       () {
