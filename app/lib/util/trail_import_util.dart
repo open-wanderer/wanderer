@@ -73,6 +73,12 @@ Future<void> importTrailFile({
     return;
   }
 
+  // WR-12: the `try` deliberately ENDS after `buildLocalTrail`. It used to
+  // span the navigation push too, so a throw from `navContext.push` — or from
+  // anything after `pendingImportedTrail` was assigned — showed the user
+  // "import failed" for an import that had in fact succeeded, while leaving a
+  // stale non-null `pendingImportedTrail` global behind.
+  final Trail trail;
   try {
     final gpxXml = ext == 'gpx'
         ? await File(path).readAsString()
@@ -150,19 +156,27 @@ Future<void> importTrailFile({
       finalGpxData = GpxWriter().asString(finalGpx);
     }
 
-    final trail = await buildLocalTrail(
+    trail = await buildLocalTrail(
       ref,
       finalGpx,
       fallbackName: name,
       gpxData: finalGpxData,
     );
-
-    pendingImportedTrail = trail;
-    if (!navContext.mounted) return;
-    navContext.push('/trail/create/edit', extra: trail);
-  } catch (e) {
+  } catch (e, st) {
+    // Every distinct failure mode in the block above — an unreadable file,
+    // transcodeToGpx's StateError, a FormatException from an unsanitised
+    // tag, a StateError from a <trkpt> missing lat/lon — collapses into one
+    // untyped toast. Logging the exception is what makes the import path
+    // diagnosable in the field at all (WR-12); it was previously bound and
+    // dropped on the floor.
+    debugPrint('importTrailFile failed for "$name": $e\n$st');
     showError();
+    return;
   }
+
+  pendingImportedTrail = trail;
+  if (!navContext.mounted) return;
+  navContext.push('/trail/create/edit', extra: trail);
 }
 
 /// The sole remaining caller of the convert endpoint's `POST` route in the

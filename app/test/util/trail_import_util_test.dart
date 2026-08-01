@@ -386,6 +386,46 @@ void main() {
         expect(pendingImportedTrail!.expand?.gpxData, contains('<gpx'));
       },
     );
+
+    // WR-12: the try/catch used to span the navigation push as well, so a
+    // failure could leave a stale non-null `pendingImportedTrail` behind. The
+    // catch now ends at `buildLocalTrail`, and a genuine parse failure must
+    // toast AND leave the handoff global untouched.
+    testWidgets(
+      'a structurally broken GPX toasts an error and leaves '
+      'pendingImportedTrail untouched',
+      (tester) async {
+        // A <trkpt> with no lat/lon throws StateError out of GpxReader —
+        // deliberately not something parseGpxSafely rewrites.
+        final file = File('${tempDir.path}/broken.gpx');
+        file.writeAsStringSync(
+          '<?xml version="1.0"?><gpx><trk><trkseg>'
+          '<trkpt><ele>400</ele></trkpt>'
+          '</trkseg></trk></gpx>',
+        );
+
+        final pumped = await pumpRouterRef(
+          tester,
+          online: false,
+          shouldFailAll: true,
+        );
+        final l10n = AppLocalizations.of(pumped.context)!;
+
+        await tester.runAsync(
+          () => importTrailFile(
+            ref: pumped.ref,
+            path: file.path,
+            name: 'broken.gpx',
+            navContext: pumped.context,
+            l10n: l10n,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(pumped.ref.read(toastProvider), isNotEmpty);
+        expect(pendingImportedTrail, isNull);
+      },
+    );
   });
 
   group('PORT-03 gate', () {
