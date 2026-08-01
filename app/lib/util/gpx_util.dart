@@ -58,20 +58,15 @@ Gpx buildGpxFromPoints(List<Wpt> points) {
   return gpx;
 }
 
-class GpxStats {
-  final double totalDistance;
-  final double totalDuration;
-  final double totalElevationGain;
-  final double totalElevationloss;
-
-  const GpxStats({
-    required this.totalDistance,
-    required this.totalDuration,
-    required this.totalElevationGain,
-    required this.totalElevationloss,
-  });
-}
-
+// D-17: trail metrics live in gpx_conversion_util.dart's
+// computeTrailMetrics/GpxTrailMetrics — the port of the Phase 33-corrected
+// TS algorithm. No second metrics implementation (a "totals"-style method or
+// value class, or anything computing distance/elevation summaries) may be
+// re-added to this extension: this file previously carried a second,
+// CONV-01-buggy metrics implementation that disagreed with the ported one,
+// so an unsaved-GPX preview showed one distance and the saved trail another
+// for the same GPX (T-34-19). Both former consumers (elevation_profile.dart,
+// trail_panel.dart) now call computeTrailMetrics.
 extension GpxMappingUtils on Gpx {
   List<Wpt> get allWaypoints {
     return trks
@@ -91,47 +86,6 @@ extension GpxMappingUtils on Gpx {
     final points = allPoints;
     if (points.isEmpty) return null;
     return LngLatBounds.fromPoints(points);
-  }
-
-  GpxStats getTotals() {
-    final points = allWaypoints;
-
-    double totalDistance = 0;
-    double totalElevationGain = 0;
-    double totalElevationLoss = 0;
-    Duration totalDuration = Duration.zero;
-
-    for (int i = 1; i < points.length; i++) {
-      final prev = points[i - 1];
-      final curr = points[i];
-
-      final calculator = SphericalGreatCircle(
-        Geographic(lat: prev.lat!, lon: prev.lon!),
-      );
-      totalDistance += calculator.distanceTo(
-        Geographic(lat: curr.lat!, lon: curr.lon!),
-      );
-
-      if (prev.ele != null && curr.ele != null) {
-        final diff = curr.ele! - prev.ele!;
-        if (diff > 0) {
-          totalElevationGain += diff;
-        } else {
-          totalElevationLoss += diff.abs();
-        }
-      }
-
-      if (prev.time != null && curr.time != null) {
-        totalDuration += curr.time!.difference(prev.time!);
-      }
-    }
-
-    return GpxStats(
-      totalDistance: totalDistance,
-      totalDuration: totalDuration.inSeconds.toDouble(),
-      totalElevationGain: totalElevationGain,
-      totalElevationloss: totalElevationLoss,
-    );
   }
 
   /// Approximates how far along the track [point] falls, in meters, by

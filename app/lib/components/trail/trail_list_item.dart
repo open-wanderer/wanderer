@@ -361,7 +361,7 @@ class _StatsRow extends StatelessWidget {
         StatChip(
           icon: FontAwesomeIcons.clock,
           label: Duration(
-            seconds: trail.duration.toInt(),
+            seconds: (trailDisplayDuration(trail) ?? 0).toInt(),
           ).pretty(abbreviated: true, tersity: DurationTersity.minute),
         ),
         StatChip(

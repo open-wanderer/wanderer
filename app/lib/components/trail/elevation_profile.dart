@@ -12,6 +12,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 
 class ElevationProfile extends ConsumerStatefulWidget {
@@ -175,9 +176,9 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
         elevationGain = trail.elevationGain;
         elevationLoss = trail.elevationLoss;
       } else {
-        final totals = widget.gpx.getTotals();
-        elevationGain = totals.totalElevationGain;
-        elevationLoss = totals.totalElevationloss;
+        final metrics = computeTrailMetrics(widget.gpx);
+        elevationGain = metrics.elevationGain;
+        elevationLoss = metrics.elevationLoss;
       }
       statsHeader = Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
