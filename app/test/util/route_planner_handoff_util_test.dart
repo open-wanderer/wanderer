@@ -7,18 +7,22 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
+import 'package:wanderer/util/gpx_conversion_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 
 // Tests for the pure handoff helpers (no network/navigation), plus
-// buildDraftTrail, which now round-trips through `/trail/convert` (see
-// convertGpxToTrail in trail_import_util.dart) and so needs a WidgetRef and a
-// faked Api. finishPlanning's own orchestration is still not unit-tested here
-// — it has no seam beyond buildDraftTrail worth re-testing.
+// buildDraftTrail, which since 34-05 builds its draft trail entirely
+// on-device via the ported `trailFromGpx` (see buildLocalTrail in
+// trail_import_util.dart) and so needs a WidgetRef only for its optional,
+// online-only reverse-geocode fill (D-07). finishPlanning's own
+// orchestration is still not unit-tested here — it has no seam beyond
+// buildDraftTrail worth re-testing.
 
-/// Fakes the `/trail/convert` response so `buildDraftTrail` can be tested
-/// without a real server. Mirrors the `_FakeApi` pattern in
+/// Fakes any Dio traffic `buildDraftTrail`'s optional reverse-geocode step
+/// might issue while online. Mirrors the `_FakeApi` pattern in
 /// `test/provider/route_anchor_provider_test.dart`.
 class _FakeApi extends Api {
   _FakeApi({this.response, this.shouldFail = false});
@@ -55,13 +59,25 @@ class _FakeApi extends Api {
   }
 }
 
+class _FakeOnlineStatus extends OnlineStatus {
+  _FakeOnlineStatus(this._initial);
+
+  final bool _initial;
+
+  @override
+  bool build() => _initial;
+}
+
 /// Pumps a bare `Consumer` inside a `ProviderScope` overriding [apiProvider]
-/// with [_FakeApi], and hands back the captured [WidgetRef] for the test to
-/// call ref-requiring functions with.
+/// with [_FakeApi] and [onlineStatusProvider] with [_FakeOnlineStatus]
+/// (defaulting to offline, so the default test path performs no
+/// reverse-geocode request at all), and hands back the captured [WidgetRef]
+/// for the test to call ref-requiring functions with.
 Future<WidgetRef> _pumpRef(
   WidgetTester tester, {
   Map<String, dynamic>? response,
   bool shouldFail = false,
+  bool online = false,
 }) async {
   late WidgetRef capturedRef;
   await tester.pumpWidget(
@@ -70,6 +86,7 @@ Future<WidgetRef> _pumpRef(
         apiProvider.overrideWith(
           () => _FakeApi(response: response, shouldFail: shouldFail),
         ),
+        onlineStatusProvider.overrideWith(() => _FakeOnlineStatus(online)),
       ],
       child: Consumer(
         builder: (context, ref, _) {
@@ -187,21 +204,35 @@ Future<void> _seedRoute(
 /// Calls [buildDraftTrail] inside [WidgetTester.runAsync] — `testWidgets`
 /// runs under a fake clock that never fires real `Timer`s on its own, and
 /// Dio schedules its interceptor pipeline via `Timer.run` (a real timer), so
-/// awaiting the call directly hangs forever. `runAsync` steps outside the
-/// fake zone into a real one so that timer actually fires.
+/// awaiting the call directly hangs forever (relevant whenever the online
+/// reverse-geocode branch is exercised). `runAsync` steps outside the fake
+/// zone into a real one so that timer actually fires.
 Future<Trail> _buildDraftTrail(
   WidgetTester tester,
   WidgetRef ref,
   Gpx gpx, {
   String? category,
+  String? subcategory,
+  double? durationSeconds,
+  Duration? movingDuration,
 }) async {
   return (await tester.runAsync(
-    () => buildDraftTrail(ref, gpx, category: category),
+    () => buildDraftTrail(
+      ref,
+      gpx,
+      category: category,
+      subcategory: subcategory,
+      durationSeconds: durationSeconds,
+      movingDuration: movingDuration,
+    ),
   ))!;
 }
 
 void main() {
   group('buildDraftTrail', () {
+    // Two track points, lat 47.000/lon 9.000/ele 400 and lat 47.001/lon
+    // 9.001/ele 410 — matches the CONTEXT.md-mandated fixture shape for this
+    // plan's re-pointed assertions.
     Gpx buildSampleGpx() {
       final gpx = Gpx();
       gpx.trks = [
@@ -219,33 +250,36 @@ void main() {
       return gpx;
     }
 
-    /// A minimal, valid `/trail/convert` response — enough for
-    /// `Trail.fromJson` (plus `convertGpxToTrail`'s injected id/created/
-    /// updated placeholders) to parse successfully.
-    Map<String, dynamic> buildServerResponse({
-      Map<String, dynamic>? overrides,
-    }) {
-      return {
-        'name': 'Sample Trail',
-        'lat': 47.000,
-        'lon': 9.000,
-        'max_lat': 47.001,
-        'min_lat': 47.000,
-        'max_lon': 9.001,
-        'min_lon': 9.000,
-        'expand': {
-          'gpx_data': '<gpx><trk><trkseg></trkseg></trk></gpx>',
-          'waypoints_via_trail': <dynamic>[],
-        },
-        ...?overrides,
-      };
+    /// The same two points, but with `time` stamped [span] apart, so
+    /// duration comes from the GPX rather than a timeless-fallback.
+    Gpx buildTimestampedGpx(Duration span) {
+      final start = DateTime.utc(2026, 1, 1, 8, 0, 0);
+      final gpx = Gpx();
+      gpx.trks = [
+        Trk(
+          trksegs: [
+            Trkseg(
+              trkpts: [
+                Wpt(lat: 47.000, lon: 9.000, ele: 400, time: start),
+                Wpt(
+                  lat: 47.001,
+                  lon: 9.001,
+                  ele: 410,
+                  time: start.add(span),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ];
+      return gpx;
     }
 
     testWidgets(
       'sets a non-empty expand.gpxData containing "<gpx" (Pitfall 1)',
       (tester) async {
         final gpx = buildSampleGpx();
-        final ref = await _pumpRef(tester, response: buildServerResponse());
+        final ref = await _pumpRef(tester);
 
         final result = await _buildDraftTrail(tester, ref, gpx);
 
@@ -255,22 +289,23 @@ void main() {
       },
     );
 
-    testWidgets('leaves expand.waypointsViaTrail empty (D-07)', (
-      tester,
-    ) async {
-      final gpx = buildSampleGpx();
-      final ref = await _pumpRef(tester, response: buildServerResponse());
+    testWidgets(
+      'leaves expand.waypointsViaTrail empty for a track with no <wpt>s',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester);
 
-      final result = await _buildDraftTrail(tester, ref, gpx);
+        final result = await _buildDraftTrail(tester, ref, gpx);
 
-      expect(result.expand?.waypointsViaTrail, isEmpty);
-    });
+        expect(result.expand?.waypointsViaTrail, isEmpty);
+      },
+    );
 
     testWidgets('keeps expand.gpx identical to the finalGpx passed in', (
       tester,
     ) async {
       final gpx = buildSampleGpx();
-      final ref = await _pumpRef(tester, response: buildServerResponse());
+      final ref = await _pumpRef(tester);
 
       final result = await _buildDraftTrail(tester, ref, gpx);
 
@@ -279,7 +314,7 @@ void main() {
 
     testWidgets('passes a supplied category id through', (tester) async {
       final gpx = buildSampleGpx();
-      final ref = await _pumpRef(tester, response: buildServerResponse());
+      final ref = await _pumpRef(tester);
 
       final result = await _buildDraftTrail(
         tester,
@@ -295,7 +330,7 @@ void main() {
       tester,
     ) async {
       final gpx = buildSampleGpx();
-      final ref = await _pumpRef(tester, response: buildServerResponse());
+      final ref = await _pumpRef(tester);
 
       final result = await _buildDraftTrail(tester, ref, gpx);
 
@@ -303,10 +338,40 @@ void main() {
     });
 
     testWidgets(
-      'passes through the bounds/lat/lon the server computed from the track',
+      "clears subcategory to '' when none is supplied "
+      '(trail_create_screen clear convention)',
       (tester) async {
         final gpx = buildSampleGpx();
-        final ref = await _pumpRef(tester, response: buildServerResponse());
+        final ref = await _pumpRef(tester);
+
+        final result = await _buildDraftTrail(tester, ref, gpx);
+
+        expect(result.subcategory, '');
+      },
+    );
+
+    testWidgets('a supplied subcategory id round-trips through', (
+      tester,
+    ) async {
+      final gpx = buildSampleGpx();
+      final ref = await _pumpRef(tester);
+
+      final result = await _buildDraftTrail(
+        tester,
+        ref,
+        gpx,
+        subcategory: 'hiking-sub-id',
+      );
+
+      expect(result.subcategory, 'hiking-sub-id');
+    });
+
+    testWidgets(
+      'sets bounds from the track and lat/lon from its first point '
+      '(local computation reproduces gpx_util.ts:78-87)',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester);
 
         final result = await _buildDraftTrail(tester, ref, gpx);
 
@@ -319,26 +384,149 @@ void main() {
       },
     );
 
-    testWidgets('propagates a /trail/convert failure to the caller', (
-      tester,
-    ) async {
-      final gpx = buildSampleGpx();
-      final ref = await _pumpRef(tester, shouldFail: true);
+    testWidgets(
+      'distance and elevationGain are computed locally over the track',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester);
 
-      // runAsync's own returned Future doesn't reliably propagate an error
-      // thrown inside the callback back through expectLater/throwsA — catch
-      // it inside the real-zone callback instead and assert on that.
-      Object? caught;
-      await tester.runAsync(() async {
-        try {
-          await buildDraftTrail(ref, gpx);
-        } catch (e) {
-          caught = e;
-        }
-      });
+        final result = await _buildDraftTrail(tester, ref, gpx);
 
-      expect(caught, isA<DioException>());
-    });
+        expect(result.distance, computeTrailMetrics(gpx).distance);
+        // The 400-to-410 climb clears the 5 m noise threshold.
+        expect(result.elevationGain, 10);
+      },
+    );
+
+    testWidgets(
+      'applies the durationSeconds fallback for a timeless GPX',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester);
+
+        final result = await _buildDraftTrail(
+          tester,
+          ref,
+          gpx,
+          durationSeconds: 1200,
+        );
+
+        expect(result.duration, 1200);
+      },
+    );
+
+    testWidgets(
+      'does not apply the durationSeconds fallback when the GPX carries '
+      'real timestamps',
+      (tester) async {
+        final gpx = buildTimestampedGpx(const Duration(minutes: 30));
+        final ref = await _pumpRef(tester);
+
+        final result = await _buildDraftTrail(
+          tester,
+          ref,
+          gpx,
+          durationSeconds: 999999,
+        );
+
+        expect(result.duration, const Duration(minutes: 30).inSeconds.toDouble());
+      },
+    );
+
+    // D-12: the session-to-trail moving-time hand-off, pinned by its own
+    // test rather than the shared corpus (moving time is not a function of
+    // a GPX — the same GPX legitimately yields different values by
+    // provenance).
+    testWidgets(
+      'movingDuration flows to trail.movingDuration while duration stays '
+      'GPX-derived (D-11)',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester);
+
+        final result = await _buildDraftTrail(
+          tester,
+          ref,
+          gpx,
+          movingDuration: const Duration(hours: 1, minutes: 5),
+        );
+
+        expect(result.movingDuration, 3900.0);
+        expect(result.duration, 0);
+      },
+    );
+
+    testWidgets(
+      'movingDuration is null when the parameter is omitted (import/planner '
+      'paths keep reporting elapsed time, CONV-06)',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester);
+
+        final result = await _buildDraftTrail(tester, ref, gpx);
+
+        expect(result.movingDuration, isNull);
+      },
+    );
+
+    testWidgets(
+      'a recorded-shape GPX keeps duration (GPX elapsed) and movingDuration '
+      "(the session's own) independent",
+      (tester) async {
+        final gpx = buildTimestampedGpx(const Duration(minutes: 90));
+        final ref = await _pumpRef(tester);
+
+        final result = await _buildDraftTrail(
+          tester,
+          ref,
+          gpx,
+          movingDuration: const Duration(minutes: 70),
+        );
+
+        expect(result.duration, 5400.0);
+        expect(result.movingDuration, 4200.0);
+      },
+    );
+
+    testWidgets(
+      'performs no reverse-geocode request and leaves location null while '
+      'offline (default test path)',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(tester, shouldFail: true);
+
+        final result = await _buildDraftTrail(tester, ref, gpx);
+
+        expect(result.location, isNull);
+      },
+    );
+
+    testWidgets(
+      'fills location via reverse geocode when online',
+      (tester) async {
+        final gpx = buildSampleGpx();
+        final ref = await _pumpRef(
+          tester,
+          online: true,
+          response: {
+            'features': [
+              {
+                'properties': {
+                  'address': {
+                    'city': 'Testtown',
+                    'country': 'Testland',
+                  },
+                },
+              },
+            ],
+          },
+        );
+
+        final result = await _buildDraftTrail(tester, ref, gpx);
+
+        expect(result.location, 'Testtown, Testland');
+      },
+    );
   });
 
   group('buildFinalPlannedGpx', () {
