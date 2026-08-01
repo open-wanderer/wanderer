@@ -359,6 +359,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 33-03-PLAN.md — Report the smoothed distance and rebuild `cumulativeDistance` index-aligned (CONV-05/D-01), rescale the crop slider (D-02)
+  - The smoothed-distance half was **superseded 2026-08-01** by quick task `260801-opr` — distance is now the raw accumulator; see `.planning/REQUIREMENTS.md` CONV-05. The `cumulativeDistance` rebuild and crop-slider rescale stand.
 
 **Wave 4** *(gap closure — from 33-VERIFICATION.md)*
 
