@@ -31,6 +31,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get add_waypoint => 'Přidat bod trasy';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Po';
 
   @override

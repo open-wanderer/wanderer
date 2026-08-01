@@ -101,7 +101,11 @@ Future<void> importTrailFile({
     }
 
     if (!navContext.mounted) return;
-    final options = await resolveTrackSaveOptions(ref, navContext);
+    final options = await resolveTrackSaveOptions(
+      ref,
+      navContext,
+      TrackSaveOptionsSource.import,
+    );
     if (options == null) return;
     if (!navContext.mounted) return;
 

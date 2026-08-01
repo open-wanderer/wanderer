@@ -31,6 +31,9 @@ class AppLocalizationsNo extends AppLocalizations {
   String get add_waypoint => 'Legg til veipunkt';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Etter';
 
   @override

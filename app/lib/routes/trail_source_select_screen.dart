@@ -213,10 +213,6 @@ class _TrailSourceSelectScreenState
     // race the first.
     final busy = _importLoading || _plannerLoading || _recorderLoading;
 
-    // Planning needs the routing backend and importing uploads the trail, so
-    // both are unusable offline. Recording is not: it only needs GPS, and
-    // `_openRecorder` already hands NavigationScreen an `isOffline` flag so it
-    // opens the network-free map style.
     final networkBlocked = busy || !isOnline;
 
     return Scaffold(
@@ -251,7 +247,7 @@ class _TrailSourceSelectScreenState
             description:
                 "Upload external GPX files directly from your device storage.",
             isLoading: _importLoading,
-            onTap: networkBlocked ? null : () => _importGpx(l10n),
+            onTap: busy ? null : () => _importGpx(l10n),
           ),
         ],
       ),

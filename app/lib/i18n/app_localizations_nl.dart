@@ -31,6 +31,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get add_waypoint => 'Routepunt toevoegen';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Na';
 
   @override

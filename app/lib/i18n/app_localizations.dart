@@ -164,6 +164,12 @@ abstract class AppLocalizations {
   /// **'Add Waypoint'**
   String get add_waypoint;
 
+  /// No description provided for @adjust_track.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust track'**
+  String get adjust_track;
+
   /// No description provided for @after.
   ///
   /// In en, this message translates to:

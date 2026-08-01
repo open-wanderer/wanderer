@@ -30,6 +30,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get add_waypoint => '添加坐标';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => '之后';
 
   @override

@@ -733,7 +733,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// handoff. Only the no-transform path preserves the recorded breadcrumb's
   /// timestamps verbatim.
   Future<void> _saveRecordedTrack(BuildContext context) async {
-    final options = await resolveTrackSaveOptions(ref, context);
+    final options = await resolveTrackSaveOptions(
+      ref,
+      context,
+      TrackSaveOptionsSource.recording,
+    );
     if (options == null) return;
     if (_savingTrack) return;
     setState(() => _savingTrack = true);

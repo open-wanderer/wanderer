@@ -31,6 +31,9 @@ class AppLocalizationsHu extends AppLocalizations {
   String get add_waypoint => 'Útvonalpont hozzáadása';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'After';
 
   @override

@@ -31,6 +31,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get add_waypoint => 'Dodaj Punkt';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Po';
 
   @override

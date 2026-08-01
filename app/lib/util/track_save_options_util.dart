@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/components/navigation/track_save_options_sheet.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 
+// Callers identify themselves with this enum, so it travels with the gate.
+export 'package:wanderer/components/navigation/track_save_options_sheet.dart'
+    show TrackSaveOptionsSource;
+
 /// The single post-capture gate shared by all three capture sources —
 /// recording, route planner and file import (D-15).
 ///
@@ -25,13 +29,18 @@ import 'package:wanderer/provider/online_status_provider.dart';
 /// `/valhalla/height` call) and `followRoads` (a `/valhalla/trace-route`
 /// call) — are network calls, which is why a single connectivity gate is
 /// sufficient to cover both rather than needing per-toggle gating.
+///
+/// [source] identifies the calling flow; the sheet itself owns every
+/// presentation difference between the sources (see
+/// [TrackSaveOptionsSource]).
 Future<(bool recalcHeights, bool followRoads)?> resolveTrackSaveOptions(
   WidgetRef ref,
   BuildContext context,
+  TrackSaveOptionsSource source,
 ) async {
   if (!ref.read(onlineStatusProvider)) {
     return (false, false);
   }
   if (!context.mounted) return null;
-  return showTrackSaveOptionsSheet(context);
+  return showTrackSaveOptionsSheet(context, source: source);
 }

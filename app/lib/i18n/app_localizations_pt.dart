@@ -31,6 +31,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get add_waypoint => 'Adicionar ponto de vista';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Depois';
 
   @override

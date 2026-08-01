@@ -1,9 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 
-/// Presents the "Save recording" options bottom sheet: two independent
-/// toggles ("Recalculate heights", "Follow roads"), both off by default,
-/// gating `_saveRecordedTrack`'s opt-in Valhalla cleanup pipeline.
+/// Which capture source is presenting the sheet. The sheet owns every
+/// presentation difference between them (title, insets) so callers only
+/// have to identify themselves.
+enum TrackSaveOptionsSource {
+  /// The recording/route-planner flow in `navigation_screen.dart`, shown
+  /// over a screen without a bottom navigation bar.
+  recording,
+
+  /// The file import flow in `trail_import_util.dart`, shown over a screen
+  /// whose bottom navigation bar would otherwise overlap the sheet.
+  import,
+}
+
+/// Presents the track save options bottom sheet: two independent toggles
+/// ("Recalculate heights", "Follow roads"), both off by default, gating the
+/// caller's opt-in Valhalla cleanup pipeline.
 ///
 /// Styled after `travel_profile_sheet.dart`'s flat, bordered "Terrain Log"
 /// card aesthetic, but — unlike that tap-to-close picker — holds local
@@ -13,8 +26,9 @@ import 'package:wanderer/i18n/app_localizations.dart';
 /// dismissed/backed out (cancel aborts the save with no change to the
 /// session).
 Future<(bool recalcHeights, bool followRoads)?> showTrackSaveOptionsSheet(
-  BuildContext context,
-) {
+  BuildContext context, {
+  required TrackSaveOptionsSource source,
+}) {
   return showModalBottomSheet<(bool, bool)>(
     context: context,
     isDismissible: true,
@@ -22,12 +36,21 @@ Future<(bool recalcHeights, bool followRoads)?> showTrackSaveOptionsSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (context) => const _TrackSaveOptionsSheetContent(),
+    builder: (context) => Padding(
+      padding: switch (source) {
+        TrackSaveOptionsSource.recording => EdgeInsets.zero,
+        TrackSaveOptionsSource.import => const EdgeInsets.only(
+          bottom: kBottomNavigationBarHeight + 48,
+        ),
+      },
+      child: _TrackSaveOptionsSheetContent(source: source),
+    ),
   );
 }
 
 class _TrackSaveOptionsSheetContent extends StatefulWidget {
-  const _TrackSaveOptionsSheetContent();
+  final TrackSaveOptionsSource source;
+  const _TrackSaveOptionsSheetContent({required this.source});
 
   @override
   State<_TrackSaveOptionsSheetContent> createState() =>
@@ -71,7 +94,10 @@ class _TrackSaveOptionsSheetContentState
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Text(
-              l10n.save_recording_options,
+              switch (widget.source) {
+                TrackSaveOptionsSource.recording => l10n.save_recording_options,
+                TrackSaveOptionsSource.import => l10n.adjust_track,
+              },
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -93,10 +119,8 @@ class _TrackSaveOptionsSheetContentState
           ),
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              (_recalcHeights, _followRoads),
-            ),
+            onPressed: () =>
+                Navigator.pop(context, (_recalcHeights, _followRoads)),
             child: Text(l10n.save),
           ),
         ],

@@ -31,6 +31,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get add_waypoint => 'Добавить путевую точку';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'После';
 
   @override

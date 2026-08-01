@@ -74,7 +74,11 @@ void main() {
         final ref = await _pumpRef(tester, online: false, observer: observer);
         final baseline = observer.pushCount;
 
-        final result = await resolveTrackSaveOptions(ref, ref.context);
+        final result = await resolveTrackSaveOptions(
+          ref,
+          ref.context,
+          TrackSaveOptionsSource.recording,
+        );
 
         expect(result, (false, false));
         // The app's own initial route is the only push observed — the sheet
@@ -83,64 +87,69 @@ void main() {
       },
     );
 
-    testWidgets(
-      'online, confirmed with both toggles left untouched: returns '
-      '(false, false)',
-      (tester) async {
-        final ref = await _pumpRef(tester, online: true);
-        final l10n = AppLocalizations.of(ref.context)!;
+    testWidgets('online, confirmed with both toggles left untouched: returns '
+        '(false, false)', (tester) async {
+      final ref = await _pumpRef(tester, online: true);
+      final l10n = AppLocalizations.of(ref.context)!;
 
-        final future = resolveTrackSaveOptions(ref, ref.context);
-        await tester.pumpAndSettle();
+      final future = resolveTrackSaveOptions(
+        ref,
+        ref.context,
+        TrackSaveOptionsSource.recording,
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.text(l10n.save));
-        await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.save));
+      await tester.pumpAndSettle();
 
-        final result = await future;
-        expect(result, (false, false));
-      },
-    );
+      final result = await future;
+      expect(result, (false, false));
+    });
 
-    testWidgets(
-      'online, confirmed with both toggles switched on: returns '
-      '(true, true)',
-      (tester) async {
-        final ref = await _pumpRef(tester, online: true);
-        final l10n = AppLocalizations.of(ref.context)!;
+    testWidgets('online, confirmed with both toggles switched on: returns '
+        '(true, true)', (tester) async {
+      final ref = await _pumpRef(tester, online: true);
+      final l10n = AppLocalizations.of(ref.context)!;
 
-        final future = resolveTrackSaveOptions(ref, ref.context);
-        await tester.pumpAndSettle();
+      final future = resolveTrackSaveOptions(
+        ref,
+        ref.context,
+        TrackSaveOptionsSource.recording,
+      );
+      await tester.pumpAndSettle();
 
-        // Tapping the SwitchListTile's title area toggles its switch (default
-        // ListTile.onTap behaviour).
-        await tester.tap(find.text(l10n.recalculate_heights));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(l10n.follow_roads));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text(l10n.save));
-        await tester.pumpAndSettle();
+      // Tapping the SwitchListTile's title area toggles its switch (default
+      // ListTile.onTap behaviour).
+      await tester.tap(find.text(l10n.recalculate_heights));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.follow_roads));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.save));
+      await tester.pumpAndSettle();
 
-        final result = await future;
-        expect(result, (true, true));
-      },
-    );
+      final result = await future;
+      expect(result, (true, true));
+    });
 
-    testWidgets(
-      'online, dismissed without confirming: returns null',
-      (tester) async {
-        final ref = await _pumpRef(tester, online: true);
+    testWidgets('online, dismissed without confirming: returns null', (
+      tester,
+    ) async {
+      final ref = await _pumpRef(tester, online: true);
 
-        final future = resolveTrackSaveOptions(ref, ref.context);
-        await tester.pumpAndSettle();
+      final future = resolveTrackSaveOptions(
+        ref,
+        ref.context,
+        TrackSaveOptionsSource.recording,
+      );
+      await tester.pumpAndSettle();
 
-        // The sheet is isDismissible:true — tapping the barrier above it
-        // pops it with no result, same as a back-gesture.
-        await tester.tapAt(const Offset(20, 20));
-        await tester.pumpAndSettle();
+      // The sheet is isDismissible:true — tapping the barrier above it
+      // pops it with no result, same as a back-gesture.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
 
-        final result = await future;
-        expect(result, isNull);
-      },
-    );
+      final result = await future;
+      expect(result, isNull);
+    });
   });
 }

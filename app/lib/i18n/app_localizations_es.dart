@@ -31,6 +31,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get add_waypoint => 'Añadir Punto de Interés';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Después';
 
   @override

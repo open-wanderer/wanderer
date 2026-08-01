@@ -31,6 +31,9 @@ class AppLocalizationsEu extends AppLocalizations {
   String get add_waypoint => 'Gehitu bidepuntua';
 
   @override
+  String get adjust_track => 'Adjust track';
+
+  @override
   String get after => 'Ondoren';
 
   @override
