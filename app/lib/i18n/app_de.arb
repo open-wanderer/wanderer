@@ -7,7 +7,7 @@
   "account_privacy": "Privatsphäre des Kontos",
   "add_bio": "Bio hinzufügen",
   "add_waypoint": "Wegpunkt hinzufügen",
-  "adjust_track": "Adjust track",
+  "adjust_track": "Pfad anpassen",
   "after": "Nach",
   "all": "Alle",
   "altitude": "Höhe",
@@ -176,7 +176,7 @@
   "password_confirm": "Passwort bestätigen",
   "passwords_must_match": "Passwörter müssen übereinstimmen",
   "photos": "Fotos",
-  "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
+  "photos_skipped_no_gps": "{count, plural, =1 {1 Foto übersprungen — keine GPS-Daten} other {{count} Fotos übersprungen — keine GPS-Daten}}",
   "@photos_skipped_no_gps": {
     "placeholders": {
       "count": {
@@ -194,10 +194,10 @@
   "reached_end_of_trail": "Du hast das Ende des Wegs erreicht.",
   "register": "Registrieren",
   "required": "Pflichtfeld",
-  "reorder_photos_hint": "Long-press and drag to reorder photos.",
+  "reorder_photos_hint": "Lange drücken und ziehen, um Fotos neu zu ordnen.",
   "reset": "Zurücksetzen",
   "resume": "Fortsetzen",
-  "resume_navigation_prompt": "Resume navigation on {trail}?",
+  "resume_navigation_prompt": "Navigation von {trail} fortsetzen?",
   "@resume_navigation_prompt": {
     "placeholders": {
       "trail": {
@@ -216,13 +216,13 @@
       }
     }
   },
-  "follow_roads": "Follow roads",
-  "follow_roads_description": "Snap the recorded path to the nearest roads and trails.",
-  "recalculate_heights": "Recalculate heights",
-  "recalculate_heights_description": "Replace recorded GPS elevation with more accurate values from the map.",
+  "follow_roads": "Straßen folgen",
+  "follow_roads_description": "Passen Sie die aufgezeichnete Route an die nächstgelegenen Straßen und Wege an.",
+  "recalculate_heights": "Höhen neu berechnen",
+  "recalculate_heights_description": "Ersetzen Sie die aufgezeichnete GPS-Höhe durch genauere Werte aus Kartendaten.",
   "save": "Speichern",
-  "save_recording_options": "Save recording",
-  "save_track": "Save track",
+  "save_recording_options": "Aufnahme speichern",
+  "save_track": "Pfad speichern",
   "search": "Suche",
   "search_for_trails_places": "Suche nach Routen, Listen, Orten",
   "select_date": "Datum auswählen",
@@ -264,7 +264,7 @@
   "theme_light": "Hell",
   "theme_system": "System folgen",
   "time": "Zeit",
-  "time_in_motion": "Time in Motion",
+  "time_in_motion": "Zeit in Bewegung",
   "trail": "{n, plural, =1 {Route} other {Routen}}",
   "@trail": {
     "placeholders": {
@@ -297,9 +297,9 @@
   "width": "Breite",
   "wrong_username_or_password": "Falscher Nutzername oder falsches Passwort",
   "you_have_arrived": "Angekommen",
-  "settings_categories_confirm_disable_title": "Hide this category?",
-  "settings_categories_confirm_disable_subcategory_title": "Hide this subcategory?",
-  "settings_categories_confirm_disable_body": "{count} of your trails use this category. They will stay published but this filter will be hidden.",
+  "settings_categories_confirm_disable_title": "Diese Kategorie trotzdem ausblenden?",
+  "settings_categories_confirm_disable_subcategory_title": "Diese Unterkategorie trotzdem ausblenden?",
+  "settings_categories_confirm_disable_body": "{count} Ihrer Trails verwenden diese Kategorie. Sie bleiben veröffentlicht, aber dieser Filter wird nicht angezeigt.",
   "@settings_categories_confirm_disable_body": {
     "placeholders": {
       "count": {
@@ -307,31 +307,31 @@
       }
     }
   },
-  "settings_categories_confirm_view_trails": "View trails",
-  "settings_categories_confirm_disable_confirm": "Disable anyway",
-  "settings_categories_empty_title": "No subcategories",
-  "settings_categories_empty_body": "This category has no subcategories to configure.",
-  "settings_categories_reorder_hint": "Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won't appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.",
-  "something_went_wrong": "Something went wrong",
-  "technical_details": "Technical Details",
+  "settings_categories_confirm_view_trails": "Routen anzeigen",
+  "settings_categories_confirm_disable_confirm": "Trotzdem deaktivieren",
+  "settings_categories_empty_title": "Keine Unter-Kategorien",
+  "settings_categories_empty_body": "Diese Kategorie hat keine zu konfigurierenden Unterkategorien.",
+  "settings_categories_reorder_hint": "Kategorien bestimmen, welche Routentypen Sie sehen und in welcher Reihenfolge. Schalten Sie eine aus, um sie in Filtern zu verstecken — Ihre Routen bleiben veröffentlicht, sie erscheinen einfach nicht unter dieser Kategorie. Tippen Sie auf eine Kategorie, um ihre Unterkategorien individuell zu verwalten.\n\nUm die Reihenfolge zu ändern, drücken und halten Sie eine Zeile und ziehen Sie sie dann an eine neue Position. Die Reihenfolge, die Sie hier einstellen, wird überall verwendet, wo Kategorien angezeigt werden.",
+  "something_went_wrong": "Etwas ist schief gelaufen",
+  "technical_details": "Technische Details",
   "link": "Verknüpfen",
   "url": "URL",
   "open_in_new_tab": "In neuem Tab öffnen",
   "remove": "Entfernen",
   "apply": "Anwenden",
-  "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
+  "add_at_least_2_anchors_hint": "Fügen Sie mindestens 2 Ankerpunkte hinzu, um das Höhenprofil zu sehen.",
   "reverse_direction": "Richtung umkehren",
-  "delete_all": "Delete all",
-  "auto_routing": "Auto-routing",
-  "auto_routing_hint": "Automatically follow roads and paths between anchors.",
-  "travel_profile": "Travel profile",
-  "no_track_data": "No track data",
+  "delete_all": "Alle löschen",
+  "auto_routing": "Auto-Routing aktivieren",
+  "auto_routing_hint": "Automatisch den Straßen und Pfaden zwischen den Ankerpunkten folgen.",
+  "travel_profile": "Fortbewegungsmittel",
+  "no_track_data": "Keine Pfad-Daten",
   "offline": "Offline",
-  "available_offline": "Available offline",
-  "no_lists_found": "No lists found",
-  "search_lists": "Search lists…",
-  "search_for_a_location": "Search for a location",
-  "no_results_for_query": "No results for \"{query}\"",
+  "available_offline": "Offline verfügbar",
+  "no_lists_found": "Keine Listen gefunden",
+  "search_lists": "Liste suchen…",
+  "search_for_a_location": "Nach einem Ort suchen",
+  "no_results_for_query": "Keine Ergebnisse für „{query}“",
   "@no_results_for_query": {
     "placeholders": {
       "query": {
@@ -341,7 +341,7 @@
     }
   },
   "filter": "Filter",
-  "no_label_yet": "No {label} yet.",
+  "no_label_yet": "Noch kein {label}.",
   "@no_label_yet": {
     "placeholders": {
       "label": {
@@ -350,12 +350,12 @@
       }
     }
   },
-  "no_lists_yet": "No lists yet.",
-  "no_bio_yet": "No bio yet.",
+  "no_lists_yet": "Noch keine Listen vorhanden.",
+  "no_bio_yet": "Noch keine Biografie.",
   "feed": "Feed",
-  "no_trails_yet": "No trails yet.",
-  "search_location": "Search location",
-  "no_servers_match_query": "No servers match \"{query}\"",
+  "no_trails_yet": "Noch keine Routen.",
+  "search_location": "Ort suchen",
+  "no_servers_match_query": "Keine Server stimmen überein mit \"{query}\"",
   "@no_servers_match_query": {
     "placeholders": {
       "query": {
@@ -364,10 +364,10 @@
       }
     }
   },
-  "use_custom_url_instead": "Use custom URL instead",
-  "select_instance": "Select Instance",
-  "enter_server_url_hint": "Enter server URL (e.g. wanderer.to)",
-  "search_library": "Search library…",
+  "use_custom_url_instead": "Eigene URL verwenden",
+  "select_instance": "Instanz auswählen",
+  "enter_server_url_hint": "Server-URL eingeben (z.B. wanderer.to)",
+  "search_library": "Bibliothek durchsuchen…",
   "language_and_units": "{language} & {units}",
   "@language_and_units": {
     "placeholders": {
@@ -382,25 +382,25 @@
     }
   },
   "edit_route": "Route bearbeiten",
-  "undo": "Undo",
-  "redo": "Redo",
-  "bold": "Bold",
-  "italic": "Italic",
-  "underline": "Underline",
-  "bullet_list": "Bullet list",
-  "ordered_list": "Ordered list",
-  "blockquote": "Blockquote",
-  "library": "Library",
-  "settings_offline_regions_title": "Offline Maps/Regions",
-  "regions_search_hint": "Search regions",
-  "regions_dem_toggle_label": "Download elevation data (DEM)",
-  "regions_dem_toggle_caption": "Adds hillshading; increases download size",
-  "regions_update_available": "Update available",
-  "regions_update_action": "Update",
-  "regions_retry": "Retry",
-  "regions_not_yet_available": "Not yet available",
-  "regions_build_failed": "Build failed",
-  "regions_delete_confirm_title": "Delete {name}?",
+  "undo": "Rückgängig",
+  "redo": "Wiederholen",
+  "bold": "Fett",
+  "italic": "Kursiv",
+  "underline": "Unterstrichen",
+  "bullet_list": "Aufzählung",
+  "ordered_list": "Geordnete Liste",
+  "blockquote": "Zitat",
+  "library": "Bibliothek",
+  "settings_offline_regions_title": "Offline-Karten / Regionen",
+  "regions_search_hint": "Nach Region suchen",
+  "regions_dem_toggle_label": "Höhendaten herunterladen (DEM)",
+  "regions_dem_toggle_caption": "Fügt Hangschattierung hinzu; vergrößert die Downloadgröße",
+  "regions_update_available": "Update verfügbar",
+  "regions_update_action": "Aktualisieren",
+  "regions_retry": "Erneut versuchen",
+  "regions_not_yet_available": "Noch nicht verfügbar",
+  "regions_build_failed": "Build fehlgeschlagen",
+  "regions_delete_confirm_title": "{name} löschen?",
   "@regions_delete_confirm_title": {
     "placeholders": {
       "name": {
@@ -408,9 +408,9 @@
       }
     }
   },
-  "regions_delete_confirm_body": "This removes the downloaded map and elevation data for this region. You'll need to download it again to use it offline.",
-  "regions_delete_confirm_action": "Delete",
-  "regions_disk_usage_summary": "{size} used across {count} downloaded region(s)",
+  "regions_delete_confirm_body": "Dies entfernt die heruntergeladene Karte und die Höhendaten für diese Region. Sie müssen sie erneut herunterladen, um sie offline zu nutzen.",
+  "regions_delete_confirm_action": "Löschen",
+  "regions_disk_usage_summary": "{size} in {count} heruntergeladenen Region(en)",
   "@regions_disk_usage_summary": {
     "placeholders": {
       "size": {
@@ -421,17 +421,17 @@
       }
     }
   },
-  "regions_empty_search_title": "No matching regions",
-  "regions_empty_search_body": "Try a different search term.",
-  "regions_empty_catalog_title": "No offline regions available",
-  "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions.",
-  "regions_vector_tile_title": "Vector",
-  "regions_dem_tile_title": "Elevation data",
-  "regions_download_failed": "Download failed",
-  "regions_dem_locked_subtitle": "Download map data first",
-  "regions_offline_unavailable_title": "Can't load regions",
-  "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
-  "regions_group_expand_label": "Expand {name}",
+  "regions_empty_search_title": "Keine passenden Regionen",
+  "regions_empty_search_body": "Versuchen Sie es mit einem anderen Suchbegriff.",
+  "regions_empty_catalog_title": "Keine Offline-Regionen verfügbar",
+  "regions_empty_catalog_body": "Fragen Sie den Administrator Ihrer wanderer Instanz, die herunterladbaren Regionen zu konfigurieren.",
+  "regions_vector_tile_title": "Vektor",
+  "regions_dem_tile_title": "Höhenandaten",
+  "regions_download_failed": "Download fehlgeschlagen",
+  "regions_dem_locked_subtitle": "Zuerst Kartendaten herunterladen",
+  "regions_offline_unavailable_title": "Regionen können nicht geladen werden",
+  "regions_offline_unavailable_body": "Verbinden Sie sich mit dem Internet, um herunterladbare Regionen zu durchsuchen und zu verwalten.",
+  "regions_group_expand_label": "{name} ausklappen",
   "@regions_group_expand_label": {
     "placeholders": {
       "name": {
@@ -439,7 +439,7 @@
       }
     }
   },
-  "regions_group_collapse_label": "Collapse {name}",
+  "regions_group_collapse_label": "{name} einklappen",
   "@regions_group_collapse_label": {
     "placeholders": {
       "name": {
@@ -447,33 +447,33 @@
       }
     }
   },
-  "offline_title": "You're offline",
+  "offline_title": "Sie sind Offline",
   "@offline_title": {
     "description": "Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable."
   },
-  "offline_try_again": "Try again",
+  "offline_try_again": "Erneut versuchen",
   "@offline_try_again": {
     "description": "Retry button label on the shared offline takeover state."
   },
-  "offline_map_body": "Connect to the internet to load the map. Downloaded trails are still available.",
+  "offline_map_body": "Verbinde dich mit dem Internet, um die Karte zu laden. Heruntergeladene Routen sind verfügbar.",
   "@offline_map_body": {
     "description": "Body copy for the map screen's offline takeover."
   },
-  "offline_list_body": "Connect to the internet to load lists.",
+  "offline_list_body": "Verbinden Sie sich mit dem Internet, um Listen zu laden.",
   "@offline_list_body": {
     "description": "Body copy for the list screen's offline takeover."
   },
-  "offline_profile_body": "Connect to the internet to load your full profile.",
+  "offline_profile_body": "Verbinden Sie sich mit dem Internet, um Ihr vollständiges Profil zu laden.",
   "@offline_profile_body": {
     "description": "Body copy for the profile screen's offline takeover of network-only sections."
   },
-  "offline_settings_banner": "You're offline. Settings are read-only until you reconnect.",
-  "offline_action_unavailable": "You're offline — try again once you're back online.",
-  "offline_categories_body": "Connect to the internet to manage categories.",
+  "offline_settings_banner": "Sie sind offline. Einstellungen sind schreibgeschützt, bis Sie sich wieder verbinden.",
+  "offline_action_unavailable": "Du bist offline — versuche es erneut, sobald du wieder online bist.",
+  "offline_categories_body": "Verbinden Sie sich mit dem Internet, um Kategorien zu verwalten.",
   "@offline_categories_body": {
     "description": "Body copy for the categories and subcategories settings screens' offline state."
   },
-  "offline_trail_search_body": "Connect to the internet to search for trails. Downloaded trails are still available.",
+  "offline_trail_search_body": "Verbinde dich mit dem Internet, um nach Routen zu suchen. Heruntergeladene Routen sind verfügbar.",
   "@offline_trail_search_body": {
     "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
   }
