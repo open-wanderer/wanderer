@@ -327,13 +327,31 @@ void main() {
             reason: '${fixture.dir}: waypoint[$i].description',
           );
 
+          // WR-05: assert the map lookup SUCCEEDED before comparing.
+          // Computing the expected value with the same
+          // `fontAwesomeIconsMap[...] ?? circle` expression the production
+          // code uses made this assertion tautological — if the map lost the
+          // `campground` or `mountain` key both sides would collapse to
+          // `circle` and it would still pass, while the TS counterpart
+          // (which compares against the literal sym string) would fail. The
+          // two suites are only field-for-field comparable here if this side
+          // pins the key's presence independently.
           final expectedIcon = expectedWaypoint['icon'] as String?;
-          final expectedIconData = expectedIcon != null
-              ? (fontAwesomeIconsMap[expectedIcon] ?? FontAwesomeIcons.circle)
-              : FontAwesomeIcons.circle;
+          if (expectedIcon != null) {
+            expect(
+              fontAwesomeIconsMap[expectedIcon],
+              isNotNull,
+              reason:
+                  '${fixture.dir}: waypoint[$i] expects sym "$expectedIcon", '
+                  'which is missing from icon_util.dart\'s '
+                  'fontAwesomeIconsMap',
+            );
+          }
           expect(
             actualWaypoint.icon,
-            expectedIconData,
+            expectedIcon != null
+                ? fontAwesomeIconsMap[expectedIcon]
+                : FontAwesomeIcons.circle,
             reason: '${fixture.dir}: waypoint[$i].icon',
           );
         }
