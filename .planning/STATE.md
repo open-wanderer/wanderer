@@ -4,8 +4,8 @@ milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: verifying
 stopped_at: Completed 34-07-PLAN.md
-last_updated: "2026-08-01T08:21:22.995Z"
-last_activity: 2026-07-31 -- Phase 34 execution started
+last_updated: "2026-08-01T19:05:38.972Z"
+last_activity: 2026-08-01
 progress:
   total_phases: 4
   completed_phases: 2
@@ -21,19 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 34 — dart-conversion-port
+**Current focus:** Phase 35 — offline-trail-creation
 
 ## Current Position
 
-Phase: 34 (dart-conversion-port) — EXECUTING
-Plan: 7 of 7
-Status: Phase complete — ready for verification
-Last activity: 2026-08-01 -- Completed quick task 260801-opr: report raw distance (supersedes CONV-05's smoothed-distance half)
+Phase: 35
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-08-01 -- Phase 34 complete: all 7 plans executed, UAT gaps closed, security audit 0 open
 
 ## v1.8 Phases
 
-- [ ] **Phase 33: Conversion Correctness** — CONV-01/02/03/04/05
-- [ ] **Phase 34: Dart Conversion Port** — PORT-01/02/03/04/05, CONV-06
+- [x] **Phase 33: Conversion Correctness** — CONV-01/02/03/04/05 (completed 2026-07-31)
+- [x] **Phase 34: Dart Conversion Port** — PORT-01/02/03/04/05, CONV-06 (completed 2026-08-01)
 - [ ] **Phase 35: Offline Trail Creation** — OFFUI-01/02/03/04
 - [ ] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05, SYNC-01/02/03/04/05
 
@@ -45,7 +45,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 
 **Velocity (v1.0–v1.3):**
 
-- Total plans completed: 46
+- Total plans completed: 53
 - Average duration: — min
 - Total execution time: — hours
 
@@ -62,6 +62,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | 27 | 2 | - | - |
 | 28 | 4 | - | - |
 | 33 | 5 | - | - |
+| 34 | 7 | - | - |
 
 *Updated after each plan completion*
 | Phase 16 P01 | 9min | 3 tasks | 3 files |
