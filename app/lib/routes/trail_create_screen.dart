@@ -422,72 +422,29 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     // Routes on the LOCAL identity of the trail rather than `trail.id.isEmpty`
     // alone: after this phase an empty server id means both "never saved
     // anywhere" AND "saved locally, still unsynced" (RESEARCH.md Pitfall 2).
-    final saveMode = resolveLocalSaveMode(updatedTrail);
+    //
+    // The routing input is the PERSISTED row, not this screen's `trail`
+    // snapshot. `trail` is captured once at the end of `_finishLocalSave`,
+    // while `syncState` is still `pending`, and the screen does not watch the
+    // drain -- so moments later, once the upload finishes, the snapshot is
+    // stale. Routing on it sent a post-upload edit down `updateLocal`, which
+    // carried the row's `synced` state forward, and `selectDrainCandidates`
+    // skips synced rows: the edit stayed on the device forever, under a green
+    // "trail saved successfully" toast.
+    final store = ref.read(objectBoxProvider);
+    final persistedLocalId = _localId;
+    final persisted = persistedLocalId == null
+        ? null
+        : readLocalTrail(store, persistedLocalId);
+    final saveMode = resolveLocalSaveMode(persisted ?? updatedTrail);
 
     if (saveMode == LocalSaveMode.networkUpdate) {
-      // An already-uploaded trail being edited. Editing a synced server
-      // trail offline is out of scope for this phase (D-16), so this
-      // branch's behaviour is unchanged from before local-first saving.
-      try {
-        final result = await ref
-            .read(trailSaveProvider.notifier)
-            .updateTrail(
-              _originalTrail,
-              updatedTrail,
-              authorId: authorId,
-              newPhotos: newPhotoFiles,
-              removedPhotoFilenames: _removedServerPhotos,
-            );
-
-        if (!mounted) return;
-        setState(() {
-          trail = result.trail;
-          _removedServerPhotos = [];
-          _originalTrail = trail;
-        });
-
-        // Every field latches `_dirty` on its first edit and nothing but
-        // `reset()` clears it, so without this a saved trail still reports
-        // `isDirty` and leaving asks the user to discard changes they already
-        // saved. `reset()` is safe here precisely because of the setState above:
-        // each field re-seeds from its widget's `initialValue`, which now reads
-        // off the just-saved `trail`, so fields land on the saved values rather
-        // than the pre-edit ones. That ordering is the whole reason this runs
-        // post-frame — called inline it would still see the old widgets and
-        // would revert the user's input.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _formKey.currentState?.reset();
-        });
-
-        ref
-            .read(toastProvider.notifier)
-            .add(
-              ToastMessage(
-                type: result.hadWaypointFailures
-                    ? ToastType.warning
-                    : ToastType.success,
-                icon: result.hadWaypointFailures
-                    ? FontAwesomeIcons.circleExclamation
-                    : FontAwesomeIcons.circleCheck,
-                text: result.hadWaypointFailures
-                    ? l10n.some_waypoints_failed_to_save
-                    : l10n.trail_saved_successfully,
-              ),
-            );
-      } catch (e) {
-        if (!mounted) return;
-        ref
-            .read(toastProvider.notifier)
-            .add(
-              ToastMessage(
-                type: ToastType.error,
-                icon: FontAwesomeIcons.circleExclamation,
-                text: l10n.error_saving_trail,
-              ),
-            );
-      } finally {
-        if (mounted) setState(() => _saving = false);
-      }
+      await _saveViaNetwork(
+        l10n,
+        updatedTrail,
+        authorId: authorId,
+        newPhotoFiles: newPhotoFiles,
+      );
       return;
     }
 
@@ -495,7 +452,6 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // First save of a captured trail (recording or offline GPX import).
       // Fully local-first: never touches the network, online or offline.
       try {
-        final store = ref.read(objectBoxProvider);
         // D-13: read fresh here, never a cached value -- a mid-session
         // account switch must not mis-attribute this capture.
         final accountId = currentAccountId(store);
@@ -524,7 +480,12 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           waypointLocalPhotosByKey: photoCopy.waypointPhotosByKey,
         );
 
-        await _finishLocalSave(store, l10n, photoCopy.failedCount);
+        await _finishLocalSave(
+          store,
+          l10n,
+          photoCopy.failedCount,
+          localId: localId,
+        );
       } catch (e) {
         // A connectivity failure can no longer reach this branch on a local
         // save -- only an ObjectBox write or filesystem error lands here.
@@ -548,8 +509,12 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     // (REC-05). Fully local-first: never touches the network, online or
     // offline.
     try {
-      final store = ref.read(objectBoxProvider);
-      final localId = _localId!;
+      // Prefer the id the router actually decided on. `_localId` is kept in
+      // sync only by `initState` and the `createLocal` branch above, so a
+      // future entry point handing in a trail that already carries a
+      // `localId` would otherwise die on a bare null-check and surface as the
+      // undiagnosable generic `error_saving_trail` toast.
+      final localId = persisted?.localId ?? updatedTrail.localId ?? _localId!;
 
       final photoCopy = await _copyPhotosForLocalSave(
         localId,
@@ -557,7 +522,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         localPhotoPaths,
       );
 
-      updateLocalTrail(
+      final outcome = updateLocalTrail(
         store,
         trail: updatedTrail,
         localId: localId,
@@ -565,10 +530,109 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         waypointLocalPhotosByKey: photoCopy.waypointPhotosByKey,
       );
 
-      await _finishLocalSave(store, l10n, photoCopy.failedCount);
+      if (outcome == LocalUpdateOutcome.alreadySynced) {
+        // The drain finished uploading between the `readLocalTrail` above and
+        // this write -- a narrow window, but the one that produces the exact
+        // silent-loss the routing change was made to prevent. The row is on
+        // the server now, so the network `PUT` is the only write target that
+        // can carry this edit anywhere.
+        await _saveViaNetwork(
+          l10n,
+          updatedTrail,
+          authorId: authorId,
+          newPhotoFiles: newPhotoFiles,
+        );
+        return;
+      }
+
+      await _finishLocalSave(
+        store,
+        l10n,
+        photoCopy.failedCount,
+        localId: localId,
+      );
     } catch (e) {
       // A connectivity failure can no longer reach this branch on a local
       // save -- only an ObjectBox write or filesystem error lands here.
+      if (!mounted) return;
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: l10n.error_saving_trail,
+            ),
+          );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// The network `PUT`/`POST` save path for a trail that already lives on the
+  /// server, extracted so BOTH routes into it share one implementation: the
+  /// ordinary [LocalSaveMode.networkUpdate] decision, and the late discovery
+  /// that the drain promoted this trail to `synced` while the save was already
+  /// under way ([LocalUpdateOutcome.alreadySynced]).
+  ///
+  /// Editing a synced server trail offline remains out of scope for this phase
+  /// (D-16): with no connection this fails and reports `error_saving_trail`.
+  /// That is the point -- the user is told the edit did not land, instead of
+  /// being shown a success toast over an edit that no longer has anywhere to
+  /// go.
+  Future<void> _saveViaNetwork(
+    AppLocalizations l10n,
+    Trail updatedTrail, {
+    required String authorId,
+    required List<File> newPhotoFiles,
+  }) async {
+    try {
+      final result = await ref
+          .read(trailSaveProvider.notifier)
+          .updateTrail(
+            _originalTrail,
+            updatedTrail,
+            authorId: authorId,
+            newPhotos: newPhotoFiles,
+            removedPhotoFilenames: _removedServerPhotos,
+          );
+
+      if (!mounted) return;
+      setState(() {
+        trail = result.trail;
+        _removedServerPhotos = [];
+        _originalTrail = trail;
+      });
+
+      // Every field latches `_dirty` on its first edit and nothing but
+      // `reset()` clears it, so without this a saved trail still reports
+      // `isDirty` and leaving asks the user to discard changes they already
+      // saved. `reset()` is safe here precisely because of the setState above:
+      // each field re-seeds from its widget's `initialValue`, which now reads
+      // off the just-saved `trail`, so fields land on the saved values rather
+      // than the pre-edit ones. That ordering is the whole reason this runs
+      // post-frame — called inline it would still see the old widgets and
+      // would revert the user's input.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _formKey.currentState?.reset();
+      });
+
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: result.hadWaypointFailures
+                  ? ToastType.warning
+                  : ToastType.success,
+              icon: result.hadWaypointFailures
+                  ? FontAwesomeIcons.circleExclamation
+                  : FontAwesomeIcons.circleCheck,
+              text: result.hadWaypointFailures
+                  ? l10n.some_waypoints_failed_to_save
+                  : l10n.trail_saved_successfully,
+            ),
+          );
+    } catch (e) {
       if (!mounted) return;
       ref
           .read(toastProvider.notifier)
@@ -635,8 +699,9 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   Future<void> _finishLocalSave(
     Store store,
     AppLocalizations l10n,
-    int failedPhotoCount,
-  ) async {
+    int failedPhotoCount, {
+    required String localId,
+  }) async {
     // Fire-and-forget: online, the trail uploads within a moment of the
     // toast below; offline, this returns immediately after its own
     // connectivity refresh.
@@ -655,7 +720,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     }
 
     if (!mounted) return;
-    final savedTrail = readLocalTrail(store, _localId!);
+    final savedTrail = readLocalTrail(store, localId);
     if (savedTrail != null) {
       setState(() {
         trail = savedTrail;

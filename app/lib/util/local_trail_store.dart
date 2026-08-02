@@ -194,6 +194,21 @@ String saveNewLocalTrail(
   return localId;
 }
 
+/// What [updateLocalTrail] did, so the caller can tell a completed write
+/// apart from a declined one instead of assuming success.
+enum LocalUpdateOutcome {
+  /// The row was found and rewritten.
+  updated,
+
+  /// No row exists for that local id. Nothing was written.
+  missing,
+
+  /// The row has already been promoted to [TrailSyncState.synced]. Nothing
+  /// was written -- see [updateLocalTrail]'s doc comment for why writing
+  /// would silently strand the user's edit on this device.
+  alreadySynced,
+}
+
 /// Updates the local row for [localId] in place from [trail], preserving its
 /// identity, ownership and sync bookkeeping.
 ///
@@ -201,27 +216,37 @@ String saveNewLocalTrail(
 /// row exists, this is a no-op -- there is nothing to update. Otherwise a
 /// fresh entity is built from [trail], then the existing row's `obxId`,
 /// `id`, `owner`, `localId`, `syncState`, `syncAttempts`,
-/// `syncNextAttemptAt` and `savedByUserIds` are carried forward onto it
-/// before the put, so a metadata re-edit never changes the row's identity or
-/// ownership (REC-05, SYNC-05).
+/// `syncNextAttemptAt`, `savedByUserIds` and `photos` are carried forward
+/// onto it before the put, so a metadata re-edit never changes the row's
+/// identity or ownership (REC-05, SYNC-05).
+///
+/// REFUSES to write, returning [LocalUpdateOutcome.alreadySynced], when the
+/// existing row is [TrailSyncState.synced]. Writing would carry that `synced`
+/// state forward, and `selectDrainCandidates` only picks up rows that are NOT
+/// synced -- so the edit would live on this device and nothing would ever
+/// upload it. The drain has no update path either: its step 2 is guarded on
+/// `isLocalId(entity.id)`, so a re-queued synced row would be marked synced
+/// again without the edit ever being sent. A synced trail's only correct write
+/// target is the network `PUT`/`POST`, which is the caller's job to route to.
 ///
 /// [WaypointEntity] rows that belonged to the old row but are absent from
 /// the new waypoint set are removed, so a deleted waypoint does not linger.
-void updateLocalTrail(
+LocalUpdateOutcome updateLocalTrail(
   Store store, {
   required Trail trail,
   required String localId,
   required List<String> trailLocalPhotos,
   required Map<String, List<String>> waypointLocalPhotosByKey,
 }) {
-  store.runInTransaction(TxMode.write, () {
+  return store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();
-    final query = trailBox
-        .query(TrailEntity_.localId.equals(localId))
-        .build();
+    final query = trailBox.query(TrailEntity_.localId.equals(localId)).build();
     final existing = query.findFirst();
     query.close();
-    if (existing == null) return;
+    if (existing == null) return LocalUpdateOutcome.missing;
+    if (existing.syncState == TrailSyncState.synced) {
+      return LocalUpdateOutcome.alreadySynced;
+    }
 
     final entity = TrailEntity.fromModel(trail);
     entity.obxId = existing.obxId;
@@ -253,6 +278,7 @@ void updateLocalTrail(
     }
 
     trailBox.put(entity);
+    return LocalUpdateOutcome.updated;
   });
 }
 
@@ -265,9 +291,7 @@ void updateLocalTrail(
 void deleteLocalTrailRow(Store store, String localId) {
   store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();
-    final query = trailBox
-        .query(TrailEntity_.localId.equals(localId))
-        .build();
+    final query = trailBox.query(TrailEntity_.localId.equals(localId)).build();
     final entity = query.findFirst();
     query.close();
     if (entity == null) return;
@@ -290,7 +314,8 @@ void deleteLocalTrailRow(Store store, String localId) {
 /// matching `TrailLibraryNotifier.build()`'s "losing the one bad row is the
 /// correct blast radius" rationale.
 Trail? readLocalTrail(Store store, String localId) {
-  final query = store.box<TrailEntity>()
+  final query = store
+      .box<TrailEntity>()
       .query(TrailEntity_.localId.equals(localId))
       .build();
   final entity = query.findFirst();
@@ -363,7 +388,8 @@ List<Trail> readOwnLocalTrails(
 /// Counts [accountId]'s not-yet-synced local trails. Used by the sign-out
 /// warning (D-12).
 int countUnsyncedTrails(Store store, String accountId) {
-  final query = store.box<TrailEntity>()
+  final query = store
+      .box<TrailEntity>()
       .query(
         TrailEntity_.owner.equals(accountId) &
             TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
@@ -382,7 +408,8 @@ int countUnsyncedTrails(Store store, String accountId) {
 /// photos just because that account is not the currently signed-in one
 /// (D-13 hides another account's content, it never deletes it).
 Set<String> unsyncedLocalIds(Store store) {
-  final query = store.box<TrailEntity>()
+  final query = store
+      .box<TrailEntity>()
       .query(
         TrailEntity_.localId.notNull() &
             TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
@@ -408,7 +435,8 @@ List<TrailEntity> selectDrainCandidates(
   required String accountId,
   required DateTime now,
 }) {
-  final query = store.box<TrailEntity>()
+  final query = store
+      .box<TrailEntity>()
       .query(
         TrailEntity_.owner.equals(accountId) &
             TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
@@ -471,7 +499,8 @@ void writeServerWaypointId(
   List<String> serverPhotoFilenames = const [],
 }) {
   store.runInTransaction(TxMode.write, () {
-    final trailQuery = store.box<TrailEntity>()
+    final trailQuery = store
+        .box<TrailEntity>()
         .query(TrailEntity_.localId.equals(localId))
         .build();
     final trailEntity = trailQuery.findFirst();

@@ -18,9 +18,21 @@ import 'package:flutter_test/flutter_test.dart';
 /// `test/util/trail_import_util_test.dart`.
 void main() {
   final libDir = Directory('lib');
-  final source = File(
-    'lib/routes/trail_create_screen.dart',
-  ).readAsStringSync();
+  final source = File('lib/routes/trail_create_screen.dart').readAsStringSync();
+
+  /// The index just past `_onSave`'s closing brace.
+  ///
+  /// Anchoring on the next MEMBER (`bool get _hasUnsavedChanges`) was wrong:
+  /// several other members sit between the two, so the slice silently
+  /// included `_copyPhotosForLocalSave`, `_finishLocalSave` and anything else
+  /// added there. The gate below then failed for a reference that was not in
+  /// `_onSave` at all. A closing brace at method indentation is the actual end
+  /// of the method.
+  int onSaveEnd(int saveStart) {
+    final end = source.indexOf('\n  }\n', saveStart);
+    expect(end, isNot(-1), reason: 'Could not find _onSave\'s closing brace.');
+    return end + '\n  }\n'.length;
+  }
 
   test(
     'trail_create_screen.dart contains no microsecondsSinceEpoch outside comments',
@@ -97,17 +109,7 @@ void main() {
             'gate rather than deleting it -- the invariant still matters.',
       );
 
-      final saveEnd = source.indexOf(
-        '\n  bool get _hasUnsavedChanges',
-        saveStart,
-      );
-      expect(
-        saveEnd,
-        isNot(-1),
-        reason: 'Could not find the end of _onSave (the next member after it).',
-      );
-
-      final body = source.substring(saveStart, saveEnd);
+      final body = source.substring(saveStart, onSaveEnd(saveStart));
 
       expect(
         body.contains('resolveLocalSaveMode'),
@@ -161,21 +163,11 @@ void main() {
             'gate if the local-first branches moved elsewhere.',
       );
 
-      final saveEnd = source.indexOf(
-        '\n  bool get _hasUnsavedChanges',
-        saveStart,
-      );
-      expect(
-        saveEnd,
-        isNot(-1),
-        reason: 'Could not find the end of _onSave (the next member after it).',
-      );
-
       // Everything from the createLocal branch to the end of _onSave covers
       // both local-first branches (createLocal, then updateLocal), and
       // deliberately excludes the earlier networkUpdate branch, which is
-      // the one branch allowed to reference trailSaveProvider.
-      final localBranches = source.substring(createStart, saveEnd);
+      // the one branch allowed to reach the network.
+      final localBranches = source.substring(createStart, onSaveEnd(saveStart));
 
       expect(
         localBranches.contains('trailSaveProvider'),
@@ -186,4 +178,52 @@ void main() {
       );
     },
   );
+
+  test('the updateLocal branch reaches the network ONLY on the alreadySynced '
+      'escape hatch (CR-04)', () {
+    final saveStart = source.indexOf(
+      'Future<void> _onSave(BuildContext context) async {',
+    );
+    final createStart = source.indexOf(
+      'if (saveMode == LocalSaveMode.createLocal) {',
+      saveStart,
+    );
+    final localBranches = source.substring(createStart, onSaveEnd(saveStart));
+
+    // A trail the drain promoted to `synced` mid-save is no longer a
+    // local-first save at all -- its row is on the server, and
+    // `selectDrainCandidates` will never pick it up again. Writing the edit
+    // locally would strand it on the device forever under a success toast,
+    // so this one path delegates to _saveViaNetwork. It is the ONLY
+    // sanctioned network reach out of these branches, and it must stay
+    // guarded on that specific outcome.
+    final networkCalls = '_saveViaNetwork('.allMatches(localBranches).length;
+    expect(
+      networkCalls,
+      1,
+      reason:
+          'Expected exactly one _saveViaNetwork call in the local-first '
+          'branches -- the alreadySynced escape hatch. Any other network '
+          'reach from a local save reintroduces REC-01.',
+    );
+
+    final callIndex = localBranches.indexOf('_saveViaNetwork(');
+    final guardIndex = localBranches.indexOf(
+      'LocalUpdateOutcome.alreadySynced',
+    );
+    expect(
+      guardIndex,
+      isNot(-1),
+      reason:
+          'The _saveViaNetwork call lost its LocalUpdateOutcome.alreadySynced '
+          'guard, so an ordinary unsynced re-save would now hit the network.',
+    );
+    expect(
+      guardIndex,
+      lessThan(callIndex),
+      reason:
+          'The alreadySynced guard must precede the _saveViaNetwork call it '
+          'gates.',
+    );
+  });
 }
