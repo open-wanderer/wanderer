@@ -427,14 +427,43 @@ offline *before* the hiker fills in details rather than after.
 
 **Goal**: A hiker who records a trail or uploads a GPX with no signal can save it, review it, and fill in its details on the spot — and it uploads itself the next time the phone has a connection, without the hiker doing anything.
 **Depends on**: Phase 35 (REC-05's offline edit reuses the exact `trail_create_screen` map/tag fixes Phase 35 ships; REC-01 needs Phase 34's on-device conversion, carried forward)
-**Requirements**: REC-01, REC-02, REC-03, REC-04, REC-05, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05
+**Requirements**: REC-01, REC-02, REC-03, REC-04, REC-05, REC-06, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05
 **Success Criteria** (what must be TRUE):
 
-  1. Capturing a trail with no connection saves it immediately into the trail library — whether it came from ending a recording or from importing a GPX file — with no save-failure ever shown for being offline, and the unsynced trail visibly distinguishable from both a synced trail and a trail downloaded for offline use.
+  1. Capturing a trail with no connection saves it immediately into the hiker's own-trails list — whether it came from ending a recording or from importing a GPX file — with no save-failure ever shown for being offline, and the unsynced trail visibly distinguishable from both a synced trail and a trail downloaded for offline use.
   2. An unsynced trail survives app restart and stays tied to the account that captured it — a different account never sees or uploads it, and logging out never deletes it.
   3. A hiker can open, review, and edit an unsynced trail's title, description, category, and photos while still offline, on the same screen Phase 35 made offline-capable.
   4. Once the app is foregrounded with a working connection, an unsynced trail uploads on its own — with inline per-item progress visible on the trail itself (not a separate pending-uploads screen), and a manual retry when an upload fails or stalls.
-  5. An interrupted upload never produces a duplicate trail when retried, and once uploaded the unsynced trail becomes an ordinary trail in place — keeping its identity in the library rather than appearing a second time.
+  5. An interrupted upload never produces a duplicate trail when retried, and once uploaded the unsynced trail becomes an ordinary trail in place — keeping its identity in the own-trails list rather than appearing a second time.
+  6. With no connection the own-trails list still renders, showing every not-yet-uploaded trail plus those downloaded trails the hiker authored themselves, and says plainly that it is showing only what is available offline.
+
+**IA decision (2026-08-01) — unsynced trails live in the own-trails list, NOT the Library.**
+The Library (`/library`) is exclusively trails the hiker *downloaded*: membership is defined
+solely by `TrailEntity.savedByUserIds`, written only by `TrailDownloadService`, and removing an
+item there means *un-downloading* it. The semantics run opposite to an unsynced trail (content
+made here, not yet gone up), and the removal semantics collide dangerously — un-downloading is
+harmless, deleting an unsynced trail is permanent data loss.
+
+The home is **`/profile/<handle>/trails`**, already the only own-trails index in the app, made
+local-first for the hiker's own handle. The trail then never moves surface when it uploads — it
+just loses its badge — which is what SYNC-05 requires. Offline composition is REC-06: every
+not-yet-uploaded trail, plus downloaded trails the hiker authored themselves, with the screen
+stating plainly it is showing only what is available offline.
+
+Three constraints found in the code, for plan-phase:
+- **Ownership must not be expressed via `savedByUserIds`** — that field means "downloaded", and
+  the two are orthogonal (a hiker can record a trail *and* later download it). Needs a separate
+  owner field plus a sync-state field; `grep` for `pendingUpload|unsynced|isDraft|syncState`
+  returns zero hits today.
+- **All three `TrailEntity` readers filter on `savedByUserIds.containsElement(userId)`**
+  (`trail_library_provider.dart:28`, `trail_provider.dart:74`, `navigation_launch_util.dart:40`),
+  so an unsynced row would be silently invisible unless those gain an owner clause.
+- **`TrailEntity.id` is the server id**, `@Unique(onConflict: replace)`, and `trail.id.isEmpty`
+  is the create-vs-update discriminator (`trail_create_screen.dart:401`). A local trail has no
+  id, so it needs a local identity plus an idempotency key — which SYNC-04 requires anyway.
+
+Already free: `TrailEntity` is deliberately NOT purged on logout/account-switch
+(`account_data_purge_util.dart:76-98`), so REC-04's "signing out never deletes it" holds.
 
 **Scope note (2026-08-01):** REC-01…05 and SYNC-01…05 were originally worded "recording"-only,
 which left this phase's own goal clause "or uploads a GPX" carried by no requirement. They are
