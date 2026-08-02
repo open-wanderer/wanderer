@@ -156,9 +156,16 @@
   "new_password_success": "Nowe hasło zostało ustawione",
   "new_trail": "Nowy szlak",
   "trail_source_planner": "Open trail planner",
+  "trail_source_planner_description": "Draw a new route on the map, waypoint by waypoint.",
   "trail_source_record": "Record trail",
+  "trail_source_record_description": "Track your live coordinates and log your journey in real-time.",
   "trail_source_import": "Import file",
+  "trail_source_import_description": "Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.",
   "trail_source_import_error": "Could not import file",
+  "trail_source_offline_import_error": "Only GPX files can be imported offline",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
   "no_comments_so_far": "Nie ma jeszcze komentarzy",
   "no_data": "Brak danych",
   "no_description_for_now": "Nie ma jeszcze opisu",
@@ -354,6 +361,9 @@
   "no_bio_yet": "No bio yet.",
   "feed": "Feed",
   "no_trails_yet": "No trails yet.",
+  "library_empty_title": "No downloaded trails",
+  "library_empty_body": "Trails you download are kept here so you can open them offline.",
+  "library_empty_search_body": "Try a different search term or clear your filters.",
   "search_location": "Search location",
   "no_servers_match_query": "No servers match \"{query}\"",
   "@no_servers_match_query": {
