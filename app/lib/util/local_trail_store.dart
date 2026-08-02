@@ -533,6 +533,31 @@ void writeServerWaypointId(
   });
 }
 
+/// Marks the local row for [localId] as [TrailSyncState.uploading], touching
+/// nothing else.
+///
+/// Exists because the drain used to do this by mutating the entity it got
+/// from [selectDrainCandidates] and calling `box.put(entity)` directly. That
+/// snapshot was taken before the pass's `refresh()`/tag-resolution awaits and
+/// before every preceding trail in the same pass finished uploading, and
+/// putting the whole object back wrote EVERY column from it -- so a user who
+/// edited a queued trail in the meantime had their edit silently reverted.
+/// Only *delete* is gated on the in-flight set, not edit, so nothing else
+/// prevented it. Re-querying inside the transaction and writing one field is
+/// what every other bookkeeping write in this file already does.
+void markTrailUploading(Store store, String localId) {
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.localId.equals(localId)).build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    entity.syncState = TrailSyncState.uploading;
+    box.put(entity);
+  });
+}
+
 /// Marks the local row for [localId] as fully synced.
 ///
 /// Sets [TrailSyncState.synced], resets `syncAttempts` to 0 and

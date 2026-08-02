@@ -6,7 +6,6 @@ import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
-import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
@@ -150,8 +149,7 @@ class TrailSync extends _$TrailSync {
       }
       final authorId = userEntity.actorId;
 
-      entity.syncState = TrailSyncState.uploading;
-      store.box<TrailEntity>().put(entity);
+      markTrailUploading(store, localId);
 
       // Step 1: tag reuse/create (D-06) applies whether or not the trail
       // itself still needs to be created.
