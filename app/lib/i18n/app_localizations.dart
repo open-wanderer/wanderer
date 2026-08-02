@@ -422,6 +422,12 @@ abstract class AppLocalizations {
   /// **'Do you really want to delete this trail? This action cannot be undone.'**
   String get delete_trail_confirm;
 
+  /// No description provided for @delete_blocked_while_uploading.
+  ///
+  /// In en, this message translates to:
+  /// **'This trail is uploading right now. Wait for the upload to finish, then try again.'**
+  String get delete_blocked_while_uploading;
+
   /// No description provided for @delete_unsynced_trail_confirm.
   ///
   /// In en, this message translates to:

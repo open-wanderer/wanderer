@@ -66,6 +66,7 @@
   "open": "Open",
   "delete_account": "Delete Account",
   "delete_trail_confirm": "Do you really want to delete this trail? This action cannot be undone.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
   "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "description": "Description",
   "difficult": "Difficult",

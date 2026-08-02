@@ -251,8 +251,38 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // `isDraining` disable is a UI-only mirror of that guard, not a
     // replacement for it, since a UI-only check would still lose a race.
     if (isUnsyncedState(trail.syncState) && trail.localId != null) {
-      Navigator.of(context).pop();
-      await ref.read(trailSyncProvider.notifier).deleteUnsynced(trail.localId!);
+      // The refusal is only "not silently ignored" if someone reads it. Popping
+      // first navigated the user away and THEN discarded the boolean, so a
+      // refused delete looked exactly like a completed one: no toast, no
+      // explanation, trail still there when they navigated back. The menu's
+      // `isDraining` disable does not cover this -- the drain can start between
+      // the menu build and this confirm-dialog tap.
+      // Resolved before the await: `context` is a parameter here, not
+      // `State.context`, so a post-await `mounted` check does not license
+      // reading from it.
+      final l18n = AppLocalizations.of(context)!;
+
+      final deleted = await ref
+          .read(trailSyncProvider.notifier)
+          .deleteUnsynced(trail.localId!);
+      if (!mounted) return;
+
+      if (!deleted) {
+        ref
+            .read(toastProvider.notifier)
+            .add(
+              ToastMessage(
+                type: ToastType.warning,
+                icon: FontAwesomeIcons.circleExclamation,
+                text: l18n.delete_blocked_while_uploading,
+              ),
+            );
+        return;
+      }
+
+      if (context.mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
       return;
     }
 

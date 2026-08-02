@@ -184,6 +184,10 @@ class AppLocalizationsCs extends AppLocalizations {
       'Doopravdy chcete tuto trasu smazat? Tuto akci nelze vrátit zpět.';
 
   @override
+  String get delete_blocked_while_uploading =>
+      'This trail is uploading right now. Wait for the upload to finish, then try again.';
+
+  @override
   String get delete_unsynced_trail_confirm =>
       'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
 
