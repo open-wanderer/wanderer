@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
@@ -183,12 +184,22 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   /// Fetches network page 1, merges it with [local], and reports whether the
   /// fetch failed.
   ///
-  /// A failed fetch for the signed-in hiker's own handle is swallowed (never
-  /// rethrown) so the local half still renders with `offline: true` (REC-06)
-  /// -- regardless of whether [local] happens to be empty, since the offline
-  /// empty state is itself a valid rendered outcome. A failed fetch for
-  /// another hiker's handle is rethrown, keeping today's error behaviour so
-  /// that profile does not silently render empty.
+  /// A failed TRANSPORT fetch for the signed-in hiker's own handle is
+  /// swallowed (never rethrown) so the local half still renders with
+  /// `offline: true` (REC-06) -- regardless of whether [local] happens to be
+  /// empty, since the offline empty state is itself a valid rendered outcome.
+  /// The same failure for another hiker's handle is rethrown, keeping today's
+  /// error behaviour so that profile does not silently render empty.
+  ///
+  /// Only [DioException] counts. A blanket `catch (_)` also swallowed the
+  /// `FormatException` `_fetchPage` throws deliberately for an unexpected
+  /// response shape, and the implicit `TypeError` from a non-int
+  /// `totalPages` -- so a client- or server-side BUG rendered as
+  /// "Showing what's saved on this device — connect to see everything" on a
+  /// fully-online device, and `loadNextPage` then refused to page because
+  /// `offline` was true. [ProfileTrailsState.offline] is documented as
+  /// "decided from the fetch outcome itself"; it was decided from any
+  /// outcome.
   Future<ProfileTrailsState> _fetchAndMerge({
     required List<Trail> local,
     required int page,
@@ -210,7 +221,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
       networkTrails = fetched.trails;
       resultPage = fetched.page;
       totalPages = fetched.totalPages;
-    } catch (_) {
+    } on DioException catch (_) {
       if (!_isOwnHandle) rethrow;
       offline = true;
     }
