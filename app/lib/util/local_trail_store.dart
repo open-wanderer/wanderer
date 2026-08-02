@@ -257,6 +257,13 @@ LocalUpdateOutcome updateLocalTrail(
     entity.syncAttempts = existing.syncAttempts;
     entity.syncNextAttemptAt = existing.syncNextAttemptAt;
     entity.savedByUserIds = existing.savedByUserIds;
+    // `TrailEntity.fromModel` always leaves `photos` at `[]` -- the model has
+    // no place to put server-side photo FILENAMES on the way in. Without this
+    // carry-forward every re-save through this path erased them from the row,
+    // and combined with a post-sync edit that left a row with empty `photos`
+    // AND empty `localPhotos`: a permanently thumbnail-less card whose photos
+    // exist only on the server.
+    entity.photos = existing.photos;
     entity.localPhotos = trailLocalPhotos;
 
     for (final waypointEntity in entity.waypoints) {
