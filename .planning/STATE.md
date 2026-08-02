@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: verifying
+status: planning
 stopped_at: Completed 34-07-PLAN.md
-last_updated: "2026-08-01T19:05:38.972Z"
-last_activity: 2026-08-01
+last_updated: "2026-08-02T10:13:32.108Z"
+last_activity: 2026-08-02
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 12
+  completed_plans: 13
   percent: 50
 ---
 
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 35 — offline-trail-creation
+**Current focus:** Phase 36 — local-first-recording-&-automatic-upload
 
 ## Current Position
 
-Phase: 35
+Phase: 36
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-08-01 -- Phase 34 complete: all 7 plans executed, UAT gaps closed, security audit 0 open
+Last activity: 2026-08-02 -- Phase 35 complete: OFFUI-01..04 shipped, device-verified, scoped security audit 0 open
 
 ## v1.8 Phases
 
 - [x] **Phase 33: Conversion Correctness** — CONV-01/02/03/04/05 (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** — PORT-01/02/03/04/05, CONV-06 (completed 2026-08-01)
-- [ ] **Phase 35: Offline Trail Creation** — OFFUI-01/02/03/04
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05, SYNC-01/02/03/04/05
+- [x] **Phase 35: Offline Trail Creation** — OFFUI-01/02/03/04 (completed 2026-08-02)
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05/06, SYNC-01/02/03/04/05
 
 Execution order: 33 → 34 → 35 → 36, strictly sequential. Phase 34 needs Phase 33's corrected algorithm (porting first would pin the buggy behavior in Dart). Phase 35's OFFUI-03/04 need Phase 34's on-device conversion and transcode-only endpoint contract; OFFUI-01/02 are independent live bugs plan-phase may schedule first within Phase 35. Phase 36's REC-05 (offline edit) reuses Phase 35's trail_create_screen map/tag fixes, and REC-01 needs Phase 34's on-device conversion to save an offline recording at all.
 
@@ -45,7 +45,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 
 **Velocity (v1.0–v1.3):**
 
-- Total plans completed: 53
+- Total plans completed: 54
 - Average duration: — min
 - Total execution time: — hours
 
@@ -63,6 +63,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | 28 | 4 | - | - |
 | 33 | 5 | - | - |
 | 34 | 7 | - | - |
+| 35 | 1 | - | - |
 
 *Updated after each plan completion*
 | Phase 16 P01 | 9min | 3 tasks | 3 files |

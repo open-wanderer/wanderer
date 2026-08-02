@@ -319,7 +319,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
-- [ ] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one
+- [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
 - [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the library, and uploads itself once the phone is back online
 
 #### Sequencing Rationale
@@ -451,13 +451,16 @@ not-yet-uploaded trail, plus downloaded trails the hiker authored themselves, wi
 stating plainly it is showing only what is available offline.
 
 Three constraints found in the code, for plan-phase:
+
 - **Ownership must not be expressed via `savedByUserIds`** — that field means "downloaded", and
   the two are orthogonal (a hiker can record a trail *and* later download it). Needs a separate
   owner field plus a sync-state field; `grep` for `pendingUpload|unsynced|isDraft|syncState`
   returns zero hits today.
+
 - **All three `TrailEntity` readers filter on `savedByUserIds.containsElement(userId)`**
   (`trail_library_provider.dart:28`, `trail_provider.dart:74`, `navigation_launch_util.dart:40`),
   so an unsynced row would be silently invisible unless those gain an owner clause.
+
 - **`TrailEntity.id` is the server id**, `@Unique(onConflict: replace)`, and `trail.id.isEmpty`
   is the create-vs-update discriminator (`trail_create_screen.dart:401`). A local trail has no
   id, so it needs a local identity plus an idempotency key — which SYNC-04 requires anyway.
@@ -538,5 +541,5 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 32. On-Demand Polygon Fetch & Seed Slimming | v1.7 | 6/6 | Complete   | 2026-07-28 |
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
-| 35. Offline Trail Creation | v1.8 | 0/0 | Not planned | — |
+| 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |

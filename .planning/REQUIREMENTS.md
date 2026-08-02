@@ -62,10 +62,10 @@ the hiker had filled in title, description, category and photos.
 
 ### Offline Create/Import UX
 
-- [ ] **OFFUI-01**: The map in the trail create/edit screen renders from downloaded regions when there is no connection, instead of going blank
-- [ ] **OFFUI-02**: Tag entry works with no connection — autocomplete degrades to showing nothing instead of erroring, and a typed tag still reaches the saved trail
-- [ ] **OFFUI-03**: Importing a `.gpx` file works with no connection
-- [ ] **OFFUI-04**: Attempting to import a kml/kmz/tcx/fit file with no connection explains that those formats need a connection and that GPX works offline, rather than showing a generic failure
+- [x] **OFFUI-01**: The map in the trail create/edit screen renders from downloaded regions when there is no connection, instead of going blank
+- [x] **OFFUI-02**: Tag entry works with no connection — autocomplete degrades to showing nothing instead of erroring, and a typed tag still reaches the saved trail
+- [x] **OFFUI-03**: Importing a `.gpx` file works with no connection
+- [x] **OFFUI-04**: Attempting to import a kml/kmz/tcx/fit file with no connection explains that those formats need a connection and that GPX works offline, rather than showing a generic failure
 
 ---
 
@@ -126,10 +126,10 @@ Populated during roadmap creation.
 | SYNC-03 | Phase 36 | Pending |
 | SYNC-04 | Phase 36 | Pending |
 | SYNC-05 | Phase 36 | Pending |
-| OFFUI-01 | Phase 35 | Pending |
-| OFFUI-02 | Phase 35 | Pending |
-| OFFUI-03 | Phase 35 | Pending |
-| OFFUI-04 | Phase 35 | Pending |
+| OFFUI-01 | Phase 35 | Complete |
+| OFFUI-02 | Phase 35 | Complete |
+| OFFUI-03 | Phase 35 | Complete |
+| OFFUI-04 | Phase 35 | Complete |
 
 **Coverage:**
 
