@@ -1,3 +1,13 @@
 arb-dir: lib/i18n
 template-arb-file: app_en.arb
 output-localization-file: app_localizations.dart
+
+# Materialises gen-l10n's untranslated-message report instead of leaving it as
+# a per-locale COUNT on stdout that scrolls past unread. The file is committed
+# on purpose: it turns "these strings are English-only in 13 locales" into
+# something that shows up in a diff when it grows, which is how the sync-status
+# surface (including the sign-out data-safety warning and the "cannot be
+# undone" delete confirmation) shipped English-only without anyone noticing.
+#
+# Regenerate with `flutter gen-l10n` after touching any .arb file.
+untranslated-messages-file: lib/i18n/untranslated_messages.json
