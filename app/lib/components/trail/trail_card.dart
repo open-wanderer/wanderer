@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
@@ -167,6 +168,11 @@ class TrailCard extends ConsumerWidget {
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: SyncStatusChip(trail: trail),
                       ),
                       const SizedBox(height: 4),
                       if (trail.summaryDate != null)

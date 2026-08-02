@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_summary.dart';
@@ -106,6 +107,12 @@ class TrailListItem extends ConsumerWidget {
                             ),
                           ],
                         ),
+
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: SyncStatusChip(trail: trail),
+                        ),
+                        const SizedBox(height: 4),
 
                         const SizedBox(height: 3),
 
