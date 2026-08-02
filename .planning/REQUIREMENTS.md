@@ -54,7 +54,7 @@ the hiker had filled in title, description, category and photos.
 
 ### Background Upload
 
-- [ ] **SYNC-01**: An unsynced trail uploads on its own once the app is foregrounded with a working connection, with no action from the hiker
+- [x] **SYNC-01**: An unsynced trail uploads on its own once the app is foregrounded with a working connection, with no action from the hiker
 - [x] **SYNC-02**: Upload progress and failure are visible on the trail itself, inline in the hiker's own-trails list, rather than in a separate pending-uploads screen
 - [x] **SYNC-03**: A hiker can manually retry an upload that failed or stalled
 - [x] **SYNC-04**: An interrupted upload does not produce a duplicate trail on the server when it is retried
@@ -121,7 +121,7 @@ Populated during roadmap creation.
 | REC-04 | Phase 36 | Complete |
 | REC-05 | Phase 36 | Complete |
 | REC-06 | Phase 36 | Complete |
-| SYNC-01 | Phase 36 | Pending |
+| SYNC-01 | Phase 36 | Complete |
 | SYNC-02 | Phase 36 | Complete |
 | SYNC-03 | Phase 36 | Complete |
 | SYNC-04 | Phase 36 | Complete |

@@ -488,7 +488,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion; 36-04 and 36-05 run in parallel)*
 
-- [ ] 36-04-PLAN.md — The deferred-upload drain: resumable tag→trail→waypoint sequence, backoff and park, manual retry, foreground/connectivity/cold-start triggers, startup photo sweep
+- [x] 36-04-PLAN.md — The deferred-upload drain: resumable tag→trail→waypoint sequence, backoff and park, manual retry, foreground/connectivity/cold-start triggers, startup photo sweep
 - [ ] 36-05-PLAN.md — Sign-out warning naming the count of not-yet-uploaded trails
 
 **Wave 4** *(blocked on Wave 3 completion; 36-06, 36-07 and 36-08 run in parallel)*
@@ -567,4 +567,4 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 3/8 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 4/8 | In Progress|  |
