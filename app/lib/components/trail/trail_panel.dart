@@ -15,6 +15,7 @@ import 'package:wanderer/components/trail/trail_timeline.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/util/format_util.dart';
@@ -77,7 +78,7 @@ class TrailPanel extends ConsumerWidget {
                           ).format(trail.summaryDate!),
                           style: TextStyle(color: Colors.grey[600]),
                         ),
-                      if (trail.isOffline) ...[
+                      if (trail.isLocal) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -113,7 +114,7 @@ class TrailPanel extends ConsumerWidget {
                           ),
                         ),
                       ],
-                      if (availableOffline && !trail.isOffline) ...[
+                      if (availableOffline && !trail.isLocal) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -236,7 +237,7 @@ class TrailPanel extends ConsumerWidget {
             const SizedBox(height: 16),
 
             const Divider(height: 1, thickness: 1),
-            if (!trail.isOffline)
+            if (!trail.isLocal)
               TabBar(
                 labelStyle: Theme.of(
                   context,
@@ -290,7 +291,11 @@ class TrailPanel extends ConsumerWidget {
                                   child: TrailMap(
                                     trail: trail,
                                     disabled: true,
-                                    offline: trail.isOffline,
+                                    // Connectivity, NOT trail.isOffline — see
+                                    // that field's doc comment. Online we
+                                    // always prefer network tiles, even for a
+                                    // downloaded trail.
+                                    offline: !ref.watch(onlineStatusProvider),
                                     onTap: (_) =>
                                         context.push('/trail/${trail.id}/map'),
                                   ),

@@ -174,7 +174,7 @@ extension TrailEntityMapping on TrailEntity {
       minLat: minLat,
       minLon: minLon,
       description: description ?? "",
-      isOffline: true,
+      isLocal: true,
       localPhotos: photos,
       updated: updated,
       created: created,

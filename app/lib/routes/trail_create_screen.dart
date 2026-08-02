@@ -30,6 +30,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
@@ -423,6 +424,19 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         _originalTrail = trail;
       });
 
+      // Every field latches `_dirty` on its first edit and nothing but
+      // `reset()` clears it, so without this a saved trail still reports
+      // `isDirty` and leaving asks the user to discard changes they already
+      // saved. `reset()` is safe here precisely because of the setState above:
+      // each field re-seeds from its widget's `initialValue`, which now reads
+      // off the just-saved `trail`, so fields land on the saved values rather
+      // than the pre-edit ones. That ordering is the whole reason this runs
+      // post-frame — called inline it would still see the old widgets and
+      // would revert the user's input.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _formKey.currentState?.reset();
+      });
+
       ref
           .read(toastProvider.notifier)
           .add(
@@ -526,6 +540,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       trail = trail.copyWith(public: settings.privacy?.trails == 'public');
     }
 
+    final isOffline = !ref.watch(onlineStatusProvider);
+
     return PopScope(
       canPop: !_hasUnsavedChanges,
       onPopInvokedWithResult: (didPop, _) {
@@ -546,37 +562,38 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
             ),
           ),
           actions: [
-            Builder(
-              builder: (context) {
-                // Only enabled when the track yields >=2 seedable anchors, so a
-                // trk with no coordinates doesn't silently open "new route" mode.
-                final seedAnchors = trail.expand?.gpx != null
-                    ? anchorsFromTrack(trail.expand!.gpx!)
-                    : const <ml.Geographic>[];
-                return IconButton(
-                  icon: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const FaIcon(FontAwesomeIcons.route, size: 18),
-                      Positioned(
-                        top: -2,
-                        child: const FaIcon(FontAwesomeIcons.pen, size: 9),
-                      ),
-                    ],
-                  ),
-                  tooltip: AppLocalizations.of(context)!.edit_route,
-                  onPressed: seedAnchors.length >= 2
-                      ? () => _onEditRoute(context, seedAnchors)
-                      : null,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    disabledBackgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surface,
-                  ),
-                );
-              },
-            ),
+            if (!isOffline)
+              Builder(
+                builder: (context) {
+                  // Only enabled when the track yields >=2 seedable anchors, so a
+                  // trk with no coordinates doesn't silently open "new route" mode.
+                  final seedAnchors = trail.expand?.gpx != null
+                      ? anchorsFromTrack(trail.expand!.gpx!)
+                      : const <ml.Geographic>[];
+                  return IconButton(
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const FaIcon(FontAwesomeIcons.route, size: 18),
+                        Positioned(
+                          top: -2,
+                          child: const FaIcon(FontAwesomeIcons.pen, size: 9),
+                        ),
+                      ],
+                    ),
+                    tooltip: AppLocalizations.of(context)!.edit_route,
+                    onPressed: seedAnchors.length >= 2
+                        ? () => _onEditRoute(context, seedAnchors)
+                        : null,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      disabledBackgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surface,
+                    ),
+                  );
+                },
+              ),
             IconButton(
               icon: _saving
                   ? const SizedBox(
@@ -608,7 +625,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                   trail: trail,
                   elevationMarkerPosition: _elevationMarkerPosition,
                   showLocation: true,
-                  offline: trail.isOffline,
+                  offline: isOffline,
                   initialCameraFitPadding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).size.height * 0.4 + 40,
                     left: 40,

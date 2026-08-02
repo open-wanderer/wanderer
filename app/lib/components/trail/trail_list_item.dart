@@ -33,7 +33,7 @@ class TrailListItem extends ConsumerWidget {
 
     ImageProvider? imageProvider;
 
-    if (trail.isOffline && localPath != null) {
+    if (trail.isLocal && localPath != null) {
       final file = File(localPath);
       if (file.existsSync()) {
         imageProvider = FileImage(file);

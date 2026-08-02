@@ -55,8 +55,26 @@ class _FakeOnlineStatus extends OnlineStatus {
 
   final bool _initial;
 
+  int refreshCalls = 0;
+
   @override
   bool build() => _initial;
+
+  /// Deterministic stand-in for the real `isBackendReachable` probe, plus the
+  /// counter that pins OFFUI-04's fix.
+  ///
+  /// `OnlineStatus` is optimistic (`build() => true`) and only settles from
+  /// ordinary traffic, so in airplane mode with no request yet attempted it
+  /// still reads online. `importTrailFile` therefore refreshes BEFORE its
+  /// non-GPX guard; without that, the guard silently misses and the user gets
+  /// the generic import error instead of the offline-specific one — exactly
+  /// what OFFUI-04 exists to prevent.
+  @override
+  Future<bool> refresh() async {
+    refreshCalls++;
+    state = _initial;
+    return _initial;
+  }
 }
 
 /// Pumps a bare `Consumer` inside a `ProviderScope` overriding [apiProvider]
@@ -299,13 +317,15 @@ void main() {
     /// Pumps a minimal `GoRouter` (rather than `_pumpRef`'s bare `Consumer`)
     /// so `importTrailFile`'s `navContext.push('/trail/create/edit', ...)`
     /// handoff has somewhere real to land.
-    Future<({WidgetRef ref, BuildContext context})> pumpRouterRef(
+    Future<({WidgetRef ref, BuildContext context, _FakeOnlineStatus status})>
+    pumpRouterRef(
       WidgetTester tester, {
       required bool online,
       bool shouldFailAll = false,
     }) async {
       late WidgetRef capturedRef;
       late BuildContext capturedContext;
+      final status = _FakeOnlineStatus(online);
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -329,7 +349,7 @@ void main() {
         ProviderScope(
           overrides: [
             apiProvider.overrideWith(() => _FakeApi(shouldFail: shouldFailAll)),
-            onlineStatusProvider.overrideWith(() => _FakeOnlineStatus(online)),
+            onlineStatusProvider.overrideWith(() => status),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -338,7 +358,7 @@ void main() {
           ),
         ),
       );
-      return (ref: capturedRef, context: capturedContext);
+      return (ref: capturedRef, context: capturedContext, status: status);
     }
 
     testWidgets(
@@ -408,6 +428,109 @@ void main() {
       expect(pumped.ref.read(toastProvider), isNotEmpty);
       expect(pendingImportedTrail, isNull);
     });
+
+    // OFFUI-04. The message has to name the actual constraint ("only GPX can
+    // be imported offline"), not the generic "could not import file" — the
+    // whole point of the requirement is that a hiker in airplane mode learns
+    // WHY their .kml was refused and what would have worked.
+    testWidgets(
+      'offline: a non-GPX import is refused with the offline-specific '
+      'message, before any network call',
+      (tester) async {
+        final file = File('${tempDir.path}/track.kml');
+        file.writeAsStringSync('<kml></kml>');
+
+        final pumped = await pumpRouterRef(
+          tester,
+          online: false,
+          // Doubles as a "no request was attempted" guard: if the guard
+          // regressed and the transcode ran, this fake would reject and the
+          // toast below would be the generic error instead.
+          shouldFailAll: true,
+        );
+        final l10n = AppLocalizations.of(pumped.context)!;
+
+        await tester.runAsync(
+          () => importTrailFile(
+            ref: pumped.ref,
+            path: file.path,
+            name: 'track.kml',
+            navContext: pumped.context,
+            l10n: l10n,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          pumped.ref.read(toastProvider).single.text,
+          l10n.trail_source_offline_import_error,
+        );
+        expect(pendingImportedTrail, isNull);
+        // The guard is only sound because the optimistic status was refreshed
+        // first — see _FakeOnlineStatus.refresh.
+        expect(pumped.status.refreshCalls, greaterThan(0));
+      },
+    );
+
+    testWidgets(
+      'online: the offline guard does not fire for a non-GPX file — a later '
+      'failure reports the generic import error instead',
+      (tester) async {
+        final file = File('${tempDir.path}/track.kml');
+        file.writeAsStringSync('<kml></kml>');
+
+        final pumped = await pumpRouterRef(
+          tester,
+          online: true,
+          shouldFailAll: true,
+        );
+        final l10n = AppLocalizations.of(pumped.context)!;
+
+        await tester.runAsync(
+          () => importTrailFile(
+            ref: pumped.ref,
+            path: file.path,
+            name: 'track.kml',
+            navContext: pumped.context,
+            l10n: l10n,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          pumped.ref.read(toastProvider).single.text,
+          l10n.trail_source_import_error,
+        );
+      },
+    );
+
+    testWidgets(
+      'offline: a .gpx import is NOT caught by the non-GPX guard and still '
+      'produces a trail',
+      (tester) async {
+        final path = writeTempGpx();
+        final pumped = await pumpRouterRef(
+          tester,
+          online: false,
+          shouldFailAll: true,
+        );
+        final l10n = AppLocalizations.of(pumped.context)!;
+
+        await tester.runAsync(
+          () => importTrailFile(
+            ref: pumped.ref,
+            path: path,
+            name: 'track.gpx',
+            navContext: pumped.context,
+            l10n: l10n,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(pumped.ref.read(toastProvider), isEmpty);
+        expect(pendingImportedTrail, isNotNull);
+      },
+    );
   });
 
   group('PORT-03 gate', () {

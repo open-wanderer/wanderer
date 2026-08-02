@@ -10,6 +10,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
@@ -83,7 +84,10 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                     onWaypointTap: _onWaypointSelected,
                     selectedWaypoint: selectedWaypoint,
                     showLocation: true,
-                    offline: trail.isOffline,
+                    // Connectivity, NOT trail.isOffline — see that field's doc
+                    // comment. Online we always prefer network tiles, even for
+                    // a downloaded trail.
+                    offline: !ref.watch(onlineStatusProvider),
                     initialCameraFitPadding: EdgeInsets.only(
                       bottom: 300,
                       left: 40,
@@ -94,8 +98,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                       _buildMapControls(context, trail),
                       const ml.MapCompass(hideIfRotatedNorth: true),
                     ],
-                    onMapCreated: (controller) =>
-                        _mapController = controller,
+                    onMapCreated: (controller) => _mapController = controller,
                   ),
                 ),
                 // Floating full-width Navigate button — floats above elevation
@@ -254,10 +257,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                         right: 40,
                         top: 40,
                       );
-                _mapController?.fitBounds(
-                  bounds: bounds,
-                  padding: padding,
-                );
+                _mapController?.fitBounds(bounds: bounds, padding: padding);
               },
             ),
             IconButton(

@@ -101,7 +101,27 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @Default("") String description,
     @Default("000000000000000") String author,
 
-    @Default(false) bool isOffline,
+    /// This `Trail` instance was read from local storage — it is set only by
+    /// [TrailEntity.toModel], where it is hardcoded `true`.
+    ///
+    /// **Provenance, not connectivity.** It answers "did this come off the
+    /// device?", never "is the device offline right now?". For the latter,
+    /// watch `onlineStatusProvider`. It was called `isOffline` until the two
+    /// got conflated in a shipped bug: `TrailMap(offline: trail.isOffline)`
+    /// selected the online basemap style for any trail that was not
+    /// downloaded, so editing or viewing one with no connection rendered a
+    /// blank map (OFFUI-01). Renamed to `isLocal` so the distinction is
+    /// legible at every call site; every `TrailMap` mount now derives
+    /// `offline:` from connectivity instead.
+    ///
+    /// Live consumers, all provenance questions: local thumbnail file vs
+    /// network (`trail_card.dart`, `trail_list_item.dart`), the "downloaded"
+    /// badge and the mutually-exclusive "available offline" badge
+    /// (`trail_panel.dart`), hiding the comments/summit-log TabBar for a
+    /// local-only trail (`trail_panel.dart`), and — load-bearing — routing
+    /// delete to `trailLibraryProvider.deleteTrail` (un-download) instead of
+    /// a server delete (`trail_dropdown.dart`).
+    @Default(false) bool isLocal,
     @Default([]) List<String> localPhotos,
   }) = _Trail;
 

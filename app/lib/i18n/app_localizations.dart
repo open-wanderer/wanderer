@@ -872,11 +872,23 @@ abstract class AppLocalizations {
   /// **'Open trail planner'**
   String get trail_source_planner;
 
+  /// No description provided for @trail_source_planner_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw a new route on the map, waypoint by waypoint.'**
+  String get trail_source_planner_description;
+
   /// No description provided for @trail_source_record.
   ///
   /// In en, this message translates to:
   /// **'Record trail'**
   String get trail_source_record;
+
+  /// No description provided for @trail_source_record_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Track your live coordinates and log your journey in real-time.'**
+  String get trail_source_record_description;
 
   /// No description provided for @trail_source_import.
   ///
@@ -884,11 +896,23 @@ abstract class AppLocalizations {
   /// **'Import file'**
   String get trail_source_import;
 
+  /// No description provided for @trail_source_import_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.'**
+  String get trail_source_import_description;
+
   /// No description provided for @trail_source_import_error.
   ///
   /// In en, this message translates to:
   /// **'Could not import file'**
   String get trail_source_import_error;
+
+  /// Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative.
+  ///
+  /// In en, this message translates to:
+  /// **'Only GPX files can be imported offline'**
+  String get trail_source_offline_import_error;
 
   /// No description provided for @no_comments_so_far.
   ///
@@ -1669,6 +1693,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No trails yet.'**
   String get no_trails_yet;
+
+  /// No description provided for @library_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No downloaded trails'**
+  String get library_empty_title;
+
+  /// No description provided for @library_empty_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Trails you download are kept here so you can open them offline.'**
+  String get library_empty_body;
+
+  /// No description provided for @library_empty_search_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different search term or clear your filters.'**
+  String get library_empty_search_body;
 
   /// No description provided for @search_location.
   ///

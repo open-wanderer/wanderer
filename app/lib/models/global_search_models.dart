@@ -77,7 +77,7 @@ abstract class TrailSearchResult
   List<String>? get summaryShares => shares;
 
   @override
-  bool get isOffline => false;
+  bool get isLocal => false;
 
   @override
   List<String> get localPhotos => [];

@@ -29,6 +29,6 @@ abstract class TrailSummary with RecordFunctions {
   List<String>? get summaryShares;
   List<String>? get summaryTags;
 
-  bool get isOffline;
+  bool get isLocal;
   List<String> get localPhotos;
 }

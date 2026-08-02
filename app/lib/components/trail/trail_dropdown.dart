@@ -167,7 +167,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   bool _allowDelete(WidgetRef ref) {
-    if (widget.trail.isOffline) {
+    if (widget.trail.isLocal) {
       return true;
     }
     final user = ref.watch(authProvider).value;
@@ -201,7 +201,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   Future<void> _deleteTrail(BuildContext context, Trail trail) async {
-    if (trail.isOffline) {
+    if (trail.isLocal) {
       Navigator.of(context).pop();
       ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
     }

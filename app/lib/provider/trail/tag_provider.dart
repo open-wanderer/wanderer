@@ -1,7 +1,10 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/list_result.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/online_status_provider.dart';
 
 part 'tag_provider.g.dart';
 
@@ -34,25 +37,47 @@ class TagNotifier extends _$TagNotifier {
     final api = ref.read(apiProvider);
     state = const AsyncLoading();
 
-    final result = await AsyncValue.guard(() async {
+    // OFFUI-02: autocomplete degrades to "no suggestions" rather than
+    // surfacing anything, because there is deliberately no tag cache — offline
+    // the user types a free-form tag and `_resolveTags`
+    // (`trail_save_provider.dart`) creates it at save/upload time.
+    //
+    // But "no suggestions" must not be the whole story for a REAL failure. A
+    // blanket `AsyncValue.guard` made a 500, a malformed payload and airplane
+    // mode indistinguishable — all silently empty, nothing to find in the
+    // field. So the two are split: a connection failure is an expected,
+    // uninteresting outcome and publishes as empty data; anything else keeps
+    // the error in `state` and logs it (the WR-12 reasoning in
+    // `trail_import_util.dart` — an error nobody can see is an error nobody
+    // can fix). Both still return `[]`, so the widget behaves identically.
+    List<Tag> items = const [];
+    try {
       final response = await api.get("/tag?filter=name~'$name'");
 
       if (response.data == null) {
         throw Exception('No tags data received from server');
       }
 
-      ListResult<Tag> tagListResult = ListResult.fromJson(
+      items = ListResult.fromJson(
         response.data,
         (json) => Tag.fromJson(json as Map<String, dynamic>),
-      );
+      ).items;
+      state = AsyncData(items);
+    } on DioException catch (e, st) {
+      if (isConnectionFailure(e)) {
+        state = const AsyncData([]);
+      } else {
+        debugPrint('tag search failed for "$name": $e');
+        state = AsyncError(e, st);
+      }
+    } catch (e, st) {
+      debugPrint('tag search failed for "$name": $e');
+      state = AsyncError(e, st);
+    } finally {
+      link.close();
+    }
 
-      return tagListResult.items;
-    });
-
-    state = result;
-    link.close();
-
-    return result.value ?? [];
+    return items;
   }
 
   Future<Tag> create(String name) async {

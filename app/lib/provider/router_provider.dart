@@ -164,12 +164,6 @@ class Router extends _$Router {
             GoRoute(
               path: '/profile',
               builder: (context, state) => const ProfileScreen(handle: null),
-              routes: [
-                GoRoute(
-                  path: 'share',
-                  builder: (context, state) => const ProfileShareScreen(),
-                ),
-              ],
             ),
             GoRoute(
               path: '/library',
@@ -189,6 +183,10 @@ class Router extends _$Router {
               builder: (context, state) => const TrailSourceSelectScreen(),
             ),
           ],
+        ),
+        GoRoute(
+          path: '/profile/share',
+          builder: (context, state) => const ProfileShareScreen(),
         ),
         GoRoute(
           path: '/settings',

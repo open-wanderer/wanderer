@@ -226,8 +226,7 @@ class _TrailSourceSelectScreenState
           _SourceActionCard(
             icon: FontAwesomeIcons.route,
             title: l10n.trail_source_planner,
-            description:
-                "Design your perfect route from scratch using our map tools.",
+            description: l10n.trail_source_planner_description,
             isLoading: _plannerLoading,
             onTap: networkBlocked ? null : () => _openPlanner(l10n),
           ),
@@ -235,8 +234,7 @@ class _TrailSourceSelectScreenState
           _SourceActionCard(
             icon: FontAwesomeIcons.solidCircleDot,
             title: l10n.trail_source_record,
-            description:
-                "Track your live coordinates and log your journey in real-time.",
+            description: l10n.trail_source_record_description,
             isLoading: _recorderLoading,
             onTap: busy ? null : () => _openRecorder(l10n),
           ),
@@ -244,8 +242,7 @@ class _TrailSourceSelectScreenState
           _SourceActionCard(
             icon: FontAwesomeIcons.fileArrowUp,
             title: l10n.trail_source_import,
-            description:
-                "Upload external GPX files directly from your device storage.",
+            description: l10n.trail_source_import_description,
             isLoading: _importLoading,
             onTap: busy ? null : () => _importGpx(l10n),
           ),

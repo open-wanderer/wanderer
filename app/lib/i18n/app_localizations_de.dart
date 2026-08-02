@@ -15,7 +15,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get appearance => 'Darstellung';
 
   @override
-  String get account => 'Account';
+  String get account => 'Konto';
 
   @override
   String get account_delete_confirm =>
@@ -31,7 +31,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get add_waypoint => 'Wegpunkt hinzufügen';
 
   @override
-  String get adjust_track => 'Adjust track';
+  String get adjust_track => 'Pfad anpassen';
 
   @override
   String get after => 'Nach';
@@ -67,10 +67,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cancel => 'Abbrechen';
 
   @override
-  String get discard => 'Discard';
+  String get discard => 'Verwerfen';
 
   @override
-  String get discard_trail_confirm => 'Discard this trail and its changes?';
+  String get discard_trail_confirm =>
+      'Diese Route und ihre Änderungen verwerfen?';
 
   @override
   String get car => 'Auto';
@@ -142,7 +143,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get location_unavailable =>
-      'Unable to determine your location. Please try again.';
+      'Standort konnte nicht ermittelt werden. Bitte versuchen Sie es erneut.';
 
   @override
   String get copy_link => 'Link kopieren';
@@ -227,7 +228,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get elevation_profile => 'Höhenprofil';
 
   @override
-  String get email => 'Email';
+  String get email => 'E-Mail';
 
   @override
   String get email_not_unique => 'Diese Email_Adresse wird bereits verwendet';
@@ -281,7 +282,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get finish_disabled_hint =>
-      'Add at least 2 anchors to finish your route.';
+      'Fügen Sie mindestens 2 Ankerpunkte hinzu, um Ihre Route abzuschließen.';
 
   @override
   String get follow => 'Folgen';
@@ -355,13 +356,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get locations => 'Orte';
 
   @override
-  String get center_on_my_location => 'Center on my location';
+  String get center_on_my_location => 'Auf meinen Standort zentrieren';
 
   @override
   String get location_tracking_notification_title => 'Wanderer';
 
   @override
-  String get location_tracking_notification_text => 'Recording your trail';
+  String get location_tracking_notification_text => 'Route wird aufgezeichnet';
 
   @override
   String get login => 'Login';
@@ -417,16 +418,33 @@ class AppLocalizationsDe extends AppLocalizations {
   String get new_trail => 'Neue Route';
 
   @override
-  String get trail_source_planner => 'Open trail planner';
+  String get trail_source_planner => 'Routen-Planer öffnen';
 
   @override
-  String get trail_source_record => 'Record trail';
+  String get trail_source_planner_description =>
+      'Zeichne eine neue Route auf der Karte, Wegpunkt für Wegpunkt.';
 
   @override
-  String get trail_source_import => 'Import file';
+  String get trail_source_record => 'Route aufzeichnen';
 
   @override
-  String get trail_source_import_error => 'Could not import file';
+  String get trail_source_record_description =>
+      'Verfolge deine Position live und zeichne deine Tour in Echtzeit auf.';
+
+  @override
+  String get trail_source_import => 'Datei importieren';
+
+  @override
+  String get trail_source_import_description =>
+      'Lade GPX-, KML-, KMZ-, TCX- oder FIT-Dateien direkt von deinem Gerät hoch.';
+
+  @override
+  String get trail_source_import_error =>
+      'Datei konnte nicht importiert werden';
+
+  @override
+  String get trail_source_offline_import_error =>
+      'Offline können nur GPX-Dateien importiert werden';
 
   @override
   String get no_comments_so_far => 'Bisher keine Kommentare';
@@ -444,7 +462,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get no_preference => 'Keine Präferenz';
 
   @override
-  String get no_trails_found => 'No trails found';
+  String get no_trails_found => 'Keine Routen gefunden';
 
   @override
   String get not_completed => 'Nicht abgeschlossen';
@@ -465,7 +483,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get paragraph => 'Abschnitt';
 
   @override
-  String get pause => 'Pause';
+  String get pause => 'Pausieren';
 
   @override
   String get password => 'Passwort';
@@ -484,8 +502,8 @@ class AppLocalizationsDe extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count photos skipped — no GPS data',
-      one: '1 photo skipped — no GPS data',
+      other: '$count Fotos übersprungen — keine GPS-Daten',
+      one: '1 Foto übersprungen — keine GPS-Daten',
     );
     return '$_temp0';
   }
@@ -518,7 +536,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get required => 'Pflichtfeld';
 
   @override
-  String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
+  String get reorder_photos_hint =>
+      'Lange drücken und ziehen, um Fotos neu zu ordnen.';
 
   @override
   String get reset => 'Zurücksetzen';
@@ -528,7 +547,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String resume_navigation_prompt(String trail) {
-    return 'Resume navigation on $trail?';
+    return 'Navigation von $trail fortsetzen?';
   }
 
   @override
@@ -549,27 +568,27 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get follow_roads => 'Follow roads';
+  String get follow_roads => 'Straßen folgen';
 
   @override
   String get follow_roads_description =>
-      'Snap the recorded path to the nearest roads and trails.';
+      'Passen Sie die aufgezeichnete Route an die nächstgelegenen Straßen und Wege an.';
 
   @override
-  String get recalculate_heights => 'Recalculate heights';
+  String get recalculate_heights => 'Höhen neu berechnen';
 
   @override
   String get recalculate_heights_description =>
-      'Replace recorded GPS elevation with more accurate values from the map.';
+      'Ersetzen Sie die aufgezeichnete GPS-Höhe durch genauere Werte aus Kartendaten.';
 
   @override
   String get save => 'Speichern';
 
   @override
-  String get save_recording_options => 'Save recording';
+  String get save_recording_options => 'Aufnahme speichern';
 
   @override
-  String get save_track => 'Save track';
+  String get save_track => 'Pfad speichern';
 
   @override
   String get search => 'Suche';
@@ -701,7 +720,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get time => 'Zeit';
 
   @override
-  String get time_in_motion => 'Time in Motion';
+  String get time_in_motion => 'Zeit in Bewegung';
 
   @override
   String trail(num n) {
@@ -771,39 +790,41 @@ class AppLocalizationsDe extends AppLocalizations {
   String get you_have_arrived => 'Angekommen';
 
   @override
-  String get settings_categories_confirm_disable_title => 'Hide this category?';
+  String get settings_categories_confirm_disable_title =>
+      'Diese Kategorie trotzdem ausblenden?';
 
   @override
   String get settings_categories_confirm_disable_subcategory_title =>
-      'Hide this subcategory?';
+      'Diese Unterkategorie trotzdem ausblenden?';
 
   @override
   String settings_categories_confirm_disable_body(int count) {
-    return '$count of your trails use this category. They will stay published but this filter will be hidden.';
+    return '$count Ihrer Trails verwenden diese Kategorie. Sie bleiben veröffentlicht, aber dieser Filter wird nicht angezeigt.';
   }
 
   @override
-  String get settings_categories_confirm_view_trails => 'View trails';
+  String get settings_categories_confirm_view_trails => 'Routen anzeigen';
 
   @override
-  String get settings_categories_confirm_disable_confirm => 'Disable anyway';
+  String get settings_categories_confirm_disable_confirm =>
+      'Trotzdem deaktivieren';
 
   @override
-  String get settings_categories_empty_title => 'No subcategories';
+  String get settings_categories_empty_title => 'Keine Unter-Kategorien';
 
   @override
   String get settings_categories_empty_body =>
-      'This category has no subcategories to configure.';
+      'Diese Kategorie hat keine zu konfigurierenden Unterkategorien.';
 
   @override
   String get settings_categories_reorder_hint =>
-      'Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won\'t appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.';
+      'Kategorien bestimmen, welche Routentypen Sie sehen und in welcher Reihenfolge. Schalten Sie eine aus, um sie in Filtern zu verstecken — Ihre Routen bleiben veröffentlicht, sie erscheinen einfach nicht unter dieser Kategorie. Tippen Sie auf eine Kategorie, um ihre Unterkategorien individuell zu verwalten.\n\nUm die Reihenfolge zu ändern, drücken und halten Sie eine Zeile und ziehen Sie sie dann an eine neue Position. Die Reihenfolge, die Sie hier einstellen, wird überall verwendet, wo Kategorien angezeigt werden.';
 
   @override
-  String get something_went_wrong => 'Something went wrong';
+  String get something_went_wrong => 'Etwas ist schief gelaufen';
 
   @override
-  String get technical_details => 'Technical Details';
+  String get technical_details => 'Technische Details';
 
   @override
   String get link => 'Verknüpfen';
@@ -822,45 +843,45 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get add_at_least_2_anchors_hint =>
-      'Add at least 2 anchors to see the elevation profile.';
+      'Fügen Sie mindestens 2 Ankerpunkte hinzu, um das Höhenprofil zu sehen.';
 
   @override
   String get reverse_direction => 'Richtung umkehren';
 
   @override
-  String get delete_all => 'Delete all';
+  String get delete_all => 'Alle löschen';
 
   @override
-  String get auto_routing => 'Auto-routing';
+  String get auto_routing => 'Auto-Routing aktivieren';
 
   @override
   String get auto_routing_hint =>
-      'Automatically follow roads and paths between anchors.';
+      'Automatisch den Straßen und Pfaden zwischen den Ankerpunkten folgen.';
 
   @override
-  String get travel_profile => 'Travel profile';
+  String get travel_profile => 'Fortbewegungsmittel';
 
   @override
-  String get no_track_data => 'No track data';
+  String get no_track_data => 'Keine Pfad-Daten';
 
   @override
   String get offline => 'Offline';
 
   @override
-  String get available_offline => 'Available offline';
+  String get available_offline => 'Offline verfügbar';
 
   @override
-  String get no_lists_found => 'No lists found';
+  String get no_lists_found => 'Keine Listen gefunden';
 
   @override
-  String get search_lists => 'Search lists…';
+  String get search_lists => 'Liste suchen…';
 
   @override
-  String get search_for_a_location => 'Search for a location';
+  String get search_for_a_location => 'Nach einem Ort suchen';
 
   @override
   String no_results_for_query(String query) {
-    return 'No results for \"$query\"';
+    return 'Keine Ergebnisse für „$query“';
   }
 
   @override
@@ -868,40 +889,51 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String no_label_yet(String label) {
-    return 'No $label yet.';
+    return 'Noch kein $label.';
   }
 
   @override
-  String get no_lists_yet => 'No lists yet.';
+  String get no_lists_yet => 'Noch keine Listen vorhanden.';
 
   @override
-  String get no_bio_yet => 'No bio yet.';
+  String get no_bio_yet => 'Noch keine Biografie.';
 
   @override
   String get feed => 'Feed';
 
   @override
-  String get no_trails_yet => 'No trails yet.';
+  String get no_trails_yet => 'Noch keine Routen.';
 
   @override
-  String get search_location => 'Search location';
+  String get library_empty_title => 'Keine heruntergeladenen Routen';
+
+  @override
+  String get library_empty_body =>
+      'Routen, die du herunterlädst, werden hier gespeichert, damit du sie offline öffnen kannst.';
+
+  @override
+  String get library_empty_search_body =>
+      'Versuche einen anderen Suchbegriff oder setze die Filter zurück.';
+
+  @override
+  String get search_location => 'Ort suchen';
 
   @override
   String no_servers_match_query(String query) {
-    return 'No servers match \"$query\"';
+    return 'Keine Server stimmen überein mit \"$query\"';
   }
 
   @override
-  String get use_custom_url_instead => 'Use custom URL instead';
+  String get use_custom_url_instead => 'Eigene URL verwenden';
 
   @override
-  String get select_instance => 'Select Instance';
+  String get select_instance => 'Instanz auswählen';
 
   @override
-  String get enter_server_url_hint => 'Enter server URL (e.g. wanderer.to)';
+  String get enter_server_url_hint => 'Server-URL eingeben (z.B. wanderer.to)';
 
   @override
-  String get search_library => 'Search library…';
+  String get search_library => 'Bibliothek durchsuchen…';
 
   @override
   String language_and_units(String language, String units) {
@@ -912,149 +944,152 @@ class AppLocalizationsDe extends AppLocalizations {
   String get edit_route => 'Route bearbeiten';
 
   @override
-  String get undo => 'Undo';
+  String get undo => 'Rückgängig';
 
   @override
-  String get redo => 'Redo';
+  String get redo => 'Wiederholen';
 
   @override
-  String get bold => 'Bold';
+  String get bold => 'Fett';
 
   @override
-  String get italic => 'Italic';
+  String get italic => 'Kursiv';
 
   @override
-  String get underline => 'Underline';
+  String get underline => 'Unterstrichen';
 
   @override
-  String get bullet_list => 'Bullet list';
+  String get bullet_list => 'Aufzählung';
 
   @override
-  String get ordered_list => 'Ordered list';
+  String get ordered_list => 'Geordnete Liste';
 
   @override
-  String get blockquote => 'Blockquote';
+  String get blockquote => 'Zitat';
 
   @override
-  String get library => 'Library';
+  String get library => 'Bibliothek';
 
   @override
-  String get settings_offline_regions_title => 'Offline Maps/Regions';
+  String get settings_offline_regions_title => 'Offline-Karten / Regionen';
 
   @override
-  String get regions_search_hint => 'Search regions';
+  String get regions_search_hint => 'Nach Region suchen';
 
   @override
-  String get regions_dem_toggle_label => 'Download elevation data (DEM)';
+  String get regions_dem_toggle_label => 'Höhendaten herunterladen (DEM)';
 
   @override
   String get regions_dem_toggle_caption =>
-      'Adds hillshading; increases download size';
+      'Fügt Hangschattierung hinzu; vergrößert die Downloadgröße';
 
   @override
-  String get regions_update_available => 'Update available';
+  String get regions_update_available => 'Update verfügbar';
 
   @override
-  String get regions_update_action => 'Update';
+  String get regions_update_action => 'Aktualisieren';
 
   @override
-  String get regions_retry => 'Retry';
+  String get regions_retry => 'Erneut versuchen';
 
   @override
-  String get regions_not_yet_available => 'Not yet available';
+  String get regions_not_yet_available => 'Noch nicht verfügbar';
 
   @override
-  String get regions_build_failed => 'Build failed';
+  String get regions_build_failed => 'Build fehlgeschlagen';
 
   @override
   String regions_delete_confirm_title(String name) {
-    return 'Delete $name?';
+    return '$name löschen?';
   }
 
   @override
   String get regions_delete_confirm_body =>
-      'This removes the downloaded map and elevation data for this region. You\'ll need to download it again to use it offline.';
+      'Dies entfernt die heruntergeladene Karte und die Höhendaten für diese Region. Sie müssen sie erneut herunterladen, um sie offline zu nutzen.';
 
   @override
-  String get regions_delete_confirm_action => 'Delete';
+  String get regions_delete_confirm_action => 'Löschen';
 
   @override
   String regions_disk_usage_summary(String size, num count) {
-    return '$size used across $count downloaded region(s)';
+    return '$size in $count heruntergeladenen Region(en)';
   }
 
   @override
-  String get regions_empty_search_title => 'No matching regions';
+  String get regions_empty_search_title => 'Keine passenden Regionen';
 
   @override
-  String get regions_empty_search_body => 'Try a different search term.';
+  String get regions_empty_search_body =>
+      'Versuchen Sie es mit einem anderen Suchbegriff.';
 
   @override
-  String get regions_empty_catalog_title => 'No offline regions available';
+  String get regions_empty_catalog_title => 'Keine Offline-Regionen verfügbar';
 
   @override
   String get regions_empty_catalog_body =>
-      'Ask your Wanderer instance administrator to configure downloadable regions.';
+      'Fragen Sie den Administrator Ihrer wanderer Instanz, die herunterladbaren Regionen zu konfigurieren.';
 
   @override
-  String get regions_vector_tile_title => 'Vector';
+  String get regions_vector_tile_title => 'Vektor';
 
   @override
-  String get regions_dem_tile_title => 'Elevation data';
+  String get regions_dem_tile_title => 'Höhenandaten';
 
   @override
-  String get regions_download_failed => 'Download failed';
+  String get regions_download_failed => 'Download fehlgeschlagen';
 
   @override
-  String get regions_dem_locked_subtitle => 'Download map data first';
+  String get regions_dem_locked_subtitle => 'Zuerst Kartendaten herunterladen';
 
   @override
-  String get regions_offline_unavailable_title => 'Can\'t load regions';
+  String get regions_offline_unavailable_title =>
+      'Regionen können nicht geladen werden';
 
   @override
   String get regions_offline_unavailable_body =>
-      'Connect to the internet to browse and manage downloadable regions.';
+      'Verbinden Sie sich mit dem Internet, um herunterladbare Regionen zu durchsuchen und zu verwalten.';
 
   @override
   String regions_group_expand_label(String name) {
-    return 'Expand $name';
+    return '$name ausklappen';
   }
 
   @override
   String regions_group_collapse_label(String name) {
-    return 'Collapse $name';
+    return '$name einklappen';
   }
 
   @override
-  String get offline_title => 'You\'re offline';
+  String get offline_title => 'Sie sind Offline';
 
   @override
-  String get offline_try_again => 'Try again';
+  String get offline_try_again => 'Erneut versuchen';
 
   @override
   String get offline_map_body =>
-      'Connect to the internet to load the map. Downloaded trails are still available.';
+      'Verbinde dich mit dem Internet, um die Karte zu laden. Heruntergeladene Routen sind verfügbar.';
 
   @override
-  String get offline_list_body => 'Connect to the internet to load lists.';
+  String get offline_list_body =>
+      'Verbinden Sie sich mit dem Internet, um Listen zu laden.';
 
   @override
   String get offline_profile_body =>
-      'Connect to the internet to load your full profile.';
+      'Verbinden Sie sich mit dem Internet, um Ihr vollständiges Profil zu laden.';
 
   @override
   String get offline_settings_banner =>
-      'You\'re offline. Settings are read-only until you reconnect.';
+      'Sie sind offline. Einstellungen sind schreibgeschützt, bis Sie sich wieder verbinden.';
 
   @override
   String get offline_action_unavailable =>
-      'You\'re offline — try again once you\'re back online.';
+      'Du bist offline — versuche es erneut, sobald du wieder online bist.';
 
   @override
   String get offline_categories_body =>
-      'Connect to the internet to manage categories.';
+      'Verbinden Sie sich mit dem Internet, um Kategorien zu verwalten.';
 
   @override
   String get offline_trail_search_body =>
-      'Connect to the internet to search for trails. Downloaded trails are still available.';
+      'Verbinde dich mit dem Internet, um nach Routen zu suchen. Heruntergeladene Routen sind verfügbar.';
 }

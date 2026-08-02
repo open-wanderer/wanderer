@@ -54,22 +54,31 @@ Future<void> importTrailFile({
   required BuildContext navContext,
   required AppLocalizations l10n,
 }) async {
-  void showError() {
+  void showError(String text) {
     ref
         .read(toastProvider.notifier)
         .add(
           ToastMessage(
             type: ToastType.error,
             icon: FontAwesomeIcons.circleExclamation,
-            text: l10n.trail_source_import_error,
+            text: text,
           ),
         );
   }
 
+  final isOffline = await ref
+      .read(onlineStatusProvider.notifier)
+      .refresh()
+      .then((online) => !online);
+
   // `allowedExtensions` is only a hint, so re-validate before uploading.
   final ext = p.extension(name).replaceFirst('.', '').toLowerCase();
   if (ext.isEmpty || !trailImportExtensions.contains(ext)) {
-    showError();
+    showError(l10n.trail_source_import_error);
+    return;
+  }
+  if (ext != 'gpx' && isOffline) {
+    showError(l10n.trail_source_offline_import_error);
     return;
   }
 
@@ -96,7 +105,7 @@ Future<void> importTrailFile({
         'importTrailFile: "$name" contains no track point with both lat '
         'and lon; refusing to import an empty trail',
       );
-      showError();
+      showError(l10n.trail_source_import_error);
       return;
     }
 
@@ -188,7 +197,7 @@ Future<void> importTrailFile({
     // diagnosable in the field at all (WR-12); it was previously bound and
     // dropped on the floor.
     debugPrint('importTrailFile failed for "$name": $e\n$st');
-    showError();
+    showError(l10n.trail_source_import_error);
     return;
   }
 

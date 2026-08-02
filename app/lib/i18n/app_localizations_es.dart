@@ -420,13 +420,29 @@ class AppLocalizationsEs extends AppLocalizations {
   String get trail_source_planner => 'Open trail planner';
 
   @override
+  String get trail_source_planner_description =>
+      'Draw a new route on the map, waypoint by waypoint.';
+
+  @override
   String get trail_source_record => 'Record trail';
+
+  @override
+  String get trail_source_record_description =>
+      'Track your live coordinates and log your journey in real-time.';
 
   @override
   String get trail_source_import => 'Import file';
 
   @override
+  String get trail_source_import_description =>
+      'Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.';
+
+  @override
   String get trail_source_import_error => 'Could not import file';
+
+  @override
+  String get trail_source_offline_import_error =>
+      'Only GPX files can be imported offline';
 
   @override
   String get no_comments_so_far => 'Ningún comentario todavía';
@@ -879,6 +895,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get no_trails_yet => 'No trails yet.';
+
+  @override
+  String get library_empty_title => 'No downloaded trails';
+
+  @override
+  String get library_empty_body =>
+      'Trails you download are kept here so you can open them offline.';
+
+  @override
+  String get library_empty_search_body =>
+      'Try a different search term or clear your filters.';
 
   @override
   String get search_location => 'Search location';
