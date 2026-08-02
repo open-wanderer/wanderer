@@ -8,6 +8,35 @@ import 'package:wanderer/provider/api_provider.dart';
 
 part 'waypoint_provider.g.dart';
 
+/// Thrown by [WaypointSave.create] when `PUT /waypoint` SUCCEEDED but the
+/// follow-up photo upload did not.
+///
+/// It exists to carry [created] -- the record the server already holds -- out
+/// to the caller. Without it, a photo-upload failure (the largest and most
+/// timeout-prone request in the create sequence) was indistinguishable from a
+/// failure to create the record at all, so the upload drain retried the whole
+/// step and `PUT /waypoint` ran a second time. There is no server-side
+/// idempotency key (RESEARCH.md Pitfall 3), so that produced a duplicate
+/// waypoint on the server -- up to `kMaxSyncAttempts` of them.
+///
+/// A caller that can persist an id should persist `created.id` before
+/// rethrowing; a caller that only counts failures can treat this like any
+/// other throw.
+class WaypointPhotoUploadException implements Exception {
+  /// The waypoint record the server created, with its server-assigned id.
+  final Waypoint created;
+
+  /// The underlying photo-upload failure.
+  final Object cause;
+
+  const WaypointPhotoUploadException(this.created, this.cause);
+
+  @override
+  String toString() =>
+      'WaypointPhotoUploadException(waypoint "${created.id}" was created but '
+      'its photos failed to upload: $cause)';
+}
+
 @Riverpod(keepAlive: true)
 class WaypointSave extends _$WaypointSave {
   @override
@@ -30,17 +59,22 @@ class WaypointSave extends _$WaypointSave {
       ..['trail'] = trailId;
 
     final response = await api.put('/waypoint', data: body);
-    var created = Waypoint.fromJson(response.data);
+    final created = Waypoint.fromJson(response.data);
 
-    if (waypoint.localPhotos.isNotEmpty) {
-      created = await _uploadPhotos(
+    if (waypoint.localPhotos.isEmpty) return created;
+
+    // Past this line the record EXISTS server-side. Any failure below must
+    // therefore surface the created record rather than looking like "the
+    // waypoint was never created" -- see [WaypointPhotoUploadException].
+    try {
+      return await _uploadPhotos(
         created,
         newPhotos: waypoint.localPhotos,
         removedFilenames: const [],
       );
+    } catch (e) {
+      throw WaypointPhotoUploadException(created, e);
     }
-
-    return created;
   }
 
   Future<Waypoint> updateWaypoint(

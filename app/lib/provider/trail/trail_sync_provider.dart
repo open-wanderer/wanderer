@@ -7,6 +7,7 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
+import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -166,12 +167,37 @@ class TrailSync extends _$TrailSync {
       for (final waypointEntity in entity.waypoints) {
         if (!isLocalId(waypointEntity.id)) continue;
 
-        final waypointModel = waypointEntity.toModel();
-        final createdWaypoint = await ref
-            .read(waypointSaveProvider.notifier)
-            .create(waypointModel, authorId: authorId, trailId: serverTrailId);
-
         final waypointLocalKey = waypointEntity.localKey;
+        final waypointModel = waypointEntity.toModel();
+
+        final Waypoint createdWaypoint;
+        try {
+          createdWaypoint = await ref
+              .read(waypointSaveProvider.notifier)
+              .create(
+                waypointModel,
+                authorId: authorId,
+                trailId: serverTrailId,
+              );
+        } on WaypointPhotoUploadException catch (e) {
+          // The record exists server-side; only its photos failed. Persist
+          // the id NOW, exactly as SYNC-04 does for the trail itself, so the
+          // next attempt resumes at the photo upload instead of re-running
+          // `PUT /waypoint` and creating a duplicate. Then rethrow: this
+          // trail's upload really did not complete, so it must still count a
+          // failed attempt and be retried.
+          if (waypointLocalKey != null) {
+            writeServerWaypointId(
+              store,
+              localId: localId,
+              waypointLocalKey: waypointLocalKey,
+              serverWaypointId: e.created.id,
+              serverPhotoFilenames: e.created.photos,
+            );
+          }
+          rethrow;
+        }
+
         if (waypointLocalKey == null) continue;
 
         writeServerWaypointId(
