@@ -41,6 +41,7 @@ import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
 import 'package:wanderer/util/exif_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/local_id.dart';
 import 'package:wanderer/util/reverse_geocode_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
 import 'package:wanderer/util/valhalla_util.dart';
@@ -157,7 +158,12 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     // Falls back to the map's current center when not called from a tap.
     final point = at ?? _mapController?.camera?.center;
     final stub = Waypoint(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      // Empty id + a minted local key, not a synthetic id: an id derived
+      // from a timestamp would look already-uploaded to the drain's
+      // `id.isEmpty` resume check and silently never reach the server
+      // (RESEARCH.md Pitfall 1).
+      id: '',
+      localKey: mintLocalId(),
       lat: point?.lat ?? trail.lat ?? 0,
       lon: point?.lon ?? trail.lon ?? 0,
       created: DateTime.now(),
@@ -191,7 +197,10 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       created.add(
         _withDistanceFromStart(
           Waypoint(
-            id: '${now.microsecondsSinceEpoch}-${created.length}',
+            // Empty id + a minted local key -- see the identical comment in
+            // `_onCreateWaypoint` (RESEARCH.md Pitfall 1).
+            id: '',
+            localKey: mintLocalId(),
             lat: coords.lat,
             lon: coords.lon,
             created: now,
@@ -237,7 +246,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       trail = trail.copyWith(
         expand: (trail.expand ?? const TrailExpand()).copyWith(
           waypointsViaTrail: [...?trail.expand?.waypointsViaTrail]
-            ..removeWhere((wp) => wp.id == waypoint.id),
+            ..removeWhere((wp) => wp.listKey == waypoint.listKey),
         ),
       );
     });
@@ -275,7 +284,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         expand: (trail.expand ?? const TrailExpand()).copyWith(
           waypointsViaTrail: [
             for (final wp in trail.expand?.waypointsViaTrail ?? const [])
-              if (wp.id == withDistance.id) withDistance else wp,
+              if (wp.listKey == withDistance.listKey) withDistance else wp,
           ],
         ),
       );

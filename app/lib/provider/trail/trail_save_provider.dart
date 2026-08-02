@@ -140,7 +140,7 @@ class TrailSave extends _$TrailSave {
     final diff = compareObjectArrays<Waypoint>(
       oldTrail.expand?.waypointsViaTrail ?? const [],
       newTrail.expand?.waypointsViaTrail ?? const [],
-      idOf: (w) => w.id,
+      idOf: (w) => w.listKey,
     );
 
     final waypointNotifier = ref.read(waypointSaveProvider.notifier);
