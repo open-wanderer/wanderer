@@ -1,9 +1,9 @@
 ---
-status: partial
+status: diagnosed
 phase: 36-local-first-recording-automatic-upload
 source: [36-VERIFICATION.md]
 started: 2026-08-02T15:48:59Z
-updated: 2026-08-02T16:57:04Z
+updated: 2026-08-02T18:06:49Z
 ---
 
 ## Current Test
@@ -56,27 +56,64 @@ blocked: 1
   reason: "User reported: The own trails list shows a spinner every so often"
   severity: minor
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "ProfileTrailsNotifier.build watches trailFilterProvider, which throws on every offline API failure and is therefore auto-retried 10x by Riverpod 3 defaultRetry (200ms doubling to 6400ms cap, ~20 emissions over ~45s). ref.watch invalidates asReload:true, producing a genuine AsyncLoading; profile_trail_screen uses .when() with the default skipLoadingOnReload:false, so each retry replaces the whole list with a full-screen spinner. The drain's ref.invalidate calls are NOT the cause (asReload:false -> seamless refresh -> skipLoadingOnRefresh defaults true)."
+  artifacts:
+    - path: "app/lib/provider/trail/trail_filter_provider.dart:60"
+      issue: "Rethrows offline failure as Exception, opting into Riverpod's 10-attempt retry loop; no offline fallback despite local-first goal"
+    - path: "app/lib/provider/profile/profile_trails_provider.dart:71"
+      issue: "Watches the retry-prone async filter provider, so its failures become list reloads; also :101 search() assigns a bare AsyncLoading() discarding previous value"
+    - path: "app/lib/routes/profile_trail_screen.dart:90"
+      issue: ".when() with default skipLoadingOnReload:false discards data already held; :173 renders a full-screen CircularProgressIndicator. Repo-wide grep found ZERO uses of skipLoadingOnReload/skipLoadingOnRefresh in app/lib - codebase-wide latent exposure"
+  missing:
+    - "Give trailFilterProvider an offline fallback (default filter) and/or an explicit retry policy so connectivity failures are not retried 10x"
+    - "Decouple the list from filter loading churn - watch a selected slice (.select((a) => a.value)) so transitions that do not change the actual TrailFilter do not reload the list"
+    - "Pass skipLoadingOnReload:true at profile_trail_screen.dart:90 (or render an inline indicator when isLoading && hasValue), and preserve the previous value in search()'s AsyncLoading"
+    - "Note: the render-path fix alone hides the flicker but leaves ~20 redundant network fetches and spurious drainIfOnline kicks in place"
+  debug_session: ".planning/debug/own-trails-spinner-flicker.md"
 
-- truth: "Tapping an unsynced trail opens the offline-capable edit screen"
+- truth: "Tapping an unsynced trail opens the trail detail screen (like any other trail), from which the user can choose to edit"
   status: failed
   reason: "User reported: Tapping on a not synced trail should open this trail like any other trail in the trail detail screen. From here the user can decide to edit it."
   severity: major
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "_onTrailSelect at profile_trail_screen.dart:53-62 short-circuits every unsynced trail to /trail/create/edit. This was a deliberate PLAN 36-07 decision forced by D-06: TrailEntity.toModel() blanks local-sentinel ids (trail_entity.dart:292), so context.push('/trail/${trail.id}') emits '/trail/' which go_router normalizes to '/trail' - a path with no GoRoute. Deleting the branch alone yields a no-route error page, not the detail screen. trailProvider also cannot load a local trail: its ObjectBox fallback filters on savedByUserIds, which local captures never set (D-10 keeps ownership and library membership separate)."
+  artifacts:
+    - path: "app/lib/routes/profile_trail_screen.dart:53-62"
+      issue: "The routing divert itself"
+    - path: "app/lib/entities/trail_entity.dart:292"
+      issue: "Blanks the id for local trails, making /trail/:id unaddressable (D-06)"
+    - path: "app/lib/provider/trail/trail_provider.dart:17-98"
+      issue: "Server-id-keyed; ObjectBox cache fallback gated on savedByUserIds which local captures never have"
+    - path: "app/lib/routes/trail_detail_screen.dart:69,72,96,123-159"
+      issue: "availableOffline/isDownloading compare empty ids; bottom bar renders a Download button whenever !availableOffline, violating D-17 the moment detail becomes reachable. LikeButton reads trailProvider(trail.id) and PUTs /trail-like"
+    - path: "app/lib/components/trail/trail_panel.dart:300,324,332"
+      issue: "Push /trail/${trail.id}/map -> '/trail//map', same no-route failure"
+    - path: "app/test/components/trail/trail_dropdown_delete_gate_test.dart"
+      issue: "Source-inspection test (greps source text of trail_dropdown.dart) so it passes green while the menu is unreachable in the running app - no automated signal caught this"
+  missing:
+    - "Make the detail screen addressable without a server id: add a sibling route (e.g. /trail/local/:localId before /trail/:id) or accept a nullable localId. Trail.localId (local-<micros>-<seq>) is the only stable handle"
+    - "Back the local case with readLocalTrail(store, localId) (local_trail_store.dart:323-341) via a localTrailProvider family. Do NOT write savedByUserIds on local captures - D-10 forbids conflating ownership with library membership"
+    - "Gate id-dependent chrome on isUnsyncedState(trail.syncState): hide bottom-bar Download (D-17), hide/disable LikeButton, hide or re-target the three /trail/:id/map pushes and the navigate push"
+    - "Add an Edit affordance on the detail screen reusing the existing push (/trail/create/edit with the Trail as extra)"
+    - "Add a widget test that pumps the own-trails list with an unsynced Trail and asserts the pushed location is the detail route - existing dropdown tests are source-greps and will not catch a regression"
+    - "Only then delete the divert branch. This also unblocks UAT Test 3 (TrailDropdown is instantiated only at trail_detail_screen.dart:98, so all D-14/D-17 gating is currently unreachable)"
+  debug_session: ".planning/debug/unsynced-trail-skips-detail-screen.md"
 
-- truth: "Edits to an unsynced trail are reflected in the own-trails list"
+- truth: "Edits to an unsynced trail are reflected in the own-trails list without a manual reload"
   status: failed
   reason: "User reported: After saving edits on a non synced trail the 'own trail' list needs a manual reload before edits are shown"
   severity: major
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "The local-first save path commits to ObjectBox but emits no invalidation signal at all. trail_create_screen.dart contains ZERO invalidate/refresh calls - its shared post-save tail _finishLocalSave (714-762) only drains, toasts and setStates its own trail field. ProfileTrailsNotifier.build() reads the local half as a one-shot readOwnLocalTrails query and the app has no ObjectBox Query.watch() streams anywhere, so a row mutation produces no reactive signal. The list screen stays mounted beneath the pushed edit route (maintainState:true), keeping the auto-dispose provider alive with its pre-edit state. The three existing invalidate(profileTrailsProvider(...)) call sites cover only successful drain upload, deleteUnsynced, and server-side delete - none fire offline."
+  artifacts:
+    - path: "app/lib/routes/trail_create_screen.dart:714-762"
+      issue: "_finishLocalSave is the shared tail of createLocal (451-506) and updateLocal (508-569) and notifies no other consumer of the row it just wrote. The alreadySynced -> _saveViaNetwork branch (583-649) is equally silent"
+    - path: "app/lib/provider/profile/profile_trails_provider.dart:85-96"
+      issue: "build() local read is one-shot; watches only trailFilterProvider, objectBoxProvider and authProvider, none of which change on a row write"
+    - path: "app/lib/routes/profile_trail_screen.dart:58"
+      issue: "Pushes the edit route without await and without any invalidate, unlike trail_dropdown.dart:107-110 which compensates caller-side - invalidation was left to callers and implemented inconsistently"
+  missing:
+    - "Invalidate profileTrailsProvider('@<preferredUsername>') (and likely trailLibraryProvider, matching the pair trail_sync_provider already invalidates) inside _finishLocalSave right after the ObjectBox write commits, deriving the handle from a fresh authProvider read"
+    - "Apply the same treatment to the _saveViaNetwork branch"
+    - "Verify the family-key handle string used by the existing invalidations ('@${userEntity.preferredUsername}') matches the screen's widget.handle exactly - a mismatch would silently no-op every one of those invalidations"
+  debug_session: ".planning/debug/unsynced-trail-edit-not-reflected-in-list.md"
