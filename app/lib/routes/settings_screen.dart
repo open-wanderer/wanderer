@@ -5,6 +5,7 @@ import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/util/unsynced_signout_guard.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -75,7 +76,10 @@ class SettingsScreen extends ConsumerWidget {
               secondary: true,
               loading: loginState.isLoading,
               child: Text(AppLocalizations.of(context)!.logout),
-              onPressed: () {
+              onPressed: () async {
+                if (!await confirmSignOutWithUnsyncedTrails(context, ref)) {
+                  return;
+                }
                 ref.read(authProvider.notifier).logout();
               },
             ),
