@@ -21,6 +21,7 @@
 /// that would show one account's captures to another.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
@@ -88,6 +89,46 @@ bool isDrainDue(TrailEntity entity, DateTime now) {
 
   final nextAttempt = entity.syncNextAttemptAt;
   return nextAttempt == null || !nextAttempt.isAfter(now);
+}
+
+/// Pure decision core of [recordDrainFailure], extracted so its
+/// attempt-count boundary is unit-testable without a live ObjectBox [Store]
+/// (Phase 31 established there is no ObjectBox test harness for plain
+/// `flutter test`).
+typedef DrainFailureOutcome = ({
+  TrailSyncState syncState,
+  int syncAttempts,
+  DateTime? syncNextAttemptAt,
+});
+
+/// Computes the next [TrailSyncState]/attempt-count/backoff-deadline after
+/// one more failed upload attempt.
+///
+/// When the incremented attempt count reaches [maxAttempts], the row is
+/// parked as [TrailSyncState.failed] with no further scheduled retry (D-07).
+/// Otherwise it goes back to [TrailSyncState.pending] with its next attempt
+/// scheduled via [backoff].
+DrainFailureOutcome resolveDrainFailureOutcome({
+  required int currentAttempts,
+  required DateTime now,
+  required int maxAttempts,
+  required Duration Function(int attempts) backoff,
+}) {
+  final newAttempts = currentAttempts + 1;
+
+  if (newAttempts >= maxAttempts) {
+    return (
+      syncState: TrailSyncState.failed,
+      syncAttempts: newAttempts,
+      syncNextAttemptAt: null,
+    );
+  }
+
+  return (
+    syncState: TrailSyncState.pending,
+    syncAttempts: newAttempts,
+    syncNextAttemptAt: now.add(backoff(newAttempts)),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -236,5 +277,288 @@ void deleteLocalTrailRow(Store store, String localId) {
       waypointBox.remove(waypoint.obxId);
     }
     trailBox.remove(entity.obxId);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Reads -- every one of them owner-scoped
+// ---------------------------------------------------------------------------
+
+/// Single-row lookup of the local trail identified by [localId].
+///
+/// Guarded by a `try/catch` that logs via [debugPrint] and returns null,
+/// matching `TrailLibraryNotifier.build()`'s "losing the one bad row is the
+/// correct blast radius" rationale.
+Trail? readLocalTrail(Store store, String localId) {
+  final query = store.box<TrailEntity>()
+      .query(TrailEntity_.localId.equals(localId))
+      .build();
+  final entity = query.findFirst();
+  query.close();
+  if (entity == null) return null;
+
+  try {
+    return entity.toModel();
+  } catch (e, st) {
+    debugPrint(
+      'local_trail_store: readLocalTrail("$localId") failed to parse: '
+      '$e\n$st',
+    );
+    return null;
+  }
+}
+
+/// Every trail [accountId] can see in its own-trails list: trails it
+/// captured on this device (not yet uploaded, or uploaded already, or
+/// downloaded), plus any downloaded trail it happens to have authored
+/// itself.
+///
+/// The query casts a broad net (`owner == accountId` OR `savedByUserIds`
+/// contains `accountId`), then keeps a row only when `entity.owner ==
+/// accountId` OR (`authorActorId != null && entity.author.target?.id ==
+/// authorActorId`). The second clause is REC-06's "downloaded trails the
+/// hiker authored themselves"; the `owner` clause is every not-yet-uploaded
+/// capture. A row whose `owner` is null can NEVER satisfy the first clause
+/// -- that is what keeps a pre-existing downloaded row (owner unset) from
+/// leaking into another account's own-trails list (T-36-03-01).
+///
+/// Converted with the same per-entity `try/catch` guard
+/// [TrailLibraryNotifier.build] uses, sorted by `created` descending, and
+/// returned as a flat list -- no sectioning and no special sort (D-11).
+List<Trail> readOwnLocalTrails(
+  Store store, {
+  required String accountId,
+  String? authorActorId,
+}) {
+  final box = store.box<TrailEntity>();
+  final query = box
+      .query(
+        TrailEntity_.owner.equals(accountId) |
+            TrailEntity_.savedByUserIds.containsElement(accountId),
+      )
+      .build();
+
+  final trails = <Trail>[];
+  for (final entity in query.find()) {
+    final isOwn = entity.owner == accountId;
+    final isAuthoredByThisAccount =
+        authorActorId != null && entity.author.target?.id == authorActorId;
+    if (!isOwn && !isAuthoredByThisAccount) continue;
+
+    try {
+      trails.add(entity.toModel());
+    } catch (e, st) {
+      debugPrint(
+        'local_trail_store: readOwnLocalTrails skipping "${entity.id}" -- '
+        'toModel() failed: $e\n$st',
+      );
+    }
+  }
+  query.close();
+
+  trails.sort((a, b) => b.created.compareTo(a.created));
+  return trails;
+}
+
+/// Counts [accountId]'s not-yet-synced local trails. Used by the sign-out
+/// warning (D-12).
+int countUnsyncedTrails(Store store, String accountId) {
+  final query = store.box<TrailEntity>()
+      .query(
+        TrailEntity_.owner.equals(accountId) &
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
+      )
+      .build();
+  final count = query.count();
+  query.close();
+  return count;
+}
+
+/// Every non-null [TrailEntity.localId] across ALL accounts whose row is
+/// not synced.
+///
+/// Deliberately NOT account-scoped: its only consumer is the startup photo
+/// orphan sweep, which must not delete a signed-out account's still-pending
+/// photos just because that account is not the currently signed-in one
+/// (D-13 hides another account's content, it never deletes it).
+Set<String> unsyncedLocalIds(Store store) {
+  final query = store.box<TrailEntity>()
+      .query(
+        TrailEntity_.localId.notNull() &
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
+      )
+      .build();
+
+  final ids = <String>{};
+  for (final entity in query.find()) {
+    final localId = entity.localId;
+    if (localId != null) ids.add(localId);
+  }
+  query.close();
+  return ids;
+}
+
+/// [accountId]'s local trails whose upload is due right now, oldest
+/// [TrailEntity.created] first so a hike's trails upload in capture order.
+///
+/// Returns entities, not models, because the drain needs the live rows to
+/// pass into the bookkeeping writes below.
+List<TrailEntity> selectDrainCandidates(
+  Store store, {
+  required String accountId,
+  required DateTime now,
+}) {
+  final query = store.box<TrailEntity>()
+      .query(
+        TrailEntity_.owner.equals(accountId) &
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
+      )
+      .build();
+  final candidates = query.find().where((e) => isDrainDue(e, now)).toList();
+  query.close();
+
+  candidates.sort((a, b) => a.created.compareTo(b.created));
+  return candidates;
+}
+
+// ---------------------------------------------------------------------------
+// Drain bookkeeping -- each one its own small write transaction
+// ---------------------------------------------------------------------------
+
+/// SYNC-04's load-bearing write: stamps the server-assigned [serverId] onto
+/// the local row identified by [localId], leaving `localId`, `owner` and
+/// `syncState` untouched.
+///
+/// Must be callable, and must commit, the instant `PUT /trail/form`
+/// returns, before any waypoint upload starts (RESEARCH.md Pitfall 3 --
+/// there is no server-side idempotency key, so a crash between "server
+/// accepted" and "id persisted" is what produces a duplicate trail).
+void writeServerTrailId(
+  Store store, {
+  required String localId,
+  required String serverId,
+}) {
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.localId.equals(localId)).build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    entity.id = serverId;
+    box.put(entity);
+  });
+}
+
+/// Stamps the server-assigned [serverWaypointId] and [serverPhotoFilenames]
+/// onto the child [WaypointEntity] identified by [waypointLocalKey] under
+/// the trail [localId], clearing its `localPhotos`.
+void writeServerWaypointId(
+  Store store, {
+  required String localId,
+  required String waypointLocalKey,
+  required String serverWaypointId,
+  List<String> serverPhotoFilenames = const [],
+}) {
+  store.runInTransaction(TxMode.write, () {
+    final trailQuery = store.box<TrailEntity>()
+        .query(TrailEntity_.localId.equals(localId))
+        .build();
+    final trailEntity = trailQuery.findFirst();
+    trailQuery.close();
+    if (trailEntity == null) return;
+
+    WaypointEntity? target;
+    for (final waypoint in trailEntity.waypoints) {
+      if (waypoint.localKey == waypointLocalKey) {
+        target = waypoint;
+        break;
+      }
+    }
+    if (target == null) return;
+
+    target.id = serverWaypointId;
+    target.photos = serverPhotoFilenames;
+    target.localPhotos = [];
+    store.box<WaypointEntity>().put(target);
+  });
+}
+
+/// Marks the local row for [localId] as fully synced.
+///
+/// Sets [TrailSyncState.synced], resets `syncAttempts` to 0 and
+/// `syncNextAttemptAt` to null, replaces `photos` with
+/// [serverPhotoFilenames] and clears `localPhotos`. The row is kept, not
+/// deleted -- its `obxId` never changes across the transition, which is
+/// exactly what SYNC-05's "keeps its identity in place" means concretely.
+void markTrailSynced(
+  Store store, {
+  required String localId,
+  List<String> serverPhotoFilenames = const [],
+}) {
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.localId.equals(localId)).build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    entity.syncState = TrailSyncState.synced;
+    entity.syncAttempts = 0;
+    entity.syncNextAttemptAt = null;
+    entity.photos = serverPhotoFilenames;
+    entity.localPhotos = [];
+    box.put(entity);
+  });
+}
+
+/// Records one more failed upload attempt for the local row [localId].
+///
+/// Delegates the attempt-count/backoff decision to
+/// [resolveDrainFailureOutcome] -- see that function's doc comment for the
+/// D-07 parking behaviour.
+void recordDrainFailure(
+  Store store, {
+  required String localId,
+  required DateTime now,
+  required int maxAttempts,
+  required Duration Function(int attempts) backoff,
+}) {
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.localId.equals(localId)).build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    final outcome = resolveDrainFailureOutcome(
+      currentAttempts: entity.syncAttempts,
+      now: now,
+      maxAttempts: maxAttempts,
+      backoff: backoff,
+    );
+
+    entity.syncState = outcome.syncState;
+    entity.syncAttempts = outcome.syncAttempts;
+    entity.syncNextAttemptAt = outcome.syncNextAttemptAt;
+    box.put(entity);
+  });
+}
+
+/// SYNC-03's manual-retry primitive: resets the local row for [localId]
+/// back to a fresh [TrailSyncState.pending] state with zero attempts and no
+/// scheduled backoff.
+void resetDrainBackoff(Store store, String localId) {
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.localId.equals(localId)).build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    entity.syncState = TrailSyncState.pending;
+    entity.syncAttempts = 0;
+    entity.syncNextAttemptAt = null;
+    box.put(entity);
   });
 }

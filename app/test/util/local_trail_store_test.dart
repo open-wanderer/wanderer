@@ -111,4 +111,40 @@ void main() {
       expect(isDrainDue(entity, DateTime.now()), isFalse);
     });
   });
+
+  group('resolveDrainFailureOutcome', () {
+    test(
+      'parks the row as failed with no scheduled retry once the '
+      'incremented attempt count reaches maxAttempts',
+      () {
+        final now = DateTime.now();
+
+        final outcome = resolveDrainFailureOutcome(
+          currentAttempts: 2,
+          now: now,
+          maxAttempts: 3,
+          backoff: (attempts) => Duration(minutes: attempts),
+        );
+
+        expect(outcome.syncState, TrailSyncState.failed);
+        expect(outcome.syncAttempts, 3);
+        expect(outcome.syncNextAttemptAt, isNull);
+      },
+    );
+
+    test('stays pending with a backoff-scheduled retry below maxAttempts', () {
+      final now = DateTime.now();
+
+      final outcome = resolveDrainFailureOutcome(
+        currentAttempts: 0,
+        now: now,
+        maxAttempts: 3,
+        backoff: (attempts) => Duration(minutes: attempts * 5),
+      );
+
+      expect(outcome.syncState, TrailSyncState.pending);
+      expect(outcome.syncAttempts, 1);
+      expect(outcome.syncNextAttemptAt, now.add(const Duration(minutes: 5)));
+    });
+  });
 }
