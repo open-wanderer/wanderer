@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-07-PLAN.md
-last_updated: "2026-08-02T14:08:02.929Z"
+stopped_at: Completed 36-06-PLAN.md
+last_updated: "2026-08-02T14:22:44.533Z"
 last_activity: 2026-08-02 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 20
-  completed_plans: 19
+  completed_plans: 20
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-08-02 -- Phase 36 execution started
 
@@ -156,6 +156,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P04 | 35min | 3 tasks | 10 files |
 | Phase 36 P05 | 15min | 2 tasks | 5 files |
 | Phase 36 P07 | 25min | 3 tasks | 6 files |
+| Phase 36 P06 | 20min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -361,6 +362,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [36-07] ProfileTrailsNotifier keeps mutable (non-late-final) _isOwnHandle/_authorActorId fields reassigned at the top of every build(), matching the file's existing _handle precedent -- a late final field would throw on the second build() since the Notifier survives rebuilds
 - [Phase 36]: [36-07] A failed network fetch for the own handle is swallowed (never rethrown) into offline: true regardless of whether local rows are empty -- REC-06's offline empty state is itself a valid outcome
 - [Phase 36]: [36-07] loadNextPage re-derives the local id set fresh via _readOwnLocal and dedupes every subsequent network page against it, not just page 1 -- an uploaded local trail's server hit is not guaranteed to land on the first page
+- [Phase 36]: [Phase 36] [36-06] Both local-first _onSave branches never touch the network, online or offline -- a fire-and-forget drainIfOnline() kick runs immediately after a successful local write instead of a network-first branch with an offline-catch fallback
+- [Phase 36]: [Phase 36] [36-06] Waypoint list identity (in-memory ops and updateTrail's compareObjectArrays diff) now keys on Waypoint.listKey instead of .id, since ids can legitimately be empty for a not-yet-uploaded waypoint
 
 ### Roadmap Evolution
 
@@ -514,8 +517,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-02T14:08:02.908Z
-Stopped at: Completed 36-07-PLAN.md
+Last session: 2026-08-02T14:22:44.516Z
+Stopped at: Completed 36-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

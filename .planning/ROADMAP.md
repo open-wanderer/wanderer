@@ -494,7 +494,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion; 36-06, 36-07 and 36-08 run in parallel)*
 
-- [ ] 36-06-PLAN.md — Local-first `_onSave`: three-way branch, photo copy with D-03 reporting, empty ids for every not-yet-uploaded waypoint
+- [x] 36-06-PLAN.md — Local-first `_onSave`: three-way branch, photo copy with D-03 reporting, empty ids for every not-yet-uploaded waypoint
 - [x] 36-07-PLAN.md — `/profile/<handle>/trails` goes local-first: local+network merge deduped by server id, offline banner and empty state, unsynced tap routing
 - [ ] 36-08-PLAN.md — `SyncStatusChip` on card and list item, and the `trail_dropdown` split (download hidden, delete confirmed as unrecoverable and blocked mid-drain)
 
@@ -632,5 +632,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 6/8 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 7/8 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
