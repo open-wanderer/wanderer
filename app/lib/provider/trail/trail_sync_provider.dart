@@ -133,22 +133,35 @@ class TrailSync extends _$TrailSync {
     final localId = entity.localId;
     if (localId == null) return;
     if (state.contains(localId)) return;
+
+    // Resolved BEFORE the in-flight set is joined and before the try below,
+    // so a missing row costs nothing. A vanished UserEntity is not a network
+    // condition at all -- it means the account row went away underneath us (a
+    // mid-logout race, `account_data_purge_util` running concurrently). Thrown
+    // inside the try it landed in the generic failure handler and consumed one
+    // of the four kMaxSyncAttempts; four such passes, which a lifecycle or
+    // connectivity flurry can produce within seconds, parked a perfectly good
+    // trail as `failed`, after which isDrainDue returns false forever and only
+    // a manual tap on the chip revives it. sync_backoff.dart's own doc comment
+    // argues the attempt count should escalate only on real upload failures.
+    final userQuery = store
+        .box<UserEntity>()
+        .query(UserEntity_.id.equals(accountId))
+        .build();
+    final userEntity = userQuery.findFirst();
+    userQuery.close();
+    if (userEntity == null) {
+      debugPrint(
+        'trail_sync_provider: no UserEntity for "$accountId"; skipping drain '
+        'of "$localId" without recording a failed attempt',
+      );
+      return;
+    }
+    final authorId = userEntity.actorId;
+
     state = {...state, localId};
 
     try {
-      final userQuery = store
-          .box<UserEntity>()
-          .query(UserEntity_.id.equals(accountId))
-          .build();
-      final userEntity = userQuery.findFirst();
-      userQuery.close();
-      if (userEntity == null) {
-        throw StateError(
-          'trail_sync_provider: no UserEntity found for account "$accountId"',
-        );
-      }
-      final authorId = userEntity.actorId;
-
       markTrailUploading(store, localId);
 
       // Step 1: tag reuse/create (D-06) applies whether or not the trail
