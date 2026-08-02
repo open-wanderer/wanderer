@@ -123,11 +123,19 @@ class WaypointSave extends _$WaypointSave {
     final formData = FormData();
     for (final path in newPhotos) {
       formData.files.add(
-        MapEntry('photos', await MultipartFile.fromFile(path, filename: File(path).uri.pathSegments.last)),
+        MapEntry(
+          'photos',
+          await MultipartFile.fromFile(
+            path,
+            filename: File(path).uri.pathSegments.last,
+          ),
+        ),
       );
     }
     for (final filename in removedFilenames) {
-      formData.fields.add(MapEntry('photos-', filename.split(RegExp(r'[\\/]')).last));
+      formData.fields.add(
+        MapEntry('photos-', filename.split(RegExp(r'[\\/]')).last),
+      );
     }
 
     final response = await ref

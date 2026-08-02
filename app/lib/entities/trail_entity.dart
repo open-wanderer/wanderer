@@ -274,9 +274,7 @@ List<Tag> decodeTrailTags(String? tagsJson) {
   if (tagsJson == null || tagsJson.isEmpty) return const [];
   try {
     final decoded = jsonDecode(tagsJson) as List<dynamic>;
-    return decoded
-        .map((e) => Tag.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return decoded.map((e) => Tag.fromJson(e as Map<String, dynamic>)).toList();
   } catch (e, st) {
     debugPrint('trail_entity: could not decode tagsJson "$tagsJson": $e\n$st');
     return const [];
