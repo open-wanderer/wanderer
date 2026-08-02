@@ -321,7 +321,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
-- [x] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the library, and uploads itself once the phone is back online (completed 2026-08-02)
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; verification returned `human_needed` — 4 device-only checks pending in 36-UAT.md)
 
 #### Sequencing Rationale
 
