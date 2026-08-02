@@ -41,7 +41,7 @@ This phase adds no new spacing tier. Reuse the increments `trail_card.dart`/`tra
 | md | 16px | Card padding, section spacing |
 | lg | 24px | Screen-edge horizontal padding (`library_screen.dart`, `EdgeInsets.symmetric(horizontal: 24.0)` on empty states) |
 
-Exceptions: the codebase does not enforce a strict 4px-multiple discipline (3px, 5px, 6px, 10px all appear in `trail_card.dart`/`trail_list_item.dart`). New elements this phase adds (sync-status chip, dialogs) MUST use only 4/8/12/16 to avoid adding a fifth ad-hoc increment — match the *nearest* existing sibling, don't invent a new one.
+Exceptions: the codebase does not enforce a strict 4px-multiple discipline (3px, 5px, 6px, 10px all appear in `trail_card.dart`/`trail_list_item.dart`). These are documentation of pre-existing code only — they are not licensed for reuse. New elements this phase adds (sync-status chip, dialogs) MUST use only 4/8/12/16 to avoid adding a fifth ad-hoc increment — match the *nearest* existing sibling, don't invent a new one, and never copy a 3/5/6/10px value into new code.
 
 ---
 
@@ -51,10 +51,12 @@ No new type scale — reuse the sizes already in play on the cards this phase mo
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Sync-chip label | 11px | 400 regular (500 medium for Failed only) | 1.3 |
+| Sync-chip label | 11px | 400 regular (all states, incl. Failed) | 1.3 |
 | Card metadata (date/author) | 12px | 400 regular | 1.3 |
 | Card title | 15px (list item) / 17px (card) | 700 bold | 1.2 |
 | Dialog body | Flutter `AlertDialog` default (`bodyMedium`, ~14px) | 400 regular | 1.4 |
+
+Only two weights in use: 400 regular and 700 bold. The Failed sync-chip label stays 400 regular, same as Pending/Uploading — it does not need its own weight variant because `Colors.red` plus the `triangleExclamation` icon (see Color, New Components & States) already carry the emphasis a heavier weight would otherwise add.
 
 Font family is `IBMPlexSans` everywhere via the app theme — never set a different family in new widgets.
 
