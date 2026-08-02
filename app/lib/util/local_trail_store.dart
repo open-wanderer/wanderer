@@ -425,18 +425,27 @@ List<TrailEntity> selectDrainCandidates(
 // Drain bookkeeping -- each one its own small write transaction
 // ---------------------------------------------------------------------------
 
-/// SYNC-04's load-bearing write: stamps the server-assigned [serverId] onto
-/// the local row identified by [localId], leaving `localId`, `owner` and
-/// `syncState` untouched.
+/// SYNC-04's load-bearing write: stamps the server-assigned [serverId] and
+/// [serverPhotoFilenames] onto the local row identified by [localId], leaving
+/// `localId`, `owner` and `syncState` untouched.
 ///
 /// Must be callable, and must commit, the instant `PUT /trail/form`
 /// returns, before any waypoint upload starts (RESEARCH.md Pitfall 3 --
 /// there is no server-side idempotency key, so a crash between "server
 /// accepted" and "id persisted" is what produces a duplicate trail).
+///
+/// [serverPhotoFilenames] commits in the SAME transaction as [serverId] on
+/// purpose. The two facts are learned from one response and are only
+/// meaningful together: a row that has the server id but not the photo list
+/// looks, to a resumed drain, exactly like a trail with no photos at all --
+/// which is how [markTrailSynced] came to persist an empty `photos` column
+/// and `deleteUnsyncedPhotoDir` came to delete the only copies left on the
+/// device.
 void writeServerTrailId(
   Store store, {
   required String localId,
   required String serverId,
+  List<String> serverPhotoFilenames = const [],
 }) {
   store.runInTransaction(TxMode.write, () {
     final box = store.box<TrailEntity>();
@@ -446,6 +455,7 @@ void writeServerTrailId(
     if (entity == null) return;
 
     entity.id = serverId;
+    entity.photos = serverPhotoFilenames;
     box.put(entity);
   });
 }
@@ -487,14 +497,25 @@ void writeServerWaypointId(
 /// Marks the local row for [localId] as fully synced.
 ///
 /// Sets [TrailSyncState.synced], resets `syncAttempts` to 0 and
-/// `syncNextAttemptAt` to null, replaces `photos` with
-/// [serverPhotoFilenames] and clears `localPhotos`. The row is kept, not
-/// deleted -- its `obxId` never changes across the transition, which is
+/// `syncNextAttemptAt` to null, and clears `localPhotos`. The row is kept,
+/// not deleted -- its `obxId` never changes across the transition, which is
 /// exactly what SYNC-05's "keeps its identity in place" means concretely.
+///
+/// [serverPhotoFilenames] is NULLABLE and defaults to null, meaning "leave
+/// the row's existing `photos` alone". That default is the safe one and the
+/// one the drain uses: [writeServerTrailId] already persisted the server's
+/// photo list in the same transaction as the server id, so by the time this
+/// runs the row is authoritative. Passing a non-null list REPLACES `photos`,
+/// and passing an empty one therefore erases it -- which is precisely the bug
+/// this signature change exists to make impossible to write by accident. On a
+/// resumed drain (the trail was created by an earlier attempt that then failed
+/// at a waypoint) the caller has no fresh photo list to offer, and the old
+/// `const []` default silently wiped the column and left
+/// `deleteUnsyncedPhotoDir` to delete the last copies off the device.
 void markTrailSynced(
   Store store, {
   required String localId,
-  List<String> serverPhotoFilenames = const [],
+  List<String>? serverPhotoFilenames,
 }) {
   store.runInTransaction(TxMode.write, () {
     final box = store.box<TrailEntity>();
@@ -506,7 +527,9 @@ void markTrailSynced(
     entity.syncState = TrailSyncState.synced;
     entity.syncAttempts = 0;
     entity.syncNextAttemptAt = null;
-    entity.photos = serverPhotoFilenames;
+    if (serverPhotoFilenames != null) {
+      entity.photos = serverPhotoFilenames;
+    }
     entity.localPhotos = [];
     box.put(entity);
   });

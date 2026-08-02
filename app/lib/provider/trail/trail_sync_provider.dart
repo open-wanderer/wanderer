@@ -130,7 +130,6 @@ class TrailSync extends _$TrailSync {
           .resolveTags(trailModel.expand?.tags ?? const []);
 
       var serverTrailId = entity.id;
-      var serverPhotoFilenames = entity.photos;
 
       // Step 2: create the trail itself, only when it has not already been
       // created by a prior partial attempt.
@@ -153,14 +152,24 @@ class TrailSync extends _$TrailSync {
             );
         final created = Trail.fromJson(response.data);
         serverTrailId = created.id;
-        serverPhotoFilenames = created.photos;
 
         // SYNC-04: commits the instant the server accepted the create,
         // BEFORE any waypoint upload starts below. There is no server-side
         // idempotency key, so a crash between "server accepted" and "id
         // persisted" is exactly what produces a duplicate trail
         // (RESEARCH.md Pitfall 3).
-        writeServerTrailId(store, localId: localId, serverId: serverTrailId);
+        //
+        // The photo list rides along in the same transaction so that a drain
+        // RESUMING at step 3 or 4 finds a truthful `photos` column. It used
+        // to find `[]` -- the value `TrailEntity.fromModel` leaves behind --
+        // and step 4 persisted that emptiness before deleting the on-disk
+        // copies.
+        writeServerTrailId(
+          store,
+          localId: localId,
+          serverId: serverTrailId,
+          serverPhotoFilenames: created.photos,
+        );
       }
 
       // Step 3: each waypoint that has not already been created.
@@ -209,12 +218,12 @@ class TrailSync extends _$TrailSync {
         );
       }
 
-      // Step 4: full success.
-      markTrailSynced(
-        store,
-        localId: localId,
-        serverPhotoFilenames: serverPhotoFilenames,
-      );
+      // Step 4: full success. No photo list is passed: step 2 already
+      // committed the server's list onto the row, and on a resumed drain
+      // this pass never learned one. `markTrailSynced`'s null default means
+      // "keep what the row already holds", so the photos survive either way
+      // and it is safe to delete the unsynced copies below.
+      markTrailSynced(store, localId: localId);
       await deleteUnsyncedPhotoDir(localId);
 
       ref.invalidate(trailLibraryProvider);
