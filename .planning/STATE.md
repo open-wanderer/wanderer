@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Phase 36 UI-SPEC approved
-last_updated: "2026-08-02T11:51:02.514Z"
-last_activity: "2026-08-02 -- Phase 35 complete: OFFUI-01..04 shipped, device-verified, scoped security audit 0 open"
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-08-02T12:03:36.809Z"
+last_activity: 2026-08-02 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 12
-  completed_plans: 13
+  total_plans: 20
+  completed_plans: 14
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 36 — local-first-recording-&-automatic-upload
+**Current focus:** Phase 36 — local-first-recording-automatic-upload
 
 ## Current Position
 
-Phase: 36
-Plan: Not started
+Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-08-02 -- Phase 35 complete: OFFUI-01..04 shipped, device-verified, scoped security audit 0 open
+Last activity: 2026-08-02 -- Phase 36 execution started
 
 ## v1.8 Phases
 
@@ -150,6 +150,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 34-dart-conversion-port P05 | 45min | 3 tasks | 6 files |
 | Phase 34 P06 | 26min | 3 tasks | 8 files |
 | Phase 34 P07 | 20min | 2 tasks | 2 files |
+| Phase 36 P01 | 10min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -343,6 +344,8 @@ Recent decisions affecting current work:
 - [Phase 34]: resolveTrackSaveOptions is the single online gate for showTrackSaveOptionsSheet across recording, planner and import — D-15: offline and 'declined both online' must be one code path, not two
 - [Phase 34]: A snapped planner leg forces its first/last point back onto the original anchor coordinates — T-34-28: anchorsFromTrack/segmentPolylinesFromTrack locate anchors by exact coordinate match
 - [Phase 34]: [34-07] Convert endpoint reduced to transcode-only per D-05/D-06/D-07; regenerated wanderer.openapi.json verified (Trail ref removed, moving_duration survived, deterministic) but not committed (gitignored per web/.gitignore:6)
+- [Phase ?]: [Phase 36] [36-01] TrailSyncState.synced pinned to enum index 0 so every pre-existing row defaults to Synced with no badge
+- [Phase ?]: [Phase 36] [36-01] owner kept strictly separate from savedByUserIds (1:1 authorship vs 1:N download-library membership); fromModel never sets owner or localPhotos
 
 ### Roadmap Evolution
 
@@ -495,9 +498,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-02T11:16:40.032Z
-Stopped at: Phase 36 UI-SPEC approved
-Resume file: .planning/phases/36-local-first-recording-automatic-upload/36-UI-SPEC.md
+Last session: 2026-08-02T12:03:36.792Z
+Stopped at: Completed 36-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

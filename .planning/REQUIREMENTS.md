@@ -45,11 +45,11 @@ any requirement: Phase 35's OFFUI-03 gets an offline GPX import as far as a popu
 `trail_create_screen`, and without this widening, pressing Save there would still fail — after
 the hiker had filled in title, description, category and photos.
 
-- [ ] **REC-01**: Capturing a trail with no connection saves it — whether ended from a recording or imported from a GPX file — and the hiker is never shown a save failure caused by being offline
+- [x] **REC-01**: Capturing a trail with no connection saves it — whether ended from a recording or imported from a GPX file — and the hiker is never shown a save failure caused by being offline
 - [ ] **REC-02**: A saved unsynced trail appears in the hiker's own-trails list (`/profile/<handle>/trails`) immediately, before it has ever reached the server — **not** in the Library, which is exclusively trails the hiker downloaded
-- [ ] **REC-03**: An unsynced trail is visibly distinguishable from a synced trail, and from a trail downloaded for offline use
+- [x] **REC-03**: An unsynced trail is visibly distinguishable from a synced trail, and from a trail downloaded for offline use
 - [ ] **REC-06**: With no connection, the hiker's own-trails list still renders — showing every not-yet-uploaded trail plus those downloaded trails the hiker authored themselves — and states plainly that it is currently showing only what is available offline
-- [ ] **REC-04**: An unsynced trail survives app restart and stays associated with the account that captured it; signing in as a different account does not show or upload it, and signing out does not delete it
+- [x] **REC-04**: An unsynced trail survives app restart and stays associated with the account that captured it; signing in as a different account does not show or upload it, and signing out does not delete it
 - [ ] **REC-05**: A hiker can open, review, and edit an unsynced trail's details (title, description, category, photos) while still offline
 
 ### Background Upload
@@ -57,8 +57,8 @@ the hiker had filled in title, description, category and photos.
 - [ ] **SYNC-01**: An unsynced trail uploads on its own once the app is foregrounded with a working connection, with no action from the hiker
 - [ ] **SYNC-02**: Upload progress and failure are visible on the trail itself, inline in the hiker's own-trails list, rather than in a separate pending-uploads screen
 - [ ] **SYNC-03**: A hiker can manually retry an upload that failed or stalled
-- [ ] **SYNC-04**: An interrupted upload does not produce a duplicate trail on the server when it is retried
-- [ ] **SYNC-05**: Once uploaded, an unsynced trail becomes an ordinary trail — it keeps its identity in the library rather than appearing a second time
+- [x] **SYNC-04**: An interrupted upload does not produce a duplicate trail on the server when it is retried
+- [x] **SYNC-05**: Once uploaded, an unsynced trail becomes an ordinary trail — it keeps its identity in the library rather than appearing a second time
 
 ### Offline Create/Import UX
 
@@ -115,17 +115,17 @@ Populated during roadmap creation.
 | PORT-03 | Phase 34 | Complete |
 | PORT-04 | Phase 34 | Complete |
 | PORT-05 | Phase 34 | Complete |
-| REC-01 | Phase 36 | Pending |
+| REC-01 | Phase 36 | Complete |
 | REC-02 | Phase 36 | Pending |
-| REC-03 | Phase 36 | Pending |
-| REC-04 | Phase 36 | Pending |
+| REC-03 | Phase 36 | Complete |
+| REC-04 | Phase 36 | Complete |
 | REC-05 | Phase 36 | Pending |
 | REC-06 | Phase 36 | Pending |
 | SYNC-01 | Phase 36 | Pending |
 | SYNC-02 | Phase 36 | Pending |
 | SYNC-03 | Phase 36 | Pending |
-| SYNC-04 | Phase 36 | Pending |
-| SYNC-05 | Phase 36 | Pending |
+| SYNC-04 | Phase 36 | Complete |
+| SYNC-05 | Phase 36 | Complete |
 | OFFUI-01 | Phase 35 | Complete |
 | OFFUI-02 | Phase 35 | Complete |
 | OFFUI-03 | Phase 35 | Complete |
