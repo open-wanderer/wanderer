@@ -51,7 +51,7 @@ final class ProfileTrailsNotifierProvider
 }
 
 String _$profileTrailsNotifierHash() =>
-    r'947100cd8e3cada16cbe4a7b3c7b0f3afe948bd4';
+    r'2222bda38996b321f44461e81c630a793e069a77';
 
 final class ProfileTrailsNotifierFamily extends $Family
     with
