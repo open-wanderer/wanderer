@@ -182,6 +182,10 @@ class AppLocalizationsEu extends AppLocalizations {
       'Ibilbide hau ezabatu nahi duzu? Akzio hau ezin da atzera bota.';
 
   @override
+  String get delete_unsynced_trail_confirm =>
+      'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
+
+  @override
   String get description => 'Deskribapena';
 
   @override
@@ -477,6 +481,17 @@ class AppLocalizationsEu extends AppLocalizations {
   String get orientation => 'Orientazioa';
 
   @override
+  String get own_trails_empty_body =>
+      'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
+
+  @override
+  String get own_trails_empty_title => 'Nothing saved yet';
+
+  @override
+  String get own_trails_offline_banner =>
+      'Showing what\'s saved on this device — connect to see everything.';
+
+  @override
   String get paragraph => 'Paragrafoa';
 
   @override
@@ -490,6 +505,17 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get passwords_must_match => 'Pasahitzek bat etorri behar dute';
+
+  @override
+  String photo_copy_failed_toast(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Trail saved, but $count photos couldn\'t be saved.',
+      one: 'Trail saved, but 1 photo couldn\'t be saved.',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get photos => 'Argazkiak eta bideoak';
@@ -548,6 +574,9 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Resume recording?';
+
+  @override
+  String get retry_upload => 'Retry upload';
 
   @override
   String get road => 'Errepidea';
@@ -676,6 +705,19 @@ class AppLocalizationsEu extends AppLocalizations {
   String get shower => 'Dutxa';
 
   @override
+  String signout_unsynced_warning(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You have $count trails not uploaded yet. Signing out won\'t delete them — they\'ll be here when you sign back in — but they won\'t upload until then.',
+      one:
+          'You have 1 trail not uploaded yet. Signing out won\'t delete it — it\'ll be here when you sign back in — but it won\'t upload until then.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get slogan => 'Zure ibilbideak. Zure datuak. Zure zerbitzaria.';
 
   @override
@@ -692,6 +734,15 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get summit_book => 'Igoeren liburua';
+
+  @override
+  String get sync_failed => 'Upload failed · Tap to retry';
+
+  @override
+  String get sync_pending => 'Waiting to upload';
+
+  @override
+  String get sync_uploading => 'Uploading…';
 
   @override
   String get table => 'Taula';

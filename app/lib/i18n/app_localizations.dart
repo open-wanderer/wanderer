@@ -422,6 +422,12 @@ abstract class AppLocalizations {
   /// **'Do you really want to delete this trail? This action cannot be undone.'**
   String get delete_trail_confirm;
 
+  /// No description provided for @delete_unsynced_trail_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.'**
+  String get delete_unsynced_trail_confirm;
+
   /// No description provided for @description.
   ///
   /// In en, this message translates to:
@@ -980,6 +986,24 @@ abstract class AppLocalizations {
   /// **'Orientation'**
   String get orientation;
 
+  /// No description provided for @own_trails_empty_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Trails you record or save offline appear here, and upload automatically once you\'re back online.'**
+  String get own_trails_empty_body;
+
+  /// No description provided for @own_trails_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing saved yet'**
+  String get own_trails_empty_title;
+
+  /// No description provided for @own_trails_offline_banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing what\'s saved on this device — connect to see everything.'**
+  String get own_trails_offline_banner;
+
   /// No description provided for @paragraph.
   ///
   /// In en, this message translates to:
@@ -1009,6 +1033,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Passwords must match'**
   String get passwords_must_match;
+
+  /// No description provided for @photo_copy_failed_toast.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {Trail saved, but 1 photo couldn\'t be saved.} other {Trail saved, but {count} photos couldn\'t be saved.}}'**
+  String photo_copy_failed_toast(num count);
 
   /// No description provided for @photos.
   ///
@@ -1105,6 +1135,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume recording?'**
   String get resume_recording_prompt;
+
+  /// No description provided for @retry_upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry upload'**
+  String get retry_upload;
 
   /// No description provided for @road.
   ///
@@ -1310,6 +1346,12 @@ abstract class AppLocalizations {
   /// **'Shower'**
   String get shower;
 
+  /// No description provided for @signout_unsynced_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won\'t delete it — it\'ll be here when you sign back in — but it won\'t upload until then.} other {You have {count} trails not uploaded yet. Signing out won\'t delete them — they\'ll be here when you sign back in — but they won\'t upload until then.}}'**
+  String signout_unsynced_warning(num count);
+
   /// No description provided for @slogan.
   ///
   /// In en, this message translates to:
@@ -1345,6 +1387,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Summit Book'**
   String get summit_book;
+
+  /// No description provided for @sync_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload failed · Tap to retry'**
+  String get sync_failed;
+
+  /// No description provided for @sync_pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting to upload'**
+  String get sync_pending;
+
+  /// No description provided for @sync_uploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading…'**
+  String get sync_uploading;
 
   /// No description provided for @table.
   ///

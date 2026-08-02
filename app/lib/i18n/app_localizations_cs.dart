@@ -184,6 +184,10 @@ class AppLocalizationsCs extends AppLocalizations {
       'Doopravdy chcete tuto trasu smazat? Tuto akci nelze vrátit zpět.';
 
   @override
+  String get delete_unsynced_trail_confirm =>
+      'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
+
+  @override
   String get description => 'Popis';
 
   @override
@@ -480,6 +484,17 @@ class AppLocalizationsCs extends AppLocalizations {
   String get orientation => 'Orientace';
 
   @override
+  String get own_trails_empty_body =>
+      'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
+
+  @override
+  String get own_trails_empty_title => 'Nothing saved yet';
+
+  @override
+  String get own_trails_offline_banner =>
+      'Showing what\'s saved on this device — connect to see everything.';
+
+  @override
   String get paragraph => 'Odstavec';
 
   @override
@@ -493,6 +508,17 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get passwords_must_match => 'Hesla se musí shodovat';
+
+  @override
+  String photo_copy_failed_toast(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Trail saved, but $count photos couldn\'t be saved.',
+      one: 'Trail saved, but 1 photo couldn\'t be saved.',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get photos => 'Fotografie a videa';
@@ -551,6 +577,9 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Obnovit nahrávání?';
+
+  @override
+  String get retry_upload => 'Retry upload';
 
   @override
   String get road => 'Silnice';
@@ -676,6 +705,19 @@ class AppLocalizationsCs extends AppLocalizations {
   String get shower => 'Sprcha';
 
   @override
+  String signout_unsynced_warning(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You have $count trails not uploaded yet. Signing out won\'t delete them — they\'ll be here when you sign back in — but they won\'t upload until then.',
+      one:
+          'You have 1 trail not uploaded yet. Signing out won\'t delete it — it\'ll be here when you sign back in — but it won\'t upload until then.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get slogan => 'Vaše trasy. Vaše data. Váš server.';
 
   @override
@@ -692,6 +734,15 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get summit_book => 'Vrcholová kniha';
+
+  @override
+  String get sync_failed => 'Upload failed · Tap to retry';
+
+  @override
+  String get sync_pending => 'Waiting to upload';
+
+  @override
+  String get sync_uploading => 'Uploading…';
 
   @override
   String get table => 'Stůl';

@@ -66,6 +66,7 @@
   "open": "Open",
   "delete_account": "Delete Account",
   "delete_trail_confirm": "Do you really want to delete this trail? This action cannot be undone.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "description": "Description",
   "difficult": "Difficult",
   "difficulty": "Difficulty",
@@ -177,11 +178,23 @@
   "only_me": "Only me",
   "or": "or",
   "orientation": "Orientation",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Showing what's saved on this device — connect to see everything.",
   "paragraph": "Paragraph",
   "pause": "Pause",
   "password": "Password",
   "password_confirm": "Confirm password",
   "passwords_must_match": "Passwords must match",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Photos & Videos",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
   "@photos_skipped_no_gps": {
@@ -213,6 +226,7 @@
     }
   },
   "resume_recording_prompt": "Resume recording?",
+  "retry_upload": "Retry upload",
   "road": "Road",
   "route": "{n, plural, =1 {Route} other {Routes}}",
   "@route": {
@@ -255,6 +269,15 @@
   "shared": "Shared",
   "show_on_map": "Show on map",
   "shower": "Shower",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Your trails. Your data. Your server.",
   "sort": "Sort",
   "speed": "Speed",
@@ -264,6 +287,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Summit Book",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Table",
   "tags": "Tags",
   "text": "Text",

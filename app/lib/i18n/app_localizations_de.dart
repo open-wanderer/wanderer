@@ -183,6 +183,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Möchtest Du diese Route wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
 
   @override
+  String get delete_unsynced_trail_confirm =>
+      'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
+
+  @override
   String get description => 'Beschreibung';
 
   @override
@@ -480,6 +484,17 @@ class AppLocalizationsDe extends AppLocalizations {
   String get orientation => 'Ausrichtung';
 
   @override
+  String get own_trails_empty_body =>
+      'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
+
+  @override
+  String get own_trails_empty_title => 'Nothing saved yet';
+
+  @override
+  String get own_trails_offline_banner =>
+      'Showing what\'s saved on this device — connect to see everything.';
+
+  @override
   String get paragraph => 'Abschnitt';
 
   @override
@@ -493,6 +508,17 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get passwords_must_match => 'Passwörter müssen übereinstimmen';
+
+  @override
+  String photo_copy_failed_toast(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Trail saved, but $count photos couldn\'t be saved.',
+      one: 'Trail saved, but 1 photo couldn\'t be saved.',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get photos => 'Fotos';
@@ -552,6 +578,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Aufnahme fortsetzen?';
+
+  @override
+  String get retry_upload => 'Retry upload';
 
   @override
   String get road => 'Straße';
@@ -681,6 +710,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shower => 'Dusche';
 
   @override
+  String signout_unsynced_warning(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'You have $count trails not uploaded yet. Signing out won\'t delete them — they\'ll be here when you sign back in — but they won\'t upload until then.',
+      one:
+          'You have 1 trail not uploaded yet. Signing out won\'t delete it — it\'ll be here when you sign back in — but it won\'t upload until then.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get slogan => 'Deine Routen. Deine Daten. Dein Server.';
 
   @override
@@ -697,6 +739,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get summit_book => 'Gipfelbuch';
+
+  @override
+  String get sync_failed => 'Upload failed · Tap to retry';
+
+  @override
+  String get sync_pending => 'Waiting to upload';
+
+  @override
+  String get sync_uploading => 'Uploading…';
 
   @override
   String get table => 'Tabelle';
