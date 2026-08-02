@@ -445,7 +445,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(35, 5632961350659741043),
+    lastPropertyId: const obx_int.IdUid(39, 4035010791212347560),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -652,6 +652,30 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(35, 5632961350659741043),
         name: 'dbSyncState',
         type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(36, 8775495908518461498),
+        name: 'categoryRecordId',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(37, 1649720019780589249),
+        name: 'subcategoryRecordId',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(38, 630483868249705587),
+        name: 'completed',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(39, 4035010791212347560),
+        name: 'tagsJson',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -1736,7 +1760,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final localPhotosOffset = fbb.writeList(
           object.localPhotos.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(36);
+        final categoryRecordIdOffset = object.categoryRecordId == null
+            ? null
+            : fbb.writeString(object.categoryRecordId!);
+        final subcategoryRecordIdOffset = object.subcategoryRecordId == null
+            ? null
+            : fbb.writeString(object.subcategoryRecordId!);
+        final tagsJsonOffset = object.tagsJson == null
+            ? null
+            : fbb.writeString(object.tagsJson!);
+        fbb.startTable(40);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1770,6 +1803,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(32, object.syncAttempts);
         fbb.addInt64(33, object.syncNextAttemptAt?.millisecondsSinceEpoch);
         fbb.addInt64(34, object.dbSyncState);
+        fbb.addOffset(35, categoryRecordIdOffset);
+        fbb.addOffset(36, subcategoryRecordIdOffset);
+        fbb.addBool(37, object.completed);
+        fbb.addOffset(38, tagsJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1955,7 +1992,22 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 rootOffset,
                 72,
                 0,
-              );
+              )
+              ..categoryRecordId = const fb.StringReader(
+                asciiOptimization: true,
+              ).vTableGetNullable(buffer, rootOffset, 74)
+              ..subcategoryRecordId = const fb.StringReader(
+                asciiOptimization: true,
+              ).vTableGetNullable(buffer, rootOffset, 76)
+              ..completed = const fb.BoolReader().vTableGet(
+                buffer,
+                rootOffset,
+                78,
+                false,
+              )
+              ..tagsJson = const fb.StringReader(
+                asciiOptimization: true,
+              ).vTableGetNullable(buffer, rootOffset, 80);
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -3046,6 +3098,26 @@ class TrailEntity_ {
   /// See [TrailEntity.dbSyncState].
   static final dbSyncState = obx.QueryIntegerProperty<TrailEntity>(
     _entities[4].properties[32],
+  );
+
+  /// See [TrailEntity.categoryRecordId].
+  static final categoryRecordId = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[33],
+  );
+
+  /// See [TrailEntity.subcategoryRecordId].
+  static final subcategoryRecordId = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[34],
+  );
+
+  /// See [TrailEntity.completed].
+  static final completed = obx.QueryBooleanProperty<TrailEntity>(
+    _entities[4].properties[35],
+  );
+
+  /// See [TrailEntity.tagsJson].
+  static final tagsJson = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[36],
   );
 
   /// see [TrailEntity.waypoints]

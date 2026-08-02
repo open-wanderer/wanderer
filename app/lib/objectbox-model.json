@@ -358,7 +358,7 @@
     },
     {
       "id": "6:5034082009762803572",
-      "lastPropertyId": "35:5632961350659741043",
+      "lastPropertyId": "39:4035010791212347560",
       "name": "TrailEntity",
       "properties": [
         {
@@ -536,6 +536,26 @@
           "id": "35:5632961350659741043",
           "name": "dbSyncState",
           "type": 6
+        },
+        {
+          "id": "36:8775495908518461498",
+          "name": "categoryRecordId",
+          "type": 9
+        },
+        {
+          "id": "37:1649720019780589249",
+          "name": "subcategoryRecordId",
+          "type": 9
+        },
+        {
+          "id": "38:630483868249705587",
+          "name": "completed",
+          "type": 1
+        },
+        {
+          "id": "39:4035010791212347560",
+          "name": "tagsJson",
+          "type": 9
         }
       ],
       "relations": []

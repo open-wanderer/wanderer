@@ -1,7 +1,11 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
+import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
@@ -44,6 +48,39 @@ class TrailEntity {
   @Property(type: PropertyType.dateUtc)
   DateTime updated;
   List<String> photos = [];
+
+  /// The `Trail.category` RECORD ID, persisted as a plain scalar.
+  ///
+  /// Named `categoryRecordId` and not `categoryId` because ObjectBox already
+  /// claims the `categoryId` column for the [category] `ToOne` relation's
+  /// foreign key -- a Dart field of that name would collide with the
+  /// generated binding.
+  ///
+  /// The relation is NOT a substitute for this column: [TrailEntity.fromModel]
+  /// can only populate it from `trail.expand?.category`, which is null on a
+  /// locally-composed draft (the create form yields an id, never an expanded
+  /// `Category`). Without this scalar the user's category selection was
+  /// dropped by every local-first save and by the upload that followed it.
+  String? categoryRecordId;
+
+  /// The `Trail.subcategory` record id. Named for symmetry with
+  /// [categoryRecordId]; there is no subcategory relation to collide with.
+  String? subcategoryRecordId;
+
+  /// The `Trail.completed` flag. A plain field with an initializer, like
+  /// [photos] -- not a constructor parameter.
+  bool completed = false;
+
+  /// The trail's tags, serialized as a JSON array of `Tag.toJson()` maps.
+  ///
+  /// JSON rather than a `List<String>` of names so a tag that ALREADY has a
+  /// server id round-trips with it: `TrailSave.resolveTags` reuses a tag whose
+  /// id is non-empty and only `PUT /tag`s the ones without one. Persisting
+  /// names alone would turn every already-known tag into a needless create on
+  /// each upload. Parallel id/name columns were rejected -- they can drift out
+  /// of step with each other; one JSON column cannot. Precedent: [navCacheJson]
+  /// and `CategoryEntity.translationsJson`.
+  String? tagsJson;
 
   /// Ids of the accounts that have this trail in their offline library.
   ///
@@ -191,6 +228,10 @@ class TrailEntity {
     );
 
     entity.dbDifficulty = trail.difficulty.index;
+    entity.categoryRecordId = trail.category;
+    entity.subcategoryRecordId = trail.subcategory;
+    entity.completed = trail.completed;
+    entity.tagsJson = encodeTrailTags(trail.expand?.tags);
 
     if (trail.expand?.waypointsViaTrail != null) {
       final waypointEntities = trail.expand!.waypointsViaTrail!
@@ -214,8 +255,38 @@ class TrailEntity {
   }
 }
 
+/// Serializes [tags] for [TrailEntity.tagsJson]. Null for an absent or empty
+/// tag list so an untagged trail stores nothing rather than the string `[]`.
+String? encodeTrailTags(List<Tag>? tags) {
+  if (tags == null || tags.isEmpty) return null;
+  return jsonEncode(tags.map((t) => t.toJson()).toList());
+}
+
+/// Reads [TrailEntity.tagsJson] back into models.
+///
+/// Degrades to an empty list on malformed JSON rather than throwing, unlike
+/// the `gpxData` parse right below it in [TrailEntityMapping.toModel]. The two
+/// differ on purpose: an unparseable GPX means the trail's defining payload is
+/// gone and there is nothing useful left to show, whereas unparseable tags are
+/// a cosmetic subset of a trail that is otherwise entirely intact -- throwing
+/// there would hide the whole row behind a `toModel()` failure.
+List<Tag> decodeTrailTags(String? tagsJson) {
+  if (tagsJson == null || tagsJson.isEmpty) return const [];
+  try {
+    final decoded = jsonDecode(tagsJson) as List<dynamic>;
+    return decoded
+        .map((e) => Tag.fromJson(e as Map<String, dynamic>))
+        .toList();
+  } catch (e, st) {
+    debugPrint('trail_entity: could not decode tagsJson "$tagsJson": $e\n$st');
+    return const [];
+  }
+}
+
 extension TrailEntityMapping on TrailEntity {
   Trail toModel() {
+    final tags = decodeTrailTags(tagsJson);
+
     return Trail(
       // D-06: a local-sentinel id is blanked here so an empty id means
       // "not-yet-uploaded" at the model layer, even though ObjectBox needs
@@ -238,6 +309,19 @@ extension TrailEntityMapping on TrailEntity {
       minLat: minLat,
       minLon: minLon,
       description: description ?? "",
+      // Falls back to the relation's id so a downloaded row written before
+      // `categoryRecordId` existed still reports its category.
+      category: categoryRecordId ?? category.target?.id,
+      subcategory: subcategoryRecordId,
+      completed: completed,
+      // Ids only, for `toFormData`'s `tags` field. Tags still awaiting their
+      // first `PUT /tag` have no id yet and are carried by `expand.tags`
+      // below, which is what `resolveTags` reads.
+      tags: tags
+          .map((t) => t.id)
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toList(),
       isLocal: true,
       // D-10: mutually exclusive by construction — a downloaded row carries
       // its local file copies in `photos`, an unsynced row carries them in
@@ -249,6 +333,7 @@ extension TrailEntityMapping on TrailEntity {
       updated: updated,
       created: created,
       expand: TrailExpand(
+        tags: tags,
         author: author.target?.toModel(),
         category: category.target?.toModel(),
         gpxData: gpxData,

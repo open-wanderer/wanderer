@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
+import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/waypoint.dart';
@@ -48,6 +49,114 @@ void main() {
 
       expect(withoutMoving.duration, 1234);
       expect(withMoving.duration, 1234);
+    });
+  });
+
+  group('TrailEntity category/subcategory/tags/completed round-trip (CR-01)', () {
+    // Regression guard for the four form-entered fields that TrailEntity had
+    // no column for. Before this, a local-first save ran the user's category,
+    // subcategory, tags and "completed" through fromModel -> toModel and got
+    // nulls back -- the form visibly reverted under a success toast, and the
+    // drain built its upload payload from the same stripped value, so the
+    // trail reached the server permanently missing them.
+    Trail buildFormTrail() {
+      return Trail(
+        id: '',
+        name: 'Captured Trail',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        category: 'cat123456789ab',
+        subcategory: 'sub123456789ab',
+        completed: true,
+        expand: const TrailExpand(
+          tags: [
+            Tag(id: 'tag123456789ab', name: 'alpine'),
+            Tag(name: 'freshly-typed'),
+          ],
+        ),
+      );
+    }
+
+    test('category survives fromModel -> toModel', () {
+      final roundTripped = TrailEntity.fromModel(buildFormTrail()).toModel();
+
+      expect(roundTripped.category, 'cat123456789ab');
+    });
+
+    test('subcategory survives fromModel -> toModel', () {
+      final roundTripped = TrailEntity.fromModel(buildFormTrail()).toModel();
+
+      expect(roundTripped.subcategory, 'sub123456789ab');
+    });
+
+    test('completed survives fromModel -> toModel', () {
+      final roundTripped = TrailEntity.fromModel(buildFormTrail()).toModel();
+
+      expect(roundTripped.completed, isTrue);
+    });
+
+    test('completed: false survives as false, not as null-ish', () {
+      final trail = buildFormTrail().copyWith(completed: false);
+
+      expect(TrailEntity.fromModel(trail).toModel().completed, isFalse);
+    });
+
+    test(
+      'expand.tags survives fromModel -> toModel with ids intact, so '
+      'resolveTags reuses an already-known tag instead of re-creating it',
+      () {
+        final roundTripped = TrailEntity.fromModel(buildFormTrail()).toModel();
+
+        expect(roundTripped.expand?.tags, hasLength(2));
+        expect(roundTripped.expand?.tags?[0].id, 'tag123456789ab');
+        expect(roundTripped.expand?.tags?[0].name, 'alpine');
+        // A tag typed into the field has no server id yet; it must survive
+        // WITH a null id so resolveTags PUT /tag's it exactly once.
+        expect(roundTripped.expand?.tags?[1].id, isNull);
+        expect(roundTripped.expand?.tags?[1].name, 'freshly-typed');
+      },
+    );
+
+    test('Trail.tags carries only the ids that already exist server-side', () {
+      final roundTripped = TrailEntity.fromModel(buildFormTrail()).toModel();
+
+      expect(roundTripped.tags, ['tag123456789ab']);
+    });
+
+    test('an untagged trail stores no tagsJson and round-trips to empty', () {
+      final trail = buildFormTrail().copyWith(
+        expand: const TrailExpand(tags: []),
+      );
+
+      final entity = TrailEntity.fromModel(trail);
+
+      expect(entity.tagsJson, isNull);
+      expect(entity.toModel().expand?.tags, isEmpty);
+    });
+
+    test('a null category/subcategory round-trips as null', () {
+      final trail = buildFormTrail().copyWith(
+        category: null,
+        subcategory: null,
+      );
+
+      final roundTripped = TrailEntity.fromModel(trail).toModel();
+
+      expect(roundTripped.category, isNull);
+      expect(roundTripped.subcategory, isNull);
+    });
+
+    test('malformed tagsJson degrades to no tags instead of hiding the row', () {
+      final entity = TrailEntity(
+        id: 'abc123xyz456789',
+        name: 'Corrupt tags',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+      );
+      entity.tagsJson = 'not json at all';
+
+      expect(entity.toModel().expand?.tags, isEmpty);
+      expect(entity.toModel().name, 'Corrupt tags');
     });
   });
 
