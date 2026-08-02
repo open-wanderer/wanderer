@@ -18,9 +18,12 @@ import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
+import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
 import 'package:wanderer/util/account_scope_invalidation.dart';
 import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
+import 'package:wanderer/util/local_photo_store_util.dart';
+import 'package:wanderer/util/local_trail_store.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 import 'i18n/app_localizations.dart';
@@ -69,7 +72,7 @@ class MainApp extends ConsumerStatefulWidget {
   ConsumerState<MainApp> createState() => _MainAppState();
 }
 
-class _MainAppState extends ConsumerState<MainApp> {
+class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   bool _resumeHandled = false;
   ProviderSubscription? _authSub;
 
@@ -78,6 +81,16 @@ class _MainAppState extends ConsumerState<MainApp> {
   // on the listener's first (baseline) emission.
   String? _lastAuthUserId;
   bool _authSeen = false;
+
+  // D-15: the deferred-upload drain's three triggers. Cold start needs its
+  // own one-shot kick because `AppLifecycleState.resumed` never fires on a
+  // fresh launch; `_syncDrainColdStartKicked` keeps a later auth
+  // re-emission from re-firing it (the drain's own re-entrancy guard would
+  // make a duplicate harmless anyway, but the one-shot keeps intent legible).
+  // The connectivity half lives in its own `listenManual` subscription,
+  // closed alongside `_authSub` in [dispose].
+  bool _syncDrainColdStartKicked = false;
+  ProviderSubscription? _onlineStatusSub;
 
   // Files handed to the app via the OS share sheet, buffered until auth settles
   // with a signed-in user (a share can arrive on a cold, signed-out start).
@@ -92,9 +105,35 @@ class _MainAppState extends ConsumerState<MainApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     // Seed the app-wide online status as early as possible; unawaited since
     // startup must not block on a network probe.
     unawaited(ref.read(onlineStatusProvider.notifier).refresh());
+
+    // D-02's startup orphan sweep: a photo directory left behind by a crash
+    // between "server accepted the create" and "local files deleted" is
+    // reclaimed here. `unsyncedLocalIds` includes rows still `uploading`
+    // after a crash, so a resume-in-progress upload's photos are never swept
+    // out from under it. Unawaited so app start never blocks on filesystem
+    // work; independent of the drain kicks below.
+    final store = ref.read(objectBoxProvider);
+    unawaited(
+      sweepOrphanedUnsyncedPhotos(keepLocalIds: unsyncedLocalIds(store)),
+    );
+
+    // D-15's connectivity-regained trigger: fires only on a false-to-true
+    // transition. `listenManual` with no `fireImmediately` never calls this
+    // for the provider's baseline value, so there is no separate guard
+    // needed for that case. Closed alongside `_authSub` in [dispose].
+    _onlineStatusSub = ref.listenManual<bool>(onlineStatusProvider, (
+      bool? prev,
+      bool next,
+    ) {
+      if (prev == false && next == true) {
+        unawaited(ref.read(trailSyncProvider.notifier).drainIfOnline());
+      }
+    });
 
     // One-shot resume check that waits for auth to settle so the GoRouter
     // redirect (which bounces unauthenticated users to /welcome) does not
@@ -117,7 +156,18 @@ class _MainAppState extends ConsumerState<MainApp> {
       _authSeen = true;
       _lastAuthUserId = userId;
 
-      if (next.value != null) _maybeHandleShare();
+      if (next.value != null) {
+        _maybeHandleShare();
+
+        // D-15's cold-start trigger: `AppLifecycleState.resumed` never
+        // fires on a fresh launch, so the drain needs its own kick once a
+        // signed-in user has settled. One-shot — a later auth re-emission
+        // (e.g. a token refresh) must not re-fire it.
+        if (!_syncDrainColdStartKicked) {
+          _syncDrainColdStartKicked = true;
+          unawaited(ref.read(trailSyncProvider.notifier).drainIfOnline());
+        }
+      }
 
       if (_resumeHandled) return;
       _resumeHandled = true;
@@ -143,9 +193,19 @@ class _MainAppState extends ConsumerState<MainApp> {
     });
   }
 
+  // D-15's foreground trigger.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(ref.read(trailSyncProvider.notifier).drainIfOnline());
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSub?.close();
+    _onlineStatusSub?.close();
     _shareSub?.cancel();
     _detachShareRouteWaiter();
     super.dispose();
