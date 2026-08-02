@@ -45,6 +45,16 @@ class TrailSync extends _$TrailSync {
   /// mid-flight.
   bool _draining = false;
 
+  /// Set when [drainIfOnline] is called while a pass is already running, so
+  /// the running pass loops once more instead of dropping the request.
+  ///
+  /// Without it, [retry] reset a row's backoff and then did nothing visible:
+  /// `_draining` is a WHOLE-drain guard, not a per-trail one, so tapping
+  /// "Upload failed · Tap to retry" while any OTHER trail was uploading
+  /// returned immediately, and the reset row sat there until the next
+  /// foreground or connectivity trigger happened to fire.
+  bool _rerunRequested = false;
+
   @override
   Set<String> build() => {};
 
@@ -55,36 +65,57 @@ class TrailSync extends _$TrailSync {
   /// `OnlineStatus.build()` is optimistic (`true`), settles only from
   /// ordinary request/response traffic, and trusting it at a cold moment
   /// already shipped a bug once (Phase 35 OFFUI-04, RESEARCH.md Pitfall 5).
+  /// A call arriving while a pass is already running is REMEMBERED, not
+  /// dropped: it sets [_rerunRequested] so the running pass loops once more
+  /// and picks up whatever changed. Returning immediately was what made
+  /// [retry] a silent no-op whenever any other trail happened to be
+  /// uploading.
   Future<void> drainIfOnline() async {
-    if (_draining) return;
+    if (_draining) {
+      _rerunRequested = true;
+      return;
+    }
     _draining = true;
     try {
-      // dart format off
-      final isOnline = await ref.read(onlineStatusProvider.notifier).refresh();
-      // dart format on
-      if (!isOnline) return;
-
-      final store = ref.read(objectBoxProvider);
-      // D-13: read fresh every run, never a cached field -- a stale id here
-      // is exactly the leak account-scoping exists to prevent.
-      final accountId = currentAccountId(store);
-      if (accountId == null) return;
-
-      final candidates = selectDrainCandidates(
-        store,
-        accountId: accountId,
-        now: DateTime.now(),
-      );
-
-      // Sequential, one trail at a time, on purpose: a flaky connection
-      // cannot fan out into N concurrent partially-applied uploads, and the
-      // in-flight set stays trivially easy to reason about for the delete
-      // gate below.
-      for (final entity in candidates) {
-        await _drainOne(store, entity, accountId);
-      }
+      do {
+        // Cleared BEFORE the pass, so a request arriving mid-pass is honoured
+        // by the next iteration rather than being cleared away by this one.
+        _rerunRequested = false;
+        await _drainPass();
+      } while (_rerunRequested);
     } finally {
       _draining = false;
+      _rerunRequested = false;
+    }
+  }
+
+  /// One sweep over the currently-due candidates. Always re-reads online
+  /// status and the account id, so a pass that runs because of a rerun
+  /// request is as fresh as the first one.
+  Future<void> _drainPass() async {
+    // dart format off
+    final isOnline = await ref.read(onlineStatusProvider.notifier).refresh();
+    // dart format on
+    if (!isOnline) return;
+
+    final store = ref.read(objectBoxProvider);
+    // D-13: read fresh every run, never a cached field -- a stale id here
+    // is exactly the leak account-scoping exists to prevent.
+    final accountId = currentAccountId(store);
+    if (accountId == null) return;
+
+    final candidates = selectDrainCandidates(
+      store,
+      accountId: accountId,
+      now: DateTime.now(),
+    );
+
+    // Sequential, one trail at a time, on purpose: a flaky connection
+    // cannot fan out into N concurrent partially-applied uploads, and the
+    // in-flight set stays trivially easy to reason about for the delete
+    // gate below.
+    for (final entity in candidates) {
+      await _drainOne(store, entity, accountId);
     }
   }
 
@@ -263,9 +294,14 @@ class TrailSync extends _$TrailSync {
   }
 
   /// SYNC-03's manual retry: resets the row's backoff/attempt bookkeeping
-  /// then immediately re-drains. Safe to call on a row that is already
-  /// draining -- [_drainOne]'s in-flight guard makes the resulting
-  /// [drainIfOnline] pass a no-op for that row.
+  /// then immediately re-drains.
+  ///
+  /// Safe to call on a row that is already draining -- [_drainOne]'s
+  /// in-flight guard makes the resulting pass a no-op for THAT row. Safe to
+  /// call while some OTHER trail is draining too: [drainIfOnline] records the
+  /// request and the running pass loops again, so the reset row is picked up
+  /// as soon as the current one finishes rather than waiting for the next
+  /// foreground or connectivity trigger.
   Future<void> retry(String localId) async {
     final store = ref.read(objectBoxProvider);
     resetDrainBackoff(store, localId);
