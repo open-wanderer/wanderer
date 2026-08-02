@@ -35,21 +35,29 @@ found by auditing the TS before porting it.
 - [x] **PORT-04**: `POST /api/v1/trail/convert` transcodes kml/kmz/tcx/fit to GPX and returns it, without computing a trail; the published OpenAPI description matches the new behaviour
 - [x] **PORT-05**: Importing a kml/kmz/tcx/fit file online still produces a correct trail, with the app measuring the server-transcoded GPX itself
 
-### Local-First Recordings
+### Local-First Unsynced Trails
 
-- [ ] **REC-01**: Ending a recording with no connection saves it — the hiker is never shown a save failure caused by being offline
-- [ ] **REC-02**: A saved recording appears in the hiker's trail library immediately, before it has ever reached the server
-- [ ] **REC-03**: A recording that has not yet uploaded is visibly distinguishable from a synced trail, and from a trail downloaded for offline use
-- [ ] **REC-04**: A recording survives app restart and stays associated with the account that recorded it; signing in as a different account does not show or upload it, and signing out does not delete it
-- [ ] **REC-05**: A hiker can open, review, and edit an unsynced recording's details (title, description, category, photos) while still offline
+**Source-agnostic by design.** An *unsynced trail* is one captured on-device that has never
+reached the server, whether it came from ending a recording or from importing a GPX file with
+no connection. These were originally worded "recording"-only, which left Phase 36's own goal
+("a hiker who records a trail **or uploads a GPX** with no signal can save it") uncarried by
+any requirement: Phase 35's OFFUI-03 gets an offline GPX import as far as a populated
+`trail_create_screen`, and without this widening, pressing Save there would still fail — after
+the hiker had filled in title, description, category and photos.
+
+- [ ] **REC-01**: Capturing a trail with no connection saves it — whether ended from a recording or imported from a GPX file — and the hiker is never shown a save failure caused by being offline
+- [ ] **REC-02**: A saved unsynced trail appears in the hiker's trail library immediately, before it has ever reached the server
+- [ ] **REC-03**: An unsynced trail is visibly distinguishable from a synced trail, and from a trail downloaded for offline use
+- [ ] **REC-04**: An unsynced trail survives app restart and stays associated with the account that captured it; signing in as a different account does not show or upload it, and signing out does not delete it
+- [ ] **REC-05**: A hiker can open, review, and edit an unsynced trail's details (title, description, category, photos) while still offline
 
 ### Background Upload
 
-- [ ] **SYNC-01**: An unsynced recording uploads on its own once the app is foregrounded with a working connection, with no action from the hiker
-- [ ] **SYNC-02**: Upload progress and failure are visible on the recording itself, inline in the trail library, rather than in a separate pending-uploads screen
+- [ ] **SYNC-01**: An unsynced trail uploads on its own once the app is foregrounded with a working connection, with no action from the hiker
+- [ ] **SYNC-02**: Upload progress and failure are visible on the trail itself, inline in the trail library, rather than in a separate pending-uploads screen
 - [ ] **SYNC-03**: A hiker can manually retry an upload that failed or stalled
 - [ ] **SYNC-04**: An interrupted upload does not produce a duplicate trail on the server when it is retried
-- [ ] **SYNC-05**: Once uploaded, the recording becomes an ordinary trail — it keeps its identity in the library rather than appearing a second time
+- [ ] **SYNC-05**: Once uploaded, an unsynced trail becomes an ordinary trail — it keeps its identity in the library rather than appearing a second time
 
 ### Offline Create/Import UX
 

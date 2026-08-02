@@ -415,26 +415,38 @@ Plans:
   3. Importing a `.gpx` file works with no connection, converted on-device via Phase 34's Dart path.
   4. Attempting to import a kml/kmz/tcx/fit file with no connection explains that format needs a connection and that GPX works offline, instead of a generic failure.
 
+**Scope boundary:** criterion 3 ends at a populated `trail_create_screen` — import, convert,
+draw. **Persisting that trail offline is Phase 36's job** (REC-01, widened 2026-08-01 to cover
+imports as well as recordings). If Phase 36 slips behind this phase, Save must still refuse
+offline *before* the hiker fills in details rather than after.
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 36: Local-First Recording & Automatic Upload
 
-**Goal**: A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself the next time the phone has a connection, without the hiker doing anything.
+**Goal**: A hiker who records a trail or uploads a GPX with no signal can save it, review it, and fill in its details on the spot — and it uploads itself the next time the phone has a connection, without the hiker doing anything.
 **Depends on**: Phase 35 (REC-05's offline edit reuses the exact `trail_create_screen` map/tag fixes Phase 35 ships; REC-01 needs Phase 34's on-device conversion, carried forward)
 **Requirements**: REC-01, REC-02, REC-03, REC-04, REC-05, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05
 **Success Criteria** (what must be TRUE):
 
-  1. Ending a recording with no connection saves it immediately into the trail library — no save-failure is ever shown for being offline, and the unsynced recording is visibly distinguishable from both a synced trail and a trail downloaded for offline use.
-  2. A recording survives app restart and stays tied to the account that recorded it — a different account never sees or uploads it, and logging out never deletes it.
-  3. A hiker can open, review, and edit an unsynced recording's title, description, category, and photos while still offline, on the same screen Phase 35 made offline-capable.
-  4. Once the app is foregrounded with a working connection, an unsynced recording uploads on its own — with inline per-item progress visible on the recording itself (not a separate pending-uploads screen), and a manual retry when an upload fails or stalls.
-  5. An interrupted upload never produces a duplicate trail when retried, and once uploaded the recording becomes an ordinary trail in place — keeping its identity in the library rather than appearing a second time.
+  1. Capturing a trail with no connection saves it immediately into the trail library — whether it came from ending a recording or from importing a GPX file — with no save-failure ever shown for being offline, and the unsynced trail visibly distinguishable from both a synced trail and a trail downloaded for offline use.
+  2. An unsynced trail survives app restart and stays tied to the account that captured it — a different account never sees or uploads it, and logging out never deletes it.
+  3. A hiker can open, review, and edit an unsynced trail's title, description, category, and photos while still offline, on the same screen Phase 35 made offline-capable.
+  4. Once the app is foregrounded with a working connection, an unsynced trail uploads on its own — with inline per-item progress visible on the trail itself (not a separate pending-uploads screen), and a manual retry when an upload fails or stalls.
+  5. An interrupted upload never produces a duplicate trail when retried, and once uploaded the unsynced trail becomes an ordinary trail in place — keeping its identity in the library rather than appearing a second time.
+
+**Scope note (2026-08-01):** REC-01…05 and SYNC-01…05 were originally worded "recording"-only,
+which left this phase's own goal clause "or uploads a GPX" carried by no requirement. They are
+now source-agnostic ("unsynced trail"). Phase 35's OFFUI-03 delivers offline GPX import only as
+far as a populated `trail_create_screen`; **saving it is this phase's job**, and without the
+widening, Save would have failed after the hiker filled in title, description, category and
+photos — worse than refusing up front.
 
 **Plans**: TBD
 **UI hint**: yes
 
-**Open for discuss-phase:** three decisions are deliberately unresolved and belong to this phase's discuss-phase — photo file durability (`image_picker` returns paths into an OS-purgeable cache directory), partial-failure semantics of the `tag → trail → waypoint` upload sequence, and whether logout with undrained recordings needs a confirmation UX. Full context: `.planning/research/questions.md`, `.planning/notes/offline-recording-deferred-upload-design.md`.
+**Open for discuss-phase:** four decisions are deliberately unresolved and belong to this phase's discuss-phase — photo file durability (`image_picker` returns paths into an OS-purgeable cache directory), partial-failure semantics of the `tag → trail → waypoint` upload sequence, whether logout with undrained unsynced trails needs a confirmation UX, and — from the 2026-08-01 scope note above — whether REC-03's "visibly distinguishable" should further distinguish a recorded trail from an imported one, or treat both simply as unsynced. Full context: `.planning/research/questions.md`, `.planning/notes/offline-recording-deferred-upload-design.md`.
 
 ## Progress
 
