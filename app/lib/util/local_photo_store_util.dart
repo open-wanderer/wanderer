@@ -59,10 +59,7 @@ String unsyncedWaypointPhotoDir(
 /// order as the caller's `desiredPaths`, and a count of photos that failed
 /// to copy and were dropped.
 class LocalPhotoCopyResult {
-  const LocalPhotoCopyResult({
-    required this.paths,
-    required this.failedCount,
-  });
+  const LocalPhotoCopyResult({required this.paths, required this.failedCount});
 
   final List<String> paths;
   final int failedCount;
@@ -133,10 +130,19 @@ Future<LocalPhotoCopyResult> reconcileLocalPhotos({
 
   // Delete any file already inside `dir` that is not in the kept set, so a
   // re-save that removed a photo also removes its copy.
-  final keptSet = keptPaths.toSet();
+  //
+  // Canonicalized on BOTH sides, not compared raw. A desired path is kept
+  // verbatim when `p.isWithin(dir, sourcePath)` is true, and `isWithin`
+  // normalizes -- `dir/./photo.jpg`, `dir//photo.jpg`, a trailing-separator
+  // `dir` all pass -- while `listSync().path` does not. Any non-canonical
+  // spelling of an in-dir path was therefore returned to the caller as
+  // "kept" AND deleted from disk in the same call, leaving the entity
+  // pointing at a file that no longer exists. Silently, since both loops
+  // swallow their errors and nothing increments `failedCount`.
+  final keptSet = keptPaths.map(p.canonicalize).toSet();
   for (final entry in directory.listSync()) {
     if (entry is! File) continue;
-    if (keptSet.contains(entry.path)) continue;
+    if (keptSet.contains(p.canonicalize(entry.path))) continue;
     try {
       entry.deleteSync();
     } catch (_) {

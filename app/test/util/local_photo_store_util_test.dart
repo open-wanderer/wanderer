@@ -87,11 +87,8 @@ void main() {
       'unsyncedWaypointPhotoDir throws ArgumentError for a traversal trail id',
       () {
         expect(
-          () => unsyncedWaypointPhotoDir(
-            tempRoot.path,
-            '../escape',
-            waypointKey,
-          ),
+          () =>
+              unsyncedWaypointPhotoDir(tempRoot.path, '../escape', waypointKey),
           throwsArgumentError,
         );
       },
@@ -101,8 +98,7 @@ void main() {
       'unsyncedWaypointPhotoDir throws ArgumentError for a traversal waypoint key',
       () {
         expect(
-          () =>
-              unsyncedWaypointPhotoDir(tempRoot.path, localId, '../escape'),
+          () => unsyncedWaypointPhotoDir(tempRoot.path, localId, '../escape'),
           throwsArgumentError,
         );
       },
@@ -124,41 +120,47 @@ void main() {
   });
 
   group('reconcileLocalPhotos', () {
-    test('copies a real temp file in and returns its new path inside dir', () async {
-      final dir = p.join(tempRoot.path, 'dest');
-      final source = File(p.join(tempRoot.path, 'photo.jpg'))
-        ..writeAsStringSync('fake-photo-bytes');
+    test(
+      'copies a real temp file in and returns its new path inside dir',
+      () async {
+        final dir = p.join(tempRoot.path, 'dest');
+        final source = File(p.join(tempRoot.path, 'photo.jpg'))
+          ..writeAsStringSync('fake-photo-bytes');
 
-      final result = await reconcileLocalPhotos(
-        dir: dir,
-        desiredPaths: [source.path],
-      );
+        final result = await reconcileLocalPhotos(
+          dir: dir,
+          desiredPaths: [source.path],
+        );
 
-      expect(result.failedCount, 0);
-      expect(result.paths, hasLength(1));
-      expect(p.isWithin(dir, result.paths.single), isTrue);
-      expect(File(result.paths.single).existsSync(), isTrue);
-      expect(
-        File(result.paths.single).readAsStringSync(),
-        'fake-photo-bytes',
-      );
-    });
+        expect(result.failedCount, 0);
+        expect(result.paths, hasLength(1));
+        expect(p.isWithin(dir, result.paths.single), isTrue);
+        expect(File(result.paths.single).existsSync(), isTrue);
+        expect(
+          File(result.paths.single).readAsStringSync(),
+          'fake-photo-bytes',
+        );
+      },
+    );
 
-    test('a path already inside dir is kept verbatim, not duplicated', () async {
-      final dir = p.join(tempRoot.path, 'dest');
-      await Directory(dir).create(recursive: true);
-      final existing = File(p.join(dir, 'already-here.jpg'))
-        ..writeAsStringSync('bytes');
+    test(
+      'a path already inside dir is kept verbatim, not duplicated',
+      () async {
+        final dir = p.join(tempRoot.path, 'dest');
+        await Directory(dir).create(recursive: true);
+        final existing = File(p.join(dir, 'already-here.jpg'))
+          ..writeAsStringSync('bytes');
 
-      final result = await reconcileLocalPhotos(
-        dir: dir,
-        desiredPaths: [existing.path],
-      );
+        final result = await reconcileLocalPhotos(
+          dir: dir,
+          desiredPaths: [existing.path],
+        );
 
-      expect(result.failedCount, 0);
-      expect(result.paths, [existing.path]);
-      expect(Directory(dir).listSync().length, 1);
-    });
+        expect(result.failedCount, 0);
+        expect(result.paths, [existing.path]);
+        expect(Directory(dir).listSync().length, 1);
+      },
+    );
 
     test(
       'a non-existent source path increments failedCount by 1, is absent from paths, and does not throw',
@@ -195,13 +197,75 @@ void main() {
         expect(File(first.paths.single).existsSync(), isFalse);
       },
     );
+
+    // WR-13. The keep decision uses `p.isWithin`, which normalizes; the
+    // delete pass used to compare `listSync().path` by raw string equality,
+    // which does not. So a non-canonical spelling of an in-dir path was
+    // reported as KEPT and deleted from disk in the same call -- the entity
+    // ended up pointing at a file that no longer existed, silently, with no
+    // failedCount increment. Every spelling below is the same file.
+    for (final entry in {
+      'a "./" segment': (String dir, String name) => p.join(dir, '.', name),
+      'a doubled separator': (String dir, String name) =>
+          '$dir${p.separator}${p.separator}$name',
+      'a redundant parent hop': (String dir, String name) =>
+          p.join(dir, '..', p.basename(dir), name),
+    }.entries) {
+      test(
+        'a kept in-dir path spelled with ${entry.key} survives the delete pass',
+        () async {
+          final dir = p.join(tempRoot.path, 'dest');
+          await Directory(dir).create(recursive: true);
+          final canonical = File(p.join(dir, 'already-here.jpg'))
+            ..writeAsStringSync('bytes');
+
+          final spelled = entry.value(dir, 'already-here.jpg');
+          // Guard the premise: this really is a different STRING that really
+          // does denote the same file.
+          expect(spelled, isNot(canonical.path));
+          expect(p.canonicalize(spelled), p.canonicalize(canonical.path));
+
+          final result = await reconcileLocalPhotos(
+            dir: dir,
+            desiredPaths: [spelled],
+          );
+
+          expect(result.failedCount, 0);
+          expect(result.paths, [spelled]);
+          expect(
+            File(spelled).existsSync(),
+            isTrue,
+            reason:
+                'reconcileLocalPhotos returned this path as kept and then '
+                'deleted the file it names.',
+          );
+          expect(Directory(dir).listSync(), hasLength(1));
+        },
+      );
+    }
+
+    test(
+      'a trailing separator on dir does not make a kept file get deleted',
+      () async {
+        final dir = p.join(tempRoot.path, 'dest');
+        await Directory(dir).create(recursive: true);
+        final existing = File(p.join(dir, 'already-here.jpg'))
+          ..writeAsStringSync('bytes');
+
+        final result = await reconcileLocalPhotos(
+          dir: '$dir${p.separator}',
+          desiredPaths: [existing.path],
+        );
+
+        expect(result.paths, [existing.path]);
+        expect(existing.existsSync(), isTrue);
+      },
+    );
   });
 
   group('sweepOrphanedUnsyncedPhotos', () {
     setUp(() {
-      PathProviderPlatform.instance = _FakePathProviderPlatform(
-        tempRoot.path,
-      );
+      PathProviderPlatform.instance = _FakePathProviderPlatform(tempRoot.path);
     });
 
     test(
@@ -212,9 +276,7 @@ void main() {
         const orphanId = 'local-1700000000000000-2';
         await Directory(p.join(root, keptId)).create(recursive: true);
         await Directory(p.join(root, orphanId)).create(recursive: true);
-        File(
-          p.join(root, keptId, 'photo.jpg'),
-        ).writeAsStringSync('bytes');
+        File(p.join(root, keptId, 'photo.jpg')).writeAsStringSync('bytes');
 
         final deleted = await sweepOrphanedUnsyncedPhotos(
           keepLocalIds: {keptId},
