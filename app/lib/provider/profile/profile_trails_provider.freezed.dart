@@ -14,7 +14,13 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ProfileTrailsState {
 
- List<TrailSearchResult> get trails; int get page; int get perPage; int get totalPages;
+ List<TrailSummary> get trails; int get page; int get perPage; int get totalPages;/// True when the last network fetch failed and this state is showing
+/// only what's on this device (REC-06). Decided from the fetch outcome
+/// itself, never from `onlineStatusProvider`'s optimistic default
+/// (RESEARCH.md Pitfall 5).
+ bool get offline;/// True when this state is for the signed-in hiker's own handle --
+/// only then does the local half of the merge run (T-36-07-02).
+ bool get isOwnHandle;
 /// Create a copy of ProfileTrailsState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +31,16 @@ $ProfileTrailsStateCopyWith<ProfileTrailsState> get copyWith => _$ProfileTrailsS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileTrailsState&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileTrailsState&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.offline, offline) || other.offline == offline)&&(identical(other.isOwnHandle, isOwnHandle) || other.isOwnHandle == isOwnHandle));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(trails),page,perPage,totalPages);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(trails),page,perPage,totalPages,offline,isOwnHandle);
 
 @override
 String toString() {
-  return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages)';
+  return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages, offline: $offline, isOwnHandle: $isOwnHandle)';
 }
 
 
@@ -45,7 +51,7 @@ abstract mixin class $ProfileTrailsStateCopyWith<$Res>  {
   factory $ProfileTrailsStateCopyWith(ProfileTrailsState value, $Res Function(ProfileTrailsState) _then) = _$ProfileTrailsStateCopyWithImpl;
 @useResult
 $Res call({
- List<TrailSearchResult> trails, int page, int perPage, int totalPages
+ List<TrailSummary> trails, int page, int perPage, int totalPages, bool offline, bool isOwnHandle
 });
 
 
@@ -62,13 +68,15 @@ class _$ProfileTrailsStateCopyWithImpl<$Res>
 
 /// Create a copy of ProfileTrailsState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? trails = null,Object? page = null,Object? perPage = null,Object? totalPages = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? trails = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? offline = null,Object? isOwnHandle = null,}) {
   return _then(_self.copyWith(
 trails: null == trails ? _self.trails : trails // ignore: cast_nullable_to_non_nullable
-as List<TrailSearchResult>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
+as List<TrailSummary>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
-as int,
+as int,offline: null == offline ? _self.offline : offline // ignore: cast_nullable_to_non_nullable
+as bool,isOwnHandle: null == isOwnHandle ? _self.isOwnHandle : isOwnHandle // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -153,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<TrailSearchResult> trails,  int page,  int perPage,  int totalPages)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<TrailSummary> trails,  int page,  int perPage,  int totalPages,  bool offline,  bool isOwnHandle)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProfileTrailsState() when $default != null:
-return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
+return $default(_that.trails,_that.page,_that.perPage,_that.totalPages,_that.offline,_that.isOwnHandle);case _:
   return orElse();
 
 }
@@ -174,10 +182,10 @@ return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<TrailSearchResult> trails,  int page,  int perPage,  int totalPages)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<TrailSummary> trails,  int page,  int perPage,  int totalPages,  bool offline,  bool isOwnHandle)  $default,) {final _that = this;
 switch (_that) {
 case _ProfileTrailsState():
-return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
+return $default(_that.trails,_that.page,_that.perPage,_that.totalPages,_that.offline,_that.isOwnHandle);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -194,10 +202,10 @@ return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<TrailSearchResult> trails,  int page,  int perPage,  int totalPages)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<TrailSummary> trails,  int page,  int perPage,  int totalPages,  bool offline,  bool isOwnHandle)?  $default,) {final _that = this;
 switch (_that) {
 case _ProfileTrailsState() when $default != null:
-return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
+return $default(_that.trails,_that.page,_that.perPage,_that.totalPages,_that.offline,_that.isOwnHandle);case _:
   return null;
 
 }
@@ -209,11 +217,11 @@ return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
 
 
 class _ProfileTrailsState extends ProfileTrailsState {
-  const _ProfileTrailsState({required final  List<TrailSearchResult> trails, required this.page, required this.perPage, required this.totalPages}): _trails = trails,super._();
+  const _ProfileTrailsState({required final  List<TrailSummary> trails, required this.page, required this.perPage, required this.totalPages, this.offline = false, this.isOwnHandle = false}): _trails = trails,super._();
   
 
- final  List<TrailSearchResult> _trails;
-@override List<TrailSearchResult> get trails {
+ final  List<TrailSummary> _trails;
+@override List<TrailSummary> get trails {
   if (_trails is EqualUnmodifiableListView) return _trails;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_trails);
@@ -222,6 +230,14 @@ class _ProfileTrailsState extends ProfileTrailsState {
 @override final  int page;
 @override final  int perPage;
 @override final  int totalPages;
+/// True when the last network fetch failed and this state is showing
+/// only what's on this device (REC-06). Decided from the fetch outcome
+/// itself, never from `onlineStatusProvider`'s optimistic default
+/// (RESEARCH.md Pitfall 5).
+@override@JsonKey() final  bool offline;
+/// True when this state is for the signed-in hiker's own handle --
+/// only then does the local half of the merge run (T-36-07-02).
+@override@JsonKey() final  bool isOwnHandle;
 
 /// Create a copy of ProfileTrailsState
 /// with the given fields replaced by the non-null parameter values.
@@ -233,16 +249,16 @@ _$ProfileTrailsStateCopyWith<_ProfileTrailsState> get copyWith => __$ProfileTrai
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileTrailsState&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileTrailsState&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.offline, offline) || other.offline == offline)&&(identical(other.isOwnHandle, isOwnHandle) || other.isOwnHandle == isOwnHandle));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),page,perPage,totalPages);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),page,perPage,totalPages,offline,isOwnHandle);
 
 @override
 String toString() {
-  return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages)';
+  return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages, offline: $offline, isOwnHandle: $isOwnHandle)';
 }
 
 
@@ -253,7 +269,7 @@ abstract mixin class _$ProfileTrailsStateCopyWith<$Res> implements $ProfileTrail
   factory _$ProfileTrailsStateCopyWith(_ProfileTrailsState value, $Res Function(_ProfileTrailsState) _then) = __$ProfileTrailsStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<TrailSearchResult> trails, int page, int perPage, int totalPages
+ List<TrailSummary> trails, int page, int perPage, int totalPages, bool offline, bool isOwnHandle
 });
 
 
@@ -270,13 +286,15 @@ class __$ProfileTrailsStateCopyWithImpl<$Res>
 
 /// Create a copy of ProfileTrailsState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? trails = null,Object? page = null,Object? perPage = null,Object? totalPages = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? trails = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? offline = null,Object? isOwnHandle = null,}) {
   return _then(_ProfileTrailsState(
 trails: null == trails ? _self._trails : trails // ignore: cast_nullable_to_non_nullable
-as List<TrailSearchResult>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
+as List<TrailSummary>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
-as int,
+as int,offline: null == offline ? _self.offline : offline // ignore: cast_nullable_to_non_nullable
+as bool,isOwnHandle: null == isOwnHandle ? _self.isOwnHandle : isOwnHandle // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
