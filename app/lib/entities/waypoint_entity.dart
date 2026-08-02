@@ -3,6 +3,7 @@ import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/icon_util.dart';
+import 'package:wanderer/util/local_id.dart';
 
 @Entity()
 class WaypointEntity {
@@ -22,6 +23,11 @@ class WaypointEntity {
 
   List<String> photos;
   List<String> localPhotos;
+
+  /// Carries list identity for a waypoint that has no server id yet
+  /// (D-06 / RESEARCH.md Pitfall 1). Mirrors [id] once a not-yet-uploaded
+  /// waypoint gains a real server id and its persisted `id` column changes.
+  String? localKey;
 
   @Property(type: PropertyType.dateUtc)
   DateTime created;
@@ -43,11 +49,17 @@ class WaypointEntity {
     this.icon,
     this.photos = const [],
     this.localPhotos = const [],
+    this.localKey,
   });
 
   factory WaypointEntity.fromModel(Waypoint w) {
+    // A waypoint with no server id needs a stable key to avoid colliding
+    // under `@Unique(onConflict: replace)`: reuse an existing localKey if
+    // one was already minted, otherwise mint a fresh one.
+    final key = w.id.isNotEmpty ? w.id : (w.localKey ?? mintLocalId());
+
     return WaypointEntity(
-      id: w.id,
+      id: key,
       name: w.name,
       description: w.description,
       lat: w.lat,
@@ -55,9 +67,11 @@ class WaypointEntity {
       distanceFromStart: w.distanceFromStart,
       author: w.author,
       photos: w.photos,
+      localPhotos: w.localPhotos,
       icon: fontAwesomeIconsMapReversed[w.icon],
       created: w.created,
       updated: w.updated,
+      localKey: w.id.isNotEmpty ? w.localKey : key,
     );
   }
 }
@@ -65,7 +79,9 @@ class WaypointEntity {
 extension WaypointEntityMapping on WaypointEntity {
   Waypoint toModel() {
     return Waypoint(
-      id: id,
+      // D-06: a local-sentinel id is blanked here, same discipline as
+      // TrailEntity.toModel — an empty id means not-yet-uploaded.
+      id: isLocalId(id) ? '' : id,
       name: name,
       description: description,
       lat: lat,
@@ -77,6 +93,7 @@ extension WaypointEntityMapping on WaypointEntity {
       icon: fontAwesomeIconsMap[icon] ?? FontAwesomeIcons.circle,
       updated: updated,
       created: created,
+      localKey: localKey,
     );
   }
 }

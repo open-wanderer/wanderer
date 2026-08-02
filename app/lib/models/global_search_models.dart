@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wanderer/models/list_summary.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail_summary.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 
 part 'global_search_models.freezed.dart';
 part 'global_search_models.g.dart';
@@ -87,6 +88,13 @@ abstract class TrailSearchResult
   // null as "show duration".
   @override
   double? get movingDuration => null;
+
+  // A server search result is by definition already on the server.
+  @override
+  TrailSyncState get syncState => TrailSyncState.synced;
+
+  @override
+  String? get localId => null;
 
   factory TrailSearchResult.fromJson(Map<String, dynamic> json) =>
       _$TrailSearchResultFromJson(json);

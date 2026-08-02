@@ -1,4 +1,5 @@
 import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 
 abstract class TrailSummary with RecordFunctions {
   String get name;
@@ -31,4 +32,9 @@ abstract class TrailSummary with RecordFunctions {
 
   bool get isLocal;
   List<String> get localPhotos;
+
+  // `implements` does not inherit a default body, so every implementer
+  // declares its own override explicitly.
+  TrailSyncState get syncState;
+  String? get localId;
 }

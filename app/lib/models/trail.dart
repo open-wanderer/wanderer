@@ -4,6 +4,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail_summary.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 
 import 'actor.dart';
 import 'category.dart';
@@ -123,6 +124,19 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     /// a server delete (`trail_dropdown.dart`).
     @Default(false) bool isLocal,
     @Default([]) List<String> localPhotos,
+
+    /// Permanent local identity minted once at first local save. Device-local
+    /// only — never serialized. `Trail.toJson()` feeds `form_data_util.dart`,
+    /// so this MUST carry `includeFromJson/includeToJson: false` or a
+    /// device-local value would leak into the multipart body sent to the
+    /// server.
+    @JsonKey(includeFromJson: false, includeToJson: false) String? localId,
+
+    /// This trail's upload/sync lifecycle. Device-local only — never
+    /// serialized, same rationale as [localId].
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(TrailSyncState.synced)
+    TrailSyncState syncState,
   }) = _Trail;
 
   const Trail._();

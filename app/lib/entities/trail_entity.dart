@@ -3,7 +3,9 @@ import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
+import 'package:wanderer/util/local_id.dart';
 
 @Entity()
 class TrailEntity {
@@ -59,6 +61,39 @@ class TrailEntity {
   /// `library/<id>/` directory.
   List<String> savedByUserIds = [];
 
+  /// The `UserEntity.id` of the account that CAPTURED this trail on this
+  /// device.
+  ///
+  /// Singular, not a list: authorship is 1:1, while downloading is 1:N
+  /// (RESEARCH.md A3). This is NOT [savedByUserIds] and must never be
+  /// conflated with it (D-10) — `savedByUserIds` tracks who has this trail
+  /// in their offline library, `owner` tracks who recorded it on this
+  /// device. A null owner means "not authored on this device" and must
+  /// never match an owner filter.
+  @Index()
+  String? owner;
+
+  /// Permanent local identity minted once at first local save.
+  ///
+  /// Never changed, including after the trail gains a server id — it
+  /// outlives the promotion to synced because the drain still needs it to
+  /// find the trail's photo directory and its in-flight-set key.
+  String? localId;
+
+  /// D-04's Trail half: app-owned copies of picked photos for a trail that
+  /// has not uploaded yet. Declared as a plain field with an initializer,
+  /// exactly like [photos] (not a constructor parameter).
+  List<String> localPhotos = [];
+
+  /// D-07 backoff bookkeeping: how many upload attempts have failed so far.
+  /// Persisted so a parked failure survives an app restart.
+  int syncAttempts = 0;
+
+  /// D-07 backoff bookkeeping: the earliest time the drain should retry this
+  /// trail's upload. Persisted so a parked failure survives an app restart.
+  @Property(type: PropertyType.dateUtc)
+  DateTime? syncNextAttemptAt;
+
   @Transient()
   TrailDifficulty difficulty = TrailDifficulty.easy;
 
@@ -71,6 +106,21 @@ class TrailEntity {
       difficulty = TrailDifficulty.values[value];
     } else {
       difficulty = TrailDifficulty.easy;
+    }
+  }
+
+  @Transient()
+  TrailSyncState syncState = TrailSyncState.synced;
+
+  int get dbSyncState {
+    return syncState.index;
+  }
+
+  set dbSyncState(int value) {
+    if (value >= 0 && value < TrailSyncState.values.length) {
+      syncState = TrailSyncState.values[value];
+    } else {
+      syncState = TrailSyncState.synced;
     }
   }
 
@@ -103,8 +153,17 @@ class TrailEntity {
     this.gpxData,
     this.navCacheJson,
     this.description = "",
+    this.owner,
+    this.localId,
+    this.syncAttempts = 0,
+    this.syncNextAttemptAt,
+    this.syncState = TrailSyncState.synced,
   });
 
+  // `fromModel` is the shared conversion used by the download path. It does
+  // NOT set `owner` or `localPhotos` — every writer that owns those two
+  // fields (a local capture, an upload retry) sets them explicitly inside
+  // its own transaction. Do not "helpfully" add them here.
   factory TrailEntity.fromModel(Trail trail) {
     final entity = TrailEntity(
       id: trail.id,
@@ -127,6 +186,8 @@ class TrailEntity {
       description: trail.description,
       updated: trail.updated,
       created: trail.created,
+      localId: trail.localId,
+      syncState: trail.syncState,
     );
 
     entity.dbDifficulty = trail.difficulty.index;
@@ -156,7 +217,10 @@ class TrailEntity {
 extension TrailEntityMapping on TrailEntity {
   Trail toModel() {
     return Trail(
-      id: id,
+      // D-06: a local-sentinel id is blanked here so an empty id means
+      // "not-yet-uploaded" at the model layer, even though ObjectBox needs
+      // a unique non-empty value to store the row.
+      id: isLocalId(id) ? '' : id,
       name: name,
       location: location,
       date: date,
@@ -175,7 +239,13 @@ extension TrailEntityMapping on TrailEntity {
       minLon: minLon,
       description: description ?? "",
       isLocal: true,
-      localPhotos: photos,
+      // D-10: mutually exclusive by construction — a downloaded row carries
+      // its local file copies in `photos`, an unsynced row carries them in
+      // `localPhotos`. Falling back to `photos` keeps every existing
+      // downloaded-trail reader working unchanged.
+      localPhotos: localPhotos.isNotEmpty ? localPhotos : photos,
+      localId: localId,
+      syncState: syncState,
       updated: updated,
       created: created,
       expand: TrailExpand(

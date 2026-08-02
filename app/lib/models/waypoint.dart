@@ -31,9 +31,18 @@ abstract class Waypoint with _$Waypoint, RecordFunctions {
     @JsonKey(includeFromJson: false, includeToJson: false)
     @Default([])
     List<String> localPhotos,
+
+    /// Carries list identity for a waypoint that has no server id yet
+    /// (D-06 / RESEARCH.md Pitfall 1). Device-local only, never serialized.
+    @JsonKey(includeFromJson: false, includeToJson: false) String? localKey,
   }) = _Waypoint;
 
   const Waypoint._();
+
+  /// The identity every in-memory waypoint list operation must match on,
+  /// once ids can legitimately be empty: the server id when present,
+  /// otherwise the local key.
+  String get listKey => id.isNotEmpty ? id : (localKey ?? '');
 
   factory Waypoint.fromJson(Map<String, dynamic> json) =>
       _$WaypointFromJson(json);
