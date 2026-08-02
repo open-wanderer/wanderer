@@ -282,7 +282,11 @@ class TrailSync extends _$TrailSync {
       // "keep what the row already holds", so the photos survive either way
       // and it is safe to delete the unsynced copies below.
       markTrailSynced(store, localId: localId);
-      await deleteUnsyncedPhotoDir(localId);
+      // Best-effort, and deliberately NOT inside the failure handler's reach:
+      // the row is already synced by this line, so an ArgumentError from a
+      // malformed localId would otherwise reach `recordDrainFailure` and flip
+      // a completed upload back to `pending`.
+      await _deletePhotoDirBestEffort(localId);
 
       ref.invalidate(trailLibraryProvider);
       ref.invalidate(profileTrailsProvider('@${userEntity.preferredUsername}'));
@@ -300,6 +304,26 @@ class TrailSync extends _$TrailSync {
       );
     } finally {
       state = {...state}..remove(localId);
+    }
+  }
+
+  /// Deletes [localId]'s unsynced photo directory, swallowing and logging any
+  /// failure.
+  ///
+  /// `deleteUnsyncedPhotoDir` swallows filesystem errors but evaluates
+  /// `unsyncedTrailPhotoDir` -- and therefore the `^local-\d+-\d+$`
+  /// validation -- outside its own try, on purpose, so a malformed id is a
+  /// loud caller bug. Neither of this notifier's two call sites can act on
+  /// that ArgumentError, and both run AFTER the row has already been deleted
+  /// or marked synced, so both need it to degrade rather than escape.
+  Future<void> _deletePhotoDirBestEffort(String localId) async {
+    try {
+      await deleteUnsyncedPhotoDir(localId);
+    } catch (e, st) {
+      debugPrint(
+        'trail_sync_provider: photo dir cleanup failed for "$localId": '
+        '$e\n$st',
+      );
     }
   }
 
@@ -328,7 +352,13 @@ class TrailSync extends _$TrailSync {
 
     final store = ref.read(objectBoxProvider);
     deleteLocalTrailRow(store, localId);
-    await deleteUnsyncedPhotoDir(localId);
+    // `unsyncedTrailPhotoDir` validates the id OUTSIDE
+    // `deleteUnsyncedPhotoDir`'s own try, deliberately, so a malformed
+    // localId throws an ArgumentError. The row is already gone by this line,
+    // so letting that escape into the button's async callback would leave the
+    // user with an orphaned photo directory and an unexplained failure. Match
+    // the sweep's best-effort discipline instead.
+    await _deletePhotoDirBestEffort(localId);
 
     ref.invalidate(trailLibraryProvider);
     final userEntity = store.box<UserEntity>().getAll().firstOrNull;
