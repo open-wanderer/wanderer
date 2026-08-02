@@ -150,26 +150,43 @@ class TrailSync extends _$TrailSync {
               data: formData,
               queryParameters: {'expand': 'category,tags,author'},
             );
-        final created = Trail.fromJson(response.data);
-        serverTrailId = created.id;
-
         // SYNC-04: commits the instant the server accepted the create,
         // BEFORE any waypoint upload starts below. There is no server-side
         // idempotency key, so a crash between "server accepted" and "id
         // persisted" is exactly what produces a duplicate trail
         // (RESEARCH.md Pitfall 3).
         //
+        // The id and photo list are pulled straight off the raw body rather
+        // than out of `Trail.fromJson` below, because "the server accepted the
+        // create" and "the client could deserialize the response" are
+        // different events. An unexpected body shape, a schema change or a
+        // null where the freezed model requires non-null throws in
+        // `fromJson` -- and the id would never have been persisted, so the
+        // next drain pass would `PUT /trail/form` again and create a SECOND
+        // trail with no way to reconcile the two.
+        //
         // The photo list rides along in the same transaction so that a drain
         // RESUMING at step 3 or 4 finds a truthful `photos` column. It used
         // to find `[]` -- the value `TrailEntity.fromModel` leaves behind --
         // and step 4 persisted that emptiness before deleting the on-disk
         // copies.
-        writeServerTrailId(
-          store,
-          localId: localId,
-          serverId: serverTrailId,
-          serverPhotoFilenames: created.photos,
-        );
+        final body = response.data;
+        final rawBody = body is Map ? body : const {};
+        final rawId = rawBody['id'];
+        if (rawId is String && rawId.isNotEmpty) {
+          final rawPhotos = rawBody['photos'];
+          writeServerTrailId(
+            store,
+            localId: localId,
+            serverId: rawId,
+            serverPhotoFilenames: rawPhotos is List
+                ? rawPhotos.whereType<String>().toList()
+                : null,
+          );
+        }
+
+        final created = Trail.fromJson(response.data);
+        serverTrailId = created.id;
       }
 
       // Step 3: each waypoint that has not already been created.

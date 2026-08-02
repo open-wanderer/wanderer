@@ -468,12 +468,13 @@ List<TrailEntity> selectDrainCandidates(
 /// looks, to a resumed drain, exactly like a trail with no photos at all --
 /// which is how [markTrailSynced] came to persist an empty `photos` column
 /// and `deleteUnsyncedPhotoDir` came to delete the only copies left on the
-/// device.
+/// device. It is nullable, and null means "leave `photos` alone", so a
+/// response that carries an id but no usable photo list cannot erase one.
 void writeServerTrailId(
   Store store, {
   required String localId,
   required String serverId,
-  List<String> serverPhotoFilenames = const [],
+  List<String>? serverPhotoFilenames,
 }) {
   store.runInTransaction(TxMode.write, () {
     final box = store.box<TrailEntity>();
@@ -483,7 +484,9 @@ void writeServerTrailId(
     if (entity == null) return;
 
     entity.id = serverId;
-    entity.photos = serverPhotoFilenames;
+    if (serverPhotoFilenames != null) {
+      entity.photos = serverPhotoFilenames;
+    }
     box.put(entity);
   });
 }
