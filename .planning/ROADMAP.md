@@ -567,4 +567,4 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 0/0 | Not planned | — |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 0/8 | Planned | — |
