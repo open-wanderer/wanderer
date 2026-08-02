@@ -476,7 +476,7 @@ far as a populated `trail_create_screen`; **saving it is this phase's job**, and
 widening, Save would have failed after the hiker filled in title, description, category and
 photos — worse than refusing up front.
 
-**Plans**: 13 plans in 7 waves (8 shipped + 5 gap closure)
+**Plans**: 13 plans in 8 waves (8 shipped + 5 gap closure)
 Plans:
 **Wave 1**
 
@@ -498,19 +498,30 @@ Plans:
 - [x] 36-07-PLAN.md — `/profile/<handle>/trails` goes local-first: local+network merge deduped by server id, offline banner and empty state, unsynced tap routing
 - [x] 36-08-PLAN.md — `SyncStatusChip` on card and list item, and the `trail_dropdown` split (download hidden, delete confirmed as unrecoverable and blocked mid-drain)
 
-**Wave 5** *(gap closure from 36-UAT.md; 36-09 and 36-11 run in parallel)*
+**Wave 5** *(gap closure from 36-UAT.md; runs alone — it is wave 5's only codegen plan)*
 
-- [ ] 36-09-PLAN.md — Stop the offline reload storm: filter fallback + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
+- [ ] 36-09-PLAN.md — Stop the offline reload storm: filter fallback with usable slider bounds + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
+
+**Wave 6** *(blocked on Wave 5; 36-10 and 36-11 run in parallel — only 36-11 runs codegen)*
+
+- [ ] 36-10-PLAN.md — Local save notifies the own-trails list: one canonical producer of the signed-in account's handle across all ten former inline sites, propagation targets extracted and proven in a live `ProviderContainer`, both save tails wired
 - [ ] 36-11-PLAN.md — Make an unsynced trail addressable: owner-scoped local read, `localTrailProvider`, route-location helper, `/trail/local/:localId`, dual-mode detail screen
-
-**Wave 6** *(blocked on Wave 5; 36-10 and 36-12 run in parallel)*
-
-- [ ] 36-10-PLAN.md — Local save notifies the own-trails list: one canonical family key, both save tails invalidate
-- [ ] 36-12-PLAN.md — Tapping an unsynced trail opens detail: divert removed, panel map pushes retargeted, local map route, navigation widget test
 
 **Wave 7** *(blocked on Wave 6)*
 
-- [ ] 36-13-PLAN.md — Behavioural coverage for the D-14/D-17 dropdown gating, replacing the source-grep-only signal that let the reachability gap ship
+- [ ] 36-12-PLAN.md — Tapping an unsynced trail opens detail: divert removed, panel map pushes retargeted, local map route, navigation widget test
+
+**Wave 8** *(blocked on Wave 7)*
+
+- [ ] 36-13-PLAN.md — Behavioural coverage for the D-14/D-17 dropdown gating, replacing the source-grep-only signal that let the reachability gap ship; plus the phase's single whole-tree codegen reconciliation
+
+**Planner decision (2026-08-02, revision 1) — codegen is serialised across the gap-closure waves.**
+`dart run build_runner build` takes an exclusive lock on `app/.dart_tool/build` and regenerates
+every `.g.dart` in the package, not just the annotated file a plan declares — a blast radius
+`files_modified` overlap analysis structurally cannot see. 36-09 and 36-11 were originally both
+wave 5 and both ran it. 36-11 now depends on 36-09 for that reason alone (no semantic
+dependency), 36-10 and 36-12 run no codegen at all, and 36-13 — alone in the last wave —
+reconciles the whole tree once and proves a fixpoint by running `build_runner` twice.
 
 **Planner decision (2026-08-02) — save-time branch order.** RESEARCH.md left Open Question 1 (local-first-always vs network-first-with-offline-fallback) to plan time. Resolved as **local-first always**: both local `_onSave` branches write to ObjectBox and never touch the network, online or offline, followed by a fire-and-forget drain kick. One code path instead of two, matching the Komoot/AllTrails model the design record cites, and it makes REC-01's "no save failure caused by being offline" structurally true rather than a caught-exception behaviour. A network-first fallback was rejected because a `createTrail` that fails *after* `PUT /trail/form` succeeded would fall back to a local save and produce a duplicate on the next drain — a direct SYNC-04 violation.
 
