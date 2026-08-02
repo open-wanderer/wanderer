@@ -139,7 +139,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 7655646596805638170),
     name: 'WaypointEntity',
-    lastPropertyId: const obx_int.IdUid(14, 7256564728982687697),
+    lastPropertyId: const obx_int.IdUid(15, 5363316924739740034),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -228,6 +228,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(14, 7256564728982687697),
         name: 'localPhotos',
         type: 30,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 5363316924739740034),
+        name: 'localKey',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -439,7 +445,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(29, 5553735844226385778),
+    lastPropertyId: const obx_int.IdUid(35, 5632961350659741043),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -609,6 +615,43 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(29, 5553735844226385778),
         name: 'movingDuration',
         type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(30, 8182271228801290814),
+        name: 'owner',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(24, 7121962790424774298),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(31, 2606882451500225288),
+        name: 'localId',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(32, 2576169746972271716),
+        name: 'localPhotos',
+        type: 30,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(33, 268515948566237041),
+        name: 'syncAttempts',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(34, 7983000755271513655),
+        name: 'syncNextAttemptAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(35, 5632961350659741043),
+        name: 'dbSyncState',
+        type: 6,
         flags: 0,
       ),
     ],
@@ -1110,7 +1153,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
     lastEntityId: const obx_int.IdUid(12, 7228865513396600510),
-    lastIndexId: const obx_int.IdUid(23, 6305628536415824179),
+    lastIndexId: const obx_int.IdUid(24, 7121962790424774298),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
@@ -1309,7 +1352,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final localPhotosOffset = fbb.writeList(
           object.localPhotos.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(15);
+        final localKeyOffset = object.localKey == null
+            ? null
+            : fbb.writeString(object.localKey!);
+        fbb.startTable(16);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1324,6 +1370,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(11, object.created.millisecondsSinceEpoch);
         fbb.addInt64(12, object.updated.millisecondsSinceEpoch);
         fbb.addOffset(13, localPhotosOffset);
+        fbb.addOffset(14, localKeyOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1375,6 +1422,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fb.StringReader(asciiOptimization: true),
           lazy: false,
         ).vTableGet(buffer, rootOffset, 30, []);
+        final localKeyParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 32);
         final object = WaypointEntity(
           id: idParam,
           created: createdParam,
@@ -1388,6 +1438,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           icon: iconParam,
           photos: photosParam,
           localPhotos: localPhotosParam,
+          localKey: localKeyParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         object.trail.targetId = const fb.Int64Reader().vTableGet(
           buffer,
@@ -1676,7 +1727,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final savedByUserIdsOffset = fbb.writeList(
           object.savedByUserIds.map(fbb.writeString).toList(growable: false),
         );
-        fbb.startTable(30);
+        final ownerOffset = object.owner == null
+            ? null
+            : fbb.writeString(object.owner!);
+        final localIdOffset = object.localId == null
+            ? null
+            : fbb.writeString(object.localId!);
+        final localPhotosOffset = fbb.writeList(
+          object.localPhotos.map(fbb.writeString).toList(growable: false),
+        );
+        fbb.startTable(36);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1704,6 +1764,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(25, navCacheJsonOffset);
         fbb.addOffset(27, savedByUserIdsOffset);
         fbb.addFloat64(28, object.movingDuration);
+        fbb.addOffset(29, ownerOffset);
+        fbb.addOffset(30, localIdOffset);
+        fbb.addOffset(31, localPhotosOffset);
+        fbb.addInt64(32, object.syncAttempts);
+        fbb.addInt64(33, object.syncNextAttemptAt?.millisecondsSinceEpoch);
+        fbb.addInt64(34, object.dbSyncState);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1714,6 +1780,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
           buffer,
           rootOffset,
           12,
+        );
+        final syncNextAttemptAtValue = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          70,
         );
         final idParam = const fb.StringReader(
           asciiOptimization: true,
@@ -1809,6 +1880,24 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final descriptionParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 30);
+        final ownerParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 62);
+        final localIdParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 64);
+        final syncAttemptsParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          68,
+          0,
+        );
+        final syncNextAttemptAtParam = syncNextAttemptAtValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(
+                syncNextAttemptAtValue,
+                isUtc: true,
+              );
         final object =
             TrailEntity(
                 id: idParam,
@@ -1832,6 +1921,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 gpxData: gpxDataParam,
                 navCacheJson: navCacheJsonParam,
                 description: descriptionParam,
+                owner: ownerParam,
+                localId: localIdParam,
+                syncAttempts: syncAttemptsParam,
+                syncNextAttemptAt: syncNextAttemptAtParam,
               )
               ..obxId = const fb.Int64Reader().vTableGet(
                 buffer,
@@ -1852,7 +1945,17 @@ obx_int.ModelDefinition getObjectBoxModel() {
               ..savedByUserIds = const fb.ListReader<String>(
                 fb.StringReader(asciiOptimization: true),
                 lazy: false,
-              ).vTableGet(buffer, rootOffset, 58, []);
+              ).vTableGet(buffer, rootOffset, 58, [])
+              ..localPhotos = const fb.ListReader<String>(
+                fb.StringReader(asciiOptimization: true),
+                lazy: false,
+              ).vTableGet(buffer, rootOffset, 66, [])
+              ..dbSyncState = const fb.Int64Reader().vTableGet(
+                buffer,
+                rootOffset,
+                72,
+                0,
+              );
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2615,6 +2718,11 @@ class WaypointEntity_ {
   static final localPhotos = obx.QueryStringVectorProperty<WaypointEntity>(
     _entities[1].properties[13],
   );
+
+  /// See [WaypointEntity.localKey].
+  static final localKey = obx.QueryStringProperty<WaypointEntity>(
+    _entities[1].properties[14],
+  );
 }
 
 /// [ActorEntity] entity fields to define ObjectBox queries.
@@ -2908,6 +3016,36 @@ class TrailEntity_ {
   /// See [TrailEntity.movingDuration].
   static final movingDuration = obx.QueryDoubleProperty<TrailEntity>(
     _entities[4].properties[26],
+  );
+
+  /// See [TrailEntity.owner].
+  static final owner = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[27],
+  );
+
+  /// See [TrailEntity.localId].
+  static final localId = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[28],
+  );
+
+  /// See [TrailEntity.localPhotos].
+  static final localPhotos = obx.QueryStringVectorProperty<TrailEntity>(
+    _entities[4].properties[29],
+  );
+
+  /// See [TrailEntity.syncAttempts].
+  static final syncAttempts = obx.QueryIntegerProperty<TrailEntity>(
+    _entities[4].properties[30],
+  );
+
+  /// See [TrailEntity.syncNextAttemptAt].
+  static final syncNextAttemptAt = obx.QueryDateProperty<TrailEntity>(
+    _entities[4].properties[31],
+  );
+
+  /// See [TrailEntity.dbSyncState].
+  static final dbSyncState = obx.QueryIntegerProperty<TrailEntity>(
+    _entities[4].properties[32],
   );
 
   /// see [TrailEntity.waypoints]

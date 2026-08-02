@@ -97,7 +97,7 @@
     },
     {
       "id": "3:7655646596805638170",
-      "lastPropertyId": "14:7256564728982687697",
+      "lastPropertyId": "15:5363316924739740034",
       "name": "WaypointEntity",
       "properties": [
         {
@@ -175,6 +175,11 @@
           "id": "14:7256564728982687697",
           "name": "localPhotos",
           "type": 30
+        },
+        {
+          "id": "15:5363316924739740034",
+          "name": "localKey",
+          "type": 9
         }
       ],
       "relations": []
@@ -353,7 +358,7 @@
     },
     {
       "id": "6:5034082009762803572",
-      "lastPropertyId": "29:5553735844226385778",
+      "lastPropertyId": "35:5632961350659741043",
       "name": "TrailEntity",
       "properties": [
         {
@@ -499,6 +504,38 @@
           "id": "29:5553735844226385778",
           "name": "movingDuration",
           "type": 8
+        },
+        {
+          "id": "30:8182271228801290814",
+          "name": "owner",
+          "indexId": "24:7121962790424774298",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "31:2606882451500225288",
+          "name": "localId",
+          "type": 9
+        },
+        {
+          "id": "32:2576169746972271716",
+          "name": "localPhotos",
+          "type": 30
+        },
+        {
+          "id": "33:268515948566237041",
+          "name": "syncAttempts",
+          "type": 6
+        },
+        {
+          "id": "34:7983000755271513655",
+          "name": "syncNextAttemptAt",
+          "type": 10
+        },
+        {
+          "id": "35:5632961350659741043",
+          "name": "dbSyncState",
+          "type": 6
         }
       ],
       "relations": []
@@ -885,7 +922,7 @@
     }
   ],
   "lastEntityId": "12:7228865513396600510",
-  "lastIndexId": "23:6305628536415824179",
+  "lastIndexId": "24:7121962790424774298",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

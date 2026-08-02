@@ -64,7 +64,7 @@ final class ProfileCountsProvider
   }
 }
 
-String _$profileCountsHash() => r'0f60fe1cd1f6f5b5b4950a0ea528d32370a9c15b';
+String _$profileCountsHash() => r'b130213f3ba84a9768e5fa4f82bed20ae52cd4fb';
 
 final class ProfileCountsFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<ProfileCounts>, String> {
