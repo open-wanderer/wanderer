@@ -180,6 +180,15 @@ class TrailDownloadService {
       // `fromModel`, so putting it blind would wipe `savedByUserIds` -- and
       // with it every other account's claim on this trail. Re-read inside the
       // transaction rather than trusting an entry-time snapshot.
+      //
+      // The same blind-put risk applies to a trail's LOCAL bookkeeping
+      // (owner/localId/syncState/syncAttempts/syncNextAttemptAt/localPhotos):
+      // a hiker who captures a trail here, lets it upload, and later
+      // downloads it would otherwise lose `owner` -- silently vanishing from
+      // the offline own-trails list (REC-06) with no error anywhere -- or, if
+      // caught mid-drain, lose the resume state a failed upload needs to
+      // retry correctly. Carry all six forward from the existing row for the
+      // same reason `savedByUserIds` is carried forward above.
       final query = box.query(TrailEntity_.id.equals(trailId)).build();
       final existing = query.findFirst();
       query.close();
@@ -188,6 +197,12 @@ class TrailDownloadService {
         existing?.savedByUserIds ?? const [],
         savedByUserId,
       );
+      entity.owner = existing?.owner;
+      entity.localId = existing?.localId;
+      entity.syncState = existing?.syncState ?? entity.syncState;
+      entity.syncAttempts = existing?.syncAttempts ?? 0;
+      entity.syncNextAttemptAt = existing?.syncNextAttemptAt;
+      entity.localPhotos = existing?.localPhotos ?? const [];
 
       box.put(entity);
     });
