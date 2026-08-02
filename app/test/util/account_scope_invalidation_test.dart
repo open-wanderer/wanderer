@@ -8,6 +8,7 @@ import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
+import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/util/account_scope_invalidation.dart';
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,22 @@ void main() {
         );
       },
     );
+
+    test('does not contain trailSyncProvider — a deliberate, test-pinned '
+        'exclusion (36-04)', () {
+      expect(
+        accountScopedProviders,
+        isNot(contains(trailSyncProvider)),
+        reason:
+            "trailSyncProvider tracks the deferred-upload drain's "
+            "in-flight local-id set. Invalidating it mid-drain would "
+            "desync that set from the upload sequence's actual position "
+            "(the row may already have a server id from writeServerTrailId "
+            "while the notifier still thinks it is pre-create). Account "
+            "scoping already lives in the drain's own owner-filtered "
+            "query (selectDrainCandidates), not in cache invalidation.",
+      );
+    });
 
     test('contains no region provider — regions are shared device data', () {
       // Downloaded regions are public basemap archives shared by every

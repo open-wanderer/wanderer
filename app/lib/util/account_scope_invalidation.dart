@@ -14,6 +14,19 @@
 /// - `downloadingTrailIdsProvider` / `tileRepositoryManagerProvider` stay:
 ///   invalidating them mid-download would desync in-flight download
 ///   bookkeeping from its `CancelToken`s.
+/// - `trailSyncProvider` stays, deliberately, for the same reason as
+///   `downloadingTrailIdsProvider` above: it is a `keepAlive` provider
+///   tracking in-flight operations (the deferred-upload drain's local-id
+///   set), and invalidating it mid-drain would desync that set from the
+///   upload sequence's actual position (`writeServerTrailId` may already
+///   have committed while the notifier's own state still thinks the trail
+///   is pre-create). Account scoping for the drain is already enforced at
+///   the query, not by cache invalidation: `drainIfOnline` re-reads
+///   `currentAccountId(store)` fresh on every run and `selectDrainCandidates`
+///   filters on that id via an owner predicate (D-13). This is a deliberate
+///   decision, not an omission — see 36-RESEARCH.md, which flags this
+///   provider as the one case the `downloadingTrailIdsProvider` precedent
+///   does not automatically cover.
 /// - Every region provider stays: downloaded regions are PUBLIC, device-level
 ///   data shared by all accounts on the device (they are expensive basemap
 ///   archives with no user-specific content and must never be re-downloaded
