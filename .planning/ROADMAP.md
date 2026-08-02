@@ -569,8 +569,10 @@ both:
   `way_type_surface` json field to the same `trails` collection (`e864strfxo14pm4`). Two
   migrations against one collection must land in a known order.
 
-Clean (no Phase 36 plan touches them): `app/lib/components/trail/trail_panel.dart`,
-`app/lib/theme/colors.dart`, `web/src/lib/server/`.
+- `app/lib/components/trail/trail_panel.dart` — Phase 36's gap-closure plan 36-12 (Task 3)
+  rewrites three `context.push` sites here to re-target the map route for unsynced trails.
+
+Clean (no Phase 36 plan touches them): `app/lib/theme/colors.dart`, `web/src/lib/server/`.
 
 **Source material:** the todo carries a complete file-level implementation plan, including the
 verified root cause — Valhalla's default `pedestrian` costing caps `max_hiking_difficulty ≈ 1`,
