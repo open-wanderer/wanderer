@@ -321,7 +321,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; verification returned `human_needed` — 4 device-only checks pending in 36-UAT.md)
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; UAT returned 3 diagnosed gaps + 1 blocked test — 5 gap closure plans 36-09..36-13 planned)
 
 #### Sequencing Rationale
 
@@ -476,7 +476,7 @@ far as a populated `trail_create_screen`; **saving it is this phase's job**, and
 widening, Save would have failed after the hiker filled in title, description, category and
 photos — worse than refusing up front.
 
-**Plans**: 8 plans in 4 waves
+**Plans**: 13 plans in 7 waves (8 shipped + 5 gap closure)
 Plans:
 **Wave 1**
 
@@ -497,6 +497,20 @@ Plans:
 - [x] 36-06-PLAN.md — Local-first `_onSave`: three-way branch, photo copy with D-03 reporting, empty ids for every not-yet-uploaded waypoint
 - [x] 36-07-PLAN.md — `/profile/<handle>/trails` goes local-first: local+network merge deduped by server id, offline banner and empty state, unsynced tap routing
 - [x] 36-08-PLAN.md — `SyncStatusChip` on card and list item, and the `trail_dropdown` split (download hidden, delete confirmed as unrecoverable and blocked mid-drain)
+
+**Wave 5** *(gap closure from 36-UAT.md; 36-09 and 36-11 run in parallel)*
+
+- [ ] 36-09-PLAN.md — Stop the offline reload storm: filter fallback + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
+- [ ] 36-11-PLAN.md — Make an unsynced trail addressable: owner-scoped local read, `localTrailProvider`, route-location helper, `/trail/local/:localId`, dual-mode detail screen
+
+**Wave 6** *(blocked on Wave 5; 36-10 and 36-12 run in parallel)*
+
+- [ ] 36-10-PLAN.md — Local save notifies the own-trails list: one canonical family key, both save tails invalidate
+- [ ] 36-12-PLAN.md — Tapping an unsynced trail opens detail: divert removed, panel map pushes retargeted, local map route, navigation widget test
+
+**Wave 7** *(blocked on Wave 6)*
+
+- [ ] 36-13-PLAN.md — Behavioural coverage for the D-14/D-17 dropdown gating, replacing the source-grep-only signal that let the reachability gap ship
 
 **Planner decision (2026-08-02) — save-time branch order.** RESEARCH.md left Open Question 1 (local-first-always vs network-first-with-offline-fallback) to plan time. Resolved as **local-first always**: both local `_onSave` branches write to ObjectBox and never touch the network, online or offline, followed by a fire-and-forget drain kick. One code path instead of two, matching the Komoot/AllTrails model the design record cites, and it makes REC-01's "no save failure caused by being offline" structurally true rather than a caught-exception behaviour. A network-first fallback was rejected because a `createTrail` that fails *after* `PUT /trail/form` succeeded would fall back to a local save and produce a duplicate on the next drain — a direct SYNC-04 violation.
 
