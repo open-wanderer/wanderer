@@ -63,13 +63,22 @@ class RouterNotifier extends ChangeNotifier {
 Listenable routerListenable(Ref ref) {
   final notifier = RouterNotifier();
 
+  // The redirect below depends on exactly one property of the auth state:
+  // whether a user is signed in. Notifying on every non-loading emission made a
+  // background re-validation that emits a fresh-but-equivalent UserEntity
+  // refresh the router, rebuilding the route stack and tearing down any open
+  // modal route (see main.dart's share import). Only flips are relevant.
+  bool? lastLoggedIn;
+
   ref.listen<AsyncValue<UserEntity?>>(authProvider, (
     AsyncValue<UserEntity?>? previous,
     AsyncValue<UserEntity?> next,
   ) {
-    if (!next.isLoading) {
-      notifier.notify();
-    }
+    if (next.isLoading) return;
+    final loggedIn = next.value != null;
+    if (loggedIn == lastLoggedIn) return;
+    lastLoggedIn = loggedIn;
+    notifier.notify();
   });
 
   return notifier;

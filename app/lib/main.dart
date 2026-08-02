@@ -84,6 +84,11 @@ class _MainAppState extends ConsumerState<MainApp> {
   List<SharedMediaFile>? _pendingShare;
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
 
+  // Listener waiting for the router to leave the splash route before the share
+  // import opens its bottom sheet. Held so dispose() can detach it.
+  VoidCallback? _shareRouteWaiter;
+  GoRouter? _shareRouteWaiterRouter;
+
   @override
   void initState() {
     super.initState();
@@ -142,6 +147,7 @@ class _MainAppState extends ConsumerState<MainApp> {
   void dispose() {
     _authSub?.close();
     _shareSub?.cancel();
+    _detachShareRouteWaiter();
     super.dispose();
   }
 
@@ -161,6 +167,13 @@ class _MainAppState extends ConsumerState<MainApp> {
   /// logs the user out and the router redirect bounces them to /welcome —
   /// same outcome as today, just after a visible import screen instead of
   /// before one.
+  ///
+  /// The actual sheet is not opened here: on a cold share start the app is
+  /// still on the `/` splash route, which the router redirect is guaranteed to
+  /// leave for `/map` as soon as auth settles. That redirect rebuilds the route
+  /// stack and tears down any modal route on top of it — which silently
+  /// cancelled the import's track-save-options sheet. See
+  /// [_runImportWhenRouterSettled].
   void _maybeHandleShare() {
     final pending = _pendingShare;
     if (pending == null || pending.isEmpty) return;
@@ -177,19 +190,61 @@ class _MainAppState extends ConsumerState<MainApp> {
     final file = pending.first;
     _pendingShare = null;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = navigatorKey.currentContext;
-      if (ctx == null) return;
-      final l10n = AppLocalizations.of(ctx);
-      if (l10n == null) return;
-      importTrailFile(
-        ref: ref,
-        path: file.path,
-        name: p.basename(file.path),
-        navContext: ctx,
-        l10n: l10n,
-      );
-    });
+    _runImportWhenRouterSettled(file);
+  }
+
+  /// Runs [importTrailFile] for [file] once the router has settled on a real
+  /// route, so the import's bottom sheet is never opened over the `/` splash
+  /// (a route the redirect always leaves, taking the sheet with it).
+  ///
+  /// If the router settles on an auth route instead, the optimistic cached
+  /// session turned out to be invalid — the file goes back into
+  /// [_pendingShare] so the auth listener replays it after login.
+  void _runImportWhenRouterSettled(SharedMediaFile file) {
+    // A newer share supersedes one still waiting — single-trail import.
+    _detachShareRouteWaiter();
+
+    const authRoutes = {'/login', '/register', '/welcome', '/select-server'};
+    final router = ref.read(routerProvider);
+
+    void attempt() {
+      final location = router.routerDelegate.currentConfiguration.uri.path;
+      if (location == '/') return; // Still on the splash — keep waiting.
+
+      _detachShareRouteWaiter();
+
+      if (authRoutes.contains(location)) {
+        _pendingShare = [file];
+        return;
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx == null) return;
+        final l10n = AppLocalizations.of(ctx);
+        if (l10n == null) return;
+        importTrailFile(
+          ref: ref,
+          path: file.path,
+          name: p.basename(file.path),
+          navContext: ctx,
+          l10n: l10n,
+        );
+      });
+    }
+
+    _shareRouteWaiter = attempt;
+    _shareRouteWaiterRouter = router;
+    router.routerDelegate.addListener(attempt);
+    attempt();
+  }
+
+  void _detachShareRouteWaiter() {
+    final waiter = _shareRouteWaiter;
+    if (waiter == null) return;
+    _shareRouteWaiterRouter?.routerDelegate.removeListener(waiter);
+    _shareRouteWaiter = null;
+    _shareRouteWaiterRouter = null;
   }
 
   /// Checks for a persisted active-navigation row and, if resolvable, shows a
