@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: planning
-stopped_at: Completed 34-07-PLAN.md
-last_updated: "2026-08-02T10:13:32.108Z"
-last_activity: 2026-08-02
+stopped_at: Phase 36 context gathered
+last_updated: "2026-08-02T10:47:04.518Z"
+last_activity: "2026-08-02 -- Phase 35 complete: OFFUI-01..04 shipped, device-verified, scoped security audit 0 open"
 progress:
   total_phases: 4
   completed_phases: 2
@@ -495,9 +495,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-01T08:21:22.979Z
-Stopped at: Completed 34-07-PLAN.md
-Resume file: None
+Last session: 2026-08-02T10:47:04.502Z
+Stopped at: Phase 36 context gathered
+Resume file: .planning/phases/36-local-first-recording-automatic-upload/36-CONTEXT.md
 
 ## Operator Next Steps
 
