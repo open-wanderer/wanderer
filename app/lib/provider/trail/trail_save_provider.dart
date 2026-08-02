@@ -31,7 +31,11 @@ class TrailSave extends _$TrailSave {
   /// Resolves any client-created (unsaved, `id == null`) [tags] into real
   /// PocketBase records, returning the full tag list (existing + newly
   /// created) with real ids.
-  Future<List<Tag>> _resolveTags(List<Tag> tags) async {
+  ///
+  /// Public so the deferred-upload drain (`trail_sync_provider.dart`) can
+  /// reuse the exact same tag-reuse-vs-create rule (D-06) it applies at
+  /// interactive save time.
+  Future<List<Tag>> resolveTags(List<Tag> tags) async {
     final resolved = <Tag>[];
     for (final tag in tags) {
       if (tag.id != null && tag.id!.isNotEmpty) {
@@ -48,7 +52,7 @@ class TrailSave extends _$TrailSave {
     required String authorId,
     required List<File> newPhotos,
   }) async {
-    final resolvedTags = await _resolveTags(trail.expand?.tags ?? const []);
+    final resolvedTags = await resolveTags(trail.expand?.tags ?? const []);
 
     final trailToSend = trail.copyWith(
       author: authorId,
@@ -111,7 +115,7 @@ class TrailSave extends _$TrailSave {
     required List<File> newPhotos,
     required List<String> removedPhotoFilenames,
   }) async {
-    final resolvedTags = await _resolveTags(newTrail.expand?.tags ?? const []);
+    final resolvedTags = await resolveTags(newTrail.expand?.tags ?? const []);
 
     final trailToSend = newTrail.copyWith(
       author: oldTrail.author,
