@@ -475,7 +475,32 @@ far as a populated `trail_create_screen`; **saving it is this phase's job**, and
 widening, Save would have failed after the hiker filled in title, description, category and
 photos — worse than refusing up front.
 
-**Plans**: TBD
+**Plans**: 8 plans in 4 waves
+Plans:
+**Wave 1**
+
+- [ ] 36-01-PLAN.md — Local-first data model: `TrailSyncState`, collision-free local ids, and the owner/localId/syncState/localPhotos fields on both entities and their models
+
+**Wave 2** *(blocked on Wave 1 completion; 36-02 and 36-03 run in parallel)*
+
+- [ ] 36-02-PLAN.md — App-owned unsynced-photo storage (copy, reconcile, delete, orphan sweep) plus the phase's ten English l10n strings
+- [ ] 36-03-PLAN.md — `local_trail_store.dart`, the single owner-scoped read/write layer for locally-captured rows, and the `TrailDownloadService` carry-forward
+
+**Wave 3** *(blocked on Wave 2 completion; 36-04 and 36-05 run in parallel)*
+
+- [ ] 36-04-PLAN.md — The deferred-upload drain: resumable tag→trail→waypoint sequence, backoff and park, manual retry, foreground/connectivity/cold-start triggers, startup photo sweep
+- [ ] 36-05-PLAN.md — Sign-out warning naming the count of not-yet-uploaded trails
+
+**Wave 4** *(blocked on Wave 3 completion; 36-06, 36-07 and 36-08 run in parallel)*
+
+- [ ] 36-06-PLAN.md — Local-first `_onSave`: three-way branch, photo copy with D-03 reporting, empty ids for every not-yet-uploaded waypoint
+- [ ] 36-07-PLAN.md — `/profile/<handle>/trails` goes local-first: local+network merge deduped by server id, offline banner and empty state, unsynced tap routing
+- [ ] 36-08-PLAN.md — `SyncStatusChip` on card and list item, and the `trail_dropdown` split (download hidden, delete confirmed as unrecoverable and blocked mid-drain)
+
+**Planner decision (2026-08-02) — save-time branch order.** RESEARCH.md left Open Question 1 (local-first-always vs network-first-with-offline-fallback) to plan time. Resolved as **local-first always**: both local `_onSave` branches write to ObjectBox and never touch the network, online or offline, followed by a fire-and-forget drain kick. One code path instead of two, matching the Komoot/AllTrails model the design record cites, and it makes REC-01's "no save failure caused by being offline" structurally true rather than a caught-exception behaviour. A network-first fallback was rejected because a `createTrail` that fails *after* `PUT /trail/form` succeeded would fall back to a local save and produce a duplicate on the next drain — a direct SYNC-04 violation.
+
+**Planner decision (2026-08-02) — local rows survive promotion.** A trail keeps its `TrailEntity` row after a successful drain (`syncState` flips to `synced`, `obxId` unchanged) rather than being deleted and re-fetched. That is what SYNC-05's "keeps its identity in place" means concretely, and the merge in 36-07 dedupes the network hit by server id so it can never render twice.
+
 **UI hint**: yes
 
 **Open for discuss-phase:** four decisions are deliberately unresolved and belong to this phase's discuss-phase — photo file durability (`image_picker` returns paths into an OS-purgeable cache directory), partial-failure semantics of the `tag → trail → waypoint` upload sequence, whether logout with undrained unsynced trails needs a confirmation UX, and — from the 2026-08-01 scope note above — whether REC-03's "visibly distinguishable" should further distinguish a recorded trail from an imported one, or treat both simply as unsynced. Full context: `.planning/research/questions.md`, `.planning/notes/offline-recording-deferred-upload-design.md`.
