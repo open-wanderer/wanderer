@@ -53,9 +53,12 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   late String _handle;
   String _q = '';
 
-  // Recomputed at the top of every `build()`, then re-derived fresh (never
-  // read from these cached copies) inside `search`/`loadNextPage` via
-  // `_readOwnLocal` -- D-13's "always fresh, never cached" invariant.
+  // Recomputed at the top of every `build()`. `_isOwnHandle` is published on
+  // the state and read by `_fetchAndMerge`'s rethrow decision; the local read
+  // path does NOT use it -- `_readOwnLocal` re-derives both the own-handle
+  // test and the actor id from a fresh `authProvider`/`currentAccountId`
+  // read, which is D-13's "always fresh, never cached" invariant actually
+  // enforced rather than merely asserted.
   bool _isOwnHandle = false;
   String? _authorActorId;
 
@@ -64,9 +67,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
     _handle = handle;
 
     // Watch the filter so we rebuild and re-fetch when it changes.
-    final filterAsync = ref.watch(
-      trailFilterProvider('profile_trail_$handle'),
-    );
+    final filterAsync = ref.watch(trailFilterProvider('profile_trail_$handle'));
     final filter = filterAsync.value;
 
     final store = ref.watch(objectBoxProvider);
@@ -149,20 +150,31 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   }
 
   /// Re-reads [ProfileTrailsState]'s local half fresh from the store, gated
-  /// on [_isOwnHandle] -- a different handle's profile, or a signed-out
-  /// account, always gets an empty local list (T-36-07-01, T-36-07-02).
+  /// on the handle being the signed-in hiker's own -- a different handle's
+  /// profile, or a signed-out account, always gets an empty local list
+  /// (T-36-07-01, T-36-07-02).
+  ///
+  /// Derives BOTH the own-handle test and the author actor id here rather
+  /// than reading [_isOwnHandle]/[_authorActorId], which is what the fields'
+  /// own doc comment promised and the code did not do. The actor id is a
+  /// matching key in `readOwnLocalTrails`' second clause
+  /// (`entity.author.target?.id == authorActorId`), so a stale one paired the
+  /// NEW account's id with the PREVIOUS account's actor -- the exact shape of
+  /// the leak D-13 exists to prevent. `build()` watching `authProvider` kept
+  /// the window narrow, but narrow is not the guarantee the comment claimed.
   List<Trail> _readOwnLocal(String q) {
-    if (!_isOwnHandle) return const <Trail>[];
-
     final store = ref.read(objectBoxProvider);
     final accountId = currentAccountId(store);
-    if (accountId == null) return const <Trail>[];
+    final user = ref.read(authProvider).value;
+    if (accountId == null || user == null) return const <Trail>[];
+
+    if (_handle != '@${user.preferredUsername}') return const <Trail>[];
 
     return filterOwnTrailsByQuery(
       readOwnLocalTrails(
         store,
         accountId: accountId,
-        authorActorId: _authorActorId,
+        authorActorId: user.actorId,
       ),
       q,
     );
