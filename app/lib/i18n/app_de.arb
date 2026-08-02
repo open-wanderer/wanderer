@@ -163,6 +163,9 @@
   "trail_source_import_description": "Lade GPX-, KML-, KMZ-, TCX- oder FIT-Dateien direkt von deinem Gerät hoch.",
   "trail_source_import_error": "Datei konnte nicht importiert werden",
   "trail_source_offline_import_error": "Offline können nur GPX-Dateien importiert werden",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
   "no_comments_so_far": "Bisher keine Kommentare",
   "no_data": "Keine Daten",
   "no_description_for_now": "Noch keine Beschreibung",
