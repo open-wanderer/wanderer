@@ -39,11 +39,11 @@ enum LocalSaveMode {
   /// the normal network `PUT`/`POST`, not a local write.
   networkUpdate,
 
-  /// The trail has never been saved locally before -- mint a local id and
-  /// create a new [TrailEntity] row.
+  /// The trail already has a local row -- update it in place.
   updateLocal,
 
-  /// The trail already has a local row -- update it in place.
+  /// The trail has never been saved locally before -- mint a local id and
+  /// create a new [TrailEntity] row.
   createLocal,
 }
 
