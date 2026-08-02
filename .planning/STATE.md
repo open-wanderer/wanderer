@@ -4,13 +4,13 @@ milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
 stopped_at: Completed 36-04-PLAN.md
-last_updated: "2026-08-02T13:44:28.862Z"
+last_updated: "2026-08-02T13:52:43.080Z"
 last_activity: 2026-08-02 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-08-02 -- Phase 36 execution started
 
@@ -154,6 +154,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P02 | 14min | 2 tasks | 20 files |
 | Phase 36 P03 | 15min | 3 tasks | 4 files |
 | Phase 36 P04 | 35min | 3 tasks | 10 files |
+| Phase 36 P05 | 15min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -355,6 +356,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 36] [36-03] recordDrainFailure's attempt-count/backoff decision extracted into a pure resolveDrainFailureOutcome function so its boundary is unit-tested without a live ObjectBox Store
 - [Phase 36]: [Phase 36] [36-04] writeServerTrailId commits before the waypoint loop, inside the isLocalId(entity.id) branch only, so a resumed drain that already has a server id skips the create step and goes straight to still-local waypoints
 - [Phase 36]: [Phase 36] [36-04] trailSyncProvider is deliberately excluded from accountScopedProviders, doc-commented and test-pinned -- account scoping for the drain lives in its owner-filtered query, not cache invalidation
+- [Phase ?]: [36-05] settings_account_screen.dart's post-account-deletion logout() is a documented, deliberate exemption from the unsynced-trails sign-out guard -- that sign-out is not a choice the hiker made
 
 ### Roadmap Evolution
 
@@ -508,7 +510,7 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-02T13:44:28.845Z
+Last session: 2026-08-02T13:51:10.595Z
 Stopped at: Completed 36-04-PLAN.md
 Resume file: None
 

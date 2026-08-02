@@ -490,7 +490,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion; 36-04 and 36-05 run in parallel)*
 
 - [x] 36-04-PLAN.md — The deferred-upload drain: resumable tag→trail→waypoint sequence, backoff and park, manual retry, foreground/connectivity/cold-start triggers, startup photo sweep
-- [ ] 36-05-PLAN.md — Sign-out warning naming the count of not-yet-uploaded trails
+- [x] 36-05-PLAN.md — Sign-out warning naming the count of not-yet-uploaded trails
 
 **Wave 4** *(blocked on Wave 3 completion; 36-06, 36-07 and 36-08 run in parallel)*
 
@@ -535,9 +535,11 @@ both:
   Phase 37 adds a `way_type_surface` field plus two new freezed classes to the same file; both
   sides regenerate `*.freezed.dart` / `*.g.dart`, so concurrent work collides in generated
   output, not just in source.
+
 - `web/src/routes/api/v1/trail/+server.ts` (and `[id]/+server.ts`) — Phase 36's SYNC-04
   idempotency work reshapes the trail save path; Phase 37 wants to hook way-type computation
   into the same create/update handlers.
+
 - `db/migrations/` — Phase 36 adds owner/sync-state fields to trail storage; Phase 37 adds a
   `way_type_surface` json field to the same `trails` collection (`e864strfxo14pm4`). Two
   migrations against one collection must land in a known order.
@@ -630,5 +632,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 4/8 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 5/8 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
