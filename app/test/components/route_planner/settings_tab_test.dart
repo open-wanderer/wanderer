@@ -6,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/components/route_planner/settings_tab.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
+import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/subcategory_provider.dart';
 
 /// Empty seeded state — no anchors means resolveAllSegments never touches
 /// apiProvider, so no Dio override is needed for this widget test.
@@ -33,6 +35,13 @@ class _FakeCategoryNotifier extends CategoryNotifier {
   FutureOr<List<Category>> build() async => const [];
 }
 
+/// Fake returning an empty list — the real notifier reads ObjectBox, which is
+/// unavailable in a widget test.
+class _FakeSubcategoryNotifier extends SubcategoryNotifier {
+  @override
+  List<Subcategory> build() => const [];
+}
+
 void main() {
   testWidgets(
     'SettingsTab renders exactly 5 bucket options and an auto-routing switch',
@@ -41,6 +50,7 @@ void main() {
         overrides: [
           routeAnchorsProvider.overrideWith(() => _SeededRouteAnchors()),
           categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+          subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
         ],
       );
       addTearDown(container.dispose);
@@ -72,6 +82,7 @@ void main() {
       overrides: [
         routeAnchorsProvider.overrideWith(() => _SeededRouteAnchors()),
         categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+        subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
       ],
     );
     addTearDown(container.dispose);
@@ -79,7 +90,11 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: Scaffold(body: SettingsTab())),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(body: SettingsTab()),
+        ),
       ),
     );
     await tester.pump();
@@ -99,6 +114,7 @@ void main() {
       overrides: [
         routeAnchorsProvider.overrideWith(() => _SeededRouteAnchors()),
         categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+        subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
       ],
     );
     addTearDown(container.dispose);
@@ -106,7 +122,11 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: Scaffold(body: SettingsTab())),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(body: SettingsTab()),
+        ),
       ),
     );
     await tester.pump();
@@ -126,6 +146,7 @@ void main() {
         overrides: [
           routeAnchorsProvider.overrideWith(() => _SeededRouteAnchors()),
           categoryProvider.overrideWith(() => _FakeCategoryNotifier()),
+          subcategoryProvider.overrideWith(() => _FakeSubcategoryNotifier()),
         ],
       );
       addTearDown(container.dispose);
