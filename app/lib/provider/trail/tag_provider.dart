@@ -5,6 +5,7 @@ import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/list_result.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/util/pb_filter_util.dart';
 
 part 'tag_provider.g.dart';
 
@@ -52,7 +53,13 @@ class TagNotifier extends _$TagNotifier {
     // can fix). Both still return `[]`, so the widget behaves identically.
     List<Tag> items = const [];
     try {
-      final response = await api.get("/tag?filter=name~'$name'");
+      // `name` is raw user keystrokes. Escaped and passed as a query
+      // parameter, never concatenated into the path — see `pb_filter_util`
+      // for why nothing below this line would do it for us.
+      final response = await api.get(
+        '/tag',
+        queryParameters: {'filter': "name~'${escapePbFilterValue(name)}'"},
+      );
 
       if (response.data == null) {
         throw Exception('No tags data received from server');

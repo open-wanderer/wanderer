@@ -24,6 +24,7 @@ class _FakeApi extends Api {
   final _Outcome outcome;
 
   int requestCount = 0;
+  RequestOptions? lastRequest;
 
   @override
   Dio build() {
@@ -32,6 +33,7 @@ class _FakeApi extends Api {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           requestCount++;
+          lastRequest = options;
           switch (outcome) {
             case _Outcome.ok:
               handler.resolve(
@@ -73,13 +75,19 @@ class _FakeApi extends Api {
   }
 }
 
-ProviderContainer _container(_Outcome outcome) {
+({ProviderContainer container, _FakeApi api}) _containerWithApi(
+  _Outcome outcome,
+) {
+  final api = _FakeApi(outcome);
   final container = ProviderContainer(
-    overrides: [apiProvider.overrideWith(() => _FakeApi(outcome))],
+    overrides: [apiProvider.overrideWith(() => api)],
   );
   addTearDown(container.dispose);
-  return container;
+  return (container: container, api: api);
 }
+
+ProviderContainer _container(_Outcome outcome) =>
+    _containerWithApi(outcome).container;
 
 void main() {
   // OFFUI-02. The observable contract is the same in every failure mode —
@@ -141,5 +149,36 @@ void main() {
       // airplane mode the same silent empty list.
       expect(container.read(tagProvider).hasError, isTrue);
     });
+
+    test(
+      'a quote in the query is escaped so it cannot close the filter literal '
+      'and widen the query',
+      () async {
+        final pumped = _containerWithApi(_Outcome.ok);
+        final notifier = pumped.container.read(tagProvider.notifier);
+
+        // Unescaped this becomes `name~'x' || id!=''` — a different, far
+        // broader query than the caller wrote.
+        await notifier.searchByName("x' || id!='");
+
+        final filter = pumped.api.lastRequest!.queryParameters['filter'];
+        expect(filter, r"name~'x\' || id!=\''");
+      },
+    );
+
+    test(
+      'the filter travels as a query parameter, not concatenated into the path',
+      () async {
+        final pumped = _containerWithApi(_Outcome.ok);
+        final notifier = pumped.container.read(tagProvider.notifier);
+
+        await notifier.searchByName('alp');
+
+        // Concatenating into the path is what made escaping everyone's
+        // problem and no-one's job.
+        expect(pumped.api.lastRequest!.path, '/tag');
+        expect(pumped.api.lastRequest!.queryParameters['filter'], "name~'alp'");
+      },
+    );
   });
 }

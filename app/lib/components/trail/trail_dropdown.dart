@@ -201,9 +201,25 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   Future<void> _deleteTrail(BuildContext context, Trail trail) async {
+    // For a local trail this means "remove the download", and NOTHING else —
+    // the `return` is load-bearing. Without it the method fell through to the
+    // server DELETE below, so the only available un-download gesture (the
+    // download menu item is inert once downloaded) also destroyed the trail
+    // on the server.
+    //
+    // Reachable while perfectly online, too: `TrailNotifier.build()` falls
+    // back to the ObjectBox cache on ANY fetch exception, not just offline
+    // (`trail_provider.dart`'s `catch (_)`), and a cached model is stamped
+    // `isLocal: true`. One timeout while viewing your own downloaded trail
+    // was enough to arm it.
+    //
+    // This is also what makes `_allowDelete`'s unconditional `true` for local
+    // trails safe: un-downloading someone else's trail is harmless, whereas
+    // falling through offered a server delete with no ownership check.
     if (trail.isLocal) {
       Navigator.of(context).pop();
       ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
+      return;
     }
 
     final router = GoRouter.of(context);
