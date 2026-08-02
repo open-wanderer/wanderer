@@ -11,6 +11,7 @@
 - ✅ **v1.6 Offline Region Tile Repository** — Phases 21.5, 22-27 (shipped 2026-07-24)
 - ✅ **v1.7 Admin Region Picker** — Phases 28-32 (shipped 2026-07-28)
 - 🚧 **v1.8 Offline Recording & Deferred Upload** — Phases 33-36 (in progress)
+- 📋 **Unscheduled** — Phase 37 (no milestone yet; must not start before Phase 36 completes)
 
 ## Phases
 
@@ -505,6 +506,60 @@ Plans:
 
 **Open for discuss-phase:** four decisions are deliberately unresolved and belong to this phase's discuss-phase — photo file durability (`image_picker` returns paths into an OS-purgeable cache directory), partial-failure semantics of the `tag → trail → waypoint` upload sequence, whether logout with undrained unsynced trails needs a confirmation UX, and — from the 2026-08-01 scope note above — whether REC-03's "visibly distinguishable" should further distinguish a recorded trail from an imported one, or treat both simply as unsynced. Full context: `.planning/research/questions.md`, `.planning/notes/offline-recording-deferred-upload-design.md`.
 
+---
+
+## Unscheduled — after v1.8
+
+Phases below are **not part of any milestone yet**. They are parked here rather than in the
+backlog because their scope is already understood at file level, but they must not be picked up
+while v1.8 is executing. When the next milestone is opened, `/gsd-new-milestone` should claim
+them explicitly.
+
+### Phase 37: Way Types & Surfaces Breakdown (mobile-first)
+
+**Goal**: A hiker looking at any trail sees what they will actually be walking on — a stacked
+breakdown of way types (path, footpath, track, road…) and surfaces (paved, gravel, dirt,
+unpaved…) with distance per category, including off-road alpine paths that naive map-matching
+silently drops.
+**Milestone**: none — **explicitly NOT part of v1.8 (Offline Recording & Deferred Upload)**.
+This is online-only trail enrichment and shares no requirement with REC-*/SYNC-*.
+**Depends on**: Phase 36 complete — a hard sequencing constraint, not a preference. See the
+file-conflict note below.
+**Requirements**: TBD (derive from `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`)
+**Plans**: 0 plans
+
+**⚠ File conflict with Phase 36 — do not execute concurrently.** Three surfaces are edited by
+both:
+
+- `app/lib/models/trail.dart` — 36-01 (done) and **36-07 (not yet executed)** both modify it.
+  Phase 37 adds a `way_type_surface` field plus two new freezed classes to the same file; both
+  sides regenerate `*.freezed.dart` / `*.g.dart`, so concurrent work collides in generated
+  output, not just in source.
+- `web/src/routes/api/v1/trail/+server.ts` (and `[id]/+server.ts`) — Phase 36's SYNC-04
+  idempotency work reshapes the trail save path; Phase 37 wants to hook way-type computation
+  into the same create/update handlers.
+- `db/migrations/` — Phase 36 adds owner/sync-state fields to trail storage; Phase 37 adds a
+  `way_type_surface` json field to the same `trails` collection (`e864strfxo14pm4`). Two
+  migrations against one collection must land in a known order.
+
+Clean (no Phase 36 plan touches them): `app/lib/components/trail/trail_panel.dart`,
+`app/lib/theme/colors.dart`, `web/src/lib/server/`.
+
+**Source material:** the todo carries a complete file-level implementation plan, including the
+verified root cause — Valhalla's default `pedestrian` costing caps `max_hiking_difficulty ≈ 1`,
+excluding `sac_scale >= mountain_hiking` paths from the routable graph, which is why the earlier
+POC dropped off-road segments (OSM way 39669166: 16 m matched by default vs 1.09 km with
+`max_hiking_difficulty: 6`). Full research: `37-RESEARCH-SOURCE.md` in this phase's directory.
+
+**Deferred follow-up:** the SvelteKit web rendering of the same persisted field is a separate,
+smaller phase — not part of Phase 37.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 37 to break down)
+
+---
+
 ## Progress
 
 **Execution Order:**
@@ -528,6 +583,14 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 
 ```
 33 → 34 → 35 → 36
+```
+
+Phase 37 is unscheduled and sits outside v1.8, but it is **not parallelizable with Phase 36** —
+both edit `app/lib/models/trail.dart`, the `api/v1/trail` handlers, and the `trails` collection
+migrations. It starts only after 36 lands:
+
+```
+36 → (v1.8 ships) → 37
 ```
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -568,3 +631,4 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 4/8 | In Progress|  |
+| 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |

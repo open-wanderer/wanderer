@@ -15,6 +15,10 @@ files:
   - db/migrations/
 ---
 
+> **Promoted 2026-08-02 → Phase 37** (`.planning/phases/37-way-types-surfaces-breakdown-mobile-first/`).
+> Unscheduled, outside v1.8, blocked on Phase 36 by file overlap. The session-local plan file
+> referenced below has been rescued to `37-RESEARCH-SOURCE.md` in that directory.
+
 ## Problem
 
 Komoot shows, for any GPX track, a "Way Types & Surfaces" breakdown: a horizontal stacked bar + legend listing OSM way types (Hiking Path, Path, Footpath, Road, Street…) and surfaces (Unpaved, Gravel, Asphalt, Paved, Unknown…) with distance per category. Wanderer has no equivalent. A prior POC attempted this with Valhalla `trace_attributes` map-matching and hit a bottleneck: off-road hiking trails (not along major roads) were not matched — segments silently dropped.
