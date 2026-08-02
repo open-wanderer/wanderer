@@ -54,3 +54,56 @@ String localIdDirSegment(String localId) {
   }
   return localId;
 }
+
+/// Validates a SERVER-issued record id ([Trail.id], [Waypoint.id], ...)
+/// against a path-segment whitelist and returns it unchanged.
+///
+/// The counterpart to [localIdDirSegment] for ids this device did not mint.
+/// Same discipline, different threat: a local id is ours and can be held to
+/// its exact minted shape, while a record id arrives over the network from a
+/// server that may be federated or compromised. An id containing `..` or a
+/// separator, interpolated straight into a path, writes outside the directory
+/// the caller intended.
+///
+/// Deliberately looser than PocketBase's own `^[a-z0-9]{15}$`: the security
+/// property needed here is only "cannot escape the parent directory", and
+/// pinning the exact PocketBase shape would turn any future id-format change
+/// -- or any federated peer with a different convention -- into silently
+/// broken downloads. `[A-Za-z0-9_-]` admits no `.`, no `/` and no `\`, so
+/// `..` and every traversal spelling are rejected regardless.
+String recordIdDirSegment(String id) {
+  final pattern = RegExp(r'^[A-Za-z0-9_-]{1,64}$');
+  if (!pattern.hasMatch(id)) {
+    throw ArgumentError.value(
+      id,
+      'id',
+      r'must match ^[A-Za-z0-9_-]{1,64}$ to be used as a path segment',
+    );
+  }
+  return id;
+}
+
+/// Validates a filename destined to become the last segment of a path.
+///
+/// Unlike [recordIdDirSegment] this must admit dots, because real filenames
+/// carry extensions -- so it rejects by enumeration instead: the empty
+/// string, `.`, `..`, and anything still carrying a path separator. Intended
+/// for names derived from a network-supplied URL, where `p.basename` alone is
+/// not enough (`p.basename('..')` is `'..'`, and `Uri.path` percent-decodes,
+/// so `%2e%2e` arrives as `..`).
+String fileNameSegment(String name) {
+  final isUnsafe =
+      name.isEmpty ||
+      name == '.' ||
+      name == '..' ||
+      name.contains('/') ||
+      name.contains(r'\');
+  if (isUnsafe) {
+    throw ArgumentError.value(
+      name,
+      'name',
+      'must be a plain filename, not empty, "." , ".." or separator-bearing',
+    );
+  }
+  return name;
+}

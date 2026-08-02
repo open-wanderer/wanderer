@@ -13,6 +13,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/library_membership.dart';
+import 'package:wanderer/util/local_id.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 class TrailDownloadService {
@@ -53,7 +54,14 @@ class TrailDownloadService {
     final box = _store.box<TrailEntity>();
     final trailId = trail.id;
     final appDir = await getApplicationDocumentsDirectory();
-    final trailDir = Directory('${appDir.path}/library/$trailId');
+    // p.join + a whitelisted segment, not interpolation. `trailId` and the
+    // waypoint ids below arrive over the network; a federated or compromised
+    // instance returning an id containing `..` wrote outside `library/`.
+    // `local_photo_store_util.dart` names this file's old interpolation style
+    // as the one it refuses to reuse -- this brings it onto that standard.
+    final trailDir = Directory(
+      p.join(appDir.path, 'library', recordIdDirSegment(trailId)),
+    );
     final baseUrl = Uri.parse(_api.options.baseUrl).origin;
     if (!await trailDir.exists()) {
       await trailDir.create(recursive: true);
@@ -77,7 +85,9 @@ class TrailDownloadService {
       if (urls.isEmpty) continue;
       waypointPhotoJobs.add((
         waypoint.id,
-        Directory('${trailDir.path}/waypoints/${waypoint.id}'),
+        Directory(
+          p.join(trailDir.path, 'waypoints', recordIdDirSegment(waypoint.id)),
+        ),
         urls,
       ));
     }
@@ -255,7 +265,7 @@ class TrailDownloadService {
     CancelToken? cancelToken,
     void Function(int delta)? onPhotoPointsDelta,
   }) async {
-    final photoDir = Directory('${trailDir.path}/photos');
+    final photoDir = Directory(p.join(trailDir.path, 'photos'));
     if (!await photoDir.exists()) {
       await photoDir.create(recursive: true);
     }
@@ -270,8 +280,13 @@ class TrailDownloadService {
       }
 
       try {
-        final fileName = p.basename(Uri.parse(url).path);
-        final savePath = '${photoDir.path}/$fileName';
+        // `p.basename` is not sufficient on its own: `Uri.path` percent-
+        // decodes, so a crafted URL delivers `..` here, and `p.basename('..')`
+        // is `'..'`. Validated and p.join-ed, so a hostile filename can only
+        // ever fail this one photo (the general catch below) rather than
+        // writing outside `photos/`.
+        final fileName = fileNameSegment(p.basename(Uri.parse(url).path));
+        final savePath = p.join(photoDir.path, fileName);
         await _downloadTracked(
           url,
           savePath,
