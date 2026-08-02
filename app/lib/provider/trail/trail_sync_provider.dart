@@ -224,7 +224,21 @@ class TrailSync extends _$TrailSync {
       for (final waypointEntity in entity.waypoints) {
         if (!isLocalId(waypointEntity.id)) continue;
 
+        // Hoisted ABOVE the create, and loud rather than a silent `continue`.
+        // `WaypointEntity.fromModel` always mints a key for an empty-id
+        // waypoint, so this branch should be unreachable -- which is exactly
+        // what made skipping it the worst possible handling: the waypoint was
+        // created server-side and its returned id then dropped, so a later
+        // failure in this same loop re-created it (the CR-02 mechanism), and
+        // the broken invariant left no trace anywhere.
         final waypointLocalKey = waypointEntity.localKey;
+        if (waypointLocalKey == null) {
+          throw StateError(
+            'trail_sync_provider: waypoint ${waypointEntity.obxId} of '
+            '"$localId" has no localKey',
+          );
+        }
+
         final waypointModel = waypointEntity.toModel();
 
         final Waypoint createdWaypoint;
@@ -243,19 +257,15 @@ class TrailSync extends _$TrailSync {
           // `PUT /waypoint` and creating a duplicate. Then rethrow: this
           // trail's upload really did not complete, so it must still count a
           // failed attempt and be retried.
-          if (waypointLocalKey != null) {
-            writeServerWaypointId(
-              store,
-              localId: localId,
-              waypointLocalKey: waypointLocalKey,
-              serverWaypointId: e.created.id,
-              serverPhotoFilenames: e.created.photos,
-            );
-          }
+          writeServerWaypointId(
+            store,
+            localId: localId,
+            waypointLocalKey: waypointLocalKey,
+            serverWaypointId: e.created.id,
+            serverPhotoFilenames: e.created.photos,
+          );
           rethrow;
         }
-
-        if (waypointLocalKey == null) continue;
 
         writeServerWaypointId(
           store,

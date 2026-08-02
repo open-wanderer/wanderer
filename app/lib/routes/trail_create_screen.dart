@@ -674,9 +674,24 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     failedCount += trailResult.failedCount;
 
     final waypointPhotosByKey = <String, List<String>>{};
-    for (final wp in forTrail.expand?.waypointsViaTrail ?? const []) {
+    // Typed empty fallback, not a bare `const []`: an untyped one makes `wp`
+    // dynamic, which silently turns `failedCount += wp.localPhotos.length`
+    // into a `num` and loses static checking over the whole loop body.
+    for (final wp in forTrail.expand?.waypointsViaTrail ?? const <Waypoint>[]) {
       final key = wp.localKey;
-      if (key == null || wp.localPhotos.isEmpty) continue;
+      if (wp.localPhotos.isEmpty) continue;
+
+      // A keyless waypoint has nowhere to copy its photos TO, so its picked
+      // files stay at OS-purgeable image_picker cache paths -- precisely the
+      // D-01 failure local_photo_store_util.dart exists to prevent. Skipping
+      // silently reported success over photos that can disappear at any
+      // moment; counting them makes the user see photo_copy_failed_toast
+      // instead.
+      if (key == null) {
+        failedCount += wp.localPhotos.length;
+        continue;
+      }
+
       final waypointResult = await reconcileLocalPhotos(
         dir: unsyncedWaypointPhotoDir(appDir.path, localId, key),
         desiredPaths: wp.localPhotos,
