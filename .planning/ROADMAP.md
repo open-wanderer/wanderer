@@ -500,7 +500,7 @@ Plans:
 
 **Wave 5** *(gap closure from 36-UAT.md; runs alone — it is wave 5's only codegen plan)*
 
-- [ ] 36-09-PLAN.md — Stop the offline reload storm: filter fallback whose slider bounds are computed from the trails on the device + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
+- [x] 36-09-PLAN.md — Stop the offline reload storm: filter fallback whose slider bounds are computed from the trails on the device + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
 
 **Wave 6** *(blocked on Wave 5; 36-10 and 36-11 run in parallel — only 36-11 runs codegen)*
 
@@ -545,13 +545,16 @@ Four points settled with the decision:
   own-trails read is this broad net narrowed further in Dart; the map has no offline search).
   Account-scoped because D-13 requires it: an unfiltered read would let one account's slider
   maximum disclose the length of another account's private downloaded trail.
+
 - **Empty store.** `kOfflineTrailFilterValues` survives as the per-axis empty-store floor
   (fresh install, signed out, or an axis where every row is null), not as the primary path.
+
 - **Rounding.** Each axis rounds strictly UP by one full step (5 km distance, 250 m elevation),
   so the longest trail is never pinned to the slider's extreme. The step doubles as the floor:
   the smallest bound the arithmetic can produce is one step, so a device holding one 800 m walk
   gets a 5 km slider. No separate floor constant — a floor above one step would put that trail
   at a SMALLER fraction of slider travel and make aiming worse.
+
 - **`max == limit` is unchanged.** It is a property of `buildDefaultTrailFilter`, not of the
   numbers fed in, so the fallback still emits no upper-bound filter-text clause and still
   cannot exclude a trail. 36-09 pins it with computed values that differ from both the constant
@@ -769,5 +772,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 8/8 | Complete   | 2026-08-02 |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 9/15 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |

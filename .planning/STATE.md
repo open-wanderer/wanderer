@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: verifying
-stopped_at: Completed 36-08-PLAN.md
-last_updated: "2026-08-02T14:34:07.275Z"
-last_activity: 2026-08-02 -- Phase 36 execution started
+status: executing
+stopped_at: Completed 36-09-PLAN.md
+last_updated: "2026-08-03T09:50:49.938Z"
+last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 20
-  completed_plans: 21
-  percent: 75
+  completed_phases: 2
+  total_plans: 27
+  completed_plans: 22
+  percent: 50
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 8 of 8
-Status: Phase complete — ready for verification
-Last activity: 2026-08-02 -- Phase 36 execution started
+Plan: 2 of 15
+Status: Ready to execute
+Last activity: 2026-08-03 -- Phase 36 execution started
 
 ## v1.8 Phases
 
@@ -158,6 +158,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P07 | 25min | 3 tasks | 6 files |
 | Phase 36 P06 | 20min | 3 tasks | 3 files |
 | Phase 36 P08 | 20min | 3 tasks | 6 files |
+| Phase 36 P09 | ~20min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -367,6 +368,8 @@ Recent decisions affecting current work:
 - [Phase 36]: [Phase 36] [36-06] Waypoint list identity (in-memory ops and updateTrail's compareObjectArrays diff) now keys on Waypoint.listKey instead of .id, since ids can legitimately be empty for a not-yet-uploaded waypoint
 - [Phase 36]: [36-08] isUnsyncedState(trail.syncState), not trail.isLocal, gates trail_dropdown's download/delete branches -- isLocal is also true for a downloaded trail post-36-01
 - [Phase 36]: [36-08] _deleteTrail's unsynced branch is checked and returns strictly before the isLocal un-download branch -- the wrong order silently no-ops a delete on an empty server id
+- [Phase 36]: Offline filter fallback bounds are computed from the signed-in account's own on-device trails (nextBoundAbove rounding, 5km/250m steps), not a fixed constant -- the constant survives only as the empty-store floor — 2026-08-03 user decision: offline the only trails that can match a search are the ones on this device, so device-derived bounds fit the real search space exactly
+- [Phase 36]: trailFilterProvider degrades to a device-derived fallback on DioException connection failure instead of throwing, with trailFilterRetry capping retries at 2 (400ms, 800ms) instead of defaultRetry's 10 — Removes the AsyncError that fed Riverpod's automatic retry storm, which was the root cause of the own-trails list's ~20 spinner flashes offline
 
 ### Roadmap Evolution
 
@@ -520,8 +523,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-02T14:34:07.257Z
-Stopped at: Completed 36-08-PLAN.md
+Last session: 2026-08-03T09:50:49.909Z
+Stopped at: Completed 36-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
