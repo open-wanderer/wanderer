@@ -83,11 +83,15 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                   .search(q),
             ),
           ),
-          TrailQuickFilterBar(
-            filterId: 'profile_trail_${widget.handle}',
-          ),
+          TrailQuickFilterBar(filterId: 'profile_trail_${widget.handle}'),
           Expanded(
             child: trailsAsync.when(
+              // The default `false` is what let a dependency-driven reload
+              // (e.g. the filter provider settling after a retry) replace an
+              // already-rendered list with a full-screen
+              // CircularProgressIndicator. This is the only `.when` in this
+              // file.
+              skipLoadingOnReload: true,
               data: (state) {
                 // Standing condition, not a one-off event -- a persistent
                 // banner, not a toast (REC-06).
@@ -95,6 +99,14 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
 
                 return Column(
                   children: [
+                    // Because a reload is now invisible (skipLoadingOnReload
+                    // above), this thin indicator keeps it perceptible. Only
+                    // rendered here (the "isLoading && hasValue" half of the
+                    // UAT's remedy) -- with skipLoadingOnReload: true, this
+                    // `data:` branch only runs when a value exists, so the
+                    // hasValue half is implied.
+                    if (trailsAsync.isLoading)
+                      const LinearProgressIndicator(minHeight: 2),
                     if (showOfflineBanner)
                       Container(
                         width: double.infinity,
@@ -218,7 +230,9 @@ class _OwnTrailsEmptyState extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight)),
+          constraints: BoxConstraints(
+            minHeight: math.max(0, constraints.maxHeight),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(

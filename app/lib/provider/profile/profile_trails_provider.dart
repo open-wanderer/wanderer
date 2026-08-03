@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
@@ -67,9 +68,21 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   FutureOr<ProfileTrailsState> build(String handle) async {
     _handle = handle;
 
-    // Watch the filter so we rebuild and re-fetch when it changes.
-    final filterAsync = ref.watch(trailFilterProvider('profile_trail_$handle'));
-    final filter = filterAsync.value;
+    // Watch only the filter's *value*, not its AsyncValue wrapper. A plain
+    // `ref.watch` invalidates with `asReload: true`, so every emission of the
+    // watched provider -- including the ~10 retry-driven ones a failed
+    // `GET /trail/filter` used to produce -- made this provider's next state
+    // a genuine `AsyncLoading` rather than a seamless refresh. `.select`ing
+    // `.value` collapses an `AsyncError -> AsyncLoading -> AsyncError`
+    // sequence to the same `null` and no longer re-runs `build()` at all;
+    // `TrailFilter` is `@freezed`, so two structurally equal filters also
+    // compare equal and do not reload. Only an actual filter change reaches
+    // this provider now.
+    final filter = ref.watch(
+      trailFilterProvider(
+        'profile_trail_$handle',
+      ).select((async) => async.value),
+    );
 
     final store = ref.watch(objectBoxProvider);
     final accountId = currentAccountId(store);
@@ -98,7 +111,19 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
 
   Future<void> search(String q) async {
     _q = q;
-    state = const AsyncLoading();
+    // The bare `AsyncLoading()` this replaced discarded the previous value,
+    // so `hasValue` was false and `when` rendered `loading()`
+    // unconditionally -- a guaranteed full-screen spinner on every
+    // (debounced) search burst. `copyWithPrevious` defaults to
+    // `isRefresh: true`, producing an `AsyncData` carrying `isLoading:
+    // true`, which `when`'s default `skipLoadingOnRefresh: true` renders as
+    // data.
+    //
+    // `copyWithPrevious` is `@internal` to riverpod -- this is the package's
+    // own documented pattern for a seamless reload-with-previous-data
+    // transition, not a misuse; the ignore below is deliberate.
+    // ignore: invalid_use_of_internal_member
+    state = const AsyncLoading<ProfileTrailsState>().copyWithPrevious(state);
 
     final local = _readOwnLocal(_q);
     final filter = ref
