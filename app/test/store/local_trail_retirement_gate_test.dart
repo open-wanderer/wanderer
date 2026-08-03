@@ -267,6 +267,48 @@ void main() {
               'files that are gone.',
         );
       });
+
+      test('hasKeylessPendingWaypoint( is checked before the in-flight set '
+          'is joined -- an invariant break must not record a failed '
+          'attempt (WR-04)', () {
+        final body = drainOneBody();
+
+        final guardIdx = body.indexOf('hasKeylessPendingWaypoint(');
+        final joinIdx = body.indexOf('state = {...state, localId};');
+
+        expect(guardIdx, isNot(-1));
+        expect(joinIdx, isNot(-1));
+        expect(
+          guardIdx < joinIdx,
+          isTrue,
+          reason:
+              'A waypoint that is still a local sentinel with no localKey '
+              'to record the server\'s returned id against is a corrupt '
+              'row, not a network condition -- no retry will ever fix it. '
+              'Checking this only after the row joins the in-flight set '
+              'and enters the try lets four fast passes (a lifecycle or '
+              'connectivity flurry produces these within seconds) park an '
+              'otherwise-healthy trail as `failed`, after which isDrainDue '
+              'never picks it up again.',
+        );
+      });
+
+      test('the body contains no StateError( -- the keyless-waypoint '
+          'throw is gone, so it can no longer reach recordDrainFailure '
+          '(WR-04)', () {
+        final body = drainOneBody();
+
+        expect(
+          body.contains('StateError('),
+          isFalse,
+          reason:
+              'A StateError thrown from inside the try lands in the '
+              'generic failure handler and consumes one of the four '
+              'kMaxSyncAttempts for an invariant break no retry could '
+              'ever fix -- the hasKeylessPendingWaypoint guard above '
+              'must be what prevents reaching this point instead.',
+        );
+      });
     },
   );
 
@@ -429,4 +471,65 @@ void main() {
       );
     });
   });
+
+  group(
+    'writeServerWaypointId -- localPhotos survive until the trail is '
+    'retired (WR-09)',
+    () {
+      /// [writeServerWaypointId]'s body, comment-stripped, isolated from
+      /// the rest of the file.
+      String writeServerWaypointIdBody() {
+        expect(
+          libDir.existsSync(),
+          isTrue,
+          reason:
+              'This test must be run with `flutter test`\'s working '
+              'directory set to `app/` (e.g. "cd app && flutter test").',
+        );
+
+        final source = File(
+          'lib/store/local_trail_store.dart',
+        ).readAsStringSync();
+        final codeOnly = source
+            .split('\n')
+            .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+            .join('\n');
+
+        final sigStart = codeOnly.indexOf('void writeServerWaypointId(');
+        expect(
+          sigStart,
+          isNot(-1),
+          reason:
+              'writeServerWaypointId was renamed or its signature '
+              'changed. Re-point this gate rather than deleting it -- the '
+              'invariant still matters.',
+        );
+
+        final bodyEnd = codeOnly.indexOf('\n}', sigStart);
+        expect(
+          bodyEnd,
+          isNot(-1),
+          reason: 'Could not find the end of writeServerWaypointId\'s body.',
+        );
+
+        return codeOnly.substring(sigStart, bodyEnd);
+      }
+
+      test('never clears localPhotos', () {
+        final body = writeServerWaypointIdBody();
+
+        expect(
+          body.contains('localPhotos = []'),
+          isFalse,
+          reason:
+              'Clearing localPhotos the instant one waypoint\'s create '
+              'succeeds orphans its JPEGs on disk the moment a LATER '
+              'waypoint in the same drain loop fails and the trail parks '
+              'as `failed` -- the model can no longer reach files that '
+              'still sit under unsynced/<localId>/waypoints/<key>/ until '
+              'the trail is retired or deleted.',
+        );
+      });
+    },
+  );
 }

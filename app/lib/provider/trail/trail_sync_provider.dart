@@ -241,6 +241,30 @@ class TrailSync extends _$TrailSync {
     }
     final authorId = userEntity.actorId;
 
+    // Resolved BEFORE the in-flight set is joined and before the try below,
+    // same placement and reasoning as the missing-UserEntity bail above
+    // (WR-04): a waypoint whose id is still a local sentinel but has no
+    // localKey to record the server's returned id against is an invariant
+    // break, not a network condition -- `WaypointEntity.fromModel` always
+    // mints a localKey for an empty-id waypoint, so no retry will ever fix
+    // this row. Recording a failed attempt for it would let four fast
+    // passes (a lifecycle or connectivity flurry produces these within
+    // seconds, since syncBackoffDelay only starts at 30s after the FIRST
+    // failure) park an otherwise-healthy trail as `failed`, after which
+    // isDrainDue never picks it up again.
+    if (hasKeylessPendingWaypoint(
+      entity.waypoints
+          .map((w) => (id: w.id, localKey: w.localKey))
+          .toList(),
+    )) {
+      debugPrint(
+        'trail_sync_provider: "$localId" has a keyless pending waypoint '
+        '(invariant break); skipping drain without recording a failed '
+        'attempt',
+      );
+      return;
+    }
+
     state = {...state, localId};
 
     try {
@@ -328,20 +352,16 @@ class TrailSync extends _$TrailSync {
       for (final waypointEntity in entity.waypoints) {
         if (!isLocalId(waypointEntity.id)) continue;
 
-        // Hoisted ABOVE the create, and loud rather than a silent `continue`.
         // `WaypointEntity.fromModel` always mints a key for an empty-id
-        // waypoint, so this branch should be unreachable -- which is exactly
-        // what made skipping it the worst possible handling: the waypoint was
-        // created server-side and its returned id then dropped, so a later
-        // failure in this same loop re-created it (the CR-02 mechanism), and
-        // the broken invariant left no trace anywhere.
-        final waypointLocalKey = waypointEntity.localKey;
-        if (waypointLocalKey == null) {
-          throw StateError(
-            'trail_sync_provider: waypoint ${waypointEntity.obxId} of '
-            '"$localId" has no localKey',
-          );
-        }
+        // waypoint, and the hasKeylessPendingWaypoint guard above this
+        // method's try already bailed the whole drain out before this loop
+        // could ever run against a corrupt row (WR-04) -- so a null here is
+        // unreachable by construction, not merely unlikely. Previously this
+        // was a `StateError` thrown from inside the try, which consumed one
+        // of the four kMaxSyncAttempts for an invariant break no retry could
+        // ever fix; see the guard's doc comment for the failure mode that
+        // produced.
+        final waypointLocalKey = waypointEntity.localKey!;
 
         final waypointModel = waypointEntity.toModel();
 

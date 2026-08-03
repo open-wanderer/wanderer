@@ -465,6 +465,63 @@ void main() {
     });
   });
 
+  group('hasKeylessPendingWaypoint', () {
+    test('is false for an empty list', () {
+      expect(hasKeylessPendingWaypoint(const []), isFalse);
+    });
+
+    test(
+      'is false for a local-id waypoint with a non-null localKey',
+      () {
+        expect(
+          hasKeylessPendingWaypoint(const [
+            (id: 'local-1-0', localKey: 'local-2-0'),
+          ]),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'is true for a local-id waypoint with a null localKey -- the '
+      'invariant break WR-04 guards against',
+      () {
+        expect(
+          hasKeylessPendingWaypoint(const [
+            (id: 'local-1-0', localKey: null),
+          ]),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'is false for a REAL server id with a null localKey -- an '
+      'already-created waypoint needs no key',
+      () {
+        expect(
+          hasKeylessPendingWaypoint(const [
+            (id: 'server-1', localKey: null),
+          ]),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'is true for a mixed list containing one local-id/null-key entry',
+      () {
+        expect(
+          hasKeylessPendingWaypoint(const [
+            (id: 'server-1', localKey: 'k'),
+            (id: 'local-1-0', localKey: null),
+          ]),
+          isTrue,
+        );
+      },
+    );
+  });
+
   group('resolveDrainFailureOutcome', () {
     test('parks the row as failed with no scheduled retry once the '
         'incremented attempt count reaches maxAttempts', () {

@@ -253,6 +253,30 @@ bool isDrainDue(TrailEntity entity, DateTime now) {
   return nextAttempt == null || !nextAttempt.isAfter(now);
 }
 
+/// Whether [waypoints] contains a waypoint that still needs creating (its
+/// `id` is a local sentinel) but has no `localKey` to record the server's
+/// returned id against.
+///
+/// An INVARIANT BREAK, not a network condition (WR-04):
+/// `WaypointEntity.fromModel` always mints a `localKey` for an empty-id
+/// waypoint, so a true result means the row is corrupt in a way no number of
+/// drain retries can fix. `_drainOne` must bail on this BEFORE joining the
+/// in-flight set and before its `try`, so a corrupt waypoint costs the trail
+/// nothing from [kMaxSyncAttempts] -- the identical reasoning already applied
+/// to a missing [UserEntity] one guard up.
+///
+/// Takes a plain record list rather than [WaypointEntity] so the decision is
+/// testable without a live [Store], matching this file's existing
+/// extract-the-pure-half discipline (see [resolveDrainFailureOutcome],
+/// [isDrainDue]).
+bool hasKeylessPendingWaypoint(
+  List<({String id, String? localKey})> waypoints,
+) {
+  return waypoints.any(
+    (w) => isLocalId(w.id) && w.localKey == null,
+  );
+}
+
 /// Pure decision core of [recordDrainFailure], extracted so its
 /// attempt-count boundary is unit-testable without a live ObjectBox [Store]
 /// (Phase 31 established there is no ObjectBox test harness for plain
@@ -950,7 +974,16 @@ void writeServerTrailId(
 
 /// Stamps the server-assigned [serverWaypointId] and [serverPhotoFilenames]
 /// onto the child [WaypointEntity] identified by [waypointLocalKey] under
-/// the trail [localId], clearing its `localPhotos`.
+/// the trail [localId].
+///
+/// Deliberately does NOT clear `localPhotos` (WR-09): the trail's upload as
+/// a whole is not complete the instant one waypoint's create succeeds -- a
+/// LATER waypoint in the same drain loop can still fail and park the row as
+/// `failed`, and a waypoint whose `localPhotos` was already wiped would then
+/// be unreachable through the model while its JPEGs still sit on disk under
+/// `unsynced/<localId>/waypoints/<key>/`. `retireUploadedLocalTrail` (full
+/// success) and `deleteUnsyncedPhotoDir` (delete) own reclaiming those files
+/// once the trail's fate is actually decided.
 void writeServerWaypointId(
   Store store, {
   required String localId,
@@ -978,7 +1011,8 @@ void writeServerWaypointId(
 
     target.id = serverWaypointId;
     target.photos = serverPhotoFilenames;
-    target.localPhotos = [];
+    // localPhotos deliberately retained -- see this function's doc comment
+    // (WR-09).
     store.box<WaypointEntity>().put(target);
   });
 }
