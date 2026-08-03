@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-14-PLAN.md (phase 36 complete)
+stopped_at: Completed 36-14-PLAN.md; phase 36 code review found 4 blockers, fixing before verification
 last_updated: "2026-08-03T12:08:54.716Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
-  completed_phases: 4
+  completed_phases: 3
   total_plans: 26
   completed_plans: 27
   percent: 100
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 36 (local-first-recording-automatic-upload) — COMPLETE
+Phase: 36 (local-first-recording-automatic-upload) — IN PROGRESS (all plans executed; 4 code-review blockers open)
 Plan: 14 of 14 (36-15 dropped 2026-08-03)
-Status: v1.8 milestone's four phases all complete; awaiting next milestone/phase kickoff
-Last activity: 2026-08-03 -- Phase 36 execution completed (36-14, phase's final plan)
+Status: Phase 36 plans all executed, but 36-REVIEW.md raised 4 blockers (CR-01..CR-04); fixing them before phase verification
+Last activity: 2026-08-03 -- Phase 36 code review: 4 blockers found, phase completion rolled back
 
 ## v1.8 Phases
 
