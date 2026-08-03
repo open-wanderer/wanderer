@@ -756,7 +756,7 @@ void main() {
     });
 
     // WR-08 / D-10: `moving_duration = 0` is the exact state D-10 forbids —
-    // `form_data_util.dart`'s write guard is `!= null`, not `> 0`, so a zero
+    // `util/trail/form_data.dart`'s write guard is `!= null`, not `> 0`, so a zero
     // override used to be persisted and then masked by the display rule's own
     // `> 0` fallback.
     test(

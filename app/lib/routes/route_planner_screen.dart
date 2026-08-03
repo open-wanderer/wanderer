@@ -498,7 +498,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   ///
   /// Neither branch shows a save-options sheet. The planner used to route the
   /// forward-push branch through the shared online gate
-  /// (`track_save_options_util.dart`), but neither toggle it offered could
+  /// (`resolve_track_save_options.dart`), but neither toggle it offered could
   /// change a planned route's output, so it was removed — see
   /// [finishPlanning].
   ///
@@ -514,7 +514,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// D-16: with plan 34-05's local conversion, an offline finish reaches the
   /// create screen instead of throwing — the `catch` below is not deleted, it
   /// remains a genuine last-resort guard for anything else that could still
-  /// fail (e.g. an unexpected local error), matching `trail_import_util.dart`'s
+  /// fail (e.g. an unexpected local error), matching `import_trail_file.dart`'s
   /// `importTrailFile` precedent for toast-and-stay on failure.
   Future<void> _onFinish() async {
     if (_finishing) return;

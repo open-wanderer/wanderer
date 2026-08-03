@@ -57,7 +57,7 @@ class TrailDownloadService {
     // p.join + a whitelisted segment, not interpolation. `trailId` and the
     // waypoint ids below arrive over the network; a federated or compromised
     // instance returning an id containing `..` wrote outside `library/`.
-    // `local_photo_store_util.dart` names this file's old interpolation style
+    // `local_photo_store.dart` names this file's old interpolation style
     // as the one it refuses to reuse -- this brings it onto that standard.
     final trailDir = Directory(
       p.join(appDir.path, 'library', recordIdDirSegment(trailId)),

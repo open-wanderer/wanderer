@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/util/trail/offline_filter_bounds.dart';
 
 // ---------------------------------------------------------------------------
-// Pure-input tests for offline_trail_filter_bounds.dart's two public pure
+// Pure-input tests for util/trail/offline_filter_bounds.dart's two public pure
 // functions. No Store, no mocks, no source greps -- `readLocalTrailMetrics`
 // is deliberately left uncovered here (see its own doc comment).
 // ---------------------------------------------------------------------------

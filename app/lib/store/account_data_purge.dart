@@ -13,7 +13,7 @@
 /// So the library is now SCOPED rather than deleted: `TrailEntity` carries
 /// `savedByUserIds`, and every read path filters on the signed-in account
 /// (see `trail_library_provider.dart`, `trail_provider.dart`,
-/// `navigation_launch_util.dart`). This purge only clears rows and caches
+/// `launch_navigation.dart`). This purge only clears rows and caches
 /// that are cheap to refetch and hold no durable user work.
 library;
 

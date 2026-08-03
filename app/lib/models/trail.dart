@@ -126,7 +126,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @Default([]) List<String> localPhotos,
 
     /// Permanent local identity minted once at first local save. Device-local
-    /// only — never serialized. `Trail.toJson()` feeds `form_data_util.dart`,
+    /// only — never serialized. `Trail.toJson()` feeds `util/trail/form_data.dart`,
     /// so this MUST carry `includeFromJson/includeToJson: false` or a
     /// device-local value would leak into the multipart body sent to the
     /// server.

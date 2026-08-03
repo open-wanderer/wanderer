@@ -112,7 +112,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
       if (!context.mounted) return;
 
       // Deliberately NOT routed through the shared unsynced-trails sign-out
-      // warning gate (D-12, see unsynced_signout_guard.dart): this sign-out
+      // warning gate (D-12, see confirm_signout.dart): this sign-out
       // is not a choice the hiker made -- the account was just destroyed
       // server-side via DELETE /user/{id}, so any still-pending trails can
       // never upload regardless of what the hiker does here. Warning them

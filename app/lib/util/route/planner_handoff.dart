@@ -338,7 +338,7 @@ Future<Trail> buildDraftTrail(
   double? durationSeconds,
   Duration? movingDuration,
 }) async {
-  // Still produced: `expand.gpxData` is what `form_data_util.dart` uploads
+  // Still produced: `expand.gpxData` is what `util/trail/form_data.dart` uploads
   // as the trail's track file on save.
   final xml = GpxWriter().asString(finalGpx);
 
@@ -533,7 +533,7 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
 /// category pre-fill — no default bucket is ever substituted.
 ///
 /// Takes no save-options toggles. The planner used to route Finish through
-/// the shared online gate (`track_save_options_util.dart`), which offered
+/// the shared online gate (`resolve_track_save_options.dart`), which offered
 /// "recalculate heights" and "follow roads"; both were removed because
 /// neither could improve a planned route. Heights are already fetched per
 /// segment from the same deterministic DEM endpoint, so a refetch returned

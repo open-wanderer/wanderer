@@ -9,7 +9,7 @@
 /// `.part` partial file size if present, else 0 -- so an in-progress or
 /// paused download's partial bytes are still counted.
 ///
-/// Every path is built via `region_file_path.dart`'s sanctioned builders
+/// Every path is built via `util/region/file_path.dart`'s sanctioned builders
 /// (never string-concatenated) so an invalid region path fails closed via
 /// [assertValidRegionPath]'s `ArgumentError` (T-24-01).
 library;

@@ -137,7 +137,7 @@ class TileProxyServer {
 
     // The archive path is read ONLY from the winning region's own
     // DownloadedTilePackageEntity.localFilePath — a DB-derived value already
-    // validated at write time via region_file_path.dart's
+    // validated at write time via util/region/file_path.dart's
     // assertValidRegionPath, NEVER assembled from the request path. This
     // structurally eliminates path traversal (T-25.1-06).
     final localFilePath = kind == 'dem'

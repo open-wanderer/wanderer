@@ -17,7 +17,7 @@
 //
 // It starts the REAL `TileProxyServer` (`lib/services/tile_proxy_server.dart`)
 // and composes the map's offline style through the REAL production
-// `rewriteStyleForProxy` transform (`lib/util/offline_style_rewriter.dart`)
+// `rewriteStyleForProxy` transform (`lib/util/region/offline_style_rewriter.dart`)
 // -- exactly the wiring Plan 04 will add to `main.dart` -- so a pass here
 // means the real pipeline works, not a bespoke test path.
 //

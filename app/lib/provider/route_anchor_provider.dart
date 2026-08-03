@@ -305,7 +305,7 @@ class RouteAnchors extends _$RouteAnchors {
   /// below is fire-and-forget, so leaving them in place publishes a segment
   /// whose profile belongs to its *previous* shape. Both consumers read
   /// `elevationProfile ?? polyline` — `buildFinalPlannedGpx`
-  /// (route_planner_handoff_util.dart) and `plannedElevationGpx`
+  /// (util/route/planner_handoff.dart) and `plannedElevationGpx`
   /// (planned_gpx_provider.dart) — so a stale profile silently wins over the
   /// polyline it contradicts: tapping Finish inside that window saved the
   /// pre-edit route, and the elevation preview drew it while the map drew

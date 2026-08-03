@@ -7,7 +7,7 @@ import 'package:wanderer/util/trail/offline_filter_bounds.dart';
 // Pure-input tests for trail_filter_provider.dart's fallback filter and
 // retry policy. No widget pump, no ProviderScope, no Store. Imports
 // computeOfflineTrailFilterValues/kOfflineTrailFilterValues from
-// offline_trail_filter_bounds.dart to build the `computed` fixture, so this
+// util/trail/offline_filter_bounds.dart to build the `computed` fixture, so this
 // file and offline_trail_filter_bounds_test.dart stay in step by
 // construction rather than by duplicated literals.
 // ---------------------------------------------------------------------------

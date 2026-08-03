@@ -11,7 +11,7 @@ part 'region_download_state.freezed.dart';
 /// Vector and DEM downloads are fully independent (separate `CancelToken`s,
 /// separate progress streams), so there is no single combined `status` —
 /// each progress field's presence (non-null) IS that package's live
-/// "downloading" signal; see `region_tile_status_util.dart`'s
+/// "downloading" signal; see `util/region/tile_status.dart`'s
 /// `resolveVectorTileStatus`/`resolveDemTileStatus`.
 @freezed
 abstract class RegionDownloadState with _$RegionDownloadState {

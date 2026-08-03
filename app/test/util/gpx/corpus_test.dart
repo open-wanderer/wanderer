@@ -343,7 +343,7 @@ void main() {
               isNotNull,
               reason:
                   '${fixture.dir}: waypoint[$i] expects sym "$expectedIcon", '
-                  'which is missing from icon_util.dart\'s '
+                  'which is missing from theme/icons.dart\'s '
                   'fontAwesomeIconsMap',
             );
           }

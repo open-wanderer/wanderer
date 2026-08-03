@@ -16,7 +16,7 @@
 // RENDER-03 (composition strategy) via this plan's `checkpoint:decision`.
 //
 // It reuses the REAL production composition helper, `rewriteStyleForOffline`
-// (`lib/util/offline_style_rewriter.dart`): feeding it N identical real
+// (`lib/util/region/offline_style_rewriter.dart`): feeding it N identical real
 // on-disk cell paths materializes exactly N duplicated `__cellK`-suffixed
 // native source+layer sets, which is the actual multi-cell composition the
 // rest of Phase 25 will ship.

@@ -11,7 +11,7 @@
 /// `library/` (downloaded trails, see `trail_download_service.dart`) so
 /// [deleteUnsyncedPhotoDir] and [sweepOrphanedUnsyncedPhotos] can target it
 /// without ever touching a downloaded trail's files --
-/// `account_data_purge_util.dart`'s `accountScopedDirNames` doc comment
+/// `account_data_purge.dart`'s `accountScopedDirNames` doc comment
 /// reasons about `library`/`regions`/`map_cache` the same way (T-36-02-03).
 ///
 /// Every path below is built with `p.join` -- never string interpolation.
@@ -171,7 +171,7 @@ String _collisionFreeName(Set<String> reservedNames, String basename) {
 /// an unsynced-trail delete (D-02/D-14).
 ///
 /// Best-effort: a failure to delete is swallowed, matching
-/// `account_data_purge_util.dart`'s discipline for this kind of best-effort
+/// `account_data_purge.dart`'s discipline for this kind of best-effort
 /// on-disk cleanup. [localId] is still validated via [unsyncedTrailPhotoDir]
 /// before that try/catch begins, so a malformed id is a caller bug that
 /// surfaces as an [ArgumentError], not a silently swallowed no-op.

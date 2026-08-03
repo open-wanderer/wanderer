@@ -8,7 +8,7 @@ import 'package:wanderer/objectbox.g.dart';
 /// `trailId` parameter; they all operate on "the single active row" by
 /// construction (callers always clear before starting a fresh session).
 /// Every function swallows errors, mirroring `_recacheNav` in
-/// `navigation_launch_util.dart` — a persistence fault must never crash or
+/// `launch_navigation.dart` — a persistence fault must never crash or
 /// interrupt an in-progress navigation/recording session.
 
 /// Saves [entity] and returns the assigned/kept `obxId`.

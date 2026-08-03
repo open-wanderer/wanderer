@@ -461,7 +461,7 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
 /// here rather than at each call site: `NavigationStats.elapsed` starts at
 /// `Duration.zero` and stays there until the 1-second tick begins, so a
 /// recording saved immediately passed a zero elapsed straight through to
-/// `moving_duration = 0` — precisely the state `form_data_util.dart`'s own
+/// `moving_duration = 0` — precisely the state `util/trail/form_data.dart`'s own
 /// comment says must never be written ("sending an empty string for an
 /// absent value would write 0 into PocketBase and defeat D-10's 'no value'
 /// state"). Its write guard is `!= null`, not `> 0`, so nothing downstream
@@ -478,12 +478,12 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
 /// parameter leaves `movingDuration` null.
 ///
 /// [gpxData] is the raw GPX string [gpx] was parsed from. When supplied it
-/// is carried on `expand.gpxData`, which `form_data_util.dart` uploads as
+/// is carried on `expand.gpxData`, which `util/trail/form_data.dart` uploads as
 /// the trail's track file on save — a caller that omits it produces a trail
 /// that saves with no GPX.
 ///
 /// `id`/`created`/`updated` are placeholders (`''`/`DateTime.now()`),
-/// mirroring `trail_import_util.dart`'s `convertGpxToTrail` convention for a
+/// mirroring `import_trail_file.dart`'s `convertGpxToTrail` convention for a
 /// not-yet-persisted trail — that function's own placeholder-injection is
 /// unchanged by this plan; only its data source moves here in a later plan.
 Trail trailFromGpx(

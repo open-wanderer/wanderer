@@ -5,7 +5,7 @@
 /// tilenames") — no project-specific logic, no I/O, no dependency beyond
 /// `dart:math`. Callers (the proxy request handler in `tile_proxy_server.dart`)
 /// MUST bounds-check `z`/`x`/`y` themselves BEFORE calling [tileToBounds]: this
-/// function performs no validation of its own, mirroring `region_file_path.dart`'s
+/// function performs no validation of its own, mirroring `util/region/file_path.dart`'s
 /// "validate before use" convention even though the validation itself lives in
 /// the caller here, not this pure-math module.
 library;

@@ -6,7 +6,7 @@ import 'package:wanderer/util/gpx/conversion.dart' show haversineMeters;
 // `<email>user@example.com</email>` text form is now handled where the
 // coercion happens, in `lib/vendor/gpx/gpx_reader.dart`'s `_readEmail`
 // (LOCAL MODIFICATION 4), so no pre-parse XML rewriting is needed. Parse
-// third-party GPX with `parseGpxSafely` from `gpx_conversion_util.dart`.
+// third-party GPX with `parseGpxSafely` from `util/gpx/conversion.dart`.
 
 /// Builds a Valhalla shape list from [points], downsampling to ≤500 entries
 /// while always preserving the first and last point.
@@ -54,7 +54,7 @@ Gpx buildGpxFromPoints(List<Wpt> points) {
   return gpx;
 }
 
-// D-17: trail metrics live in gpx_conversion_util.dart's
+// D-17: trail metrics live in util/gpx/conversion.dart's
 // computeTrailMetrics/GpxTrailMetrics — the port of the Phase 33-corrected
 // TS algorithm. No second metrics implementation (a "totals"-style method or
 // value class, or anything computing distance/elevation summaries) may be

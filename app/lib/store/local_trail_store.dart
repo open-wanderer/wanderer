@@ -390,7 +390,7 @@ LocalUpdateOutcome updateLocalTrail(
 /// A no-op for an unknown [localId], mirroring
 /// `TrailLibraryNotifier.deleteTrail`'s silent no-op precedent. Does NOT
 /// touch the filesystem -- the caller pairs this with
-/// `deleteUnsyncedPhotoDir` (from `local_photo_store_util.dart`, 36-02).
+/// `deleteUnsyncedPhotoDir` (from `local_photo_store.dart`, 36-02).
 void deleteLocalTrailRow(Store store, String localId) {
   store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();

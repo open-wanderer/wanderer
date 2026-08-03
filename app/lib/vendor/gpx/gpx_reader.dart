@@ -44,7 +44,7 @@
 //     `current` on empty input). Callers cannot reasonably catch `_TypeError`.
 //
 // Behaviour is otherwise byte-for-byte upstream. Coercion of `<ele>` to a
-// trail metric still happens in `gpx_conversion_util.dart`'s
+// trail metric still happens in `util/gpx/conversion.dart`'s
 // `parseGpxElevation`, which is the layer the TS/Dart parity corpus pins.
 
 import 'package:gpx/gpx.dart';

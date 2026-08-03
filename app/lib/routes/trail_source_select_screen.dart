@@ -32,7 +32,7 @@ class _TrailSourceSelectScreenState
   bool _plannerLoading = false;
   bool _recorderLoading = false;
 
-  /// Requests location permission (mirroring `navigation_launch_util.dart`'s
+  /// Requests location permission (mirroring `launch_navigation.dart`'s
   /// `launchNavigation` gate — `NavigationScreen` does not self-request it),
   /// then waits for a real GPS fix before pushing the trail-less
   /// GPS-recording session — without this, `NavigationScreen` has no

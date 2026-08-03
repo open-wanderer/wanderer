@@ -4,7 +4,7 @@ import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/util/trail/route_location.dart';
 
 // ---------------------------------------------------------------------------
-// Pure-function tests for trail_route_location.dart. No ProviderScope, no
+// Pure-function tests for util/trail/route_location.dart. No ProviderScope, no
 // Store -- plain Trail.empty().copyWith(...) fixtures only.
 // ---------------------------------------------------------------------------
 

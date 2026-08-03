@@ -9,7 +9,7 @@ enum TrackSaveOptionsSource {
   /// over a screen without a bottom navigation bar.
   recording,
 
-  /// The file import flow in `trail_import_util.dart`, shown over a screen
+  /// The file import flow in `import_trail_file.dart`, shown over a screen
   /// whose bottom navigation bar would otherwise overlap the sheet.
   import,
 }

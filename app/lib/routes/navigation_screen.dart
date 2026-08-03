@@ -710,10 +710,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// conversions/navigations (mirrors `route_planner_screen.dart`'s
   /// `_finishing`). On failure (e.g. offline), shows an error toast and
   /// leaves the session intact so the user can retry — matching
-  /// `trail_import_util.dart`'s `importTrailFile` precedent for this same
+  /// `import_trail_file.dart`'s `importTrailFile` precedent for this same
   /// toast-and-stay behaviour.
   ///
-  /// Opens the shared online gate (see `track_save_options_util.dart`)
+  /// Opens the shared online gate (see `resolve_track_save_options.dart`)
   /// FIRST, before the [_savingTrack] guard, so both call sites
   /// (exit-dialog and completion-banner) inherit it with no change. The
   /// sheet itself is now shown only when online (D-15); offline, the save

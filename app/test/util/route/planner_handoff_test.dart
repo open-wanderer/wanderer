@@ -16,7 +16,7 @@ import 'package:wanderer/util/route/planner_handoff.dart';
 // Tests for the pure handoff helpers (no network/navigation), plus
 // buildDraftTrail, which since 34-05 builds its draft trail entirely
 // on-device via the ported `trailFromGpx` (see buildLocalTrail in
-// trail_import_util.dart) and so needs a WidgetRef only for its optional,
+// import_trail_file.dart) and so needs a WidgetRef only for its optional,
 // online-only reverse-geocode fill (D-07). finishPlanning's own
 // orchestration is still not unit-tested here — it has no seam beyond
 // buildDraftTrail worth re-testing.

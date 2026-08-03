@@ -391,7 +391,7 @@ class _SettingsOfflineRegionsScreenState
   /// Disk-usage summary card (SETUI-05, D-06): a Display-role headline byte
   /// figure over a Label-role sub-text stating how many regions contribute
   /// to it. `totalRegionDiskUsageBytes` reads real on-disk bytes (including
-  /// `.part` partial files) — see `region_disk_usage_util.dart`.
+  /// `.part` partial files) — see `util/region/disk_usage.dart`.
   Widget _buildDiskUsageSummary(
     AppLocalizations l10n,
     List<RegionEntity> regions,

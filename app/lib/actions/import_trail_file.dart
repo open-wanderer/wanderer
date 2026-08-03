@@ -39,7 +39,7 @@ Trail? pendingImportedTrail;
 /// measured locally, same as a native `.gpx`.
 ///
 /// After parsing, gates the same two post-capture toggles the recording and
-/// route-planner paths offer (D-15, see `track_save_options_util.dart`):
+/// route-planner paths offer (D-15, see `resolve_track_save_options.dart`):
 /// shown only when online, skipped entirely offline (both toggles treated
 /// as declined, so the parsed track is used unchanged) — this is what makes
 /// an offline import complete end to end with no network call. A cancelled

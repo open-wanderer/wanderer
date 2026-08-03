@@ -1,7 +1,7 @@
 /// Shared count-and-confirm gate in front of every sign-out call site.
 ///
 /// A locally-captured trail (`TrailEntity` with a non-null `owner`) is never
-/// purged on logout (`account_data_purge_util.dart`) -- nothing is ever lost
+/// purged on logout (`account_data_purge.dart`) -- nothing is ever lost
 /// by signing out. But the hiker has no way to know that, and signing into a
 /// different account while trails are still waiting to upload is the single
 /// most common "my tour is missing" report the design record cites (D-12).
@@ -36,7 +36,7 @@ bool shouldWarnBeforeSignOut(int unsyncedCount) => unsyncedCount > 0;
 /// dialog.
 ///
 /// The sign-out itself is never blocked by this function -- `TrailEntity`
-/// rows deliberately survive logout (`account_data_purge_util.dart`), so
+/// rows deliberately survive logout (`account_data_purge.dart`), so
 /// this dialog exists only to tell the hiker that, not to stop them.
 ///
 /// A typical call site: `if (!await confirmSignOutWithUnsyncedTrails(context,

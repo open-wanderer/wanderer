@@ -5,7 +5,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/trail/filter.dart';
 
 // ---------------------------------------------------------------------------
-// Pure-function tests for trail_filter_util.dart. No Store, no provider
+// Pure-function tests for util/trail/filter.dart. No Store, no provider
 // container, no widgets -- plain Trail(...)/TrailFilter(...) fixtures only.
 //
 // The reference behaviour is TrailFilter.toFilterText(): every assertion here

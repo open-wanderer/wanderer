@@ -748,7 +748,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
       // A keyless waypoint has nowhere to copy its photos TO, so its picked
       // files stay at OS-purgeable image_picker cache paths -- precisely the
-      // D-01 failure local_photo_store_util.dart exists to prevent. Skipping
+      // D-01 failure local_photo_store.dart exists to prevent. Skipping
       // silently reported success over photos that can disappear at any
       // moment; counting them makes the user see photo_copy_failed_toast
       // instead.
