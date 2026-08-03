@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-11-PLAN.md
-last_updated: "2026-08-03T10:33:34.405Z"
+stopped_at: Completed 36-12-PLAN.md
+last_updated: "2026-08-03T11:10:24.041Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 27
-  completed_plans: 24
+  completed_plans: 25
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 4 of 15
+Plan: 5 of 15
 Status: Ready to execute
 Last activity: 2026-08-03 -- Phase 36 execution started
 
@@ -161,6 +161,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P09 | ~20min | 3 tasks | 7 files |
 | Phase 36 P10 | 15min | 1 tasks | 2 files |
 | Phase 36 P11 | ~25min | 2 tasks | 8 files |
+| Phase 36 P12 | ~40min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -375,6 +376,8 @@ Recent decisions affecting current work:
 - [Phase 36-10]: No ownTrailsHandle/ownTrailsInvalidationTargets extraction into app/lib/util/ -- the inline invalidation spelling matches trail_sync_provider.dart's today; the phase is verified on device
 - [Phase 36]: [36-11] readOwnLocalTrail added as a new owner-scoped sibling to readLocalTrail (not a signature change) since a route parameter is attacker-supplied as far as this layer is concerned, unlike readLocalTrail's two existing account-correct-by-construction callers (T-36-11-01)
 - [Phase 36]: [36-11] TrailDropdown mounted unconditionally in the dual-mode detail screen for an unsynced trail -- the sole TrailDropdown instantiation site, making D-14/D-17 delete/download-hiding gating reachable for the first time (UAT Test 3)
+- [Phase ?]: [Phase 36] [36-12] Dual-mode TrailDetailMapScreen mirrors 36-11's TrailDetailScreen build()/_buildDetail split; floating Navigate hidden (not disabled) for an unsynced trail, matching the detail screen's own precedent
+- [Phase ?]: [Phase 36] [36-12] Widget navigation test asserts GoRouter.state.uri, not routerDelegate.currentConfiguration.uri -- the latter was observed not to reflect a push made after MaterialApp.router's initial build in this harness
 
 ### Roadmap Evolution
 
@@ -528,8 +531,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T10:33:34.386Z
-Stopped at: Completed 36-11-PLAN.md
+Last session: 2026-08-03T11:10:24.023Z
+Stopped at: Completed 36-12-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

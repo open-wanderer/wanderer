@@ -509,7 +509,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6)*
 
-- [ ] 36-12-PLAN.md — Tapping an unsynced trail opens detail: divert removed, panel map pushes retargeted, local map route, navigation widget test
+- [x] 36-12-PLAN.md — Tapping an unsynced trail opens detail: divert removed, panel map pushes retargeted, local map route, navigation widget test
 
 **Wave 8** *(blocked on Wave 7)*
 
@@ -772,5 +772,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 11/15 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 12/15 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
