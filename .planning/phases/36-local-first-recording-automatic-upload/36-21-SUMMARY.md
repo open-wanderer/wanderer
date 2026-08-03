@@ -135,3 +135,12 @@ None — no external service configuration required.
 ---
 *Phase: 36-local-first-recording-automatic-upload*
 *Completed: 2026-08-03*
+
+## Self-Check: PASSED
+
+- FOUND: `app/test/components/trail/trail_panel_sync_badge_test.dart`
+- FOUND: `app/lib/components/trail/trail_panel.dart`
+- FOUND: `.planning/phases/36-local-first-recording-automatic-upload/36-21-SUMMARY.md`
+- FOUND: commit `9419f872` (test — RED)
+- FOUND: commit `bdfde398` (fix — GREEN)
+- FOUND: commit `edcea84b` (docs — plan summary)
