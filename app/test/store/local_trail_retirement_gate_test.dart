@@ -41,9 +41,7 @@ void main() {
           'set to `app/` (e.g. "cd app && flutter test").',
     );
 
-    final source = File(
-      'lib/store/local_trail_store.dart',
-    ).readAsStringSync();
+    final source = File('lib/store/local_trail_store.dart').readAsStringSync();
     final codeOnly = source
         .split('\n')
         .where((line) => !RegExp(r'^\s*//').hasMatch(line))
@@ -139,135 +137,138 @@ void main() {
     });
   });
 
-  group('the drain -- ordering and absence facts a call-site grep cannot see', () {
-    /// The comment-stripped contents of every `.dart` file under `lib/`,
-    /// keyed by path.
-    Map<String, String> allLibSourcesCodeOnly() {
-      expect(
-        libDir.existsSync(),
-        isTrue,
-        reason:
-            'This test must be run with `flutter test`\'s working '
-            'directory set to `app/` (e.g. "cd app && flutter test").',
-      );
+  group(
+    'the drain -- ordering and absence facts a call-site grep cannot see',
+    () {
+      /// The comment-stripped contents of every `.dart` file under `lib/`,
+      /// keyed by path.
+      Map<String, String> allLibSourcesCodeOnly() {
+        expect(
+          libDir.existsSync(),
+          isTrue,
+          reason:
+              'This test must be run with `flutter test`\'s working '
+              'directory set to `app/` (e.g. "cd app && flutter test").',
+        );
 
-      final sources = <String, String>{};
-      for (final entity in libDir.listSync(recursive: true)) {
-        if (entity is! File || !entity.path.endsWith('.dart')) continue;
-        final codeOnly = entity
-            .readAsStringSync()
+        final sources = <String, String>{};
+        for (final entity in libDir.listSync(recursive: true)) {
+          if (entity is! File || !entity.path.endsWith('.dart')) continue;
+          final codeOnly = entity
+              .readAsStringSync()
+              .split('\n')
+              .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+              .join('\n');
+          sources[entity.path] = codeOnly;
+        }
+        return sources;
+      }
+
+      /// `_drainOne`'s body, comment-stripped, isolated from the rest of the
+      /// file.
+      String drainOneBody() {
+        final source = File(
+          'lib/provider/trail/trail_sync_provider.dart',
+        ).readAsStringSync();
+        final codeOnly = source
             .split('\n')
             .where((line) => !RegExp(r'^\s*//').hasMatch(line))
             .join('\n');
-        sources[entity.path] = codeOnly;
-      }
-      return sources;
-    }
 
-    /// `_drainOne`'s body, comment-stripped, isolated from the rest of the
-    /// file.
-    String drainOneBody() {
-      final source = File(
-        'lib/provider/trail/trail_sync_provider.dart',
-      ).readAsStringSync();
-      final codeOnly = source
-          .split('\n')
-          .where((line) => !RegExp(r'^\s*//').hasMatch(line))
-          .join('\n');
-
-      final sigStart = codeOnly.indexOf('Future<void> _drainOne(');
-      expect(
-        sigStart,
-        isNot(-1),
-        reason:
-            '_drainOne was renamed or its signature changed. Re-point this '
-            'gate rather than deleting it -- the invariant still matters.',
-      );
-
-      final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
-      expect(
-        bodyEnd,
-        isNot(-1),
-        reason: 'Could not find the end of _drainOne\'s body.',
-      );
-
-      return codeOnly.substring(sigStart, bodyEnd);
-    }
-
-    test('markTrailSynced is gone from app/lib entirely', () {
-      final sources = allLibSourcesCodeOnly();
-
-      for (final entry in sources.entries) {
+        final sigStart = codeOnly.indexOf('Future<void> _drainOne(');
         expect(
-          entry.value.contains('markTrailSynced'),
-          isFalse,
+          sigStart,
+          isNot(-1),
           reason:
-              'markTrailSynced still appears in ${entry.key}. Its return '
-              'means a row survives its own upload as '
-              '`owner != null && syncState == synced`, which '
-              'readOwnLocalTrails re-emits forever and no delete affordance '
-              'in the app can remove (UAT Test 5, blocker).',
+              '_drainOne was renamed or its signature changed. Re-point this '
+              'gate rather than deleting it -- the invariant still matters.',
         );
+
+        final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
+        expect(
+          bodyEnd,
+          isNot(-1),
+          reason: 'Could not find the end of _drainOne\'s body.',
+        );
+
+        return codeOnly.substring(sigStart, bodyEnd);
       }
-    });
 
-    test('retirement happens after the waypoint loop', () {
-      final body = drainOneBody();
+      test('markTrailSynced is gone from app/lib entirely', () {
+        final sources = allLibSourcesCodeOnly();
 
-      final loopIdx = body.indexOf(
-        'for (final waypointEntity in entity.waypoints) {',
-      );
-      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+        for (final entry in sources.entries) {
+          expect(
+            entry.value.contains('markTrailSynced'),
+            isFalse,
+            reason:
+                'markTrailSynced still appears in ${entry.key}. Its return '
+                'means a row survives its own upload as '
+                '`owner != null && syncState == synced`, which '
+                'readOwnLocalTrails re-emits forever and no delete affordance '
+                'in the app can remove (UAT Test 5, blocker).',
+          );
+        }
+      });
 
-      expect(loopIdx, isNot(-1));
-      expect(retireIdx, isNot(-1));
-      expect(
-        loopIdx < retireIdx,
-        isTrue,
-        reason:
-            'Retiring before every waypoint is created destroys the '
-            'resume state D-05 depends on -- the trail would exist '
-            'server-side with missing waypoints and no local row to '
-            'retry from.',
-      );
-    });
+      test('retirement happens after the waypoint loop', () {
+        final body = drainOneBody();
 
-    test('retirement happens inside the try, not the catch', () {
-      final body = drainOneBody();
+        final loopIdx = body.indexOf(
+          'for (final waypointEntity in entity.waypoints) {',
+        );
+        final retireIdx = body.indexOf('retireUploadedLocalTrail(');
 
-      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
-      final catchIdx = body.indexOf('} catch (e, st) {');
+        expect(loopIdx, isNot(-1));
+        expect(retireIdx, isNot(-1));
+        expect(
+          loopIdx < retireIdx,
+          isTrue,
+          reason:
+              'Retiring before every waypoint is created destroys the '
+              'resume state D-05 depends on -- the trail would exist '
+              'server-side with missing waypoints and no local row to '
+              'retry from.',
+        );
+      });
 
-      expect(retireIdx, isNot(-1));
-      expect(catchIdx, isNot(-1));
-      expect(
-        retireIdx < catchIdx,
-        isTrue,
-        reason:
-            'A retirement reachable from the failure handler deletes the '
-            'hiker\'s only copy of a trail whose upload did not complete.',
-      );
-    });
+      test('retirement happens inside the try, not the catch', () {
+        final body = drainOneBody();
 
-    test('files are swept after the row is retired', () {
-      final body = drainOneBody();
+        final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+        final catchIdx = body.indexOf('} catch (e, st) {');
 
-      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
-      final sweepIdx = body.indexOf('_deletePhotoDirBestEffort(localId)');
+        expect(retireIdx, isNot(-1));
+        expect(catchIdx, isNot(-1));
+        expect(
+          retireIdx < catchIdx,
+          isTrue,
+          reason:
+              'A retirement reachable from the failure handler deletes the '
+              'hiker\'s only copy of a trail whose upload did not complete.',
+        );
+      });
 
-      expect(retireIdx, isNot(-1));
-      expect(sweepIdx, isNot(-1));
-      expect(
-        retireIdx < sweepIdx,
-        isTrue,
-        reason:
-            '`unsyncedLocalIds` cannot see a retired row, so the startup '
-            'sweep reclaims a directory orphaned by a crash between the '
-            'two, whereas the reverse order leaves a live row pointing at '
-            'files that are gone.',
-      );
-    });
-  });
+      test('files are swept after the row is retired', () {
+        final body = drainOneBody();
+
+        final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+        final sweepIdx = body.indexOf('_deletePhotoDirBestEffort(localId)');
+
+        expect(retireIdx, isNot(-1));
+        expect(sweepIdx, isNot(-1));
+        expect(
+          retireIdx < sweepIdx,
+          isTrue,
+          reason:
+              '`unsyncedLocalIds` cannot see a retired row, so the startup '
+              'sweep reclaims a directory orphaned by a crash between the '
+              'two, whereas the reverse order leaves a live row pointing at '
+              'files that are gone.',
+        );
+      });
+    },
+  );
 
   group('deleteUnsynced -- a row with a server id gets a real server '
       'DELETE too (CR-04)', () {
@@ -297,7 +298,7 @@ void main() {
           .join('\n');
 
       final sigStart = codeOnly.indexOf(
-        'Future<bool> deleteUnsynced(String localId) async {',
+        'Future<UnsyncedDeleteResult> deleteUnsynced(String localId) async {',
       );
       expect(
         sigStart,
@@ -318,20 +319,49 @@ void main() {
       return codeOnly.substring(sigStart, bodyEnd);
     }
 
-    test('decides on trailHasServerId(, not the row\'s TrailSyncState', () {
+    test('decides on readLocalTrailServerId(, never readLocalTrail( -- a '
+        'delete decision must not depend on the row\'s cached GPX still '
+        'parsing (CR-02)', () {
       final body = deleteUnsyncedBody();
 
       expect(
-        body.contains('trailHasServerId('),
+        body.contains('readLocalTrailServerId('),
         isTrue,
         reason:
             'A `failed`/`pending`/`uploading` row can already carry a '
             'real server id -- `writeServerTrailId` stamps it the '
             'instant `PUT /trail/form` is accepted, well before the row '
-            'is retired. Deciding on TrailSyncState alone (as before) '
-            'treats that row as device-only and skips the server DELETE, '
-            'stranding a possibly-public trail on the server with no '
-            'device left pointing at it.',
+            'is retired. The decision must read the raw entity id '
+            'column, not go through `toModel()`, which returns null on '
+            'ANY parse failure (including unparseable cached GPX) and '
+            'would then skip the server DELETE, stranding a '
+            'possibly-public trail on the server with no device left '
+            'pointing at it.',
+      );
+      expect(
+        body.contains('readLocalTrail('),
+        isFalse,
+        reason:
+            'readLocalTrail() -> toModel() can silently return null on '
+            'an unparseable cached GPX, which previously made this '
+            'method treat a row with a real server id as if it had '
+            'none (CR-02). The decision must never route through it.',
+      );
+    });
+
+    test('validates the server id through recordIdDirSegment( before it '
+        'reaches the Dio path (WR-17)', () {
+      final body = deleteUnsyncedBody();
+
+      expect(
+        body.contains('recordIdDirSegment('),
+        isTrue,
+        reason:
+            'The server id originates in a response body from a server '
+            'that may be federated or compromised. Interpolating it '
+            'straight into a Dio path without validation lets a '
+            'malicious id (e.g. containing `../`) steer the request at '
+            'a different endpoint under the same authenticated session.',
       );
     });
 
@@ -355,28 +385,47 @@ void main() {
       );
     });
 
-    test('the server DELETE is NOT wrapped in a try/catch inside this '
-        'method -- a failure must propagate, not be swallowed', () {
+    test('deleteLocalTrailRow( is called with accountId: -- every write on '
+        'the delete path is owner-scoped (WR-10)', () {
+      final body = deleteUnsyncedBody();
+
+      final localDeleteIdx = body.indexOf('deleteLocalTrailRow(');
+      expect(localDeleteIdx, isNot(-1));
+
+      final callEnd = body.indexOf(';', localDeleteIdx);
+      expect(callEnd, isNot(-1));
+      final call = body.substring(localDeleteIdx, callEnd);
+      expect(
+        call.contains('accountId:'),
+        isTrue,
+        reason:
+            'Without an owner clause, account B could delete account '
+            'A\'s device-only row through a stale localId (WR-10).',
+      );
+    });
+
+    test('a failed server DELETE is classified via resolveServerDeleteOutcome( '
+        'between the DELETE call and the local delete -- the failure is '
+        'classified, not swallowed unconditionally (WR-15)', () {
       final body = deleteUnsyncedBody();
 
       final serverDeleteIdx = body.indexOf('apiProvider).delete(');
+      final localDeleteIdx = body.indexOf('deleteLocalTrailRow(');
       expect(serverDeleteIdx, isNot(-1));
+      expect(localDeleteIdx, isNot(-1));
 
-      // No `try` keyword may appear between the start of the method and the
-      // server delete call -- if one did, the delete would very likely be
-      // inside it, and a caught failure that still proceeds to
-      // deleteLocalTrailRow reintroduces the exact bug this test guards.
-      final sigEnd = body.indexOf('{') + 1;
-      final beforeDelete = body.substring(sigEnd, serverDeleteIdx);
+      final slice = body.substring(serverDeleteIdx, localDeleteIdx);
       expect(
-        beforeDelete.contains('try'),
-        isFalse,
+        slice.contains('resolveServerDeleteOutcome('),
+        isTrue,
         reason:
-            'A network failure on the server DELETE must escape '
-            'deleteUnsynced uncaught, so the caller never proceeds to '
-            'destroy the local row while the server copy survives '
-            '(CR-04). Catching it here and returning normally would '
-            'silently strand a live trail.',
+            'A `catch` that swallows every DELETE failure and proceeds '
+            'unconditionally to the local delete treats a 401/403/500 '
+            'exactly like a 404, silently destroying the local row '
+            'while the server copy survives. The failure must be '
+            'classified via resolveServerDeleteOutcome so a 404 (the '
+            'server copy is already gone) is the only case that '
+            'proceeds automatically.',
       );
     });
   });

@@ -137,6 +137,54 @@ LocalSaveMode resolveLocalSaveModeForRow({
 /// network write or a network delete to (CR-01).
 bool trailHasServerId(String id) => id.isNotEmpty;
 
+/// What a delete decision should do once the server DELETE for a row's
+/// server copy has been attempted (or was never attempted at all).
+enum ServerDeleteOutcome {
+  /// Proceed with the local delete -- either the server DELETE succeeded,
+  /// or the server has already confirmed there is nothing left to delete
+  /// (404).
+  proceedWithLocalDelete,
+
+  /// Refuse the delete and tell the hiker a connection is needed. Nothing
+  /// local is touched.
+  abortNeedsConnection,
+
+  /// Refuse the delete and report a generic failure. Nothing local is
+  /// touched.
+  abortAndReport,
+}
+
+/// Decides what a failed (or 404'd) server DELETE means for the local
+/// delete that would otherwise follow it.
+///
+/// - `statusCode == 404`: the server copy is already gone -- proceeding
+///   with the local delete is strictly better than blocking it forever
+///   over a trail the server itself no longer has.
+/// - `statusCode == null && connectionFailed`: the request never reached a
+///   server at all. [abortNeedsConnection], not a local-only delete --
+///   there is deliberately NO "delete on this device only" escape hatch
+///   for the offline case here. That would destroy the device's only
+///   pointer to a trail that may still be live (and possibly public) on
+///   the server, which is precisely the CR-02/CR-04 failure this decision
+///   exists to prevent. An offline hiker is told to reconnect instead, and
+///   nothing is destroyed.
+/// - Every other case (401, 403, 500, or a null status with
+///   `connectionFailed == false`) is [abortAndReport]: the failure is real
+///   and reported, rather than silently treated as success or retried
+///   forever.
+ServerDeleteOutcome resolveServerDeleteOutcome({
+  required int? statusCode,
+  required bool connectionFailed,
+}) {
+  if (statusCode == 404) {
+    return ServerDeleteOutcome.proceedWithLocalDelete;
+  }
+  if (statusCode == null && connectionFailed) {
+    return ServerDeleteOutcome.abortNeedsConnection;
+  }
+  return ServerDeleteOutcome.abortAndReport;
+}
+
 /// Whether [entity]'s upload is due to run now.
 ///
 /// True only for a row whose [TrailEntity.syncState] is [TrailSyncState.pending]
@@ -385,16 +433,30 @@ LocalUpdateOutcome updateLocalTrail(
   });
 }
 
-/// Removes the local row for [localId] and its [WaypointEntity] children.
+/// Removes the local row for [localId], owned by [accountId], and its
+/// [WaypointEntity] children.
 ///
-/// A no-op for an unknown [localId], mirroring
-/// `TrailLibraryNotifier.deleteTrail`'s silent no-op precedent. Does NOT
-/// touch the filesystem -- the caller pairs this with
-/// `deleteUnsyncedPhotoDir` (from `local_photo_store.dart`, 36-02).
-void deleteLocalTrailRow(Store store, String localId) {
+/// A no-op for an unknown [localId] (or one owned by a different account),
+/// mirroring `TrailLibraryNotifier.deleteTrail`'s silent no-op precedent.
+/// Owner-scoped per WR-10 and the project rule "scope, don't delete user
+/// data": the `localId` this is called with may arrive from a [Trail] model
+/// constructed before an account switch, and without the clause account B
+/// could delete account A's device-only row. Does NOT touch the filesystem
+/// -- the caller pairs this with `deleteUnsyncedPhotoDir` (from
+/// `local_photo_store.dart`, 36-02).
+void deleteLocalTrailRow(
+  Store store,
+  String localId, {
+  required String accountId,
+}) {
   store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();
-    final query = trailBox.query(TrailEntity_.localId.equals(localId)).build();
+    final query = trailBox
+        .query(
+          TrailEntity_.localId.equals(localId) &
+              TrailEntity_.owner.equals(accountId),
+        )
+        .build();
     final entity = query.findFirst();
     query.close();
     if (entity == null) return;
@@ -538,6 +600,44 @@ Trail? readOwnLocalTrail(
     );
     return null;
   }
+}
+
+/// The raw, persisted [TrailEntity.id] for the row identified by [localId]
+/// and owned by [accountId], or null when no such row exists or the row's
+/// id is still a local sentinel.
+///
+/// Deliberately NOT via [TrailEntity.toModel()] (CR-02): a delete decision
+/// must not depend on the row's cached GPX still parsing.
+/// `TrailEntity.toModel()` runs `parseGpxSafely` and returns null on ANY
+/// conversion failure -- including one caused only by unparseable GPX --
+/// which previously made `deleteUnsynced` treat a row with a real,
+/// server-stamped id as if it had none, skipping the server DELETE and
+/// stranding a live (possibly public) server trail with no device left
+/// pointing at it. Reading `entity.id` off the column sidesteps `toModel()`
+/// entirely.
+///
+/// Owner-scoped for the same reason [readOwnLocalTrail] is (WR-10): the
+/// `localId` this is called with arrives from a [Trail] model that may have
+/// been constructed before an account switch, or retained by a
+/// backgrounded widget -- the same class of value `readOwnLocalTrail`
+/// already guards against leaking across accounts.
+String? readLocalTrailServerId(
+  Store store, {
+  required String localId,
+  required String accountId,
+}) {
+  final query = store
+      .box<TrailEntity>()
+      .query(
+        TrailEntity_.localId.equals(localId) &
+            TrailEntity_.owner.equals(accountId),
+      )
+      .build();
+  final entity = query.findFirst();
+  query.close();
+  if (entity == null) return null;
+
+  return isLocalId(entity.id) ? null : entity.id;
 }
 
 /// Every trail [accountId] can see in its own-trails list: trails it
@@ -796,13 +896,27 @@ void recordDrainFailure(
   });
 }
 
-/// SYNC-03's manual-retry primitive: resets the local row for [localId]
-/// back to a fresh [TrailSyncState.pending] state with zero attempts and no
-/// scheduled backoff.
-void resetDrainBackoff(Store store, String localId) {
+/// SYNC-03's manual-retry primitive: resets the local row for [localId],
+/// owned by [accountId], back to a fresh [TrailSyncState.pending] state
+/// with zero attempts and no scheduled backoff.
+///
+/// Owner-scoped per WR-10 and the project rule "scope, don't delete user
+/// data": `SyncStatusChip`'s retry tap reaches this with the same kind of
+/// value [deleteLocalTrailRow] guards against -- a `localId` that may have
+/// survived an account switch.
+void resetDrainBackoff(
+  Store store,
+  String localId, {
+  required String accountId,
+}) {
   store.runInTransaction(TxMode.write, () {
     final box = store.box<TrailEntity>();
-    final query = box.query(TrailEntity_.localId.equals(localId)).build();
+    final query = box
+        .query(
+          TrailEntity_.localId.equals(localId) &
+              TrailEntity_.owner.equals(accountId),
+        )
+        .build();
     final entity = query.findFirst();
     query.close();
     if (entity == null) return;

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
@@ -23,6 +24,27 @@ import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/local/sync_backoff.dart';
 
 part 'trail_sync_provider.g.dart';
+
+/// What [TrailSync.deleteUnsynced] did, so the caller cannot confuse a
+/// refusal with a completion.
+enum UnsyncedDeleteResult {
+  /// The local row (and, if it carried one, the server copy) were deleted.
+  deleted,
+
+  /// Refused: [localId] is currently mid-drain. Nothing was touched.
+  blockedInFlight,
+
+  /// Refused: the row already carries a server id, but the DELETE request
+  /// never reached a server. A connection is needed before this trail can
+  /// be deleted. Nothing was touched.
+  needsConnection,
+
+  /// Refused: either the signed-in account could not be resolved, the
+  /// server id was rejected as an unsafe path segment, or the server
+  /// DELETE failed for a reason other than "already gone" or "offline".
+  /// Nothing was touched.
+  failed,
+}
 
 /// The local ids of trails whose upload is currently draining, shared
 /// across every trigger (app foreground, connectivity regained, cold
@@ -217,6 +239,17 @@ class TrailSync extends _$TrailSync {
         final rawId = rawBody['id'];
         if (rawId is String && rawId.isNotEmpty) {
           final rawPhotos = rawBody['photos'];
+          // WR-17 suggested validating `rawId` through `recordIdDirSegment`
+          // right here, before it is ever persisted. Deliberately NOT done:
+          // a throw at this point means the id is never persisted, so the
+          // NEXT drain pass sees `isLocalId(entity.id) == true` again and
+          // issues a second `PUT /trail/form` -- creating a duplicate trail
+          // server-side (the exact SYNC-04 failure this file's step 2 exists
+          // to prevent). Validation happens at every REQUEST site instead
+          // (`deleteUnsynced`'s `recordIdDirSegment(serverId)`,
+          // `trail_save_provider.dart`'s `deleteTrail`), where a rejected id
+          // only aborts that one request rather than corrupting the row's
+          // resume state.
           writeServerTrailId(
             store,
             localId: localId,
@@ -366,47 +399,97 @@ class TrailSync extends _$TrailSync {
   /// foreground or connectivity trigger.
   Future<void> retry(String localId) async {
     final store = ref.read(objectBoxProvider);
-    resetDrainBackoff(store, localId);
+    // D-13: read fresh, never cached -- a null account means nothing to
+    // scope the reset to, so the retry is a no-op rather than an unscoped
+    // write.
+    final accountId = currentAccountId(store);
+    if (accountId == null) return;
+    resetDrainBackoff(store, localId, accountId: accountId);
     await drainIfOnline();
   }
 
   /// D-14: deletes the local row and its photo copies for [localId] --
   /// and, when the row already carries a real server id, the server's copy
-  /// too (CR-04).
+  /// too (CR-04) -- classifying every outcome instead of throwing (WR-15).
   ///
-  /// Returns `false` without doing anything while [localId] is in [state]
-  /// -- deletion is blocked while a drain is in flight, never raced against
-  /// it. THROWS, also without touching the local row or its photos, when a
-  /// server id exists but the network `DELETE` fails: D-14's premise --
-  /// "unsynced means the device holds the only copy" -- stopped holding the
-  /// moment `writeServerTrailId` (SYNC-04) started stamping that id the
-  /// instant the create is accepted, well before the row is retired. A
-  /// `pending`/`uploading`/`failed` row can carry a real, live server id for
-  /// as long as a later step keeps failing, so destroying the local row
-  /// unconditionally would strand a possibly-public trail on the server
-  /// with no device left pointing at it. Thrown, not folded into a `false`
-  /// return, so the caller cannot mistake a failed server delete for the
-  /// in-flight refusal above.
-  Future<bool> deleteUnsynced(String localId) async {
-    if (state.contains(localId)) return false;
+  /// Returns [UnsyncedDeleteResult.blockedInFlight] without doing anything
+  /// while [localId] is in [state] -- deletion is blocked while a drain is
+  /// in flight, never raced against it.
+  ///
+  /// The server id is read via [readLocalTrailServerId], never
+  /// `readLocalTrail`/`toModel()` (CR-02): a delete decision must not
+  /// depend on the row's cached GPX still parsing. When a server id exists,
+  /// it is validated through [recordIdDirSegment] before it reaches the
+  /// Dio path (WR-17) -- a rejected id returns
+  /// [UnsyncedDeleteResult.failed] without touching the local row.
+  ///
+  /// A DELETE failure is classified via [resolveServerDeleteOutcome]:
+  /// a 404 (the server copy is already gone) still proceeds with the local
+  /// delete; an unreachable server returns [UnsyncedDeleteResult.needsConnection]
+  /// so the hiker is told to reconnect rather than being offered a
+  /// "delete on this device only" escape hatch that would strand a
+  /// possibly-public server trail with no device left pointing at it; every
+  /// other failure (401, 403, 500, ...) returns
+  /// [UnsyncedDeleteResult.failed]. Every branch logs the underlying
+  /// exception via [debugPrint].
+  Future<UnsyncedDeleteResult> deleteUnsynced(String localId) async {
+    if (state.contains(localId)) return UnsyncedDeleteResult.blockedInFlight;
 
     final store = ref.read(objectBoxProvider);
-
-    // `readLocalTrail` -> `TrailEntity.toModel()` blanks a still-local
-    // sentinel id to `''` (D-06) but passes a real server id through
-    // unchanged -- the same signal `trail_dropdown.dart`'s `_confirmDelete`
-    // uses to choose its copy, checked again here because the confirm
-    // dialog and this call are not atomic with each other.
-    final row = readLocalTrail(store, localId);
-    final serverId = (row != null && trailHasServerId(row.id)) ? row.id : null;
-
-    if (serverId != null) {
-      // Let a network failure escape uncaught -- see this method's doc
-      // comment for why the local row must survive it.
-      await ref.read(apiProvider).delete('/trail/$serverId');
+    // D-13: read fresh, never cached -- a stale id here is exactly the
+    // leak account-scoping exists to prevent.
+    final accountId = currentAccountId(store);
+    if (accountId == null) {
+      debugPrint(
+        'trail_sync_provider: deleteUnsynced("$localId") found no signed-in '
+        'account; refusing',
+      );
+      return UnsyncedDeleteResult.failed;
     }
 
-    deleteLocalTrailRow(store, localId);
+    final serverId = readLocalTrailServerId(
+      store,
+      localId: localId,
+      accountId: accountId,
+    );
+
+    if (serverId != null) {
+      final String path;
+      try {
+        path = '/trail/${recordIdDirSegment(serverId)}';
+      } on ArgumentError catch (e) {
+        debugPrint(
+          'trail_sync_provider: deleteUnsynced("$localId") rejected server '
+          'id "$serverId" as an unsafe path segment: $e',
+        );
+        return UnsyncedDeleteResult.failed;
+      }
+
+      try {
+        await ref.read(apiProvider).delete(path);
+      } on DioException catch (e) {
+        final outcome = resolveServerDeleteOutcome(
+          statusCode: e.response?.statusCode,
+          connectionFailed: isConnectionFailure(e),
+        );
+        debugPrint(
+          'trail_sync_provider: deleteUnsynced("$localId") server DELETE '
+          'failed: $e (resolved: $outcome)',
+        );
+        switch (outcome) {
+          case ServerDeleteOutcome.abortNeedsConnection:
+            return UnsyncedDeleteResult.needsConnection;
+          case ServerDeleteOutcome.abortAndReport:
+            return UnsyncedDeleteResult.failed;
+          case ServerDeleteOutcome.proceedWithLocalDelete:
+            // 404: the server already agrees there is nothing left to
+            // delete. Fall through to the local delete below.
+            break;
+        }
+      }
+    }
+
+    deleteLocalTrailRow(store, localId, accountId: accountId);
     // `unsyncedTrailPhotoDir` validates the id OUTSIDE
     // `deleteUnsyncedPhotoDir`'s own try, deliberately, so a malformed
     // localId throws an ArgumentError. The row is already gone by this line,
@@ -421,6 +504,6 @@ class TrailSync extends _$TrailSync {
       ref.invalidate(profileTrailsProvider('@${userEntity.preferredUsername}'));
     }
 
-    return true;
+    return UnsyncedDeleteResult.deleted;
   }
 }

@@ -8,6 +8,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
+import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/util/trail/form_data.dart';
 import 'package:wanderer/util/object_diff.dart';
 
@@ -200,6 +201,11 @@ class TrailSave extends _$TrailSave {
   }
 
   Future<void> deleteTrail(Trail trail) async {
-    await ref.read(apiProvider).delete('/trail/${trail.id}');
+    // WR-17: trail.id arrives from the server (or is echoed back through a
+    // model built from a server response) and is validated before it
+    // reaches the Dio path, matching trail_sync_provider.dart's deleteUnsynced.
+    await ref
+        .read(apiProvider)
+        .delete('/trail/${recordIdDirSegment(trail.id)}');
   }
 }

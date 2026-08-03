@@ -128,122 +128,104 @@ void main() {
   });
 
   group('resolveLocalSaveModeForRow', () {
-    test(
-      'returns networkUpdate when persistedLocalId is set but persisted is '
-      'null -- the row was retired because the upload finished',
-      () {
-        final screenTrail = Trail.empty().copyWith(
-          id: '',
-          localId: 'local-1-0',
-          syncState: TrailSyncState.pending,
-        );
+    test('returns networkUpdate when persistedLocalId is set but persisted is '
+        'null -- the row was retired because the upload finished', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
 
-        expect(
-          resolveLocalSaveModeForRow(
-            screenTrail: screenTrail,
-            persistedLocalId: 'local-1-0',
-            persisted: null,
-          ),
-          LocalSaveMode.networkUpdate,
-        );
-      },
-    );
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: null,
+        ),
+        LocalSaveMode.networkUpdate,
+      );
+    });
 
-    test(
-      'delegates to resolveLocalSaveMode on screenTrail when '
-      'persistedLocalId is null -- the never-saved-anywhere case',
-      () {
-        final screenTrail = Trail.empty().copyWith(id: '', localId: null);
+    test('delegates to resolveLocalSaveMode on screenTrail when '
+        'persistedLocalId is null -- the never-saved-anywhere case', () {
+      final screenTrail = Trail.empty().copyWith(id: '', localId: null);
 
-        expect(
-          resolveLocalSaveModeForRow(
-            screenTrail: screenTrail,
-            persistedLocalId: null,
-            persisted: null,
-          ),
-          LocalSaveMode.createLocal,
-        );
-      },
-    );
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: null,
+          persisted: null,
+        ),
+        LocalSaveMode.createLocal,
+      );
+    });
 
-    test(
-      'returns updateLocal for an ordinary offline re-save with a persisted '
-      'pending row',
-      () {
-        final screenTrail = Trail.empty().copyWith(
-          id: '',
-          localId: 'local-1-0',
-          syncState: TrailSyncState.pending,
-        );
-        final persisted = Trail.empty().copyWith(
-          id: '',
-          localId: 'local-1-0',
-          syncState: TrailSyncState.pending,
-        );
+    test('returns updateLocal for an ordinary offline re-save with a persisted '
+        'pending row', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+      final persisted = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
 
-        expect(
-          resolveLocalSaveModeForRow(
-            screenTrail: screenTrail,
-            persistedLocalId: 'local-1-0',
-            persisted: persisted,
-          ),
-          LocalSaveMode.updateLocal,
-        );
-      },
-    );
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: persisted,
+        ),
+        LocalSaveMode.updateLocal,
+      );
+    });
 
-    test(
-      'returns networkUpdate when the persisted row already carries a '
-      'server id and is synced -- delegation still honours '
-      'resolveLocalSaveMode\'s own rule',
-      () {
-        final screenTrail = Trail.empty().copyWith(
-          id: '',
-          localId: 'local-1-0',
-          syncState: TrailSyncState.pending,
-        );
-        final persisted = Trail.empty().copyWith(
-          id: 'server-1',
-          localId: 'local-1-0',
-          syncState: TrailSyncState.synced,
-        );
+    test('returns networkUpdate when the persisted row already carries a '
+        'server id and is synced -- delegation still honours '
+        'resolveLocalSaveMode\'s own rule', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+      final persisted = Trail.empty().copyWith(
+        id: 'server-1',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.synced,
+      );
 
-        expect(
-          resolveLocalSaveModeForRow(
-            screenTrail: screenTrail,
-            persistedLocalId: 'local-1-0',
-            persisted: persisted,
-          ),
-          LocalSaveMode.networkUpdate,
-        );
-      },
-    );
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: persisted,
+        ),
+        LocalSaveMode.networkUpdate,
+      );
+    });
 
-    test(
-      'disagrees with resolveLocalSaveMode alone when persisted is null -- '
-      'proving the substitution in the create screen is load-bearing, not '
-      'cosmetic',
-      () {
-        final screenTrail = Trail.empty().copyWith(
-          id: '',
-          localId: 'local-1-0',
-          syncState: TrailSyncState.pending,
-        );
+    test('disagrees with resolveLocalSaveMode alone when persisted is null -- '
+        'proving the substitution in the create screen is load-bearing, not '
+        'cosmetic', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
 
-        expect(
-          resolveLocalSaveMode(screenTrail),
-          LocalSaveMode.updateLocal,
-        );
-        expect(
-          resolveLocalSaveModeForRow(
-            screenTrail: screenTrail,
-            persistedLocalId: 'local-1-0',
-            persisted: null,
-          ),
-          LocalSaveMode.networkUpdate,
-        );
-      },
-    );
+      expect(resolveLocalSaveMode(screenTrail), LocalSaveMode.updateLocal);
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: null,
+        ),
+        LocalSaveMode.networkUpdate,
+      );
+    });
   });
 
   group('trailHasServerId', () {
@@ -256,6 +238,53 @@ void main() {
         '`failed` row can carry one from a create that succeeded before a '
         'later waypoint upload failed (CR-03, CR-04)', () {
       expect(trailHasServerId('server-1'), isTrue);
+    });
+  });
+
+  group('resolveServerDeleteOutcome', () {
+    test('404 -- the server copy is already gone -- proceeds with the '
+        'local delete', () {
+      expect(
+        resolveServerDeleteOutcome(statusCode: 404, connectionFailed: false),
+        ServerDeleteOutcome.proceedWithLocalDelete,
+      );
+    });
+
+    test('null status + connectionFailed: true -- the request never '
+        'reached a server -- aborts needing a connection', () {
+      expect(
+        resolveServerDeleteOutcome(statusCode: null, connectionFailed: true),
+        ServerDeleteOutcome.abortNeedsConnection,
+      );
+    });
+
+    test('401 aborts and reports', () {
+      expect(
+        resolveServerDeleteOutcome(statusCode: 401, connectionFailed: false),
+        ServerDeleteOutcome.abortAndReport,
+      );
+    });
+
+    test('403 aborts and reports', () {
+      expect(
+        resolveServerDeleteOutcome(statusCode: 403, connectionFailed: false),
+        ServerDeleteOutcome.abortAndReport,
+      );
+    });
+
+    test('500 aborts and reports', () {
+      expect(
+        resolveServerDeleteOutcome(statusCode: 500, connectionFailed: false),
+        ServerDeleteOutcome.abortAndReport,
+      );
+    });
+
+    test('null status + connectionFailed: false aborts and reports -- '
+        'there is no "delete on this device only" escape hatch', () {
+      expect(
+        resolveServerDeleteOutcome(statusCode: null, connectionFailed: false),
+        ServerDeleteOutcome.abortAndReport,
+      );
     });
   });
 
