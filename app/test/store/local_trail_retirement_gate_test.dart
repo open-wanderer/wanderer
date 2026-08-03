@@ -23,6 +23,32 @@ import 'package:flutter_test/flutter_test.dart';
 /// retireUploadedLocalTrail" and leaving it at that -- a call-site presence
 /// check would pass for a call placed in the `catch` block just as easily as
 /// the right place.
+///
+/// 36-20 (WR-05/T-36-20-01/T-36-20-03): the assertions in this file split
+/// into two honest categories, and every group below is labelled with which
+/// one it is:
+///
+/// - EFFECT assertions -- a value is assigned to a variable and later
+///   CONSUMED (not merely mentioned), or a call is ordered relative to a
+///   real state transition another call performs. These fail when the
+///   effect they pin is removed, not merely renamed or relocated to a
+///   comment. The retirement-return-value capture-and-consume group and the
+///   drain's memo/invalidate ordering group below are effect assertions.
+/// - PRESENCE/ABSENCE facts -- a substring is (or is not) in the sliced
+///   body, with no claim about what consumes it. `runs inside one write
+///   transaction`, `is keyed on TrailEntity_.localId`, `removes the waypoint
+///   children`, `markTrailSynced is gone from app/lib entirely` and the
+///   `deleteUnsynced`/`writeServerWaypointId` groups below are presence/
+///   absence facts -- still real regression pins (each one was written
+///   against a genuine incident), but they do not prove a value flows
+///   anywhere.
+///
+/// Neither category is a substitute for the device UAT named in each of this
+/// phase's plans' `<verification>` sections -- `flutter test` cannot open an
+/// ObjectBox `Store` or reach PocketBase, so no assertion here proves the
+/// retirement transaction actually runs correctly against live data. What
+/// this file proves is narrower and still real: that the SOURCE, as written,
+/// cannot silently regress to a shape a past incident already produced.
 void main() {
   final libDir = Directory('lib');
 
@@ -135,6 +161,55 @@ void main() {
             'back through the side door.',
       );
     });
+
+    // EFFECT assertion (36-20): the captured server id must actually be
+    // RETURNED from both exits, not merely computed and discarded -- CR-01's
+    // whole fix depends on the caller receiving this value.
+    test(
+      'captures the server id once, before either exit mutates the row, '
+      'and returns it from BOTH exits (CR-01)',
+      () {
+        final body = retirementBody();
+
+        final captureIdx = body.indexOf('final serverId =');
+        expect(
+          captureIdx,
+          isNot(-1),
+          reason:
+              'Could not find the `final serverId =` capture. Re-point '
+              'this gate rather than deleting it -- the invariant still '
+              'matters.',
+        );
+
+        final returnCount = RegExp(
+          r'return serverId;',
+        ).allMatches(body).length;
+        expect(
+          returnCount,
+          greaterThanOrEqualTo(2),
+          reason:
+              'retireUploadedLocalTrail has two exits (demote, delete) and '
+              'both must return the captured serverId -- discarding it on '
+              'either exit re-opens CR-01: the screen\'s trail.id stays '
+              '\'\' forever and every post-upload save fails for a trail '
+              'retired down that exit.',
+        );
+
+        final ownerNullIdx = body.indexOf('entity.owner = null');
+        final removeIdx = body.indexOf('trailBox.remove(');
+        expect(ownerNullIdx, isNot(-1));
+        expect(removeIdx, isNot(-1));
+        expect(
+          captureIdx < ownerNullIdx && captureIdx < removeIdx,
+          isTrue,
+          reason:
+              'serverId must be captured BEFORE either exit mutates or '
+              'removes the row -- capturing after `entity.owner = null` or '
+              '`trailBox.remove(` reads a value the row no longer reliably '
+              'carries.',
+        );
+      },
+    );
   });
 
   group(
@@ -309,8 +384,213 @@ void main() {
               'must be what prevents reaching this point instead.',
         );
       });
+
+      // EFFECT assertion (36-20, CR-01/WR-01): the retirement return value
+      // must be ASSIGNED (not discarded) and CONSUMED by the memo before the
+      // detail/create screen's only other handle on the trail (the memo
+      // itself) can exist.
+      test(
+        'assigns retireUploadedLocalTrail\'s return value -- it is never '
+        'discarded (CR-01)',
+        () {
+          final body = drainOneBody();
+
+          expect(
+            body.contains('= retireUploadedLocalTrail('),
+            isTrue,
+            reason:
+                'Calling retireUploadedLocalTrail( for its side effect '
+                'alone and discarding the return value re-opens CR-01: the '
+                'screen\'s trail.id snapshot stays the blank local-'
+                'sentinel value forever (there are no ObjectBox '
+                'Query.watch() streams anywhere in this app), and every '
+                'post-upload save from that screen hits the dead POST.',
+          );
+        },
+      );
+
+      test(
+        '_rememberRetiredServerId( runs after the retirement return value '
+        'is captured, not before (CR-01)',
+        () {
+          final body = drainOneBody();
+
+          final captureIdx = body.indexOf('= retireUploadedLocalTrail(');
+          final rememberIdx = body.indexOf('_rememberRetiredServerId(');
+          expect(captureIdx, isNot(-1));
+          expect(
+            rememberIdx,
+            isNot(-1),
+            reason:
+                '_rememberRetiredServerId is gone from _drainOne. Without '
+                'it, retireUploadedLocalTrail\'s return value is captured '
+                'but never memoized, so serverIdForRetired can never '
+                'resolve it for a still-mounted screen.',
+          );
+          expect(
+            captureIdx < rememberIdx,
+            isTrue,
+            reason:
+                '_rememberRetiredServerId must run AFTER the return value '
+                'is captured into a local variable -- calling it before '
+                'the capture line exists would memoize a stale or '
+                'undefined value.',
+          );
+        },
+      );
+
+      test(
+        'invalidates localTrailProvider(localId) AFTER retirement runs, so '
+        'a mounted detail screen re-reads instead of rendering a dead row '
+        '(WR-01)',
+        () {
+          final body = drainOneBody();
+
+          final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+          final invalidateIdx = body.indexOf(
+            'invalidate(localTrailProvider(localId))',
+          );
+          expect(retireIdx, isNot(-1));
+          expect(
+            invalidateIdx,
+            isNot(-1),
+            reason:
+                'localTrailProvider(localId) is no longer invalidated in '
+                '_drainOne. A hiker sitting on /trail/local/<localId> '
+                'while the upload completes keeps rendering a row that no '
+                'longer exists, with a live Edit button that walks '
+                'straight into CR-01\'s dead end.',
+          );
+          expect(
+            retireIdx < invalidateIdx,
+            isTrue,
+            reason:
+                'The invalidation must run AFTER retireUploadedLocalTrail, '
+                'or the still-mounted provider re-reads a row that has not '
+                'been retired yet and observes no change.',
+          );
+        },
+      );
     },
   );
+
+  // Both an EFFECT assertion (the account comparison actually gates the
+  // return, not merely appears somewhere in the body) and a threat-model
+  // control (T-36-16-01/T-36-20-03): `trailSyncProvider` is deliberately
+  // excluded from `accountScopedProviders`, so this memo survives an account
+  // switch, and without the check account B could resolve account A's
+  // retired server id and post an edit to A's trail.
+  group('serverIdForRetired -- the memoized value never crosses an account '
+      'boundary (T-36-16-01, T-36-20-03)', () {
+    /// [TrailSync.serverIdForRetired]'s body, comment-stripped, isolated
+    /// from the rest of the file. Built the same way as [drainOneBody]
+    /// above.
+    String serverIdForRetiredBody() {
+      final source = File(
+        'lib/provider/trail/trail_sync_provider.dart',
+      ).readAsStringSync();
+      final codeOnly = source
+          .split('\n')
+          .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+          .join('\n');
+
+      final sigStart = codeOnly.indexOf(
+        'String? serverIdForRetired(String localId) {',
+      );
+      expect(
+        sigStart,
+        isNot(-1),
+        reason:
+            'serverIdForRetired was renamed or its signature changed. '
+            'Re-point this gate rather than deleting it -- the invariant '
+            'still matters.',
+      );
+
+      final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
+      expect(
+        bodyEnd,
+        isNot(-1),
+        reason: 'Could not find the end of serverIdForRetired\'s body.',
+      );
+
+      return codeOnly.substring(sigStart, bodyEnd);
+    }
+
+    test('reads currentAccountId( fresh, before consulting the memo', () {
+      final body = serverIdForRetiredBody();
+
+      expect(
+        body.contains('currentAccountId('),
+        isTrue,
+        reason:
+            'serverIdForRetired must re-read currentAccountId fresh at the '
+            'point of use (D-13), not from a cached field -- a stale '
+            'cached id here is exactly the cross-account leak the account '
+            'check exists to prevent.',
+      );
+    });
+
+    test(
+      'never returns the memoized server id except from inside an account '
+      'comparison',
+      () {
+        final body = serverIdForRetiredBody();
+
+        final entryIdx = body.indexOf('_retiredServerIds[localId]');
+        expect(
+          entryIdx,
+          isNot(-1),
+          reason:
+              'Could not find the memo lookup. Re-point this gate rather '
+              'than deleting it -- the invariant still matters.',
+        );
+
+        final returnIdx = body.lastIndexOf('return entry.serverId;');
+        expect(
+          returnIdx,
+          isNot(-1),
+          reason:
+              'Could not find the final `return entry.serverId;`. '
+              'Re-point this gate rather than deleting it -- the '
+              'invariant still matters.',
+        );
+        expect(
+          entryIdx < returnIdx,
+          isTrue,
+          reason:
+              'The memo lookup must precede the value it returns.',
+        );
+
+        // Everything between the memo lookup and the eventual return is the
+        // region that MUST contain the account comparison -- removing it
+        // (T-36-20-03's falsifying rewrite: delete the
+        // `if (entry.accountId != accountId) { ...; return null; }` block)
+        // collapses this slice to nothing but the null-check, and the
+        // assertions below fail.
+        final guardSlice = body.substring(entryIdx, returnIdx);
+        expect(
+          guardSlice.contains('accountId'),
+          isTrue,
+          reason:
+              'trailSyncProvider is deliberately excluded from '
+              'accountScopedProviders (account_scope_invalidation.dart), '
+              'so this memo survives an account switch. Without a '
+              'per-entry account comparison between the memo lookup and '
+              'the return, account B could resolve account A\'s retired '
+              'server id through a stale localId and post an edit to '
+              'A\'s trail.',
+        );
+        expect(
+          guardSlice.contains('!='),
+          isTrue,
+          reason:
+              'The account check must be a COMPARISON (entry.accountId != '
+              'accountId), not merely a mention of the word "accountId" '
+              'somewhere in the slice (e.g. in an unrelated debugPrint).',
+        );
+      },
+    );
+  });
 
   group('deleteUnsynced -- a row with a server id gets a real server '
       'DELETE too (CR-04)', () {
