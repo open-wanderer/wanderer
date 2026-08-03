@@ -321,7 +321,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; UAT returned 3 diagnosed gaps + 1 blocked test — 5 gap closure plans 36-09..36-13 planned)
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; UAT returned 5 diagnosed gaps + 1 blocked test — 7 gap closure plans 36-09..36-15 planned)
 
 #### Sequencing Rationale
 
@@ -476,7 +476,7 @@ far as a populated `trail_create_screen`; **saving it is this phase's job**, and
 widening, Save would have failed after the hiker filled in title, description, category and
 photos — worse than refusing up front.
 
-**Plans**: 13 plans in 8 waves (8 shipped + 5 gap closure)
+**Plans**: 15 plans in 10 waves (8 shipped + 7 gap closure)
 Plans:
 **Wave 1**
 
@@ -513,7 +513,34 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7)*
 
-- [ ] 36-13-PLAN.md — Behavioural coverage for the D-14/D-17 dropdown gating, replacing the source-grep-only signal that let the reachability gap ship; plus the phase's single whole-tree codegen reconciliation
+- [ ] 36-13-PLAN.md — Behavioural coverage for the D-14/D-17 dropdown gating, replacing the source-grep-only signal that let the reachability gap ship; plus the whole-tree codegen reconciliation that first established the fixpoint
+
+**Wave 9** *(blocked on Wave 8; second UAT round — the orphan blocker)*
+
+- [ ] 36-14-PLAN.md — Deleting a trail that has already uploaded removes the device's copy too: a server-id-keyed owner-scoped row deletion, wired to run only after the server DELETE confirms
+
+**Wave 10** *(blocked on Wave 9; runs alone — it holds the phase's final codegen run)*
+
+- [ ] 36-15-PLAN.md — A permanent 404 is terminal, not retried ten times behind a chromeless spinner: bounded retry policy on `trailProvider`, a plain "no longer exists" message, and a back button in every non-data state
+
+**Planner decision (2026-08-03) — the two second-round gaps are separate plans.**
+UAT Test 5 produced two independent defects with different blast radii, and they were planned
+apart rather than merged. 36-14 is the orphan itself, scoped to the delete path. 36-15 is the
+retry storm, which fires for ANY trail deleted elsewhere — from the web UI, from another device
+— and would have been worth shipping even if the orphan had never existed. They share no file,
+so merging them would have coupled a narrow local-storage fix to a provider-wide retry policy
+change with no benefit. They are sequential rather than parallel only because 36-14 edits a
+`@riverpod` source without regenerating and 36-15 holds the final `build_runner` run.
+
+**Planner decision (2026-08-03) — no reconciliation sweep for already-orphaned devices.**
+UAT gap 4 asked whether a synced local row should stay owner-scoped forever with no
+server-state reconciliation. Answered: yes for now. A sweep would have to delete local rows
+whose server record 404s, and the app lets a hiker change `serverUrl` — after which every local
+row 404s against the new instance and the sweep silently destroys their trails. It needs a
+server-origin marker on the row before it can be safe, which is its own design. The delete-path
+fix in 36-14 is complete for every orphan created from now on; orphans already on a device are
+not healed, which is accepted because this phase has not shipped and the affected population is
+pre-fix test devices.
 
 **Planner decision (2026-08-02, revision 1) — codegen is serialised across the gap-closure waves.**
 `dart run build_runner build` takes an exclusive lock on `app/.dart_tool/build` and regenerates
@@ -521,7 +548,10 @@ every `.g.dart` in the package, not just the annotated file a plan declares — 
 `files_modified` overlap analysis structurally cannot see. 36-09 and 36-11 were originally both
 wave 5 and both ran it. 36-11 now depends on 36-09 for that reason alone (no semantic
 dependency), 36-10 and 36-12 run no codegen at all, and 36-13 — alone in the last wave —
-reconciles the whole tree once and proves a fixpoint by running `build_runner` twice.
+reconciles the whole tree once and proves a fixpoint by running `build_runner` twice. The
+second UAT round extends the same rule: 36-14 edits `trail_sync_provider.dart` and runs no
+codegen, and 36-15 — alone in wave 10 — inherits the fixpoint duty and re-proves it the same
+way. 36-13 is no longer the phase's last plan; 36-15 is.
 
 **Planner decision (2026-08-02) — save-time branch order.** RESEARCH.md left Open Question 1 (local-first-always vs network-first-with-offline-fallback) to plan time. Resolved as **local-first always**: both local `_onSave` branches write to ObjectBox and never touch the network, online or offline, followed by a fire-and-forget drain kick. One code path instead of two, matching the Komoot/AllTrails model the design record cites, and it makes REC-01's "no save failure caused by being offline" structurally true rather than a caught-exception behaviour. A network-first fallback was rejected because a `createTrail` that fails *after* `PUT /trail/form` succeeded would fall back to a local save and produce a duplicate on the next drain — a direct SYNC-04 violation.
 
