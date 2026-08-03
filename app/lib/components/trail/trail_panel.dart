@@ -20,6 +20,7 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
+import 'package:wanderer/util/trail_route_location.dart';
 
 class TrailPanel extends ConsumerWidget {
   const TrailPanel({
@@ -49,6 +50,13 @@ class TrailPanel extends ConsumerWidget {
     final displayDuration = trailDisplayDuration(trail);
 
     final l18n = AppLocalizations.of(context)!;
+
+    // D-06 blanks a local-sentinel id, so '/trail/${trail.id}/map' is
+    // '/trail//map' for a not-yet-uploaded trail -- go_router canonicalizes
+    // that to '/trail/map', which matches no route. `trailMapLocation`
+    // returns '/trail/local/<localId>/map' instead, and null when the trail
+    // is not addressable at all.
+    final String? mapLocation = trailMapLocation(trail);
 
     return DefaultTabController(
       length: 3,
@@ -296,8 +304,9 @@ class TrailPanel extends ConsumerWidget {
                                     // always prefer network tiles, even for a
                                     // downloaded trail.
                                     offline: !ref.watch(onlineStatusProvider),
-                                    onTap: (_) =>
-                                        context.push('/trail/${trail.id}/map'),
+                                    onTap: mapLocation == null
+                                        ? null
+                                        : (_) => context.push(mapLocation),
                                   ),
                                 ),
                               ),
@@ -320,8 +329,9 @@ class TrailPanel extends ConsumerWidget {
                                       context,
                                     ).colorScheme.onSurface,
                                   ),
-                                  onPressed: () =>
-                                      context.push('/trail/${trail.id}/map'),
+                                  onPressed: mapLocation == null
+                                      ? null
+                                      : () => context.push(mapLocation),
                                 ),
                               ),
                             ),
@@ -329,7 +339,9 @@ class TrailPanel extends ConsumerWidget {
                         ),
                         SizedBox(height: 16),
                         InkWell(
-                          onTap: () => context.push('/trail/${trail.id}/map'),
+                          onTap: mapLocation == null
+                              ? null
+                              : () => context.push(mapLocation),
                           child: ElevationProfile(
                             trail: trail,
                             gpx: trail.expand!.gpx!,
