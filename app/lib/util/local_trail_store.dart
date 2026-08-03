@@ -340,6 +340,47 @@ Trail? readLocalTrail(Store store, String localId) {
   }
 }
 
+/// [readLocalTrail], scoped to [accountId].
+///
+/// The unscoped sibling above is safe only because its callers already
+/// know the row is theirs. This one exists for the opposite case: its
+/// argument comes from a ROUTE PARAMETER (`/trail/local/:localId`),
+/// which is attacker-supplied as far as this layer is concerned and
+/// survives a logout in the deep-link and back-stack. Without the owner
+/// clause, account B could render account A's not-yet-uploaded trail --
+/// the exact leak D-13 exists to prevent, arriving through a door
+/// `readOwnLocalTrails` had already bolted.
+///
+/// Deliberately owner-only, with NO `savedByUserIds` clause: D-10 keeps
+/// ownership ("I made this") and library membership ("I downloaded
+/// this") strictly separate.
+Trail? readOwnLocalTrail(
+  Store store, {
+  required String localId,
+  required String accountId,
+}) {
+  final query = store
+      .box<TrailEntity>()
+      .query(
+        TrailEntity_.localId.equals(localId) &
+            TrailEntity_.owner.equals(accountId),
+      )
+      .build();
+  final entity = query.findFirst();
+  query.close();
+  if (entity == null) return null;
+
+  try {
+    return entity.toModel();
+  } catch (e, st) {
+    debugPrint(
+      'local_trail_store: readOwnLocalTrail("$localId") failed to parse: '
+      '$e\n$st',
+    );
+    return null;
+  }
+}
+
 /// Every trail [accountId] can see in its own-trails list: trails it
 /// captured on this device (not yet uploaded, or uploaded already, or
 /// downloaded), plus any downloaded trail it happens to have authored
