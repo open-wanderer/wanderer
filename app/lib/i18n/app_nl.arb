@@ -66,6 +66,8 @@
   "open": "Open",
   "delete_account": "Account verwijderen",
   "delete_trail_confirm": "Weet je zeker dat je deze route wilt verwijderen? Deze actie is onomkeerbaar.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "description": "Omschrijving",
   "difficult": "Moeilijk",
   "difficulty": "Moeilijkheidsgraad",
@@ -177,11 +179,23 @@
   "only_me": "Alleen ik",
   "or": "of",
   "orientation": "Oriëntatie",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Showing what's saved on this device — connect to see everything.",
   "paragraph": "Alinea",
   "pause": "Pause",
   "password": "Wachtwoord",
   "password_confirm": "Bevestig wachtwoord",
   "passwords_must_match": "Wachtwoorden moeten overeenkomen",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Foto's",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
   "@photos_skipped_no_gps": {
@@ -213,6 +227,7 @@
     }
   },
   "resume_recording_prompt": "Opname hervatten?",
+  "retry_upload": "Retry upload",
   "road": "Weg",
   "route": "{n, plural,=1 {Tocht} other {Tochten}}",
   "@route": {
@@ -255,6 +270,15 @@
   "shared": "Gedeeld",
   "show_on_map": "Tonen op kaart",
   "shower": "Douche",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Jouw routes. Jouw data. Jouw server.",
   "sort": "Sorteren",
   "speed": "Snelheid",
@@ -264,6 +288,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Bergtopboek",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Tabel",
   "tags": "Labels",
   "text": "Tekst",
@@ -282,6 +309,7 @@
     }
   },
   "trail_saved_successfully": "Route succesvol bewaard",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Eenheden",
   "users": "Users",
