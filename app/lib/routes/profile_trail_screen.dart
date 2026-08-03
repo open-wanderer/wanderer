@@ -11,8 +11,8 @@ import 'package:wanderer/components/trail/trail_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_summary.dart';
-import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
+import 'package:wanderer/util/trail_route_location.dart';
 
 class ProfileTrailScreen extends ConsumerStatefulWidget {
   final String handle;
@@ -51,14 +51,26 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
   }
 
   void _onTrailSelect(BuildContext context, TrailSummary trail) {
-    // A locally-captured trail that hasn't uploaded yet has no server id to
-    // push `/trail/${trail.id}` with -- route it to the offline-capable edit
-    // screen instead (REC-05, D-16).
-    if (trail is Trail && isUnsyncedState(trail.syncState)) {
-      context.push('/trail/create/edit', extra: trail);
+    // An unsynced trail is now addressed through `/trail/local/<localId>`
+    // (36-11), so it opens the ordinary detail screen like every other
+    // trail and the hiker chooses Edit from there -- the divert to
+    // `/trail/create/edit` was a workaround for D-06 blanking the model id,
+    // and the model id is still blank; the local id is what carries
+    // identity now.
+    final location = trailDetailLocation(trail);
+    if (location != null) {
+      context.push(location);
       return;
     }
-    context.push('/trail/${trail.id}');
+    // Unaddressable: an unsynced row with no localId. Impossible for a
+    // row written by `saveNewLocalTrail`, but representable in the
+    // model -- fall back to the offline-capable edit screen, which
+    // takes the Trail itself as `extra` and needs no id at all, rather
+    // than pushing a path that go_router will canonicalize into a
+    // no-route error page.
+    if (trail is Trail) {
+      context.push('/trail/create/edit', extra: trail);
+    }
   }
 
   @override
