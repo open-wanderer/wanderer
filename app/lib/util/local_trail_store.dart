@@ -72,6 +72,55 @@ LocalSaveMode resolveLocalSaveMode(Trail trail) {
   return LocalSaveMode.updateLocal;
 }
 
+/// Whether the local row of a trail that has just finished
+/// uploading can be deleted outright, rather than demoted.
+///
+/// A locally-captured row normally has an EMPTY
+/// [TrailEntity.savedByUserIds]: [saveNewLocalTrail] never writes
+/// it and [updateLocalTrail] only carries it forward, so nothing on
+/// the capture path can populate it -- D-10 keeps ownership ("I
+/// recorded this") and library membership ("I downloaded this")
+/// strictly separate.
+///
+/// A non-empty list therefore means some account downloaded this
+/// trail while its upload was in flight. That is possible from the
+/// moment `writeServerTrailId` stamps the server id, because from
+/// then on the trail is fetchable and `TrailDownloadService` writes
+/// into the SAME row (`TrailEntity.id` is
+/// `@Unique(onConflict: replace)`). Deleting it would destroy that
+/// account's offline library entry and strand `library/<id>/` on
+/// disk with nothing pointing at it.
+bool shouldDeleteUploadedRow(List<String> savedByUserIds) =>
+    savedByUserIds.isEmpty;
+
+/// Which save path a screen should take when it holds
+/// [persistedLocalId] and the store's row for it is [persisted]
+/// (null when there is no such row).
+///
+/// [resolveLocalSaveMode] alone cannot answer this. It sees one
+/// [Trail], so a caller with no persisted row has to fall back to
+/// its own screen snapshot -- and that snapshot is captured while
+/// `syncState` is still `pending` and the server id is still blank.
+/// Since a successful upload now RETIRES the row
+/// ([retireUploadedLocalTrail]), "I saved this locally and the row
+/// is gone" is the normal post-upload state, and routing it on the
+/// stale snapshot sends the edit into [LocalSaveMode.updateLocal],
+/// which writes to a row that no longer exists and reports success.
+///
+/// A null [persistedLocalId] is the genuinely-never-saved case and
+/// is delegated unchanged, so a first save still routes to
+/// [LocalSaveMode.createLocal].
+LocalSaveMode resolveLocalSaveModeForRow({
+  required Trail screenTrail,
+  required String? persistedLocalId,
+  required Trail? persisted,
+}) {
+  if (persistedLocalId != null && persisted == null) {
+    return LocalSaveMode.networkUpdate;
+  }
+  return resolveLocalSaveMode(persisted ?? screenTrail);
+}
+
 /// Whether [entity]'s upload is due to run now.
 ///
 /// True only for a row whose [TrailEntity.syncState] is [TrailSyncState.pending]
@@ -308,6 +357,69 @@ void deleteLocalTrailRow(Store store, String localId) {
     final entity = query.findFirst();
     query.close();
     if (entity == null) return;
+
+    final waypointBox = store.box<WaypointEntity>();
+    for (final waypoint in entity.waypoints) {
+      waypointBox.remove(waypoint.obxId);
+    }
+    trailBox.remove(entity.obxId);
+  });
+}
+
+/// Retires the local capture row for [localId] now that its upload
+/// has completed.
+///
+/// The counterpart to [deleteLocalTrailRow], for the other way a
+/// capture's life ends. [shouldDeleteUploadedRow] picks between two
+/// shapes:
+/// - No library membership (the ordinary case): the row and its
+///   [WaypointEntity] children are removed outright. The trail now
+///   lives on the server under the id `writeServerTrailId` stamped,
+///   and the own-trails list reaches it through the network entry.
+///   To have it offline again the hiker downloads it like any
+///   other trail, gaining `savedByUserIds` through the normal path.
+/// - Some account holds it in its offline library: the row is KEPT
+///   and only its capture bookkeeping is cleared, so it becomes an
+///   ordinary downloaded row. Never deleted -- that would destroy
+///   a library entry this function has no business touching.
+///
+/// The waypoint children are removed with the row on purpose.
+/// `TrailLibraryNotifier.deleteTrail` (`trail_library_provider.dart`)
+/// is a bare `box.remove(entity.obxId)` that leaks them; copying
+/// that shortcut here would leak a set of waypoints on every
+/// successful upload. `author` and `category` are ToOne targets
+/// SHARED with other trails and are deliberately left alone.
+///
+/// Does NOT touch the filesystem -- the caller pairs this with
+/// `deleteUnsyncedPhotoDir`, exactly as [deleteLocalTrailRow]'s
+/// caller does. Row first, files second: `unsyncedLocalIds` cannot
+/// see a retired row, so a directory left behind by a crash between
+/// the two is reclaimed by the next startup sweep. The reverse
+/// order self-heals into a row with broken thumbnails instead.
+void retireUploadedLocalTrail(Store store, String localId) {
+  store.runInTransaction(TxMode.write, () {
+    final trailBox = store.box<TrailEntity>();
+    // No account scoping and no `owner` clause: the only caller reached
+    // this row through `selectDrainCandidates`, which is already
+    // owner-scoped, and the key is a `localId` this device minted.
+    final query = trailBox.query(TrailEntity_.localId.equals(localId)).build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    if (!shouldDeleteUploadedRow(entity.savedByUserIds)) {
+      // Demote to an ordinary downloaded row -- exactly the shape
+      // `TrailDownloadService` produces, so nothing downstream needs to
+      // know it was ever a capture.
+      entity.owner = null;
+      entity.localId = null;
+      entity.syncState = TrailSyncState.synced;
+      entity.syncAttempts = 0;
+      entity.syncNextAttemptAt = null;
+      entity.localPhotos = [];
+      trailBox.put(entity);
+      return;
+    }
 
     final waypointBox = store.box<WaypointEntity>();
     for (final waypoint in entity.waypoints) {
