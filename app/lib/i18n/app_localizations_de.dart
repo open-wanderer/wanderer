@@ -806,6 +806,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'This trail is no longer on this device.';
 
   @override
+  String get trail_uploaded_reopen_to_edit =>
+      'This trail finished uploading. Re-open it from your trails to keep editing.';
+
+  @override
   String get some_waypoints_failed_to_save =>
       'Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden';
 

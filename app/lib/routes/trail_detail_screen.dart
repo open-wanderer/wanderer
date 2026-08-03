@@ -13,6 +13,7 @@ import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
+import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
 
 class TrailDetailScreen extends ConsumerStatefulWidget {
@@ -72,6 +73,19 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
     if (localId != null) {
       final trail = ref.watch(localTrailProvider(localId));
       if (trail == null) {
+        // WR-01's second half: the row is gone because the upload
+        // succeeded, and the trail now lives at its server route --
+        // `serverIdForRetired` is the memo `_drainOne` populated the instant
+        // it retired this row (CR-01). Redirect there instead of showing a
+        // dead end when it recorded one.
+        final retiredServerId = ref
+            .read(trailSyncProvider.notifier)
+            .serverIdForRetired(localId);
+        if (retiredServerId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) context.pushReplacement('/trail/$retiredServerId');
+          });
+        }
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
@@ -246,9 +260,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                                     ),
                                   )
                                 : const FaIcon(FontAwesomeIcons.locationArrow),
-                            label: Text(
-                              AppLocalizations.of(context)!.navigate,
-                            ),
+                            label: Text(AppLocalizations.of(context)!.navigate),
                           ),
                         ),
                       ],

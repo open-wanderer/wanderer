@@ -453,11 +453,58 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     );
 
     if (saveMode == LocalSaveMode.networkUpdate) {
+      // This screen's own `trail.id` snapshot can still be the blank
+      // local-sentinel value (D-06) if the upload finished after this
+      // screen's last read and nothing re-reads it -- there are no
+      // ObjectBox `Query.watch()` streams anywhere in this app.
+      // `serverIdForRetired` is the memo `_drainOne` populated the instant
+      // it retired this row, so the trail may still have a real target even
+      // though this screen never watched the upload complete (CR-01).
+      final retiredServerId = persistedLocalId == null
+          ? null
+          : ref
+                .read(trailSyncProvider.notifier)
+                .serverIdForRetired(persistedLocalId);
+      final targetId = resolveNetworkSaveTarget(
+        screenTrailId: updatedTrail.id,
+        retiredServerId: retiredServerId,
+      );
+
+      if (targetId == null) {
+        // Neither this screen's snapshot nor the retired-id memo has a real
+        // server id. `POST /trail/form/` with a blank id can never be
+        // routed (SvelteKit normalizes an empty `[id]` segment away), so
+        // refuse rather than issue a request with nowhere to go -- and name
+        // the actual state instead of the generic error_saving_trail.
+        // Deliberately does NOT pop the route: `_hasUnsavedChanges` is still
+        // true, so popping would trigger the discard-changes dialog and
+        // destroy the hiker's typed edit, the opposite of what this message
+        // asks them to do (T-36-16-06).
+        if (mounted) {
+          ref
+              .read(toastProvider.notifier)
+              .add(
+                ToastMessage(
+                  type: ToastType.error,
+                  icon: FontAwesomeIcons.circleExclamation,
+                  text: l10n.trail_uploaded_reopen_to_edit,
+                ),
+              );
+          setState(() => _saving = false);
+        }
+        return;
+      }
+
       await _saveViaNetwork(
         l10n,
-        updatedTrail,
+        // `localId`/`localPhotos` cleared: retirement deleted
+        // `unsynced/<localId>/`, so those local paths no longer resolve and
+        // `MultipartFile.fromFile` would throw reading them.
+        // dart format off
+        updatedTrail.copyWith(id: targetId, localId: null, localPhotos: const []),
+        // dart format on
         authorId: authorId,
-        newPhotoFiles: newPhotoFiles,
+        newPhotoFiles: newPhotoFiles.where((f) => f.existsSync()).toList(),
       );
       return;
     }
@@ -623,18 +670,20 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     required List<File> newPhotoFiles,
   }) async {
     if (!trailHasServerId(updatedTrail.id)) {
-      // Every route into this method is supposed to guarantee a real server
-      // id -- but this screen's own `trail` snapshot can still be the stale
-      // one captured right after a local-first save, before the drain ever
-      // ran (D-06 blanks a local-sentinel id, so that snapshot's `id` reads
-      // `''`). Posting `/trail/form/` with a blank id can never be routed
-      // (SvelteKit's `[id]` normalizes an empty segment away, so the create
-      // screen would 404/405 on every retry) and would also read photo
+      // Every caller is now supposed to resolve a real id via
+      // `resolveNetworkSaveTarget` BEFORE reaching this method (CR-01) --
+      // this is a last-resort backstop, not the normal path, so a blank id
+      // reaching here is an invariant break worth logging. Posting
+      // `/trail/form/` with a blank id can never be routed (SvelteKit's
+      // `[id]` normalizes an empty segment away) and would also read photo
       // files a completed retirement already deleted from disk. Refuse
-      // rather than issue a request with nowhere to go: the hiker must back
-      // out and re-open the trail from the server list to keep editing it
-      // (CR-01). The missing-server-id defect this guards against is
-      // tracked separately; this only stops it from masquerading as success.
+      // rather than issue a request with nowhere to go, and name the actual
+      // state instead of the generic error_saving_trail.
+      debugPrint(
+        'trail_create_screen: _saveViaNetwork reached with no server id -- '
+        'every caller is supposed to resolve one via resolveNetworkSaveTarget '
+        'first (CR-01 invariant break)',
+      );
       if (mounted) {
         ref
             .read(toastProvider.notifier)
@@ -642,7 +691,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
               ToastMessage(
                 type: ToastType.error,
                 icon: FontAwesomeIcons.circleExclamation,
-                text: l10n.error_saving_trail,
+                text: l10n.trail_uploaded_reopen_to_edit,
               ),
             );
         setState(() => _saving = false);

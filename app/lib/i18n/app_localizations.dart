@@ -1496,6 +1496,12 @@ abstract class AppLocalizations {
   /// **'This trail is no longer on this device.'**
   String get trail_not_on_this_device;
 
+  /// No description provided for @trail_uploaded_reopen_to_edit.
+  ///
+  /// In en, this message translates to:
+  /// **'This trail finished uploading. Re-open it from your trails to keep editing.'**
+  String get trail_uploaded_reopen_to_edit;
+
   /// No description provided for @some_waypoints_failed_to_save.
   ///
   /// In en, this message translates to:

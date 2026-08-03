@@ -316,6 +316,7 @@
   },
   "trail_saved_successfully": "Trail saved successfully",
   "trail_not_on_this_device": "This trail is no longer on this device.",
+  "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Units",
   "users": "Users",
