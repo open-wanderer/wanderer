@@ -287,16 +287,33 @@ class TrailSync extends _$TrailSync {
         );
       }
 
-      // Step 4: full success. No photo list is passed: step 2 already
-      // committed the server's list onto the row, and on a resumed drain
-      // this pass never learned one. `markTrailSynced`'s null default means
-      // "keep what the row already holds", so the photos survive either way
-      // and it is safe to delete the unsynced copies below.
-      markTrailSynced(store, localId: localId);
-      // Best-effort, and deliberately NOT inside the failure handler's reach:
-      // the row is already synced by this line, so an ArgumentError from a
-      // malformed localId would otherwise reach `recordDrainFailure` and flip
-      // a completed upload back to `pending`.
+      // Step 4: full success. The capture row has done its job and is
+      // retired here. Per the 2026-08-03 product decision an uploaded
+      // trail is reachable through the SERVER entry, not through a
+      // retained device row; the hiker downloads it like any other trail
+      // to have it offline again.
+      //
+      // Retiring in the same statement that proves the upload finished is
+      // what makes the post-delete orphan structurally impossible. There
+      // is no "synced but still local" row for a later delete to leave
+      // behind, and no window in which a crash between "marked synced"
+      // and "row removed" could strand one -- the row either still exists
+      // and is still resumable, or it is gone.
+      //
+      // This also retires step 2's photo-list reasoning: the row's
+      // `photos` column no longer has to survive anything, because the
+      // row does not.
+      retireUploadedLocalTrail(store, localId);
+      // Best-effort, and deliberately NOT inside the failure handler's
+      // reach: the row is already retired by this line, so an
+      // ArgumentError from a malformed localId would otherwise reach
+      // `recordDrainFailure`, which would find nothing to write and log a
+      // failure for an upload that actually succeeded.
+      //
+      // Row first, files second: `unsyncedLocalIds` cannot see a retired
+      // row, so a directory left behind by a crash between these two
+      // lines is reclaimed by `main.dart`'s startup sweep. The reverse
+      // order would leave a live row pointing at deleted files.
       await _deletePhotoDirBestEffort(localId);
 
       ref.invalidate(trailLibraryProvider);

@@ -138,4 +138,134 @@ void main() {
       );
     });
   });
+
+  group('the drain -- ordering and absence facts a call-site grep cannot see', () {
+    /// The comment-stripped contents of every `.dart` file under `lib/`,
+    /// keyed by path.
+    Map<String, String> allLibSourcesCodeOnly() {
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'This test must be run with `flutter test`\'s working '
+            'directory set to `app/` (e.g. "cd app && flutter test").',
+      );
+
+      final sources = <String, String>{};
+      for (final entity in libDir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final codeOnly = entity
+            .readAsStringSync()
+            .split('\n')
+            .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+            .join('\n');
+        sources[entity.path] = codeOnly;
+      }
+      return sources;
+    }
+
+    /// `_drainOne`'s body, comment-stripped, isolated from the rest of the
+    /// file.
+    String drainOneBody() {
+      final source = File(
+        'lib/provider/trail/trail_sync_provider.dart',
+      ).readAsStringSync();
+      final codeOnly = source
+          .split('\n')
+          .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+          .join('\n');
+
+      final sigStart = codeOnly.indexOf('Future<void> _drainOne(');
+      expect(
+        sigStart,
+        isNot(-1),
+        reason:
+            '_drainOne was renamed or its signature changed. Re-point this '
+            'gate rather than deleting it -- the invariant still matters.',
+      );
+
+      final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
+      expect(
+        bodyEnd,
+        isNot(-1),
+        reason: 'Could not find the end of _drainOne\'s body.',
+      );
+
+      return codeOnly.substring(sigStart, bodyEnd);
+    }
+
+    test('markTrailSynced is gone from app/lib entirely', () {
+      final sources = allLibSourcesCodeOnly();
+
+      for (final entry in sources.entries) {
+        expect(
+          entry.value.contains('markTrailSynced'),
+          isFalse,
+          reason:
+              'markTrailSynced still appears in ${entry.key}. Its return '
+              'means a row survives its own upload as '
+              '`owner != null && syncState == synced`, which '
+              'readOwnLocalTrails re-emits forever and no delete affordance '
+              'in the app can remove (UAT Test 5, blocker).',
+        );
+      }
+    });
+
+    test('retirement happens after the waypoint loop', () {
+      final body = drainOneBody();
+
+      final loopIdx = body.indexOf(
+        'for (final waypointEntity in entity.waypoints) {',
+      );
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+
+      expect(loopIdx, isNot(-1));
+      expect(retireIdx, isNot(-1));
+      expect(
+        loopIdx < retireIdx,
+        isTrue,
+        reason:
+            'Retiring before every waypoint is created destroys the '
+            'resume state D-05 depends on -- the trail would exist '
+            'server-side with missing waypoints and no local row to '
+            'retry from.',
+      );
+    });
+
+    test('retirement happens inside the try, not the catch', () {
+      final body = drainOneBody();
+
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+      final catchIdx = body.indexOf('} catch (e, st) {');
+
+      expect(retireIdx, isNot(-1));
+      expect(catchIdx, isNot(-1));
+      expect(
+        retireIdx < catchIdx,
+        isTrue,
+        reason:
+            'A retirement reachable from the failure handler deletes the '
+            'hiker\'s only copy of a trail whose upload did not complete.',
+      );
+    });
+
+    test('files are swept after the row is retired', () {
+      final body = drainOneBody();
+
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+      final sweepIdx = body.indexOf('_deletePhotoDirBestEffort(localId)');
+
+      expect(retireIdx, isNot(-1));
+      expect(sweepIdx, isNot(-1));
+      expect(
+        retireIdx < sweepIdx,
+        isTrue,
+        reason:
+            '`unsyncedLocalIds` cannot see a retired row, so the startup '
+            'sweep reclaims a directory orphaned by a crash between the '
+            'two, whereas the reverse order leaves a live row pointing at '
+            'files that are gone.',
+      );
+    });
+  });
 }

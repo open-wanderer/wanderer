@@ -636,9 +636,10 @@ List<TrailEntity> selectDrainCandidates(
 /// purpose. The two facts are learned from one response and are only
 /// meaningful together: a row that has the server id but not the photo list
 /// looks, to a resumed drain, exactly like a trail with no photos at all --
-/// which is how [markTrailSynced] came to persist an empty `photos` column
-/// and `deleteUnsyncedPhotoDir` came to delete the only copies left on the
-/// device. It is nullable, and null means "leave `photos` alone", so a
+/// which is how the since-removed `markTrailSynced` came to persist an
+/// empty `photos` column and `deleteUnsyncedPhotoDir` came to delete the
+/// only copies left on the device. It is nullable, and null means "leave
+/// `photos` alone", so a
 /// response that carries an id but no usable photo list cannot erase one.
 void writeServerTrailId(
   Store store, {
@@ -717,47 +718,6 @@ void markTrailUploading(Store store, String localId) {
     if (entity == null) return;
 
     entity.syncState = TrailSyncState.uploading;
-    box.put(entity);
-  });
-}
-
-/// Marks the local row for [localId] as fully synced.
-///
-/// Sets [TrailSyncState.synced], resets `syncAttempts` to 0 and
-/// `syncNextAttemptAt` to null, and clears `localPhotos`. The row is kept,
-/// not deleted -- its `obxId` never changes across the transition, which is
-/// exactly what SYNC-05's "keeps its identity in place" means concretely.
-///
-/// [serverPhotoFilenames] is NULLABLE and defaults to null, meaning "leave
-/// the row's existing `photos` alone". That default is the safe one and the
-/// one the drain uses: [writeServerTrailId] already persisted the server's
-/// photo list in the same transaction as the server id, so by the time this
-/// runs the row is authoritative. Passing a non-null list REPLACES `photos`,
-/// and passing an empty one therefore erases it -- which is precisely the bug
-/// this signature change exists to make impossible to write by accident. On a
-/// resumed drain (the trail was created by an earlier attempt that then failed
-/// at a waypoint) the caller has no fresh photo list to offer, and the old
-/// `const []` default silently wiped the column and left
-/// `deleteUnsyncedPhotoDir` to delete the last copies off the device.
-void markTrailSynced(
-  Store store, {
-  required String localId,
-  List<String>? serverPhotoFilenames,
-}) {
-  store.runInTransaction(TxMode.write, () {
-    final box = store.box<TrailEntity>();
-    final query = box.query(TrailEntity_.localId.equals(localId)).build();
-    final entity = query.findFirst();
-    query.close();
-    if (entity == null) return;
-
-    entity.syncState = TrailSyncState.synced;
-    entity.syncAttempts = 0;
-    entity.syncNextAttemptAt = null;
-    if (serverPhotoFilenames != null) {
-      entity.photos = serverPhotoFilenames;
-    }
-    entity.localPhotos = [];
     box.put(entity);
   });
 }
