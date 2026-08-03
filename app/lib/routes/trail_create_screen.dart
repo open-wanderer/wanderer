@@ -915,16 +915,31 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// no-op. The username is read FRESH here, never from a cached
   /// field (D-13).
   ///
+  /// `ref.read(authProvider).value` is nullable -- it reads null during a
+  /// token refresh in flight and in a mid-logout race (per project
+  /// convention, `.value` not `.valueOrNull`). Interpolating that straight
+  /// into the family key used to produce the literal string `'@null'`,
+  /// which matches no mounted `profile_trail_screen` instance -- exactly
+  /// the silent no-op the paragraph above warns against (WR-02). The
+  /// family key is now only ever built from a non-null handle;
+  /// `trail_sync_provider.dart`'s counterpart (`:420`) is correct because it
+  /// reads the non-nullable `userEntity.preferredUsername`, and the two
+  /// must stay behaviourally identical.
+  ///
   /// `asReload` defaults to false, i.e. a seamless refresh --
   /// `AsyncValue.when`'s `skipLoadingOnRefresh` defaults to true, so
   /// the list updates without flashing a spinner (36-09).
   void _invalidateOwnTrailsList() {
     ref.invalidate(trailLibraryProvider);
-    ref.invalidate(
-      profileTrailsProvider(
-        '@${ref.read(authProvider).value?.preferredUsername}',
-      ),
-    );
+    final username = ref.read(authProvider).value?.preferredUsername;
+    if (username != null) {
+      ref.invalidate(profileTrailsProvider('@$username'));
+    } else {
+      debugPrint(
+        'trail_create_screen: _invalidateOwnTrailsList skipped the '
+        'own-trails invalidation -- no signed-in handle was resolvable',
+      );
+    }
   }
 
   /// Shared tail of both local-first [LocalSaveMode] save branches (create
