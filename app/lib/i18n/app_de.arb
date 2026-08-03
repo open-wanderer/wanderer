@@ -66,6 +66,8 @@
   "open": "Öffnen",
   "delete_account": "Konto löschen",
   "delete_trail_confirm": "Möchtest Du diese Route wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "description": "Beschreibung",
   "difficult": "Schwer",
   "difficulty": "Schwierigkeit",
@@ -177,11 +179,23 @@
   "only_me": "Nur ich",
   "or": "oder",
   "orientation": "Ausrichtung",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Showing what's saved on this device — connect to see everything.",
   "paragraph": "Abschnitt",
   "pause": "Pausieren",
   "password": "Passwort",
   "password_confirm": "Passwort bestätigen",
   "passwords_must_match": "Passwörter müssen übereinstimmen",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Fotos",
   "photos_skipped_no_gps": "{count, plural, =1 {1 Foto übersprungen — keine GPS-Daten} other {{count} Fotos übersprungen — keine GPS-Daten}}",
   "@photos_skipped_no_gps": {
@@ -213,6 +227,7 @@
     }
   },
   "resume_recording_prompt": "Aufnahme fortsetzen?",
+  "retry_upload": "Retry upload",
   "road": "Straße",
   "route": "{n, plural, =1 {Route} other {Routen}}",
   "@route": {
@@ -255,6 +270,15 @@
   "shared": "Geteilt",
   "show_on_map": "Auf der Karte anzeigen",
   "shower": "Dusche",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Deine Routen. Deine Daten. Dein Server.",
   "sort": "Sortieren",
   "speed": "Geschwindigkeit",
@@ -264,6 +288,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Gipfelbuch",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Tabelle",
   "tags": "Tags",
   "text": "Text",
@@ -282,6 +309,7 @@
     }
   },
   "trail_saved_successfully": "Route gespeichert",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
   "some_waypoints_failed_to_save": "Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden",
   "units": "Einheiten",
   "users": "Benutzer",
