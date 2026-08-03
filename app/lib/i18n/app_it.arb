@@ -181,7 +181,11 @@
   "orientation": "Orientamento",
   "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
   "own_trails_empty_title": "Nothing saved yet",
-  "own_trails_offline_banner": "Showing what's saved on this device — connect to see everything.",
+  "own_trails_offline_banner": "Offline — showing only trails on this device.",
+  "trails_on_device": "Trails (on device)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
   "paragraph": "Paragraph",
   "pause": "Pause",
   "password": "Password",
