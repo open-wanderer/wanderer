@@ -5,11 +5,11 @@ import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/api_provider.dart';
-import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/polyline_util.dart';
-import 'package:wanderer/util/reverse_geocode_util.dart';
-import 'package:wanderer/util/route_segment_util.dart';
-import 'package:wanderer/util/valhalla_util.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/geo/polyline.dart';
+import 'package:wanderer/util/geo/reverse_geocode.dart';
+import 'package:wanderer/util/route/segment.dart';
+import 'package:wanderer/util/route/valhalla.dart';
 
 part 'route_anchor_provider.g.dart';
 

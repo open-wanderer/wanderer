@@ -10,9 +10,9 @@ import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/gpx_conversion_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/gpx/conversion.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
 
 class ElevationProfile extends ConsumerStatefulWidget {
   final Trail? trail;

@@ -21,8 +21,8 @@ import 'package:wanderer/provider/trail/trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/store/local_trail_store.dart';
-import 'package:wanderer/util/map_app.dart';
-import 'package:wanderer/util/trail_route_location.dart';
+import 'package:wanderer/util/route/map_app.dart';
+import 'package:wanderer/util/trail/route_location.dart';
 
 enum TrailAction { open, directions, download, edit, delete }
 

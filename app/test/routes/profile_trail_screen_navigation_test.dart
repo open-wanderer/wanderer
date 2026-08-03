@@ -23,7 +23,7 @@ import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/routes/profile_trail_screen.dart';
-import 'package:wanderer/util/offline_trail_filter_bounds.dart';
+import 'package:wanderer/util/trail/offline_filter_bounds.dart';
 
 /// Stub Auth notifier that returns a fixture [UserEntity] synchronously so
 /// the screen renders without touching ObjectBox or the network.

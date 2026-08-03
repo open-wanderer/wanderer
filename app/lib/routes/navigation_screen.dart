@@ -40,16 +40,16 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
-import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/offline_style_rewriter.dart';
-import 'package:wanderer/util/polyline_util.dart';
-import 'package:wanderer/util/route_planner_handoff_util.dart';
+import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/region/offline_style_rewriter.dart';
+import 'package:wanderer/util/geo/polyline.dart';
+import 'package:wanderer/util/route/planner_handoff.dart';
 import 'package:wanderer/models/route_travel_bucket.dart';
 import 'package:wanderer/actions/resolve_track_save_options.dart';
 import 'package:wanderer/services/tracelet_position_source.dart';
 import 'package:wanderer/actions/import_trail_file.dart';
-import 'package:wanderer/util/valhalla_util.dart';
+import 'package:wanderer/util/route/valhalla.dart';
 
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s
 /// premature-exit dialog.

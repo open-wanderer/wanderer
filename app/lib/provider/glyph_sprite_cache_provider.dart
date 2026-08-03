@@ -7,7 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/glyph_sprite_cache_paths.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/map_style_sources_provider.dart';
-import 'package:wanderer/util/map_cache_path.dart';
+import 'package:wanderer/util/region/map_cache_path.dart';
 
 part 'glyph_sprite_cache_provider.g.dart';
 

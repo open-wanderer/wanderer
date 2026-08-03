@@ -11,7 +11,7 @@ import 'package:wanderer/components/base/wanderer_text_field.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/exif_util.dart';
+import 'package:wanderer/util/exif.dart';
 
 class WaypointCreateScreen extends ConsumerStatefulWidget {
   final Waypoint waypoint;

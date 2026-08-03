@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:maplibre/maplibre.dart' show Geographic, SphericalGreatCircle;
-import 'package:wanderer/util/reverse_geocode_util.dart';
+import 'package:wanderer/util/geo/reverse_geocode.dart';
 
 part 'route_anchor.freezed.dart';
 

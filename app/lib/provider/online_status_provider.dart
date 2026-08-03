@@ -3,7 +3,7 @@ import 'dart:io' show SocketException;
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/api_provider.dart';
-import 'package:wanderer/util/connectivity_util.dart';
+import 'package:wanderer/util/connectivity.dart';
 
 part 'online_status_provider.g.dart';
 

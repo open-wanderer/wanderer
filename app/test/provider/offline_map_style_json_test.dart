@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
-import 'package:wanderer/util/offline_style_rewriter.dart';
+import 'package:wanderer/util/region/offline_style_rewriter.dart';
 
 /// Collects the URL-bearing string fields of a composed style — every source's
 /// `tiles` entries + `url`, plus top-level `glyphs`/`sprite`. Deliberately

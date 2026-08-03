@@ -12,8 +12,8 @@ import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/route_planner_handoff_util.dart';
-import 'package:wanderer/util/route_segment_util.dart';
+import 'package:wanderer/util/route/planner_handoff.dart';
+import 'package:wanderer/util/route/segment.dart';
 
 /// Route Planner screen — hosts the native map and wires anchor/segment
 /// gestures to the UI: tap-to-add, drag-to-reposition (handled inside

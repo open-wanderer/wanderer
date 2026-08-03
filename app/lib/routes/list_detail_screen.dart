@@ -18,14 +18,14 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
-import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/format.dart';
 import 'package:collection/collection.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/components/category/category_icon.dart';
-import 'package:wanderer/util/polyline_util.dart';
+import 'package:wanderer/util/geo/polyline.dart';
 
 class ListDetailScreen extends ConsumerStatefulWidget {
   final String id;

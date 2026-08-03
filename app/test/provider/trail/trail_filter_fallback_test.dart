@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
-import 'package:wanderer/util/offline_trail_filter_bounds.dart';
+import 'package:wanderer/util/trail/offline_filter_bounds.dart';
 
 // ---------------------------------------------------------------------------
 // Pure-input tests for trail_filter_provider.dart's fallback filter and

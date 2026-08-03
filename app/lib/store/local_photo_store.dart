@@ -22,7 +22,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:wanderer/util/local_id.dart';
+import 'package:wanderer/util/local/id.dart';
 
 /// Root of all unsynced-trail photo storage: `<appDocsPath>/unsynced`.
 String unsyncedPhotoRoot(String appDocsPath) {

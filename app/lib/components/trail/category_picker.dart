@@ -9,7 +9,7 @@ import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/components/category/category_icon.dart';
-import 'package:wanderer/util/category_preference_sort.dart';
+import 'package:wanderer/util/category/preference_sort.dart';
 
 /// A resolved category/subcategory pair produced from a [CategoryPicker] value.
 class CategorySelection {

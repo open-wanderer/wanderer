@@ -12,7 +12,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
-import 'package:wanderer/util/trail_route_location.dart';
+import 'package:wanderer/util/trail/route_location.dart';
 
 class ProfileTrailScreen extends ConsumerStatefulWidget {
   final String handle;

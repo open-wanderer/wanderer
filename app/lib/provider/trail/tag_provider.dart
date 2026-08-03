@@ -5,7 +5,7 @@ import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/list_result.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
-import 'package:wanderer/util/pb_filter_util.dart';
+import 'package:wanderer/util/pb_filter.dart';
 
 part 'tag_provider.g.dart';
 

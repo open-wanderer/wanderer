@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gpx/gpx.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
-import 'package:wanderer/util/gpx_conversion_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx/conversion.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
 
 /// A track on a true, constant 10% grade sampled every ~1.5 m — roughly what a
 /// 1 Hz recording at walking pace produces.

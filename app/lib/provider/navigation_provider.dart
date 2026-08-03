@@ -2,7 +2,7 @@ import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
-import 'package:wanderer/util/route_map_matcher.dart';
+import 'package:wanderer/util/route/map_matcher.dart';
 
 part 'navigation_provider.g.dart';
 

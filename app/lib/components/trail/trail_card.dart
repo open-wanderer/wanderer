@@ -14,7 +14,7 @@ import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
-import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/format.dart';
 
 class TrailCard extends ConsumerWidget {
   final TrailSummary trail;

@@ -15,7 +15,7 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/store/current_account.dart';
-import 'package:wanderer/util/trail_coverage_util.dart';
+import 'package:wanderer/util/region/coverage.dart';
 
 part 'trail_download_state_provider.g.dart';
 

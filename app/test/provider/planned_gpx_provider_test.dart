@@ -4,7 +4,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
 
 // Fixtures — mirrors route_anchor_provider_test.dart's _SeededRouteAnchors
 // harness so plannedGpxProvider can be tested against a known shape without

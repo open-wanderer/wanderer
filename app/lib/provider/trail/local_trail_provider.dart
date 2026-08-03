@@ -2,7 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/store/current_account.dart';
-import 'package:wanderer/util/local_id.dart';
+import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 
 part 'local_trail_provider.g.dart';

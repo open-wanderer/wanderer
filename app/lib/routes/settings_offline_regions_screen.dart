@@ -14,10 +14,10 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/byte_format_util.dart';
-import 'package:wanderer/util/region_disk_usage_util.dart';
-import 'package:wanderer/util/region_tile_status_util.dart';
-import 'package:wanderer/util/region_tree_util.dart';
+import 'package:wanderer/util/byte_format.dart';
+import 'package:wanderer/util/region/disk_usage.dart';
+import 'package:wanderer/util/region/tile_status.dart';
+import 'package:wanderer/util/region/tree.dart';
 
 /// One flattened, visible tree row: a node plus its indentation depth. Emitted
 /// by `flattenVisible` and consumed by the region ListView.

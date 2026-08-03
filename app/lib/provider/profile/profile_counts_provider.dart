@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/api_provider.dart';
-import 'package:wanderer/util/pb_filter_util.dart';
+import 'package:wanderer/util/pb_filter.dart';
 
 part 'profile_counts_provider.g.dart';
 

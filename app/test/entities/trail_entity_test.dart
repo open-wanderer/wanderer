@@ -5,7 +5,7 @@ import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/util/local_id.dart';
+import 'package:wanderer/util/local/id.dart';
 
 void main() {
   group('TrailEntity movingDuration round-trip (D-10)', () {

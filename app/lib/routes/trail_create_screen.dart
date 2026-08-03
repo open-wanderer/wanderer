@@ -44,16 +44,16 @@ import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
-import 'package:wanderer/util/category_preference_sort.dart';
+import 'package:wanderer/util/category/preference_sort.dart';
 import 'package:wanderer/store/current_account.dart';
-import 'package:wanderer/util/exif_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/local_id.dart';
+import 'package:wanderer/util/exif.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/store/local_trail_store.dart';
-import 'package:wanderer/util/reverse_geocode_util.dart';
-import 'package:wanderer/util/route_planner_handoff_util.dart';
-import 'package:wanderer/util/valhalla_util.dart';
+import 'package:wanderer/util/geo/reverse_geocode.dart';
+import 'package:wanderer/util/route/planner_handoff.dart';
+import 'package:wanderer/util/route/valhalla.dart';
 
 class TrailCreateScreen extends ConsumerStatefulWidget {
   final Trail trail;

@@ -13,10 +13,10 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/gpx_conversion_util.dart';
-import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/reverse_geocode_util.dart';
-import 'package:wanderer/util/route_planner_handoff_util.dart';
+import 'package:wanderer/util/gpx/conversion.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/geo/reverse_geocode.dart';
+import 'package:wanderer/util/route/planner_handoff.dart';
 import 'package:wanderer/actions/resolve_track_save_options.dart';
 
 /// Supported trail file extensions for both the in-app picker and inbound

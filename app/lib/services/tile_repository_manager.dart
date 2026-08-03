@@ -10,8 +10,8 @@ import 'package:wanderer/entities/downloaded_tile_package_entity.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/objectbox.g.dart';
-import 'package:wanderer/util/disk_space_util.dart';
-import 'package:wanderer/util/region_file_path.dart';
+import 'package:wanderer/util/region/disk_space.dart';
+import 'package:wanderer/util/region/file_path.dart';
 
 /// Pure axis-aligned rectangle-overlap test between a region's bbox and a
 /// query [LngLatBounds] (TILE-05). There is no `intersects()` helper on this

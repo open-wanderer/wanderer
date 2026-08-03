@@ -7,7 +7,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
-import 'package:wanderer/util/polyline_util.dart';
+import 'package:wanderer/util/geo/polyline.dart';
 
 const _anchorA = Geographic(lat: 47.000, lon: 9.000);
 const _anchorB = Geographic(lat: 47.001, lon: 9.000);

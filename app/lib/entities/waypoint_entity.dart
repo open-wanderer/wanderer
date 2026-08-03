@@ -3,7 +3,7 @@ import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/theme/icons.dart';
-import 'package:wanderer/util/local_id.dart';
+import 'package:wanderer/util/local/id.dart';
 
 @Entity()
 class WaypointEntity {

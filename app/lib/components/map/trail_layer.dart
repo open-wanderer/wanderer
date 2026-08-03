@@ -6,7 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
 
 /// Default GPX route line color (`#3549bb`). Overridable per call.
 const Color kTrailRouteColor = Color(0xff3549bb);

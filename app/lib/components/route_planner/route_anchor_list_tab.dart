@@ -7,7 +7,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
-import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/format.dart';
 
 /// The sheet's "Route Anchors" tab: a [ReorderableListView] listing every
 /// in-progress route anchor in order, each row showing a numbered badge,

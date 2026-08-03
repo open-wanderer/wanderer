@@ -28,7 +28,7 @@ import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/objectbox.g.dart';
-import 'package:wanderer/util/local_id.dart';
+import 'package:wanderer/util/local/id.dart';
 
 // ---------------------------------------------------------------------------
 // Pure decisions (no Store, unit-testable)

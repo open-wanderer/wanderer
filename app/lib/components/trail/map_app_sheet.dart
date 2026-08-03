@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/util/map_app.dart';
+import 'package:wanderer/util/route/map_app.dart';
 
 /// Presents the iOS map-app picker: one row per installed map application.
 ///

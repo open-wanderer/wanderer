@@ -5,7 +5,7 @@ import 'package:wanderer/components/trail/waypoint_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/format.dart';
 
 const double _kLineX = 20;
 const double _kLeftColWidth = 40.0;

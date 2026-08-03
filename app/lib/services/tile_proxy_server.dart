@@ -6,7 +6,7 @@ import 'package:pmtiles/pmtiles.dart';
 import 'package:wanderer/entities/region_entity.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/services/tile_repository_manager.dart';
-import 'package:wanderer/util/xyz_tile_bounds.dart';
+import 'package:wanderer/util/geo/xyz_tile_bounds.dart';
 
 /// Loopback-only `HttpServer` that serves vector/DEM map tiles from a
 /// downloaded region's `.pmtiles` archive (PROXY-01/02/03).

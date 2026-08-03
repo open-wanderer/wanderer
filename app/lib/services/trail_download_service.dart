@@ -11,10 +11,10 @@ import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
-import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/library_membership.dart';
-import 'package:wanderer/util/local_id.dart';
-import 'package:wanderer/util/valhalla_util.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/local/library_membership.dart';
+import 'package:wanderer/util/local/id.dart';
+import 'package:wanderer/util/route/valhalla.dart';
 
 class TrailDownloadService {
   final Store _store;

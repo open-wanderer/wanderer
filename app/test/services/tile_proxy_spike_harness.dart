@@ -60,7 +60,7 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
-import 'package:wanderer/util/offline_style_rewriter.dart';
+import 'package:wanderer/util/region/offline_style_rewriter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

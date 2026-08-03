@@ -5,7 +5,7 @@ import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/valhalla_profile.dart';
 import 'package:wanderer/components/category/category_icon.dart';
-import 'package:wanderer/util/valhalla_util.dart';
+import 'package:wanderer/util/route/valhalla.dart';
 
 /// The route planner's 5 fixed travel buckets, each carrying a hardcoded
 /// Valhalla costing profile and a fixed, non-user-adjustable

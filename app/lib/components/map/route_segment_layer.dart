@@ -1,6 +1,6 @@
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/models/route_anchor.dart';
-import 'package:wanderer/util/route_segment_util.dart';
+import 'package:wanderer/util/route/segment.dart';
 
 /// Owns the native MapLibre GL style layers/source that draw the route
 /// planner's segment lines: one `GeoJsonSource` feeding three `state`-

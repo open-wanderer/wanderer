@@ -4,7 +4,7 @@ import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/planned_gpx_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
-import 'package:wanderer/util/gpx_util.dart';
+import 'package:wanderer/util/gpx/gpx.dart';
 
 /// The Elevation tab of the route planner's tabbed sheet.
 ///

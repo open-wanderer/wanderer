@@ -13,7 +13,7 @@ import 'package:wanderer/models/summit_log.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
-import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/format.dart';
 
 class SummitLogCard extends ConsumerWidget {
   final SummitLog summitLog;

@@ -19,9 +19,9 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
-import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/gpx_conversion_util.dart';
-import 'package:wanderer/util/trail_route_location.dart';
+import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/gpx/conversion.dart';
+import 'package:wanderer/util/trail/route_location.dart';
 
 class TrailPanel extends ConsumerWidget {
   const TrailPanel({

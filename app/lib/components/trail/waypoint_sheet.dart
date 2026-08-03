@@ -6,7 +6,7 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/util/format_util.dart';
+import 'package:wanderer/util/format.dart';
 
 class WaypointSheet extends ConsumerWidget {
   final Waypoint waypoint;

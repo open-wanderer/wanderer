@@ -2,7 +2,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
-import 'package:wanderer/util/polyline_util.dart';
+import 'package:wanderer/util/geo/polyline.dart';
 
 part 'trail_polyline_provider.g.dart';
 

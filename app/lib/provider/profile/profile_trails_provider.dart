@@ -12,8 +12,8 @@ import 'package:wanderer/provider/profile/profile_constants.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/store/local_trail_store.dart';
-import 'package:wanderer/util/own_trails_merge.dart';
-import 'package:wanderer/util/trail_filter_util.dart';
+import 'package:wanderer/util/trail/own_trails_merge.dart';
+import 'package:wanderer/util/trail/filter.dart';
 
 part 'profile_trails_provider.freezed.dart';
 part 'profile_trails_provider.g.dart';

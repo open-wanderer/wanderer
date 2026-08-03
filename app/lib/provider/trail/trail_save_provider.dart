@@ -8,8 +8,8 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
-import 'package:wanderer/util/form_data_util.dart';
-import 'package:wanderer/util/object_diff_util.dart';
+import 'package:wanderer/util/trail/form_data.dart';
+import 'package:wanderer/util/object_diff.dart';
 
 part 'trail_save_provider.g.dart';
 
