@@ -18,7 +18,7 @@ final class TrailFilterNotifierProvider
     required TrailFilterNotifierFamily super.from,
     required String super.argument,
   }) : super(
-         retry: null,
+         retry: trailFilterRetry,
          name: r'trailFilterProvider',
          isAutoDispose: false,
          dependencies: null,
@@ -51,7 +51,7 @@ final class TrailFilterNotifierProvider
 }
 
 String _$trailFilterNotifierHash() =>
-    r'63567fe7da385180c5fab2771630ab848b724670';
+    r'fda7423cd5430698503550da9d7424ae6df3db6c';
 
 final class TrailFilterNotifierFamily extends $Family
     with
@@ -64,7 +64,7 @@ final class TrailFilterNotifierFamily extends $Family
         > {
   TrailFilterNotifierFamily._()
     : super(
-        retry: null,
+        retry: trailFilterRetry,
         name: r'trailFilterProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
