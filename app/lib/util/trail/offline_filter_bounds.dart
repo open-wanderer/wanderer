@@ -15,10 +15,16 @@ import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 
-/// Three parallel lists of raw on-device column values -- exactly the shape
-/// `readLocalTrailMetrics` hands back from ObjectBox, and exactly the shape
-/// [computeOfflineTrailFilterValues] needs. Matches `_NetworkPage`'s record
-/// shape in `profile_trails_provider.dart`.
+/// Three independent, null-dropped value lists, one per axis -- NOT
+/// row-aligned. `PropertyQuery<double>.find()` excludes null values unless
+/// `replaceNullWith` is supplied (objectbox 5.3.1), and `distance`,
+/// `elevationGain` and `elevationLoss` are all nullable on `TrailEntity`. So
+/// the three lists returned by `readLocalTrailMetrics` can have different
+/// lengths, and there is no positional correspondence between them or to the
+/// underlying row set. **Do not zip these lists** -- doing so would pair one
+/// trail's distance with another trail's elevation. This shape is safe today
+/// only because [computeOfflineTrailFilterValues] takes an independent
+/// per-axis maximum from each list and never correlates entries across axes.
 typedef LocalTrailMetrics = ({
   List<double> distances,
   List<double> elevationGains,

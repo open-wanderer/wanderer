@@ -15,6 +15,7 @@ import 'package:wanderer/components/trail/summit_log_list.dart';
 import 'package:wanderer/components/trail/trail_timeline.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
@@ -59,8 +60,109 @@ class TrailPanel extends ConsumerWidget {
     // is not addressable at all.
     final String? mapLocation = trailMapLocation(trail);
 
+    // WR-11: `trail.isLocal` is a cache-provenance flag -- `TrailEntity.toModel()`
+    // hardcodes it to `true` for every cached row, downloaded trails included,
+    // and `TrailNotifier.build()` falls back to the cache on any fetch
+    // exception. Gating the server-backed tabs on it hid summit logs and
+    // comments on any trail read off the device. `isUnsyncedState` is the
+    // signal that actually means "has never reached the server, so there is
+    // nothing server-side to show" -- same reasoning as
+    // `trail_dropdown.dart:48-53`.
+    final showsServerTabs = !isUnsyncedState(trail.syncState);
+
+    final aboutTab = Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l18n.description,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          if (trail.description.isNotEmpty) html.Html(data: trail.description),
+          if (trail.description.isEmpty)
+            Text(
+              l18n.no_description_for_now,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          SizedBox(height: 16),
+          Text(
+            l18n.route(1),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          if (trail.expand?.gpx != null) ...{
+            SizedBox(height: 16),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  child: SizedBox(
+                    height: 200,
+                    child: Material(
+                      child: TrailMap(
+                        trail: trail,
+                        disabled: true,
+                        // Connectivity, NOT trail.isOffline — see
+                        // that field's doc comment. Online we
+                        // always prefer network tiles, even for a
+                        // downloaded trail.
+                        offline: !ref.watch(onlineStatusProvider),
+                        onTap: mapLocation == null
+                            ? null
+                            : (_) => context.push(mapLocation),
+                      ),
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: IconButton(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(context).canvasColor,
+                      ),
+                      icon: FaIcon(
+                        FontAwesomeIcons.upRightAndDownLeftFromCenter,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      onPressed: mapLocation == null
+                          ? null
+                          : () => context.push(mapLocation),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            InkWell(
+              onTap: mapLocation == null
+                  ? null
+                  : () => context.push(mapLocation),
+              child: ElevationProfile(
+                trail: trail,
+                gpx: trail.expand!.gpx!,
+                enableLineTouch: false,
+              ),
+            ),
+            SizedBox(height: 16),
+          },
+          TrailTimeline(
+            waypoints: trail.expand?.waypointsViaTrail ?? [],
+            totalDistance: metrics?.distance,
+          ),
+        ],
+      ),
+    );
+
     return DefaultTabController(
-      length: 3,
+      length: showsServerTabs ? 3 : 1,
       child: SingleChildScrollView(
         controller: scrollController,
         child: Column(
@@ -239,7 +341,7 @@ class TrailPanel extends ConsumerWidget {
             const SizedBox(height: 16),
 
             const Divider(height: 1, thickness: 1),
-            if (!trail.isLocal)
+            if (showsServerTabs)
               TabBar(
                 labelStyle: Theme.of(
                   context,
@@ -253,110 +355,11 @@ class TrailPanel extends ConsumerWidget {
                 ],
               ),
 
+            // dart format off
             _TabContent(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l18n.description,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      if (trail.description.isNotEmpty)
-                        html.Html(data: trail.description),
-                      if (trail.description.isEmpty)
-                        Text(
-                          l18n.no_description_for_now,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      SizedBox(height: 16),
-                      Text(
-                        l18n.route(1),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      if (trail.expand?.gpx != null) ...{
-                        SizedBox(height: 16),
-                        Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(16),
-                              ),
-                              child: SizedBox(
-                                height: 200,
-                                child: Material(
-                                  child: TrailMap(
-                                    trail: trail,
-                                    disabled: true,
-                                    // Connectivity, NOT trail.isOffline — see
-                                    // that field's doc comment. Online we
-                                    // always prefer network tiles, even for a
-                                    // downloaded trail.
-                                    offline: !ref.watch(onlineStatusProvider),
-                                    onTap: mapLocation == null
-                                        ? null
-                                        : (_) => context.push(mapLocation),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: IconButton(
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).canvasColor,
-                                  ),
-                                  icon: FaIcon(
-                                    FontAwesomeIcons
-                                        .upRightAndDownLeftFromCenter,
-                                    size: 18,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                  ),
-                                  onPressed: mapLocation == null
-                                      ? null
-                                      : () => context.push(mapLocation),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        InkWell(
-                          onTap: mapLocation == null
-                              ? null
-                              : () => context.push(mapLocation),
-                          child: ElevationProfile(
-                            trail: trail,
-                            gpx: trail.expand!.gpx!,
-                            enableLineTouch: false,
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                      },
-                      TrailTimeline(
-                        waypoints: trail.expand?.waypointsViaTrail ?? [],
-                        totalDistance: metrics?.distance,
-                      ),
-                    ],
-                  ),
-                ),
-
-                SummitLogList(trail: trail),
-
-                CommentList(trail: trail),
-              ],
+              children: showsServerTabs ? [aboutTab, SummitLogList(trail: trail), CommentList(trail: trail)] : [aboutTab],
             ),
+            // dart format on
           ],
         ),
       ),
