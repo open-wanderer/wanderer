@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -177,17 +178,7 @@ class SummitLogCard extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            CircleAvatar(
-                              radius: 9,
-                              backgroundColor: Colors.grey.shade300,
-                              backgroundImage: NetworkImage(
-                                author.icon?.isNotEmpty == true
-                                    ? author.icon!
-                                    : 'https://api.dicebear.com/7.x/initials/png?seed=${author.preferredUsername}&backgroundType=gradientLinear',
-                              ),
-                              onBackgroundImageError: (_, _) =>
-                                  const FaIcon(FontAwesomeIcons.user, size: 9),
-                            ),
+                            ActorAvatar.fromActor(actor: author, radius: 9),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(

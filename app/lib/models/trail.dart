@@ -158,6 +158,11 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   String get summaryAuthorAvatar => expand?.author?.icon ?? "";
 
   @override
+  String? get summaryAuthorActorId =>
+      expand?.author?.id ??
+      (author.isNotEmpty && author != "000000000000000" ? author : null);
+
+  @override
   DateTime? get summaryDate => date;
 
   @override

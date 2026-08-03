@@ -355,4 +355,37 @@ void main() {
       },
     );
   });
+
+  group('author round-trip -- the orphaned-relation guard', () {
+    Trail buildTrail({String author = 'actor-abc'}) => Trail(
+      id: 'trail-1',
+      name: 'Sample Trail',
+      created: DateTime(2026),
+      updated: DateTime(2026),
+      author: author,
+    );
+
+    test('Trail.author survives fromModel -> toModel via the scalar column, '
+        'without any ActorEntity relation being set', () {
+      final entity = TrailEntity.fromModel(buildTrail());
+
+      // The relation is deliberately never assigned -- this is the state a
+      // local trail is left in once a re-minted ActorEntity orphans the ToOne.
+      expect(entity.author.target, isNull);
+      expect(entity.authorRecordId, 'actor-abc');
+      expect(entity.toModel().author, 'actor-abc');
+    });
+
+    test('the sentinel author default is not persisted as a record id', () {
+      final entity = TrailEntity.fromModel(buildTrail(author: '000000000000000'));
+
+      expect(entity.authorRecordId, isNull);
+    });
+
+    test('summaryAuthorActorId falls back to Trail.author when the expand '
+        'carries no author, and is null for the sentinel', () {
+      expect(buildTrail().summaryAuthorActorId, 'actor-abc');
+      expect(buildTrail(author: '000000000000000').summaryAuthorActorId, isNull);
+    });
+  });
 }

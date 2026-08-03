@@ -177,6 +177,12 @@ String saveNewLocalTrail(
     }
 
     if (authorActorId != null) {
+      // The scalar is written unconditionally; only the relation is
+      // best-effort. The relation is the part that breaks (a replace-on-
+      // conflict `ActorEntity` put re-mints the row and orphans the ToOne),
+      // so authorship must not depend on it alone.
+      entity.authorRecordId = authorActorId;
+
       final actorQuery = store
           .box<ActorEntity>()
           .query(ActorEntity_.id.equals(authorActorId))
@@ -414,8 +420,12 @@ List<Trail> readOwnLocalTrails(
   final trails = <Trail>[];
   for (final entity in query.find()) {
     final isOwn = entity.owner == accountId;
+    // Scalar first, relation only as the fallback for rows written before
+    // `authorRecordId` existed -- the ToOne is orphaned whenever a sign-in or
+    // profile refresh re-mints the `ActorEntity` row.
     final isAuthoredByThisAccount =
-        authorActorId != null && entity.author.target?.id == authorActorId;
+        authorActorId != null &&
+        (entity.authorRecordId ?? entity.author.target?.id) == authorActorId;
     if (!isOwn && !isAuthoredByThisAccount) continue;
 
     try {

@@ -11,6 +11,11 @@ import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
 import 'package:wanderer/util/local_id.dart';
 
+/// `Trail.author`'s `@Default` — a placeholder, not a real actor record id.
+/// It must never be persisted as [TrailEntity.authorRecordId] or compared
+/// against a signed-in user's `actorId`.
+const _unknownAuthorId = '000000000000000';
+
 @Entity()
 class TrailEntity {
   @Id()
@@ -66,6 +71,20 @@ class TrailEntity {
   /// The `Trail.subcategory` record id. Named for symmetry with
   /// [categoryRecordId]; there is no subcategory relation to collide with.
   String? subcategoryRecordId;
+
+  /// The author's `ActorEntity.id` (the actor RECORD id), persisted as a
+  /// plain scalar for the same reason as [categoryRecordId] — and for one
+  /// more.
+  ///
+  /// [ActorEntity.id] is `@Unique(onConflict: replace)`, so every sign-in and
+  /// profile refresh that re-puts a freshly constructed `ActorEntity`
+  /// (`obxId == 0`) DELETES the old row and inserts a new one under a new
+  /// ObjectBox id. The [author] ToOne stores its target by that ObjectBox id,
+  /// so it silently resolves to null afterwards — the trail's author line
+  /// degraded to "Unknown", the avatar to a bare grey circle, and
+  /// `readOwnLocalTrails`' author clause stopped matching. This scalar
+  /// survives the re-mint and lets both be recovered.
+  String? authorRecordId;
 
   /// The `Trail.completed` flag. A plain field with an initializer, like
   /// [photos] -- not a constructor parameter.
@@ -241,8 +260,17 @@ class TrailEntity {
       entity.waypoints.addAll(waypointEntities);
     }
 
+    // The scalar is written from `trail.author` (always present) rather than
+    // from the expand, which is null on a locally-composed recording. The
+    // sentinel `Trail.author` default is not a real actor id and is skipped
+    // so it can never be mistaken for one.
+    if (trail.author.isNotEmpty && trail.author != _unknownAuthorId) {
+      entity.authorRecordId = trail.author;
+    }
+
     if (trail.expand?.author != null) {
       entity.author.target = ActorEntity.fromModel(trail.expand!.author!);
+      entity.authorRecordId ??= trail.expand!.author!.id;
     }
 
     if (trail.expand?.category != null) {
@@ -320,6 +348,10 @@ extension TrailEntityMapping on TrailEntity {
           .whereType<String>()
           .where((id) => id.isNotEmpty)
           .toList(),
+      // Falls back to the relation's id, same shape as `category` above, so a
+      // row written before `authorRecordId` existed still reports its author.
+      // Left at the `Trail.author` default when neither is available.
+      author: authorRecordId ?? author.target?.id ?? _unknownAuthorId,
       isLocal: true,
       // D-10: mutually exclusive by construction — a downloaded row carries
       // its local file copies in `photos`, an unsynced row carries them in

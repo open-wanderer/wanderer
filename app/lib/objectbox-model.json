@@ -358,7 +358,7 @@
     },
     {
       "id": "6:5034082009762803572",
-      "lastPropertyId": "39:4035010791212347560",
+      "lastPropertyId": "40:5633987781709141042",
       "name": "TrailEntity",
       "properties": [
         {
@@ -555,6 +555,11 @@
         {
           "id": "39:4035010791212347560",
           "name": "tagsJson",
+          "type": 9
+        },
+        {
+          "id": "40:5633987781709141042",
+          "name": "authorRecordId",
           "type": 9
         }
       ],

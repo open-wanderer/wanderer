@@ -63,6 +63,9 @@ abstract class TrailSearchResult
   String get summaryAuthorAvatar => authorAvatar;
 
   @override
+  String? get summaryAuthorActorId => author.isNotEmpty ? author : null;
+
+  @override
   DateTime? get summaryDate => DateTime.fromMillisecondsSinceEpoch(date * 1000);
 
   @override
@@ -159,6 +162,9 @@ abstract class ListSearchResult
 
   @override
   String get summaryAuthorAvatar => authorAvatar;
+
+  @override
+  String? get summaryAuthorActorId => author.isNotEmpty ? author : null;
 
   factory ListSearchResult.fromJson(Map<String, dynamic> json) =>
       _$ListSearchResultFromJson(json);

@@ -69,6 +69,11 @@ abstract class WandererList
   @override
   String get summaryAuthorAvatar => expand?.author?.icon ?? "";
 
+  @override
+  String? get summaryAuthorActorId =>
+      expand?.author?.id ??
+      (author.isNotEmpty && author != "000000000000000" ? author : null);
+
   factory WandererList.fromJson(Map<String, dynamic> json) =>
       _$WandererListFromJson(json);
 }

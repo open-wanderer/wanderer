@@ -69,6 +69,9 @@ class _FakeTrail with RecordFunctions implements TrailSummary {
   String get summaryAuthorAvatar => '';
 
   @override
+  String? get summaryAuthorActorId => null;
+
+  @override
   String? get categoryId => null;
 
   @override

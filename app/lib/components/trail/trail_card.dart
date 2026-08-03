@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -201,18 +202,11 @@ class TrailCard extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              CircleAvatar(
+                              ActorAvatar(
+                                actorId: trail.summaryAuthorActorId,
+                                imageUrl: trail.summaryAuthorAvatar,
+                                nameSeed: trail.summaryAuthorName,
                                 radius: 12,
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                                backgroundImage: NetworkImage(
-                                  trail.summaryAuthorAvatar.isNotEmpty
-                                      ? trail.summaryAuthorAvatar
-                                      : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
-                                ),
-                                onBackgroundImageError: (_, _) =>
-                                    FaIcon(FontAwesomeIcons.user),
                               ),
                               const SizedBox(width: 6),
                               Text(

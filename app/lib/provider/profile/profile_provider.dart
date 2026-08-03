@@ -60,8 +60,12 @@ class OwnProfile extends _$OwnProfile {
       // Refresh the offline cache. ObjectBox cascade-puts the new ToOne
       // target, and ActorEntity's @Unique(onConflict: replace) id keeps this
       // to a single row per actor rather than accumulating copies.
-      user.actor.target = ActorEntity.fromModel(actor);
-      ref.read(objectBoxProvider).box<UserEntity>().put(user);
+      // `actorEntityForUpsert` reuses the existing row's ObjectBox id so the
+      // replace is an in-place update -- a fresh entity would re-mint the id
+      // and orphan every `TrailEntity.author` pointing at it.
+      final store = ref.read(objectBoxProvider);
+      user.actor.target = actorEntityForUpsert(store, actor);
+      store.box<UserEntity>().put(user);
 
       return actor;
     } catch (_) {

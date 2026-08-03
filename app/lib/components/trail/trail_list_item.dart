@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
@@ -131,16 +132,11 @@ class TrailListItem extends ConsumerWidget {
                               ),
                               const SizedBox(width: 8),
                             ],
-                            CircleAvatar(
+                            ActorAvatar(
+                              actorId: trail.summaryAuthorActorId,
+                              imageUrl: trail.summaryAuthorAvatar,
+                              nameSeed: trail.summaryAuthorName,
                               radius: 9,
-                              backgroundColor: Colors.grey.shade300,
-                              backgroundImage: NetworkImage(
-                                trail.summaryAuthorAvatar.isNotEmpty
-                                    ? trail.summaryAuthorAvatar
-                                    : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
-                              ),
-                              onBackgroundImageError: (_, _) =>
-                                  const FaIcon(FontAwesomeIcons.user, size: 9),
                             ),
                             const SizedBox(width: 4),
                             Expanded(

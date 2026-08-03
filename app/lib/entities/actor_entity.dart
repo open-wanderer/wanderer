@@ -1,5 +1,6 @@
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/models/actor.dart';
+import 'package:wanderer/objectbox.g.dart';
 
 @Entity()
 class ActorEntity {
@@ -85,6 +86,27 @@ class ActorEntity {
       user: a.user,
     );
   }
+}
+
+/// Builds the [ActorEntity] for [actor] carrying the ObjectBox id of the row
+/// that already holds it, so a put UPDATES that row instead of replacing it.
+///
+/// [ActorEntity.id] is `@Unique(onConflict: replace)`. A plain
+/// `ActorEntity.fromModel(...)` has `obxId == 0`, so putting it deletes the
+/// existing row and inserts a new one under a new ObjectBox id — and every
+/// `ToOne<ActorEntity>` pointing at the old id (notably
+/// `TrailEntity.author`) silently resolves to null from then on. Reusing the
+/// id keeps those relations intact across sign-in and profile refresh.
+ActorEntity actorEntityForUpsert(Store store, Actor actor) {
+  final entity = ActorEntity.fromModel(actor);
+  final query = store
+      .box<ActorEntity>()
+      .query(ActorEntity_.id.equals(actor.id))
+      .build();
+  final existing = query.findFirst();
+  query.close();
+  if (existing != null) entity.obxId = existing.obxId;
+  return entity;
 }
 
 extension ActorEntityMapping on ActorEntity {

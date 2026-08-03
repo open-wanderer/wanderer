@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/base/trail_map.dart';
 import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
@@ -175,16 +176,9 @@ class TrailPanel extends ConsumerWidget {
                         padding: const EdgeInsets.all(4.0),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            ActorAvatar.fromActor(
+                              actor: trail.expand!.author,
                               radius: 16,
-                              backgroundColor: Colors.grey.shade300,
-                              backgroundImage: NetworkImage(
-                                trail.summaryAuthorAvatar.isNotEmpty
-                                    ? trail.summaryAuthorAvatar
-                                    : "https://api.dicebear.com/7.x/initials/png?seed=${trail.summaryAuthorName}&backgroundType=gradientLinear",
-                              ),
-                              onBackgroundImageError: (_, _) =>
-                                  FaIcon(FontAwesomeIcons.user),
                             ),
                             const SizedBox(width: 6),
                             Text(

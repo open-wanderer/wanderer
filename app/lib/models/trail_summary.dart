@@ -24,6 +24,12 @@ abstract class TrailSummary with RecordFunctions {
   int get summaryDifficulty;
   String get summaryAuthorName;
   String get summaryAuthorAvatar;
+
+  /// The author's actor record id, or null when this summary has no author
+  /// resolved. `ActorAvatar` uses it to recognise the signed-in user and
+  /// serve their avatar from the on-disk cache — the only branch that works
+  /// offline, and therefore the one a just-recorded trail depends on.
+  String? get summaryAuthorActorId;
   String? get categoryId;
   String? get subcategoryId;
 

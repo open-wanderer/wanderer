@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/auth_response.dart';
 import 'package:wanderer/models/oauth_provider.dart';
@@ -245,6 +246,19 @@ class Auth extends _$Auth {
     final userData = User.fromJson(userResponse.data);
 
     final UserEntity userEntity = userData.toEntity();
+
+    // `toEntity()` builds a fresh ActorEntity (obxId 0); putting that would
+    // replace the existing row under a new ObjectBox id and orphan every
+    // `TrailEntity.author` ToOne pointing at it -- which is what made
+    // already-recorded local trails degrade to "Unknown" with a blank avatar
+    // after a re-auth. Reuse the cached row's id so the put updates in place.
+    final incomingActor = userData.expand?.actor;
+    if (incomingActor != null) {
+      userEntity.actor.target = actorEntityForUpsert(
+        ref.read(objectBoxProvider),
+        incomingActor,
+      );
+    }
 
     // Defense in depth for a logout that never ran or was interrupted
     // mid-flight: if the incoming account differs from whatever is cached,

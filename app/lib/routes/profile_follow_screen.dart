@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
@@ -117,11 +118,6 @@ class _ActorTile extends StatelessWidget {
   final Actor actor;
   const _ActorTile({required this.actor});
 
-  String get _avatarUrl =>
-      actor.icon?.isNotEmpty == true
-          ? actor.icon!
-          : 'https://api.dicebear.com/7.x/initials/png?seed=${actor.preferredUsername}&backgroundType=gradientLinear';
-
   String get _handleDisplay {
     if (actor.domain?.isNotEmpty == true) {
       return '@${actor.preferredUsername}@${actor.domain}';
@@ -139,12 +135,7 @@ class _ActorTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: CircleAvatar(
-        radius: 22,
-        backgroundColor: Colors.grey.shade300,
-        backgroundImage: NetworkImage(_avatarUrl),
-        onBackgroundImageError: (e, _) {},
-      ),
+      leading: ActorAvatar.fromActor(actor: actor, radius: 22),
       title: Text(
         actor.username,
         style: const TextStyle(fontWeight: FontWeight.w600),

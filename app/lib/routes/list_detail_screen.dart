@@ -20,6 +20,7 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format_util.dart';
 import 'package:collection/collection.dart';
+import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
@@ -167,17 +168,7 @@ class _ListHeader extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.grey.shade300,
-                          backgroundImage: NetworkImage(
-                            list.summaryAuthorAvatar.isNotEmpty
-                                ? list.summaryAuthorAvatar
-                                : "https://api.dicebear.com/7.x/initials/png?seed=${list.summaryAuthorName}&backgroundType=gradientLinear",
-                          ),
-                          onBackgroundImageError: (_, _) =>
-                              const FaIcon(FontAwesomeIcons.user),
-                        ),
+                        ActorAvatar.fromActor(actor: author, radius: 16),
                         const SizedBox(width: 6),
                         Text(
                           "@${author.preferredUsername}@${author.domain}",

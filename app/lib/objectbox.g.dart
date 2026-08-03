@@ -445,7 +445,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(39, 4035010791212347560),
+    lastPropertyId: const obx_int.IdUid(40, 5633987781709141042),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -675,6 +675,12 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(39, 4035010791212347560),
         name: 'tagsJson',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(40, 5633987781709141042),
+        name: 'authorRecordId',
         type: 9,
         flags: 0,
       ),
@@ -1769,7 +1775,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final tagsJsonOffset = object.tagsJson == null
             ? null
             : fbb.writeString(object.tagsJson!);
-        fbb.startTable(40);
+        final authorRecordIdOffset = object.authorRecordId == null
+            ? null
+            : fbb.writeString(object.authorRecordId!);
+        fbb.startTable(41);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1807,6 +1816,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(36, subcategoryRecordIdOffset);
         fbb.addBool(37, object.completed);
         fbb.addOffset(38, tagsJsonOffset);
+        fbb.addOffset(39, authorRecordIdOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -2007,7 +2017,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
               )
               ..tagsJson = const fb.StringReader(
                 asciiOptimization: true,
-              ).vTableGetNullable(buffer, rootOffset, 80);
+              ).vTableGetNullable(buffer, rootOffset, 80)
+              ..authorRecordId = const fb.StringReader(
+                asciiOptimization: true,
+              ).vTableGetNullable(buffer, rootOffset, 82);
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -3118,6 +3131,11 @@ class TrailEntity_ {
   /// See [TrailEntity.tagsJson].
   static final tagsJson = obx.QueryStringProperty<TrailEntity>(
     _entities[4].properties[36],
+  );
+
+  /// See [TrailEntity.authorRecordId].
+  static final authorRecordId = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[37],
   );
 
   /// see [TrailEntity.waypoints]
