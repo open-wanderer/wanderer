@@ -8,16 +8,23 @@ import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/waypoint_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/util/navigation_launch_util.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
   final String id;
 
-  const TrailDetailMapScreen({super.key, required this.id});
+  /// The local identity of a not-yet-uploaded trail. When set, [id] is empty
+  /// (D-06 blanks a local-sentinel id at the model boundary) and the screen
+  /// reads its data from [localTrailProvider] instead of [trailProvider].
+  final String? localId;
+
+  const TrailDetailMapScreen({super.key, required this.id, this.localId});
 
   @override
   ConsumerState<TrailDetailMapScreen> createState() =>
@@ -59,163 +66,180 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final trailAsync = ref.watch(trailProvider(widget.id));
-    final user = ref.watch(authProvider).requireValue;
+    final localId = widget.localId;
+    final Trail? localTrailValue = localId != null
+        ? ref.watch(localTrailProvider(localId))
+        : null;
+    final AsyncValue<Trail>? trailAsync = localId == null
+        ? ref.watch(trailProvider(widget.id))
+        : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: trailAsync.value != null
+        title: (localTrailValue?.name ?? trailAsync?.value?.name) != null
             ? Text(
-                trailAsync.value!.name,
+                localTrailValue?.name ?? trailAsync!.value!.name,
                 style: Theme.of(context).textTheme.titleMedium,
               )
             : null,
       ),
       body: SafeArea(
-        child: trailAsync.when(
-          data: (trail) {
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: TrailMap(
-                    trail: trail,
-                    showTrail: showTrail,
-                    elevationMarkerPosition: elevationMarkerPosition,
-                    onWaypointTap: _onWaypointSelected,
-                    selectedWaypoint: selectedWaypoint,
-                    showLocation: true,
-                    // Connectivity, NOT trail.isOffline — see that field's doc
-                    // comment. Online we always prefer network tiles, even for
-                    // a downloaded trail.
-                    offline: !ref.watch(onlineStatusProvider),
-                    initialCameraFitPadding: EdgeInsets.only(
-                      bottom: 300,
-                      left: 40,
-                      right: 40,
-                      top: 40,
-                    ),
-                    controls: [
-                      _buildMapControls(context, trail),
-                      const ml.MapCompass(hideIfRotatedNorth: true),
-                    ],
-                    onMapCreated: (controller) => _mapController = controller,
-                  ),
-                ),
-                // Floating full-width Navigate button — floats above elevation
-                // profile when it is visible, or at the very bottom otherwise.
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom:
-                      trail.expand?.gpx != null &&
-                          (showElevationProfile || selectedWaypoint != null)
-                      ? showElevationProfile
-                            ? 258
-                            : 286
-                      : 16,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLaunching
-                          ? null
-                          : () async {
-                              setState(() => _isLaunching = true);
-                              await launchNavigation(
-                                context: context,
-                                ref: ref,
-                                trail: trail,
-                              );
-                              if (mounted) setState(() => _isLaunching = false);
-                            },
-                      icon: _isLaunching
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const FaIcon(FontAwesomeIcons.locationArrow),
-                      label: Text(AppLocalizations.of(context)!.navigate),
-                    ),
-                  ),
-                ),
-
-                if (trail.expand?.gpx != null && showElevationProfile)
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      height: 250,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).canvasColor,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 10,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
+        child: localId != null
+            ? (localTrailValue != null
+                  ? _buildMap(context, localTrailValue)
+                  : Center(
+                      child: Text(
+                        AppLocalizations.of(context)!.trail_not_on_this_device,
                       ),
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                AppLocalizations.of(context)!.elevation_profile,
-                                style: Theme.of(context).textTheme.titleMedium!
-                                    .copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              IconButton(
-                                onPressed: () => setState(
-                                  () => showElevationProfile = false,
-                                ),
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.xmark,
-                                  size: 16,
-                                ),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainer,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          ElevationProfile(
-                            trail: trail,
-                            gpx: trail.expand!.gpx!,
-                            onLineTouch: (p) {
-                              setState(
-                                () => elevationMarkerPosition = p?.lonlat,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                if (selectedWaypoint != null)
-                  WaypointSheet(
-                    waypoint: selectedWaypoint!,
-                    user: user,
-                    controller: _sheetController,
-                    onClose: () => setState(() => selectedWaypoint = null),
-                  ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => WandererError(err: err, stack: stack),
-        ),
+                    ))
+            : trailAsync!.when(
+                data: (trail) => _buildMap(context, trail),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => WandererError(err: err, stack: stack),
+              ),
       ),
+    );
+  }
+
+  Widget _buildMap(BuildContext context, Trail trail) {
+    final user = ref.watch(authProvider).requireValue;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: TrailMap(
+            trail: trail,
+            showTrail: showTrail,
+            elevationMarkerPosition: elevationMarkerPosition,
+            onWaypointTap: _onWaypointSelected,
+            selectedWaypoint: selectedWaypoint,
+            showLocation: true,
+            // Connectivity, NOT trail.isOffline — see that field's doc
+            // comment. Online we always prefer network tiles, even for
+            // a downloaded trail.
+            offline: !ref.watch(onlineStatusProvider),
+            initialCameraFitPadding: EdgeInsets.only(
+              bottom: 300,
+              left: 40,
+              right: 40,
+              top: 40,
+            ),
+            controls: [
+              _buildMapControls(context, trail),
+              const ml.MapCompass(hideIfRotatedNorth: true),
+            ],
+            onMapCreated: (controller) => _mapController = controller,
+          ),
+        ),
+        // Floating full-width Navigate button — floats above elevation
+        // profile when it is visible, or at the very bottom otherwise.
+        // Hidden for an unsynced trail: launchNavigation pushes
+        // '/trail/${trail.id}/navigate', which for an unsynced trail is
+        // '/trail//navigate' -- the same canonicalisation failure that made
+        // the detail screen unreachable -- and its Valhalla request plus
+        // readCachedNav/_recacheNav are all keyed on the server id.
+        if (!isUnsyncedState(trail.syncState))
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom:
+                trail.expand?.gpx != null &&
+                    (showElevationProfile || selectedWaypoint != null)
+                ? showElevationProfile
+                      ? 258
+                      : 286
+                : 16,
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isLaunching
+                    ? null
+                    : () async {
+                        setState(() => _isLaunching = true);
+                        await launchNavigation(
+                          context: context,
+                          ref: ref,
+                          trail: trail,
+                        );
+                        if (mounted) setState(() => _isLaunching = false);
+                      },
+                icon: _isLaunching
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const FaIcon(FontAwesomeIcons.locationArrow),
+                label: Text(AppLocalizations.of(context)!.navigate),
+              ),
+            ),
+          ),
+
+        if (trail.expand?.gpx != null && showElevationProfile)
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 250,
+              decoration: BoxDecoration(
+                color: Theme.of(context).canvasColor,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.elevation_profile,
+                        style: Theme.of(context).textTheme.titleMedium!
+                            .copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        onPressed: () =>
+                            setState(() => showElevationProfile = false),
+                        icon: const FaIcon(FontAwesomeIcons.xmark, size: 16),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ElevationProfile(
+                    trail: trail,
+                    gpx: trail.expand!.gpx!,
+                    onLineTouch: (p) {
+                      setState(() => elevationMarkerPosition = p?.lonlat);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        if (selectedWaypoint != null)
+          WaypointSheet(
+            waypoint: selectedWaypoint!,
+            user: user,
+            controller: _sheetController,
+            onClose: () => setState(() => selectedWaypoint = null),
+          ),
+      ],
     );
   }
 

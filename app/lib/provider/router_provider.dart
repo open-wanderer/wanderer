@@ -368,6 +368,15 @@ class Router extends _$Router {
             final localId = state.pathParameters['localId']!;
             return TrailDetailScreen(id: '', localId: localId);
           },
+          routes: [
+            GoRoute(
+              path: 'map',
+              builder: (context, state) {
+                final localId = state.pathParameters['localId']!;
+                return TrailDetailMapScreen(id: '', localId: localId);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/trail/:id',
