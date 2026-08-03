@@ -504,7 +504,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5; 36-10 and 36-11 run in parallel — only 36-11 runs codegen)*
 
-- [ ] 36-10-PLAN.md — Local save notifies the own-trails list: one canonical producer of the signed-in account's handle across all ten former inline sites, propagation targets extracted and proven in a live `ProviderContainer`, both save tails wired
+- [x] 36-10-PLAN.md — Local save notifies the own-trails list: one canonical producer of the signed-in account's handle across all ten former inline sites, propagation targets extracted and proven in a live `ProviderContainer`, both save tails wired
 - [ ] 36-11-PLAN.md — Make an unsynced trail addressable: owner-scoped local read, `localTrailProvider`, route-location helper, `/trail/local/:localId`, dual-mode detail screen
 
 **Wave 7** *(blocked on Wave 6)*
@@ -772,5 +772,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 9/15 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 10/15 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |

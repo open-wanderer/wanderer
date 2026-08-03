@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-09-PLAN.md
-last_updated: "2026-08-03T09:50:49.938Z"
+stopped_at: Completed 36-10-PLAN.md
+last_updated: "2026-08-03T10:23:22.200Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 27
-  completed_plans: 22
+  completed_plans: 23
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 2 of 15
+Plan: 3 of 15
 Status: Ready to execute
 Last activity: 2026-08-03 -- Phase 36 execution started
 
@@ -159,6 +159,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P06 | 20min | 3 tasks | 3 files |
 | Phase 36 P08 | 20min | 3 tasks | 6 files |
 | Phase 36 P09 | ~20min | 3 tasks | 7 files |
+| Phase 36 P10 | 15min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -370,6 +371,7 @@ Recent decisions affecting current work:
 - [Phase 36]: [36-08] _deleteTrail's unsynced branch is checked and returns strictly before the isLocal un-download branch -- the wrong order silently no-ops a delete on an empty server id
 - [Phase 36]: Offline filter fallback bounds are computed from the signed-in account's own on-device trails (nextBoundAbove rounding, 5km/250m steps), not a fixed constant -- the constant survives only as the empty-store floor — 2026-08-03 user decision: offline the only trails that can match a search are the ones on this device, so device-derived bounds fit the real search space exactly
 - [Phase 36]: trailFilterProvider degrades to a device-derived fallback on DioException connection failure instead of throwing, with trailFilterRetry capping retries at 2 (400ms, 800ms) instead of defaultRetry's 10 — Removes the AsyncError that fed Riverpod's automatic retry storm, which was the root cause of the own-trails list's ~20 spinner flashes offline
+- [Phase 36-10]: No ownTrailsHandle/ownTrailsInvalidationTargets extraction into app/lib/util/ -- the inline invalidation spelling matches trail_sync_provider.dart's today; the phase is verified on device
 
 ### Roadmap Evolution
 
@@ -523,8 +525,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T09:50:49.909Z
-Stopped at: Completed 36-09-PLAN.md
+Last session: 2026-08-03T10:23:22.182Z
+Stopped at: Completed 36-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
