@@ -14,7 +14,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/byte_format.dart';
+import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/region/disk_usage.dart';
 import 'package:wanderer/util/region/tile_status.dart';
 import 'package:wanderer/util/region/tree.dart';

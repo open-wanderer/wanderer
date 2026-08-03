@@ -5,7 +5,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
-import 'package:wanderer/util/byte_format.dart';
+import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/region/tile_status.dart';
 
 /// The user's checkbox selection from [showMissingCoverageSheet] — the
