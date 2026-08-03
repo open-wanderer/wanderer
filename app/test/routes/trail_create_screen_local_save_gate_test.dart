@@ -2,13 +2,17 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source-level guard for two structural invariants introduced by
-/// local-first recording (36-06):
+/// Source-level guard for three structural invariants introduced by
+/// local-first recording (36-06, 36-10):
 ///
 /// 1. Every not-yet-uploaded waypoint must carry an empty server id (plus a
 ///    local key) rather than a timestamp-derived synthetic id.
 /// 2. `_onSave` must route on `resolveLocalSaveMode`/`LocalSaveMode`, and its
 ///    two local-first branches must never touch `trailSaveProvider`.
+/// 3. Both save tails (`_finishLocalSave`, `_saveViaNetwork`) must call
+///    `_invalidateOwnTrailsList()`, and that method must invalidate the same
+///    pair `trail_sync_provider.dart` invalidates after a successful drain
+///    (36-10, gap 3).
 ///
 /// `trail_create_screen.dart` needs auth, a router, a live ObjectBox store,
 /// an image picker and a map controller to drive behaviourally, so these
@@ -16,21 +20,32 @@ import 'package:flutter_test/flutter_test.dart';
 /// form as `test/components/trail/trail_dropdown_delete_gate_test.dart`'s
 /// delete-branch gate and the PORT-03 gate in
 /// `test/util/trail_import_util_test.dart`.
+///
+/// Scope note on invariant 3 specifically: this gate asserts call-site
+/// PLACEMENT only, not that the invalidation propagates to a rendered list --
+/// `flutter test` cannot mount this screen (no ObjectBox store, no router, no
+/// image picker, no map controller), so the propagation itself is verified on
+/// a physical device (see 36-10-PLAN.md's `<verification>`). This differs
+/// from the failure mode `trail_dropdown_delete_gate_test.dart` guards
+/// against: that gate described the shape of UI nothing could reach, whereas
+/// this one pins placement on a code path whose reachability is already
+/// proven by UAT Test 1 and Test 2 both passing.
 void main() {
   final libDir = Directory('lib');
   final source = File('lib/routes/trail_create_screen.dart').readAsStringSync();
 
-  /// The index just past `_onSave`'s closing brace.
+  /// The index just past the closing brace of the method whose body starts
+  /// at [start].
   ///
-  /// Anchoring on the next MEMBER (`bool get _hasUnsavedChanges`) was wrong:
-  /// several other members sit between the two, so the slice silently
-  /// included `_copyPhotosForLocalSave`, `_finishLocalSave` and anything else
-  /// added there. The gate below then failed for a reference that was not in
-  /// `_onSave` at all. A closing brace at method indentation is the actual end
-  /// of the method.
-  int onSaveEnd(int saveStart) {
-    final end = source.indexOf('\n  }\n', saveStart);
-    expect(end, isNot(-1), reason: 'Could not find _onSave\'s closing brace.');
+  /// Anchoring on the next MEMBER (e.g. `bool get _hasUnsavedChanges` after
+  /// `_onSave`) was wrong: several other members can sit between a method and
+  /// the next one, so the slice would silently include unrelated method
+  /// bodies. The gate would then fail for a reference that was never in the
+  /// method under test at all. A closing brace at method indentation is the
+  /// actual end of the method.
+  int methodEnd(int start) {
+    final end = source.indexOf('\n  }\n', start);
+    expect(end, isNot(-1), reason: 'Could not find the method\'s closing brace.');
     return end + '\n  }\n'.length;
   }
 
@@ -109,7 +124,7 @@ void main() {
             'gate rather than deleting it -- the invariant still matters.',
       );
 
-      final body = source.substring(saveStart, onSaveEnd(saveStart));
+      final body = source.substring(saveStart, methodEnd(saveStart));
 
       expect(
         body.contains('resolveLocalSaveMode'),
@@ -167,7 +182,7 @@ void main() {
       // both local-first branches (createLocal, then updateLocal), and
       // deliberately excludes the earlier networkUpdate branch, which is
       // the one branch allowed to reach the network.
-      final localBranches = source.substring(createStart, onSaveEnd(saveStart));
+      final localBranches = source.substring(createStart, methodEnd(saveStart));
 
       expect(
         localBranches.contains('trailSaveProvider'),
@@ -188,7 +203,7 @@ void main() {
       'if (saveMode == LocalSaveMode.createLocal) {',
       saveStart,
     );
-    final localBranches = source.substring(createStart, onSaveEnd(saveStart));
+    final localBranches = source.substring(createStart, methodEnd(saveStart));
 
     // A trail the drain promoted to `synced` mid-save is no longer a
     // local-first save at all -- its row is on the server, and
@@ -226,4 +241,84 @@ void main() {
           'gates.',
     );
   });
+
+  test('_finishLocalSave calls _invalidateOwnTrailsList()', () {
+    final start = source.indexOf('Future<void> _finishLocalSave(');
+    expect(
+      start,
+      isNot(-1),
+      reason:
+          '_finishLocalSave was renamed or its signature changed. '
+          'Re-point this gate rather than deleting it -- the invariant '
+          'still matters.',
+    );
+
+    final body = source.substring(start, methodEnd(start));
+    expect(
+      body.contains('_invalidateOwnTrailsList()'),
+      isTrue,
+      reason:
+          'Without this call an offline edit commits to ObjectBox but '
+          'never notifies the own-trails list, which stays mounted '
+          'beneath this pushed route and holds its pre-edit snapshot '
+          'until a manual pull-to-refresh (UAT gap 3, 36-10).',
+    );
+  });
+
+  test('_saveViaNetwork calls _invalidateOwnTrailsList()', () {
+    final start = source.indexOf('Future<void> _saveViaNetwork(');
+    expect(
+      start,
+      isNot(-1),
+      reason:
+          '_saveViaNetwork was renamed or its signature changed. '
+          'Re-point this gate rather than deleting it -- the invariant '
+          'still matters.',
+    );
+
+    final body = source.substring(start, methodEnd(start));
+    expect(
+      body.contains('_invalidateOwnTrailsList()'),
+      isTrue,
+      reason:
+          'Without this call an already-uploaded trail\'s edit never '
+          'notifies the own-trails list, which stays mounted beneath '
+          'this pushed route and holds its pre-edit snapshot until a '
+          'manual pull-to-refresh (UAT gap 3, 36-10).',
+    );
+  });
+
+  test(
+    '_invalidateOwnTrailsList invalidates the same pair the drain invalidates',
+    () {
+      final start = source.indexOf('void _invalidateOwnTrailsList() {');
+      expect(
+        start,
+        isNot(-1),
+        reason:
+            '_invalidateOwnTrailsList was renamed or removed. Re-point '
+            'this gate rather than deleting it -- the invariant still '
+            'matters.',
+      );
+
+      final body = source.substring(start, methodEnd(start));
+
+      expect(
+        body.contains('invalidate(trailLibraryProvider)'),
+        isTrue,
+        reason:
+            '_invalidateOwnTrailsList must invalidate trailLibraryProvider, '
+            'matching trail_sync_provider.dart\'s post-drain invalidation '
+            'verbatim, or a local save and an upload diverge.',
+      );
+      expect(
+        body.contains('invalidate(') && body.contains('profileTrailsProvider('),
+        isTrue,
+        reason:
+            '_invalidateOwnTrailsList must invalidate profileTrailsProvider, '
+            'matching trail_sync_provider.dart\'s post-drain invalidation '
+            'verbatim, or a local save and an upload diverge.',
+      );
+    },
+  );
 }

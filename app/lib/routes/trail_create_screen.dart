@@ -34,12 +34,14 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
@@ -603,6 +605,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         _removedServerPhotos = [];
         _originalTrail = trail;
       });
+      _invalidateOwnTrailsList();
 
       // Every field latches `_dirty` on its first edit and nothing but
       // `reset()` clears it, so without this a saved trail still reports
@@ -707,6 +710,36 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     );
   }
 
+  /// Notifies every other consumer of the row this screen just wrote.
+  ///
+  /// The local-first save path commits to ObjectBox, and this app has
+  /// no ObjectBox `Query.watch()` streams anywhere, so an explicit
+  /// invalidate is the ONLY propagation mechanism that exists. Without
+  /// it the own-trails list -- which stays mounted beneath this pushed
+  /// edit route (`maintainState: true`), keeping its auto-dispose
+  /// provider alive -- holds its pre-edit snapshot until the hiker
+  /// pull-to-refreshes, which reads as the edit having been lost.
+  ///
+  /// This is the same PAIR `trail_sync_provider` invalidates after a
+  /// successful drain upload (`:303`, `:377`), spelled identically on
+  /// purpose: a local save and an upload must produce the same
+  /// refresh, and the family key must match the one
+  /// `profile_trail_screen` watches or the invalidation is a silent
+  /// no-op. The username is read FRESH here, never from a cached
+  /// field (D-13).
+  ///
+  /// `asReload` defaults to false, i.e. a seamless refresh --
+  /// `AsyncValue.when`'s `skipLoadingOnRefresh` defaults to true, so
+  /// the list updates without flashing a spinner (36-09).
+  void _invalidateOwnTrailsList() {
+    ref.invalidate(trailLibraryProvider);
+    ref.invalidate(
+      profileTrailsProvider(
+        '@${ref.read(authProvider).value?.preferredUsername}',
+      ),
+    );
+  }
+
   /// Shared tail of both local-first [LocalSaveMode] save branches (create
   /// and update): kicks the upload drain, reports any photo-copy failures
   /// (D-03), and mirrors the network path's post-save bookkeeping (re-read,
@@ -717,6 +750,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     int failedPhotoCount, {
     required String localId,
   }) async {
+    if (mounted) _invalidateOwnTrailsList();
+
     // Fire-and-forget: online, the trail uploads within a moment of the
     // toast below; offline, this returns immediately after its own
     // connectivity refresh.
