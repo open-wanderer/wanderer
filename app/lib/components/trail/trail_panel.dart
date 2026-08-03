@@ -11,6 +11,7 @@ import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
+import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/components/trail/summit_log_list.dart';
 import 'package:wanderer/components/trail/trail_timeline.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -189,7 +190,19 @@ class TrailPanel extends ConsumerWidget {
                           ).format(trail.summaryDate!),
                           style: TextStyle(color: Colors.grey[600]),
                         ),
-                      if (trail.isLocal) ...[
+                      // D-10: `isLocal` is cache provenance -- hardcoded
+                      // `true` by `TrailEntity.toModel()` for every cached
+                      // row, downloaded trails included (see the field's own
+                      // doc comment, and WR-11's fix which had to stop
+                      // gating the server tabs on it for exactly this
+                      // reason). On its own it renders the same "Offline"
+                      // pill for a downloaded trail and a never-uploaded
+                      // one -- REC-03 requires those two to be
+                      // distinguishable. D-10 guarantees `isLocal &&
+                      // isUnsyncedState` and `isLocal && !isUnsyncedState`
+                      // partition every local trail, so narrowing this guard
+                      // cannot make both pills disappear at once.
+                      if (trail.isLocal && !isUnsyncedState(trail.syncState)) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -269,6 +282,24 @@ class TrailPanel extends ConsumerWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  // Gated on isUnsyncedState (rather than relying on
+                  // SyncStatusChip's own synced self-suppression) so a
+                  // downloaded trail's widget tree is provably unchanged --
+                  // no extra SizedBox, no zero-height Align, nothing
+                  // constructed at all. Placed below the title rather than
+                  // inside the badge Row above: that Row has no overflow
+                  // protection and already holds the date Text, so adding a
+                  // ~180px "Upload failed · Tap to retry" chip to it would
+                  // overflow on a narrow screen. Below-the-title also
+                  // matches both existing call sites
+                  // (trail_list_item.dart, trail_card.dart).
+                  if (isUnsyncedState(trail.syncState)) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SyncStatusChip(trail: trail),
+                    ),
+                  ],
                   if (trail.expand?.author != null)
                     InkWell(
                       onTap: () => context.push(
