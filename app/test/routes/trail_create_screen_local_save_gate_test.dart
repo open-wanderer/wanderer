@@ -502,4 +502,55 @@ void main() {
     },
   );
 
+  test(
+    'the updateLocal branch also treats LocalUpdateOutcome.alreadyUploaded '
+    'as a network case (CR-03)',
+    () {
+      final saveStart = source.indexOf(
+        'Future<void> _onSave(BuildContext context) async {',
+      );
+      expect(saveStart, isNot(-1));
+
+      final outcomeIdx = source.indexOf(
+        'final outcome = updateLocalTrail(',
+        saveStart,
+      );
+      expect(outcomeIdx, isNot(-1));
+
+      final remainder = source.substring(outcomeIdx, methodEnd(saveStart));
+
+      expect(
+        remainder.contains('LocalUpdateOutcome.alreadyUploaded'),
+        isTrue,
+        reason:
+            'A row the drain\'s create step already stamped a real server '
+            'id onto (`writeServerTrailId`, well before the row is '
+            'retired) can sit as `pending`/`uploading`/`failed` for as '
+            'long as a later step keeps failing. Without this outcome, an '
+            'edit saved while the row is in that window is written '
+            'locally and later destroyed by retirement with no trace '
+            '(CR-03) -- `updateLocalTrail` returns `alreadyUploaded` for '
+            'exactly this row shape, and this branch must route it to the '
+            'network save alongside `missing` and `alreadySynced`.',
+      );
+
+      final missingIdx = remainder.indexOf('LocalUpdateOutcome.missing');
+      final uploadedIdx = remainder.indexOf(
+        'LocalUpdateOutcome.alreadyUploaded',
+      );
+      final finishIdx = remainder.indexOf('_finishLocalSave(');
+      expect(
+        missingIdx != -1 && uploadedIdx != -1 && finishIdx != -1,
+        isTrue,
+      );
+      expect(
+        uploadedIdx < finishIdx,
+        isTrue,
+        reason:
+            'LocalUpdateOutcome.alreadyUploaded must be checked BEFORE '
+            '_finishLocalSave is called, or the row still falls through '
+            'to the success toast.',
+      );
+    },
+  );
 }

@@ -554,14 +554,20 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       );
 
       if (outcome == LocalUpdateOutcome.alreadySynced ||
-          outcome == LocalUpdateOutcome.missing) {
+          outcome == LocalUpdateOutcome.missing ||
+          outcome == LocalUpdateOutcome.alreadyUploaded) {
         // The drain finished uploading between the `readLocalTrail` above
         // and this write -- a narrow window, but the one that produces the
         // exact silent-loss the routing change was made to prevent. Since a
         // successful upload now RETIRES the row rather than marking it
         // synced, that discovery arrives as `missing` far more often than
         // as `alreadySynced`; `alreadySynced` survives only for a row this
-        // device did not capture. Either way the trail is on the server
+        // device did not capture. `alreadyUploaded` is the widest window of
+        // the three: the drain's create step stamps a real server id well
+        // before the row is retired, so a row parked `pending`/`uploading`/
+        // `failed` can carry one for as long as later waypoint uploads keep
+        // failing (CR-03) -- and `updateLocalTrail` has no update path for
+        // it, only `missing`-vs-write. Either way the trail is on the server
         // now, so the network `PUT` is the only write target that can carry
         // this edit anywhere. A `missing` row that was never real routes
         // here too and fails loudly, which is the correct outcome for a

@@ -28,6 +28,7 @@ import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/objectbox.g.dart';
+import 'package:wanderer/util/local_id.dart';
 
 // ---------------------------------------------------------------------------
 // Pure decisions (no Store, unit-testable)
@@ -277,6 +278,12 @@ enum LocalUpdateOutcome {
   /// was written -- see [updateLocalTrail]'s doc comment for why writing
   /// would silently strand the user's edit on this device.
   alreadySynced,
+
+  /// The row's id is already a real server id, even though its
+  /// [TrailSyncState] is NOT [TrailSyncState.synced] (still
+  /// `pending`/`uploading`/`failed`). Nothing was written -- see
+  /// [updateLocalTrail]'s doc comment for why (CR-03).
+  alreadyUploaded,
 }
 
 /// Updates the local row for [localId] in place from [trail], preserving its
@@ -301,6 +308,22 @@ enum LocalUpdateOutcome {
 ///
 /// [WaypointEntity] rows that belonged to the old row but are absent from
 /// the new waypoint set are removed, so a deleted waypoint does not linger.
+///
+/// ALSO refuses, returning [LocalUpdateOutcome.alreadyUploaded], when the
+/// existing row's `id` is already a real server id (`!isLocalId(existing.id)`)
+/// even though its [TrailEntity.syncState] has not (yet) reached
+/// [TrailSyncState.synced]. `writeServerTrailId` stamps that id the instant
+/// `PUT /trail/form` is accepted -- well before the drain's waypoint loop
+/// finishes or [retireUploadedLocalTrail] runs -- so a row parked as
+/// `pending`/`uploading`/`failed` can carry a real id for the rest of its
+/// (unbounded) time in that state. The drain's own create step is guarded on
+/// `isLocalId(entity.id)`, so it has no update path for a row in this
+/// window either: writing the edit here would sit on the row until a later
+/// retry succeeds and [retireUploadedLocalTrail] destroys it, silently
+/// discarding the edit under a green "trail saved successfully" toast
+/// (CR-03). The caller must route this case to the network write instead,
+/// exactly as it already does for [LocalUpdateOutcome.alreadySynced] and
+/// [LocalUpdateOutcome.missing].
 LocalUpdateOutcome updateLocalTrail(
   Store store, {
   required Trail trail,
@@ -316,6 +339,9 @@ LocalUpdateOutcome updateLocalTrail(
     if (existing == null) return LocalUpdateOutcome.missing;
     if (existing.syncState == TrailSyncState.synced) {
       return LocalUpdateOutcome.alreadySynced;
+    }
+    if (!isLocalId(existing.id)) {
+      return LocalUpdateOutcome.alreadyUploaded;
     }
 
     final entity = TrailEntity.fromModel(trail);
