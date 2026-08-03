@@ -321,7 +321,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; UAT returned 5 diagnosed gaps + 1 blocked test — 6 gap closure plans 36-09..36-14 planned; 36-15 dropped 2026-08-03; all 14 plans executed, code review found 4 blockers -- NOT complete until they are closed and the verifier passes)
+- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (14/14 plans executed; a second full-phase code review then found 3 NEW blockers created by the blocker-fix pass, plus 17 open warnings — 6 review gap-closure plans 36-15..36-20 planned 2026-08-03; NOT complete until they are executed, the verifier passes, and round-2 UAT runs)
 
 #### Sequencing Rationale
 
@@ -476,7 +476,7 @@ far as a populated `trail_create_screen`; **saving it is this phase's job**, and
 widening, Save would have failed after the hiker filled in title, description, category and
 photos — worse than refusing up front.
 
-**Plans**: 15 plans in 10 waves (8 shipped + 7 gap closure)
+**Plans**: 20 plans in 14 waves (8 shipped + 6 UAT gap closure + 6 review gap closure; one further plan was dropped before it was ever written -- see the note below)
 Plans:
 **Wave 1**
 
@@ -519,7 +519,50 @@ Plans:
 
 - [x] 36-14-PLAN.md — A local trail row is retired the moment its upload succeeds, so the post-delete orphan cannot exist: delete-or-demote inside the drain's success transaction, the save-routing fix a retired row forces, and the phase's final `build_runner` pass
 
-- ~~36-15-PLAN.md — A permanent 404 is terminal, not retried ten times behind a chromeless spinner~~ **DROPPED 2026-08-03** (see decision below)
+- ~~A 7th UAT gap-closure plan — "a permanent 404 is terminal, not retried ten times behind a
+  chromeless spinner" — was sketched as `36-15-PLAN.md` and **DROPPED 2026-08-03** before it was
+  written (see decision below). **The number 36-15 was subsequently REUSED** by the review
+  gap-closure batch, so `36-15-PLAN.md` on disk is the delete-path plan below, not this dropped
+  sketch.~~
+
+**Wave 10** *(review gap closure — from 36-REVIEW.md's 3 blockers and 17 warnings; runs alone,
+the whole delete path is one file cluster)*
+
+- [ ] 36-15-PLAN.md — The delete path: a parse-independent, owner-scoped server-id read; classified DELETE failures; a validated request path; and a null-localId row routed to the server instead of a silent un-download (CR-02, WR-08, WR-10, WR-15, WR-17)
+
+**Wave 11** *(blocked on Wave 10)*
+
+- [ ] 36-16-PLAN.md — The post-upload edit path: retirement carries the server id forward, account-keyed; the refusal names the recoverable state instead of showing the generic error; a mounted detail screen follows the trail to its server route (CR-01, WR-01)
+
+**Wave 12** *(blocked on Wave 11; 36-17 and 36-19 run in parallel — no file overlap)*
+
+- [ ] 36-17-PLAN.md — A network edit is reconciled onto the local row that would otherwise shadow it, the photo payload carries only genuinely new files, and an already-uploaded row is routed before any filesystem side effect (CR-03, WR-13, WR-14, WR-16)
+- [ ] 36-19-PLAN.md — UI and l10n hygiene: tab visibility keyed on sync state rather than cache provenance, the dead `retry_upload` key removed, the metrics typedef corrected, and the untranslated destructive-action strings handed off as tracked work (WR-11, WR-07, WR-12, WR-06 deferred)
+
+**Wave 13** *(blocked on Wave 12)*
+
+- [ ] 36-18-PLAN.md — Drain and provider robustness: an always-initialised filter default, an invariant break that skips the drain instead of burning its retry budget, waypoint photos that survive until retirement, and an invalidation that cannot silently no-op (WR-02, WR-03, WR-04, WR-09)
+
+**Wave 14** *(blocked on Wave 13; runs last so it can pin the shape the four preceding plans produce)*
+
+- [ ] 36-20-PLAN.md — Gates that assert effects, not token order: each rewritten gate must be demonstrated to fail against the falsifying rewrite the review named for it, plus the one genuinely mountable behavioural widget test (WR-05)
+
+**Review gap-closure note (2026-08-03) — WR-06 is DEFERRED, not closed.**
+The destructive-action strings are still English-only in 13 locales. This is deliberately
+excluded from mechanical fixing: it needs real human translations, and the two highest-priority
+strings are the copy on irreversible actions, where a machine translation that reads slightly
+wrong is worse than English a hiker can recognise as untranslated. 36-19 records the exact key
+list, locale list and priority order in
+`.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md`; the app's
+documented English-fallback convention means shipping is not blocked.
+
+**Review gap-closure note (2026-08-03) — CR-03 is fixed WITHOUT an ObjectBox schema change.**
+36-REVIEW.md's fix hint suggested a dirty flag on the row, observing that the earlier
+no-schema-change constraint is what forced the workaround that produced the defect. 36-17
+establishes that a dirty flag is only needed when the local write happens *before* the edit
+reaches the server; `applyNetworkEditToLocalRow` runs *after* a successful `POST /trail/form/{id}`,
+so the row is reconciled to a known-good server state with no new state to track. The accepted
+tradeoff is recorded in that plan's objective and threat model.
 
 **User decision (2026-08-03) — the offline filter's slider bounds are COMPUTED from the
 trails on the device, not hard-coded.**
