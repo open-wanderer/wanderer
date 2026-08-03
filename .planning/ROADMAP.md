@@ -549,7 +549,7 @@ the whole delete path is one file cluster)*
 
 **Wave 15** *(round-2 UAT gap closure; runs alone — one minor, UI-only badge gap on a passing test)*
 
-- [ ] 36-21-PLAN.md — The detail screen states its upload state: `SyncStatusChip` rendered below the title for unsynced trails, the `isLocal` "Offline" badge narrowed to synced ones so a downloaded trail is untouched, and a mounted-`TrailPanel` widget test whose controls pass before AND after the change (REC-03, SYNC-02, SYNC-03)
+- [x] 36-21-PLAN.md — The detail screen states its upload state: `SyncStatusChip` rendered below the title for unsynced trails, the `isLocal` "Offline" badge narrowed to synced ones so a downloaded trail is untouched, and a mounted-`TrailPanel` widget test whose controls pass before AND after the change (REC-03, SYNC-02, SYNC-03)
 
 **Review gap-closure note (2026-08-03) — WR-06 is DEFERRED, not closed.**
 The destructive-action strings are still English-only in 13 locales. This is deliberately
@@ -840,5 +840,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 20/20 | Complete   | 2026-08-03 |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 21/21 | Complete   | 2026-08-03 |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
