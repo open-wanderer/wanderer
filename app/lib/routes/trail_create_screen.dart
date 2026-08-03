@@ -438,7 +438,19 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     final persisted = persistedLocalId == null
         ? null
         : readLocalTrail(store, persistedLocalId);
-    final saveMode = resolveLocalSaveMode(persisted ?? updatedTrail);
+    // `persisted == null` while `persistedLocalId != null` is now a
+    // MEANINGFUL state, not an impossible one: a successful upload
+    // retires the row (`retireUploadedLocalTrail`), and nothing else
+    // removes a row out from under this screen. Falling back to the
+    // snapshot there routes a post-upload edit into `updateLocal`
+    // against a row that no longer exists, which returns `missing` and
+    // -- before the branch below -- reported success for an edit that
+    // was written nowhere.
+    final saveMode = resolveLocalSaveModeForRow(
+      screenTrail: updatedTrail,
+      persistedLocalId: persistedLocalId,
+      persisted: persisted,
+    );
 
     if (saveMode == LocalSaveMode.networkUpdate) {
       await _saveViaNetwork(
@@ -532,12 +544,19 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         waypointLocalPhotosByKey: photoCopy.waypointPhotosByKey,
       );
 
-      if (outcome == LocalUpdateOutcome.alreadySynced) {
-        // The drain finished uploading between the `readLocalTrail` above and
-        // this write -- a narrow window, but the one that produces the exact
-        // silent-loss the routing change was made to prevent. The row is on
-        // the server now, so the network `PUT` is the only write target that
-        // can carry this edit anywhere.
+      if (outcome == LocalUpdateOutcome.alreadySynced ||
+          outcome == LocalUpdateOutcome.missing) {
+        // The drain finished uploading between the `readLocalTrail` above
+        // and this write -- a narrow window, but the one that produces the
+        // exact silent-loss the routing change was made to prevent. Since a
+        // successful upload now RETIRES the row rather than marking it
+        // synced, that discovery arrives as `missing` far more often than
+        // as `alreadySynced`; `alreadySynced` survives only for a row this
+        // device did not capture. Either way the trail is on the server
+        // now, so the network `PUT` is the only write target that can carry
+        // this edit anywhere. A `missing` row that was never real routes
+        // here too and fails loudly, which is the correct outcome for a
+        // bug -- the alternative is a success toast over nothing.
         await _saveViaNetwork(
           l10n,
           updatedTrail,

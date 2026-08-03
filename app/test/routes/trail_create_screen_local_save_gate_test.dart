@@ -321,4 +321,93 @@ void main() {
       );
     },
   );
+
+  test('_onSave routes on resolveLocalSaveModeForRow(', () {
+    final saveStart = source.indexOf(
+      'Future<void> _onSave(BuildContext context) async {',
+    );
+    expect(
+      saveStart,
+      isNot(-1),
+      reason:
+          '_onSave was renamed or its signature changed. Re-point this '
+          'gate rather than deleting it -- the invariant still matters.',
+    );
+
+    final body = source.substring(saveStart, methodEnd(saveStart));
+
+    // Plain `resolveLocalSaveMode` cannot tell "the row is gone because it
+    // uploaded" from "this trail was never saved anywhere" -- it falls back
+    // to a snapshot captured while `syncState` was still `pending`, and
+    // therefore routes a post-upload edit into a local write against a row
+    // that no longer exists -- a green success toast over a discarded edit.
+    //
+    // The older `body.contains('resolveLocalSaveMode')` assertion above
+    // still passes on the substring and is deliberately left in place as
+    // the weaker, more stable guard.
+    expect(
+      body.contains('resolveLocalSaveModeForRow('),
+      isTrue,
+      reason:
+          '_onSave no longer routes through resolveLocalSaveModeForRow. '
+          'Plain resolveLocalSaveMode cannot tell "the row is gone because '
+          'it uploaded" from "this trail was never saved anywhere" -- it '
+          'falls back to a stale pending snapshot and routes a post-upload '
+          'edit into a local write against a row that no longer exists, a '
+          'green success toast over a discarded edit.',
+    );
+  });
+
+  test(
+    'the updateLocal branch treats LocalUpdateOutcome.missing as a network case',
+    () {
+      final saveStart = source.indexOf(
+        'Future<void> _onSave(BuildContext context) async {',
+      );
+      expect(saveStart, isNot(-1));
+
+      final outcomeIdx = source.indexOf(
+        'final outcome = updateLocalTrail(',
+        saveStart,
+      );
+      expect(
+        outcomeIdx,
+        isNot(-1),
+        reason:
+            'Could not find the updateLocalTrail call in _onSave. '
+            'Re-point this gate rather than deleting it -- the invariant '
+            'still matters.',
+      );
+
+      final remainder = source.substring(outcomeIdx, methodEnd(saveStart));
+
+      expect(
+        remainder.contains('LocalUpdateOutcome.missing'),
+        isTrue,
+        reason:
+            'A `missing` outcome falling through to _finishLocalSave shows '
+            'trail_saved_successfully for a write ObjectBox declined to '
+            'make, which is exactly the failure mode the CR-04 routing fix '
+            'exists to prevent.',
+      );
+      expect(
+        remainder.contains('_saveViaNetwork('),
+        isTrue,
+        reason:
+            'The missing-outcome branch must still route to the network '
+            'save path.',
+      );
+
+      final missingIdx = remainder.indexOf('LocalUpdateOutcome.missing');
+      final finishIdx = remainder.indexOf('_finishLocalSave(');
+      expect(
+        missingIdx < finishIdx,
+        isTrue,
+        reason:
+            'LocalUpdateOutcome.missing must be checked BEFORE '
+            '_finishLocalSave is called, or a missing row still falls '
+            'through to the success toast.',
+      );
+    },
+  );
 }
