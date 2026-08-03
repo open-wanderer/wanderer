@@ -58,14 +58,29 @@ Duration? trailFilterRetry(int retryCount, Object error) {
 
 @Riverpod(keepAlive: true, retry: trailFilterRetry)
 class TrailFilterNotifier extends _$TrailFilterNotifier {
-  /// Deliberately `late` and NOT `late final`: [build] assigns it, and
-  /// Riverpod keeps one Notifier instance alive across rebuilds — only
-  /// `build()` re-runs. A `late final` therefore threw
-  /// `LateInitializationError: Field 'defaultFilter' has already been
-  /// initialized` on the second build, which an account switch triggers every
-  /// time (this provider is invalidated from `accountScopedProviders`), and
-  /// which any other refresh would have hit too.
-  late TrailFilter defaultFilter;
+  /// Initialised at declaration, NOT `late` and NOT `late final`.
+  ///
+  /// It was `late final` once: Riverpod keeps one Notifier instance alive
+  /// across rebuilds — only `build()` re-runs — so a `late final` field
+  /// assigned inside `build()` threw `LateInitializationError: Field
+  /// 'defaultFilter' has already been initialized` on the second build, which
+  /// an account switch triggers every time (this provider is invalidated
+  /// from `accountScopedProviders`), and which any other refresh would have
+  /// hit too.
+  ///
+  /// Dropping to plain `late` "fixed" that but introduced a second bug
+  /// (WR-03): `build()` only assigns this field on two of its three exit
+  /// paths (the success path and the connection-failure fallback). Any other
+  /// failure — a 500, a malformed payload, `TrailFilterValues.fromJson`
+  /// throwing — rethrows without assigning it, and `resetFilter()` reads it
+  /// unconditionally from a button callback, so an un-initialised `late`
+  /// field threw `LateInitializationError` there instead. The declaration-
+  /// site initialiser removes both failure modes at once: there is no
+  /// uninitialized state to reach, and no `late`/`late final` distinction to
+  /// get wrong on a rebuild. `build()`'s success and connection-failure paths
+  /// still overwrite this value; every other error still surfaces as an
+  /// `AsyncError` rather than hiding behind this default.
+  TrailFilter defaultFilter = buildDefaultTrailFilter(kOfflineTrailFilterValues);
 
   @override
   Future<TrailFilter> build(String filterId) async {
