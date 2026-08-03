@@ -2,6 +2,17 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// UAT note (36-13): the reachability half of what this file appears to
+/// assert -- that the delete/download gating below is actually live in the
+/// running app -- is now covered BEHAVIOURALLY by
+/// `trail_dropdown_menu_test.dart`, which opens the real `PopupMenuButton`
+/// and reads the real rendered items. This file's remaining scope is branch
+/// ORDER only: the source-text assertions below pin an invariant no widget
+/// test can observe (that `_deleteTrail`'s unsynced branch runs, and
+/// returns, BEFORE its `isLocal` un-download branch), which stayed green for
+/// the whole phase even while `TrailDropdown` itself was unreachable for an
+/// unsynced trail.
+///
 /// Source-level guard for a data-loss regression.
 ///
 /// `_deleteTrail` handles THREE different actions behind one menu item,
@@ -95,105 +106,93 @@ void main() {
     },
   );
 
-  test(
-    'trail_dropdown._deleteTrail checks the unsynced branch BEFORE the '
-    'isLocal (un-download) branch, and returns from it',
-    () {
-      final source = File(
-        'lib/components/trail/trail_dropdown.dart',
-      ).readAsStringSync();
+  test('trail_dropdown._deleteTrail checks the unsynced branch BEFORE the '
+      'isLocal (un-download) branch, and returns from it', () {
+    final source = File(
+      'lib/components/trail/trail_dropdown.dart',
+    ).readAsStringSync();
 
-      final methodStart = source.indexOf(
-        'Future<void> _deleteTrail(BuildContext context, Trail trail) async {',
-      );
-      expect(methodStart, isNot(-1));
+    final methodStart = source.indexOf(
+      'Future<void> _deleteTrail(BuildContext context, Trail trail) async {',
+    );
+    expect(methodStart, isNot(-1));
 
-      final unsyncedIdx = source.indexOf(
-        'isUnsyncedState(trail.syncState)',
-        methodStart,
-      );
-      final localIdx = source.indexOf('if (trail.isLocal) {', methodStart);
+    final unsyncedIdx = source.indexOf(
+      'isUnsyncedState(trail.syncState)',
+      methodStart,
+    );
+    final localIdx = source.indexOf('if (trail.isLocal) {', methodStart);
 
-      expect(
-        unsyncedIdx,
-        isNot(-1),
-        reason:
-            'The unsynced branch is gone from _deleteTrail. An unsynced '
-            'trail also reports isLocal == true, so without its own branch '
-            'checked first it silently routes into '
-            "trailLibraryProvider.deleteTrail('') and no-ops, destroying "
-            "the hiker's only copy with no feedback.",
-      );
-      expect(
-        unsyncedIdx < localIdx,
-        isTrue,
-        reason:
-            'The unsynced branch must be checked BEFORE the isLocal '
-            '(un-download) branch -- an unsynced trail is also isLocal, so '
-            'the wrong order silently no-ops the delete on an empty id.',
-      );
+    expect(
+      unsyncedIdx,
+      isNot(-1),
+      reason:
+          'The unsynced branch is gone from _deleteTrail. An unsynced '
+          'trail also reports isLocal == true, so without its own branch '
+          'checked first it silently routes into '
+          "trailLibraryProvider.deleteTrail('') and no-ops, destroying "
+          "the hiker's only copy with no feedback.",
+    );
+    expect(
+      unsyncedIdx < localIdx,
+      isTrue,
+      reason:
+          'The unsynced branch must be checked BEFORE the isLocal '
+          '(un-download) branch -- an unsynced trail is also isLocal, so '
+          'the wrong order silently no-ops the delete on an empty id.',
+    );
 
-      final unsyncedBranchEnd = source.indexOf('\n    }', unsyncedIdx);
-      expect(unsyncedBranchEnd, isNot(-1));
-      final unsyncedBranch = source.substring(unsyncedIdx, unsyncedBranchEnd);
-      expect(
-        unsyncedBranch.contains('return;'),
-        isTrue,
-        reason:
-            'MISSING `return` in the unsynced branch. Without it, an '
-            'unsynced delete falls through into the un-download / server '
-            'delete branches below.',
-      );
-    },
-  );
+    final unsyncedBranchEnd = source.indexOf('\n    }', unsyncedIdx);
+    expect(unsyncedBranchEnd, isNot(-1));
+    final unsyncedBranch = source.substring(unsyncedIdx, unsyncedBranchEnd);
+    expect(
+      unsyncedBranch.contains('return;'),
+      isTrue,
+      reason:
+          'MISSING `return` in the unsynced branch. Without it, an '
+          'unsynced delete falls through into the un-download / server '
+          'delete branches below.',
+    );
+  });
 
-  test(
-    'trail_dropdown hides the download menu item for an unsynced trail '
-    '(if (!isUnsynced) collection-if)',
-    () {
-      final source = File(
-        'lib/components/trail/trail_dropdown.dart',
-      ).readAsStringSync();
+  test('trail_dropdown hides the download menu item for an unsynced trail '
+      '(if (!isUnsynced) collection-if)', () {
+    final source = File(
+      'lib/components/trail/trail_dropdown.dart',
+    ).readAsStringSync();
 
-      final guardIdx = source.indexOf('if (!isUnsynced) ...[');
-      expect(
-        guardIdx,
-        isNot(-1),
-        reason:
-            'The download menu item is no longer gated behind '
-            "if (!isUnsynced) -- offering download for an unsynced trail "
-            "issues a server fetch with an empty trail id (D-17).",
-      );
+    final guardIdx = source.indexOf('if (!isUnsynced) ...[');
+    expect(
+      guardIdx,
+      isNot(-1),
+      reason:
+          'The download menu item is no longer gated behind '
+          "if (!isUnsynced) -- offering download for an unsynced trail "
+          "issues a server fetch with an empty trail id (D-17).",
+    );
 
-      final downloadIdx = source.indexOf(
-        'value: TrailAction.download',
-        guardIdx,
-      );
-      expect(
-        downloadIdx,
-        isNot(-1),
-        reason: 'Could not find the download PopupMenuItem after the guard.',
-      );
-    },
-  );
+    final downloadIdx = source.indexOf('value: TrailAction.download', guardIdx);
+    expect(
+      downloadIdx,
+      isNot(-1),
+      reason: 'Could not find the download PopupMenuItem after the guard.',
+    );
+  });
 
-  test(
-    '_confirmDelete references delete_unsynced_trail_confirm for the '
-    'unrecoverable unsynced-delete copy',
-    () {
-      final source = File(
-        'lib/components/trail/trail_dropdown.dart',
-      ).readAsStringSync();
+  test('_confirmDelete references delete_unsynced_trail_confirm for the '
+      'unrecoverable unsynced-delete copy', () {
+    final source = File(
+      'lib/components/trail/trail_dropdown.dart',
+    ).readAsStringSync();
 
-      expect(
-        source.contains('delete_unsynced_trail_confirm'),
-        isTrue,
-        reason:
-            'An unsynced delete must use its own l10n key stating it cannot '
-            'be undone -- the shared delete_trail_confirm string also '
-            'doubles as the (genuinely reversible) un-download confirm in '
-            'library_screen.dart.',
-      );
-    },
-  );
+    expect(
+      source.contains('delete_unsynced_trail_confirm'),
+      isTrue,
+      reason:
+          'An unsynced delete must use its own l10n key stating it cannot '
+          'be undone -- the shared delete_trail_confirm string also '
+          'doubles as the (genuinely reversible) un-download confirm in '
+          'library_screen.dart.',
+    );
+  });
 }
