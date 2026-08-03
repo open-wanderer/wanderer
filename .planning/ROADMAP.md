@@ -476,7 +476,7 @@ far as a populated `trail_create_screen`; **saving it is this phase's job**, and
 widening, Save would have failed after the hiker filled in title, description, category and
 photos — worse than refusing up front.
 
-**Plans**: 20 plans in 14 waves (8 shipped + 6 UAT gap closure + 6 review gap closure; one further plan was dropped before it was ever written -- see the note below)
+**Plans**: 21 plans in 15 waves (8 shipped + 6 round-1 UAT gap closure + 6 review gap closure + 1 round-2 UAT gap closure; one further plan was dropped before it was ever written -- see the note below)
 Plans:
 **Wave 1**
 
@@ -546,6 +546,10 @@ the whole delete path is one file cluster)*
 **Wave 14** *(blocked on Wave 13; runs last so it can pin the shape the four preceding plans produce)*
 
 - [x] 36-20-PLAN.md — Gates that assert effects, not token order: each rewritten gate must be demonstrated to fail against the falsifying rewrite the review named for it, plus the one genuinely mountable behavioural widget test (WR-05)
+
+**Wave 15** *(round-2 UAT gap closure; runs alone — one minor, UI-only badge gap on a passing test)*
+
+- [ ] 36-21-PLAN.md — The detail screen states its upload state: `SyncStatusChip` rendered below the title for unsynced trails, the `isLocal` "Offline" badge narrowed to synced ones so a downloaded trail is untouched, and a mounted-`TrailPanel` widget test whose controls pass before AND after the change (REC-03, SYNC-02, SYNC-03)
 
 **Review gap-closure note (2026-08-03) — WR-06 is DEFERRED, not closed.**
 The destructive-action strings are still English-only in 13 locales. This is deliberately
