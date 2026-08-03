@@ -66,6 +66,8 @@
   "open": "Open",
   "delete_account": "Удалить аккаунт",
   "delete_trail_confirm": "Удалить этот трек? Действие необратимо.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "description": "Описание",
   "difficult": "Сложный",
   "difficulty": "Сложность",
@@ -177,11 +179,23 @@
   "only_me": "Только я",
   "or": "или",
   "orientation": "Ориентация",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Showing what's saved on this device — connect to see everything.",
   "paragraph": "Paragraph",
   "pause": "Pause",
   "password": "Пароль",
   "password_confirm": "Подтвердите пароль",
   "passwords_must_match": "Пароли не совпадают",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Фото и Видео",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
   "@photos_skipped_no_gps": {
@@ -213,6 +227,7 @@
     }
   },
   "resume_recording_prompt": "Возобновить запись?",
+  "retry_upload": "Retry upload",
   "road": "Шоссе",
   "route": "{n, plural, =1 {Маршрут} other {Маршрутов}}",
   "@route": {
@@ -255,6 +270,15 @@
   "shared": "Общий доступ",
   "show_on_map": "Показать на карте",
   "shower": "Душ",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Ваши треки. Ваши данные. Ваш сервер.",
   "sort": "Сортировка",
   "speed": "Скорость",
@@ -264,6 +288,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "История поездок",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Таблица",
   "tags": "Метки",
   "text": "Текст",
@@ -282,6 +309,7 @@
     }
   },
   "trail_saved_successfully": "Трек сохранён",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Единицы измерения",
   "users": "Users",
