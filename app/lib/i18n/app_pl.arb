@@ -66,6 +66,8 @@
   "open": "Open",
   "delete_account": "Usuń Konto",
   "delete_trail_confirm": "Czy na pewno chcesz usunąć ten szlak? Ta akcja jest nieodwracalna.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "description": "Opis",
   "difficult": "Trudna",
   "difficulty": "Trudność",
@@ -177,11 +179,23 @@
   "only_me": "Tylko ja",
   "or": "lub",
   "orientation": "Orientacja",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Showing what's saved on this device — connect to see everything.",
   "paragraph": "Paragraph",
   "pause": "Pause",
   "password": "Hasło",
   "password_confirm": "Potwierdź hasło",
   "passwords_must_match": "Hasła muszą być takie same",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Zdjęcia",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
   "@photos_skipped_no_gps": {
@@ -213,6 +227,7 @@
     }
   },
   "resume_recording_prompt": "Wznowić nagrywanie?",
+  "retry_upload": "Retry upload",
   "road": "Droga",
   "route": "{n, plural,=1 {Trasa} other {Trasy}}",
   "@route": {
@@ -255,6 +270,15 @@
   "shared": "Udostępniono",
   "show_on_map": "Pokaż na mapie",
   "shower": "Shower",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Twoje szlaki. Twoje dane. Twój serwer.",
   "sort": "Sortowanie",
   "speed": "Prędkość",
@@ -264,6 +288,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Logbook",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Tabela",
   "tags": "Tagi",
   "text": "Tekst",
@@ -282,6 +309,7 @@
     }
   },
   "trail_saved_successfully": "Szlak pomyślnie zapisany",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Jednostki",
   "users": "Users",
