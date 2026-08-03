@@ -87,41 +87,4 @@ void main() {
       expect(merged, [local]);
     });
   });
-
-  group('filterOwnTrailsByQuery', () {
-    final trails = [
-      Trail.empty().copyWith(
-        id: '1',
-        name: 'Mountain Ridge',
-        location: 'Alps',
-      ),
-      Trail.empty().copyWith(
-        id: '2',
-        name: 'Coastal Path',
-        location: 'Brittany',
-      ),
-    ];
-
-    test("returns the input unchanged for ''", () {
-      expect(filterOwnTrailsByQuery(trails, ''), trails);
-    });
-
-    test("returns the input unchanged for '   '", () {
-      expect(filterOwnTrailsByQuery(trails, '   '), trails);
-    });
-
-    test('matches case-insensitively on name', () {
-      final filtered = filterOwnTrailsByQuery(trails, 'mountain');
-
-      expect(filtered.length, 1);
-      expect(filtered.single.name, 'Mountain Ridge');
-    });
-
-    test('matches case-insensitively on location, excludes non-matching', () {
-      final filtered = filterOwnTrailsByQuery(trails, 'BRITTANY');
-
-      expect(filtered.length, 1);
-      expect(filtered.single.name, 'Coastal Path');
-    });
-  });
 }

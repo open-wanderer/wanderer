@@ -2,9 +2,11 @@
 /// (`/profile/<handle>/trails` for the signed-in hiker's own handle).
 ///
 /// Deliberately dependency-light: no Riverpod, no ObjectBox, no filesystem
-/// I/O.
-/// Both functions here are unit-tested in `own_trails_merge_test.dart`
-/// against plain `Trail(...)`/`TrailSearchResult(...)` fixtures, no Store.
+/// I/O. Unit-tested in `own_trails_merge_test.dart` against plain
+/// `Trail(...)`/`TrailSearchResult(...)` fixtures, no Store.
+///
+/// The list's other half — narrowing the local rows by the search query —
+/// lives with the rest of the trail filtering in `filter.dart`.
 library;
 
 import 'package:wanderer/models/global_search_models.dart';
@@ -42,28 +44,4 @@ List<TrailSummary> mergeOwnTrails({
   final dedupedNetwork = network.where((t) => !localIds.contains(t.id));
 
   return [...local, ...dedupedNetwork];
-}
-
-/// The local half of the own-trails search filter.
-///
-/// The network half is already filtered server-side by Meilisearch; this
-/// is its local equivalent, so a search does not make locally-held trails
-/// vanish from the list.
-///
-/// Returns [local] unchanged for an empty or whitespace-only [q]. Otherwise
-/// keeps rows whose `name`, or non-null `location`, contains [q]
-/// case-insensitively.
-List<Trail> filterOwnTrailsByQuery(List<Trail> local, String q) {
-  final trimmed = q.trim();
-  if (trimmed.isEmpty) return local;
-
-  final lowerQuery = trimmed.toLowerCase();
-  return local.where((t) {
-    if (t.name.toLowerCase().contains(lowerQuery)) return true;
-    final location = t.location;
-    if (location != null && location.toLowerCase().contains(lowerQuery)) {
-      return true;
-    }
-    return false;
-  }).toList();
 }

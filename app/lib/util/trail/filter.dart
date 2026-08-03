@@ -133,3 +133,27 @@ List<Trail> applyTrailFilter(List<Trail> trails, TrailFilter filter) {
 
   return result;
 }
+
+/// The local half of the own-trails search filter.
+///
+/// The network half is already filtered server-side by Meilisearch; this
+/// is its local equivalent, so a search does not make locally-held trails
+/// vanish from the list.
+///
+/// Returns [local] unchanged for an empty or whitespace-only [q]. Otherwise
+/// keeps rows whose `name`, or non-null `location`, contains [q]
+/// case-insensitively.
+List<Trail> filterOwnTrailsByQuery(List<Trail> local, String q) {
+  final trimmed = q.trim();
+  if (trimmed.isEmpty) return local;
+
+  final lowerQuery = trimmed.toLowerCase();
+  return local.where((t) {
+    if (t.name.toLowerCase().contains(lowerQuery)) return true;
+    final location = t.location;
+    if (location != null && location.toLowerCase().contains(lowerQuery)) {
+      return true;
+    }
+    return false;
+  }).toList();
+}
