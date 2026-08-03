@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: "Completed 36-15-PLAN.md (delete-path hardening: CR-02, WR-08, WR-10, WR-15, WR-17)"
-last_updated: "2026-08-03T17:02:01.048Z"
+stopped_at: "Completed 36-16-PLAN.md (CR-01/WR-01 gap closure: retired-id carry-forward, actionable refusal, detail-screen redirect)"
+last_updated: "2026-08-03T17:14:54.739Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 28
+  completed_plans: 29
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 2 of 20
+Plan: 3 of 20
 Status: Ready to execute
 Last activity: 2026-08-03 -- Phase 36 execution started
 
@@ -165,6 +165,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P13 | 25min | 3 tasks | 4 files |
 | Phase 36 P14 | 20min | 4 tasks | 8 files |
 | Phase 36 P15 | 35min | 3 tasks | 20 files |
+| Phase 36 P16 | 20min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -385,6 +386,8 @@ Recent decisions affecting current work:
 - [Phase 36]: 36-14 retires (deletes/demotes) a local trail row on successful upload instead of retaining it, closing UAT gap 4's post-delete orphan at the root
 - [Phase 36]: 36-15: no delete-on-this-device-only escape hatch for an offline delete of an already-uploaded trail — It would strand a possibly-public live server trail with no device left pointing at it, recreating CR-02/CR-04; the hiker is told to reconnect instead
 - [Phase 36]: 36-15: server-id validation (recordIdDirSegment) happens at every Dio request site, not at writeServerTrailId's persist point — A throw at persist time would leave the row unmarked, causing the next drain pass to re-issue PUT /trail/form and create a duplicate trail (SYNC-04)
+- [Phase ?]: trailSyncProvider's retired-id memo is account-keyed (T-36-16-01/02) and bounded to 64 entries (T-36-16-03) — trailSyncProvider is excluded from accountScopedProviders so its memo outlives an account switch; serverIdForRetired re-checks currentAccountId fresh at point of use
+- [Phase ?]: A genuine save-target refusal does not pop trail_create_screen's route — _hasUnsavedChanges is still true when no target resolves; popping would trigger the discard-changes dialog and destroy the hiker's typed edit -- accepted tradeoff, flagged for UAT (T-36-16-06)
 
 ### Roadmap Evolution
 
@@ -538,8 +541,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T17:02:01.032Z
-Stopped at: Completed 36-15-PLAN.md (delete-path hardening: CR-02, WR-08, WR-10, WR-15, WR-17)
+Last session: 2026-08-03T17:14:54.721Z
+Stopped at: Completed 36-16-PLAN.md (CR-01/WR-01 gap closure: retired-id carry-forward, actionable refusal, detail-screen redirect)
 Resume file: None
 
 ## Operator Next Steps

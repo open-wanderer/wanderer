@@ -532,7 +532,7 @@ the whole delete path is one file cluster)*
 
 **Wave 11** *(blocked on Wave 10)*
 
-- [ ] 36-16-PLAN.md — The post-upload edit path: retirement carries the server id forward, account-keyed; the refusal names the recoverable state instead of showing the generic error; a mounted detail screen follows the trail to its server route (CR-01, WR-01)
+- [x] 36-16-PLAN.md — The post-upload edit path: retirement carries the server id forward, account-keyed; the refusal names the recoverable state instead of showing the generic error; a mounted detail screen follows the trail to its server route (CR-01, WR-01)
 
 **Wave 12** *(blocked on Wave 11; 36-17 and 36-19 run in parallel — no file overlap)*
 
@@ -836,5 +836,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 15/20 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 16/20 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
