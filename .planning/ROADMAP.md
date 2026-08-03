@@ -517,7 +517,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8; second UAT round — the orphan blocker)*
 
-- [ ] 36-14-PLAN.md — Deleting a trail that has already uploaded removes the device's copy too: a server-id-keyed owner-scoped row deletion, wired to run only after the server DELETE confirms
+- [ ] 36-14-PLAN.md — A local trail row is retired the moment its upload succeeds, so the post-delete orphan cannot exist: delete-or-demote inside the drain's success transaction, plus the save-routing fix a retired row forces
 
 **Wave 10** *(blocked on Wave 9; runs alone — it holds the phase's final codegen run)*
 
@@ -525,22 +525,25 @@ Plans:
 
 **Planner decision (2026-08-03) — the two second-round gaps are separate plans.**
 UAT Test 5 produced two independent defects with different blast radii, and they were planned
-apart rather than merged. 36-14 is the orphan itself, scoped to the delete path. 36-15 is the
+apart rather than merged. 36-14 is the orphan itself, scoped (after the 2026-08-03 revision) to the upload path. 36-15 is the
 retry storm, which fires for ANY trail deleted elsewhere — from the web UI, from another device
 — and would have been worth shipping even if the orphan had never existed. They share no file,
 so merging them would have coupled a narrow local-storage fix to a provider-wide retry policy
 change with no benefit. They are sequential rather than parallel only because 36-14 edits a
 `@riverpod` source without regenerating and 36-15 holds the final `build_runner` run.
 
-**Planner decision (2026-08-03) — no reconciliation sweep for already-orphaned devices.**
+**Planner decision (2026-08-03, revised same day) — no reconciliation sweep, and after the
+row-retirement decision below, nothing left to reconcile.**
 UAT gap 4 asked whether a synced local row should stay owner-scoped forever with no
-server-state reconciliation. Answered: yes for now. A sweep would have to delete local rows
-whose server record 404s, and the app lets a hiker change `serverUrl` — after which every local
-row 404s against the new instance and the sweep silently destroys their trails. It needs a
-server-origin marker on the row before it can be safe, which is its own design. The delete-path
-fix in 36-14 is complete for every orphan created from now on; orphans already on a device are
-not healed, which is accepted because this phase has not shipped and the affected population is
-pre-fix test devices.
+server-state reconciliation. First answered "yes for now": a sweep would have to delete local
+rows whose server record 404s, and the app lets a hiker change `serverUrl` — after which every
+local row 404s against the new instance and the sweep silently destroys their trails. It needs
+a server-origin marker on the row before it can be safe, which is its own design. That
+reasoning still holds and no sweep is being built. The question itself has since dissolved: a
+successful upload now RETIRES the local row, so the `owner != null && syncState == synced`
+combination a sweep would have had to reconcile is never created. Orphans already sitting on a
+pre-fix device are still not healed, which is accepted because this phase has not shipped and
+the affected population is pre-fix test devices.
 
 **Planner decision (2026-08-02, revision 1) — codegen is serialised across the gap-closure waves.**
 `dart run build_runner build` takes an exclusive lock on `app/.dart_tool/build` and regenerates
@@ -555,7 +558,43 @@ way. 36-13 is no longer the phase's last plan; 36-15 is.
 
 **Planner decision (2026-08-02) — save-time branch order.** RESEARCH.md left Open Question 1 (local-first-always vs network-first-with-offline-fallback) to plan time. Resolved as **local-first always**: both local `_onSave` branches write to ObjectBox and never touch the network, online or offline, followed by a fire-and-forget drain kick. One code path instead of two, matching the Komoot/AllTrails model the design record cites, and it makes REC-01's "no save failure caused by being offline" structurally true rather than a caught-exception behaviour. A network-first fallback was rejected because a `createTrail` that fails *after* `PUT /trail/form` succeeded would fall back to a local save and produce a duplicate on the next drain — a direct SYNC-04 violation.
 
-**Planner decision (2026-08-02) — local rows survive promotion.** A trail keeps its `TrailEntity` row after a successful drain (`syncState` flips to `synced`, `obxId` unchanged) rather than being deleted and re-fetched. That is what SYNC-05's "keeps its identity in place" means concretely, and the merge in 36-07 dedupes the network hit by server id so it can never render twice.
+**~~Planner decision (2026-08-02) — local rows survive promotion.~~ SUPERSEDED 2026-08-03.**
+~~A trail keeps its `TrailEntity` row after a successful drain (`syncState` flips to `synced`,
+`obxId` unchanged) rather than being deleted and re-fetched. That is what SYNC-05's "keeps its
+identity in place" means concretely, and the merge in 36-07 dedupes the network hit by server id
+so it can never render twice.~~ Kept on the record rather than deleted: it is what
+`markTrailSynced`'s doc comment argued, what 36-01 through 36-08 were built against, and what
+produced the row UAT Test 5 found had no removal affordance anywhere in the app.
+
+**User decision (2026-08-03) — a local trail row is DELETED once it uploads successfully.**
+Decided by the product owner, superseding the 2026-08-02 planner decision above. Their model,
+verbatim: *"a non-synced trail appears in my own trails list. A synced one does as well because
+it now lives on the server (as long as I'm online). A synced trail will not appear in my own
+trails list once I'm going back offline but that is ok. Once a trail has been uploaded it needs
+to be downloaded by the user to appear again in own trails."*
+
+So the state machine is: **unsynced** → in own-trails via the local row; **synced** → in
+own-trails via the network fetch, online only; **synced + offline** → absent, and that is
+correct behaviour, not a regression. To have it offline again the hiker downloads it like any
+other trail, gaining `savedByUserIds` through the normal path. The cost — "your just-recorded
+trail vanishes offline" — was raised explicitly and accepted as the intended UX; it is not to be
+re-litigated or mitigated.
+
+This does not weaken SYNC-05. The requirement forbids a second entry and requires the trail to
+become an ordinary trail: `writeServerTrailId` stamps the server id onto the row before it is
+retired, so one identity is preserved throughout and exactly one entry remains — the server's.
+36-07's dedupe-by-server-id stays load-bearing for the window between the server id being
+stamped and the row being retired, and becomes a no-op after it. REC-06 independently supports
+the change: its enumeration of the offline own-trails list is "every not-yet-uploaded trail plus
+those downloaded trails the hiker authored themselves", which never included an
+uploaded-and-not-downloaded trail — the retained row made the list a superset of the
+requirement.
+
+Implemented by 36-14 (rewritten for this decision): `retireUploadedLocalTrail` deletes the row
+and its `WaypointEntity` children inside the drain's success transaction, or demotes it to an
+ordinary downloaded row when some account holds it in its offline library. The delete-path
+cleanup 36-14 previously planned is dropped — with no row surviving an upload, the orphan class
+cannot exist, and `trail_dropdown.dart` needs no change at all.
 
 **UI hint**: yes
 
