@@ -3,7 +3,7 @@ status: diagnosed
 phase: 36-local-first-recording-automatic-upload
 source: [36-VERIFICATION.md]
 started: 2026-08-02T15:48:59Z
-updated: 2026-08-02T18:06:49Z
+updated: 2026-08-03T08:04:11Z
 ---
 
 ## Current Test
@@ -40,11 +40,19 @@ expected: The trail's badge transitions Pending → Uploading → (badge disappe
 why_human: SYNC-01/SYNC-04/SYNC-05's duplicate-prevention chain is verified by code inspection and unit tests of the pure decision logic, but no automated test in this repo exercises a live PocketBase server or a real ObjectBox `Store` (confirmed untestable in `flutter test` — `libobjectbox.dylib` fails to load). An end-to-end device+server pass is the only way to confirm no duplicate is produced under a genuine mid-drain interruption.
 result: pass
 
+### 5. Delete a trail after it has synced (orphan check)
+steps: Create a trail while offline; go online and let it upload successfully; delete the trail; observe the own-trails list and tap the remaining entry.
+expected: Deleting a synced-from-local trail removes it server side AND removes the local row, so it disappears from the own-trails list.
+result: issue
+reported: "1. create trail while offline 2. go online 3. trail is uploaded correctly 4. delete trail 5. trail is now deleted server side 6. an orphaned trail now permanently exists in the 'own trail' list. Clicking on it leads to an idefinite loading spinner."
+severity: blocker
+source: reported by user after the initial 4-test pass; not derived from a SUMMARY
+
 ## Summary
 
-total: 4
+total: 5
 passed: 3
-issues: 3
+issues: 4
 pending: 0
 skipped: 0
 blocked: 1
@@ -117,3 +125,13 @@ blocked: 1
     - "Apply the same treatment to the _saveViaNetwork branch"
     - "Verify the family-key handle string used by the existing invalidations ('@${userEntity.preferredUsername}') matches the screen's widget.handle exactly - a mismatch would silently no-op every one of those invalidations"
   debug_session: ".planning/debug/unsynced-trail-edit-not-reflected-in-list.md"
+
+- truth: "Deleting a trail that was created offline and has since synced removes both the server record and the local row, leaving no entry in the own-trails list"
+  status: failed
+  reason: "User reported: after an offline-created trail uploads successfully and is then deleted, it is removed server side but an orphaned trail permanently remains in the own-trails list; tapping it shows an indefinite loading spinner"
+  severity: blocker
+  test: 5
+  root_cause: ""
+  artifacts: []
+  missing: []
+  debug_session: ""
