@@ -321,7 +321,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (14/14 plans executed; a second full-phase code review then found 3 NEW blockers created by the blocker-fix pass, plus 17 open warnings — 6 review gap-closure plans 36-15..36-20 planned 2026-08-03; NOT complete until they are executed, the verifier passes, and round-2 UAT runs)
+- [x] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (14/14 plans executed; a second full-phase code review then found 3 NEW blockers created by the blocker-fix pass, plus 17 open warnings — 6 review gap-closure plans 36-15..36-20 planned 2026-08-03; NOT complete until they are executed, the verifier passes, and round-2 UAT runs) (completed 2026-08-03)
 
 #### Sequencing Rationale
 
@@ -545,7 +545,7 @@ the whole delete path is one file cluster)*
 
 **Wave 14** *(blocked on Wave 13; runs last so it can pin the shape the four preceding plans produce)*
 
-- [ ] 36-20-PLAN.md — Gates that assert effects, not token order: each rewritten gate must be demonstrated to fail against the falsifying rewrite the review named for it, plus the one genuinely mountable behavioural widget test (WR-05)
+- [x] 36-20-PLAN.md — Gates that assert effects, not token order: each rewritten gate must be demonstrated to fail against the falsifying rewrite the review named for it, plus the one genuinely mountable behavioural widget test (WR-05)
 
 **Review gap-closure note (2026-08-03) — WR-06 is DEFERRED, not closed.**
 The destructive-action strings are still English-only in 13 locales. This is deliberately
@@ -836,5 +836,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 19/20 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 20/20 | Complete   | 2026-08-03 |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |

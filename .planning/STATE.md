@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-18-PLAN.md (WR-02/WR-03/WR-04/WR-09 gap closure)
-last_updated: "2026-08-03T17:58:19.620Z"
+stopped_at: Completed 36-20-PLAN.md (WR-05 gate strengthening + retired-redirect widget test)
+last_updated: "2026-08-03T18:20:36.477Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 32
-  completed_plans: 32
-  percent: 50
+  completed_plans: 33
+  percent: 75
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 6 of 20
+Plan: 7 of 20
 Status: Ready to execute
 Last activity: 2026-08-03 -- Phase 36 execution started
 
@@ -169,6 +169,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P17 | 20min | 3 tasks | 6 files |
 | Phase 36 P19 | 12min | 2 tasks | 20 files |
 | Phase 36 P18 | 35min | 3 tasks | 7 files |
+| Phase 36 P20 | ~20min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -399,6 +400,8 @@ Recent decisions affecting current work:
 - [Phase 36]: TrailFilterNotifier.defaultFilter is a plain (non-late) field initialised at declaration -- removes both the late-final rebuild crash and the WR-03 unassigned-late crash at once
 - [Phase 36]: hasKeylessPendingWaypoint bails _drainOne before the in-flight set is joined and before the try, mirroring the existing missing-UserEntity guard -- an invariant break must never burn a retry budget it cannot fix (WR-04)
 - [Phase 36]: writeServerWaypointId retains localPhotos unconditionally -- no new flag needed since retireUploadedLocalTrail and deleteUnsyncedPhotoDir already own reclaiming the files once the trail's fate is decided (WR-09)
+- [Phase 36-20]: The CR-02 _localId-ordering gate was left unchanged per the plan's explicit keep-as-is instruction, even though it doesn't literally pair its ordering comparison with a contains()/allMatches() call -- the review judged the gate sufficient and its two presence checks already establish both literals exist before ordering is asserted.
+- [Phase 36-20]: trail_detail_screen_retired_redirect_test.dart's control case substitutes the plan's suggested empty-string fallback with a call-counter proof, after empirically confirming (scratch probe) that an empty serverIdForRetired causes GoRouter to throw rather than render the dead-end text.
 
 ### Roadmap Evolution
 
@@ -552,8 +555,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T17:58:19.600Z
-Stopped at: Completed 36-18-PLAN.md (WR-02/WR-03/WR-04/WR-09 gap closure)
+Last session: 2026-08-03T18:20:36.462Z
+Stopped at: Completed 36-20-PLAN.md (WR-05 gate strengthening + retired-redirect widget test)
 Resume file: None
 
 ## Operator Next Steps
