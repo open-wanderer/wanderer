@@ -241,6 +241,42 @@ void main() {
     });
   });
 
+  group('resolveNetworkSaveTarget', () {
+    test('a real screen id wins even when a retired id is also present', () {
+      expect(
+        resolveNetworkSaveTarget(
+          screenTrailId: 'server-1',
+          retiredServerId: 'server-2',
+        ),
+        'server-1',
+      );
+    });
+
+    test('a blank screen id falls back to the retired id', () {
+      expect(
+        resolveNetworkSaveTarget(
+          screenTrailId: '',
+          retiredServerId: 'server-2',
+        ),
+        'server-2',
+      );
+    });
+
+    test('a blank screen id with a null retired id returns null', () {
+      expect(
+        resolveNetworkSaveTarget(screenTrailId: '', retiredServerId: null),
+        isNull,
+      );
+    });
+
+    test('a blank screen id with an empty-string retired id returns null', () {
+      expect(
+        resolveNetworkSaveTarget(screenTrailId: '', retiredServerId: ''),
+        isNull,
+      );
+    });
+  });
+
   group('resolveServerDeleteOutcome', () {
     test('404 -- the server copy is already gone -- proceeds with the '
         'local delete', () {

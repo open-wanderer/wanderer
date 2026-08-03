@@ -137,6 +137,34 @@ LocalSaveMode resolveLocalSaveModeForRow({
 /// network write or a network delete to (CR-01).
 bool trailHasServerId(String id) => id.isNotEmpty;
 
+/// Decides which id a network save should target once
+/// [resolveLocalSaveModeForRow] has already routed the save to
+/// [LocalSaveMode.networkUpdate].
+///
+/// Returns [screenTrailId] when it is already a real server id -- the
+/// ordinary case, where the screen's own snapshot is trustworthy. Otherwise
+/// falls back to [retiredServerId]: the id [retireUploadedLocalTrail]
+/// returned when it retired this trail's row, memoized by `TrailSync` for
+/// exactly this situation (CR-01) -- a still-mounted create/edit screen
+/// whose `trail.id` reads `''` (D-06 blanks a local-sentinel id) because the
+/// upload finished after this screen's last snapshot and there are no
+/// ObjectBox `Query.watch()` streams to tell it. Returns null when neither
+/// is a real id: there is no target at all, and the caller must refuse the
+/// write rather than issue `POST /trail/form/` with a blank id, which can
+/// never be routed (SvelteKit normalizes an empty `[id]` segment away). The
+/// guard was always correct; what was missing was a fallback target and a
+/// message the hiker can act on.
+String? resolveNetworkSaveTarget({
+  required String screenTrailId,
+  required String? retiredServerId,
+}) {
+  if (trailHasServerId(screenTrailId)) return screenTrailId;
+  if (retiredServerId != null && trailHasServerId(retiredServerId)) {
+    return retiredServerId;
+  }
+  return null;
+}
+
 /// What a delete decision should do once the server DELETE for a row's
 /// server copy has been attempted (or was never attempted at all).
 enum ServerDeleteOutcome {
@@ -499,8 +527,17 @@ void deleteLocalTrailRow(
 /// see a retired row, so a directory left behind by a crash between
 /// the two is reclaimed by the next startup sweep. The reverse
 /// order self-heals into a row with broken thumbnails instead.
-void retireUploadedLocalTrail(Store store, String localId) {
-  store.runInTransaction(TxMode.write, () {
+///
+/// Returns the server id the row carried at the moment it was retired, or
+/// null when no row matched. That id is the trail's identity after this
+/// row is gone -- once retirement runs (either branch), it is the ONLY
+/// handle a still-mounted create/edit or detail screen has left on the
+/// trail (CR-01): there are no ObjectBox `Query.watch()` streams anywhere
+/// in this app, so a screen's own `trail.id` snapshot, taken while the row
+/// was still local, keeps reading the blank local-sentinel value forever
+/// unless the caller captures and memoizes this return value.
+String? retireUploadedLocalTrail(Store store, String localId) {
+  return store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();
     // No account scoping and no `owner` clause: the only caller reached
     // this row through `selectDrainCandidates`, which is already
@@ -508,7 +545,11 @@ void retireUploadedLocalTrail(Store store, String localId) {
     final query = trailBox.query(TrailEntity_.localId.equals(localId)).build();
     final entity = query.findFirst();
     query.close();
-    if (entity == null) return;
+    if (entity == null) return null;
+
+    // Captured before the row is mutated or removed by either branch below
+    // -- see this function's doc comment (CR-01).
+    final serverId = isLocalId(entity.id) ? null : entity.id;
 
     if (!shouldDeleteUploadedRow(entity.savedByUserIds)) {
       // Demote to an ordinary downloaded row -- exactly the shape
@@ -521,7 +562,7 @@ void retireUploadedLocalTrail(Store store, String localId) {
       entity.syncNextAttemptAt = null;
       entity.localPhotos = [];
       trailBox.put(entity);
-      return;
+      return serverId;
     }
 
     final waypointBox = store.box<WaypointEntity>();
@@ -529,6 +570,7 @@ void retireUploadedLocalTrail(Store store, String localId) {
       waypointBox.remove(waypoint.obxId);
     }
     trailBox.remove(entity.obxId);
+    return serverId;
   });
 }
 

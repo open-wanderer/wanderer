@@ -48,7 +48,7 @@ void main() {
         .join('\n');
 
     final sigStart = codeOnly.indexOf(
-      'void retireUploadedLocalTrail(Store store, String localId) {',
+      'String? retireUploadedLocalTrail(Store store, String localId) {',
     );
     expect(
       sigStart,
