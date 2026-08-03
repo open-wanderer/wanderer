@@ -58,11 +58,16 @@ enum LocalSaveMode {
 /// only one edit session happened. [Trail.localId] is what actually
 /// distinguishes them.
 ///
-/// A trail with a non-empty server id whose [Trail.syncState] is NOT
-/// [TrailSyncState.synced] (still `uploading` or `pending`, the mid-drain
-/// resume case) is deliberately routed to [LocalSaveMode.updateLocal], not
-/// [LocalSaveMode.networkUpdate] -- the server id exists but the row is not
-/// yet confirmed synced, so the safe write target is still the local row.
+/// This is the COARSE decision: it sees exactly one [Trail] and cannot tell
+/// whether that trail is the screen's own in-memory snapshot or the
+/// persisted ObjectBox row, so it can be wrong for a row whose upload
+/// finished after the caller's snapshot was taken. [resolveLocalSaveModeForRow]
+/// is the authority whenever a persisted row is available -- it is what a
+/// caller holding a `localId` should call instead of this function directly.
+/// And even [resolveLocalSaveModeForRow] is only a routing decision, not a
+/// legality check: [updateLocalTrail] is the final authority on whether a
+/// local write actually lands, via [LocalUpdateOutcome.alreadyUploaded] and
+/// [LocalUpdateOutcome.alreadySynced] (CR-03, WR-16).
 LocalSaveMode resolveLocalSaveMode(Trail trail) {
   if (trail.syncState == TrailSyncState.synced && trail.id.isNotEmpty) {
     return LocalSaveMode.networkUpdate;
@@ -111,12 +116,28 @@ bool shouldDeleteUploadedRow(List<String> savedByUserIds) =>
 /// A null [persistedLocalId] is the genuinely-never-saved case and
 /// is delegated unchanged, so a first save still routes to
 /// [LocalSaveMode.createLocal].
+///
+/// Also routes to [LocalSaveMode.networkUpdate] up front, before
+/// [resolveLocalSaveMode] ever runs, when [persisted] is non-null and is
+/// EITHER already [TrailSyncState.synced] OR already carries a real server
+/// id ([trailHasServerId]) regardless of [TrailSyncState] -- the exact
+/// `alreadyUploaded` shape [updateLocalTrail] refuses (CR-03). Anticipating
+/// that refusal here, rather than discovering it only after
+/// [updateLocalTrail] returns, is what keeps the caller's
+/// `_copyPhotosForLocalSave` from ever running against a row the store is
+/// going to refuse (WR-14): a save doomed to be refused must never reach the
+/// filesystem step first.
 LocalSaveMode resolveLocalSaveModeForRow({
   required Trail screenTrail,
   required String? persistedLocalId,
   required Trail? persisted,
 }) {
   if (persistedLocalId != null && persisted == null) {
+    return LocalSaveMode.networkUpdate;
+  }
+  if (persisted != null &&
+      (persisted.syncState == TrailSyncState.synced ||
+          trailHasServerId(persisted.id))) {
     return LocalSaveMode.networkUpdate;
   }
   return resolveLocalSaveMode(persisted ?? screenTrail);
@@ -458,6 +479,88 @@ LocalUpdateOutcome updateLocalTrail(
 
     trailBox.put(entity);
     return LocalUpdateOutcome.updated;
+  });
+}
+
+/// Reconciles the local row for [localId], owned by [accountId], onto the
+/// metadata [trail] carries -- called ONLY after a successful network save
+/// for a row [resolveLocalSaveModeForRow] routed to [LocalSaveMode.networkUpdate]
+/// (CR-03).
+///
+/// This is the missing half of the `alreadyUploaded` fix:
+/// [resolveLocalSaveModeForRow] correctly sends the edit to the server, but
+/// nothing wrote it back onto the local row -- so the row kept its pre-edit
+/// values under a real server id, and `mergeOwnTrails` (which dedupes a
+/// network hit against any local row carrying the same non-empty id) hid the
+/// server's up-to-date copy behind the stale local one, indefinitely, under
+/// a green "trail saved successfully" toast. Calling this right after the
+/// network save succeeds -- and BEFORE the own-trails list is invalidated
+/// and re-read -- closes that window.
+///
+/// No dirty flag, no ObjectBox schema change: a dirty flag is only needed
+/// when a local write happens BEFORE the edit reaches the server, so the
+/// device has to remember it owes the server a push. That is not this
+/// shape -- this function runs AFTER `POST /trail/form/{id}` already
+/// succeeded, reconciling the row to a known-good server state. There is
+/// nothing new to track and nothing left to push. The tradeoff accepted: if
+/// THIS write throws, the row stays stale until `retireUploadedLocalTrail`
+/// removes it -- which is exactly today's behaviour (nothing currently
+/// reconciles the row at all), not a regression, and it is bounded by
+/// retirement, so the caller should catch and log rather than surface a
+/// local-write failure as a failed save when the server already accepted it.
+///
+/// Query is scoped by BOTH [localId] AND [accountId] (T-36-17-01, D-13):
+/// [accountId] must be read fresh via `currentAccountId(store)` at the call
+/// site, never a cached value, or account B's edit could be written onto
+/// account A's row. Silently returns when no row matches -- the row may
+/// have been retired (by the drain finally succeeding) between the network
+/// save and this call landing; that is an ordinary race, not an error.
+///
+/// Writes ONLY the metadata columns the hiker can edit through this form:
+/// `name`, `location`, `date`, `public`, `completed`, `difficulty`,
+/// `description`, `categoryRecordId`, `subcategoryRecordId`, `tagsJson` (via
+/// [encodeTrailTags], the exact same encoding [TrailEntity.fromModel] uses),
+/// and `updated`. Mutates the FOUND entity in place -- deliberately never
+/// via `TrailEntity.fromModel`, which would erase `photos`/`localPhotos` and
+/// drop the sync bookkeeping. Never touches `id`, `owner`, `localId`,
+/// `syncState`, `syncAttempts`, `syncNextAttemptAt`, `savedByUserIds`,
+/// `photos`, `localPhotos`, `gpxData` or `waypoints` -- each omission is
+/// deliberate (T-36-17-02): those are the row's identity, ownership, sync
+/// resume position, and the fields with no source of truth in a plain
+/// [Trail] model, and clobbering any of them here would either corrupt the
+/// drain's resume state or silently discard data this function was never
+/// given.
+void applyNetworkEditToLocalRow(
+  Store store, {
+  required String localId,
+  required String accountId,
+  required Trail trail,
+}) {
+  store.runInTransaction(TxMode.write, () {
+    final trailBox = store.box<TrailEntity>();
+    final query = trailBox
+        .query(
+          TrailEntity_.localId.equals(localId) &
+              TrailEntity_.owner.equals(accountId),
+        )
+        .build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return;
+
+    entity.name = trail.name;
+    entity.location = trail.location;
+    entity.date = trail.date;
+    entity.public = trail.public;
+    entity.completed = trail.completed;
+    entity.difficulty = trail.difficulty;
+    entity.description = trail.description;
+    entity.categoryRecordId = trail.category;
+    entity.subcategoryRecordId = trail.subcategory;
+    entity.tagsJson = encodeTrailTags(trail.expand?.tags);
+    entity.updated = trail.updated;
+
+    trailBox.put(entity);
   });
 }
 

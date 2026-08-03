@@ -226,6 +226,100 @@ void main() {
         LocalSaveMode.networkUpdate,
       );
     });
+
+    // CR-03: a persisted row that already carries a real server id, even
+    // though its syncState has not (yet) reached `synced`, must route to
+    // the network -- this is the exact `alreadyUploaded` window
+    // updateLocalTrail refuses. Getting this wrong (routing it to
+    // updateLocal) is what let a network edit reach the server while the
+    // local row silently kept its pre-edit values.
+    test('returns networkUpdate for a persisted row with a non-empty server '
+        'id whose syncState is still pending (CR-03 window)', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+      final persisted = Trail.empty().copyWith(
+        id: 'server-1',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: persisted,
+        ),
+        LocalSaveMode.networkUpdate,
+      );
+    });
+
+    test('returns networkUpdate for a persisted row with a non-empty server '
+        'id whose syncState is failed (CR-03 window, deterministic waypoint '
+        'failure)', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.failed,
+      );
+      final persisted = Trail.empty().copyWith(
+        id: 'server-1',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.failed,
+      );
+
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: persisted,
+        ),
+        LocalSaveMode.networkUpdate,
+      );
+    });
+
+    // Control case: an ordinary unsynced re-save (empty id, still pending)
+    // must stay local. This fails if the CR-03 fix accidentally widens the
+    // routing to also catch a trail that has never reached the server at
+    // all (REC-01's offline-edit path).
+    test('still returns updateLocal for a persisted row with an empty id '
+        'and syncState pending -- an ordinary offline re-save', () {
+      final screenTrail = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+      final persisted = Trail.empty().copyWith(
+        id: '',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: 'local-1-0',
+          persisted: persisted,
+        ),
+        LocalSaveMode.updateLocal,
+      );
+    });
+
+    test('still returns createLocal when persistedLocalId is null -- the '
+        'first-save case', () {
+      final screenTrail = Trail.empty().copyWith(id: '', localId: null);
+
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: screenTrail,
+          persistedLocalId: null,
+          persisted: null,
+        ),
+        LocalSaveMode.createLocal,
+      );
+    });
   });
 
   group('trailHasServerId', () {
