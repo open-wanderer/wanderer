@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-19-PLAN.md (WR-11/WR-12/WR-07 gap closure, WR-06 tracked as todo)
-last_updated: "2026-08-03T17:38:32.924Z"
+stopped_at: Completed 36-18-PLAN.md (WR-02/WR-03/WR-04/WR-09 gap closure)
+last_updated: "2026-08-03T17:58:19.620Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 31
+  completed_plans: 32
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 5 of 20
+Plan: 6 of 20
 Status: Ready to execute
 Last activity: 2026-08-03 -- Phase 36 execution started
 
@@ -168,6 +168,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P16 | 20min | 3 tasks | 19 files |
 | Phase 36 P17 | 20min | 3 tasks | 6 files |
 | Phase 36 P19 | 12min | 2 tasks | 20 files |
+| Phase 36 P18 | 35min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -395,6 +396,9 @@ Recent decisions affecting current work:
 - [Phase ?]: [36-17] The photo picker's initialWebPhotos is suppressed entirely for any unsynced trail (isUnsyncedState), since trail.photos and trail.localPhotos name the same images in that window.
 - [Phase 36]: 36-19: WR-06 stays deferred by design - recorded as a tracked todo with the current key list and priority order, not fixed with machine translation
 - [Phase 36]: 36-19: WR-06 todo's key list expanded to the full 22-key untranslated_messages.json union (not just the plan's stated 15) since trail_source_*/library_empty_* keys had also accumulated since 36-REVIEW.md was written
+- [Phase 36]: TrailFilterNotifier.defaultFilter is a plain (non-late) field initialised at declaration -- removes both the late-final rebuild crash and the WR-03 unassigned-late crash at once
+- [Phase 36]: hasKeylessPendingWaypoint bails _drainOne before the in-flight set is joined and before the try, mirroring the existing missing-UserEntity guard -- an invariant break must never burn a retry budget it cannot fix (WR-04)
+- [Phase 36]: writeServerWaypointId retains localPhotos unconditionally -- no new flag needed since retireUploadedLocalTrail and deleteUnsyncedPhotoDir already own reclaiming the files once the trail's fate is decided (WR-09)
 
 ### Roadmap Evolution
 
@@ -548,8 +552,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T17:38:32.905Z
-Stopped at: Completed 36-19-PLAN.md (WR-11/WR-12/WR-07 gap closure, WR-06 tracked as todo)
+Last session: 2026-08-03T17:58:19.600Z
+Stopped at: Completed 36-18-PLAN.md (WR-02/WR-03/WR-04/WR-09 gap closure)
 Resume file: None
 
 ## Operator Next Steps

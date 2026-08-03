@@ -541,7 +541,7 @@ the whole delete path is one file cluster)*
 
 **Wave 13** *(blocked on Wave 12)*
 
-- [ ] 36-18-PLAN.md — Drain and provider robustness: an always-initialised filter default, an invariant break that skips the drain instead of burning its retry budget, waypoint photos that survive until retirement, and an invalidation that cannot silently no-op (WR-02, WR-03, WR-04, WR-09)
+- [x] 36-18-PLAN.md — Drain and provider robustness: an always-initialised filter default, an invariant break that skips the drain instead of burning its retry budget, waypoint photos that survive until retirement, and an invalidation that cannot silently no-op (WR-02, WR-03, WR-04, WR-09)
 
 **Wave 14** *(blocked on Wave 13; runs last so it can pin the shape the four preceding plans produce)*
 
@@ -836,5 +836,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 18/20 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 19/20 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
