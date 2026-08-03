@@ -1,13 +1,14 @@
 ---
 phase: 36-local-first-recording-automatic-upload
-reviewed: 2026-08-02T14:43:17Z
+reviewed: 2026-08-03T15:10:00Z
 depth: standard
-files_reviewed: 41
+files_reviewed: 57
 files_reviewed_list:
   - app/lib/components/trail/sync_status_chip.dart
   - app/lib/components/trail/trail_card.dart
   - app/lib/components/trail/trail_dropdown.dart
   - app/lib/components/trail/trail_list_item.dart
+  - app/lib/components/trail/trail_panel.dart
   - app/lib/entities/trail_entity.dart
   - app/lib/entities/waypoint_entity.dart
   - app/lib/i18n/app_en.arb
@@ -18,509 +19,670 @@ files_reviewed_list:
   - app/lib/models/trail_sync_state.dart
   - app/lib/models/waypoint.dart
   - app/lib/provider/profile/profile_trails_provider.dart
+  - app/lib/provider/router_provider.dart
+  - app/lib/provider/trail/local_trail_provider.dart
+  - app/lib/provider/trail/trail_filter_provider.dart
   - app/lib/provider/trail/trail_save_provider.dart
   - app/lib/provider/trail/trail_sync_provider.dart
   - app/lib/routes/profile_trail_screen.dart
   - app/lib/routes/settings_account_screen.dart
   - app/lib/routes/settings_screen.dart
   - app/lib/routes/trail_create_screen.dart
+  - app/lib/routes/trail_detail_map_screen.dart
+  - app/lib/routes/trail_detail_screen.dart
   - app/lib/services/trail_download_service.dart
   - app/lib/util/account_scope_invalidation.dart
   - app/lib/util/local_id.dart
   - app/lib/util/local_photo_store_util.dart
   - app/lib/util/local_trail_store.dart
+  - app/lib/util/offline_trail_filter_bounds.dart
   - app/lib/util/own_trails_merge.dart
   - app/lib/util/sync_backoff.dart
+  - app/lib/util/trail_route_location.dart
   - app/lib/util/unsynced_signout_guard.dart
+  - app/pubspec.yaml
   - app/test/components/trail/sync_status_chip_test.dart
   - app/test/components/trail/trail_dropdown_delete_gate_test.dart
+  - app/test/components/trail/trail_dropdown_menu_test.dart
   - app/test/entities/trail_entity_test.dart
+  - app/test/provider/trail/local_trail_addressing_gate_test.dart
+  - app/test/provider/trail/trail_filter_fallback_test.dart
+  - app/test/routes/profile_trail_screen_navigation_test.dart
   - app/test/routes/settings_screen_signout_gate_test.dart
   - app/test/routes/trail_create_screen_local_save_gate_test.dart
   - app/test/services/trail_download_service_carry_forward_test.dart
   - app/test/util/account_scope_invalidation_test.dart
   - app/test/util/local_id_test.dart
   - app/test/util/local_photo_store_util_test.dart
+  - app/test/util/local_trail_retirement_gate_test.dart
   - app/test/util/local_trail_store_test.dart
+  - app/test/util/offline_trail_filter_bounds_test.dart
   - app/test/util/own_trails_merge_test.dart
   - app/test/util/sync_backoff_test.dart
+  - app/test/util/trail_route_location_test.dart
   - app/test/util/unsynced_signout_guard_test.dart
 findings:
   critical: 4
-  warning: 15
+  warning: 12
   info: 0
-  total: 19
+  total: 16
 status: issues_found
 ---
 
 # Phase 36: Code Review Report
 
-**Reviewed:** 2026-08-02T14:43:17Z
+**Reviewed:** 2026-08-03T15:10:00Z
 **Depth:** standard
-**Files Reviewed:** 41
+**Files Reviewed:** 57
 **Status:** issues_found
 
 ## Summary
 
-The phase adds a local-first capture path (`TrailEntity` + local sentinel id + `TrailSyncState` + app-owned photo copies) and a `keepAlive` drain notifier.
+This is a full-phase pass over all 14 plans, superseding the 2026-08-02 review that
+covered plans 36-01..36-08. The fixes recorded in `36-REVIEW-FIX.md` were verified
+present: `TrailEntity` now persists `categoryRecordId`/`subcategoryRecordId`/
+`completed`/`tagsJson`; `WaypointPhotoUploadException` carries the created id;
+`writeServerTrailId` commits id+photos off the raw body before `Trail.fromJson`;
+`markTrailUploading` re-queries inside a transaction; `reconcileLocalPhotos`
+canonicalizes both sides; `local_id.dart` grew `recordIdDirSegment`/`fileNameSegment`
+and `trail_download_service.dart` uses them. `flutter analyze` reports 36 issues, all
+pre-existing `info`-level. The pure-policy modules (`sync_backoff.dart`,
+`own_trails_merge.dart`, `trail_route_location.dart`, `offline_trail_filter_bounds.dart`,
+`local_id.dart`) are genuinely sound and genuinely tested.
 
-The parts that were designed as pure, testable policy are in good shape: `local_id.dart`'s whitelist regex genuinely blocks traversal, `sync_backoff.dart` is clamped and monotonic, `own_trails_merge.dart`'s non-empty-id dedupe guard is correct, and the Riverpod lifecycle rules called out in the brief are respected (no `late final` in any `build()`, `authProvider` read via `.value`).
+**Prior finding still present:** CR-04 from the previous review ("an edit after upload
+never reaches the server") was declared fixed. It is not. The fix changed the routing
+decision so a post-upload edit is sent down `_saveViaNetwork` — but the value it sends
+carries an **empty server id**, because the screen's snapshot came out of
+`TrailEntity.toModel()`, which blanks a local-sentinel id (D-06). Silent loss became a
+guaranteed HTTP failure that no retry can clear. See **CR-01**.
 
-The defects concentrate at the **model↔entity boundary** and in **partial-failure handling in the drain**, i.e. exactly the seams the design record spent the most words on:
+The defects cluster in three places, all downstream of the two decisions the last two
+plans introduced — **retire-the-row-on-success** (36-13) and **route-the-save-on-the-
+persisted-row** (36-REVIEW-FIX CR-04):
 
-- `TrailEntity` never persisted `category`, `subcategory`, `tags` or `completed`, and `toModel()` never restored them. Before this phase that was latent (the create screen always POSTed the in-memory `Trail`); now the entity round trip *is* the save path and the drain payload, so four user-entered fields are silently destroyed on every offline capture — including on the eventual server upload (CR-01).
-- The drain's "resume from step" is not idempotent at two of its three steps. A waypoint whose record was created but whose photo upload failed is re-created on the next attempt (CR-02); a trail whose photos were uploaded in step 2 has its local photo record and files destroyed by the step-4 bookkeeping when the drain resumes (CR-03).
-- Once a trail finishes uploading, the still-open create screen holds a stale `syncState: pending`, so a subsequent edit is routed back into `updateLocalTrail` — which preserves `syncState: synced` — and the edit never reaches the server, under a green "Trail saved successfully" toast (CR-04).
+- The `persistedLocalId != null && persisted == null` ⇒ `networkUpdate` rule
+  (`resolveLocalSaveModeForRow`) conflates "the drain retired this row" with "the row
+  was never written", and in both cases hands the network path a trail with no server
+  id and photo files that have already been deleted from disk (**CR-01**, **CR-02**).
+- The drain's step 2 is guarded on `isLocalId(entity.id)`, so once a server id is
+  stamped no subsequent local edit can ever be uploaded — and step 4 then retires the
+  row, destroying the edit. `updateLocalTrail` only refuses `synced` rows; it happily
+  accepts the `pending`/`uploading`/`failed` rows where this window lives (**CR-03**).
+- `deleteUnsynced` is still built on the assumption "unsynced ⇒ never on the server",
+  which stopped being true the moment `writeServerTrailId` was pulled forward. A
+  `failed` row can hold a real server id, so "delete this trail, it can't be undone"
+  deletes the local copy and leaves the (possibly public) server copy behind
+  (**CR-04**).
 
-Account scoping itself holds up: every read in `local_trail_store.dart` is `owner`-filtered, `currentAccountId` is re-read fresh at each drain run, and the `unsyncedLocalIds` cross-account sweep exemption is correctly reasoned. The one soft spot is `_readOwnLocal` reading a cached actor id contrary to its own documented invariant (WR-06).
+Account scoping holds up well: every read in `local_trail_store.dart` is owner-scoped,
+`currentAccountId` is re-read fresh at each drain pass and at each
+`_readOwnLocal`/`_offlineFilterValues` call, and `readLocalTrailMetrics`' scoping
+reasoning is correct. The one asymmetry is the *delete* path, which has no owner clause
+at all (**WR-10**).
 
-Several of the phase's tests are source-level greps (`indexOf`/`contains` on the .dart file). They pin structure, not behaviour — none of the four BLOCKERs below would be caught by any test in this phase.
+The test-strategy note in `36-REVIEW-FIX.md` is accurate — `libobjectbox.dylib` genuinely
+does not load under `flutter test` — and `trail_dropdown_menu_test.dart` /
+`profile_trail_screen_navigation_test.dart` are real behavioural tests, not greps. But
+the source-grep gates have started to drift from what they claim: none of the four
+blockers below would be caught by any test in this phase, and
+`trail_create_screen_local_save_gate_test.dart` now asserts an invariant the code no
+longer satisfies while still passing (**WR-05**).
 
 ## Critical Issues
 
-### CR-01: Category, subcategory, tags and completed are silently destroyed by every local-first save and by the upload that follows
+### CR-01: A post-upload edit is POSTed to `/trail/form/` with an empty id and can never succeed
 
-**File:** `app/lib/entities/trail_entity.dart:11-131` (no fields), `app/lib/entities/trail_entity.dart:167-214` (`fromModel`), `app/lib/entities/trail_entity.dart:218-264` (`toModel`), `app/lib/routes/trail_create_screen.dart:658-665`, `app/lib/provider/trail/trail_sync_provider.dart:125-130`
+**File:** `app/lib/routes/trail_create_screen.dart:436-463`, `app/lib/routes/trail_create_screen.dart:547-567`, `app/lib/util/local_trail_store.dart:113-122`, `app/lib/provider/trail/trail_save_provider.dart:132`, `app/lib/entities/trail_entity.dart:320`
 
-**Issue:** `TrailEntity` has no `category` (String id), `subcategory`, `tags` or `completed` column — only a `ToOne<CategoryEntity>` relation, which `fromModel` populates *only* from `trail.expand?.category` (always null on a locally-composed draft). `toModel()` correspondingly never sets `Trail.category`, `Trail.subcategory`, `Trail.tags`/`expand.tags`, or `Trail.completed`.
+**Issue:** Trace the ordinary flow the phase exists to support — record, save, wait for
+the upload, fix a typo:
 
-Trace one offline capture:
+1. `_finishLocalSave` sets `trail = readLocalTrail(store, localId)`
+   (`trail_create_screen.dart:792-799`). At that instant the row's `id` is still the
+   local sentinel, so `TrailEntity.toModel()` blanks it: **`trail.id == ''`**
+   (`trail_entity.dart:320`).
+2. The drain completes and `retireUploadedLocalTrail` **deletes the row**
+   (`trail_sync_provider.dart:306`), then `_deletePhotoDirBestEffort` **deletes
+   `<app-docs>/unsynced/<localId>/`** (`:317`).
+3. The user edits and saves. `persisted = readLocalTrail(...)` is now `null` while
+   `persistedLocalId` is non-null, so `resolveLocalSaveModeForRow` returns
+   `LocalSaveMode.networkUpdate` (`local_trail_store.dart:118-120`) and `_onSave`
+   calls `_saveViaNetwork(l10n, updatedTrail, ...)` (`trail_create_screen.dart:455-463`).
+4. `updateTrail` issues `api.post('/trail/form/${newTrail.id}')`
+   (`trail_save_provider.dart:132`) → **`POST /api/v1/trail/form/`**. That path has no
+   handler: `web/src/routes/api/v1/trail/form/+server.ts` exports only `PUT`, and
+   SvelteKit's default `trailingSlash: 'never'` normalizes the empty `[id]` away. The
+   request 405s / 404s.
+5. Even before the request, `newPhotoFiles` are `File(p)` over
+   `values['photos']`, seeded from `trail.localPhotos` — i.e. paths under the photo
+   directory step 2 just deleted. `toFormData` reads those files and throws.
 
-1. `_onSave` builds `updatedTrail` with `category: categorySelection?.category`, `subcategory:`, `completed:` and `expand.tags` read straight off the form (`trail_create_screen.dart:407-420`).
-2. `saveNewLocalTrail` → `TrailEntity.fromModel(updatedTrail)` — all four values are dropped on the floor.
-3. `_finishLocalSave` does `trail = readLocalTrail(store, _localId!)` and then `_formKey.currentState?.reset()` post-frame, so the **form visibly reverts**: category picker empty, tags gone, "completed" back to false. The user is shown a success toast at the same time.
-4. The drain builds its upload payload from `entity.toModel()` (`trail_sync_provider.dart:126`), so `resolveTags(trailModel.expand?.tags ?? const [])` resolves an empty list and `toFormData` skips `category`/`subcategory` (`form_data_util.dart` emits them only `if (category != null)`) and sends `completed=false`.
+The user sees `error_saving_trail`, and every retry reproduces it: the screen's `trail`
+snapshot can never acquire a server id, because the only writer of that field
+(`_finishLocalSave`'s `readLocalTrail`) now returns `null` forever. The edit is
+unreachable except by backing out of the screen and re-opening the trail from the
+server list.
 
-So the trail reaches the server permanently stripped. This makes the phase's `resolveTags` reuse in the drain (D-06) dead code in practice — `expand.tags` can never be non-empty on a value that came out of `TrailEntity`.
+The same code path is reached from the `LocalUpdateOutcome.missing` branch
+(`trail_create_screen.dart:547-566`), whose comment explicitly anticipates this state
+("`missing` far more often than `alreadySynced`") without noticing the id is blank.
 
-**Fix:** persist the four scalars on the entity and restore them in `toModel()`.
-
-```dart
-// trail_entity.dart
-  String? categoryId;      // the Trail.category id string, not the relation
-  String? subcategoryId;
-  bool completed = false;
-  List<String> tagNames = []; // or a ToMany<TagEntity>; names round-trip to
-                              // Tag(name:) so resolveTags() can create/reuse
-
-  factory TrailEntity.fromModel(Trail trail) {
-    final entity = TrailEntity(/* ... */);
-    entity.categoryId = trail.category;
-    entity.subcategoryId = trail.subcategory;
-    entity.completed = trail.completed;
-    entity.tagNames = trail.expand?.tags?.map((t) => t.name).toList() ?? const [];
-    // ...
-  }
-
-  // toModel()
-    category: categoryId,
-    subcategory: subcategoryId,
-    completed: completed,
-    expand: TrailExpand(
-      tags: tagNames.map((n) => Tag(name: n)).toList(),
-      // ...
-    ),
-```
-
-Add a round-trip test next to the existing `movingDuration` group in `test/entities/trail_entity_test.dart` asserting all four survive `fromModel -> toModel`.
-
----
-
-### CR-02: A waypoint whose photo upload fails is created twice on the server on the next drain attempt
-
-**File:** `app/lib/provider/trail/trail_sync_provider.dart:166-184`, `app/lib/provider/waypoint/waypoint_provider.dart:16-43`
-
-**Issue:** `WaypointSave.create` performs two network calls: `PUT /waypoint` (creates the record) and, only when `localPhotos` is non-empty, `POST /waypoint/{id}/file`. If the second call throws — the common case, since photo uploads are the largest and most timeout-prone request in the sequence — `create` throws, so `_drainOne` never reaches `writeServerWaypointId` for that waypoint and the local `WaypointEntity.id` is still a `local-…` sentinel.
-
-`_drainOne` catches, `recordDrainFailure` puts the trail back to `pending`, and the next drain pass re-enters step 3 with `if (!isLocalId(waypointEntity.id)) continue;` still true for that waypoint — so `PUT /waypoint` runs again and a **second waypoint record** is created on the server. With `kMaxSyncAttempts = 4` this can produce up to four duplicates of the same waypoint. There is no server-side idempotency key (RESEARCH.md Pitfall 3), which is exactly why the trail-level id write was pulled forward; the same reasoning was never applied to the waypoint level.
-
-**Fix:** persist the waypoint's server id the instant the record exists, before its photos are uploaded — mirroring `writeServerTrailId`. Either split the provider call, or have `create` surface the created record on photo failure:
+**Fix:** the network path needs a real server id and real photo sources. Carry the
+server id back to the screen when the drain retires the row, and fall back to
+re-reading the trail from the server rather than POSTing a blank id:
 
 ```dart
-// waypoint_provider.dart
-Future<Waypoint> create(Waypoint waypoint, {required String authorId, required String trailId}) async {
-  // ... PUT /waypoint ...
-  var created = Waypoint.fromJson(response.data);
-  if (waypoint.localPhotos.isEmpty) return created;
-  try {
-    return await _uploadPhotos(created, newPhotos: waypoint.localPhotos, removedFilenames: const []);
-  } catch (e) {
-    throw WaypointPhotoUploadException(created, e); // carries the created id
-  }
-}
+// local_trail_store.dart -- retire must be able to tell the caller the id it kept
+String? retireUploadedLocalTrail(Store store, String localId) { /* return entity.id */ }
 
-// trail_sync_provider.dart, step 3
-try {
-  createdWaypoint = await ref.read(waypointSaveProvider.notifier).create(...);
-} on WaypointPhotoUploadException catch (e) {
-  writeServerWaypointId(store, localId: localId,
-      waypointLocalKey: waypointLocalKey, serverWaypointId: e.created.id);
-  rethrow; // the trail still counts a failed attempt, but never re-creates
+// trail_create_screen.dart -- _onSave
+if (saveMode == LocalSaveMode.networkUpdate) {
+  final serverId = updatedTrail.id.isNotEmpty
+      ? updatedTrail.id
+      : _serverIdForRetiredLocalId(persistedLocalId); // recorded at retire time
+  if (serverId == null || serverId.isEmpty) {
+    // Do NOT fabricate a POST with a blank id.
+    _toastError(l10n.error_saving_trail);
+    return;
+  }
+  await _saveViaNetwork(
+    l10n,
+    updatedTrail.copyWith(id: serverId, localId: null,
+        // the unsynced/ copies are gone; re-upload nothing, keep server photos
+        localPhotos: const []),
+    authorId: authorId,
+    newPhotoFiles: newPhotoFiles.where((f) => f.existsSync()).toList(),
+  );
+  return;
 }
 ```
 
+Minimum acceptable alternative: refuse the save and tell the user to re-open the trail,
+rather than issuing a request that cannot possibly be routed.
+
+Add a behavioural test in `trail_create_screen_local_save_gate_test.dart`'s place that
+overrides `apiProvider` and asserts the request URI is never `/trail/form/`.
+
 ---
 
-### CR-03: A resumed drain wipes the trail's photos from the local row and deletes the on-disk copies
+### CR-02: A first local save that fails permanently bricks the create screen
 
-**File:** `app/lib/provider/trail/trail_sync_provider.dart:132`, `app/lib/provider/trail/trail_sync_provider.dart:186-192`, `app/lib/util/local_trail_store.dart:494-513`
+**File:** `app/lib/routes/trail_create_screen.dart:478-495`, `app/lib/routes/trail_create_screen.dart:503-518`, `app/lib/util/local_trail_store.dart:113-122`
+
+**Issue:** In the `createLocal` branch, `_localId` is assigned **before** the row is
+written:
+
+```dart
+final localId = mintLocalId();
+_localId = localId;                     // :478-479
+
+final photoCopy = await _copyPhotosForLocalSave(...);   // can throw
+saveNewLocalTrail(store, ...);                          // can throw
+```
+
+`_copyPhotosForLocalSave` awaits `getApplicationDocumentsDirectory()` and
+`Directory.create(recursive: true)`, and `saveNewLocalTrail` runs an ObjectBox write
+transaction — both can throw (the `catch` at `:503` exists precisely because they can).
+When either does, `_localId` is left pointing at an id with **no row**.
+
+The next save then evaluates `persistedLocalId != null && persisted == null`, which
+`resolveLocalSaveModeForRow` maps to `LocalSaveMode.networkUpdate`
+(`local_trail_store.dart:118-120`) — and lands in CR-01's dead POST. The screen can
+never save again, locally or otherwise, for the rest of its life. The user's recorded
+track is still only in memory at that point.
+
+`resolveLocalSaveModeForRow`'s doc comment asserts "A null `persistedLocalId` is the
+genuinely-never-saved case", which is exactly the invariant this ordering breaks: after
+a failed first save, `persistedLocalId` is non-null and the trail was never saved.
+
+**Fix:** publish `_localId` only after the row exists, and make the decision function
+distinguish "never written" from "retired" on evidence rather than on a field the
+screen sets speculatively.
+
+```dart
+final localId = mintLocalId();
+final photoCopy = await _copyPhotosForLocalSave(localId, updatedTrail, localPhotoPaths);
+saveNewLocalTrail(store, /* ... */ localId: localId, /* ... */);
+_localId = localId;                       // only now is the row real
+await _finishLocalSave(store, l10n, photoCopy.failedCount, localId: localId);
+```
+
+A dedicated unit test on `resolveLocalSaveModeForRow` covering "id set, no row, never
+uploaded" belongs next to the existing group in `test/util/local_trail_store_test.dart`.
+
+---
+
+### CR-03: Any edit made after the drain stamps a server id is silently discarded
+
+**File:** `app/lib/provider/trail/trail_sync_provider.dart:178`, `app/lib/provider/trail/trail_sync_provider.dart:306`, `app/lib/util/local_trail_store.dart:289-345`, `app/lib/routes/trail_create_screen.dart:539-574`
+
+**Issue:** The drain's step 2 only sends the trail when `isLocalId(entity.id)`:
+
+```dart
+if (isLocalId(entity.id)) {   // :178
+  // PUT /trail/form ... writeServerTrailId(...)
+}
+```
+
+Once `writeServerTrailId` has run, the row's `id` is a server id **for the rest of its
+life**, including across every retry and across a parked `failed` state. The drain has
+no update path at all — `updateLocalTrail`'s own doc comment says so
+(`local_trail_store.dart:281-285`) — and step 4 then retires the row
+(`trail_sync_provider.dart:306`), destroying whatever the row held.
+
+Meanwhile `updateLocalTrail` refuses only `TrailSyncState.synced`
+(`local_trail_store.dart:302-304`). Every other state is accepted and written. So:
+
+1. Drain step 2 succeeds; step 3's first waypoint upload fails four times;
+   `resolveDrainFailureOutcome` parks the row as `failed`
+   (`local_trail_store.dart:168-174`).
+2. The user opens the trail, fixes the name/description/privacy, saves.
+   `resolveLocalSaveMode(persisted)` sees `syncState == failed` → `updateLocal`;
+   `updateLocalTrail` writes the edit and returns `updated`; `_finishLocalSave` shows
+   `trail_saved_successfully`.
+3. The user taps the "Upload failed · Tap to retry" chip
+   (`sync_status_chip.dart:58-61`). The drain skips step 2 (id is not local), retries
+   the waypoint, succeeds, and calls `retireUploadedLocalTrail`, **deleting the row and
+   the edit with it**.
+
+The server keeps the pre-edit values. The user was shown a success toast and a
+successful upload. Nothing anywhere records that the edit was dropped. The same window
+exists (narrower) between step 2 and step 4 of a single successful pass, and across the
+whole 30s/2m/10m backoff ladder.
+
+This is the un-fixed remainder of the previous review's CR-04: the fix addressed the
+`synced` case and left the `pending`/`uploading`/`failed`-with-a-server-id case, which
+is the larger of the two windows.
+
+**Fix:** either make step 2 handle the update case, or refuse the local write once an
+id exists. The first is preferable because it keeps the local-first promise:
+
+```dart
+// trail_sync_provider.dart, step 2
+if (isLocalId(entity.id)) {
+  // ... PUT /trail/form (create) ...
+} else if (entity.dirtySinceUpload) {          // new persisted flag, set by updateLocalTrail
+  await ref.read(apiProvider).post('/trail/form/${entity.id}', data: formData, ...);
+  clearDirtySinceUpload(store, localId);
+}
+```
+
+`updateLocalTrail` sets `dirtySinceUpload = true` whenever the row it is writing over
+already has a non-local `id`. If that is more than this phase should take on, the
+minimum is to make `updateLocalTrail` return a new `LocalUpdateOutcome.alreadyUploaded`
+for a row whose `id` is not a local sentinel, so the caller is forced to route to the
+network path instead of writing an edit that has nowhere to go.
+
+---
+
+### CR-04: "Delete — this can't be undone" leaves a live, possibly public trail on the server
+
+**File:** `app/lib/components/trail/trail_dropdown.dart:243-245`, `app/lib/components/trail/trail_dropdown.dart:283-317`, `app/lib/provider/trail/trail_sync_provider.dart:378-398`, `app/lib/util/local_trail_store.dart:353-367`
+
+**Issue:** `_confirmDelete` picks its copy purely off the sync state:
+
+```dart
+final confirmCopy = isUnsyncedState(trail.syncState)
+    ? l18n.delete_unsynced_trail_confirm   // "It hasn't been uploaded yet, so this can't be undone."
+    : l18n.delete_trail_confirm;
+```
+
+and `_deleteTrail` routes on the same predicate to `TrailSync.deleteUnsynced`, which
+does `deleteLocalTrailRow` + photo-dir cleanup and **never issues a server DELETE**
+(`trail_sync_provider.dart:381-389`).
+
+D-14's premise — unsynced means the device holds the only copy — stopped being true
+when SYNC-04 pulled `writeServerTrailId` forward to the instant the create is accepted
+(`trail_sync_provider.dart:218-228`). After that write the row is `pending`/`uploading`/
+`failed` **and** carries a real server id. Reachable path:
+
+1. `PUT /trail/form` succeeds; `writeServerTrailId` commits the id. The trail is live on
+   the server with whatever `public` value the user chose.
+2. Step 3 fails four times → the row parks as `failed`.
+3. The chip reads "Upload failed"; the user gives up and deletes, and is told the
+   deletion cannot be undone because it was never uploaded.
+4. The local row and photos are destroyed. The server trail — indexed by Meilisearch,
+   federated if public, visible on the web profile — remains, with waypoints partially
+   or wholly missing.
+
+The user believes they destroyed a trail they in fact published. There is no affordance
+anywhere in the app that reaches it afterwards, because the local row that held its id
+is gone.
+
+**Fix:** decide on the id, not on the sync state, and delete both sides when both exist.
+
+```dart
+// trail_sync_provider.dart
+Future<bool> deleteUnsynced(String localId) async {
+  if (state.contains(localId)) return false;
+  final store = ref.read(objectBoxProvider);
+  final entity = findLocalRow(store, localId);
+  final serverId = entity != null && !isLocalId(entity.id) ? entity.id : null;
+
+  if (serverId != null) {
+    // The create already landed -- this is not a device-only copy.
+    await ref.read(apiProvider).delete('/trail/$serverId');
+  }
+  deleteLocalTrailRow(store, localId);
+  await _deletePhotoDirBestEffort(localId);
+  // ...
+}
+```
+
+and make `_confirmDelete` choose `delete_unsynced_trail_confirm` only when the row's id
+is still a local sentinel — a row with a server id must not claim the deletion is
+irreversible/device-only. A network failure on the server DELETE must return `false` so
+the local row is not destroyed while the server copy survives.
+
+## Warnings
+
+### WR-01: `localTrailProvider` is never invalidated when the drain retires the row
+
+**File:** `app/lib/provider/trail/trail_sync_provider.dart:306-320`, `app/lib/provider/trail/local_trail_provider.dart:26-35`, `app/lib/routes/trail_detail_screen.dart:71-88`
+
+**Issue:** `_drainOne` invalidates `trailLibraryProvider` and
+`profileTrailsProvider('@<username>')` after a successful upload, but not
+`localTrailProvider(localId)` — and there are no ObjectBox `Query.watch()` streams
+anywhere (`trail_create_screen.dart:733-740` says so explicitly). A user sitting on
+`/trail/local/<localId>` while the upload completes keeps rendering a `Trail` for a row
+that no longer exists, with a live Edit button that walks straight into CR-01. If they
+navigate away and back, or deep-link, they get `trail_not_on_this_device` with no path
+to the now-uploaded trail.
+
+**Fix:** invalidate it alongside the other two, and give the not-found branch a way
+forward:
+
+```dart
+retireUploadedLocalTrail(store, localId);
+ref.invalidate(localTrailProvider(localId));
+```
+
+plus, in `trail_detail_screen.dart`'s null branch, redirect to `/trail/<serverId>` when
+the retirement recorded one (see CR-01's suggested return value) instead of a dead end.
+
+---
+
+### WR-02: `_invalidateOwnTrailsList` interpolates a nullable username into the family key
+
+**File:** `app/lib/routes/trail_create_screen.dart:753-760`
 
 **Issue:**
 
 ```dart
-var serverPhotoFilenames = entity.photos;          // line 132
-if (isLocalId(entity.id)) { /* create; serverPhotoFilenames = created.photos */ }
-// ...
-markTrailSynced(store, localId: localId, serverPhotoFilenames: serverPhotoFilenames);
-await deleteUnsyncedPhotoDir(localId);
+ref.invalidate(
+  profileTrailsProvider('@${ref.read(authProvider).value?.preferredUsername}'),
+);
 ```
 
-On the **resume path** (`entity.id` is already a server id because a prior attempt got past step 2 and then failed at a waypoint, or the process was killed), the create block is skipped, so `serverPhotoFilenames` stays `entity.photos` — which is `[]` for a locally captured trail, because neither `TrailEntity.fromModel` nor `saveNewLocalTrail` ever writes `photos`. `markTrailSynced` then executes `entity.photos = []` and `entity.localPhotos = []`, and `deleteUnsyncedPhotoDir` removes the actual JPEGs from `<app-docs>/unsynced/<localId>/`.
-
-Result: the trail is marked synced with zero photos on the device. Because `mergeOwnTrails` puts local rows first and drops any network hit sharing the id, the own-trails list shows that photoless local row **permanently** — `TrailCard`'s `localPhotos.isNotEmpty` is false and `summaryThumbnail` (`photos[0]`) is empty, so the placeholder SVG is rendered forever. The photos do exist server-side, but nothing on this device will ever read them back into that row.
-
-This is reachable from a single failed waypoint upload followed by a successful retry, not just from a process kill.
-
-**Fix:** re-read the server's photo list on the resume path instead of trusting the stale local `photos` column.
-
-```dart
-var serverPhotoFilenames = entity.photos;
-
-if (isLocalId(entity.id)) {
-  // ... create, serverPhotoFilenames = created.photos ...
-} else {
-  // Resume: the trail already exists server-side; fetch its authoritative
-  // photo list rather than persisting this row's (empty) local column.
-  final existing = await ref.read(apiProvider).get('/trail/${entity.id}');
-  serverPhotoFilenames = Trail.fromJson(existing.data).photos;
-}
-```
-
-Alternatively, persist `created.photos` into the row inside `writeServerTrailId` at step 2 so the resume path has a truthful `entity.photos` to carry forward.
-
----
-
-### CR-04: An edit made after the upload finishes is written local-only and never reaches the server
-
-**File:** `app/lib/routes/trail_create_screen.dart:425`, `app/lib/routes/trail_create_screen.dart:547-568`, `app/lib/util/local_trail_store.dart:65-73`, `app/lib/util/local_trail_store.dart:226-233`
-
-**Issue:** `TrailCreateScreen` snapshots `trail` from `readLocalTrail` at the end of `_finishLocalSave`, at which point `syncState` is `pending`. The screen never watches the drain, so when the upload completes moments later the in-memory `trail` still says `pending`.
-
-If the user then edits and saves again (a normal flow — fix a typo right after recording):
-
-1. `resolveLocalSaveMode(updatedTrail)` sees `syncState != synced` → `LocalSaveMode.updateLocal`.
-2. The branch is documented "Fully local-first: never touches the network, online or offline" and calls `updateLocalTrail`.
-3. `updateLocalTrail` carries `existing.syncState` forward — which is now `synced` — so the row stays `synced`.
-4. `selectDrainCandidates` filters on `dbSyncState != synced`, so the drain will never pick it up.
-
-The edit lives on this device only, forever, and the user was shown `trail_saved_successfully`. Same failure occurs for an edit made *during* the drain: `_drainOne` built its payload from a snapshot taken before the edit (`trail_sync_provider.dart:126`) and marks the row synced afterwards.
-
-**Fix:** decide the save mode from the persisted row, not the screen's snapshot, and re-queue on a post-sync edit.
-
-```dart
-// _onSave, before resolveLocalSaveMode
-final localId = _localId;
-final persisted = localId == null ? null : readLocalTrail(store, localId);
-final saveMode = resolveLocalSaveMode(persisted ?? updatedTrail);
-```
-
-and, in `updateLocalTrail`, when the existing row is already `synced`, either route the caller to the network update path or reset the row to `pending`/`syncAttempts = 0` so the drain re-uploads the change. Whichever is chosen, `_finishLocalSave` should also `ref.watch`/`listen` the sync provider so the screen's `syncState` does not go stale.
-
-## Warnings
-
-### WR-01: A duplicate server trail is still possible — `writeServerTrailId` runs after `Trail.fromJson`, not after the response lands
-
-**File:** `app/lib/provider/trail/trail_sync_provider.dart:146-162`
-
-**Issue:** The comment claims the id write "commits the instant the server accepted the create, BEFORE any waypoint upload starts". It actually commits after `Trail.fromJson(response.data)` (line 153). Any parse failure — an unexpected body shape, a schema change, a `null` field where the freezed model requires non-null — throws before the id is persisted, and the next drain pass re-runs `PUT /trail/form`, creating a second trail with no way to reconcile them.
-
-**Fix:** extract and persist the id before full deserialization.
-
-```dart
-final response = await ref.read(apiProvider).put('/trail/form', ...);
-final rawId = (response.data as Map<String, dynamic>?)?['id'] as String?;
-if (rawId != null && rawId.isNotEmpty) {
-  writeServerTrailId(store, localId: localId, serverId: rawId);
-}
-final created = Trail.fromJson(response.data);
-serverTrailId = created.id;
-serverPhotoFilenames = created.photos;
-```
-
----
-
-### WR-02: A refused delete is swallowed, and the route is popped before the refusal is known
-
-**File:** `app/lib/components/trail/trail_dropdown.dart:253-257`, `app/lib/provider/trail/trail_sync_provider.dart:228-233`
-
-**Issue:** `TrailSync.deleteUnsynced` returns `false` when the local id is in the in-flight set, and its doc comment says deletion is "Refused (not silently ignored)". The caller discards the boolean:
-
-```dart
-Navigator.of(context).pop();
-await ref.read(trailSyncProvider.notifier).deleteUnsynced(trail.localId!);
-return;
-```
-
-The pop happens *first*, so the user is navigated away and then nothing is deleted, with no toast and no explanation — the exact "silently ignored" outcome the comment says is avoided. The `isDraining` menu disable does not cover this: the drain can start between the menu build and the confirm-dialog tap.
+When `authProvider.value` is null (a token refresh in flight, a mid-logout race) the key
+becomes the literal `'@null'`, which matches no mounted instance — the invalidation is a
+silent no-op and the own-trails list keeps its pre-edit snapshot. The doc comment above
+this method states "the family key must match the one `profile_trail_screen` watches or
+the invalidation is a silent no-op", which is exactly the failure the interpolation
+allows.
 
 **Fix:**
 
 ```dart
-final deleted = await ref.read(trailSyncProvider.notifier).deleteUnsynced(trail.localId!);
-if (!mounted) return;
-if (!deleted) {
-  ref.read(toastProvider.notifier).add(ToastMessage(
-    type: ToastType.warning,
-    icon: FontAwesomeIcons.circleExclamation,
-    text: l18n.delete_blocked_while_uploading, // new key
-  ));
-  return;
+final username = ref.read(authProvider).value?.preferredUsername;
+if (username != null) ref.invalidate(profileTrailsProvider('@$username'));
+```
+
+`trail_sync_provider.dart:320` uses `userEntity.preferredUsername`, a non-nullable value
+resolved from the store, and is correct — this is the only site with the hole.
+
+---
+
+### WR-03: `TrailFilterNotifier.defaultFilter` is unassigned on the non-connection error path
+
+**File:** `app/lib/provider/trail/trail_filter_provider.dart:68`, `app/lib/provider/trail/trail_filter_provider.dart:103-108`, `app/lib/provider/trail/trail_filter_provider.dart:150-152`
+
+**Issue:** `defaultFilter` is `late` and assigned in exactly two places — the success
+path (`:84`) and the connection-failure fallback (`:104`). Every other failure (a 500, a
+malformed payload, `TrailFilterValues.fromJson` throwing) rethrows at `:107` without
+assigning it. `resetFilter()` (`:150-152`) then reads it unconditionally and throws
+`LateInitializationError`, an uncaught error out of a button callback. The provider is
+`keepAlive`, so the un-initialised instance survives.
+
+**Fix:** initialise it at declaration so the field always has a meaning:
+
+```dart
+TrailFilter defaultFilter = buildDefaultTrailFilter(kOfflineTrailFilterValues);
+```
+
+and drop the `late`. The `late` was retained from the fix for the `late final` rebuild
+crash; a plain initialised field solves both problems.
+
+---
+
+### WR-04: A `null` waypoint `localKey` burns retry attempts and can park a good trail as `failed`
+
+**File:** `app/lib/provider/trail/trail_sync_provider.dart:245-251`, compare `app/lib/provider/trail/trail_sync_provider.dart:147-159`
+
+**Issue:** The `StateError` thrown for a keyless waypoint sits **inside** `_drainOne`'s
+`try`, so it lands in the generic handler at `:321-332` and consumes one of the four
+`kMaxSyncAttempts`. This is an invariant break, not a network condition — no amount of
+retrying will mint a `localKey` — yet four passes (a lifecycle/connectivity flurry
+produces these within seconds, and `syncBackoffDelay` only starts at 30s after the
+*first* failure) park the trail as `failed`, after which `isDrainDue` returns false
+forever and only a manual chip tap revives it. This is precisely the reasoning applied
+one screen up for the missing `UserEntity` (`:140-159`, the WR-12 fix), applied
+inconsistently.
+
+Worse, the trail may already have been created server-side by step 2 before this throws,
+which puts it straight into CR-04's territory.
+
+**Fix:** resolve the keys before joining the in-flight set, and bail without recording a
+failure:
+
+```dart
+final keyless = entity.waypoints.where((w) => w.localKey == null && isLocalId(w.id));
+if (keyless.isNotEmpty) {
+  debugPrint('trail_sync_provider: "$localId" has keyless waypoints; skipping drain');
+  return;   // before `state = {...state, localId}` and before the try
 }
-if (context.mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
 ```
 
 ---
 
-### WR-03: Manual retry is a no-op whenever any drain is in flight
+### WR-05: The local-save gate test asserts an invariant the code no longer satisfies, and still passes
 
-**File:** `app/lib/provider/trail/trail_sync_provider.dart:57-59`, `app/lib/provider/trail/trail_sync_provider.dart:217-221`
+**File:** `app/test/routes/trail_create_screen_local_save_gate_test.dart:197-242`, against `app/lib/routes/trail_create_screen.dart:455-463` and `app/lib/routes/trail_create_screen.dart:547-548`
 
-**Issue:** `retry()` resets the row then calls `drainIfOnline()`, which returns immediately if `_draining` is true. `_draining` is a *whole-drain* guard, not a per-trail one, so tapping "Upload failed · Tap to retry" while any other trail is uploading resets the backoff and then does nothing visible until the next foreground/connectivity trigger. The doc comment claims only "that row" no-ops, which is not what the guard does.
+**Issue:** The test is titled "the updateLocal branch reaches the network ONLY on the
+alreadySynced escape hatch (CR-04)" and its `reason:` strings say the network reach
+"must stay guarded on that specific outcome". Two things have since changed:
 
-**Fix:** re-run the drain once the current pass finishes, e.g. set a `_drainRequestedAgain` flag when `_draining` and loop in the `finally`:
+- The guard is now `outcome == LocalUpdateOutcome.alreadySynced || outcome ==
+  LocalUpdateOutcome.missing` (`:547-548`). The test only checks that the string
+  `LocalUpdateOutcome.alreadySynced` appears *somewhere before* the `_saveViaNetwork(`
+  call, so the `missing` addition — the branch that actually fires in practice, and the
+  one that carries CR-01's blank id — passes unnoticed.
+- The slice starts at `if (saveMode == LocalSaveMode.createLocal) {`, which excludes the
+  `networkUpdate` early return at `:455-463`. So "exactly one `_saveViaNetwork` call" is
+  true of the slice and false of `_onSave`, while the `reason:` text claims the latter.
+
+The scope note for this review asked whether each gate's stated justification still
+holds. This one's does not: it is now a test that passes for a reason unrelated to the
+property it names, over a method it does not fully cover.
+
+**Fix:** re-anchor the slice on the whole `_onSave` body, assert on the exact guard
+expression (`alreadySynced || outcome == LocalUpdateOutcome.missing`), and — better —
+replace the ordering grep with the behavioural `apiProvider`-override test CR-01 needs
+anyway, which would have caught both the blank id and the guard drift.
+
+---
+
+### WR-06: The destructive-action strings are still English-only in 12 locales
+
+**File:** `app/lib/i18n/untranslated_messages.json`, `app/lib/i18n/app_de.arb`, `app/lib/i18n/app_fr.arb` (and 10 more)
+
+**Issue:** Re-raised from the previous review's WR-15, which was closed as "partially
+fixed — translations deliberately not authored". The engineering half (the committed
+`untranslated-messages-file` report) is done and is a genuine improvement. The user-
+facing gap is unchanged and has grown: the report now lists 12 locales missing
+`delete_unsynced_trail_confirm`, `signout_unsynced_warning`,
+`delete_blocked_while_uploading`, `trail_not_on_this_device`, `sync_pending`,
+`sync_uploading`, `sync_failed`, `photo_copy_failed_toast`,
+`own_trails_offline_banner`, `own_trails_empty_title`, `own_trails_empty_body` and
+`retry_upload`.
+
+Two of these are the copy on irreversible actions. Given CR-04, the English text of
+`delete_unsynced_trail_confirm` is currently *wrong* as well as untranslated, so this
+needs a pass regardless of who authors the translations.
+
+**Fix:** ship `signout_unsynced_warning` and the (corrected) delete-confirm copy to every
+locale before release, and treat `lib/i18n/untranslated_messages.json` as the work list.
+
+---
+
+### WR-07: `retry_upload` is a dead l10n key
+
+**File:** `app/lib/i18n/app_en.arb`
+
+**Issue:** `retry_upload` appears in the template ARB and in every locale's untranslated
+report, but has no reference anywhere in `app/lib` or `app/test` — the retry affordance
+uses `sync_failed` ("Upload failed · Tap to retry") as both label and action
+(`sync_status_chip.dart:56`). It inflates the translation backlog by one string in 12
+locales for nothing.
+
+**Fix:** delete the key and regenerate, or wire it up if the chip was meant to carry a
+separate action label.
+
+---
+
+### WR-08: An unsynced trail with a null `localId` falls through to a silent un-download no-op
+
+**File:** `app/lib/components/trail/trail_dropdown.dart:283`, `app/lib/components/trail/trail_dropdown.dart:334-338`
+
+**Issue:** The unsynced branch is guarded on `isUnsyncedState(trail.syncState) &&
+trail.localId != null`. A row that is unsynced but has a null `localId` — which
+`retireUploadedLocalTrail`'s demote branch creates deliberately at
+`local_trail_store.dart:415`, and which `TrailDownloadService`'s carry-forward can
+produce from `existing?.localId` — skips it and lands in the `trail.isLocal` branch,
+calling `trailLibraryProvider.deleteTrail(trail.id)`. The route is popped first
+(`:335`), so if that id is empty or not a library member the user is navigated away and
+nothing is deleted, with no feedback — the same "looks exactly like a completed delete"
+failure the unsynced branch was reworked to avoid.
+
+**Fix:** make the fall-through explicit rather than implicit:
 
 ```dart
-Future<void> drainIfOnline() async {
-  if (_draining) { _rerunRequested = true; return; }
-  _draining = true;
-  try {
-    do {
-      _rerunRequested = false;
-      await _drainPass();
-    } while (_rerunRequested);
-  } finally {
-    _draining = false;
+if (isUnsyncedState(trail.syncState)) {
+  final localId = trail.localId;
+  if (localId == null) {
+    _toastError(l18n.error_deleting_trail);   // or route to the server delete
+    return;
   }
+  // ... existing deleteUnsynced flow
 }
 ```
 
 ---
 
-### WR-04: `updateLocalTrail` does not carry `existing.photos` forward
+### WR-09: `writeServerWaypointId` clears `localPhotos` before the trail's upload has completed
 
-**File:** `app/lib/util/local_trail_store.dart:226-235`
+**File:** `app/lib/util/local_trail_store.dart:693-695`, `app/lib/provider/trail/trail_sync_provider.dart:281-287`
 
-**Issue:** The function carefully carries `obxId`, `id`, `owner`, `localId`, `syncState`, `syncAttempts`, `syncNextAttemptAt` and `savedByUserIds` forward from the existing row, but not `photos`. `TrailEntity.fromModel` always leaves `photos` at `[]`, so any re-save through this path erases the server-side photo filenames from the local row. Combined with CR-04 (a post-sync edit lands here) this leaves a synced row with empty `photos` *and* empty `localPhotos` — a permanently thumbnail-less card.
+**Issue:** The bookkeeping write sets `target.photos = serverPhotoFilenames` and
+`target.localPhotos = []` the moment one waypoint is created. If a **later** waypoint in
+the same loop fails and the trail is eventually parked as `failed`, the row survives with
+waypoints whose model-level photos are now server filenames and whose local copies are
+unreachable — while the actual JPEGs still sit on disk under
+`unsynced/<localId>/waypoints/<key>/` (nothing deletes them on the failure path,
+`trail_sync_provider.dart:322-324`). Viewing that trail offline shows a waypoint with
+zero photos, and the on-disk files are dead weight until the trail is deleted.
 
-**Fix:** add `entity.photos = existing.photos;` alongside the other carry-forwards, and extend the source-level carry-forward gate in `test/services/trail_download_service_carry_forward_test.dart`'s style to cover this function too.
-
----
-
-### WR-05: `LocalSaveMode.updateLocal` and `createLocal` doc comments are swapped
-
-**File:** `app/lib/util/local_trail_store.dart:37-48`
-
-**Issue:**
-
-```dart
-  /// The trail has never been saved locally before -- mint a local id and
-  /// create a new [TrailEntity] row.
-  updateLocal,
-
-  /// The trail already has a local row -- update it in place.
-  createLocal,
-```
-
-Both doc comments describe the other value. `resolveLocalSaveMode` behaves per the *names* (`localId == null → createLocal`), so the code is right and the comments are wrong — but this is the single routing decision that guards against minting a duplicate local row (RESEARCH.md Pitfall 2), and it is exactly where a reader most needs the comment to be trustworthy.
-
-**Fix:** swap the two doc comments.
-
----
-
-### WR-06: `_readOwnLocal` uses the cached `_isOwnHandle`/`_authorActorId` despite documenting the opposite
-
-**File:** `app/lib/provider/profile/profile_trails_provider.dart:54-60`, `app/lib/provider/profile/profile_trails_provider.dart:154-169`
-
-**Issue:** The fields are documented as "Recomputed at the top of every `build()`, then re-derived fresh (never read from these cached copies) inside `search`/`loadNextPage` via `_readOwnLocal` -- D-13's 'always fresh, never cached' invariant." `_readOwnLocal` re-reads only `accountId`; it reads `_isOwnHandle` and `_authorActorId` from the cached fields. The actor id is a matching key in `readOwnLocalTrails`' second clause (`entity.author.target?.id == authorActorId`), so a stale value pairs the *new* account's id with the *previous* account's actor — the shape of leak D-13 exists to prevent. In practice `build()` watches `authProvider`, so the window is narrow; but the comment asserts a guarantee the code does not provide.
-
-**Fix:** derive both inside `_readOwnLocal`:
+**Fix:** keep the local copies until the whole trail is retired:
 
 ```dart
-List<Trail> _readOwnLocal(String q) {
-  final store = ref.read(objectBoxProvider);
-  final accountId = currentAccountId(store);
-  final user = ref.read(authProvider).value;
-  if (accountId == null || user == null) return const <Trail>[];
-  if (_handle != '@${user.preferredUsername}') return const <Trail>[];
-  return filterOwnTrailsByQuery(
-    readOwnLocalTrails(store, accountId: accountId, authorActorId: user.actorId),
-    q,
-  );
-}
+target.id = serverWaypointId;
+target.photos = serverPhotoFilenames;
+// localPhotos deliberately retained -- the trail's upload is not complete yet, and
+// retireUploadedLocalTrail / deleteUnsyncedPhotoDir own the cleanup.
 ```
 
 ---
 
-### WR-07: The `updateLocal` branch dereferences `_localId!` rather than the value the router actually decided on
+### WR-10: The local delete path has no owner clause while every read path does
 
-**File:** `app/lib/routes/trail_create_screen.dart:552`
+**File:** `app/lib/util/local_trail_store.dart:353-367`, `app/lib/util/local_trail_store.dart:399-430`, `app/lib/provider/trail/trail_sync_provider.dart:378-398`
 
-**Issue:** `resolveLocalSaveMode` routes on `updatedTrail.localId`, but the branch then uses the separately-tracked `_localId!`. The two are kept in sync only by `initState` and the `createLocal` branch; any future path that produces a `trail` with a `localId` without going through those (a `context.push('/trail/create/edit', extra: …)` from a new call site, a `copyWith` chain) throws a bare null-check error that surfaces to the user as the generic `error_saving_trail` toast with no diagnosis.
+**Issue:** `readOwnLocalTrail` is owner-scoped, and its doc comment explains why: its
+argument arrives from a route parameter that "survives a logout in the deep-link and
+back-stack". `deleteLocalTrailRow` takes the same kind of value from the same kind of
+path — `TrailSync.deleteUnsynced(trail.localId!)`, driven by a `Trail` that may have been
+constructed before an account switch — and has **no** `owner` clause at all.
+`retireUploadedLocalTrail` documents its own lack of scoping as safe because its only
+caller came through `selectDrainCandidates`; `deleteLocalTrailRow` has no such
+justification and no such caller guarantee.
 
-**Fix:** `final localId = updatedTrail.localId ?? _localId!;` — or better, have `resolveLocalSaveMode` return the id it routed on so the two can never diverge.
+Today the exposure is small (a stale widget holding a previous account's `Trail`), but
+the asymmetry means the read side is hardened against exactly the vector the write side
+is open to.
 
----
-
-### WR-08: Waypoints with a null `localKey` lose their photo protection and their server id
-
-**File:** `app/lib/routes/trail_create_screen.dart:613-622`, `app/lib/provider/trail/trail_sync_provider.dart:166-184`
-
-**Issue:** Two `continue`s treat a null `localKey` as "skip silently":
-
-- `_copyPhotosForLocalSave` skips the copy entirely, so that waypoint's `localPhotos` remain OS-purgeable `image_picker` cache paths — precisely the D-01 failure the whole `local_photo_store_util.dart` module exists to prevent — and no failure is reported to the user.
-- `_drainOne` creates the waypoint server-side and *then* checks `localKey`, `continue`ing without persisting the returned id. If a later waypoint in the same loop fails, the retry re-creates this one (same mechanism as CR-02).
-
-Today `WaypointEntity.fromModel` always mints a key for an empty-id waypoint, so the null branch should be unreachable — which makes silent `continue` the worst possible handling: an invariant break becomes invisible.
-
-**Fix:** hoist the guard and make a violation loud.
+**Fix:** thread the account id through and add the clause, matching `readOwnLocalTrail`:
 
 ```dart
-final waypointLocalKey = waypointEntity.localKey;
-if (waypointLocalKey == null) {
-  throw StateError('waypoint ${waypointEntity.obxId} of "$localId" has no localKey');
-}
-final createdWaypoint = await ref.read(waypointSaveProvider.notifier).create(...);
-writeServerWaypointId(store, localId: localId, waypointLocalKey: waypointLocalKey, ...);
-```
-
-and in `_copyPhotosForLocalSave`, count a keyless waypoint with photos into `failedCount` rather than dropping it.
-
----
-
-### WR-09: Any exception, including a parse error, is reported to the user as "you're offline"
-
-**File:** `app/lib/provider/profile/profile_trails_provider.dart:191-204`
-
-**Issue:** `_fetchAndMerge`'s `catch (_) { if (!_isOwnHandle) rethrow; offline = true; }` swallows every throwable — including the `FormatException` thrown deliberately at line 244 for an unexpected response shape, and the implicit `TypeError` from `data['totalPages'] ?? 1` when the server returns a non-int. The screen then renders `own_trails_offline_banner` ("Showing what's saved on this device — connect to see everything") for a fully-online, server-side or client-side bug, and `loadNextPage` refuses to page because `state.offline` is true. The doc comment on `ProfileTrailsState.offline` says it is "Decided from the fetch outcome itself"; it is decided from *any* outcome.
-
-**Fix:** narrow the catch to transport errors and let the rest surface.
-
-```dart
-} on DioException catch (_) {
-  if (!_isOwnHandle) rethrow;
-  offline = true;
-}
-```
-
----
-
-### WR-10: `deleteUnsyncedPhotoDir` can throw out of `deleteUnsynced` as an unhandled async error
-
-**File:** `app/lib/util/local_photo_store_util.dart:172-182`, `app/lib/provider/trail/trail_sync_provider.dart:228-242`
-
-**Issue:** `unsyncedTrailPhotoDir` (and therefore `localIdDirSegment`) is evaluated *outside* `deleteUnsyncedPhotoDir`'s `try`, which the doc comment states is deliberate. But `TrailSync.deleteUnsynced` has no `try/catch` around it, and the call site in `trail_dropdown.dart` `await`s it without one either. A row whose `localId` does not match `^local-\d+-\d+$` (a pre-`mintLocalId` row, a hand-edited store, a future id-format change) makes `deleteUnsynced` throw an `ArgumentError` into the button's async callback — the local row has already been deleted at that point (line 232 runs first), so the user is left with an orphaned photo directory and an unexplained red screen / silent failure.
-
-**Fix:** wrap the call and degrade to best-effort, matching the sweep's discipline:
-
-```dart
-deleteLocalTrailRow(store, localId);
-try {
-  await deleteUnsyncedPhotoDir(localId);
-} catch (e, st) {
-  debugPrint('trail_sync_provider: photo dir cleanup failed for "$localId": $e\n$st');
-}
-```
-
----
-
-### WR-11: The drain writes a stale, fully-materialised entity outside a transaction, clobbering concurrent local edits
-
-**File:** `app/lib/provider/trail/trail_sync_provider.dart:121-122`
-
-**Issue:**
-
-```dart
-entity.syncState = TrailSyncState.uploading;
-store.box<TrailEntity>().put(entity);
-```
-
-`entity` came from `selectDrainCandidates` at the top of `drainIfOnline`, before the (potentially long) `refresh()`/tag-resolution awaits and before every preceding trail in the same pass finished uploading. Putting the whole object back writes *every* column from that snapshot, not just `syncState`. Nothing prevents `_onSave`'s `updateLocalTrail` from committing an edit in the meantime (only *delete* is gated on the in-flight set), so a user editing a queued trail can have their edit reverted by this write. Every other bookkeeping write in `local_trail_store.dart` correctly re-queries inside `runInTransaction`; this one does not.
-
-**Fix:** add a `markTrailUploading(store, localId: localId)` to `local_trail_store.dart` following the shape of `markTrailSynced`/`resetDrainBackoff`, and call that instead of the direct `box.put`.
-
----
-
-### WR-12: A missing `UserEntity` burns a retry attempt and can park a perfectly good trail as `failed`
-
-**File:** `app/lib/provider/trail/trail_sync_provider.dart:108-118`
-
-**Issue:** The `StateError` for a missing `UserEntity` is thrown *inside* `_drainOne`'s `try`, so it lands in the generic failure handler and consumes one of the four attempts from `kMaxSyncAttempts`. This is not a network condition at all — it means the account row vanished (mid-logout race, `account_data_purge_util` running concurrently). Four such passes, which can occur within seconds on a lifecycle/connectivity flurry, park the trail as `TrailSyncState.failed`, at which point `isDrainDue` returns false forever and only a manual tap on the chip revives it. `sync_backoff.dart`'s own doc comment argues the attempt count should escalate only on real upload failures.
-
-**Fix:** resolve the user before entering the try, and bail without recording a failure:
-
-```dart
-final userEntity = _findUser(store, accountId);
-if (userEntity == null) {
-  debugPrint('trail_sync_provider: no UserEntity for "$accountId"; skipping drain');
-  return;   // before state = {...state, localId}
-}
-```
-
----
-
-### WR-13: `reconcileLocalPhotos`' delete pass matches kept files by raw string equality
-
-**File:** `app/lib/util/local_photo_store_util.dart:113-145`
-
-**Issue:** A desired path is kept verbatim when `p.isWithin(dir, sourcePath)` is true, but the subsequent delete pass tests `keptSet.contains(entry.path)` — a plain string compare against `Directory(dir).listSync()` output. `p.isWithin` normalizes (`dir/./photo.jpg`, `dir//photo.jpg`, a trailing-separator `dir`), `listSync().path` does not. Any non-canonical spelling of an in-dir path is therefore "kept" in the returned list and *deleted from disk in the same call*, leaving the entity pointing at a file that no longer exists — silently, since both loops swallow errors.
-
-Reachability is narrow today (paths originate from a previous `p.join`), but the failure mode is silent photo loss with no `failedCount` increment.
-
-**Fix:** compare canonical forms.
-
-```dart
-final keptSet = keptPaths.map(p.canonicalize).toSet();
-for (final entry in directory.listSync()) {
-  if (entry is! File) continue;
-  if (keptSet.contains(p.canonicalize(entry.path))) continue;
+void deleteLocalTrailRow(Store store, String localId, {required String accountId}) {
+  final query = trailBox.query(
+    TrailEntity_.localId.equals(localId) & TrailEntity_.owner.equals(accountId),
+  ).build();
   // ...
 }
 ```
 
 ---
 
-### WR-14: `trail_download_service` still builds filesystem paths by interpolating unvalidated server ids
+### WR-11: `TrailPanel` hides the summit-log and comment tabs for every trail read off the device
 
-**File:** `app/lib/services/trail_download_service.dart:56`, `app/lib/services/trail_download_service.dart:80`, `app/lib/services/trail_download_service.dart:258`, `app/lib/services/trail_download_service.dart:273-274`
+**File:** `app/lib/components/trail/trail_panel.dart:242-254`, `app/lib/models/trail.dart:106-125`, `app/lib/entities/trail_entity.dart:355`
 
-**Issue:** `Directory('${appDir.path}/library/$trailId')`, `Directory('${trailDir.path}/waypoints/${waypoint.id}')` and `'${photoDir.path}/$fileName'` (where `fileName = p.basename(Uri.parse(url).path)`) are all raw interpolation of values that arrive over the network. `local_photo_store_util.dart`'s header explicitly names this file's style as the one it refuses to reuse, and `local_id.dart` documents `p.join` + whitelist as the required pattern — but the service was edited in this phase (the six-field carry-forward block) without bringing it onto that standard. A federated/compromised instance returning an id or photo filename containing `..` writes outside `library/`.
+**Issue:** The `TabBar` is gated on `!trail.isLocal`, and `TrailEntity.toModel()`
+hardcodes `isLocal: true` for **every** row — downloaded trails included. `_TabContent`
+still renders `children[_index]` with `_index` pinned at 0, so summit logs and comments
+become unreachable on any trail served from ObjectBox. That includes the case
+`trail_dropdown.dart:325-329` calls out by name: `TrailNotifier.build()` falls back to
+the cache on *any* fetch exception, so one timeout on your own downloaded trail hides
+its comments until the provider refetches.
 
-This is pre-existing rather than newly introduced, but it is now the last path-construction site in the offline-storage surface that lacks the control, and it sits in a file this phase touched.
+`trail_dropdown.dart:47-52` documents that `isLocal` is no longer a usable
+"device-only" signal after this phase and switches to `isUnsynced`; `trail_panel.dart`
+was edited in the same plan and was not brought onto the same footing.
 
-**Fix:** route these through `p.join` and validate the id segment the same way `localIdDirSegment` does:
+**Fix:** gate on the state that actually means "never reached the server":
 
 ```dart
-String recordIdDirSegment(String id) {
-  if (!RegExp(r'^[a-z0-9]{15}$').hasMatch(id)) {
-    throw ArgumentError.value(id, 'id', 'must be a PocketBase record id');
-  }
-  return id;
-}
-final trailDir = Directory(p.join(appDir.path, 'library', recordIdDirSegment(trailId)));
+if (!isUnsyncedState(trail.syncState))
+  TabBar(/* ... */),
 ```
 
----
-
-### WR-15: Nine new user-facing strings exist only in `app_en.arb`
-
-**File:** `app/lib/i18n/app_en.arb:69`, `:181-183`, `:189`, `:272`, `:290-292`
-
-**Issue:** `delete_unsynced_trail_confirm`, `own_trails_empty_body`, `own_trails_empty_title`, `own_trails_offline_banner`, `photo_copy_failed_toast`, `photos_skipped_no_gps`, `signout_unsynced_warning`, `sync_failed`, `sync_pending` and `sync_uploading` are absent from all twelve other `app_*.arb` files (verified for `de`/`fr`). Every non-English user sees raw English for the whole sync-status surface, including the sign-out data-safety warning (D-12) and the "cannot be undone" delete confirmation (D-14) — the two strings whose entire purpose is preventing a destructive misunderstanding.
-
-**Fix:** at minimum add the two destructive-action strings (`signout_unsynced_warning`, `delete_unsynced_trail_confirm`) to every locale file, and confirm `flutter gen-l10n`'s untranslated-message report is being read rather than suppressed.
+and derive the `_TabContent` child count from the same predicate so a local trail cannot
+index past the About tab.
 
 ---
 
-_Reviewed: 2026-08-02T14:43:17Z_
+### WR-12: `LocalTrailMetrics`' "three parallel lists" contract is not what the query returns
+
+**File:** `app/lib/util/offline_trail_filter_bounds.dart:18-26`, `app/lib/util/offline_trail_filter_bounds.dart:189-198`
+
+**Issue:** The typedef is documented as "Three parallel lists of raw on-device column
+values". `PropertyQuery<double>.find()` **excludes null values** unless
+`replaceNullWith` is supplied (objectbox 5.3.1,
+`lib/src/native/query/property.dart:220-224`), and `distance`, `elevationGain` and
+`elevationLoss` are all nullable on `TrailEntity`. The three lists therefore have
+different lengths and no positional correspondence to each other or to the row set.
+
+`computeOfflineTrailFilterValues` only takes per-axis maxima, so today this is harmless —
+but the comment invites the next reader to zip them (e.g. "trails with gain > X"), which
+would silently pair one trail's distance with another's elevation.
+
+**Fix:** correct the doc to "three independent, null-dropped value lists, one per axis —
+NOT row-aligned", or pass `replaceNullWith: 0` on all three if alignment is ever wanted.
+
+---
+
+_Reviewed: 2026-08-03T15:10:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
