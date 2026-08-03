@@ -370,15 +370,42 @@ class TrailSync extends _$TrailSync {
     await drainIfOnline();
   }
 
-  /// D-14: deletes the local row and its photo copies for [localId].
+  /// D-14: deletes the local row and its photo copies for [localId] --
+  /// and, when the row already carries a real server id, the server's copy
+  /// too (CR-04).
   ///
   /// Returns `false` without doing anything while [localId] is in [state]
   /// -- deletion is blocked while a drain is in flight, never raced against
-  /// it.
+  /// it. THROWS, also without touching the local row or its photos, when a
+  /// server id exists but the network `DELETE` fails: D-14's premise --
+  /// "unsynced means the device holds the only copy" -- stopped holding the
+  /// moment `writeServerTrailId` (SYNC-04) started stamping that id the
+  /// instant the create is accepted, well before the row is retired. A
+  /// `pending`/`uploading`/`failed` row can carry a real, live server id for
+  /// as long as a later step keeps failing, so destroying the local row
+  /// unconditionally would strand a possibly-public trail on the server
+  /// with no device left pointing at it. Thrown, not folded into a `false`
+  /// return, so the caller cannot mistake a failed server delete for the
+  /// in-flight refusal above.
   Future<bool> deleteUnsynced(String localId) async {
     if (state.contains(localId)) return false;
 
     final store = ref.read(objectBoxProvider);
+
+    // `readLocalTrail` -> `TrailEntity.toModel()` blanks a still-local
+    // sentinel id to `''` (D-06) but passes a real server id through
+    // unchanged -- the same signal `trail_dropdown.dart`'s `_confirmDelete`
+    // uses to choose its copy, checked again here because the confirm
+    // dialog and this call are not atomic with each other.
+    final row = readLocalTrail(store, localId);
+    final serverId = (row != null && trailHasServerId(row.id)) ? row.id : null;
+
+    if (serverId != null) {
+      // Let a network failure escape uncaught -- see this method's doc
+      // comment for why the local row must survive it.
+      await ref.read(apiProvider).delete('/trail/$serverId');
+    }
+
     deleteLocalTrailRow(store, localId);
     // `unsyncedTrailPhotoDir` validates the id OUTSIDE
     // `deleteUnsyncedPhotoDir`'s own try, deliberately, so a malformed

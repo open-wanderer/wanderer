@@ -20,6 +20,7 @@ import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
+import 'package:wanderer/util/local_trail_store.dart';
 import 'package:wanderer/util/map_app.dart';
 import 'package:wanderer/util/trail_route_location.dart';
 
@@ -240,9 +241,20 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // confirm in `library_screen.dart`, where "cannot be undone" is false —
     // un-downloading is genuinely undoable — so the two flows must never
     // share copy.
-    final confirmCopy = isUnsyncedState(trail.syncState)
-        ? l18n.delete_unsynced_trail_confirm
-        : l18n.delete_trail_confirm;
+    //
+    // Decided on `trail.id`, NOT `trail.syncState` (CR-04): `writeServerTrailId`
+    // stamps a real server id the instant `PUT /trail/form` is accepted, well
+    // before the drain's waypoint loop finishes or the row is retired. A
+    // `failed` row -- syncState-wise indistinguishable from a trail that
+    // never left the device -- can already be live on the server. Claiming
+    // "it hasn't been uploaded yet, so this can't be undone" is false for
+    // that row, and it must not get the copy that implies a purely local
+    // delete. `trailHasServerId` is exactly the D-06-aware signal: empty
+    // means genuinely device-only, non-empty means the server already has
+    // (at least) a partial copy.
+    final confirmCopy = trailHasServerId(trail.id)
+        ? l18n.delete_trail_confirm
+        : l18n.delete_unsynced_trail_confirm;
 
     showDialog(
       context: context,
@@ -292,9 +304,33 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       // reading from it.
       final l18n = AppLocalizations.of(context)!;
 
-      final deleted = await ref
-          .read(trailSyncProvider.notifier)
-          .deleteUnsynced(trail.localId!);
+      // `TrailSync.deleteUnsynced` now issues a real `DELETE /trail/{id}`
+      // first when the row already carries a server id (CR-04) -- a
+      // `failed`/`pending`/`uploading` row can, since `writeServerTrailId`
+      // stamps that id well before the row is retired. A network failure
+      // there is thrown rather than folded into the `false` return, so it
+      // cannot be confused with the in-flight refusal below and, crucially,
+      // so the local row and photos are left untouched rather than
+      // destroying the device's only pointer to a trail that is still live
+      // on the server.
+      final bool deleted;
+      try {
+        deleted = await ref
+            .read(trailSyncProvider.notifier)
+            .deleteUnsynced(trail.localId!);
+      } catch (e) {
+        if (!mounted) return;
+        ref
+            .read(toastProvider.notifier)
+            .add(
+              ToastMessage(
+                type: ToastType.error,
+                icon: FontAwesomeIcons.xmark,
+                text: 'Error deleting trail',
+              ),
+            );
+        return;
+      }
       if (!mounted) return;
 
       if (!deleted) {

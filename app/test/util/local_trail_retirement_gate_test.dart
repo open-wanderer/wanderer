@@ -268,4 +268,116 @@ void main() {
       );
     });
   });
+
+  group('deleteUnsynced -- a row with a server id gets a real server '
+      'DELETE too (CR-04)', () {
+    /// `TrailSync.deleteUnsynced`'s body, comment-stripped, isolated from
+    /// the rest of the file. Same technique as [drainOneBody] above --
+    /// `deleteUnsynced` awaits `apiProvider.delete` and mutates a live
+    /// `Store`, so like the drain it has no behavioural surface `flutter
+    /// test` can reach; the decision it acts on (`trailHasServerId`) is
+    /// pure and already covered with real assertions in
+    /// `local_trail_store_test.dart`, so this pins only the ordering and
+    /// presence facts a call-site grep cannot see.
+    String deleteUnsyncedBody() {
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'This test must be run with `flutter test`\'s working '
+            'directory set to `app/` (e.g. "cd app && flutter test").',
+      );
+
+      final source = File(
+        'lib/provider/trail/trail_sync_provider.dart',
+      ).readAsStringSync();
+      final codeOnly = source
+          .split('\n')
+          .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+          .join('\n');
+
+      final sigStart = codeOnly.indexOf(
+        'Future<bool> deleteUnsynced(String localId) async {',
+      );
+      expect(
+        sigStart,
+        isNot(-1),
+        reason:
+            'deleteUnsynced was renamed or its signature changed. '
+            'Re-point this gate rather than deleting it -- the invariant '
+            'still matters.',
+      );
+
+      final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
+      expect(
+        bodyEnd,
+        isNot(-1),
+        reason: 'Could not find the end of deleteUnsynced\'s body.',
+      );
+
+      return codeOnly.substring(sigStart, bodyEnd);
+    }
+
+    test('decides on trailHasServerId(, not the row\'s TrailSyncState', () {
+      final body = deleteUnsyncedBody();
+
+      expect(
+        body.contains('trailHasServerId('),
+        isTrue,
+        reason:
+            'A `failed`/`pending`/`uploading` row can already carry a '
+            'real server id -- `writeServerTrailId` stamps it the '
+            'instant `PUT /trail/form` is accepted, well before the row '
+            'is retired. Deciding on TrailSyncState alone (as before) '
+            'treats that row as device-only and skips the server DELETE, '
+            'stranding a possibly-public trail on the server with no '
+            'device left pointing at it.',
+      );
+    });
+
+    test('the server DELETE runs BEFORE the local row is removed', () {
+      final body = deleteUnsyncedBody();
+
+      final serverDeleteIdx = body.indexOf('apiProvider).delete(');
+      final localDeleteIdx = body.indexOf('deleteLocalTrailRow(');
+
+      expect(serverDeleteIdx, isNot(-1));
+      expect(localDeleteIdx, isNot(-1));
+      expect(
+        serverDeleteIdx < localDeleteIdx,
+        isTrue,
+        reason:
+            'The local row is the device\'s only handle on the trail. If '
+            'the server DELETE ran after (or the local delete were not '
+            'gated on it succeeding), a network failure would strand the '
+            'local row deleted and the server copy alive -- exactly the '
+            'shape CR-04 exists to prevent.',
+      );
+    });
+
+    test('the server DELETE is NOT wrapped in a try/catch inside this '
+        'method -- a failure must propagate, not be swallowed', () {
+      final body = deleteUnsyncedBody();
+
+      final serverDeleteIdx = body.indexOf('apiProvider).delete(');
+      expect(serverDeleteIdx, isNot(-1));
+
+      // No `try` keyword may appear between the start of the method and the
+      // server delete call -- if one did, the delete would very likely be
+      // inside it, and a caught failure that still proceeds to
+      // deleteLocalTrailRow reintroduces the exact bug this test guards.
+      final sigEnd = body.indexOf('{') + 1;
+      final beforeDelete = body.substring(sigEnd, serverDeleteIdx);
+      expect(
+        beforeDelete.contains('try'),
+        isFalse,
+        reason:
+            'A network failure on the server DELETE must escape '
+            'deleteUnsynced uncaught, so the caller never proceeds to '
+            'destroy the local row while the server copy survives '
+            '(CR-04). Catching it here and returning normally would '
+            'silently strand a live trail.',
+      );
+    });
+  });
 }
