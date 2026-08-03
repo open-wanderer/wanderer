@@ -1,296 +1,233 @@
 ---
 phase: 36-local-first-recording-automatic-upload
-verified: 2026-08-03T21:15:00Z
+verified: 2026-08-03T21:50:00Z
 status: human_needed
-score: 11/11 requirements satisfied at the code level (6/6 roadmap success criteria hold; 3/3
-  second-review CRITICAL blockers independently confirmed closed; 16/17 WARNING findings closed,
-  1 (WR-06) deliberately deferred and tracked, not a code gap)
+score: 11/11 requirements satisfied at the code level (6/6 roadmap success criteria hold; all
+  previously-open blockers and the round-2 UAT badge gap are closed; one WARNING-level l10n
+  coverage gap is a pre-existing, already-tracked deferral, not new debt)
 overrides_applied: 0
-superseded_note: >
-  This pass supersedes BOTH prior entries below. Pass 1 (2026-08-03T16:30:00Z) concluded
-  human_needed with the four first-review CR fixes read as correct. Pass 2's re-review
-  (36-REVIEW.md, later on 2026-08-03) found two of those four fixes were correct at the call
-  site but wrong end-to-end, and opened three NEW blockers (CR-01/CR-02/CR-03, restated against
-  the retirement design) plus 17 warnings — status was corrected to gaps_found on that evidence.
-  This pass verifies the six gap-closure plans (36-15..36-20) that were executed against that
-  gaps_found report. All three blockers were independently re-derived from current source (not
-  trusted from SUMMARY.md), and two of the WR-05 "the gate would pass against an empty guard
-  body" claims and two of the CR-01/drain-carry-forward falsification claims were independently
-  reproduced by this verifier: the exact falsifying rewrites named in 36-20-SUMMARY.md were
-  applied to the real source files, `flutter test` was run, observed to fail with the same
-  assertion text the SUMMARY quotes, and the files were restored via `git checkout` before
-  continuing. No BLOCKER-level code gap remains. Status is `human_needed`, not `passed`,
-  because 36-UAT.md's round-2 device pass (5 items, all still `result: pending`) has not been
-  re-run since these fixes landed, and one of those five items is a genuine UX judgment call
-  (CR-03's narrowed offline-edit promise) that only a human can accept or reject.
 re_verification:
-  previous_status: gaps_found
-  previous_score: "3 blockers open (CR-01, CR-02, CR-03), 17 warnings open"
+  previous_status: human_needed
+  previous_score: "11/11 requirements satisfied at the code level; 5 human_verification items
+    outstanding (round-2 UAT, all pending)"
   gaps_closed:
-    - "CR-01 (post-upload edit permanently fails with a generic error) -- retireUploadedLocalTrail now returns the server id it kept (local_trail_store.dart:666), TrailSync memoizes it account-keyed (serverIdForRetired), resolveNetworkSaveTarget picks a real target before _saveViaNetwork is ever called, and a genuine refusal shows the actionable trail_uploaded_reopen_to_edit message instead of error_saving_trail. Confirmed by direct source read AND by independently re-running the falsifying rewrite the review named against the real file and observing the gate fail with the same assertion text 36-20-SUMMARY.md quotes."
-    - "CR-02 (unparseable-GPX row skips the server DELETE and strands a live server trail) -- readLocalTrailServerId reads TrailEntity.id directly off the ObjectBox column, never through toModel()/parseGpxSafely, so a cached-GPX parse failure can no longer make deleteUnsynced treat a server-stamped row as if it had no server copy. Confirmed by direct source read of local_trail_store.dart:774-810 and its call site at trail_sync_provider.dart:522-579."
-    - "CR-03 (an alreadyUploaded edit reaches the server but the stale local row keeps shadowing it under mergeOwnTrails' dedupe) -- applyNetworkEditToLocalRow reconciles the row's editable metadata columns (never id/owner/localId/syncState/photos/gpxData/waypoints) immediately after _saveViaNetwork adopts result.trail and strictly BEFORE _invalidateOwnTrailsList() runs, at both call sites that reach _saveViaNetwork. Confirmed by direct source read of local_trail_store.dart:557-589 and trail_create_screen.dart:748-795, and by reading own_trails_merge_test.dart's new case documenting the ordering dependency explicitly."
-    - "WR-05 (the three gates added by the first fix pass assert token order only, and would pass against an empty guard body) -- 36-20 rewrote them to assert effects (a return; that fires, a specific message string, an outcome token inside the live if-condition) and added two new gates on what is passed to _saveViaNetwork. Independently re-verified: this verifier applied the review's exact named falsifying rewrites to trail_create_screen.dart and trail_sync_provider.dart, ran the specific gate test files, observed the same failures 36-20-SUMMARY.md quotes verbatim, then restored both files via git checkout (confirmed clean diff)."
-    - "WR-01, WR-02, WR-04, WR-07, WR-08, WR-09, WR-10, WR-11, WR-12, WR-13, WR-14, WR-15, WR-16, WR-17 -- all independently confirmed present and correct in current source (see Anti-Patterns/Requirements sections below); WR-03 also confirmed via the removal of `late` from TrailFilterNotifier.defaultFilter (trail_filter_provider.dart:83)."
+    - "All 5 of 36-VERIFICATION.md's prior human_verification items -- 36-UAT.md's round 2 was
+      actually run on a physical device (commit cde38b33, 'complete round 2 UAT - 5 passed, 1
+      minor gap') and all 5 tests, including the required UX judgment call in Test 4, PASSED."
+    - "The one gap round 2 UAT surfaced -- an unsynced trail's detail screen showed a generic
+      'Offline' badge instead of its upload state -- is closed by plan 36-21: TrailPanel's badge
+      is now keyed on trail.syncState via a gated SyncStatusChip render, with the pre-existing
+      isLocal-keyed Offline pill narrowed to exclude unsynced trails. Verified independently in
+      this pass (see below), not trusted from 36-21-SUMMARY.md."
   gaps_remaining: []
   regressions: []
 human_verification:
-  - test: "Re-run 36-UAT.md round 2, Test 1: open an unsynced trail from the own-trails list (routes to the detail screen), open its dropdown menu -- check Download is absent (not disabled) and Delete says 'cannot be undone'. Start (or wait for) that trail's upload and reopen the menu mid-upload -- Delete should be disabled. Then check an ordinary downloaded trail's menu is unchanged."
-    expected: "Detail screen opens (not the edit screen) with no Like button and an Edit button in place of Download/Navigate; the dropdown's Download entry is absent and Delete's confirmation states the deletion is unrecoverable; mid-upload the Delete entry is disabled; a downloaded trail's menu is unaffected."
-    why_human: "36-UAT.md records this as round 2, Test 1, `result: pending` -- never run on device since 36-11/36-12 (routing) and 36-13 (behavioural widget coverage) landed. Source and a real widget test (trail_dropdown_menu_test.dart) are both read and confirmed correct in this pass, but no end-to-end device pass exists."
-  - test: "Re-run 36-UAT.md round 2, Test 2: (a) sit on the offline own-trails list for a minute -- confirm no repeated full-screen spinner; (b) edit an unsynced trail's title offline, save, pop back -- confirm the list shows the new title with no manual pull-to-refresh; (c) tap an unsynced trail -- confirm it opens the detail screen, not the edit screen."
-    expected: "No spinner flicker; edits appear immediately on pop-back; tapping opens the detail screen."
-    why_human: "36-UAT.md records this as round 2, Test 2, `result: pending`. All three underlying fixes were re-confirmed present in source in this pass, but the only device pass predates them."
-  - test: "Re-run 36-UAT.md round 2, Test 3: create a trail offline, go online, let it fully upload, then delete it. Separately: create a trail offline, let its create (PUT /trail/form) succeed but force a waypoint/photo upload to keep failing until the row parks as Failed (airplane mode after the first waypoint, or a bad photo), then delete that Failed trail and confirm on the server (or a second device/web) that it is actually gone -- not left live with a 'this can't be undone, it was never uploaded' message having been a lie."
-    expected: "Case 1: no local row survives a full upload; deleting removes it cleanly, no orphan. Case 2: the Failed trail's Delete confirmation copy and its actual behavior both agree with whether it already has a server id -- if it does, deleting it must also remove the server-side record."
-    why_human: "This is CR-02's fix (readLocalTrailServerId) plus WR-15's classified-DELETE-outcome fix, both confirmed correct by direct source read and by tracing every caller in this pass, but nothing in this repo can open a live ObjectBox Store or hit a real PocketBase server, so the actual server-side DELETE succeeding on a row whose cached GPX is corrupt has never been exercised end-to-end. 36-UAT.md records this as round 2, Test 3, `result: pending`."
-  - test: "Edit an unsynced trail's title while its create has already reached the server but a waypoint upload is still retrying (chip reads Pending/Uploading/Failed but the create genuinely succeeded), while offline. Then do the same edit once the trail has fully synced and the row has been retired (chip has disappeared), from a stale screen instance still open on it. Judge whether the resulting behavior -- an error toast telling the hiker to reopen or reconnect, rather than a silent local write -- is acceptable UX for this specific sub-state, or should be raised as a follow-up to give the drain an update path instead."
-    expected: "Both cases tell the hiker clearly the edit did not land (an error toast), never a false success toast, never a crash or data corruption. This is a REQUIRED HUMAN JUDGMENT CALL, not just a functional check: the fix is code-correct (confirmed in this pass) but deliberately narrows REC-05's literal 'edit an unsynced trail... while still offline' promise for this one sub-state, per CR-03's shipped 'minimum acceptable' shape (see local_trail_store.dart:130-144's doc comment and CR-03's original review text)."
-    why_human: "36-UAT.md records this as round 2, Test 4, `result: pending`. The code was independently re-read and confirmed to fail loudly (not silently) in this pass, but whether the resulting UX narrowing is acceptable for this phase's stated goal is a product decision, not something grep or a test suite can answer."
-  - test: "Foreground the app with a working connection and watch an unsynced trail upload with no user action; separately, kill the app mid-drain (after the trail record is created, before all waypoints finish) and relaunch/reconnect to confirm the drain resumes with no duplicate trail or waypoint on the server. While the trail is parked mid-drain, open it offline and confirm an EARLIER waypoint's photos still render even though a LATER waypoint's upload is what's still failing (WR-09); and confirm the chip reads Pending (not Failed) after several quick background/foreground cycles (WR-04)."
-    expected: "Badge transitions Pending -> Uploading -> disappears with no tap; after an interrupted-and-resumed upload exactly one trail (and one row per waypoint) exists on the server, and the local row is gone (retire-on-success) with photos intact server-side; an earlier-succeeded waypoint's photos remain visible offline while a later one is still retrying; the trail does not park as Failed purely from rapid lifecycle cycling."
-    why_human: "36-UAT.md records this as round 2, Test 5, `result: pending` -- still the only way to confirm SYNC-01/SYNC-04/SYNC-05's duplicate-prevention chain, plus 36-18's WR-04/WR-09 fixes, against a live server. Nothing in this repo can open a live ObjectBox Store or reach a real PocketBase server."
+  - test: "On device, open the trail that reproduced round 2 UAT test 1's badge gap: an unsynced
+      trail from the own-trails list. Its detail screen must read Waiting to upload (or
+      Uploading… mid-drain), never Offline. Force a failure (airplane mode until it parks) and
+      confirm the detail screen reads Upload failed · Tap to retry and that tapping it starts a
+      retry. Then open an ordinary downloaded trail's detail screen and confirm it still reads
+      Offline and looks exactly as it did before."
+    expected: "Unsynced trail's detail screen shows the sync-state badge (Waiting to upload /
+      Uploading… / Upload failed · Tap to retry) with a working retry tap; a downloaded trail's
+      detail screen is visually unchanged (still reads Offline)."
+    why_human: "This is the exact <human-check> block 36-21-PLAN.md deferred to end-of-phase
+      (per the workflow's human_verify_mode=end-of-phase convention). 36-21-SUMMARY.md's own
+      'Human-check (deferred to device pass)' section states plainly: 'Not performed in this
+      session.' A widget test (trail_panel_sync_badge_test.dart) mounts the real TrailPanel and
+      independently confirms the fix's logic in this pass, but the fix itself has never been
+      seen rendered on a physical device -- the round-2 UAT pass that would have covered this
+      predates the fix by definition (it is the pass that found the bug)."
 ---
 
 # Phase 36: Local-First Recording & Automatic Upload Verification Report
 
-**Phase Goal:** A hiker who records a trail or uploads a GPX with no signal can save it, review it, and fill in its details on the spot — and it uploads itself the next time the phone has a connection, without the hiker doing anything.
+**Phase Goal:** A recording saves instantly with no connection, stays in the hiker's own-trails
+list, and uploads itself once the phone is back online.
 
-**Verified:** 2026-08-03T21:15:00Z
+**Verified:** 2026-08-03T21:50:00Z
 **Status:** human_needed
-**Re-verification:** Yes — after the six gap-closure plans (36-15..36-20) that resolved the
-`gaps_found` verdict this file previously carried (three blockers, 17 warnings, per
-`36-REVIEW.md`).
+**Re-verification:** Yes — this pass verifies plan 36-21 (the detail-screen sync badge gap
+closure, the last of 21 plans in the phase) against the prior `36-VERIFICATION.md` pass, which
+had already confirmed all CRITICAL/blocker findings closed and all WARNING findings closed or
+deliberately deferred.
 
-## Prior Pass History (preserved per the superseded-note convention)
+## What Changed Since the Last Verification Pass
 
-<details>
-<summary>Pass 1 (2026-08-03T16:30:00Z) — human_needed, later superseded</summary>
+The prior `36-VERIFICATION.md` (2026-08-03T21:15:00Z) concluded `human_needed` on code-level
+truths that were fully verified (11/11 requirements, 6/6 roadmap success criteria), gated only on
+five outstanding device-verification items mirroring `36-UAT.md` round 2's then-`pending` tests.
 
-superseded_note (original): "This pass concluded no code-level gaps and confirmed the four CR
-fixes as 'present and correct in current source'. A post-verification re-review (36-REVIEW.md,
-2026-08-03T17:xx) established that two of those fixes are correct at the call site but wrong
-end-to-end, and opened three new blockers. That conclusion is retained below for the record but
-is NOT current -- see gaps_remaining. Status changed human_needed -> gaps_found on that
-evidence."
+Since that pass:
 
-Full body of that pass is preserved in this file's git history (see `git log -p` on this path
-around commit range for 2026-08-03T16:30:00Z) rather than reproduced here a second time — its
-conclusions were superseded twice over and reproducing them again would only add noise.
-
-</details>
-
-<details>
-<summary>Pass 2 (2026-08-03, re-review) — gaps_found, three blockers (CR-01, CR-02, CR-03) + 17 warnings</summary>
-
-Documented directly in `36-REVIEW.md` (reviewed 2026-08-03T17:40:00Z). Summary: the four
-first-pass CR fixes (blank-id refusal, `_localId` ordering, `alreadyUploaded` outcome,
-delete-decides-on-id) landed as described, but two (CR-01's refusal and CR-03's routing) were
-"correct as a guard, wrong end-to-end" — the refusal fired on the phase's primary flow with no
-recovery path, and the routed edit reached the server but never reconciled the stale local row.
-CR-04's fix was also found reachable via an unparseable-GPX bypass (restated as CR-02). Full
-detail in `36-REVIEW.md`, not reproduced here.
-
-</details>
-
-## This Pass: Verifying Plans 36-15..36-20 Against That gaps_found Report
-
-Six plans executed sequentially, 28 commits, targeting the three restated blockers and all 17
-warnings from `36-REVIEW.md`. This pass independently re-derives each claim from current source
-— not from any plan's SUMMARY.md — and, for the two highest-risk claims (CR-01's fix and WR-05's
-"the gates would now actually fail against their named falsifying rewrite"), reproduced the
-falsification itself: applied the exact rewrite 36-20-SUMMARY.md names to the real source files,
-ran the specific gate test files, confirmed the same failure output, then restored the files via
-`git checkout` and confirmed a clean diff before continuing. This is stronger evidence than
-reading the SUMMARY's claimed output, because it does not depend on trusting the executor's own
-narration of what it observed.
+1. **Round 2 UAT was actually run on a physical device** (`36-UAT.md`, commit `cde38b33`): all 5
+   tests passed, including the required UX judgment call in Test 4 (the CR-03 narrowed
+   offline-edit behavior was explicitly accepted by the user as shippable). This closes all five
+   of the prior pass's `human_verification` items.
+2. **Round 2 surfaced one minor, new gap**: an unsynced trail's *detail screen* (as opposed to
+   the list surfaces) rendered a generic "Offline" badge instead of its sync state, because
+   `TrailPanel`'s pre-Phase-36 badge was keyed on `trail.isLocal` (cache provenance) rather than
+   `trail.syncState`. `SyncStatusChip` — the four-state indicator this phase built — had only
+   ever been wired into the two list surfaces (`trail_list_item.dart`, `trail_card.dart`), never
+   into `TrailPanel`.
+3. **Plan 36-21 was written and executed to close that gap.** This pass independently verifies
+   36-21's claims against current source, not from `36-21-SUMMARY.md`'s narration.
 
 ## Goal Achievement
 
-### The Three Blockers — Individual Verdicts
+### Plan 36-21 — Independent Verification
 
-| ID | Truth | Verdict | Evidence |
-|----|-------|---------|----------|
-| **CR-01** | A hiker can edit a trail they recorded offline after it has uploaded, even from a screen that was already open when the upload completed | ✓ **VERIFIED — genuinely closed** | Traced the exact sequence the review named: `retireUploadedLocalTrail` now returns the server id it captured before mutating/removing the row (`local_trail_store.dart:666-701`); `_drainOne` captures that value into an account-keyed memo (`_rememberRetiredServerId`) and invalidates `localTrailProvider(localId)` in the same block (`trail_sync_provider.dart:419-426`); `trail_create_screen`'s `networkUpdate` branch resolves a real target via `resolveNetworkSaveTarget` (screen id, then the retired-id memo, then null) BEFORE ever calling `_saveViaNetwork` (`trail_create_screen.dart:492-525`); a genuine refusal shows `trail_uploaded_reopen_to_edit`, never the generic `error_saving_trail` (confirmed absent from the guarded slice); `_saveViaNetwork`'s `trailHasServerId` check is kept only as a last-resort backstop with a `debugPrint` (`:718-746`). **Independently falsified**: replaced the guard body with `{ /* TODO */ }` in the real file, ran `flutter test test/routes/trail_create_screen_local_save_gate_test.dart`, and got the exact failure the review's WR-05 finding describes ("must actually `return;` rather than fall through to the POST") — restored via `git checkout`, confirmed clean. |
-| **CR-02** | Deleting a trail that already has a server record removes it from the server too, even when the row's cached GPX no longer parses | ✓ **VERIFIED — genuinely closed** | `readLocalTrailServerId` (`local_trail_store.dart:774-810`) reads `entity.id` directly off the ObjectBox column inside its own query, deliberately NOT via `readLocalTrail`/`toModel()`/`parseGpxSafely` — its own doc comment names CR-02 by number and explains why. `deleteUnsynced` (`trail_sync_provider.dart:522-579`) calls this reader, not `readLocalTrail`, so an unparseable cached GPX can no longer make the delete decision see `null` and skip the server DELETE. `deleteLocalTrailRow` only runs after the server DELETE succeeds, 404s (already gone), or the id fails safe via `recordIdDirSegment` (WR-17) — every other failure aborts before touching the local row (`resolveServerDeleteOutcome`, WR-15). |
-| **CR-03** | An edit that reaches the server is what the hiker subsequently sees on the own-trails list, not a stale pre-edit row shadowing it | ✓ **VERIFIED — genuinely closed** | `applyNetworkEditToLocalRow` (`local_trail_store.dart:557-589`) writes only the hiker-editable metadata columns onto the owner-scoped row, deliberately never touching `id`/`owner`/`localId`/`syncState`/`photos`/`localPhotos`/`gpxData`/`waypoints` (verified directly against the function body, not merely its doc comment). `_saveViaNetwork` calls it immediately after `trail = result.trail` is adopted and **strictly before** `_invalidateOwnTrailsList()` runs (`trail_create_screen.dart:759-795`) — traced at BOTH call sites that reach `_saveViaNetwork` (the `networkUpdate` branch at `:527-538` and the `updateLocal`-branch `alreadyUploaded`/`alreadySynced`/`missing` escape at `:657-663`), confirming the ordering holds on every path, not just the happy one. `own_trails_merge.dart`'s dedupe (`mergeOwnTrails`, unchanged, still keys on non-empty local `id`) now sees a reconciled row when it re-reads, closing the exact window the review traced. **Independently falsified** the drain's carry-forward half of this chain (see WR-05 falsification below) and confirmed the new `own_trails_merge_test.dart` case documents the ordering dependency explicitly. |
+| Claim | Verdict | Evidence |
+|---|---|---|
+| `TrailPanel`'s Offline pill is narrowed to exclude unsynced trails | ✓ VERIFIED | `trail_panel.dart:205`: `if (trail.isLocal && !isUnsyncedState(trail.syncState))`, read directly from the current file, with a comment documenting the D-10 partition reasoning. |
+| A `SyncStatusChip` renders below the title for unsynced trails only | ✓ VERIFIED | `trail_panel.dart:296-302`: `if (isUnsyncedState(trail.syncState)) ... Align(... SyncStatusChip(trail: trail))`, gated (not relying on the chip's own self-suppression), placed below the title per the plan's overflow-avoidance rationale. |
+| `isUnsyncedState` correctly spans all three non-synced states (pending/uploading/failed) | ✓ VERIFIED | `trail_sync_state.dart:16`: `bool isUnsyncedState(TrailSyncState state) => state != TrailSyncState.synced;` — a single predicate, not an enumerated subset, so the guard is correct for `uploading` even though (per 36-21-REVIEW's WR-03) no panel-level test pins that specific state. |
+| A widget test mounts the real `TrailPanel` and pins all 5 badge cases (pending/in-flight/failed/downloaded-control/remote-control) | ✓ VERIFIED — independently run, not trusted from SUMMARY | `flutter test test/components/trail/trail_panel_sync_badge_test.dart` run directly in this pass: **5/5 pass** (`Case A` through `Case E`, matching the plan's required case names). File is 284 lines, mounts the real widget tree (no source-text grepping), confirmed by reading the file directly. |
+| Commits exist as claimed | ✓ VERIFIED | `git log` on `trail_panel.dart` shows `bdfde398` ("fix(36-21): key the detail-screen badge on sync state, not cache provenance") directly on top of `9419f872` ("test(36-21): RED — mount real TrailPanel, pin all four badge cases"), both present in history. |
+| Full test suite and analyzer are clean after this change | ✓ VERIFIED — independently re-run | `flutter test`: **946 passed, 1 skipped, 0 failures**. `flutter analyze --no-pub`: **0 errors, 36 pre-existing info-level lints** (same baseline as the prior pass; all in vendored/deprecated-icon files unrelated to this change). |
+| No new debt markers in the touched files | ✓ VERIFIED | `grep -n "TODO\|FIXME\|XXX\|TBD\|HACK\|PLACEHOLDER"` on `trail_panel.dart` and the new test file: no matches. |
 
-**All three blockers are genuinely closed, not merely guarded.** Confirmed by direct source
-reading at every call site the review traced, and by reproducing two of the falsification
-claims myself rather than trusting the plan SUMMARYs' narration.
+### Delta Code Review (36-21-REVIEW.md) — Findings Assessed Against the Phase Goal
+
+`36-21-REVIEW.md` found **0 blockers**, 4 warnings, 5 info. None block the phase goal:
+
+| ID | Finding | Phase-goal impact | Disposition |
+|---|---|---|---|
+| WR-01 | New `sync_pending`/`sync_uploading`/`sync_failed` strings replace a translated `l18n.offline` string on the detail screen, regressing 13 non-English locales to English-only on this surface | Non-blocking — a UX/i18n coverage gap, not a functional defect. **Already tracked**: `.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md` (created earlier, from plan 36-19) already lists `sync_pending`/`sync_uploading`/`sync_failed` as Priority-4 items in its 22-key backlog — this is not new, undocumented debt introduced by 36-21; it is an instance of an already-accepted, already-tracked deferral. | Accepted deferral, consistent with the phase's established pattern for translation work (verified: the todo file's Priority 4 list, items 8-10, names exactly these three keys). |
+| WR-02 | The Offline-pill guard and the chip guard are asymmetric in shape (`isLocal && !unsynced` vs. `unsynced` alone) — correctness today rests on an unstated but currently-true invariant (`syncState != synced ⇒ isLocal == true`) | Non-blocking — a robustness/defensive-coding suggestion. Confirmed the invariant holds today (`TrailEntity.toModel()` hardcodes `isLocal: true` for every cached row; `Trail.syncState` defaults to `synced` and is JSON-excluded, so no server-parsed trail can carry a non-synced state). | Warning, not a gap. |
+| WR-03 | No panel-level test exercises a *persisted* `TrailSyncState.uploading` row (Case B only reaches "Uploading…" via the in-flight set, not the persisted-state branch) — the guard could theoretically be narrowed to `pending \|\| failed` and all 5 tests would still pass | Non-blocking for the CURRENT implementation — independently confirmed `isUnsyncedState` is `!= synced`, a single predicate covering all three non-synced states, not an enumerated subset; the actual shipped code is correct for `uploading` today. This is a test-coverage gap (a future regression could go unpinned), not a present functional defect. | Warning, not a gap. |
+| WR-04 | No narrow-viewport (360px) test proves the documented overflow-avoidance rationale for chip placement | Non-blocking — a test-coverage gap for a design rationale, not an observed defect. | Warning, not a gap. |
+
+No BLOCKER or must-have-failing finding exists in the delta review. The one item with genuine
+user-facing UX consequence (WR-01) is a pre-existing, already-tracked, deliberately deferred
+translation-coverage gap — not new undisclosed debt.
 
 ### Observable Truths (Roadmap Success Criteria)
 
 | # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-| 1 | Capturing with no connection saves immediately into the own-trails list, no offline save-failure ever shown, unsynced visibly distinct from synced AND downloaded | ✓ VERIFIED | Unchanged since the last pass; local-first branches (`createLocal`/`updateLocal`) never touch the network; `SyncStatusChip` renders nothing when `synced`, otherwise Pending/Uploading/Failed. |
-| 2 | Survives app restart, stays tied to the capturing account; a different account never sees/uploads it; logout never deletes it | ✓ VERIFIED | Every read/write in `local_trail_store.dart` remains `owner`-scoped, including the two newly hardened paths (`readLocalTrailServerId`, `deleteLocalTrailRow`, `resetDrainBackoff`, `applyNetworkEditToLocalRow` — all four now take `accountId` and query on it, closing WR-10's account half). `account_data_purge_util.dart` still excludes trail/waypoint entities (unchanged). |
-| 3 | Open/review/edit an unsynced trail's title, description, category, photos while offline | ⚠️ VERIFIED with the same narrowed edge case as the prior pass, now with a loud (not silent) failure confirmed correct | A trail whose *create* has reached the server but is not yet fully synced (`alreadyUploaded`) still refuses a local write and routes to the network, failing with an explicit toast if offline. This is the CR-03 fix's shipped "minimum acceptable" shape, confirmed intentional and confirmed loud (never silent data loss). It is a real, narrow behavior change against REC-05's literal wording for one sub-state — flagged for human judgment in `human_verification` item 4, not silently passed. |
-| 4 | Once foregrounded with connection, uploads on its own with inline per-item progress, manual retry on failure/stall | ✓ VERIFIED | Unchanged; 3 trigger sites in `main.dart`; chip's `retry()` tap-through, now owner-scoped via `resetDrainBackoff(store, localId, accountId: accountId)` (`trail_sync_provider.dart:494`). |
-| 5 | An interrupted upload never produces a duplicate trail on retry; once uploaded the trail becomes ordinary in place, keeping its identity | ✓ VERIFIED (code-level; needs device+server confirmation) | The retire-on-success design (unchanged since the last pass) still holds: `retireUploadedLocalTrail` deletes or demotes the row, `writeServerTrailId` stamps identity before retirement, re-entry is via the network fetch. All three blockers that threatened this guarantee are now genuinely closed (see table above), not merely guarded — a materially stronger claim than the prior pass could make. Still device+server-confirmation-pending (human_verification #5). |
-| 6 | With no connection the own-trails list still renders, shows every not-yet-uploaded trail plus authored-and-downloaded trails, states it's offline-only | ✓ VERIFIED | Unchanged; `profile_trail_screen.dart`'s offline banner and `trailFilterProvider`'s device-derived fallback (`defaultFilter`, now non-`late`, closing WR-03) both confirmed present. |
+|---|---|---|---|
+| 1 | Capturing with no connection saves instantly into the own-trails list, no offline save-failure ever shown, unsynced visibly distinct from synced AND downloaded | ✓ VERIFIED | Unchanged from the prior pass; confirmed again this pass on the detail-screen surface specifically — with 36-21, "visibly distinct" now holds structurally on all three surfaces (list item, card, detail screen), not just the two list surfaces. |
+| 2 | Survives app restart, stays tied to the capturing account; a different account never sees/uploads it; logout never deletes it | ✓ VERIFIED | Unchanged; not touched by 36-21 (36-21 is UI-only, no schema/sync-logic change, confirmed via `git diff --stat` scope: `trail_panel.dart` and the new test file only). |
+| 3 | Open/review/edit an unsynced trail's title, description, category, photos while offline | ⚠️ VERIFIED with the same narrowed edge case as the prior pass (accepted by the user in round-2 UAT Test 4's judgment call) | `36-UAT.md` round 2, Test 4: `result: pass`, `judgment: The narrowed offline-edit behaviour in this sub-state is ACCEPTED by the user as shippable.` Confirmed read directly from the UAT file. |
+| 4 | Once foregrounded with connection, uploads on its own with inline per-item progress, manual retry on failure/stall — visible on the trail itself | ✓ VERIFIED — now also true on the detail screen | Prior pass confirmed the list surfaces; this pass confirms the detail screen via 36-21's independently-verified fix. SYNC-02's "visible on the trail itself" now holds on every surface a hiker can view an unsynced trail from. |
+| 5 | An interrupted upload never produces a duplicate trail on retry; once uploaded the trail becomes ordinary in place, keeping its identity | ✓ VERIFIED (code-level; confirmed on device in round-2 UAT Test 5, `result: pass`) | `36-UAT.md` round 2 Test 5 explicitly covers this against a live device+server session and passed. |
+| 6 | With no connection the own-trails list still renders, shows every not-yet-uploaded trail plus authored-and-downloaded trails, states it's offline-only | ✓ VERIFIED | Unchanged; confirmed on device in round-2 UAT Test 2, `result: pass`. |
 
-**Score:** 6/6 roadmap success criteria hold at the code level; criterion 3 still carries the
-same narrow, deliberate, honestly-failing (never silently data-losing) edge case, now confirmed
-by this pass to be exactly what the review's "minimum acceptable" fix intended, not a new
-defect; criterion 5's chain is now genuinely sound at the code level (all three blockers closed)
-but has not been exercised against a live server since these six plans landed.
+**Score:** 6/6 roadmap success criteria hold, now confirmed both at the code level and (for 5 of
+6, via round-2 UAT) on a physical device against a live server. Criterion 3 still carries the
+same deliberate, narrow, user-accepted edge case from the CR-03 fix.
 
-### Required Artifacts (gap-closure plans 36-15..36-20)
+### Required Artifacts
 
 | Artifact | Expected | Status | Details |
-|----------|----------|--------|---------|
-| `local_trail_store.dart`'s `readLocalTrailServerId` | Parse-independent, owner-scoped delete decision | ✓ VERIFIED | `:774-810`; reads `entity.id` off the column, never `toModel()`. |
-| `local_trail_store.dart`'s `resolveServerDeleteOutcome`/`trail_sync_provider.dart`'s `UnsyncedDeleteResult` | Classified DELETE outcomes, no unconditional throw | ✓ VERIFIED | `:224-243` (pure classifier); `deleteUnsynced` switches on it (`:566-576`), no `rethrow`. |
-| `local_trail_store.dart`'s owner-scoped `deleteLocalTrailRow`/`resetDrainBackoff` | Account-scoped writes | ✓ VERIFIED | Both require `accountId`, both callers (`trail_sync_provider.dart:494,579`) pass a freshly-read one. |
-| `recordIdDirSegment` on every server-id-consuming Dio path | Path-segment validation | ✓ VERIFIED | `trail_sync_provider.dart:546`, `trail_save_provider.dart:209`. |
-| `trail_dropdown.dart`'s null-`localId` routing (`_deleteOnServer`) | No silent un-download fallthrough for a server-backed row | ✓ VERIFIED | `:292-318`; explicit branch, never falls through to `trail.isLocal`. |
-| `local_trail_store.dart`'s `retireUploadedLocalTrail` (String? return) | Server id survives retirement | ✓ VERIFIED | `:666-701`; returns `serverId` from both exits, captured before mutation. |
-| `local_trail_store.dart`'s `resolveNetworkSaveTarget` | Pure three-way save-target decision | ✓ VERIFIED | `:161-` region (screen id wins, retired-id fallback, null = refuse); called at `trail_create_screen.dart:497`. |
-| `trail_sync_provider.dart`'s `_retiredServerIds`/`serverIdForRetired` | Account-scoped, bounded memo | ✓ VERIFIED | Confirmed present, account-checked per entry (independently falsified — see below). |
-| `local_trail_store.dart`'s `applyNetworkEditToLocalRow` | Post-network-save local reconciliation | ✓ VERIFIED | `:557-589`; owner-scoped, writes only editable metadata, never identity/sync-bookkeeping/photo columns. |
-| `local_trail_store.dart`'s `resolveLocalSaveModeForRow` | Routes `synced`/real-server-id rows to `networkUpdate` BEFORE any filesystem side effect | ✓ VERIFIED | `:130-144`; called at `trail_create_screen.dart:449`, before `_copyPhotosForLocalSave` is reachable for a doomed-to-refuse save (WR-14). |
-| `local_photo_store.dart`'s `photosNotYetOnServer` | Location-based (not filename) diff excluding already-uploaded photos | ✓ VERIFIED | Confirmed pure, `p.isWithin`-based; wired at both `_saveViaNetwork` call sites via `networkPhotoPaths` (`trail_create_screen.dart:463-482`), never in the local-first branches. |
-| `trail_filter_provider.dart`'s `defaultFilter` | Non-`late`, initialised at declaration | ✓ VERIFIED | `:83`; `TrailFilter defaultFilter = buildDefaultTrailFilter(kOfflineTrailFilterValues);` — no uninitialised state remains. |
-| `local_trail_store.dart`'s `hasKeylessPendingWaypoint` | Pure invariant-break detector, checked before the drain's in-flight join | ✓ VERIFIED | `:272-`; called at `trail_sync_provider.dart:255-266`, before `state = {...state, localId}` and before the `try`. |
-| `local_trail_store.dart`'s `writeServerWaypointId` | Retains `localPhotos` across the waypoint's own upload success | ✓ VERIFIED | `:1012-1016`; `localPhotos` no longer cleared, doc comment confirms deliberate. |
-| `trail_panel.dart`'s `showsServerTabs` | Single predicate governs `TabBar`/`DefaultTabController.length`/`_TabContent.children` | ✓ VERIFIED | `:71,165,344,360`; gated on `!isUnsyncedState(trail.syncState)`, not the cache-provenance `isLocal` flag; controller length and content list structurally cannot desync. |
-| `app/test/routes/trail_create_screen_local_save_gate_test.dart` (WR-05 rewrite) | Effect-asserting gates, not token-order-only | ✓ VERIFIED — independently falsified by this verifier | See "WR-05 Independent Falsification" below. |
-| `app/test/store/local_trail_retirement_gate_test.dart` (WR-05 extension) | Effect assertions on the retired-id carry-forward and its account scoping | ✓ VERIFIED — independently falsified by this verifier | See below. |
-| `app/test/routes/trail_detail_screen_retired_redirect_test.dart` | Real behavioural widget test (real GoRouter, real TrailDetailScreen) for the WR-01 redirect | ✓ VERIFIED | Read directly: mounts a real `GoRouter`+`TrailDetailScreen`, asserts on `router.state.uri` and rendered text, not a source-slicing gate. Its third case is honestly self-limited (documents in its own header why the `trail != null` branch cannot be mounted in this environment) rather than silently passing something weaker. |
-| `.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md` (WR-06) | Tracked deferral, not silent debt | ✓ VERIFIED as an accepted, documented deferral | Exists, dated, itemizes all 22 backlog keys in priority order, explains why machine translation was refused. Not a code gap — see Anti-Patterns. |
-
-### WR-05 Independent Falsification (this verifier's own reproduction, not SUMMARY narration)
-
-Per the verification priorities, this pass did not accept 36-20-SUMMARY.md's falsification
-claims on narration alone. Two of the five falsifications it records were independently
-reproduced against the real, currently-committed source:
-
-1. **CR-01 gate** (`trail_create_screen_local_save_gate_test.dart`): replaced
-   `_saveViaNetwork`'s blank-id guard body with `{ /* TODO */ }` in
-   `app/lib/routes/trail_create_screen.dart` (a real edit to the real file, not a copy). Ran
-   `flutter test test/routes/trail_create_screen_local_save_gate_test.dart`. Result: **the gate
-   failed**, with the exact assertion text the SUMMARY quotes ("The blank-id guard must actually
-   `return;` rather than fall through to the POST below it..."). Restored via `git checkout --`;
-   confirmed `git status --short` empty afterward.
-2. **Drain carry-forward gates** (`local_trail_retirement_gate_test.dart`): replaced
-   `final retiredServerId = retireUploadedLocalTrail(store, localId); if (retiredServerId !=
-   null) { _rememberRetiredServerId(...); }` with a bare `retireUploadedLocalTrail(store,
-   localId);` in `app/lib/provider/trail/trail_sync_provider.dart`. Ran `flutter test
-   test/store/local_trail_retirement_gate_test.dart`. Result: **two gates failed** ("assigns
-   `retireUploadedLocalTrail`'s return value" and "`_rememberRetiredServerId(` runs after the
-   retirement return value is captured"), matching the SUMMARY's claimed output. Restored via
-   `git checkout --`; confirmed clean.
-
-Both reproductions match 36-20-SUMMARY.md's claims exactly. Combined with a full independent run
-of `flutter analyze --no-pub` (0 errors, 36 pre-existing info lints — matches the claimed
-baseline) and `flutter test` (941 passing, 1 skipped, 0 failures — matches the claimed count),
-this pass has substantially higher confidence in the WR-05 closure than reading the SUMMARY
-alone would provide.
+|---|---|---|---|
+| `app/lib/components/trail/trail_panel.dart` | Sync-state-keyed badge on the detail screen, isLocal Offline badge narrowed to synced trails | ✓ VERIFIED | Read directly; both edits present and correctly gated (see table above). |
+| `app/test/components/trail/trail_panel_sync_badge_test.dart` | Behavioral widget test mounting the real `TrailPanel` for all four+one badge cases | ✓ VERIFIED | 284 lines (exceeds the 120-line must_have minimum); mounts real widget tree; 5/5 pass, independently re-run. |
+| `.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md` | Tracks the l10n coverage gap WR-01 restates | ✓ VERIFIED | Exists, already names `sync_pending`/`sync_uploading`/`sync_failed` at Priority 4 (items 8-10) — pre-dates 36-21, so WR-01 is not undisclosed new debt. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
-|------|-----|-----|--------|---------|
-| `trail_create_screen.dart`'s `networkUpdate` branch | `resolveNetworkSaveTarget`/`serverIdForRetired` | resolve-before-call | ✓ WIRED | `:492-525`; the raw `updatedTrail.id` is never handed to `_saveViaNetwork` — always `updatedTrail.copyWith(id: targetId, ...)`. |
-| `trail_sync_provider.dart`'s retirement step | `_rememberRetiredServerId` / `localTrailProvider` invalidation | capture-then-remember-then-invalidate | ✓ WIRED | `:419-426`; ordering independently falsified (see above) and confirmed load-bearing. |
-| `_saveViaNetwork` | `applyNetworkEditToLocalRow` → `_invalidateOwnTrailsList` | reconcile-then-invalidate | ✓ WIRED | `:766-795`; confirmed at both call sites reaching `_saveViaNetwork`. |
-| `trail_sync_provider.dart`'s `deleteUnsynced` | `readLocalTrailServerId` → `recordIdDirSegment` → server DELETE → `resolveServerDeleteOutcome` → `deleteLocalTrailRow` | classify-then-act | ✓ WIRED | `:522-594`; every branch traced, `readLocalTrail`/`toModel()` never appears in this function. |
-| `trail_create_screen.dart`'s `resolveLocalSaveModeForRow` | `_copyPhotosForLocalSave` | route-before-side-effect | ✓ WIRED | `:449-482`; an `alreadyUploaded`/`synced` row never reaches the `updateLocal` branch's photo copy (WR-14). |
-| `local_photo_store.dart`'s `photosNotYetOnServer` | `_saveViaNetwork`'s `newPhotoFiles` | filter-before-upload | ✓ WIRED | `:463-482`; unused by the local-first branches (confirmed by 36-20's new negative gate and by direct read). |
-
-### Anti-Patterns Found
-
-| File | Line | Pattern | Severity | Impact |
-|------|------|---------|----------|--------|
-| `app/lib/i18n/*.arb` (13 non-English locales) | — | WR-06: destructive-action and sync-status strings remain English-only in 13 locales | ⚠️ Warning, deliberately deferred | Correctness half resolved (`_confirmDelete` now keys on `trailHasServerId`); coverage half tracked in `.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md`, prioritized, not silently dropped. Non-blocking per the app's documented English-fallback behavior. This is the ONE item from `36-REVIEW.md`'s 17 warnings still open, and it is open by deliberate, recorded decision, not oversight. |
-| No `TBD`/`FIXME`/`XXX` debt markers | — | Scanned every file touched by 36-15..36-20 (`local_trail_store.dart`, `trail_sync_provider.dart`, `trail_create_screen.dart`, `trail_detail_screen.dart`, `trail_dropdown.dart`, `trail_panel.dart`, `trail_filter_provider.dart`, `local_photo_store.dart`) | — | Clean. |
-
-No stub returns, no empty-handler patterns, and no hardcoded-empty data reaching rendered UI
-were found in any file this pass examined.
+|---|---|---|---|---|
+| `trail_panel.dart` | `SyncStatusChip` | `isUnsyncedState`-gated render below the title | ✓ WIRED | `:296-302`; pattern `SyncStatusChip(trail: trail)` present and gated as specified in the plan's `must_haves.key_links`. |
+| `trail_panel.dart`'s Offline-pill guard | `trail.syncState` | guard now also requires `!isUnsyncedState` | ✓ WIRED | `:205`; pattern `isLocal && !isUnsyncedState` present verbatim. |
+| `SyncStatusChip`'s failed-state tap | `TrailSync.retry` | `onTap` in `_Chip` | ✓ WIRED | Confirmed via the widget test's Case C, which taps the chip's `InkWell` and asserts `TrailSync.retry` was called exactly once with the local id — independently re-run, passed. |
 
 ### Requirements Coverage
 
 | Requirement | Status | Evidence |
-|-------------|--------|----------|
-| REC-01 | ✓ SATISFIED | Unchanged; local-first branches confirmed network-free. |
+|---|---|---|
+| REC-01 | ✓ SATISFIED | Unchanged; local-first branches confirmed network-free (untouched by 36-21). |
 | REC-02 | ✓ SATISFIED | Unchanged; `/trail/local/:localId` addressing intact. |
-| REC-03 | ✓ SATISFIED | `SyncStatusChip` unchanged; `TrailPanel`'s tab gate now correctly keyed on sync state (WR-11 closed this pass). |
-| REC-04 | ✓ SATISFIED | Unchanged; account-scoping strengthened further this pass (WR-10's remaining half closed). |
-| REC-05 | ⚠️ SATISFIED WITH THE SAME NARROWED EDGE CASE, now confirmed intentional and loud-not-silent | See Observable Truth 3. |
-| REC-06 | ✓ SATISFIED | Unchanged. |
-| SYNC-01 | ✓ SATISFIED | Unchanged. |
-| SYNC-02 | ✓ SATISFIED | Unchanged; dropdown gating behaviourally tested. |
-| SYNC-03 | ✓ SATISFIED | Unchanged; WR-04 fix (36-18) prevents a healthy trail parking as `failed` from an invariant-break waypoint. |
-| SYNC-04 | ✓ SATISFIED (code-level, all three blockers now closed) | See blocker table above; device+server confirmation still pending. |
-| SYNC-05 | ✓ SATISFIED | Redesigned (retire/delete) guarantee still holds by construction; all three blockers that threatened it are closed. |
+| REC-03 | ✓ SATISFIED — now also true on the detail screen | 36-21 closes the last surface where an unsynced trail was indistinguishable from a downloaded one. |
+| REC-04 | ✓ SATISFIED | Unchanged; not touched by this plan. |
+| REC-05 | ⚠️ SATISFIED WITH THE SAME NARROWED EDGE CASE, user-accepted per round-2 UAT Test 4 | See Observable Truth 3. |
+| REC-06 | ✓ SATISFIED | Unchanged; confirmed on device (round-2 UAT Test 2). |
+| SYNC-01 | ✓ SATISFIED | Unchanged; confirmed on device (round-2 UAT Test 5). |
+| SYNC-02 | ✓ SATISFIED — now also true on the detail screen | 36-21 is precisely this requirement's closure on the last unwired surface. |
+| SYNC-03 | ✓ SATISFIED — now also true on the detail screen | Retry tap-through confirmed reaching `TrailSync.retry` from the detail screen via the widget test. |
+| SYNC-04 | ✓ SATISFIED (code-level + device-confirmed) | Round-2 UAT Test 5 passed on device. |
+| SYNC-05 | ✓ SATISFIED (code-level + device-confirmed) | Round-2 UAT Test 5 passed on device. |
 
 No orphaned requirements — all 11 IDs assigned to Phase 36 in `.planning/REQUIREMENTS.md` are
-claimed by at least one plan across the full 20-plan set.
+`[x]` (marked complete) and are traceable to at least one plan and one piece of verified evidence
+above.
+
+### Anti-Patterns Found
+
+| File | Line | Pattern | Severity | Impact |
+|---|---|---|---|---|
+| `app/lib/i18n/*.arb` (13 non-English locales) | — | `sync_pending`/`sync_uploading`/`sync_failed` remain English-only, now surfaced on the detail screen too (WR-01) | ⚠️ Warning, deliberately deferred (pre-existing tracked debt, not new) | Already itemized in `.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md` at Priority 4. Non-blocking; the app's documented English-fallback behavior means this does not break the surface, only its polish for 13 locales. |
+| No `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER` markers | — | Scanned `trail_panel.dart` and the new test file | — | Clean. |
+
+### Uncommitted Working-Tree State — Flagged, Not Fixed
+
+The working tree carries uncommitted modifications to files outside this phase's executed scope,
+per this run's stated context (a concurrent session): `app/lib/components/base/wanderer_sort_chip_group.dart`,
+`app/lib/components/category/category_icon.dart`, `app/lib/components/list/list_list_item.dart`,
+`app/lib/components/route_planner/route_anchor_list_tab.dart`, `app/lib/components/route_planner/settings_tab.dart`,
+`app/lib/components/trail/trail_list_item.dart`, `app/lib/routes/library_screen.dart`,
+`app/lib/routes/list_screen.dart`, `app/lib/routes/profile_screen.dart`,
+`app/lib/routes/trail_create_screen.dart`, and `.planning/phases/36-local-first-recording-automatic-upload/36-UAT.md`
+(only its frontmatter `status:` field differs: committed `complete`, working tree `diagnosed` —
+no body-content difference).
+
+`trail_create_screen.dart` is a core file for this phase's save-routing logic, so its uncommitted
+diff was inspected directly: the changes are additive and orthogonal (unsaved-changes-dialog
+dirty-tracking via a new `_syncUnsavedChanges()` helper and `_categoryDefaulted`/`_privacyDefaulted`
+latches after a save). `resolveNetworkSaveTarget`, `resolveLocalSaveModeForRow`,
+`applyNetworkEditToLocalRow`, and `_saveViaNetwork` — the phase 36 blocker-closure logic — are all
+still present and call-site-unchanged in the current (uncommitted-edits-included) file. `flutter
+test` was run against the actual working tree (including these uncommitted edits) and passed
+946/1 skip/0 failures, confirming no regression. This is flagged for visibility, not treated as a
+phase 36 gap, per this run's explicit instruction not to "fix" work outside this phase's scope.
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
-|----------|---------|--------|--------|
-| Full test suite passes | `flutter test` (independently re-run by this verifier, not relied on from the orchestrator) | 941 passing, 1 skipped, 0 failures | ✓ PASS |
-| Analyzer clean | `flutter analyze --no-pub` (independently re-run) | 0 errors, 36 pre-existing `info` lints | ✓ PASS |
-| CR-01 gate fails against its named falsifying rewrite | Applied rewrite to real source, ran gate test, restored | Failed with the exact assertion text claimed | ✓ PASS (independently reproduced) |
-| Drain carry-forward gates fail against their named falsifying rewrite | Applied rewrite to real source, ran gate test, restored | Both failed with the exact assertion text claimed | ✓ PASS (independently reproduced) |
-| Working tree clean after both falsification reproductions | `git status --short` | Empty | ✓ PASS |
-| No debt markers in phase-touched files | `grep -rn TBD\|FIXME\|XXX` on 8 core files | None found | ✓ PASS |
-| Live device/server upload, delete-with-server-copy, dropdown gating, narrowed-edit UX judgment | — | — | ? SKIP — see human_verification |
+|---|---|---|---|
+| Detail-screen badge widget test | `flutter test test/components/trail/trail_panel_sync_badge_test.dart` (independently re-run) | 5/5 pass | ✓ PASS |
+| Full suite | `flutter test` (independently re-run) | 946 passed, 1 skipped, 0 failures | ✓ PASS |
+| Analyzer | `flutter analyze --no-pub` (independently re-run) | 0 errors, 36 pre-existing info lints | ✓ PASS |
+| Commits exist as claimed | `git log --oneline` on `trail_panel.dart` | `bdfde398`, `9419f872` present | ✓ PASS |
+| No debt markers in touched files | `grep` on `trail_panel.dart` + new test file | none | ✓ PASS |
+| Live device confirmation of the 36-21 fix itself | — | — | ? SKIP — see human_verification (this is the one item this pass could not close) |
 
 ### Probe Execution
 
-No `scripts/*/tests/probe-*.sh` probes exist for this project layout (Flutter/Dart). SKIPPED —
-no conventional or PLAN-declared probes found.
+No `scripts/*/tests/probe-*.sh` probes exist for this project layout (Flutter/Dart). SKIPPED — no
+conventional or PLAN-declared probes found.
 
 ### Human Verification Required
 
-See frontmatter `human_verification` for the structured list. Five items, all mirroring
-`36-UAT.md` round 2's still-`pending` tests, restated against this pass's confirmed code state:
-
-1. Dropdown gating for an unsynced trail (36-UAT round 2, Test 1) — code and a real widget test
-   confirmed correct, never run on device.
-2. Spinner-flicker / edit-not-reflected / tap-routes-to-detail (36-UAT round 2, Test 2) — all
-   three fixes confirmed in source, none re-confirmed on device.
-3. Delete-after-sync and delete-a-Failed-trail-with-a-server-id (36-UAT round 2, Test 3) —
-   CR-02/WR-15's fix confirmed correct in source; server-side DELETE has never been exercised
-   end-to-end.
-4. **Judgment call, not just a functional check:** the CR-03 "minimum acceptable" fix's narrowed
-   offline-edit behavior (36-UAT round 2, Test 4) — code confirmed to fail loudly rather than
-   silently, but whether that narrowing is acceptable UX for this phase's stated goal needs a
-   human decision.
-5. Interrupted-upload/no-duplicate device+server pass, extended this pass to also cover WR-04
-   (a healthy trail should not park as Failed from rapid lifecycle cycling) and WR-09 (an
-   earlier-succeeded waypoint's photos should stay visible while a later one is still retrying)
-   (36-UAT round 2, Test 5).
+One item, carried in the frontmatter `human_verification`: the `<human-check>` block
+`36-21-PLAN.md` deferred to end-of-phase, which `36-21-SUMMARY.md` explicitly records as "Not
+performed in this session." This is the only remaining gap between "code-level and widget-test
+verified" and "confirmed working on a physical device" for this phase. Everything else this
+phase's prior verification pass flagged as needing a device has since been run on-device via
+`36-UAT.md` round 2 (5/5 passed, including the one required judgment call).
 
 ### Gaps Summary
 
-**No BLOCKER-level gaps remain against the codebase as it stands.** All three CRITICAL findings
-from `36-REVIEW.md` (CR-01, CR-02, CR-03) were independently re-derived from current source in
-this pass — not trusted from any plan's SUMMARY.md — and two of the highest-risk claims (the
-CR-01 guard's actual effect, and the drain's carry-forward ordering) were proven by this verifier
-personally reproducing the named falsifying rewrite against the real source files and observing
-the same failure the executor claimed, then restoring a clean tree. Of the 17 WARNING findings,
-16 are closed and independently confirmed; the 17th (WR-06, translation coverage) is an
-explicit, tracked, non-blocking deferral with a durable todo record, not a code gap or an
-oversight.
+**No BLOCKER-level gaps remain.** All 21 plans in the phase are complete; the three prior
+CRITICAL blockers (CR-01/CR-02/CR-03) remain independently confirmed closed from the last pass;
+round-2 UAT ran on a physical device and passed all 5 tests, including the CR-03 UX judgment
+call; the one gap that pass surfaced (the detail screen's generic Offline badge) is closed by
+plan 36-21, independently re-verified in this pass by reading the current source, re-running the
+new widget test (5/5 pass), re-running the full suite (946/1 skip/0 failures) and the analyzer (0
+errors), and confirming the claimed commits exist in history.
 
-The phase's remaining risk is exactly what six plans' own `<verification>` notes and this
-report's `human_verification` section say it is: nothing in this repository can open a live
-ObjectBox `Store` or reach a real PocketBase server, so the code-level argument — however
-thoroughly re-derived and, in two cases, personally reproduced by this verifier — has not been
-exercised end-to-end since the retirement/delete/reconcile design was finalized by these six
-plans. `36-UAT.md` round 2 records all five of its tests as `result: pending`. That is
-`human_needed`, not a code gap, and one of those five items (CR-03's UX narrowing) is a genuine
-product decision that no amount of source-reading can resolve on its own. ROADMAP.md's own
-phase-36 line states the phase is "NOT complete until [gaps] are closed and the verifier
-passes" — the gaps are now closed; the verifier's remaining ask is the device+server pass and
-the one judgment call this file surfaces.
+The phase's one remaining risk is narrow and specific: 36-21's fix has been proven correct by
+source reading and a real widget test, but — exactly like the rest of this phase's
+device-dependent claims — has never been rendered on an actual phone. That is a `human_needed`
+gate, not a code gap, and it is the only item left in that category for the entire 21-plan phase.
+
+The one open WARNING from the delta review (WR-01, translation coverage for the three new
+sync-status strings) is not a new gap: it is an instance of an already-tracked, already-accepted
+deferral (`.planning/todos/pending/2026-08-03-destructive-action-strings-untranslated.md`,
+created before 36-21 ran) that already names these exact three keys at Priority 4.
 
 ---
 
-_Verified: 2026-08-03T21:15:00Z_
+_Verified: 2026-08-03T21:50:00Z_
 _Verifier: Claude (gsd-verifier)_

@@ -1,17 +1,36 @@
 ---
-status: complete
+status: testing
 phase: 36-local-first-recording-automatic-upload
 source: [36-VERIFICATION.md]
 started: 2026-08-02T15:48:59Z
-updated: 2026-08-03T21:40:00Z
-round: 2
+updated: 2026-08-03T22:00:00Z
+round: 3
 ---
 
 ## Current Test
 
-[testing complete]
+number: 1
+name: Detail-screen sync badge on a physical device
+expected: |
+  Unsynced trail's detail screen shows the sync-state badge (Waiting to upload /
+  Uploading… / Upload failed · Tap to retry) with a working retry tap; a downloaded
+  trail's detail screen is visually unchanged (still reads Offline).
+awaiting: user response
 
 ## Tests
+
+### 1. Detail-screen sync badge on a physical device
+steps: Open the trail that reproduced round 2 test 1's badge gap — an unsynced trail from the own-trails list. Read its detail-screen badge. Force a failure (airplane mode until the row parks as Failed) and read the badge again, then tap it. Finally open an ordinary downloaded trail's detail screen.
+expected: The unsynced trail's detail screen reads "Waiting to upload" (or "Uploading…" mid-drain), never "Offline". After parking as Failed it reads "Upload failed · Tap to retry", and tapping it starts a retry. The downloaded trail's detail screen still reads "Offline" and looks exactly as it did before.
+why_human: This is the `<human-check>` block 36-21-PLAN.md deferred to end-of-phase; 36-21-SUMMARY.md states it was not performed. The widget test `trail_panel_sync_badge_test.dart` mounts the real TrailPanel and confirms the logic, but the fix has never been seen rendered on a device — round-2 UAT is by definition the pass that found this bug, so it predates the fix.
+result: [pending]
+
+## Round 2 (2026-08-03) — resolved
+
+Round 2 ran 5 tests, all of which passed on device (commit `cde38b33`), including test 4's
+required human judgment call. It raised one minor gap as a side observation on an
+otherwise-passing test 1 — the detail screen's badge — closed by plan 36-21 and re-tested
+as round 3's test 1 above.
 
 ### 1. Trail dropdown gating for unsynced trails
 steps: Open an unsynced trail from the own-trails list (it should now route to the detail screen). Open its dropdown menu — check Download is absent and Delete says "cannot be undone". Start (or wait for) that trail's upload and reopen the menu mid-upload. Then check an ordinary downloaded trail's menu.
@@ -48,22 +67,22 @@ result: pass
 
 ## Summary
 
-total: 5
-passed: 5
+total: 1
+passed: 0
 issues: 0
-pending: 0
+pending: 1
 skipped: 0
 blocked: 0
 
-All five of round 2's tests passed on device, including test 4's required human judgment
-call. One minor gap was raised as a side observation on an otherwise-passing test 1 (the
-detail screen's badge) — see Gaps. It is not a test failure and does not block the phase's
-requirements; it is UI copy on a Phase 36 surface.
+Round 3 carries a single test: the device pass for plan 36-21's detail-screen sync badge,
+the one gap round 2 surfaced. Round 2's own five tests all passed on device and are
+recorded above under "Round 2 — resolved".
 
 ## Gaps
 
 - truth: "An unsynced trail's detail screen states its upload state (Waiting to upload / Uploading… / Upload failed)"
-  status: failed
+  status: resolved
+  resolved_by: "36-21 — TrailPanel's badge is now keyed on trail.syncState via a gated SyncStatusChip render (trail_panel.dart:296), with the pre-existing isLocal 'Offline' pill narrowed to `trail.isLocal && !isUnsyncedState(trail.syncState)` (line 205) so downloaded-trail behaviour is unchanged. Commits 9419f872 (RED test) and bdfde398 (fix); covered by app/test/components/trail/trail_panel_sync_badge_test.dart, 5/5 passing. Awaiting the round-3 device pass above."
   reason: "User reported: pass. However trail detail screen has \"Offline\" badge instead of \"Waiting for upload\" badge"
   severity: minor
   test: 1
