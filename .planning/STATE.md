@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: "Completed 36-16-PLAN.md (CR-01/WR-01 gap closure: retired-id carry-forward, actionable refusal, detail-screen redirect)"
-last_updated: "2026-08-03T17:14:54.739Z"
+stopped_at: "Completed 36-17-PLAN.md (CR-03/WR-13/WR-14/WR-16 gap closure: local-row reconciliation after a network save, duplicate-photo prevention)"
+last_updated: "2026-08-03T17:29:08.637Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 29
+  completed_plans: 30
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 3 of 20
+Plan: 4 of 20
 Status: Ready to execute
 Last activity: 2026-08-03 -- Phase 36 execution started
 
@@ -166,6 +166,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P14 | 20min | 4 tasks | 8 files |
 | Phase 36 P15 | 35min | 3 tasks | 20 files |
 | Phase 36 P16 | 20min | 3 tasks | 19 files |
+| Phase 36 P17 | 20min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -388,6 +389,9 @@ Recent decisions affecting current work:
 - [Phase 36]: 36-15: server-id validation (recordIdDirSegment) happens at every Dio request site, not at writeServerTrailId's persist point — A throw at persist time would leave the row unmarked, causing the next drain pass to re-issue PUT /trail/form and create a duplicate trail (SYNC-04)
 - [Phase ?]: trailSyncProvider's retired-id memo is account-keyed (T-36-16-01/02) and bounded to 64 entries (T-36-16-03) — trailSyncProvider is excluded from accountScopedProviders so its memo outlives an account switch; serverIdForRetired re-checks currentAccountId fresh at point of use
 - [Phase ?]: A genuine save-target refusal does not pop trail_create_screen's route — _hasUnsavedChanges is still true when no target resolves; popping would trigger the discard-changes dialog and destroy the hiker's typed edit -- accepted tradeoff, flagged for UAT (T-36-16-06)
+- [Phase ?]: [36-17] No dirty flag, no ObjectBox schema change for CR-03 -- applyNetworkEditToLocalRow reconciles the local row to a known-good server state only AFTER the network write already succeeded; a reconciliation failure is best-effort/logged and the row stays stale until retirement removes it.
+- [Phase ?]: [36-17] photosNotYetOnServer diffs the network photo payload on filesystem location (inside unsynced/<localId>/), not filename -- PocketBase renames every uploaded file, so a basename diff against trail.photos would exclude nothing (WR-13).
+- [Phase ?]: [36-17] The photo picker's initialWebPhotos is suppressed entirely for any unsynced trail (isUnsyncedState), since trail.photos and trail.localPhotos name the same images in that window.
 
 ### Roadmap Evolution
 
@@ -541,8 +545,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T17:14:54.721Z
-Stopped at: Completed 36-16-PLAN.md (CR-01/WR-01 gap closure: retired-id carry-forward, actionable refusal, detail-screen redirect)
+Last session: 2026-08-03T17:29:08.619Z
+Stopped at: Completed 36-17-PLAN.md (CR-03/WR-13/WR-14/WR-16 gap closure: local-row reconciliation after a network save, duplicate-photo prevention)
 Resume file: None
 
 ## Operator Next Steps
