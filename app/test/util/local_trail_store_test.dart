@@ -246,6 +246,19 @@ void main() {
     );
   });
 
+  group('trailHasServerId', () {
+    test('is false for the blank id a still-local sentinel row reads as '
+        '(TrailEntity.toModel() blanks it, D-06)', () {
+      expect(trailHasServerId(''), isFalse);
+    });
+
+    test('is true for a real server id, regardless of syncState -- a '
+        '`failed` row can carry one from a create that succeeded before a '
+        'later waypoint upload failed (CR-03, CR-04)', () {
+      expect(trailHasServerId('server-1'), isTrue);
+    });
+  });
+
   group('isDrainDue', () {
     TrailEntity buildEntity({
       required TrailSyncState syncState,

@@ -462,4 +462,44 @@ void main() {
     },
   );
 
+  test(
+    '_saveViaNetwork refuses to run with a blank trail id (CR-01)',
+    () {
+      final start = source.indexOf('Future<void> _saveViaNetwork(');
+      expect(
+        start,
+        isNot(-1),
+        reason:
+            '_saveViaNetwork was renamed or its signature changed. '
+            'Re-point this gate rather than deleting it -- the invariant '
+            'still matters.',
+      );
+
+      final body = source.substring(start, methodEnd(start));
+
+      expect(
+        body.contains('trailHasServerId('),
+        isTrue,
+        reason:
+            '_saveViaNetwork must refuse to run (rather than POST '
+            '`/trail/form/` with an empty id) when its `updatedTrail` '
+            'snapshot is stale -- D-06 blanks a local-sentinel id, and a '
+            'screen that never re-read across a completed upload can '
+            'still hold one. An empty-id POST can never be routed '
+            '(SvelteKit normalizes the empty [id] segment away) and also '
+            'reads photo files retirement already deleted from disk.',
+      );
+
+      final guardIdx = body.indexOf('trailHasServerId(');
+      final networkCallIdx = body.indexOf('trailSaveProvider.notifier)');
+      expect(
+        guardIdx != -1 && networkCallIdx != -1 && guardIdx < networkCallIdx,
+        isTrue,
+        reason:
+            'The trailHasServerId( guard must precede the network call it '
+            'protects, or a blank-id POST can still slip through.',
+      );
+    },
+  );
+
 }

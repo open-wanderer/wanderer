@@ -616,6 +616,34 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     required String authorId,
     required List<File> newPhotoFiles,
   }) async {
+    if (!trailHasServerId(updatedTrail.id)) {
+      // Every route into this method is supposed to guarantee a real server
+      // id -- but this screen's own `trail` snapshot can still be the stale
+      // one captured right after a local-first save, before the drain ever
+      // ran (D-06 blanks a local-sentinel id, so that snapshot's `id` reads
+      // `''`). Posting `/trail/form/` with a blank id can never be routed
+      // (SvelteKit's `[id]` normalizes an empty segment away, so the create
+      // screen would 404/405 on every retry) and would also read photo
+      // files a completed retirement already deleted from disk. Refuse
+      // rather than issue a request with nowhere to go: the hiker must back
+      // out and re-open the trail from the server list to keep editing it
+      // (CR-01). The missing-server-id defect this guards against is
+      // tracked separately; this only stops it from masquerading as success.
+      if (mounted) {
+        ref
+            .read(toastProvider.notifier)
+            .add(
+              ToastMessage(
+                type: ToastType.error,
+                icon: FontAwesomeIcons.circleExclamation,
+                text: l10n.error_saving_trail,
+              ),
+            );
+        setState(() => _saving = false);
+      }
+      return;
+    }
+
     try {
       final result = await ref
           .read(trailSaveProvider.notifier)

@@ -121,6 +121,21 @@ LocalSaveMode resolveLocalSaveModeForRow({
   return resolveLocalSaveMode(persisted ?? screenTrail);
 }
 
+/// Whether [id] is a real, server-assigned trail id rather than the blank
+/// placeholder [Trail.id] carries for a row that has never reached the
+/// server.
+///
+/// `TrailEntity.toModel()` blanks a still-local sentinel id to `''` (D-06),
+/// so this is the one signal that survives from ObjectBox all the way to a
+/// [Trail] model: non-empty here means `writeServerTrailId` already stamped
+/// a real id onto the row, independent of [TrailSyncState] entirely -- which
+/// is what makes [TrailSyncState.failed] in particular an unreliable stand-in
+/// for "the device holds the only copy" (CR-04: a `failed` row can still
+/// carry a real server id from a create that succeeded before a later
+/// waypoint upload failed). Empty here means there is nothing to route a
+/// network write or a network delete to (CR-01).
+bool trailHasServerId(String id) => id.isNotEmpty;
+
 /// Whether [entity]'s upload is due to run now.
 ///
 /// True only for a row whose [TrailEntity.syncState] is [TrailSyncState.pending]
