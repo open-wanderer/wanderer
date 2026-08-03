@@ -9,6 +9,7 @@ import 'package:wanderer/components/base/wanderer_date_picker.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
 import 'package:wanderer/components/base/wanderer_radio_group.dart';
+import 'package:wanderer/components/base/wanderer_range_slider.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
@@ -339,7 +340,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 const SizedBox(height: 16),
 
                 Text(l10n.distance, style: TextTheme.of(context).labelLarge),
-                RangeSlider(
+                WandererRangeSlider(
                   values: RangeValues(
                     filter.value?.distanceMin ?? 0,
                     filter.value?.distanceMax ?? 0,
@@ -347,11 +348,11 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
 
                   min: 0,
                   max: filter.value?.distanceLimit ?? 0,
-                  labels: RangeLabels(
-                    formatDistance(filter.value?.distanceMin, unit: unit),
-                    "${formatDistance(filter.value?.distanceMax, unit: unit)}${filter.value?.distanceMax == filter.value?.distanceLimit ? "+" : ""}",
+                  labelsBuilder: (values) => RangeLabels(
+                    formatDistance(values.start, unit: unit),
+                    "${formatDistance(values.end, unit: unit)}${values.end == filter.value?.distanceLimit ? "+" : ""}",
                   ),
-                  onChanged: (RangeValues values) {
+                  onChangeEnd: (RangeValues values) {
                     ref
                         .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
@@ -368,7 +369,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   l10n.elevation_gain,
                   style: TextTheme.of(context).labelLarge,
                 ),
-                RangeSlider(
+                WandererRangeSlider(
                   values: RangeValues(
                     filter.value?.elevationGainMin ?? 0,
                     filter.value?.elevationGainMax ?? 0,
@@ -376,11 +377,11 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
 
                   min: 0,
                   max: filter.value?.elevationGainLimit ?? 0,
-                  labels: RangeLabels(
-                    formatElevation(filter.value?.elevationGainMin, unit: unit),
-                    "${formatElevation(filter.value?.elevationGainMax, unit: unit)}${filter.value?.elevationGainMax == filter.value?.elevationGainLimit ? "+" : ""}",
+                  labelsBuilder: (values) => RangeLabels(
+                    formatElevation(values.start, unit: unit),
+                    "${formatElevation(values.end, unit: unit)}${values.end == filter.value?.elevationGainLimit ? "+" : ""}",
                   ),
-                  onChanged: (RangeValues values) {
+                  onChangeEnd: (RangeValues values) {
                     ref
                         .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(
@@ -397,18 +398,18 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   l10n.elevation_loss,
                   style: TextTheme.of(context).labelLarge,
                 ),
-                RangeSlider(
+                WandererRangeSlider(
                   values: RangeValues(
                     filter.value?.elevationLossMin ?? 0,
                     filter.value?.elevationLossMax ?? 0,
                   ),
                   min: 0,
                   max: filter.value?.elevationLossLimit ?? 0,
-                  labels: RangeLabels(
-                    formatElevation(filter.value?.elevationLossMin, unit: unit),
-                    "${formatElevation(filter.value?.elevationLossMax, unit: unit)}${filter.value?.elevationLossMax == filter.value?.elevationLossLimit ? "+" : ""}",
+                  labelsBuilder: (values) => RangeLabels(
+                    formatElevation(values.start, unit: unit),
+                    "${formatElevation(values.end, unit: unit)}${values.end == filter.value?.elevationLossLimit ? "+" : ""}",
                   ),
-                  onChanged: (RangeValues values) {
+                  onChangeEnd: (RangeValues values) {
                     ref
                         .read(trailFilterProvider(widget.filterId).notifier)
                         .updateFilter(

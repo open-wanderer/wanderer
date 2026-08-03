@@ -19,6 +19,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/follow_provider.dart';
 import 'package:wanderer/provider/profile/profile_counts_provider.dart';
 import 'package:wanderer/provider/profile/profile_feed_provider.dart';
+import 'package:wanderer/provider/profile/profile_local_trail_count_provider.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
 
@@ -145,6 +146,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (h != null) {
           ref.invalidate(profileFeedProvider(h));
           ref.invalidate(profileListsProvider(h));
+          // Recomputed from the store rather than fetched, so nothing else
+          // pushes it: a capture saved since this screen was built only shows
+          // up on an explicit refresh.
+          ref.invalidate(profileLocalTrailCountProvider(h));
         }
       },
       child: CustomScrollView(
@@ -543,11 +548,20 @@ class _CountsRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final countsAsync = ref.watch(profileCountsProvider(actorId));
+    final l10n = AppLocalizations.of(context)!;
+    final counts = ref.watch(profileCountsProvider(actorId)).value;
     // Counts are network-only. Offline they never resolve, so surface a dash
     // instead of a skeleton that would shimmer indefinitely.
-    final unavailable =
-        !ref.watch(onlineStatusProvider) && countsAsync.value == null;
+    final unavailable = !ref.watch(onlineStatusProvider) && counts == null;
+
+    // The trail card is the one count this device can still answer while
+    // offline: unsynced captures plus downloaded trails, i.e. exactly what
+    // `/profile/<handle>/trails` renders offline. Null for another hiker's
+    // handle, which keeps the dash. Labelled so the number is not mistaken
+    // for the (larger) server-side total.
+    final localTrailCount = unavailable
+        ? ref.watch(profileLocalTrailCountProvider(handle))
+        : null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -556,9 +570,11 @@ class _CountsRow extends ConsumerWidget {
           Expanded(
             child: _CountCard(
               icon: FontAwesomeIcons.route,
-              label: AppLocalizations.of(context)!.trail(2),
-              count: countsAsync.value?.trailCount,
-              unavailable: unavailable,
+              label: localTrailCount != null
+                  ? l10n.trails_on_device
+                  : l10n.trail(2),
+              count: localTrailCount ?? counts?.trailCount,
+              unavailable: unavailable && localTrailCount == null,
               onTap: () => context.push('/profile/$handle/trails'),
             ),
           ),
@@ -566,8 +582,8 @@ class _CountsRow extends ConsumerWidget {
           Expanded(
             child: _CountCard(
               icon: FontAwesomeIcons.layerGroup,
-              label: AppLocalizations.of(context)!.list(2),
-              count: countsAsync.value?.listCount,
+              label: l10n.list(2),
+              count: counts?.listCount,
               unavailable: unavailable,
               onTap: () => context.push('/profile/$handle/lists'),
             ),

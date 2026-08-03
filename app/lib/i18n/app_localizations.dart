@@ -1007,8 +1007,14 @@ abstract class AppLocalizations {
   /// No description provided for @own_trails_offline_banner.
   ///
   /// In en, this message translates to:
-  /// **'Showing what\'s saved on this device — connect to see everything.'**
+  /// **'Offline — showing only trails on this device.'**
   String get own_trails_offline_banner;
+
+  /// Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Trails (on device)'**
+  String get trails_on_device;
 
   /// No description provided for @paragraph.
   ///

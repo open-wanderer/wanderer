@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/base/wanderer_date_picker.dart';
 import 'package:wanderer/components/base/wanderer_filter_chip.dart';
 import 'package:wanderer/components/base/wanderer_radio_group.dart';
+import 'package:wanderer/components/base/wanderer_range_slider.dart';
 import 'package:wanderer/components/base/wanderer_sort_chip_group.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/category.dart';
@@ -568,7 +569,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
                           l10n.elevation_gain,
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
-                        RangeSlider(
+                        WandererRangeSlider(
                           values: RangeValues(
                             currentFilter.elevationGainMin,
                             currentFilter.elevationGainMax,
@@ -577,14 +578,11 @@ class TrailQuickFilterBar extends ConsumerWidget {
                           max: currentFilter.elevationGainLimit > 0
                               ? currentFilter.elevationGainLimit
                               : 1,
-                          labels: RangeLabels(
-                            formatElevation(
-                              currentFilter.elevationGainMin,
-                              unit: unit,
-                            ),
-                            '${formatElevation(currentFilter.elevationGainMax, unit: unit)}${currentFilter.elevationGainMax >= currentFilter.elevationGainLimit ? "+" : ""}',
+                          labelsBuilder: (values) => RangeLabels(
+                            formatElevation(values.start, unit: unit),
+                            '${formatElevation(values.end, unit: unit)}${values.end >= currentFilter.elevationGainLimit ? "+" : ""}',
                           ),
-                          onChanged: (values) {
+                          onChangeEnd: (values) {
                             ref
                                 .read(trailFilterProvider(filterId).notifier)
                                 .updateFilter(
@@ -600,7 +598,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
                           l10n.elevation_loss,
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
-                        RangeSlider(
+                        WandererRangeSlider(
                           values: RangeValues(
                             currentFilter.elevationLossMin,
                             currentFilter.elevationLossMax,
@@ -609,14 +607,11 @@ class TrailQuickFilterBar extends ConsumerWidget {
                           max: currentFilter.elevationLossLimit > 0
                               ? currentFilter.elevationLossLimit
                               : 1,
-                          labels: RangeLabels(
-                            formatElevation(
-                              currentFilter.elevationLossMin,
-                              unit: unit,
-                            ),
-                            '${formatElevation(currentFilter.elevationLossMax, unit: unit)}${currentFilter.elevationLossMax >= currentFilter.elevationLossLimit ? "+" : ""}',
+                          labelsBuilder: (values) => RangeLabels(
+                            formatElevation(values.start, unit: unit),
+                            '${formatElevation(values.end, unit: unit)}${values.end >= currentFilter.elevationLossLimit ? "+" : ""}',
                           ),
-                          onChanged: (values) {
+                          onChangeEnd: (values) {
                             ref
                                 .read(trailFilterProvider(filterId).notifier)
                                 .updateFilter(

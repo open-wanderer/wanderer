@@ -123,23 +123,27 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                          horizontal: 20,
                           vertical: 12,
                         ),
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: Row(
                           children: [
-                            FaIcon(
-                              FontAwesomeIcons.cloudArrowUp,
+                            Icon(
+                              Icons.cloud_off,
                               size: 14,
-                              color: theme.colorScheme.onSurfaceVariant,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 l10n.own_trails_offline_banner,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
                                 ),
                               ),
                             ),

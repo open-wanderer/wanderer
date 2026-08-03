@@ -109,7 +109,7 @@ class _OAuthProviderButtonsState extends ConsumerState<OAuthProviderButtons> {
                         padding: EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.all(Radius.circular(16)),
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: Colors.white,
                         ),
                         child: _ProviderIcon(provider.img!),
                       ),

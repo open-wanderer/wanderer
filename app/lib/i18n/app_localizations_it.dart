@@ -494,7 +494,10 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get own_trails_offline_banner =>
-      'Showing what\'s saved on this device — connect to see everything.';
+      'Offline — showing only trails on this device.';
+
+  @override
+  String get trails_on_device => 'Trails (on device)';
 
   @override
   String get paragraph => 'Paragraph';
