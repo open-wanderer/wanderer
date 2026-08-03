@@ -166,6 +166,34 @@ String _collisionFreeName(Set<String> reservedNames, String basename) {
   return '${index}_$basename';
 }
 
+/// Returns every entry of [pickedPaths] that is NOT already inside
+/// [unsyncedDir], preserving input order.
+///
+/// WR-13: a picked path that lives under `unsynced/<localId>/` (tested with
+/// `p.isWithin`, so a non-canonical spelling like `<unsyncedDir>/./a.jpg`
+/// still counts) is an app-owned copy the drain's step 2 has already sent as
+/// part of `PUT /trail/form` -- re-sending it doubles the server-side photo
+/// set, because `form_data_util.dart` emits new photos under the append-only
+/// `photos+` key, not a replace. A path anywhere else is a fresh
+/// `image_picker` pick the server has never seen.
+///
+/// Diffing on LOCATION rather than on filename is required, not a style
+/// choice: PocketBase renames every uploaded file, so `trail.photos`'
+/// server-side filenames can never equal a local basename. A basename diff
+/// against `trail.photos` (the review's first suggested fix) would exclude
+/// nothing, and every save in the `alreadyUploaded` window would keep
+/// doubling the server-side photo set.
+///
+/// Pure -- no I/O, no filesystem check that [pickedPaths] actually exist.
+List<String> photosNotYetOnServer({
+  required String unsyncedDir,
+  required List<String> pickedPaths,
+}) {
+  return pickedPaths
+      .where((path) => !p.isWithin(unsyncedDir, path))
+      .toList();
+}
+
 /// Deletes [localId]'s unsynced photo directory (and its `waypoints/`
 /// subtree) recursively, if present. Used both on a successful drain and on
 /// an unsynced-trail delete (D-02/D-14).

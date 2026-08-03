@@ -263,6 +263,77 @@ void main() {
     );
   });
 
+  group('photosNotYetOnServer', () {
+    test('a path directly inside unsyncedDir is excluded', () {
+      final result = photosNotYetOnServer(
+        unsyncedDir: '/docs/unsynced/local-1-0',
+        pickedPaths: ['/docs/unsynced/local-1-0/a.jpg'],
+      );
+
+      expect(result, isEmpty);
+    });
+
+    test(
+      'a path inside a waypoints/<key>/ subdirectory of unsyncedDir is '
+      'excluded',
+      () {
+        final result = photosNotYetOnServer(
+          unsyncedDir: '/docs/unsynced/local-1-0',
+          pickedPaths: [
+            '/docs/unsynced/local-1-0/waypoints/local-2-0/b.jpg',
+          ],
+        );
+
+        expect(result, isEmpty);
+      },
+    );
+
+    test('an image_picker-style cache path outside unsyncedDir is kept', () {
+      final result = photosNotYetOnServer(
+        unsyncedDir: '/docs/unsynced/local-1-0',
+        pickedPaths: ['/cache/picker/c.jpg'],
+      );
+
+      expect(result, ['/cache/picker/c.jpg']);
+    });
+
+    test(
+      'a non-canonical spelling of an in-dir path is excluded -- '
+      'p.isWithin normalizes, mirroring reconcileLocalPhotos\' own '
+      'canonicalization fix',
+      () {
+        final result = photosNotYetOnServer(
+          unsyncedDir: '/docs/unsynced/local-1-0',
+          pickedPaths: ['/docs/unsynced/local-1-0/./a.jpg'],
+        );
+
+        expect(result, isEmpty);
+      },
+    );
+
+    test('input order is preserved for the kept entries in a mixed list', () {
+      final result = photosNotYetOnServer(
+        unsyncedDir: '/docs/unsynced/local-1-0',
+        pickedPaths: [
+          '/cache/picker/first.jpg',
+          '/docs/unsynced/local-1-0/already-uploaded.jpg',
+          '/cache/picker/second.jpg',
+        ],
+      );
+
+      expect(result, ['/cache/picker/first.jpg', '/cache/picker/second.jpg']);
+    });
+
+    test('an empty pickedPaths returns an empty list', () {
+      final result = photosNotYetOnServer(
+        unsyncedDir: '/docs/unsynced/local-1-0',
+        pickedPaths: const [],
+      );
+
+      expect(result, isEmpty);
+    });
+  });
+
   group('sweepOrphanedUnsyncedPhotos', () {
     setUp(() {
       PathProviderPlatform.instance = _FakePathProviderPlatform(tempRoot.path);
