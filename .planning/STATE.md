@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-13-PLAN.md
-last_updated: "2026-08-03T11:36:11.279Z"
+stopped_at: Completed 36-14-PLAN.md (phase 36 complete)
+last_updated: "2026-08-03T12:08:54.716Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 27
-  completed_plans: 26
-  percent: 50
+  completed_phases: 4
+  total_plans: 26
+  completed_plans: 27
+  percent: 100
 ---
 
 # Project State
@@ -25,17 +25,17 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 2 of 15
-Status: Ready to execute
-Last activity: 2026-08-03 -- Phase 36 execution started
+Phase: 36 (local-first-recording-automatic-upload) — COMPLETE
+Plan: 14 of 14 (36-15 dropped 2026-08-03)
+Status: v1.8 milestone's four phases all complete; awaiting next milestone/phase kickoff
+Last activity: 2026-08-03 -- Phase 36 execution completed (36-14, phase's final plan)
 
 ## v1.8 Phases
 
 - [x] **Phase 33: Conversion Correctness** — CONV-01/02/03/04/05 (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** — PORT-01/02/03/04/05, CONV-06 (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** — OFFUI-01/02/03/04 (completed 2026-08-02)
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05/06, SYNC-01/02/03/04/05
+- [x] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05/06, SYNC-01/02/03/04/05 (completed 2026-08-03)
 
 Execution order: 33 → 34 → 35 → 36, strictly sequential. Phase 34 needs Phase 33's corrected algorithm (porting first would pin the buggy behavior in Dart). Phase 35's OFFUI-03/04 need Phase 34's on-device conversion and transcode-only endpoint contract; OFFUI-01/02 are independent live bugs plan-phase may schedule first within Phase 35. Phase 36's REC-05 (offline edit) reuses Phase 35's trail_create_screen map/tag fixes, and REC-01 needs Phase 34's on-device conversion to save an offline recording at all.
 
@@ -163,6 +163,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P11 | ~25min | 2 tasks | 8 files |
 | Phase 36 P12 | ~40min | 3 tasks | 5 files |
 | Phase 36 P13 | 25min | 3 tasks | 4 files |
+| Phase 36 P14 | 20min | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -380,6 +381,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 36] [36-12] Dual-mode TrailDetailMapScreen mirrors 36-11's TrailDetailScreen build()/_buildDetail split; floating Navigate hidden (not disabled) for an unsynced trail, matching the detail screen's own precedent
 - [Phase ?]: [Phase 36] [36-12] Widget navigation test asserts GoRouter.state.uri, not routerDelegate.currentConfiguration.uri -- the latter was observed not to reflect a push made after MaterialApp.router's initial build in this harness
 - [Phase 36]: [36-13] Priming a lazily-read @riverpod provider via an inert Consumer in a widget test harness — TrailDropdown's PopupMenuButton.itemBuilder reads authProvider lazily; without priming it via a Consumer (mirroring trail_panel.dart's real watch on the same screen), the menu's first synchronous itemBuilder call sees a still-AsyncLoading provider and renders Edit/Delete as absent regardless of stub state
+- [Phase 36]: 36-14 retires (deletes/demotes) a local trail row on successful upload instead of retaining it, closing UAT gap 4's post-delete orphan at the root
 
 ### Roadmap Evolution
 
@@ -533,8 +535,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T11:36:11.261Z
-Stopped at: Completed 36-13-PLAN.md
+Last session: 2026-08-03T12:08:54.700Z
+Stopped at: Completed 36-14-PLAN.md (phase 36 complete)
 Resume file: None
 
 ## Operator Next Steps

@@ -321,7 +321,7 @@ Audit: `.planning/milestones/v1.7-MILESTONE-AUDIT.md` (status `gaps_found` — v
 - [x] **Phase 33: Conversion Correctness** - Corrected GPX→trail metrics in the shared TS computation (`gpx.ts`, `gpx-metrics-computation.ts`, `gpx_util.ts`), fixing four defects plus GPS-jitter-inflated distance before anything ports or builds on top of them (re-verification found 3 new regressions 2026-07-31 — see 33-VERIFICATION.md) (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** - The app computes trail metrics from a GPX entirely on-device (including moving time for recordings), pinned against the corrected TS by a shared fixture test; `/trail/convert` becomes transcode-only (7/7 plans; UAT gaps closed, security audit 0 threats open) (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** - `trail_create_screen` is fully usable with no connection: map, tags, GPX import, and a clear message for formats that need one (completed 2026-08-02)
-- [ ] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; UAT returned 5 diagnosed gaps + 1 blocked test — 6 gap closure plans 36-09..36-14 planned; 36-15 dropped 2026-08-03)
+- [x] **Phase 36: Local-First Recording & Automatic Upload** - A recording saves instantly with no connection, stays in the hiker's own-trails list, and uploads itself once the phone is back online (8/8 plans executed; UAT returned 5 diagnosed gaps + 1 blocked test — 6 gap closure plans 36-09..36-14 planned; 36-15 dropped 2026-08-03) (completed 2026-08-03)
 
 #### Sequencing Rationale
 
@@ -517,7 +517,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8; second UAT round — the orphan blocker; runs alone, and now holds the phase's final codegen run)*
 
-- [ ] 36-14-PLAN.md — A local trail row is retired the moment its upload succeeds, so the post-delete orphan cannot exist: delete-or-demote inside the drain's success transaction, the save-routing fix a retired row forces, and the phase's final `build_runner` pass
+- [x] 36-14-PLAN.md — A local trail row is retired the moment its upload succeeds, so the post-delete orphan cannot exist: delete-or-demote inside the drain's success transaction, the save-routing fix a retired row forces, and the phase's final `build_runner` pass
 
 - ~~36-15-PLAN.md — A permanent 404 is terminal, not retried ten times behind a chromeless spinner~~ **DROPPED 2026-08-03** (see decision below)
 
@@ -793,5 +793,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 13/15 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 14/14 | Complete   | 2026-08-03 |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
