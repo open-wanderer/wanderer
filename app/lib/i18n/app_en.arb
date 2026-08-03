@@ -233,7 +233,6 @@
     }
   },
   "resume_recording_prompt": "Resume recording?",
-  "retry_upload": "Retry upload",
   "road": "Road",
   "route": "{n, plural, =1 {Route} other {Routes}}",
   "@route": {

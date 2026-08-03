@@ -590,9 +590,6 @@ class AppLocalizationsHu extends AppLocalizations {
   String get resume_recording_prompt => 'Folytatja a felvételt?';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => 'Road';
 
   @override

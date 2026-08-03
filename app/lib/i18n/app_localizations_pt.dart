@@ -590,9 +590,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get resume_recording_prompt => 'Retomar a gravação?';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => 'Road';
 
   @override

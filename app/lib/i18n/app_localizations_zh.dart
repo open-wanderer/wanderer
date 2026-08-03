@@ -588,9 +588,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resume_recording_prompt => '恢复录制？';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => '道路';
 
   @override

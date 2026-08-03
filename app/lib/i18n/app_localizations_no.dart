@@ -590,9 +590,6 @@ class AppLocalizationsNo extends AppLocalizations {
   String get resume_recording_prompt => 'Gjenoppta opptaket?';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => 'Vei';
 
   @override

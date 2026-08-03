@@ -590,9 +590,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get resume_recording_prompt => 'Opname hervatten?';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => 'Weg';
 
   @override

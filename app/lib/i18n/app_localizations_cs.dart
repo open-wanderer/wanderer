@@ -593,9 +593,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get resume_recording_prompt => 'Obnovit nahrávání?';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => 'Silnice';
 
   @override

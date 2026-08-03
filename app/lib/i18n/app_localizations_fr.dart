@@ -593,9 +593,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get resume_recording_prompt => 'Reprendre l\'enregistrement ?';
 
   @override
-  String get retry_upload => 'Retry upload';
-
-  @override
   String get road => 'Route';
 
   @override

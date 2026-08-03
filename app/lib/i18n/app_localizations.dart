@@ -1160,12 +1160,6 @@ abstract class AppLocalizations {
   /// **'Resume recording?'**
   String get resume_recording_prompt;
 
-  /// No description provided for @retry_upload.
-  ///
-  /// In en, this message translates to:
-  /// **'Retry upload'**
-  String get retry_upload;
-
   /// No description provided for @road.
   ///
   /// In en, this message translates to:
