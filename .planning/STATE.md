@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 36-14-PLAN.md; phase 36 code review found 4 blockers, fixing before verification
+stopped_at: Phase 36 verified at code level; awaiting round-2 UAT (5 device items) before completion
 last_updated: "2026-08-03T12:08:54.716Z"
 last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 36 (local-first-recording-automatic-upload) — IN PROGRESS (all plans executed; 4 code-review blockers open)
+Phase: 36 (local-first-recording-automatic-upload) — AWAITING UAT (all 14 plans executed; verifier: human_needed)
 Plan: 14 of 14 (36-15 dropped 2026-08-03)
-Status: Phase 36 plans all executed, but 36-REVIEW.md raised 4 blockers (CR-01..CR-04); fixing them before phase verification
-Last activity: 2026-08-03 -- Phase 36 code review: 4 blockers found, phase completion rolled back
+Status: All plans executed, 4 code-review blockers fixed, verifier passed at code level. 5 device/server UAT items outstanding (36-UAT.md round 2); 12 code-review warnings still open.
+Last activity: 2026-08-03 -- Phase 36 verification returned human_needed; round-2 UAT persisted
 
 ## v1.8 Phases
 

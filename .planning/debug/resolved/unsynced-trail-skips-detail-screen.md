@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Tapping on a not synced trail should open this trail like any other trail in the trail detail screen. From here the user can decide to edit it."
 created: 2026-08-02T17:05:00Z
-updated: 2026-08-02T17:40:00Z
+updated: 2026-08-03T16:45:00Z
 ---
 
 ## Current Focus

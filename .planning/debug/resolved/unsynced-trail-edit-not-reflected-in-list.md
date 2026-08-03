@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "After saving edits on a non synced trail the 'own trail' list needs a manual reload before edits are shown"
 created: 2026-08-02T00:00:00Z
-updated: 2026-08-02T00:00:00Z
+updated: 2026-08-03T16:45:00Z
 ---
 
 ## Current Focus

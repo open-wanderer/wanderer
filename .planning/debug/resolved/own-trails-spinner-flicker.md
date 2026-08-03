@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "The own trails list shows a spinner every so often"
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-03T16:45:00Z
 ---
 
 ## Current Focus

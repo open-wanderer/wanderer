@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "1. create trail while offline 2. go online 3. trail is uploaded correctly 4. delete trail 5. trail is now deleted server side 6. an orphaned trail now permanently exists in the 'own trail' list. Clicking on it leads to an idefinite loading spinner."
 created: 2026-08-03T00:00:00Z
-updated: 2026-08-03T00:00:00Z
+updated: 2026-08-03T16:45:00Z
 ---
 
 ## Current Focus
