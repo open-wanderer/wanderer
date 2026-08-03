@@ -153,6 +153,20 @@ void main() {
     lat: 1,
     lon: 1,
   );
+  // WR-08: an unsynced trail with no local handle at all -- the shape
+  // `retireUploadedLocalTrail`'s demote branch and `TrailDownloadService`'s
+  // carry-forward can both produce for a row that already has a real
+  // server id. The confirm dialog and the executor must agree it is a
+  // server-routed delete, not the (silently no-op) un-download path.
+  final unsyncedNoLocalHandle = Trail.empty().copyWith(
+    id: 'server-2',
+    localId: null,
+    author: 'actor-id',
+    name: 'Unsynced, No Local Handle',
+    syncState: TrailSyncState.pending,
+    lat: 1,
+    lon: 1,
+  );
 
   testWidgets(
     'D-17: an unsynced trail hides Download and "Available offline", but '
@@ -250,6 +264,47 @@ void main() {
         find.widgetWithText(PopupMenuItem<TrailAction>, 'Show on map'),
       );
       expect(openItem.enabled, isTrue);
+    },
+  );
+
+  testWidgets(
+    'WR-08: an unsynced trail with localId: null and a real server id shows '
+    'the reversible delete_trail_confirm copy -- the confirm dialog and the '
+    'now-server-routed executor agree',
+    (tester) async {
+      await tester.pumpWidget(_harness(unsyncedNoLocalHandle));
+      await _openMenu(tester);
+
+      await tester.tap(
+        find.widgetWithText(PopupMenuItem<TrailAction>, 'Delete'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Do you really want to delete this trail? This action cannot be undone.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'A synced trail\'s menu is unchanged -- control case for the WR-08 fix',
+    (tester) async {
+      await tester.pumpWidget(_harness(synced));
+      await _openMenu(tester);
+
+      expect(find.text('Download'), findsOneWidget);
+      expect(find.text('Show on map'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
     },
   );
 }

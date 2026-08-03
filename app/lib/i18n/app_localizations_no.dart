@@ -190,6 +190,10 @@ class AppLocalizationsNo extends AppLocalizations {
       'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
 
   @override
+  String get delete_needs_connection =>
+      'This trail is already on the server. Connect to the internet to delete it.';
+
+  @override
   String get description => 'Beskrivelse';
 
   @override
@@ -242,6 +246,9 @@ class AppLocalizationsNo extends AppLocalizations {
 
   @override
   String get email_updated => 'E-post oppdatert';
+
+  @override
+  String get error_deleting_trail => 'Error deleting trail';
 
   @override
   String get error_reading_file => 'Feil ved lesing av fil';

@@ -44,67 +44,105 @@ import 'package:flutter_test/flutter_test.dart';
 /// fragile scaffolding to protect a one-token invariant. This mirrors the
 /// PORT-03 gate in `test/util/trail_import_util_test.dart`.
 void main() {
-  test(
-    'trail_dropdown._deleteTrail returns after un-downloading a local trail, '
-    'so it never falls through to the server DELETE',
-    () {
-      final source = File(
-        'lib/components/trail/trail_dropdown.dart',
-      ).readAsStringSync();
+  test('trail_dropdown._deleteTrail returns after un-downloading a local trail, '
+      'so it never falls through to the server DELETE', () {
+    final source = File(
+      'lib/components/trail/trail_dropdown.dart',
+    ).readAsStringSync();
 
-      final methodStart = source.indexOf(
-        'Future<void> _deleteTrail(BuildContext context, Trail trail) async {',
-      );
-      expect(
-        methodStart,
-        isNot(-1),
-        reason:
-            '_deleteTrail was renamed or its signature changed. Re-point this '
-            'gate rather than deleting it — the invariant still matters.',
-      );
+    final methodStart = source.indexOf(
+      'Future<void> _deleteTrail(BuildContext context, Trail trail) async {',
+    );
+    expect(
+      methodStart,
+      isNot(-1),
+      reason:
+          '_deleteTrail was renamed or its signature changed. Re-point this '
+          'gate rather than deleting it — the invariant still matters.',
+    );
 
-      final branchStart = source.indexOf('if (trail.isLocal) {', methodStart);
-      expect(
-        branchStart,
-        isNot(-1),
-        reason:
-            'The local-trail branch is gone. If un-download moved elsewhere, '
-            'move this gate with it.',
-      );
+    final branchStart = source.indexOf('if (trail.isLocal) {', methodStart);
+    expect(
+      branchStart,
+      isNot(-1),
+      reason:
+          'The local-trail branch is gone. If un-download moved elsewhere, '
+          'move this gate with it.',
+    );
 
-      final branchEnd = source.indexOf('\n    }', branchStart);
-      expect(branchEnd, isNot(-1), reason: 'Could not find the branch end.');
+    final branchEnd = source.indexOf('\n    }', branchStart);
+    expect(branchEnd, isNot(-1), reason: 'Could not find the branch end.');
 
-      final branch = source.substring(branchStart, branchEnd);
+    final branch = source.substring(branchStart, branchEnd);
 
-      expect(
-        branch.contains('deleteTrail(trail.id)'),
-        isTrue,
-        reason: 'The branch no longer un-downloads; this gate is stale.',
-      );
-      expect(
-        branch.contains('return;'),
-        isTrue,
-        reason:
-            'MISSING `return` in _deleteTrail\'s local-trail branch. Removing '
-            'a download now also issues DELETE /trail/{id} and destroys the '
-            'user\'s trail on the server.',
-      );
+    expect(
+      branch.contains('deleteTrail(trail.id)'),
+      isTrue,
+      reason: 'The branch no longer un-downloads; this gate is stale.',
+    );
+    expect(
+      branch.contains('return;'),
+      isTrue,
+      reason:
+          'MISSING `return` in _deleteTrail\'s local-trail branch. Removing '
+          'a download now also issues DELETE /trail/{id} and destroys the '
+          'user\'s trail on the server.',
+    );
 
-      // And the server delete really is downstream of that branch — if it
-      // moved above, the return would no longer protect anything.
-      final serverDelete = source.indexOf(
+    // The server DELETE (`trailSaveProvider.notifier).deleteTrail(trail)`)
+    // was extracted into `_deleteOnServer` (36-15), so it no longer lives
+    // inside `_deleteTrail` at all -- a plain forward-index-and-compare
+    // check would either fail outright or silently degenerate into a
+    // whole-file-order check once the call moved to a different method.
+    // Assert BOTH halves explicitly: `_deleteTrail`'s own body contains no
+    // such call, and `_deleteOnServer`'s body does -- so the extraction is
+    // pinned, not merely tolerated, and the server delete cannot be
+    // silently re-inlined into the fall-through path.
+    final deleteTrailBodyEnd = source.indexOf('\n  }', methodStart);
+    expect(
+      deleteTrailBodyEnd,
+      isNot(-1),
+      reason: 'Could not find the end of _deleteTrail\'s body.',
+    );
+    final deleteTrailBody = source.substring(methodStart, deleteTrailBodyEnd);
+    expect(
+      deleteTrailBody.contains(
         'trailSaveProvider.notifier).deleteTrail(trail)',
-        methodStart,
-      );
-      expect(serverDelete, isNot(-1));
-      expect(
-        serverDelete > branchEnd,
-        isTrue,
-        reason: 'The server DELETE is no longer guarded by the early return.',
-      );
-    },
-  );
+      ),
+      isFalse,
+      reason:
+          'The server DELETE must not live inside _deleteTrail any more '
+          '-- it was extracted into _deleteOnServer so the unsynced '
+          "branch's null-localId fall-through (WR-08) can route to it "
+          'directly. Its reappearance here means the extraction was '
+          'reverted.',
+    );
+
+    final onServerStart = source.indexOf(
+      'Future<void> _deleteOnServer(BuildContext context, Trail trail) async {',
+    );
+    expect(
+      onServerStart,
+      isNot(-1),
+      reason:
+          '_deleteOnServer is gone or renamed. Re-point this gate rather '
+          'than deleting it -- the invariant still matters.',
+    );
+    final onServerBodyEnd = source.indexOf('\n  }', onServerStart);
+    expect(
+      onServerBodyEnd,
+      isNot(-1),
+      reason: 'Could not find the end of _deleteOnServer\'s body.',
+    );
+    final onServerBody = source.substring(onServerStart, onServerBodyEnd);
+    expect(
+      onServerBody.contains('trailSaveProvider.notifier).deleteTrail(trail)'),
+      isTrue,
+      reason:
+          '_deleteOnServer must contain the real server DELETE call -- '
+          'otherwise nothing in the file issues it any more.',
+    );
+  });
 
   test('trail_dropdown._deleteTrail checks the unsynced branch BEFORE the '
       'isLocal (un-download) branch, and returns from it', () {

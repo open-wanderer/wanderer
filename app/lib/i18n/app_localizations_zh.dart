@@ -188,6 +188,10 @@ class AppLocalizationsZh extends AppLocalizations {
       'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
 
   @override
+  String get delete_needs_connection =>
+      'This trail is already on the server. Connect to the internet to delete it.';
+
+  @override
   String get description => '描述';
 
   @override
@@ -240,6 +244,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get email_updated => '邮箱已更改';
+
+  @override
+  String get error_deleting_trail => 'Error deleting trail';
 
   @override
   String get error_reading_file => '读取文件错误';

@@ -286,13 +286,37 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   // of the trail on the device with no feedback at all. The unsynced branch
   // must be checked, and must return, before the `isLocal` branch runs.
   Future<void> _deleteTrail(BuildContext context, Trail trail) async {
-    // Unsynced: this trail has never reached the server, so its ObjectBox
-    // row plus local photo copies ARE the only copy that exists. Refused
-    // (not silently ignored) while the trail is mid-drain -- see
-    // `TrailSync.deleteUnsynced`'s own in-flight guard (D-14); the menu's
-    // `isDraining` disable is a UI-only mirror of that guard, not a
-    // replacement for it, since a UI-only check would still lose a race.
-    if (isUnsyncedState(trail.syncState) && trail.localId != null) {
+    // Unsynced: this trail has never reached the server (or, for a null
+    // localId below, has no local handle at all), so the ONLY question is
+    // where its copy actually lives.
+    if (isUnsyncedState(trail.syncState)) {
+      final localId = trail.localId;
+
+      // (WR-08) A null localId is NOT a device-only copy -- it is the shape
+      // `retireUploadedLocalTrail`'s demote branch and `TrailDownloadService`'s
+      // carry-forward can both produce for a row that already has a server
+      // id. Routing it into the `trail.isLocal` un-download branch below
+      // would silently no-op (`deleteTrail('')`) while `_confirmDelete`
+      // already promised a server delete via `trailHasServerId`. This must
+      // never fall through to that branch.
+      if (localId == null) {
+        if (trailHasServerId(trail.id)) {
+          return _deleteOnServer(context, trail);
+        }
+        if (!mounted) return;
+        final l18n = AppLocalizations.of(context)!;
+        ref
+            .read(toastProvider.notifier)
+            .add(
+              ToastMessage(
+                type: ToastType.error,
+                icon: FontAwesomeIcons.xmark,
+                text: l18n.error_deleting_trail,
+              ),
+            );
+        return;
+      }
+
       // The refusal is only "not silently ignored" if someone reads it. Popping
       // first navigated the user away and THEN discarded the boolean, so a
       // refused delete looked exactly like a completed one: no toast, no
@@ -305,51 +329,57 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       final l18n = AppLocalizations.of(context)!;
 
       // `TrailSync.deleteUnsynced` now issues a real `DELETE /trail/{id}`
-      // first when the row already carries a server id (CR-04) -- a
+      // first when the row already carries a real server id (CR-04) -- a
       // `failed`/`pending`/`uploading` row can, since `writeServerTrailId`
-      // stamps that id well before the row is retired. A network failure
-      // there is thrown rather than folded into the `false` return, so it
-      // cannot be confused with the in-flight refusal below and, crucially,
-      // so the local row and photos are left untouched rather than
-      // destroying the device's only pointer to a trail that is still live
-      // on the server.
-      final bool deleted;
-      try {
-        deleted = await ref
-            .read(trailSyncProvider.notifier)
-            .deleteUnsynced(trail.localId!);
-      } catch (e) {
-        if (!mounted) return;
-        ref
-            .read(toastProvider.notifier)
-            .add(
-              ToastMessage(
-                type: ToastType.error,
-                icon: FontAwesomeIcons.xmark,
-                text: 'Error deleting trail',
-              ),
-            );
-        return;
-      }
+      // stamps that id well before the row is retired. It no longer throws:
+      // every outcome (including a failed or refused server DELETE) is
+      // classified via `UnsyncedDeleteResult` instead (WR-15), so the local
+      // row and photos are left untouched unless the outcome is `deleted`.
+      final result = await ref
+          .read(trailSyncProvider.notifier)
+          .deleteUnsynced(localId);
       if (!mounted) return;
 
-      if (!deleted) {
-        ref
-            .read(toastProvider.notifier)
-            .add(
-              ToastMessage(
-                type: ToastType.warning,
-                icon: FontAwesomeIcons.circleExclamation,
-                text: l18n.delete_blocked_while_uploading,
-              ),
-            );
-        return;
+      switch (result) {
+        case UnsyncedDeleteResult.deleted:
+          if (context.mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+          return;
+        case UnsyncedDeleteResult.blockedInFlight:
+          ref
+              .read(toastProvider.notifier)
+              .add(
+                ToastMessage(
+                  type: ToastType.warning,
+                  icon: FontAwesomeIcons.circleExclamation,
+                  text: l18n.delete_blocked_while_uploading,
+                ),
+              );
+          return;
+        case UnsyncedDeleteResult.needsConnection:
+          ref
+              .read(toastProvider.notifier)
+              .add(
+                ToastMessage(
+                  type: ToastType.warning,
+                  icon: FontAwesomeIcons.circleExclamation,
+                  text: l18n.delete_needs_connection,
+                ),
+              );
+          return;
+        case UnsyncedDeleteResult.failed:
+          ref
+              .read(toastProvider.notifier)
+              .add(
+                ToastMessage(
+                  type: ToastType.error,
+                  icon: FontAwesomeIcons.xmark,
+                  text: l18n.error_deleting_trail,
+                ),
+              );
+          return;
       }
-
-      if (context.mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-      return;
     }
 
     // For a downloaded trail this means "remove the download", and NOTHING
@@ -368,11 +398,24 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // trails safe: un-downloading someone else's trail is harmless, whereas
     // falling through offered a server delete with no ownership check.
     if (trail.isLocal) {
+      if (!context.mounted) return;
       Navigator.of(context).pop();
       ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
       return;
     }
 
+    if (!context.mounted) return;
+    await _deleteOnServer(context, trail);
+  }
+
+  /// The real `DELETE /trail/{id}` path, extracted so the unsynced branch's
+  /// null-`localId` fall-through (WR-08) can route here directly instead of
+  /// reaching the `trail.isLocal` un-download branch above.
+  Future<void> _deleteOnServer(BuildContext context, Trail trail) async {
+    // Resolved before any await, matching the unsynced branch's own
+    // discipline -- `context` is a parameter here, not `State.context`, so a
+    // post-await `mounted` check does not license reading from it.
+    final l18n = AppLocalizations.of(context)!;
     final router = GoRouter.of(context);
 
     try {
@@ -385,6 +428,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       }
       if (router.canPop()) router.pop();
     } catch (e) {
+      debugPrint('trail_dropdown: _deleteOnServer("${trail.id}") failed: $e');
       if (!mounted) return;
       ref
           .read(toastProvider.notifier)
@@ -392,7 +436,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             ToastMessage(
               type: ToastType.error,
               icon: FontAwesomeIcons.xmark,
-              text: 'Error deleting trail',
+              text: l18n.error_deleting_trail,
             ),
           );
     }

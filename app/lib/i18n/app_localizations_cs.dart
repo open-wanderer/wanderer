@@ -192,6 +192,10 @@ class AppLocalizationsCs extends AppLocalizations {
       'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
 
   @override
+  String get delete_needs_connection =>
+      'This trail is already on the server. Connect to the internet to delete it.';
+
+  @override
   String get description => 'Popis';
 
   @override
@@ -244,6 +248,9 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get email_updated => 'E-mail byl aktualizován';
+
+  @override
+  String get error_deleting_trail => 'Error deleting trail';
 
   @override
   String get error_reading_file => 'Soubor nelze načíst';

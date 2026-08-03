@@ -434,6 +434,12 @@ abstract class AppLocalizations {
   /// **'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.'**
   String get delete_unsynced_trail_confirm;
 
+  /// No description provided for @delete_needs_connection.
+  ///
+  /// In en, this message translates to:
+  /// **'This trail is already on the server. Connect to the internet to delete it.'**
+  String get delete_needs_connection;
+
   /// No description provided for @description.
   ///
   /// In en, this message translates to:
@@ -541,6 +547,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Email updated'**
   String get email_updated;
+
+  /// No description provided for @error_deleting_trail.
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting trail'**
+  String get error_deleting_trail;
 
   /// No description provided for @error_reading_file.
   ///

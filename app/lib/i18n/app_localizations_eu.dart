@@ -190,6 +190,10 @@ class AppLocalizationsEu extends AppLocalizations {
       'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
 
   @override
+  String get delete_needs_connection =>
+      'This trail is already on the server. Connect to the internet to delete it.';
+
+  @override
   String get description => 'Deskribapena';
 
   @override
@@ -242,6 +246,9 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get email_updated => 'Eposta eguneratuta';
+
+  @override
+  String get error_deleting_trail => 'Error deleting trail';
 
   @override
   String get error_reading_file => 'Errorea fitxategia irakurtzean';
