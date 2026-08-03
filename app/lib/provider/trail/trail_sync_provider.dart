@@ -13,6 +13,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
@@ -75,6 +76,65 @@ class TrailSync extends _$TrailSync {
   /// returned immediately, and the reset row sat there until the next
   /// foreground or connectivity trigger happened to fire.
   bool _rerunRequested = false;
+
+  /// Memoizes the server id a completed upload retired a local row into,
+  /// keyed on `localId`, so a still-mounted create/edit or detail screen for
+  /// that trail can still reach it after [retireUploadedLocalTrail] removes
+  /// the row (CR-01) -- there are no ObjectBox `Query.watch()` streams
+  /// anywhere in this app, so this memo is the only surviving handle.
+  ///
+  /// Each entry stores the owning `accountId` alongside the server id.
+  /// `trailSyncProvider` is deliberately excluded from
+  /// `accountScopedProviders` (`account_scope_invalidation.dart`) so an
+  /// in-flight drain survives an account switch -- which also means this
+  /// memo survives one, and without the account guard [serverIdForRetired]
+  /// would let account B resolve account A's server id and post an edit to
+  /// A's trail.
+  ///
+  /// Bounded to 64 entries, oldest evicted first (Dart `Map` preserves
+  /// insertion order) -- a long session that uploads many trails must not
+  /// grow this without bound on a `keepAlive` notifier.
+  final Map<String, ({String accountId, String serverId})> _retiredServerIds =
+      {};
+
+  /// Records that [localId]'s upload retired into [serverId], owned by
+  /// [accountId]. Evicts the oldest entry once the memo exceeds 64 rows.
+  void _rememberRetiredServerId(
+    String localId,
+    String serverId,
+    String accountId,
+  ) {
+    _retiredServerIds[localId] = (accountId: accountId, serverId: serverId);
+    while (_retiredServerIds.length > 64) {
+      _retiredServerIds.remove(_retiredServerIds.keys.first);
+    }
+  }
+
+  /// The server id [localId]'s row was retired into, or null when there is
+  /// no such entry, no account is currently signed in, or the signed-in
+  /// account does not match the one that captured it.
+  ///
+  /// Re-reads `currentAccountId(objectBoxProvider)` fresh at the point of
+  /// use rather than a cached field (D-13) -- a stale cached id here is
+  /// exactly the cross-account leak the account check exists to prevent. A
+  /// mismatch is refused and logged rather than silently returning null
+  /// indistinguishably from "nothing memoized" (T-36-16-01/02).
+  String? serverIdForRetired(String localId) {
+    final store = ref.read(objectBoxProvider);
+    final accountId = currentAccountId(store);
+    if (accountId == null) return null;
+
+    final entry = _retiredServerIds[localId];
+    if (entry == null) return null;
+    if (entry.accountId != accountId) {
+      debugPrint(
+        'trail_sync_provider: serverIdForRetired("$localId") refused -- '
+        'memoized for a different account',
+      );
+      return null;
+    }
+    return entry.serverId;
+  }
 
   @override
   Set<String> build() => {};
@@ -336,7 +396,14 @@ class TrailSync extends _$TrailSync {
       // This also retires step 2's photo-list reasoning: the row's
       // `photos` column no longer has to survive anything, because the
       // row does not.
-      retireUploadedLocalTrail(store, localId);
+      final retiredServerId = retireUploadedLocalTrail(store, localId);
+      if (retiredServerId != null) {
+        _rememberRetiredServerId(localId, retiredServerId, accountId);
+      }
+      // WR-01: a hiker sitting on `/trail/local/<localId>` while the upload
+      // completes otherwise keeps rendering a row that no longer exists,
+      // with a live Edit button that walks straight into CR-01's dead end.
+      ref.invalidate(localTrailProvider(localId));
       // Best-effort, and deliberately NOT inside the failure handler's
       // reach: the row is already retired by this line, so an
       // ArgumentError from a malformed localId would otherwise reach
