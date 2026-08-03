@@ -1,8 +1,9 @@
 ---
 phase: 36-local-first-recording-automatic-upload
 verified: 2026-08-03T16:30:00Z
-status: human_needed
-score: 6/6 roadmap success criteria verified at the code level (41/41 plan-level must-have truths from plans 36-01..36-08 previously verified 2026-08-02; all 6 gap-closure truths from plans 36-09..36-14 independently re-checked in this pass; all 4 second-review CRITICAL fixes independently confirmed present and correct in current source)
+status: gaps_found
+superseded_note: "This pass concluded no code-level gaps and confirmed the four CR fixes as 'present and correct in current source'. A post-verification re-review (36-REVIEW.md, 2026-08-03T17:xx) established that two of those fixes are correct at the call site but wrong end-to-end, and opened three new blockers. That conclusion is retained below for the record but is NOT current -- see gaps_remaining. Status changed human_needed -> gaps_found on that evidence."
+superseded_score: 6/6 roadmap success criteria verified at the code level (41/41 plan-level must-have truths from plans 36-01..36-08 previously verified 2026-08-02; all 6 gap-closure truths from plans 36-09..36-14 independently re-checked in this pass; all 4 second-review CRITICAL fixes independently confirmed present and correct in current source)
 overrides_applied: 0
 re_verification:
   previous_status: human_needed
@@ -14,7 +15,27 @@ re_verification:
     - "UAT gap 4 (orphaned local row after post-sync delete, indefinite spinner) -- retireUploadedLocalTrail deletes (or demotes) the row instead of marking it synced, confirmed present (36-13, 36-14)"
     - "UAT gap 5 / 36-15's premise -- confirmed structurally unreachable post-36-14 per ROADMAP.md's own argument, independently spot-checked (trailProvider's savedByUserIds-gated ObjectBox fallback still exists but a retired/deleted row can no longer produce it for this scenario)"
     - "Second code review's CR-01..CR-04 (post-upload edit routed to a blank-id POST; first-save failure bricking the screen; edits silently discarded once a server id is stamped mid-drain; delete claiming 'never uploaded' while a server copy exists) -- all four fixes read directly in current source and confirmed correct, not merely trusted from commit messages"
-  gaps_remaining: []
+  gaps_remaining:
+    - id: "CR-01"
+      severity: blocker
+      truth: "A hiker can edit a trail they recorded offline after it has uploaded"
+      reason: "The screen's trail.id stays '' permanently -- _finishLocalSave snapshots it while the id is still a local sentinel and nothing re-reads it after the drain retires the row. Every post-upload save therefore fails the trailHasServerId guard at trail_create_screen.dart:625 and shows a generic error_saving_trail. This is the phase's primary flow: record, save, fix a typo."
+      origin: "The prior review's stated minimum was 'refuse AND tell the user to re-open the trail'; only the refusal shipped."
+      source: 36-REVIEW.md
+    - id: "CR-02"
+      severity: blocker
+      truth: "Deleting a trail that already has a server record removes it from the server too"
+      reason: "deleteUnsynced derives the server id via readLocalTrail, which returns null on any toModel() failure (including parseGpxSafely throwing on cached GPX). deleteLocalTrailRow then runs unconditionally. Unparseable GPX means the server DELETE is silently skipped, the local copy is destroyed, and a live -- possibly public -- server trail is stranded with no affordance left to reach it."
+      fix_hint: "Read entity.id directly rather than through toModel()."
+      source: 36-REVIEW.md
+    - id: "CR-03"
+      severity: blocker
+      truth: "An edit that reaches the server is what the hiker subsequently sees"
+      reason: "_saveViaNetwork never writes ObjectBox, so the stale local row keeps its pre-edit values AND a real server id -- and mergeOwnTrails (own_trails_merge.dart:40) dedupes the network result against exactly that id. The own-trails list shows the old name indefinitely, under a green success toast. Permanent if the underlying waypoint failure is deterministic."
+      fix_hint: "The clean fix needs a dirty-flag on the row; the no-ObjectBox-schema-change constraint applied to the previous pass is what forced the workaround that produced this."
+      source: 36-REVIEW.md
+  warnings_open: 17
+  warnings_note: "17 WARNING findings open in 36-REVIEW.md, including 5 introduced by the previous fix pass. WR-05 records that the three gates that pass assert token ORDER only -- the CR-01 gate passes verbatim against an empty guard body. WR-06 (destructive strings English-only in 12 locales) is deliberately excluded from mechanical fixing: it needs real translations." 
   regressions: []
 human_verification:
   - test: "Re-run UAT Test 3 now that it is unblocked: open an unsynced trail from the own-trails list (now routes to the detail screen), open its dropdown menu -- check Download is absent (not disabled) and Delete says 'cannot be undone'. Start (or wait for) that trail's upload and reopen the menu mid-upload -- Delete should be disabled. Then check an ordinary downloaded trail's menu is unchanged."
