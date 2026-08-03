@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/util/trail/own_trails_merge.dart';
 
 // ---------------------------------------------------------------------------
@@ -86,5 +87,51 @@ void main() {
 
       expect(merged, [local]);
     });
+
+    // CR-03. A local row can carry a real server id while its syncState is
+    // still not `synced` (the `alreadyUploaded` window: the drain's create
+    // step stamps a server id well before the row is retired). The network
+    // hit for that same id is dropped here -- and that is now CORRECT only
+    // because `applyNetworkEditToLocalRow` (36-17) reconciles this exact row
+    // onto the server's accepted result right after a successful network
+    // save, before the own-trails list is ever re-read. Before that
+    // reconciliation existed, this same assertion documented the bug: the
+    // local row's PRE-EDIT name would win over the server's up-to-date one.
+    test(
+      'a local row carrying a real server id but a non-synced syncState '
+      'still suppresses the matching network hit -- correct only because '
+      'applyNetworkEditToLocalRow keeps that row current (CR-03)',
+      () {
+        final local = Trail.empty().copyWith(
+          id: 'server-1',
+          syncState: TrailSyncState.pending,
+          name: 'Reconciled Name',
+        );
+        final network = TrailSearchResult.mock().copyWith(
+          id: 'server-1',
+          name: 'Stale Server-Side Search Index Name',
+        );
+
+        final merged = mergeOwnTrails(local: [local], network: [network]);
+
+        final matching = merged.where((t) => t.id == 'server-1');
+        expect(
+          matching.length,
+          1,
+          reason:
+              'exactly one entry for "server-1" -- the network hit must be '
+              'deduped against the local row',
+        );
+        expect(
+          matching.single.name,
+          'Reconciled Name',
+          reason:
+              'the local row wins the dedupe. This is only correct because '
+              'applyNetworkEditToLocalRow (36-17) keeps it reconciled to the '
+              'server-accepted edit; without that reconciliation this row '
+              'would still show its pre-edit name, which is exactly CR-03.',
+        );
+      },
+    );
   });
 }

@@ -26,6 +26,7 @@ import 'package:wanderer/components/trail/waypoint_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -404,7 +405,6 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     );
 
     final localPhotoPaths = (values['photos'] as List<String>?) ?? const [];
-    final newPhotoFiles = localPhotoPaths.map((p) => File(p)).toList();
 
     final updatedTrail = trail.copyWith(
       name: values['name'] as String,
@@ -451,6 +451,35 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       persistedLocalId: persistedLocalId,
       persisted: persisted,
     );
+
+    // WR-13: a picked path already living under this trail's unsynced photo
+    // directory is a copy the drain's step 2 has already sent as part of
+    // `PUT /trail/form` -- resending it under the append-only `photos+` key
+    // would double the server-side set on every save in the `alreadyUploaded`
+    // window. Filtered once, up front, and reused by BOTH `_saveViaNetwork`
+    // call sites below. The local-first branches keep using the unfiltered
+    // `localPhotoPaths` -- `_copyPhotosForLocalSave`/`reconcileLocalPhotos`
+    // already keep an in-dir path verbatim, so nothing changes there.
+    var networkPhotoPaths = localPhotoPaths;
+    if (persistedLocalId != null) {
+      try {
+        final appDocsPath = (await getApplicationDocumentsDirectory()).path;
+        networkPhotoPaths = photosNotYetOnServer(
+          unsyncedDir: unsyncedTrailPhotoDir(appDocsPath, persistedLocalId),
+          pickedPaths: localPhotoPaths,
+        );
+      } catch (e) {
+        // `unsyncedTrailPhotoDir` routes `persistedLocalId` through
+        // `localIdDirSegment` and throws `ArgumentError` on a malformed id --
+        // fall back to the unfiltered list rather than blocking an otherwise
+        // valid save over this filter.
+        debugPrint(
+          'trail_create_screen: photosNotYetOnServer guard failed for '
+          '"$persistedLocalId", falling back to the unfiltered photo list: $e',
+        );
+      }
+    }
+    final networkPhotoFiles = networkPhotoPaths.map((p) => File(p)).toList();
 
     if (saveMode == LocalSaveMode.networkUpdate) {
       // This screen's own `trail.id` snapshot can still be the blank
@@ -504,7 +533,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         updatedTrail.copyWith(id: targetId, localId: null, localPhotos: const []),
         // dart format on
         authorId: authorId,
-        newPhotoFiles: newPhotoFiles.where((f) => f.existsSync()).toList(),
+        newPhotoFiles: networkPhotoFiles.where((f) => f.existsSync()).toList(),
+        reconcileLocalId: persistedLocalId,
       );
       return;
     }
@@ -586,6 +616,11 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // undiagnosable generic `error_saving_trail` toast.
       final localId = persisted?.localId ?? updatedTrail.localId ?? _localId!;
 
+      // Safe to run unconditionally: `resolveLocalSaveModeForRow` already
+      // routed an `alreadyUploaded`/`alreadySynced` row to `networkUpdate`
+      // above, before this branch is ever reached -- so this call can no
+      // longer mutate the photo directory ahead of a write `updateLocalTrail`
+      // is about to refuse (WR-14). Do not re-hoist a pre-routing guard here.
       final photoCopy = await _copyPhotosForLocalSave(
         localId,
         updatedTrail,
@@ -623,7 +658,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           l10n,
           updatedTrail,
           authorId: authorId,
-          newPhotoFiles: newPhotoFiles,
+          newPhotoFiles: networkPhotoFiles.where((f) => f.existsSync()).toList(),
+          reconcileLocalId: localId,
         );
         return;
       }
@@ -663,11 +699,21 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// That is the point -- the user is told the edit did not land, instead of
   /// being shown a success toast over an edit that no longer has anywhere to
   /// go.
+  ///
+  /// [reconcileLocalId], when non-null, names the local row (still owned by
+  /// this account) that should be reconciled onto the just-accepted server
+  /// result via [applyNetworkEditToLocalRow], immediately after `trail` is
+  /// updated and BEFORE [_invalidateOwnTrailsList] re-reads it -- that
+  /// ordering is the whole CR-03 fix: reconciling after the invalidate would
+  /// let the own-trails list read the row's pre-edit values one more time.
+  /// Null when the caller has no persisted row to reconcile (e.g. the
+  /// retired-id fallback path, where the row is already gone).
   Future<void> _saveViaNetwork(
     AppLocalizations l10n,
     Trail updatedTrail, {
     required String authorId,
     required List<File> newPhotoFiles,
+    String? reconcileLocalId,
   }) async {
     if (!trailHasServerId(updatedTrail.id)) {
       // Every caller is now supposed to resolve a real id via
@@ -716,6 +762,36 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         _removedServerPhotos = [];
         _originalTrail = trail;
       });
+
+      if (reconcileLocalId != null) {
+        // The server write already succeeded, so a failure reconciling the
+        // LOCAL row must never be surfaced as a failed save -- that would
+        // misreport an edit the server already accepted. Best-effort,
+        // logged: the row stays stale until `retireUploadedLocalTrail`
+        // removes it, which is today's behaviour (nothing currently
+        // reconciles the row at all), not a regression (T-36-17-07).
+        try {
+          final reconcileStore = ref.read(objectBoxProvider);
+          final accountId = currentAccountId(reconcileStore);
+          if (accountId != null) {
+            applyNetworkEditToLocalRow(
+              reconcileStore,
+              localId: reconcileLocalId,
+              accountId: accountId,
+              trail: result.trail,
+            );
+          }
+        } catch (e) {
+          debugPrint(
+            'trail_create_screen: applyNetworkEditToLocalRow failed, '
+            'reconcileLocalId: "$reconcileLocalId": $e',
+          );
+        }
+      }
+
+      // Must run AFTER the reconciliation above, never before -- otherwise
+      // the own-trails list re-reads the local row before the edit lands on
+      // it, reproducing CR-03 under a green success toast.
       _invalidateOwnTrailsList();
 
       // Every field latches `_dirty` on its first edit and nothing but
@@ -1354,7 +1430,16 @@ class TrailForm extends ConsumerWidget {
                 final serverUrl = ref.watch(authProvider).value?.serverUrl;
                 return WandererPhotoPicker(
                   initialLocalPhotos: trail.localPhotos,
-                  initialWebPhotos: trail.photos,
+                  // WR-13: in the `alreadyUploaded` window `trail.photos`
+                  // (server filenames written by `writeServerTrailId`) and
+                  // `trail.localPhotos` (the app-owned copies) name the SAME
+                  // images -- rendering both doubles every thumbnail before
+                  // the save even runs. The local copies are the ones the
+                  // hiker can actually remove here, so they win; the server
+                  // list only matters once the trail is fully `synced`.
+                  initialWebPhotos: isUnsyncedState(trail.syncState)
+                      ? const <String>[]
+                      : trail.photos,
                   resolveWebPhotoUrl: (filename) =>
                       trail.getFileUrl(
                         serverUrl ?? '',
