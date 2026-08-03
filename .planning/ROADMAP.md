@@ -500,7 +500,7 @@ Plans:
 
 **Wave 5** *(gap closure from 36-UAT.md; runs alone — it is wave 5's only codegen plan)*
 
-- [ ] 36-09-PLAN.md — Stop the offline reload storm: filter fallback with usable slider bounds + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
+- [ ] 36-09-PLAN.md — Stop the offline reload storm: filter fallback whose slider bounds are computed from the trails on the device + bounded retry, list decoupled from filter churn, `skipLoadingOnReload`
 
 **Wave 6** *(blocked on Wave 5; 36-10 and 36-11 run in parallel — only 36-11 runs codegen)*
 
@@ -522,6 +522,47 @@ Plans:
 **Wave 10** *(blocked on Wave 9; runs alone — it holds the phase's final codegen run)*
 
 - [ ] 36-15-PLAN.md — A permanent 404 is terminal, not retried ten times behind a chromeless spinner: bounded retry policy on `trailProvider`, a plain "no longer exists" message, and a back button in every non-data state
+
+**User decision (2026-08-03) — the offline filter's slider bounds are COMPUTED from the
+trails on the device, not hard-coded.**
+36-09's offline fallback for `GET /trail/filter` originally returned a compile-time
+`kOfflineTrailFilterValues` (100 km / 5000 m / 5000 m). The product owner asked whether the
+bounds could come from on-device trails instead, and decided yes. Rationale: offline, the only
+trails that can possibly match a search are the ones on this device, so bounds derived from
+those rows fit the actual search space exactly — better than both the constant and a cached
+server value, either of which would let a hiker aim a slider at 500 km when nothing on the
+phone exceeds 40.
+
+Cheap by inspection, and the expensive thing does not apply: `distance`, `elevationGain` and
+`elevationLoss` are plain scalar `double?` columns on `TrailEntity` (`trail_entity.dart:28-30`),
+so **no GPX parsing is involved**. The read is `Query.property(...).find()` per axis, which
+returns a native double array without materialising a single `TrailEntity`.
+
+Four points settled with the decision:
+
+- **Predicate.** `owner == accountId OR savedByUserIds contains accountId` — the exact union of
+  what this account can search offline (the library sheet's own read is the second clause; the
+  own-trails read is this broad net narrowed further in Dart; the map has no offline search).
+  Account-scoped because D-13 requires it: an unfiltered read would let one account's slider
+  maximum disclose the length of another account's private downloaded trail.
+- **Empty store.** `kOfflineTrailFilterValues` survives as the per-axis empty-store floor
+  (fresh install, signed out, or an axis where every row is null), not as the primary path.
+- **Rounding.** Each axis rounds strictly UP by one full step (5 km distance, 250 m elevation),
+  so the longest trail is never pinned to the slider's extreme. The step doubles as the floor:
+  the smallest bound the arithmetic can produce is one step, so a device holding one 800 m walk
+  gets a 5 km slider. No separate floor constant — a floor above one step would put that trail
+  at a SMALLER fraction of slider travel and make aiming worse.
+- **`max == limit` is unchanged.** It is a property of `buildDefaultTrailFilter`, not of the
+  numbers fed in, so the fallback still emits no upper-bound filter-text clause and still
+  cannot exclude a trail. 36-09 pins it with computed values that differ from both the constant
+  and a server fixture.
+
+Verification honesty: the bound arithmetic is a pure function unit-tested against real numeric
+input (empty, single short trail, exact-multiple rounding boundary, per-axis independence,
+non-finite guards); the ObjectBox query is a thin shim left **deliberately uncovered** — this
+repo has no ObjectBox test harness — and is explicitly NOT backed by a source-grep test, since
+this phase already shipped a gap behind exactly that pattern. Its D-13 account scoping is
+carried by 36-09's `key_links` and by an account-switch device check.
 
 **Planner decision (2026-08-03) — the two second-round gaps are separate plans.**
 UAT Test 5 produced two independent defects with different blast radii, and they were planned
