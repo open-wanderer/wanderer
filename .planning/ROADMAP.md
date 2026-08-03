@@ -537,7 +537,7 @@ the whole delete path is one file cluster)*
 **Wave 12** *(blocked on Wave 11; 36-17 and 36-19 run in parallel — no file overlap)*
 
 - [x] 36-17-PLAN.md — A network edit is reconciled onto the local row that would otherwise shadow it, the photo payload carries only genuinely new files, and an already-uploaded row is routed before any filesystem side effect (CR-03, WR-13, WR-14, WR-16)
-- [ ] 36-19-PLAN.md — UI and l10n hygiene: tab visibility keyed on sync state rather than cache provenance, the dead `retry_upload` key removed, the metrics typedef corrected, and the untranslated destructive-action strings handed off as tracked work (WR-11, WR-07, WR-12, WR-06 deferred)
+- [x] 36-19-PLAN.md — UI and l10n hygiene: tab visibility keyed on sync state rather than cache provenance, the dead `retry_upload` key removed, the metrics typedef corrected, and the untranslated destructive-action strings handed off as tracked work (WR-11, WR-07, WR-12, WR-06 deferred)
 
 **Wave 13** *(blocked on Wave 12)*
 
@@ -836,5 +836,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 17/20 | In Progress|  |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 18/20 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
