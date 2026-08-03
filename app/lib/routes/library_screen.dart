@@ -9,6 +9,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
+import 'package:wanderer/util/trail_filter_util.dart';
 import 'dart:math' as math;
 
 class LibraryScreen extends ConsumerStatefulWidget {

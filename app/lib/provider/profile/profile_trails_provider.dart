@@ -13,6 +13,7 @@ import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/current_account.dart';
 import 'package:wanderer/util/local_trail_store.dart';
 import 'package:wanderer/util/own_trails_merge.dart';
+import 'package:wanderer/util/trail_filter_util.dart';
 
 part 'profile_trails_provider.freezed.dart';
 part 'profile_trails_provider.g.dart';
@@ -60,9 +61,11 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   // path does NOT use it -- `_readOwnLocal` re-derives both the own-handle
   // test and the actor id from a fresh `authProvider`/`currentAccountId`
   // read, which is D-13's "always fresh, never cached" invariant actually
-  // enforced rather than merely asserted.
+  // enforced rather than merely asserted. There is deliberately no cached
+  // `_authorActorId` companion: it existed only for the inline local read
+  // `build()` used to do, and a cached actor id is precisely what D-13
+  // forbids.
   bool _isOwnHandle = false;
-  String? _authorActorId;
 
   @override
   FutureOr<ProfileTrailsState> build(String handle) async {
@@ -93,20 +96,13 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
         accountId != null &&
         preferredUsername != null &&
         handle == '@$preferredUsername';
-    _authorActorId = user?.actorId;
 
-    final local = _isOwnHandle
-        ? filterOwnTrailsByQuery(
-            readOwnLocalTrails(
-              store,
-              accountId: accountId!,
-              authorActorId: _authorActorId,
-            ),
-            _q,
-          )
-        : const <Trail>[];
-
-    return _fetchAndMerge(local: local, page: 1, q: _q, filter: filter);
+    return _fetchAndMerge(
+      local: _readOwnLocal(_q, filter),
+      page: 1,
+      q: _q,
+      filter: filter,
+    );
   }
 
   Future<void> search(String q) async {
@@ -125,10 +121,10 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
     // ignore: invalid_use_of_internal_member
     state = const AsyncLoading<ProfileTrailsState>().copyWithPrevious(state);
 
-    final local = _readOwnLocal(_q);
     final filter = ref
         .read(trailFilterProvider('profile_trail_$_handle'))
         .value;
+    final local = _readOwnLocal(_q, filter);
     state = await AsyncValue.guard(
       () => _fetchAndMerge(local: local, page: 1, q: _q, filter: filter),
     );
@@ -158,7 +154,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
 
       // Keep the deduped local prefix intact -- only append network
       // results, and only ones not already represented by a local row.
-      final local = _readOwnLocal(_q);
+      final local = _readOwnLocal(_q, filter);
       final localIds = local
           .map((t) => t.id)
           .where((id) => id.isNotEmpty)
@@ -181,14 +177,19 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   /// (T-36-07-01, T-36-07-02).
   ///
   /// Derives BOTH the own-handle test and the author actor id here rather
-  /// than reading [_isOwnHandle]/[_authorActorId], which is what the fields'
-  /// own doc comment promised and the code did not do. The actor id is a
-  /// matching key in `readOwnLocalTrails`' second clause
+  /// than reading [_isOwnHandle], which is what the field's own doc comment
+  /// promised and the code did not do. The actor id is a matching key in
+  /// `readOwnLocalTrails`' second clause
   /// (`entity.author.target?.id == authorActorId`), so a stale one paired the
   /// NEW account's id with the PREVIOUS account's actor -- the exact shape of
   /// the leak D-13 exists to prevent. `build()` watching `authProvider` kept
   /// the window narrow, but narrow is not the guarantee the comment claimed.
-  List<Trail> _readOwnLocal(String q) {
+  ///
+  /// The rows are narrowed by [q] AND by [filter], the same two things the
+  /// server applies to the network half (`q` and `toFilterText()`). Filtering
+  /// by the query alone is what let the quick-filter bar's chips do nothing
+  /// at all offline, where the local half is the whole list.
+  List<Trail> _readOwnLocal(String q, TrailFilter? filter) {
     final store = ref.read(objectBoxProvider);
     final accountId = currentAccountId(store);
     final user = ref.read(authProvider).value;
@@ -196,7 +197,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
 
     if (_handle != '@${user.preferredUsername}') return const <Trail>[];
 
-    return filterOwnTrailsByQuery(
+    final local = filterOwnTrailsByQuery(
       readOwnLocalTrails(
         store,
         accountId: accountId,
@@ -204,6 +205,11 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
       ),
       q,
     );
+
+    // A null filter means `GET /trail/filter` has not settled yet (or failed
+    // outright) -- there is nothing to narrow by, and dropping rows on a
+    // filter nobody chose would be worse than showing them.
+    return filter == null ? local : applyTrailFilter(local, filter);
   }
 
   /// Fetches network page 1, merges it with [local], and reports whether the
