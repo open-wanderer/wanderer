@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: planning
-stopped_at: Completed 36-14-PLAN.md (phase 36 complete)
-last_updated: "2026-08-03T15:40:29.878Z"
-last_activity: "2026-08-03 -- Phase 36 re-review: 3 blockers found, verification status corrected to gaps_found"
+status: executing
+stopped_at: "Completed 36-15-PLAN.md (delete-path hardening: CR-02, WR-08, WR-10, WR-15, WR-17)"
+last_updated: "2026-08-03T17:02:01.048Z"
+last_activity: 2026-08-03 -- Phase 36 execution started
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 26
-  completed_plans: 27
-  percent: 100
+  completed_phases: 2
+  total_plans: 32
+  completed_plans: 28
+  percent: 50
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 ## Current Position
 
-Phase: 36 (local-first-recording-automatic-upload) — GAPS FOUND (all 14 plans executed; 3 open blockers, 17 warnings)
-Plan: 14 of 14 (36-15 dropped 2026-08-03)
-Status: A re-review after the blocker-fix pass found 2 of the 4 'fixes' correct at the call site but wrong end-to-end, plus 3 new blockers (CR-01/02/03 in 36-REVIEW.md, mirrored into 36-VERIFICATION.md gaps_remaining). Next step is gap planning, NOT UAT -- round-2 UAT stays queued behind the fixes.
-Last activity: 2026-08-03 -- Phase 36 re-review: 3 blockers found, verification status corrected to gaps_found
+Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
+Plan: 2 of 20
+Status: Ready to execute
+Last activity: 2026-08-03 -- Phase 36 execution started
 
 ## v1.8 Phases
 
@@ -164,6 +164,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P12 | ~40min | 3 tasks | 5 files |
 | Phase 36 P13 | 25min | 3 tasks | 4 files |
 | Phase 36 P14 | 20min | 4 tasks | 8 files |
+| Phase 36 P15 | 35min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -382,6 +383,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 36] [36-12] Widget navigation test asserts GoRouter.state.uri, not routerDelegate.currentConfiguration.uri -- the latter was observed not to reflect a push made after MaterialApp.router's initial build in this harness
 - [Phase 36]: [36-13] Priming a lazily-read @riverpod provider via an inert Consumer in a widget test harness — TrailDropdown's PopupMenuButton.itemBuilder reads authProvider lazily; without priming it via a Consumer (mirroring trail_panel.dart's real watch on the same screen), the menu's first synchronous itemBuilder call sees a still-AsyncLoading provider and renders Edit/Delete as absent regardless of stub state
 - [Phase 36]: 36-14 retires (deletes/demotes) a local trail row on successful upload instead of retaining it, closing UAT gap 4's post-delete orphan at the root
+- [Phase 36]: 36-15: no delete-on-this-device-only escape hatch for an offline delete of an already-uploaded trail — It would strand a possibly-public live server trail with no device left pointing at it, recreating CR-02/CR-04; the hiker is told to reconnect instead
+- [Phase 36]: 36-15: server-id validation (recordIdDirSegment) happens at every Dio request site, not at writeServerTrailId's persist point — A throw at persist time would leave the row unmarked, causing the next drain pass to re-issue PUT /trail/form and create a duplicate trail (SYNC-04)
 
 ### Roadmap Evolution
 
@@ -535,8 +538,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-03T12:08:54.700Z
-Stopped at: Completed 36-14-PLAN.md (phase 36 complete)
+Last session: 2026-08-03T17:02:01.032Z
+Stopped at: Completed 36-15-PLAN.md (delete-path hardening: CR-02, WR-08, WR-10, WR-15, WR-17)
 Resume file: None
 
 ## Operator Next Steps

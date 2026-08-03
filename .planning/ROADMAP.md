@@ -528,7 +528,7 @@ Plans:
 **Wave 10** *(review gap closure — from 36-REVIEW.md's 3 blockers and 17 warnings; runs alone,
 the whole delete path is one file cluster)*
 
-- [ ] 36-15-PLAN.md — The delete path: a parse-independent, owner-scoped server-id read; classified DELETE failures; a validated request path; and a null-localId row routed to the server instead of a silent un-download (CR-02, WR-08, WR-10, WR-15, WR-17)
+- [x] 36-15-PLAN.md — The delete path: a parse-independent, owner-scoped server-id read; classified DELETE failures; a validated request path; and a null-localId row routed to the server instead of a silent un-download (CR-02, WR-08, WR-10, WR-15, WR-17)
 
 **Wave 11** *(blocked on Wave 10)*
 
@@ -836,5 +836,5 @@ migrations. It starts only after 36 lands:
 | 33. Conversion Correctness | v1.8 | 5/5 | Complete    | 2026-07-31 |
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
-| 36. Local-First Recording & Automatic Upload | v1.8 | 14/14 | In progress | -          |
+| 36. Local-First Recording & Automatic Upload | v1.8 | 15/20 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
