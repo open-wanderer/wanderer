@@ -15,6 +15,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -31,7 +32,8 @@
     "signout_unsynced_warning",
     "sync_failed",
     "sync_pending",
-    "sync_uploading"
+    "sync_uploading",
+    "trail_not_on_this_device"
   ],
 
   "es": [
@@ -50,6 +52,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -71,6 +74,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -92,6 +96,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -113,6 +118,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -134,6 +140,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -155,6 +162,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -176,6 +184,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -197,6 +206,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -218,6 +228,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -239,6 +250,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"
@@ -260,6 +272,7 @@
     "sync_failed",
     "sync_pending",
     "sync_uploading",
+    "trail_not_on_this_device",
     "library_empty_title",
     "library_empty_body",
     "library_empty_search_body"

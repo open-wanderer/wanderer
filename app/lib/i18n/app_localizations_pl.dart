@@ -786,6 +786,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get trail_saved_successfully => 'Szlak pomyślnie zapisany';
 
   @override
+  String get trail_not_on_this_device =>
+      'This trail is no longer on this device.';
+
+  @override
   String get some_waypoints_failed_to_save =>
       'Trail saved, but some waypoints failed to save';
 

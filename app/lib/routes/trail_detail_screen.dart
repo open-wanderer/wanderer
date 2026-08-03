@@ -7,6 +7,9 @@ import 'package:wanderer/components/trail/like_button.dart';
 import 'package:wanderer/components/trail/trail_dropdown.dart';
 import 'package:wanderer/components/trail/trail_panel.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
@@ -14,7 +17,13 @@ import 'package:wanderer/util/navigation_launch_util.dart';
 
 class TrailDetailScreen extends ConsumerStatefulWidget {
   final String id;
-  const TrailDetailScreen({super.key, required this.id});
+
+  /// The local identity of a not-yet-uploaded trail. When set, [id] is empty
+  /// (D-06 blanks a local-sentinel id at the model boundary) and the screen
+  /// reads its data from [localTrailProvider] instead of [trailProvider].
+  final String? localId;
+
+  const TrailDetailScreen({super.key, required this.id, this.localId});
 
   @override
   ConsumerState<TrailDetailScreen> createState() => _TrailDetailScreenState();
@@ -59,146 +68,194 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final trailAsync = ref.watch(trailProvider(widget.id));
-    final theme = Theme.of(context);
-
-    return trailAsync.when(
-      data: (trail) {
-        final availableOffline = ref
-            .watch(trailLibraryProvider)
-            .any((t) => t.id == trail.id);
-        final isDownloading = ref
-            .watch(downloadingTrailIdsProvider)
-            .contains(trail.id);
+    final localId = widget.localId;
+    if (localId != null) {
+      final trail = ref.watch(localTrailProvider(localId));
+      if (trail == null) {
         return Scaffold(
-          extendBodyBehindAppBar: true,
           appBar: AppBar(
             leading: IconButton(
               icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
               onPressed: () => context.pop(),
-              style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.surface.withValues(
-                  alpha: 1.0 - _appBarOpacity,
-                ),
-              ),
             ),
-
-            backgroundColor: theme.colorScheme.surface.withValues(
-              alpha: _appBarOpacity,
-            ),
-
-            shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
-            elevation: _appBarOpacity > 0 ? 2 : 0,
-
-            scrolledUnderElevation: 0,
-
-            actions: [
-              LikeButton(trail: trail),
-              const SizedBox(width: 8),
-              TrailDropdown(trail: trail, availableOffline: availableOffline),
-            ],
           ),
-          body: Stack(
-            children: [
-              Positioned.fill(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 72),
-                  child: TrailPanel(
-                    trail: trail,
-                    scrollController: _scrollController,
-                    availableOffline: availableOffline,
-                  ),
-                ),
-              ),
-
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  color: theme.scaffoldBackgroundColor,
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(
-                    children: [
-                      if (!availableOffline) ...[
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: isDownloading
-                                ? null
-                                : () => ref
-                                      .read(
-                                        downloadingTrailIdsProvider.notifier,
-                                      )
-                                      .download(trail),
-                            icon: isDownloading
-                                ? SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                    ),
-                                  )
-                                : FaIcon(
-                                    FontAwesomeIcons.download,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                  ),
-                            label: Text(
-                              AppLocalizations.of(context)!.download,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isLaunching
-                              ? null
-                              : () async {
-                                  setState(() => _isLaunching = true);
-                                  await launchNavigation(
-                                    context: context,
-                                    ref: ref,
-                                    trail: trail,
-                                  );
-                                  if (mounted) {
-                                    setState(() => _isLaunching = false);
-                                  }
-                                },
-                          icon: _isLaunching
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const FaIcon(FontAwesomeIcons.locationArrow),
-                          label: Text(AppLocalizations.of(context)!.navigate),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          body: Center(
+            child: Text(AppLocalizations.of(context)!.trail_not_on_this_device),
           ),
         );
-      },
+      }
+      return _buildDetail(context, trail);
+    }
+
+    final trailAsync = ref.watch(trailProvider(widget.id));
+
+    return trailAsync.when(
+      data: (trail) => _buildDetail(context, trail),
       loading: () => Container(
         color: Theme.of(context).colorScheme.surface,
         child: const Center(child: CircularProgressIndicator()),
       ),
       error: (err, stack) => Scaffold(
         body: WandererError(err: err, stack: stack),
+      ),
+    );
+  }
+
+  Widget _buildDetail(BuildContext context, Trail trail) {
+    final theme = Theme.of(context);
+    final isUnsynced = isUnsyncedState(trail.syncState);
+    final availableOffline = ref
+        .watch(trailLibraryProvider)
+        .any((t) => t.id.isNotEmpty && t.id == trail.id);
+    final isDownloading =
+        trail.id.isNotEmpty &&
+        ref.watch(downloadingTrailIdsProvider).contains(trail.id);
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+          onPressed: () => context.pop(),
+          style: IconButton.styleFrom(
+            backgroundColor: theme.colorScheme.surface.withValues(
+              alpha: 1.0 - _appBarOpacity,
+            ),
+          ),
+        ),
+
+        backgroundColor: theme.colorScheme.surface.withValues(
+          alpha: _appBarOpacity,
+        ),
+
+        shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
+        elevation: _appBarOpacity > 0 ? 2 : 0,
+
+        scrolledUnderElevation: 0,
+
+        actions: [
+          if (!isUnsynced) ...[
+            LikeButton(trail: trail),
+            const SizedBox(width: 8),
+          ],
+          TrailDropdown(trail: trail, availableOffline: availableOffline),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 72),
+              child: TrailPanel(
+                trail: trail,
+                scrollController: _scrollController,
+                availableOffline: availableOffline,
+              ),
+            ),
+          ),
+
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              color: theme.scaffoldBackgroundColor,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: isUnsynced
+                    ? [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await context.push(
+                                '/trail/create/edit',
+                                extra: trail,
+                              );
+                              if (!mounted) return;
+                              final lid = trail.localId;
+                              if (lid != null) {
+                                ref.invalidate(localTrailProvider(lid));
+                              }
+                            },
+                            icon: const FaIcon(FontAwesomeIcons.pen),
+                            label: Text(AppLocalizations.of(context)!.edit),
+                          ),
+                        ),
+                      ]
+                    : [
+                        if (!availableOffline) ...[
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: isDownloading
+                                  ? null
+                                  : () => ref
+                                        .read(
+                                          downloadingTrailIdsProvider.notifier,
+                                        )
+                                        .download(trail),
+                              icon: isDownloading
+                                  ? SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                      ),
+                                    )
+                                  : FaIcon(
+                                      FontAwesomeIcons.download,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                    ),
+                              label: Text(
+                                AppLocalizations.of(context)!.download,
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isLaunching
+                                ? null
+                                : () async {
+                                    setState(() => _isLaunching = true);
+                                    await launchNavigation(
+                                      context: context,
+                                      ref: ref,
+                                      trail: trail,
+                                    );
+                                    if (mounted) {
+                                      setState(() => _isLaunching = false);
+                                    }
+                                  },
+                            icon: _isLaunching
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const FaIcon(FontAwesomeIcons.locationArrow),
+                            label: Text(
+                              AppLocalizations.of(context)!.navigate,
+                            ),
+                          ),
+                        ),
+                      ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

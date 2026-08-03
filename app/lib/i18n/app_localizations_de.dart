@@ -792,6 +792,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get trail_saved_successfully => 'Route gespeichert';
 
   @override
+  String get trail_not_on_this_device =>
+      'This trail is no longer on this device.';
+
+  @override
   String get some_waypoints_failed_to_save =>
       'Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden';
 

@@ -357,6 +357,19 @@ class Router extends _$Router {
           },
         ),
         GoRoute(
+          // Declared before '/trail/:id' by convention (same as
+          // '/trail/create' and '/trail/create/edit'). A not-yet-uploaded
+          // trail has no server id -- D-06 blanks a local-sentinel id at the
+          // model boundary -- so '/trail/${trail.id}' would emit '/trail/',
+          // which go_router canonicalizes to '/trail', a path with no route.
+          // `Trail.localId` is the only stable handle a local capture has.
+          path: '/trail/local/:localId',
+          builder: (context, state) {
+            final localId = state.pathParameters['localId']!;
+            return TrailDetailScreen(id: '', localId: localId);
+          },
+        ),
+        GoRoute(
           path: '/trail/:id',
           builder: (context, state) {
             final trailId = state.pathParameters['id']!;
