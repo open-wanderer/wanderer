@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 
 /// Presents the travel-profile entry-point bottom sheet: a 5-option picker
 /// (Hiking, Biking/Hybrid, Biking/Mountain, Biking/Cross, Biking/Road)

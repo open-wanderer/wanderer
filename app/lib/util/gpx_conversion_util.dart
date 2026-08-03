@@ -10,7 +10,7 @@ import 'package:gpx/gpx.dart' hide GpxReader;
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:wanderer/theme/icons.dart';
 import 'package:wanderer/vendor/gpx/gpx_reader.dart';
 
 /// The single sanctioned parse entry point for any GPX this app did not

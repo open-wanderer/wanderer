@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wanderer/util/unsynced_signout_guard.dart';
+import 'package:wanderer/actions/confirm_signout.dart';
 
 /// [confirmSignOutWithUnsyncedTrails]'s dialog half needs a live ObjectBox
 /// `Store` (via `currentAccountId`/`countUnsyncedTrails`) and a `BuildContext`

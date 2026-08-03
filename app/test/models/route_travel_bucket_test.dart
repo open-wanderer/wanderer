@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 
 void main() {
   group('RouteTravelBucket costing + costingOptions payloads', () {

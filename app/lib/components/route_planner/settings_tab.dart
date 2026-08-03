@@ -4,7 +4,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 
 /// The route planner sheet's "Settings" tab: hosts the auto-routing toggle
 /// plus the unified 5-option travel-profile picker.

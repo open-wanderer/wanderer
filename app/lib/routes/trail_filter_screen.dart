@@ -22,7 +22,7 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/components/category/category_icon.dart';
 import 'package:wanderer/util/format_util.dart';
 
 class TrailFilterScreen extends ConsumerStatefulWidget {

@@ -14,8 +14,8 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
-import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
+import 'package:wanderer/actions/import_trail_file.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 /// Builds a fresh, ele-merged [Gpx] by zipping [heights] onto [shape]

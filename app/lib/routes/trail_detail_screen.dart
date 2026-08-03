@@ -13,7 +13,7 @@ import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
-import 'package:wanderer/util/navigation_launch_util.dart';
+import 'package:wanderer/actions/launch_navigation.dart';
 
 class TrailDetailScreen extends ConsumerStatefulWidget {
   final String id;

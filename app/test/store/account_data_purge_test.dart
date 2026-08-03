@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:wanderer/util/account_data_purge_util.dart';
+import 'package:wanderer/store/account_data_purge.dart';
 
 // ---------------------------------------------------------------------------
 // Tests for account_data_purge_util's pure switch predicate and the on-disk

@@ -16,7 +16,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/offline_guard_util.dart';
+import 'package:wanderer/actions/guard_online.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({super.key});

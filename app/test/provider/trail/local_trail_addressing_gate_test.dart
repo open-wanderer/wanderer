@@ -22,7 +22,7 @@ void main() {
       );
 
       final source = File(
-        'lib/util/local_trail_store.dart',
+        'lib/store/local_trail_store.dart',
       ).readAsStringSync();
       final codeOnly = source
           .split('\n')

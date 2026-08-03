@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:wanderer/util/local_photo_store_util.dart';
+import 'package:wanderer/store/local_photo_store.dart';
 
 // ---------------------------------------------------------------------------
 // Tests for the app-owned unsynced-photo store. This is the load-bearing

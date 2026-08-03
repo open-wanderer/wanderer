@@ -2,7 +2,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/waypoint.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:wanderer/theme/icons.dart';
 import 'package:wanderer/util/local_id.dart';
 
 @Entity()

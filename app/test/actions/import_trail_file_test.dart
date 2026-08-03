@@ -10,7 +10,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/actions/import_trail_file.dart';
 
 /// Fakes any Dio traffic `transcodeToGpx`/`buildLocalTrail`'s reverse-geocode
 /// step might issue. Mirrors the `_FakeApi` pattern in
@@ -535,7 +535,7 @@ void main() {
 
   group('PORT-03 gate', () {
     test('PORT-03: exactly one "trail/convert" occurrence exists in app/lib/, '
-        'inside util/trail_import_util.dart', () {
+        'inside actions/import_trail_file.dart', () {
       final libDir = Directory('lib');
       expect(
         libDir.existsSync(),
@@ -565,10 +565,10 @@ void main() {
       );
       expect(
         matches.single.replaceAll('\\', '/'),
-        endsWith('util/trail_import_util.dart'),
+        endsWith('actions/import_trail_file.dart'),
         reason:
             'PORT-03: the sole call site must live in '
-            'util/trail_import_util.dart',
+            'actions/import_trail_file.dart',
       );
     });
   });

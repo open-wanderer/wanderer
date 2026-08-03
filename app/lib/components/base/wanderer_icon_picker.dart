@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:wanderer/theme/icons.dart';
 
 /// A searchable icon picker over the FontAwesome catalogue.
 ///

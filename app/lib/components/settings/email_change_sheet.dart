@@ -10,7 +10,7 @@ import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/offline_guard_util.dart';
+import 'package:wanderer/actions/guard_online.dart';
 
 import '/i18n/app_localizations.dart';
 

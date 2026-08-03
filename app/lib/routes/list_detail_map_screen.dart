@@ -15,7 +15,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/components/category/category_icon.dart';
 import 'package:wanderer/util/polyline_util.dart';
 
 class ListDetailMapScreen extends ConsumerStatefulWidget {

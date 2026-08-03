@@ -14,9 +14,9 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
-import 'package:wanderer/util/tracelet_position_source.dart';
-import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
+import 'package:wanderer/services/tracelet_position_source.dart';
+import 'package:wanderer/actions/import_trail_file.dart';
 
 class TrailSourceSelectScreen extends ConsumerStatefulWidget {
   const TrailSourceSelectScreen({super.key});

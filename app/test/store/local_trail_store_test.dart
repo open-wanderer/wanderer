@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
-import 'package:wanderer/util/local_trail_store.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 
 // ---------------------------------------------------------------------------
 // Pure-decision tests for local_trail_store.dart. No Store construction --

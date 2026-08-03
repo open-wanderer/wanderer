@@ -7,7 +7,7 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
-import 'package:wanderer/util/avatar_cache_util.dart';
+import 'package:wanderer/store/avatar_cache.dart';
 import '/i18n/app_localizations.dart';
 
 class WandererLayout extends ConsumerWidget {

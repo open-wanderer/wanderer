@@ -6,7 +6,7 @@ import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/valhalla_profile.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 
 /// Valhalla's own default `walking_speed`/`cycling_speed` (km/h, `Hybrid`
 /// bike type) — used when a segment has no Valhalla-resolved time and no

@@ -6,7 +6,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
-import 'package:wanderer/util/current_account.dart';
+import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/util/offline_trail_filter_bounds.dart';
 
 part 'trail_filter_provider.g.dart';

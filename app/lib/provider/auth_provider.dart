@@ -13,8 +13,8 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
-import 'package:wanderer/util/account_data_purge_util.dart';
-import 'package:wanderer/util/avatar_cache_util.dart';
+import 'package:wanderer/store/account_data_purge.dart';
+import 'package:wanderer/store/avatar_cache.dart';
 
 part 'auth_provider.g.dart';
 

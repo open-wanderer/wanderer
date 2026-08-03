@@ -5,7 +5,7 @@ import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/components/category/category_icon.dart';
 
 /// Inline icon + locale-resolved name for a category/subcategory pair.
 ///

@@ -16,8 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
-import 'package:wanderer/util/current_account.dart';
-import 'package:wanderer/util/local_trail_store.dart';
+import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 
 /// Whether a sign-out warning should be shown for [unsyncedCount] pending
 /// trails.

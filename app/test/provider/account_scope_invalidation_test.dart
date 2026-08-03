@@ -9,7 +9,7 @@ import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
-import 'package:wanderer/util/account_scope_invalidation.dart';
+import 'package:wanderer/provider/account_scope_invalidation.dart';
 
 // ---------------------------------------------------------------------------
 // Tests for account_scope_invalidation's declarative provider list and its

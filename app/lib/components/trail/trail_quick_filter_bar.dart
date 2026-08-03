@@ -20,7 +20,7 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/routes/trail_filter_screen.dart';
 import 'package:wanderer/util/format_util.dart';
-import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/components/category/category_icon.dart';
 
 class TrailQuickFilterBar extends ConsumerWidget {
   final String filterId;

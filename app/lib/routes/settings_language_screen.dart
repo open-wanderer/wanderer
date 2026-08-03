@@ -7,7 +7,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/offline_guard_util.dart';
+import 'package:wanderer/actions/guard_online.dart';
 
 /// Native names for each supported language (D-09). These are the single
 /// approved hardcoded-string exception — a language's own name must read in

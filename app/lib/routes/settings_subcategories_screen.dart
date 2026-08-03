@@ -16,9 +16,9 @@ import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
-import 'package:wanderer/util/category_icon_util.dart';
+import 'package:wanderer/components/category/category_icon.dart';
 import 'package:wanderer/util/category_preference_sort.dart';
-import 'package:wanderer/util/offline_guard_util.dart';
+import 'package:wanderer/actions/guard_online.dart';
 import 'package:wanderer/util/own_trail_count.dart';
 
 /// SETCAT-08/10/11 (subcategory half): the leaf screen reached by tapping a

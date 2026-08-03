@@ -20,18 +20,18 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
-import 'package:wanderer/util/account_scope_invalidation.dart';
-import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
-import 'package:wanderer/util/local_photo_store_util.dart';
-import 'package:wanderer/util/local_trail_store.dart';
-import 'package:wanderer/util/navigation_launch_util.dart';
+import 'package:wanderer/provider/account_scope_invalidation.dart';
+import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
+import 'package:wanderer/store/local_photo_store.dart';
+import 'package:wanderer/store/local_trail_store.dart';
+import 'package:wanderer/actions/launch_navigation.dart';
 
 import 'i18n/app_localizations.dart';
 import 'objectbox.g.dart';
 import 'provider/router_provider.dart';
 import 'provider/local_settings_provider.dart';
 import 'theme/theme.dart';
-import 'util/trail_import_util.dart';
+import 'actions/import_trail_file.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

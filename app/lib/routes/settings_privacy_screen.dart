@@ -7,7 +7,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/offline_guard_util.dart';
+import 'package:wanderer/actions/guard_online.dart';
 
 class SettingsPrivacyScreen extends ConsumerWidget {
   const SettingsPrivacyScreen({super.key});

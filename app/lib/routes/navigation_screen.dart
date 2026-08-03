@@ -39,16 +39,16 @@ import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
-import 'package:wanderer/util/active_navigation_store.dart' as active_nav;
+import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/util/format_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/offline_style_rewriter.dart';
 import 'package:wanderer/util/polyline_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
-import 'package:wanderer/util/track_save_options_util.dart';
-import 'package:wanderer/util/tracelet_position_source.dart';
-import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
+import 'package:wanderer/actions/resolve_track_save_options.dart';
+import 'package:wanderer/services/tracelet_position_source.dart';
+import 'package:wanderer/actions/import_trail_file.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s

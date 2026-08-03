@@ -5,7 +5,7 @@ import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
-import 'package:wanderer/util/current_account.dart';
+import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/util/library_membership.dart';
 import 'dart:io';
 

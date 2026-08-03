@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
-import 'package:wanderer/util/track_save_options_util.dart';
+import 'package:wanderer/actions/resolve_track_save_options.dart';
 
 /// Records every route push seen by the app's [Navigator] — used to assert
 /// the offline branch shows nothing (no modal route pushed) beyond the

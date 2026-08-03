@@ -1,8 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
-import 'package:wanderer/util/current_account.dart';
-import 'package:wanderer/util/local_trail_store.dart';
+import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 
 part 'profile_local_trail_count_provider.g.dart';
 

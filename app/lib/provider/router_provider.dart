@@ -49,7 +49,7 @@ import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/waypoint_create_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 import 'package:wanderer/util/polyline_util.dart';
-import 'package:wanderer/util/trail_import_util.dart';
+import 'package:wanderer/actions/import_trail_file.dart';
 
 part 'router_provider.g.dart';
 

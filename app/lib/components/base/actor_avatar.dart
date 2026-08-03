@@ -7,7 +7,7 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
-import 'package:wanderer/util/avatar_cache_util.dart';
+import 'package:wanderer/store/avatar_cache.dart';
 
 // ---------------------------------------------------------------------------
 // Actor avatar — the single avatar widget for every surface that shows who

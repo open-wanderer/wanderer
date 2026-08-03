@@ -92,7 +92,7 @@ void main() {
     'updateLocalTrail carries obxId/id/owner/localId/syncState/syncAttempts/'
     'syncNextAttemptAt/savedByUserIds/photos forward from the existing row',
     () {
-      final source = File('lib/util/local_trail_store.dart').readAsStringSync();
+      final source = File('lib/store/local_trail_store.dart').readAsStringSync();
 
       final fnStart = source.indexOf('LocalUpdateOutcome updateLocalTrail(');
       expect(

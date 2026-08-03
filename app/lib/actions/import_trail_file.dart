@@ -17,7 +17,7 @@ import 'package:wanderer/util/gpx_conversion_util.dart';
 import 'package:wanderer/util/gpx_util.dart';
 import 'package:wanderer/util/reverse_geocode_util.dart';
 import 'package:wanderer/util/route_planner_handoff_util.dart';
-import 'package:wanderer/util/track_save_options_util.dart';
+import 'package:wanderer/actions/resolve_track_save_options.dart';
 
 /// Supported trail file extensions for both the in-app picker and inbound
 /// share intents. `allowedExtensions` on the file picker is only a hint, so

@@ -6,7 +6,7 @@ import 'package:wanderer/models/trail_like.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
-import 'package:wanderer/util/current_account.dart';
+import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
 
 part 'trail_provider.g.dart';

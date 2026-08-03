@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/util/gpx_conversion_util.dart';
-import 'package:wanderer/util/icon_util.dart';
+import 'package:wanderer/theme/icons.dart';
 
 /// D-01: the corpus is a single, on-disk, language-neutral fixture set at
 /// the repo root, sibling to app/, web/, db/ — not duplicated per language.

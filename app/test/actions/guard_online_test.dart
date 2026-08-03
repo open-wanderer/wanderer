@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
-import 'package:wanderer/util/offline_guard_util.dart';
+import 'package:wanderer/actions/guard_online.dart';
 
 /// Pumps a throwaway `Consumer` so `guardOnline` (which needs a `WidgetRef`)
 /// can be exercised from a real widget tree, with the app's localization

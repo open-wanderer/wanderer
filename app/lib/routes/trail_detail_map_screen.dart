@@ -14,7 +14,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
-import 'package:wanderer/util/navigation_launch_util.dart';
+import 'package:wanderer/actions/launch_navigation.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
   final String id;

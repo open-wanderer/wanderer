@@ -15,11 +15,11 @@ import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
-import 'package:wanderer/util/current_account.dart';
+import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/util/form_data_util.dart';
 import 'package:wanderer/util/local_id.dart';
-import 'package:wanderer/util/local_photo_store_util.dart';
-import 'package:wanderer/util/local_trail_store.dart';
+import 'package:wanderer/store/local_photo_store.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/sync_backoff.dart';
 
 part 'trail_sync_provider.g.dart';

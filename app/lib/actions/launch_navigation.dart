@@ -18,9 +18,9 @@ import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/current_account.dart';
+import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/util/gpx_util.dart';
-import 'package:wanderer/util/tracelet_position_source.dart';
+import 'package:wanderer/services/tracelet_position_source.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 /// Reads the cached [NavigateResponse] for [trailId] from ObjectBox, or null

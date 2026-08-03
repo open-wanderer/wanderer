@@ -8,7 +8,7 @@ import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 
 /// A `CategoryNotifier` fake returning an empty list synchronously — avoids
 /// hitting the network or ObjectBox in this widget test.

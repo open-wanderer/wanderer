@@ -5,7 +5,7 @@ import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/provider/auth_provider.dart';
-import 'package:wanderer/util/unsynced_signout_guard.dart';
+import 'package:wanderer/actions/confirm_signout.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});

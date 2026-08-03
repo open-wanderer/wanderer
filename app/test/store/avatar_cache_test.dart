@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wanderer/util/avatar_cache_util.dart';
+import 'package:wanderer/store/avatar_cache.dart';
 
 void main() {
   group('cachedAvatarFileName', () {

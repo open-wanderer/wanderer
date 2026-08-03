@@ -10,8 +10,8 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/profile/profile_constants.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
-import 'package:wanderer/util/current_account.dart';
-import 'package:wanderer/util/local_trail_store.dart';
+import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/own_trails_merge.dart';
 import 'package:wanderer/util/trail_filter_util.dart';
 

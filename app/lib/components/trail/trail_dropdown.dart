@@ -20,7 +20,7 @@ import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
-import 'package:wanderer/util/local_trail_store.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/map_app.dart';
 import 'package:wanderer/util/trail_route_location.dart';
 

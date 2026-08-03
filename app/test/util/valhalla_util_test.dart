@@ -4,7 +4,7 @@ import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/subcategory_preference.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/valhalla_profile.dart';
-import 'package:wanderer/util/route_travel_bucket.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 import 'package:wanderer/util/valhalla_util.dart';
 
 Category _category(String id, String name, {String? profile}) => Category(
