@@ -476,7 +476,6 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         }
 
         final localId = mintLocalId();
-        _localId = localId;
 
         final photoCopy = await _copyPhotosForLocalSave(
           localId,
@@ -493,6 +492,16 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           trailLocalPhotos: photoCopy.trailPhotos,
           waypointLocalPhotosByKey: photoCopy.waypointPhotosByKey,
         );
+        // Only now is the row real. `_copyPhotosForLocalSave` and
+        // `saveNewLocalTrail` above can both throw (a filesystem error, an
+        // ObjectBox write failure -- the `catch` below exists precisely
+        // because they can), and publishing `_localId` before either
+        // succeeded left it pointing at an id with no row. The next save
+        // then saw `persistedLocalId != null && persisted == null` --
+        // indistinguishable from a row a completed upload had retired -- and
+        // routed into CR-01's dead POST, bricking the screen for the rest of
+        // its life (CR-02).
+        _localId = localId;
 
         await _finishLocalSave(
           store,

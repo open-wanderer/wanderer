@@ -410,4 +410,56 @@ void main() {
       );
     },
   );
+
+  test(
+    'the createLocal branch publishes _localId only after saveNewLocalTrail '
+    'succeeds (CR-02)',
+    () {
+      final saveStart = source.indexOf(
+        'Future<void> _onSave(BuildContext context) async {',
+      );
+      final createStart = source.indexOf(
+        'if (saveMode == LocalSaveMode.createLocal) {',
+        saveStart,
+      );
+      expect(createStart, isNot(-1));
+
+      final createBranch = source.substring(createStart, methodEnd(saveStart));
+
+      final saveNewLocalTrailIdx = createBranch.indexOf(
+        'saveNewLocalTrail(',
+      );
+      final publishIdx = createBranch.indexOf('_localId = localId;');
+      expect(
+        saveNewLocalTrailIdx,
+        isNot(-1),
+        reason:
+            'Could not find the saveNewLocalTrail( call in the createLocal '
+            'branch. Re-point this gate rather than deleting it -- the '
+            'invariant still matters.',
+      );
+      expect(
+        publishIdx,
+        isNot(-1),
+        reason:
+            'Could not find `_localId = localId;` in the createLocal '
+            'branch. Re-point this gate rather than deleting it -- the '
+            'invariant still matters.',
+      );
+      expect(
+        saveNewLocalTrailIdx < publishIdx,
+        isTrue,
+        reason:
+            '_localId must be published AFTER saveNewLocalTrail succeeds. '
+            '_copyPhotosForLocalSave and saveNewLocalTrail can both throw '
+            '(filesystem, ObjectBox write), and publishing _localId before '
+            'either succeeds leaves it pointing at an id with no row -- '
+            'the next save then sees `persistedLocalId != null && '
+            'persisted == null`, indistinguishable from a row a completed '
+            'upload retired, and routes into CR-01\'s dead POST, bricking '
+            'the screen for the rest of its life (CR-02).',
+      );
+    },
+  );
+
 }
