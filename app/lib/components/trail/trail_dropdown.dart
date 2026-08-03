@@ -19,7 +19,9 @@ import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/trail/trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/util/map_app.dart';
+import 'package:wanderer/util/trail_route_location.dart';
 
 enum TrailAction { open, directions, download, edit, delete }
 
@@ -59,6 +61,10 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final isDraining =
         trail.localId != null &&
         ref.watch(trailSyncProvider).contains(trail.localId);
+    // D-06 blanks a local-sentinel id, so '/trail/${trail.id}/map' is
+    // '/trail//map' for a not-yet-uploaded trail -- go_router
+    // canonicalizes that to '/trail/map', which matches no route.
+    final String? mapLocation = trailMapLocation(trail);
     return PopupMenuButton<TrailAction>(
       offset: const Offset(0, 48),
       borderRadius: BorderRadius.all(Radius.circular(56)),
@@ -73,10 +79,20 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       itemBuilder: (BuildContext context) => <PopupMenuEntry<TrailAction>>[
         PopupMenuItem<TrailAction>(
           value: TrailAction.open,
-          onTap: () => context.push('/trail/${trail.id}/map'),
+          onTap: mapLocation == null ? null : () => context.push(mapLocation),
+          enabled: mapLocation != null,
           child: ListTile(
-            leading: FaIcon(FontAwesomeIcons.map, size: 18),
-            title: Text(l18n.show_on_map),
+            leading: FaIcon(
+              FontAwesomeIcons.map,
+              size: 18,
+              color: mapLocation == null ? Colors.grey : null,
+            ),
+            title: Text(
+              l18n.show_on_map,
+              style: mapLocation == null
+                  ? const TextStyle(color: Colors.grey)
+                  : null,
+            ),
             contentPadding: EdgeInsets.zero,
           ),
         ),
@@ -106,7 +122,21 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             value: TrailAction.edit,
             onTap: () async {
               await context.push('/trail/create/edit', extra: trail);
-              ref.invalidate(trailProvider(trail.id));
+              // The edit screen invalidates the LIST providers itself (36-10);
+              // refreshing the single-trail provider stays a caller
+              // responsibility, as it has been since this call site was
+              // written. Which provider that is depends on where the trail
+              // lives: an unsynced trail is keyed on its localId, and
+              // `trailProvider('')` would be a meaningless family instance
+              // that refreshes nothing.
+              if (isUnsynced) {
+                final localId = trail.localId;
+                if (localId != null) {
+                  ref.invalidate(localTrailProvider(localId));
+                }
+              } else {
+                ref.invalidate(trailProvider(trail.id));
+              }
             },
             child: ListTile(
               leading: FaIcon(FontAwesomeIcons.pen, size: 18),
