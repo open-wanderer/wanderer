@@ -3,7 +3,7 @@ status: diagnosed
 phase: 36-local-first-recording-automatic-upload
 source: [36-VERIFICATION.md]
 started: 2026-08-02T15:48:59Z
-updated: 2026-08-03T08:04:11Z
+updated: 2026-08-03T08:12:21Z
 ---
 
 ## Current Test
@@ -52,7 +52,7 @@ source: reported by user after the initial 4-test pass; not derived from a SUMMA
 
 total: 5
 passed: 3
-issues: 4
+issues: 5
 pending: 0
 skipped: 0
 blocked: 1
@@ -131,7 +131,37 @@ blocked: 1
   reason: "User reported: after an offline-created trail uploads successfully and is then deleted, it is removed server side but an orphaned trail permanently remains in the own-trails list; tapping it shows an indefinite loading spinner"
   severity: blocker
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "markTrailSynced (local_trail_store.dart:579-600) deliberately KEEPS the local row after a successful drain (SYNC-05), leaving owner==accountId, id==<server id>, syncState==synced, savedByUserIds==[]. Deleting such a trail takes _deleteTrail's THIRD branch (trail_dropdown.dart:310-332) because the model came from GET /trail/<id>, so syncState is the `synced` default and isLocal the `false` default - skipping both the unsynced and un-download branches. That branch is a pure network DELETE plus four invalidates and touches no local storage. deleteLocalTrailRow has exactly ONE call site app-wide (trail_sync_provider.dart:365, inside deleteUnsynced) which that branch never reaches. readOwnLocalTrails filters only on owner/savedByUserIds with no syncState and no server-existence predicate, so the invalidate at trail_dropdown.dart:318 faithfully rebuilds the list and re-emits the orphan."
+  artifacts:
+    - path: "app/lib/components/trail/trail_dropdown.dart:310-332"
+      issue: "Server-delete branch never removes the local row"
+    - path: "app/lib/provider/trail/trail_save_provider.dart:202-204"
+      issue: "Bare network DELETE; receives the full Trail (with localId) but discards it"
+    - path: "app/lib/util/local_trail_store.dart:360-393"
+      issue: "readOwnLocalTrails has no syncState or server-existence predicate"
+    - path: "app/lib/util/local_trail_store.dart:298"
+      issue: "deleteLocalTrailRow is localId-keyed and reachable only via deleteUnsynced; a network-loaded Trail has localId == null"
+  missing:
+    - "Remove the local row as part of the server-delete flow. Keying problem: deleteLocalTrailRow is localId-keyed but a network-loaded Trail has localId == null - needs an id-keyed sibling or a localId lookup by server id"
+    - "Consider reusing TrailLibraryNotifier.deleteTrail(id), which already removes a row whose membership drains to empty (the orphan's exact shape) - but note it also deletes library/<id>/"
+    - "Decide whether a synced local row should stay owner-scoped forever with no reconciliation sweep at all (none exists today; unsyncedLocalIds feeds only sweepOrphanedUnsyncedPhotos)"
+    - "Sequence AFTER 36-10 (which rewrites trail_dropdown.dart:318 inside this very branch) and AFTER 36-13 (which modifies trail_dropdown.dart and whose gate test pins _deleteTrail branch order - appending local cleanup after deleteTrail(trail) is compatible; reordering branches is not)"
+    - "Reuse 36-11's readOwnLocalTrail(store, localId:, accountId:) rather than duplicating the primitive"
+  debug_session: ".planning/debug/orphaned-local-row-after-post-sync-delete.md"
+
+- truth: "Opening a trail whose server record no longer exists fails fast with a clear error, not a chromeless spinner"
+  status: failed
+  reason: "Separate defect isolated during diagnosis of test 5: the 'indefinite' spinner is a ~38s Riverpod retry storm. A 404 is permanent, not transient, yet defaultRetry retries the DioException 10x (200/400/800/1600/3200/6400x5) with each pending retry rendering as a bare full-screen spinner with no AppBar and no cancel, before finally showing WandererError."
+  severity: major
+  test: 5
+  root_cause: "TrailNotifier.build 404s and its ObjectBox fallback (trail_provider.dart:70-96) is gated on savedByUserIds.containsElement(userId), which a local capture never gains (D-10). The row IS in the box under that exact id but the membership clause excludes it, so line 96 rethrows into Riverpod 3's defaultRetry. trail_detail_screen.dart:196-199 renders the resulting AsyncLoading(retrying:true) as a chromeless, uncancellable spinner. Same class as gap 1's retry storm but in a different provider - 36-09 fixes trailFilterProvider only, so this survives all five existing plans."
+  artifacts:
+    - path: "app/lib/provider/trail/trail_provider.dart:70-96"
+      issue: "ObjectBox fallback gated on savedByUserIds excludes the very row it needs; rethrows a permanent 404 into a 10-attempt retry loop"
+    - path: "app/lib/routes/trail_detail_screen.dart:196-199"
+      issue: "Chromeless, uncancellable loading state - no AppBar, no back affordance, no cancel"
+  missing:
+    - "Do not retry a permanent 404 - classify it as terminal (explicit retry policy or catch-and-surface) rather than letting defaultRetry run 10 attempts"
+    - "Give the detail screen's loading state chrome (AppBar with back) so the user is never trapped"
+    - "Note this fires for ANY trail deleted elsewhere (e.g. from the web UI), not just orphans"
+  debug_session: ".planning/debug/orphaned-local-row-after-post-sync-delete.md"
