@@ -743,7 +743,7 @@ are not touched by Phase 37's plan.
 (`.planning/REQUIREMENTS.md` § "Post-v1.8 Phase Requirements" — derived 2026-08-04 from the
 success criteria below and `38-CONTEXT.md`; DL-05 captures the no-stale-while-online constraint
 and the free metadata+GPX refresh that came out of discuss-phase, which the criteria below predate)
-**Plans**: 0 plans
+**Plans**: 6 plans (3 waves)
 
 **Origin**: `/gsd-explore` session 2026-08-04, prompted by a live report — opening a trail from
 the Library and tapping Delete deleted it **on the server** rather than removing the download,
@@ -845,10 +845,20 @@ preserves real server ids so the waypoint diff finds no spurious additions.
 at `trail_dropdown.dart:239-244`) or earns AllTrails-style dedicated "Remove" vocabulary;
 whether *Update* belongs in the overflow menu or replaces the inert "Available offline" item;
 and the fate of the `forceOffline` flag.
+(Answered by `38-CONTEXT.md`: dedicated "Remove" vocabulary with a new non-permanence confirm body
+D-04/D-06; *Update* replaces the inert item as one of two flat menu items D-08; `forceOffline` is
+retired entirely D-20.)
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 38 to break down)
+- [ ] 38-01-PLAN.md — Retire the `forceOffline` flag (D-20/D-21) across 9 lib files + codegen
+- [ ] 38-02-PLAN.md — Mint `remove_download_confirm_body` and `edit_needs_connection`; register both in the translation backlog
+- [ ] 38-03-PLAN.md — `applyServerTrailToLibraryRow` + `fetchServerTrail`: the free stored-row refresh (D-13/D-14) and the network-only fetch seam
+- [ ] 38-04-PLAN.md — One membership-derived offline badge (D-10) + Remove-download vocabulary in the Library
+- [ ] 38-05-PLAN.md — Menu shape: *Update* / *Remove download* / authorship-only *Delete* (D-01/D-02/D-04/D-08)
+- [ ] 38-06-PLAN.md — Edit fetches the server copy or refuses (D-15/D-17/D-18) + menu widget tests + device pass
+
+Waves: 1 = {38-01, 38-02} · 2 = {38-03, 38-04, 38-05} · 3 = {38-06}
 
 ---
 
@@ -979,5 +989,5 @@ priority decision, not a technical constraint, and 38 may equally start before v
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 21/21 | Complete   | 2026-08-03 |
-| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 0/0 | Not planned |  |
+| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 0/6 | Planned |  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
