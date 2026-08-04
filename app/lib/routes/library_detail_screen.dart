@@ -36,6 +36,12 @@ class LibraryDetailScreen extends ConsumerWidget {
               child: TrailPanel(
                 trail: trail,
                 scrollController: scrollController,
+                // Every trail on this screen came straight out of
+                // trailLibraryProvider, so library membership is a
+                // tautology here -- without this the stored-on-device
+                // badge (D-10) would silently disappear from the Library
+                // detail sheet.
+                availableOffline: true,
               ),
             );
           },

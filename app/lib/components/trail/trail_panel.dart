@@ -62,13 +62,13 @@ class TrailPanel extends ConsumerWidget {
     // is not addressable at all.
     final String? mapLocation = trailMapLocation(trail);
 
-    // WR-11: `trail.isLocal` is a cache-provenance flag -- `TrailEntity.toModel()`
-    // hardcodes it to `true` for every cached row, downloaded trails included,
-    // and `TrailNotifier.build()` falls back to the cache on any fetch
-    // exception. Gating the server-backed tabs on it hid summit logs and
-    // comments on any trail read off the device. `isUnsyncedState` is the
-    // signal that actually means "has never reached the server, so there is
-    // nothing server-side to show" -- same reasoning as
+    // WR-11: the trail model's cache-provenance flag is hardcoded `true` by
+    // `TrailEntity.toModel()` for every cached row, downloaded trails
+    // included, and `TrailNotifier.build()` falls back to the cache on any
+    // fetch exception. Gating the server-backed tabs on that flag hid summit
+    // logs and comments on any trail read off the device. `isUnsyncedState`
+    // is the signal that actually means "has never reached the server, so
+    // there is nothing server-side to show" -- same reasoning as
     // `trail_dropdown.dart:48-53`.
     final showsServerTabs = !isUnsyncedState(trail.syncState);
 
@@ -191,55 +191,21 @@ class TrailPanel extends ConsumerWidget {
                           ).format(trail.summaryDate!),
                           style: TextStyle(color: Colors.grey[600]),
                         ),
-                      // D-10: `isLocal` is cache provenance -- hardcoded
-                      // `true` by `TrailEntity.toModel()` for every cached
-                      // row, downloaded trails included (see the field's own
-                      // doc comment, and WR-11's fix which had to stop
-                      // gating the server tabs on it for exactly this
-                      // reason). On its own it renders the same "Offline"
-                      // pill for a downloaded trail and a never-uploaded
-                      // one -- REC-03 requires those two to be
-                      // distinguishable. D-10 guarantees `isLocal &&
-                      // isUnsyncedState` and `isLocal && !isUnsyncedState`
-                      // partition every local trail, so narrowing this guard
-                      // cannot make both pills disappear at once.
-                      if (trail.isLocal && !isUnsyncedState(trail.syncState)) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.grey.shade400,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.cloud_off,
-                                size: 9,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                l18n.offline,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (availableOffline && !trail.isLocal) ...[
+                      // D-10 (38-04): this badge's axis is "is it stored on
+                      // this device", which is library membership
+                      // (`trailLibraryProvider`) and nothing else -- never
+                      // the cache-provenance flag the trail model carries.
+                      // That flag is hardcoded `true` by
+                      // `TrailEntity.toModel()` for every cached row, and
+                      // `TrailNotifier.build()` falls back to the cache on
+                      // any fetch exception, so gating on it flips with
+                      // network conditions: it used to appear when a fetch
+                      // failed and vanish when one succeeded. Phase 36's
+                      // D-03/D-10 guarantee unsynced and downloaded are
+                      // mutually exclusive (a blank-id
+                      // unsynced trail is never a library member), so this
+                      // single badge can never render for one.
+                      if (availableOffline) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
