@@ -46,15 +46,17 @@ coverage only: the (now-correct) English copy has no translation in 13 locales.
 cs, de, es, eu, fr, hu, it, nl, no, pl, pt, ru, zh (all supported locales except en).
 
 `de` already carries translations for the `trail_source_*`/`library_empty_*` group below from
-an earlier batch; it is missing the same 15 keys every other locale is missing. All 12 other
-locales are missing all 22 keys.
+an earlier batch; it is missing the same 17 keys every other locale is missing. All 12 other
+locales are missing all 24 keys.
 
 ## Key list and priority order
 
 Regenerated from `app/lib/i18n/untranslated_messages.json` as of this todo's creation (after
 this plan's Task 2 deleted the dead `retry_upload` key and re-ran `flutter gen-l10n`, and after
 accounting for the destructive-action keys `36-15`/`36-16` added since `36-REVIEW.md` was
-written).
+written). Phase 38's plan 38-02 added `remove_download_confirm_body` and
+`edit_needs_connection` on 2026-08-04, English-only in all 13 non-English locales by decision
+(D-17: machine translation is rejected for destructive-action copy), not by oversight.
 
 **Priority 1 — copy on irreversible actions (translate first):**
 1. `delete_unsynced_trail_confirm`
@@ -65,30 +67,35 @@ written).
 4. `trail_not_on_this_device`
 5. `error_deleting_trail`
 6. `delete_needs_connection`
+7. `remove_download_confirm_body` — the un-download confirm body. Deliberately makes NO
+   irreversibility claim (an un-download is recoverable — the trail itself is not deleted); do
+   not "helpfully" add a "cannot be undone" phrase when translating.
 
 **Priority 3 — copy added by 36-16:**
-7. `trail_uploaded_reopen_to_edit`
+8. `trail_uploaded_reopen_to_edit`
+9. `edit_needs_connection` — sibling edit-path refusal added by Phase 38, modelled on
+   `delete_needs_connection`.
 
 **Priority 4 — informational sync-status strings (non-destructive, lower urgency):**
-8. `sync_pending`
-9. `sync_uploading`
-10. `sync_failed`
-11. `photo_copy_failed_toast`
-12. `own_trails_offline_banner`
-13. `own_trails_empty_title`
-14. `own_trails_empty_body`
-15. `trails_on_device`
+10. `sync_pending`
+11. `sync_uploading`
+12. `sync_failed`
+13. `photo_copy_failed_toast`
+14. `own_trails_offline_banner`
+15. `own_trails_empty_title`
+16. `own_trails_empty_body`
+17. `trails_on_device`
 
 **Priority 5 — additional keys present in the current backlog, unrelated to sync/delete
 (discovered while regenerating this list; not part of the original WR-06 finding but real
 English-only strings, so tracked here rather than silently dropped):**
-16. `trail_source_planner_description`
-17. `trail_source_record_description`
-18. `trail_source_import_description`
-19. `trail_source_offline_import_error`
-20. `library_empty_title`
-21. `library_empty_body`
-22. `library_empty_search_body`
+18. `trail_source_planner_description`
+19. `trail_source_record_description`
+20. `trail_source_import_description`
+21. `trail_source_offline_import_error`
+22. `library_empty_title`
+23. `library_empty_body`
+24. `library_empty_search_body`
 
 ## Fix
 
