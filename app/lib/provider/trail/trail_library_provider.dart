@@ -6,6 +6,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/local/library_membership.dart';
 import 'dart:io';
 
@@ -51,10 +52,30 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
 
   /// Removes [id] from the signed-in account's library.
   ///
-  /// Only drops this account's membership. The row and its `library/<id>/`
-  /// files are deleted when the LAST account gives it up -- another account
-  /// that downloaded the same trail keeps a working offline copy, since all
-  /// accounts share the one row and one set of files.
+  /// Always drops this account's `savedByUserIds` membership -- "Remove
+  /// download" is never a silent no-op. The row and its `library/<id>/`
+  /// files are deleted ONLY when this account was the last library member
+  /// AND the row is not still some account's live capture ([isLiveCaptureRow]).
+  ///
+  /// CR-03 (38.1): both "Remove download" confirm dialogs promise "the
+  /// trail itself is not deleted", then called this method, which used to
+  /// unconditionally remove the row from the box whenever this account was
+  /// the last library member. On the CR-01/CR-03 overlap row -- `owner` set,
+  /// `localId` set, `syncState` unsynced, `savedByUserIds == [thisAccount]`
+  /// -- that row IS the hiker's pending recording: removing it destroyed
+  /// the queued upload (`selectDrainCandidates` can never find it again),
+  /// leaked its `WaypointEntity` children, and orphaned its unsynced photo
+  /// directory that this method does not (and must not) clean. 38.1 D-02:
+  /// download removal is scoped by `savedByUserIds` membership, never by
+  /// anything that could also be capture state.
+  ///
+  /// Deliberate consequence: when the row is kept as a live capture with no
+  /// remaining library members, `library/<id>/` is NOT deleted. That
+  /// directory holds the local file paths `TrailDownloadService` wrote into
+  /// the row's `photos` column -- deleting those files while keeping the
+  /// row would leave the hiker's pending recording pointing at missing
+  /// images. A leaked directory is recoverable (and the row stays reachable
+  /// from the hiker's own-trails list); a broken image reference is not.
   Future<void> deleteTrail(String id) async {
     final store = ref.read(objectBoxProvider);
     final userId = currentAccountId(store);
@@ -62,7 +83,10 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
 
     final box = store.box<TrailEntity>();
 
-    final stillHeldByAnother = store.runInTransaction(TxMode.write, () {
+    // `rowRemoved` is true ONLY on the branch that actually removes the
+    // entity from the box. Every other branch (no matching row, or the row
+    // is kept) returns false.
+    final rowRemoved = store.runInTransaction(TxMode.write, () {
       final query = box.query(TrailEntity_.id.equals(id)).build();
       final entity = query.findFirst();
       query.close();
@@ -73,17 +97,20 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
         userId,
       );
 
-      if (remaining.isEmpty) {
+      if (remaining.isEmpty && !isLiveCaptureRow(entity)) {
         box.remove(entity.obxId);
-        return false;
+        return true;
       }
 
+      // Keep-the-row path: membership is dropped unconditionally -- that is
+      // what "Remove download" means, and it must still happen even when
+      // the row is kept because it is a live capture for some account.
       entity.savedByUserIds = remaining;
       box.put(entity);
-      return true;
+      return false;
     });
 
-    if (!stillHeldByAnother) {
+    if (rowRemoved) {
       final appDir = await getApplicationDocumentsDirectory();
       final trailDir = Directory('${appDir.path}/library/$id');
       if (await trailDir.exists()) {
