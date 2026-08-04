@@ -85,7 +85,7 @@ in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
   availability derives from library membership and authorship respectively — neither reads
   `Trail.isLocal`. A trail the hiker authored **and** downloaded offers both
 
-- [ ] **DL-02**: Editing always operates on the server copy of a trail; when that copy cannot be
+- [x] **DL-02**: Editing always operates on the server copy of a trail; when that copy cannot be
   fetched, the edit is refused with a stated reason rather than silently editing the cached copy
 
 - [ ] **DL-03**: Editing a downloaded trail no longer duplicates its photos on the server, and
@@ -178,7 +178,7 @@ Populated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DL-01 | Phase 38 | Complete |
-| DL-02 | Phase 38 | Pending |
+| DL-02 | Phase 38 | Complete |
 | DL-03 | Phase 38 | Pending |
 | DL-04 | Phase 38 | Pending |
 | DL-05 | Phase 38 | Pending |

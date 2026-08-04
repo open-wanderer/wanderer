@@ -859,7 +859,7 @@ Plans:
 **Wave 1**
 
 - [x] 38-01-PLAN.md — Retire the `forceOffline` flag (D-20/D-21) across 9 lib files + codegen
-- [ ] 38-02-PLAN.md — Mint `remove_download_confirm_body` and `edit_needs_connection`; register both in the translation backlog
+- [x] 38-02-PLAN.md — Mint `remove_download_confirm_body` and `edit_needs_connection`; register both in the translation backlog
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -1002,5 +1002,5 @@ priority decision, not a technical constraint, and 38 may equally start before v
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 21/21 | Complete   | 2026-08-03 |
-| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 1/6 | In Progress|  |
+| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 2/6 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |

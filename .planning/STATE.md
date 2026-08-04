@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 38-01-PLAN.md
-last_updated: "2026-08-04T14:04:54.923Z"
+stopped_at: Completed 38-02-PLAN.md
+last_updated: "2026-08-04T14:11:08.115Z"
 last_activity: 2026-08-04 -- Phase 38 execution started
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 38 (downloaded-trails-as-state-not-objects) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 38 execution started
 
@@ -172,6 +172,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P20 | ~20min | 3 tasks | 3 files |
 | Phase 36 P21 | 15min | 2 tasks | 2 files |
 | Phase 38 P01 | ~20min | 3 tasks | 12 files |
+| Phase 38 P02 | 12min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -407,6 +408,8 @@ Recent decisions affecting current work:
 - [Phase 36]: 36-21: Offline pill guard narrowed to isLocal && !isUnsyncedState(trail.syncState), rather than replaced outright -- D-10 guarantees isLocal-unsynced and isLocal-synced partition every local trail — Detail-screen badge must key on sync state, not cache provenance, without regressing the downloaded-trail Offline pill
 - [Phase ?]: [Phase 38] [38-01] Reverted forceOffline entirely rather than adapting it, per D-20/D-21 -- the flag's only job (making Library Delete deterministic) is retired in favor of D-01/D-02's library-membership + authorship model in a later plan
 - [Phase ?]: [Phase 38] [38-01] Regenerated trail_provider.g.dart via build_runner rather than hand-editing; trail_download_state_provider.g.dart's hash also shifted as a side effect of the same project-wide build_runner pass (Phase 27-02 precedent), no logic change
+- [Phase 38]: remove_download_confirm_body makes no cannot-be-undone claim; an un-download is genuinely recoverable, correcting trail_dropdown.dart's flagged reuse of delete_trail_confirm
+- [Phase 38]: Only two new l10n keys minted this plan (remove_download_confirm_body, edit_needs_connection); both ship English-only in 13 locales per D-17 and are tracked in the pending translation backlog
 
 ### Roadmap Evolution
 
@@ -560,8 +563,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-04T14:04:54.904Z
-Stopped at: Completed 38-01-PLAN.md
+Last session: 2026-08-04T14:11:08.098Z
+Stopped at: Completed 38-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
