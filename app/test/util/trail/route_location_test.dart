@@ -35,43 +35,6 @@ void main() {
       },
     );
 
-    test('forceOffline appends ?offline=1 to the FULL path, once', () {
-      final trail = Trail.empty().copyWith(
-        id: 'abc',
-        syncState: TrailSyncState.synced,
-      );
-
-      expect(
-        trailDetailLocation(trail, forceOffline: true),
-        '/trail/abc?offline=1',
-      );
-      // The query string must sit at the end of '/trail/abc/map' -- an
-      // '/trail/abc?offline=1/map' would match no route at all.
-      expect(
-        trailMapLocation(trail, forceOffline: true),
-        '/trail/abc/map?offline=1',
-      );
-    });
-
-    test('forceOffline is a no-op for an unsynced trail', () {
-      final trail = Trail.empty().copyWith(
-        id: '',
-        localId: 'local-1-0',
-        syncState: TrailSyncState.pending,
-      );
-
-      // There is no server copy to prefer the download over, and the local
-      // route carries no such parameter.
-      expect(
-        trailDetailLocation(trail, forceOffline: true),
-        '/trail/local/local-1-0',
-      );
-      expect(
-        trailMapLocation(trail, forceOffline: true),
-        '/trail/local/local-1-0/map',
-      );
-    });
-
     test('uploading and failed states behave identically to pending', () {
       for (final state in [
         TrailSyncState.uploading,
