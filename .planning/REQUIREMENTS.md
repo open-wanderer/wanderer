@@ -97,7 +97,7 @@ in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
 - [x] **DL-05**: A downloaded trail is never stale while online — its metadata and track are
   refreshed from the response the app already holds, at no additional network cost
 
-- [ ] **DL-06**: Refreshing a stored copy's photos is an explicit *Update* action; nothing
+- [x] **DL-06**: Refreshing a stored copy's photos is an explicit *Update* action; nothing
   re-downloads automatically
 
 - [x] **DL-07**: DL-01…DL-06 hold with the device offline, with the device online, and when a
@@ -182,7 +182,7 @@ Populated during roadmap creation.
 | DL-03 | Phase 38 | Pending |
 | DL-04 | Phase 38 | Complete |
 | DL-05 | Phase 38 | Complete |
-| DL-06 | Phase 38 | Pending |
+| DL-06 | Phase 38 | Complete |
 | DL-07 | Phase 38 | Complete |
 
 ---
