@@ -131,7 +131,7 @@ final class TileRepositoryStatusProvider
 }
 
 String _$tileRepositoryStatusHash() =>
-    r'5e41954e1715cee839c643249070effbb1c8c000';
+    r'9ae05d61dd273fe814f3098291e22fea96b5d68a';
 
 /// Per-region download state, keyed by region PATH (never the server record
 /// id, which the backend re-mints) -- the Settings/Regions screen subscribes

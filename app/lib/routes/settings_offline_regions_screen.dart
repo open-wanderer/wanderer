@@ -943,11 +943,15 @@ class _SettingsOfflineRegionsScreenState
   }
 
   /// Persists [op] and surfaces only an error toast on failure — mirrors
-  /// `settings_categories_screen.dart`'s `_save` wrapper. Additionally
-  /// ALWAYS invalidates `regionListNotifierProvider` in a `finally` block
-  /// (RESEARCH.md Pitfall 2 — ObjectBox `ToOne.target` caches per-instance
-  /// after first read) so every tile reflects the true post-action state
-  /// regardless of success or failure.
+  /// `settings_categories_screen.dart`'s `_save` wrapper.
+  ///
+  /// Deliberately does NOT invalidate `regionListNotifierProvider` itself.
+  /// That refresh is mandatory after every mutation (RESEARCH.md Pitfall 2 —
+  /// ObjectBox `ToOne.target` caches per-instance after first read), but a
+  /// `mounted`-guarded invalidate here silently skipped it whenever the user
+  /// left the screen mid-download, so a finished download came back rendering
+  /// as `notDownloaded`. `TileRepositoryStatus` (keepAlive) now owns the
+  /// refresh at every terminal point, screen or no screen.
   Future<void> _save(Future<void> Function() op) async {
     try {
       await op();
@@ -963,8 +967,6 @@ class _SettingsOfflineRegionsScreenState
               text: l10n.error_saving_settings,
             ),
           );
-    } finally {
-      if (mounted) ref.invalidate(regionListNotifierProvider);
     }
   }
 
@@ -978,13 +980,12 @@ class _SettingsOfflineRegionsScreenState
 
   /// Cancel is synchronous: `cancelVector` clears the ephemeral progress
   /// (which Riverpod immediately re-renders from — the tile flips back to a
-  /// Download button at once), then we invalidate the region list so the
-  /// disk-usage summary and persisted reads refresh too. No pause/resume:
-  /// the manager deletes the `.part` file, so a later download restarts from
+  /// Download button at once) and refreshes the region list itself, so the
+  /// disk-usage summary and persisted reads follow. No pause/resume: the
+  /// manager deletes the `.part` file, so a later download restarts from
   /// byte 0.
   void _onCancelVector(RegionEntity region) {
     ref.read(tileRepositoryStatusProvider.notifier).cancelVector(region.path);
-    ref.invalidate(regionListNotifierProvider);
   }
 
   void _onDownloadDem(RegionEntity region) {
@@ -998,7 +999,6 @@ class _SettingsOfflineRegionsScreenState
   /// See [_onCancelVector] — the DEM-side mirror, fully independent.
   void _onCancelDem(RegionEntity region) {
     ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.path);
-    ref.invalidate(regionListNotifierProvider);
   }
 
   /// SETUI-04/D-01: the DEM tile's own delete action — removes ONLY the DEM

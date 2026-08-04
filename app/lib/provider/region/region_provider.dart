@@ -201,9 +201,12 @@ RegionRepository regionRepository(Ref ref) {
 /// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
 /// precedent verbatim. No mutation methods live here; all region mutations
 /// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
-/// whose callers must `ref.invalidate(regionListNotifierProvider)` after
-/// each mutation (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target` caches
-/// per-instance after first read).
+/// which invalidates this provider itself at every terminal point of a
+/// download/cancel/delete (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target`
+/// caches per-instance after first read). That invalidation deliberately
+/// lives in the keepAlive notifier, NOT in the calling widget: a widget-side
+/// `mounted` guard skipped it whenever the user left the Settings/Regions
+/// screen mid-download.
 @Riverpod(name: 'regionListNotifierProvider')
 class RegionListNotifier extends _$RegionListNotifier {
   @override

@@ -186,17 +186,25 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
             .catchError((_) {});
       }
 
+      // `showNotification: false` on both: the aggregate id-42 notification
+      // built above already spans the trail plus every selected package, so
+      // letting each package raise its own would double-report one transfer.
+      // The Settings/Regions screen, which has no aggregate, keeps the default.
       regionFutures.addAll([
         for (final region in vectorRegions)
-          tileRepoNotifier.downloadVector(region.path).whenComplete(() {
-            vectorLatched[region.path] = 1.0;
-            updateAggregate();
-          }),
+          tileRepoNotifier
+              .downloadVector(region.path, showNotification: false)
+              .whenComplete(() {
+                vectorLatched[region.path] = 1.0;
+                updateAggregate();
+              }),
         for (final region in demRegions)
-          tileRepoNotifier.downloadDem(region.path).whenComplete(() {
-            demLatched[region.path] = 1.0;
-            updateAggregate();
-          }),
+          tileRepoNotifier
+              .downloadDem(region.path, showNotification: false)
+              .whenComplete(() {
+                demLatched[region.path] = 1.0;
+                updateAggregate();
+              }),
       ]);
 
       // `Ref.listenManual` (WidgetRef-only) isn't available on a Notifier's
