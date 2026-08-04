@@ -588,6 +588,146 @@ void applyNetworkEditToLocalRow(
   });
 }
 
+/// Refreshes the downloaded LIBRARY row for [trail], keyed on library
+/// membership rather than local-capture ownership -- the counterpart to
+/// [applyNetworkEditToLocalRow] for a row [applyNetworkEditToLocalRow] can
+/// never reach.
+///
+/// [applyNetworkEditToLocalRow] keys on `TrailEntity.localId` +
+/// `TrailEntity.owner` -- the unsynced-capture identity. A downloaded row has
+/// `localId == null`, so that function's query can never match it, which is
+/// exactly bug 2 (D-13): the hiker's own edit of a downloaded trail never
+/// reached the stored copy. This function is a SEPARATE write path, keyed on
+/// `TrailEntity.id` + `TrailEntity.savedByUserIds.containsElement(accountId)`
+/// -- the same predicate `TrailNotifier._readCached` already builds to read
+/// library membership.
+///
+/// Two triggers call this, both best-effort:
+/// - D-13: right after the hiker's own successful `POST /trail/form/{id}`,
+///   so their edit lands on the downloaded copy without a re-download.
+/// - D-14: any successful fetch of a trail this account has downloaded,
+///   opportunistically refreshing its metadata and track.
+///
+/// Both triggers cost ZERO additional network traffic -- the server record
+/// and the GPX are already in hand by the time either call site runs (D-23).
+/// Photos are deliberately never touched here (D-14a): they are the one
+/// asset not already in the response, so an automatic refresh must never
+/// spend bytes on them -- that stays the explicit *Update* action's job.
+///
+/// [accountId] MUST be read fresh via `currentAccountId(store)` at the call
+/// site, never a cached value -- a stale id would let account B's fetch
+/// write onto account A's row (T-38-03-01).
+///
+/// A silent no-op, never an error, when [trail]'s `id` is empty (a
+/// local-sentinel id, D-06, must never match a row) or when no row in this
+/// account's library matches -- either means there is nothing to refresh.
+///
+/// Rebuilds the row via [TrailEntity.fromModel] (the [updateLocalTrail]
+/// precedent), then carries forward every column `fromModel` cannot know or
+/// would wrongly reset: `obxId`, `id`, `owner`, `localId`, `syncState`,
+/// `syncAttempts`, `syncNextAttemptAt`, `savedByUserIds`, `photos`,
+/// `localPhotos`, `navCacheJson`. `savedByUserIds`, `photos` and
+/// `localPhotos` are the load-bearing three -- dropping `savedByUserIds`
+/// would erase every account's claim on the trail, and `photos` on a
+/// downloaded row holds LOCAL FILE PATHS written by `TrailDownloadService`,
+/// not server filenames, so overwriting it would strand the downloaded
+/// images (D-14a: nothing automatic ever spends bytes, and nothing automatic
+/// ever destroys already-spent ones).
+///
+/// `gpxData` is guarded: when the incoming `trail.expand?.gpxData` is null or
+/// empty, the existing row's `gpxData` is kept rather than blanking the
+/// stored track. When it is present, it is taken -- D-14's track refresh, a
+/// single ObjectBox string write with no file I/O (D-23).
+///
+/// The author/category relations and `authorRecordId`/`categoryRecordId`
+/// fall back to the existing row's values whenever the incoming model
+/// carries no expanded author/category (or no scalar id), so a partial
+/// response cannot drop them.
+///
+/// Waypoints are only touched when `trail.expand?.waypointsViaTrail` is
+/// non-null. When it is, each existing child's `localPhotos` is carried onto
+/// its refreshed counterpart by matching `WaypointEntity.id`, then any
+/// `WaypointEntity` row absent from the refreshed set is removed, following
+/// [updateLocalTrail]'s orphan-pruning loop. When it is null, the existing
+/// children are carried forward untouched.
+void applyServerTrailToLibraryRow(
+  Store store, {
+  required String accountId,
+  required Trail trail,
+}) {
+  if (trail.id.isEmpty) return;
+
+  store.runInTransaction(TxMode.write, () {
+    final trailBox = store.box<TrailEntity>();
+    final query = trailBox
+        .query(
+          TrailEntity_.id.equals(trail.id) &
+              TrailEntity_.savedByUserIds.containsElement(accountId),
+        )
+        .build();
+    final existing = query.findFirst();
+    query.close();
+    if (existing == null) return;
+
+    final entity = TrailEntity.fromModel(trail);
+    entity.obxId = existing.obxId;
+    entity.id = existing.id;
+    entity.owner = existing.owner;
+    entity.localId = existing.localId;
+    entity.syncState = existing.syncState;
+    entity.syncAttempts = existing.syncAttempts;
+    entity.syncNextAttemptAt = existing.syncNextAttemptAt;
+    entity.savedByUserIds = existing.savedByUserIds;
+    entity.photos = existing.photos;
+    entity.localPhotos = existing.localPhotos;
+    entity.navCacheJson = existing.navCacheJson;
+
+    final incomingGpxData = trail.expand?.gpxData;
+    entity.gpxData = (incomingGpxData != null && incomingGpxData.isNotEmpty)
+        ? incomingGpxData
+        : existing.gpxData;
+
+    if (trail.expand?.author == null) {
+      entity.author.target = existing.author.target;
+    }
+    entity.authorRecordId ??= existing.authorRecordId;
+
+    if (trail.expand?.category == null) {
+      entity.category.target = existing.category.target;
+    }
+    entity.categoryRecordId ??= existing.categoryRecordId;
+
+    if (trail.expand?.waypointsViaTrail != null) {
+      // Carry each existing child's downloaded photos onto its refreshed
+      // counterpart by id -- never touched over the network here (D-14a).
+      final existingLocalPhotosById = {
+        for (final w in existing.waypoints) w.id: w.localPhotos,
+      };
+      for (final waypointEntity in entity.waypoints) {
+        final photos = existingLocalPhotosById[waypointEntity.id];
+        if (photos != null) waypointEntity.localPhotos = photos;
+      }
+
+      // Remove waypoint rows absent from the refreshed set, mirroring
+      // updateLocalTrail's orphan-pruning loop.
+      final newIds = entity.waypoints.map((w) => w.id).toSet();
+      final waypointBox = store.box<WaypointEntity>();
+      for (final oldWaypoint in existing.waypoints) {
+        if (!newIds.contains(oldWaypoint.id)) {
+          waypointBox.remove(oldWaypoint.obxId);
+        }
+      }
+    } else {
+      // No waypoint expand in this response -- fromModel left `entity.waypoints`
+      // empty, so carry the existing children forward untouched rather than
+      // silently dropping them.
+      entity.waypoints.addAll(existing.waypoints);
+    }
+
+    trailBox.put(entity);
+  });
+}
+
 /// Removes the local row for [localId], owned by [accountId], and its
 /// [WaypointEntity] children.
 ///
