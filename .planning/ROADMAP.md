@@ -721,6 +721,72 @@ backlog because their scope is already understood at file level, but they must n
 while v1.8 is executing. When the next milestone is opened, `/gsd-new-milestone` should claim
 them explicitly.
 
+### Phase 38.1: Downloaded-Trail Blocker Closure
+
+> **Gap-closure phase for Phase 38.** Execute before Phase 37. Phase 38 achieved its stated goal
+> — `Trail.isLocal` no longer gates any destructive action, 968 tests green — but its code review
+> (`38-REVIEW.md`, 3 BLOCKER / 12 WARNING) found that a **premise** the phase inherited from Phase
+> 36 is false, and three real defects follow from it.
+
+**Goal**: No destructive action in the app can be scoped by a field read off a shared cache row.
+Deleting local capture state is scoped by account/owner; removing a download is scoped by library
+membership; neither can destroy the other's data.
+
+**Milestone**: none — inherits Phase 38's post-v1.8 placement.
+**Depends on**: Phase 38 complete (executed 2026-08-04).
+**Requirements**: DL-01, DL-07 (both re-opened — CR-01 is precisely a DL-01/DL-07 violation)
+**Plans**: 0 plans
+
+#### The premise error
+
+`.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md` — Phase 36's **D-10**
+("unsynced and downloaded are mutually exclusive by construction") is false for any trail
+downloaded while its upload was in flight, a window Phase 36's own D-07 leaves **unbounded** by
+parking failed uploads indefinitely. Phase 38's D-03 inherited it, which is why both the
+plan-checker and the orchestrator cleared `_allowDelete`'s `isUnsyncedState` escape hatch as safe.
+
+#### Blockers to close
+
+- **CR-01 — cross-account data loss.** `_allowDelete` short-circuits authorship on
+  `isUnsyncedState`. `TrailNotifier._readCached` is scoped only by `savedByUserIds`, so account B
+  can be handed a model carrying account A's `localId` and `failed` syncState. B's Delete routes to
+  `deleteUnsynced(L)`; the owner-scoped calls correctly no-op, but
+  `deleteUnsyncedPhotoDir(localId)` does **not** — `unsyncedTrailPhotoDir` resolves
+  `<appDocs>/unsynced/<localId>/` with no account component and deletes it recursively, then
+  reports `deleted` so B gets a success toast. **Two candidate fixes with very different blast
+  radii — this needs a decision, not an auto-fix:** account-scope the unsynced photo directory, or
+  drop the `isUnsyncedState` escape hatch and accept that a placeholder-author unsynced capture
+  needs a different delete route.
+- **CR-02 — waypoint pruning from a known-incomplete list.** `applyServerTrailToLibraryRow` prunes
+  `WaypointEntity` rows absent from `trail.expand.waypointsViaTrail`, but the D-13 trigger feeds it
+  `result.trail`, whose `finalWaypoints` (`trail_save_provider.dart:150-191`) omits every waypoint
+  whose create/update threw. One failed waypoint PATCH silently deletes a still-live waypoint from
+  the offline copy. Sibling `applyNetworkEditToLocalRow` avoids waypoints entirely for this reason.
+- **CR-03 — "Remove download" can destroy a capture.** Both new dialogs promise "the trail itself
+  is not deleted", then call `TrailLibraryNotifier.deleteTrail`, which does an unscoped
+  `box.remove(entity.obxId)` when this is the last library member. On an overlap row that is the
+  hiker's pending recording — with leaked waypoint rows and an orphaned `unsynced/<localId>/`.
+  `library_screen.dart` has no `isUnsynced` guard; the dropdown does.
+
+#### Also in scope
+
+- **WR-07** — `LibraryDetailScreen` appears unreachable (`/library/:id` is never pushed;
+  `grep -rn "'/library" app/lib` confirms). Part of 38-04 Task 2 landed on it. Either wire it up or
+  delete it; do not leave a `firstWhere` with no `orElse` in dead code.
+- **WR-08** — `Trail.isLocal`'s doc comment still names the three consumers Phase 38 deleted as
+  "load-bearing", inviting reintroduction. Correct it.
+- **WR-12** — neither new test suite constructs `availableOffline: true` with a non-synced
+  `syncState`, so they structurally cannot fail when the D-10 premise breaks. Add that fixture.
+- **Correct Phase 36's D-10 in place** so the false premise stops propagating.
+
+**UI hint**: no — this is state/scoping correctness, not visual work.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 38.1 --gaps to break down)
+
+---
+
 ### Phase 38: Downloaded Trails as State, Not Objects
 
 > **Execute BEFORE Phase 37.** Numbered 38 only because Phase 37's research artifacts are

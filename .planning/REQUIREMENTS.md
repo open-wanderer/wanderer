@@ -81,7 +81,7 @@ that phase up.
 Derived 2026-08-04 from the Phase 38 success criteria in `.planning/ROADMAP.md` and the decisions
 in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
 
-- [x] **DL-01**: *Remove download* and *Delete trail* are two separately labelled actions whose
+- [ ] **DL-01**: *Remove download* and *Delete trail* are two separately labelled actions whose
   availability derives from library membership and authorship respectively — neither reads
   `Trail.isLocal`. A trail the hiker authored **and** downloaded offers both
 
@@ -100,7 +100,7 @@ in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
 - [x] **DL-06**: Refreshing a stored copy's photos is an explicit *Update* action; nothing
   re-downloads automatically
 
-- [x] **DL-07**: DL-01…DL-06 hold with the device offline, with the device online, and when a
+- [ ] **DL-07**: DL-01…DL-06 hold with the device offline, with the device online, and when a
   request fails mid-view — the third case being the one that produced the original defect report
 
 ---
@@ -177,13 +177,13 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DL-01 | Phase 38 | Complete |
+| DL-01 | Phase 38 → 38.1 | Re-opened (CR-01) |
 | DL-02 | Phase 38 | Complete |
 | DL-03 | Phase 38 | Complete |
 | DL-04 | Phase 38 | Complete |
 | DL-05 | Phase 38 | Complete |
 | DL-06 | Phase 38 | Complete |
-| DL-07 | Phase 38 | Complete |
+| DL-07 | Phase 38 → 38.1 | Re-opened (CR-01) |
 
 ---
 *Requirements defined: 2026-07-31*
