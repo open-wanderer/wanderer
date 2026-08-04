@@ -14,7 +14,6 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
-import 'package:wanderer/routes/library_detail_screen.dart';
 import 'package:wanderer/routes/library_screen.dart';
 import 'package:wanderer/routes/list_detail_map_screen.dart';
 import 'package:wanderer/routes/list_detail_screen.dart';
@@ -174,18 +173,13 @@ class Router extends _$Router {
               path: '/profile',
               builder: (context, state) => const ProfileScreen(handle: null),
             ),
+            // No nested detail route here (D-15): library cards navigate to
+            // trailDetailLocation(trail) ('/trail/<id>'), so a second detail
+            // surface would need every 38.1 destructive-action guard
+            // re-applied to it.
             GoRoute(
               path: '/library',
               builder: (context, state) => LibraryScreen(),
-              routes: [
-                GoRoute(
-                  path: ':id',
-                  builder: (context, state) {
-                    final trailId = state.pathParameters['id']!;
-                    return LibraryDetailScreen(id: trailId);
-                  },
-                ),
-              ],
             ),
             GoRoute(
               path: '/trail/create',
