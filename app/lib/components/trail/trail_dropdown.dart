@@ -25,7 +25,15 @@ import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/route/map_app.dart';
 import 'package:wanderer/util/trail/route_location.dart';
 
-enum TrailAction { open, directions, download, edit, delete }
+enum TrailAction {
+  open,
+  directions,
+  download,
+  update,
+  removeDownload,
+  edit,
+  delete,
+}
 
 class TrailDropdown extends ConsumerStatefulWidget {
   final Trail trail;
@@ -57,7 +65,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final isDownloading = ref
         .watch(downloadingTrailIdsProvider)
         .contains(trail.id);
-    final downloadEnabled = !widget.availableOffline && !isDownloading;
+    // D-01: this is the single re-entry guard shared by all three download-
+    // family actions (Download / Update / Remove download) -- which of the
+    // three renders is decided by `widget.availableOffline` below, not by
+    // this flag.
+    final downloadEnabled = !isDownloading;
     // D-14: delete is refused (not hidden -- the hiker should see it exists
     // and understand why it's momentarily unavailable) while this trail's
     // local id is in the drain provider's in-flight set.
@@ -154,37 +166,88 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
         // would fetch from the server with an empty trail id.
         if (!isUnsynced) ...[
           const PopupMenuDivider(),
-          PopupMenuItem<TrailAction>(
-            value: TrailAction.download,
-            onTap: downloadEnabled
-                ? () => ref
-                      .read(downloadingTrailIdsProvider.notifier)
-                      .download(trail)
-                : null,
-            enabled: downloadEnabled,
-            child: ListTile(
-              leading: isDownloading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : FaIcon(
-                      widget.availableOffline
-                          ? FontAwesomeIcons.circleCheck
-                          : FontAwesomeIcons.download,
-                      size: 18,
-                      color: widget.availableOffline ? Colors.green : null,
-                    ),
-              title: Text(
-                widget.availableOffline ? 'Available offline' : l18n.download,
-                style: widget.availableOffline
-                    ? const TextStyle(color: Colors.green)
-                    : null,
+          if (widget.availableOffline) ...[
+            // D-08: the old single inert "Available offline" item becomes
+            // two flat items -- flat `PopupMenuItem` + `ListTile`, no
+            // sub-sheet; this app has no menu-item-opens-a-sub-sheet pattern
+            // anywhere and a sheet would bury both actions two taps deep.
+            PopupMenuItem<TrailAction>(
+              value: TrailAction.update,
+              onTap: downloadEnabled
+                  ? () => ref
+                        .read(downloadingTrailIdsProvider.notifier)
+                        .download(trail)
+                  : null,
+              enabled: downloadEnabled,
+              child: ListTile(
+                leading: isDownloading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const FaIcon(FontAwesomeIcons.arrowsRotate, size: 18),
+                // D-06: reuses the already-translated `regions_update_action`
+                // key ("Update") rather than minting a trail-scoped
+                // duplicate -- it is translated in all 14 locales, including
+                // a real German "Aktualisieren". Do not "fix" this into a
+                // new key.
+                title: Text(l18n.regions_update_action),
+                // D-07: the status the old inert item carried survives here,
+                // now translated -- it was previously a hardcoded English
+                // literal.
+                subtitle: Text(
+                  l18n.available_offline,
+                  style: const TextStyle(color: Colors.green),
+                ),
+                contentPadding: EdgeInsets.zero,
               ),
-              contentPadding: EdgeInsets.zero,
             ),
-          ),
+            PopupMenuItem<TrailAction>(
+              value: TrailAction.removeDownload,
+              onTap: downloadEnabled
+                  ? () => _confirmRemoveDownload(context, trail)
+                  : null,
+              enabled: downloadEnabled,
+              child: ListTile(
+                // Not red -- a removal is not a deletion; the red lives on
+                // the confirm dialog's own confirm action.
+                leading: FaIcon(
+                  FontAwesomeIcons.circleMinus,
+                  size: 18,
+                  color: downloadEnabled ? null : Colors.grey,
+                ),
+                title: Text(
+                  l18n.remove,
+                  style: downloadEnabled
+                      ? null
+                      : const TextStyle(color: Colors.grey),
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ] else ...[
+            PopupMenuItem<TrailAction>(
+              value: TrailAction.download,
+              onTap: downloadEnabled
+                  ? () => ref
+                        .read(downloadingTrailIdsProvider.notifier)
+                        .download(trail)
+                  : null,
+              enabled: downloadEnabled,
+              child: ListTile(
+                leading: isDownloading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const FaIcon(FontAwesomeIcons.download, size: 18),
+                title: Text(l18n.download),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
         ],
         if (_allowDelete(ref)) ...[
           const PopupMenuDivider(),
@@ -208,6 +271,49 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
         ],
       ],
     );
+  }
+
+  /// D-04: mirrors `settings_offline_regions_screen.dart`'s `_onDeleteRegion`
+  /// -- the awaited `showDialog<bool>` + `if (confirmed != true) return;`
+  /// form, not this file's own fire-and-forget `_confirmDelete`.
+  Future<void> _confirmRemoveDownload(BuildContext context, Trail trail) async {
+    // Resolved before the first await -- `context` is a parameter here, not
+    // `State.context`, so a post-await `mounted` check does not license
+    // reading from it. This file documents the same discipline at its other
+    // async call sites below.
+    final l18n = AppLocalizations.of(context)!;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(trail.name),
+        // D-05: one dialog, no connectivity branching, no extra offline-only
+        // warning line. The body already states re-downloading is needed,
+        // which is the honest cost either way, and refusing removal while
+        // offline would be paternalistic -- freeing space is legitimate
+        // precisely in the field.
+        content: Text(l18n.remove_download_confirm_body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l18n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l18n.remove, style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    // Local-only: under the single-object model the trail still exists on
+    // the server, so this must never issue a network delete. It also must
+    // NOT pop the route -- the screen stays, this provider's state updates,
+    // `availableOffline` flips to false and the menu offers Download again.
+    ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
   }
 
   bool _canEditTrail(WidgetRef ref) {
