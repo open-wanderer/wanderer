@@ -29,6 +29,7 @@ import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 
@@ -119,6 +120,10 @@ Widget _harness(
   // D-15/D-17: when supplied, overrides `apiProvider` so `fetchServerTrail`
   // fails deterministically -- only the refusal test needs this.
   Dio? api,
+  // D-12/38.1-05: whether THIS account owns `trail.localId` as a live,
+  // not-yet-uploaded capture. Defaults to false (the common case: a plain
+  // downloaded/server trail owns nothing local).
+  bool ownLiveCapture = false,
 }) {
   return ProviderScope(
     overrides: [
@@ -128,6 +133,15 @@ Widget _harness(
         () => _StubDownloadingTrailIds(downloading),
       ),
       if (api != null) apiProvider.overrideWith(() => _StubApi(api)),
+      // D-12: this override is MANDATORY on every harness mount, not merely
+      // available. After 38.1 plan 05's Task 2, `TrailDropdown` reads
+      // `ownLiveCaptureProvider(trail.localId)` unconditionally in build();
+      // without an override here that watch would reach `objectBoxProvider`,
+      // whose `build()` throws `UnimplementedError` -- there is no ObjectBox
+      // `Store` set up under this widget-test harness.
+      ownLiveCaptureProvider(
+        trail.localId,
+      ).overrideWithValue(ownLiveCapture),
     ],
     child: MaterialApp(
       localizationsDelegates: const [
@@ -226,12 +240,28 @@ void main() {
     lat: 1,
     lon: 1,
   );
+  // WR-12/D-17: the overlap row Phase 36's retracted D-10 claimed could not
+  // exist -- `TrailDownloadService`'s carry-forward (`trail_download_
+  // service.dart:210-215`) writes a re-download into an existing capture
+  // row, which `TrailEntity.id`'s `@Unique(onConflict: replace)` guarantees
+  // is the SAME row, not a second one. `author` deliberately does NOT match
+  // the stub user's `actorId` ('actor-id'): this fixture is account B
+  // looking at account A's still-unsynced capture that B has downloaded.
+  final unsyncedButDownloaded = Trail.empty().copyWith(
+    id: 'server-4',
+    localId: 'local-2-0',
+    author: 'someone-elses-actor-id',
+    name: 'Unsynced, Also Downloaded',
+    syncState: TrailSyncState.pending,
+    lat: 1,
+    lon: 1,
+  );
 
   testWidgets(
     'D-17: an unsynced trail hides Download and "Available offline", but '
     'shows Show on map, Edit and Delete',
     (tester) async {
-      await tester.pumpWidget(_harness(unsynced));
+      await tester.pumpWidget(_harness(unsynced, ownLiveCapture: true));
       await _openMenu(tester);
 
       expect(find.text('Download'), findsNothing);
@@ -256,7 +286,7 @@ void main() {
   testWidgets(
     'D-14: deleting an unsynced trail shows the unrecoverable confirm copy',
     (tester) async {
-      await tester.pumpWidget(_harness(unsynced));
+      await tester.pumpWidget(_harness(unsynced, ownLiveCapture: true));
       await _openMenu(tester);
 
       await tester.tap(
@@ -302,7 +332,9 @@ void main() {
   testWidgets(
     'D-14: Delete is disabled while the unsynced trail is mid-drain',
     (tester) async {
-      await tester.pumpWidget(_harness(unsynced, inFlight: {'local-1-0'}));
+      await tester.pumpWidget(
+        _harness(unsynced, inFlight: {'local-1-0'}, ownLiveCapture: true),
+      );
       await _openMenu(tester);
 
       final deleteItem = tester.widget<PopupMenuItem<TrailAction>>(
@@ -316,7 +348,7 @@ void main() {
     'Show on map is enabled for an unsynced trail -- trailMapLocation '
     'resolves it to /trail/local/local-1-0/map, a real route as of 36-12',
     (tester) async {
-      await tester.pumpWidget(_harness(unsynced));
+      await tester.pumpWidget(_harness(unsynced, ownLiveCapture: true));
       await _openMenu(tester);
 
       final openItem = tester.widget<PopupMenuItem<TrailAction>>(
@@ -499,6 +531,45 @@ void main() {
       // widget tree is disposed, or the test binding's pending-timer
       // invariant check fails the test.
       await tester.pump(const Duration(seconds: 5));
+    },
+  );
+
+  testWidgets(
+    'CR-01/CR-03: account B, looking at the overlap row, is offered Remove '
+    'and Update but never Delete or Download -- this is the state Phase '
+    "36's retracted D-10 claimed was impossible",
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          unsyncedButDownloaded,
+          availableOffline: true,
+          ownLiveCapture: false,
+        ),
+      );
+      await _openMenu(tester);
+
+      expect(find.text('Delete'), findsNothing);
+      expect(find.text('Remove'), findsOneWidget);
+      expect(find.text('Update'), findsOneWidget);
+      expect(find.text('Download'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'CR-01/CR-03 control: account A, the owner of the same overlap row\'s '
+    'local capture, is offered Delete but never Remove',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          unsyncedButDownloaded,
+          availableOffline: true,
+          ownLiveCapture: true,
+        ),
+      );
+      await _openMenu(tester);
+
+      expect(find.text('Delete'), findsOneWidget);
+      expect(find.text('Remove'), findsNothing);
     },
   );
 }
