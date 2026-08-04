@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 38-02-PLAN.md
-last_updated: "2026-08-04T14:19:50.275Z"
+stopped_at: Completed 38-04-PLAN.md
+last_updated: "2026-08-04T14:28:48.220Z"
 last_activity: 2026-08-04 -- Phase 38 execution started
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 38 (downloaded-trails-as-state-not-objects) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 38 execution started
 
@@ -174,6 +174,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 38 P01 | ~20min | 3 tasks | 12 files |
 | Phase 38 P02 | 12min | 2 tasks | 18 files |
 | Phase 38 P03 | ~15min | 3 tasks | 3 files |
+| Phase 38 P04 | 12min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -413,6 +414,8 @@ Recent decisions affecting current work:
 - [Phase 38]: Only two new l10n keys minted this plan (remove_download_confirm_body, edit_needs_connection); both ship English-only in 13 locales per D-17 and are tracked in the pending translation backlog
 - [Phase ?]: [38-03] applyServerTrailToLibraryRow keys on TrailEntity_.id + savedByUserIds.containsElement(accountId), never localId/owner -- a downloaded row's localId is always null so applyNetworkEditToLocalRow could never reach it (D-13)
 - [Phase ?]: [38-03] gpxData/photos/localPhotos are the load-bearing carry-forward columns in applyServerTrailToLibraryRow; photos and localPhotos are never touched by any automatic path (D-14a)
+- [Phase 38]: Deleted the grey l18n.offline pill entirely rather than re-gating it — D-10's defect was two badges on one axis with opposite isLocal terms; the fix is one badge gated on library membership
+- [Phase 38]: Library's remove-download menu item dropped red styling on both icon and text — Removing a download is not a deletion (D-04)
 
 ### Roadmap Evolution
 
@@ -566,8 +569,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-04T14:19:29.335Z
-Stopped at: Completed 38-02-PLAN.md
+Last session: 2026-08-04T14:28:27.063Z
+Stopped at: Completed 38-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
