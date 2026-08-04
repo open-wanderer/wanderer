@@ -152,6 +152,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                       ),
                     Expanded(
                       child: RefreshIndicator(
+                        color: Theme.of(context).colorScheme.onSurface,
                         onRefresh: () async => ref.invalidate(
                           profileTrailsProvider(widget.handle),
                         ),

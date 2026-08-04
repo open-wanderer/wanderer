@@ -80,9 +80,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                 cursorColor: Theme.of(context).colorScheme.onSurface,
                 decoration: InputDecoration(
                   hintText: l10n.search_lists,
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -113,6 +111,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
             const ListQuickFilterBar(filterId: 'lists'),
             Expanded(
               child: RefreshIndicator(
+                color: Theme.of(context).colorScheme.onSurface,
                 onRefresh: () async => ref.invalidate(listSearchProvider),
                 child: !isOnline
                     ? WandererOfflineState(

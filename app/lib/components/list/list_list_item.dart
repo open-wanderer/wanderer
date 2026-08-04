@@ -41,7 +41,7 @@ class ListListItem extends ConsumerWidget {
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.grey.withValues(alpha: 0.2),
+              color: Theme.of(context).colorScheme.outline,
               width: 1,
             ),
           ),
@@ -82,13 +82,17 @@ class ListListItem extends ConsumerWidget {
                             FaIcon(
                               FontAwesomeIcons.route,
                               size: 12,
-                              color: Colors.grey[600],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${list.trailCount} trails',
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6),
                                 fontSize: 12,
                               ),
                             ),
@@ -139,7 +143,7 @@ class _Thumbnail extends StatelessWidget {
 
   Widget _placeholder(BuildContext context) {
     return Container(
-      color: Colors.grey[200],
+      color: Theme.of(context).colorScheme.secondaryContainer,
       child: Center(
         child: SvgPicture.asset(
           "assets/svgs/empty_state_trail_${Theme.of(context).brightness.name}.svg",

@@ -68,6 +68,7 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
           Expanded(
             child: listsAsync.when(
               data: (state) => RefreshIndicator(
+                color: Theme.of(context).colorScheme.onSurface,
                 onRefresh: () async =>
                     ref.invalidate(profileListsProvider(widget.handle)),
                 child: state.lists.isEmpty

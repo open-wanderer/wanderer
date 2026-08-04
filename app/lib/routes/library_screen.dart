@@ -68,9 +68,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 cursorColor: Theme.of(context).colorScheme.onSurface,
                 decoration: InputDecoration(
                   hintText: l10n.search_library,
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey),
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(

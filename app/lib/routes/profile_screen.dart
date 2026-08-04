@@ -137,6 +137,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final h = _handle;
 
     return RefreshIndicator(
+      color: Theme.of(context).colorScheme.onSurface,
       onRefresh: () async {
         if (widget.handle != null) {
           ref.invalidate(profileProvider(widget.handle!));
@@ -284,12 +285,22 @@ class _ProfileHeaderBackground extends StatelessWidget {
             ),
             Text(
               handleDisplay,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               '${AppLocalizations.of(context)!.joined} $joinedDate',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),

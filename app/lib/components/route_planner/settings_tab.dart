@@ -39,7 +39,15 @@ class SettingsTab extends ConsumerWidget {
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(l10n.auto_routing),
+            title: Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                l10n.auto_routing,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
             subtitle: Text(l10n.auto_routing_hint),
             value: state.autoRoutingEnabled,
             onChanged: (_) => notifier.toggleAutoRouting(),
@@ -150,7 +158,12 @@ class _BucketCard extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(Icons.check_circle, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.check_circle,
+                  color: theme.brightness == Brightness.light
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface,
+                ),
             ],
           ),
         ),

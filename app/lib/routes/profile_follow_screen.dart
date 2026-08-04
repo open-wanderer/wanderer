@@ -88,6 +88,7 @@ class _ProfileFollowScreenState extends ConsumerState<ProfileFollowScreen> {
       ),
       body: followsAsync.when(
         data: (state) => RefreshIndicator(
+          color: Theme.of(context).colorScheme.onSurface,
           onRefresh: () async => ref.invalidate(
             profileFollowsProvider(widget.handle, widget.type),
           ),

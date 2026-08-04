@@ -146,14 +146,35 @@ class _RouteAnchorListTabState extends ConsumerState<RouteAnchorListTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
-                      style: TextStyle(color: Colors.grey[600]),
+                    Row(
+                      children: [
+                        FaIcon(
+                          FontAwesomeIcons.locationDot,
+                          size: 12,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          '${anchor.lat.toStringAsFixed(5)}, ${anchor.lon.toStringAsFixed(5)}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (index > 0 && cumulativeStats[anchor.id] != null)
                       Text(
                         _statsLabel(cumulativeStats[anchor.id]!, unit),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
+                          fontSize: 12,
+                        ),
                       ),
                   ],
                 ),

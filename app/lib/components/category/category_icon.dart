@@ -75,7 +75,7 @@ Widget trailCategoryIcon(
 
 /// 16px avatar for a category [FilterChip]. Falls back to [Icons.category]
 /// when the icon name is not in [fontAwesomeIconsMap].
-Widget categoryFilterAvatar(Category c, {double size = 16}) {
+Widget categoryFilterAvatar(Category c, {double size = 16, Color? color}) {
   final iconData = _categoryIconData(c);
   return iconData != null
       ? FaIcon(iconData, size: size)
@@ -90,7 +90,12 @@ Widget? subcategoryBadgeAvatar(Subcategory c, {Color? color, double size = 8}) {
 /// 16px avatar for a subcategory [FilterChip] with an optional FA badge icon
 /// overlay at the top-right (mirrors the web's `displaySubcategoryIcon` +
 /// badge logic). [Clip.none] keeps the badge from clipping.
-Widget subcategoryFilterAvatar(Subcategory s, Category? parent, Locale locale) {
+Widget subcategoryFilterAvatar(
+  Subcategory s,
+  Category? parent,
+  Locale locale, {
+  Color? color,
+}) {
   final primary = _subcategoryIconData(s, parent);
 
   Widget? badgeIconWidget;
@@ -103,8 +108,8 @@ Widget subcategoryFilterAvatar(Subcategory s, Category? parent, Locale locale) {
     clipBehavior: Clip.none,
     children: [
       primary != null
-          ? FaIcon(primary, size: 16)
-          : const Icon(Icons.category, size: 16),
+          ? FaIcon(primary, size: 16, color: color)
+          : Icon(Icons.category, size: 16, color: color),
       ?badgeIconWidget,
     ],
   );
