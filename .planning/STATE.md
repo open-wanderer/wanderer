@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: executing
-stopped_at: Completed 38.1-04-PLAN.md
-last_updated: "2026-08-04T19:03:41.820Z"
+status: verifying
+stopped_at: Completed 38.1-05-PLAN.md
+last_updated: "2026-08-04T19:21:54.185Z"
 last_activity: 2026-08-04 -- Phase 38.1 execution started
 progress:
   total_phases: 4
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 
 Phase: 38.1 (Downloaded-Trail Blocker Closure) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-04 -- Phase 38.1 execution started
 
 ## v1.8 Phases
@@ -181,6 +181,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 38.1 P02 | 14min | 3 tasks | 5 files |
 | Phase 38.1-downloaded-trail-blocker-closure P03 | 35min | 3 tasks | 5 files |
 | Phase 38.1 P04 | 12min | 2 tasks | 2 files |
+| Phase 38.1 P05 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -433,6 +434,8 @@ Recent decisions affecting current work:
 - [Phase 38.1-downloaded-trail-blocker-closure]: 38.1-03: photosNotYetOnServer skips (not throws) its filter when no account is signed in, matching the malformed-id fall-back discipline already in the file.
 - [Phase 38.1-downloaded-trail-blocker-closure]: 38.1-03: fixed a pre-existing test broken by this plan's own _deletePhotoDirBestEffort signature change (two args), rather than leaving it failing.
 - [Phase 38.1-04]: deleteTrail guards box.remove with isLiveCaptureRow(entity) consumed directly on the row in the transaction; membership drop is unconditional, library/<id>/ delete gated on rowRemoved (closes store half of CR-03)
+- [Phase 38.1]: Owner-scoped the delete gate and download-family guard in trail_dropdown.dart via ownLiveCaptureProvider, closing CR-01/CR-03's UI halves with one predicate — Isolated the escape-hatch and the Remove/Update/Download visibility from syncState on the shared cache row, per D-04/D-12/D-13
+- [Phase 38.1]: Guarded library_screen.dart's long-press Remove tile with the same ownLiveCaptureProvider predicate, matching the dropdown's hide-not-disable shape — D-14: the two remove-download surfaces must behave identically; this surface previously had no guard at all
 
 ### Roadmap Evolution
 
@@ -586,8 +589,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-04T19:03:41.802Z
-Stopped at: Completed 38.1-04-PLAN.md
+Last session: 2026-08-04T19:21:54.164Z
+Stopped at: Completed 38.1-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

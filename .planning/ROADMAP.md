@@ -799,7 +799,7 @@ Plans:
 - [x] 38.1-04-PLAN.md — TrailLibraryNotifier.deleteTrail refuses to remove a live capture row
   (CR-03 store half, D-11/D-12)
 
-- [ ] 38.1-05-PLAN.md — Owner-scoped delete gate and download-family guard on both surfaces, plus
+- [x] 38.1-05-PLAN.md — Owner-scoped delete gate and download-family guard on both surfaces, plus
   the D-17 overlap fixture (CR-01/CR-03 UI halves, WR-12, D-13/D-14/D-17)
 
 ---
