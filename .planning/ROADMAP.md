@@ -793,7 +793,7 @@ Plans:
 - [x] 38.1-02-PLAN.md — Store foundation: the single owner-scoped live-capture predicate, a
   bool-returning deleteLocalTrailRow, and waypointsAreAuthoritative (CR-02, D-04/D-07/D-08/D-09)
 
-- [ ] 38.1-03-PLAN.md — Account-scope unsynced photo storage and gate deleteUnsynced on the row
+- [x] 38.1-03-PLAN.md — Account-scope unsynced photo storage and gate deleteUnsynced on the row
   match (CR-01 store half, D-05/D-06/D-07)
 
 - [ ] 38.1-04-PLAN.md — TrailLibraryNotifier.deleteTrail refuses to remove a live capture row

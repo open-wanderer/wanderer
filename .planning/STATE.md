@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Completed 38.1-02-PLAN.md
-last_updated: "2026-08-04T18:20:28.741Z"
+stopped_at: Completed 38.1-03-PLAN.md
+last_updated: "2026-08-04T18:37:33.381Z"
 last_activity: 2026-08-04 -- Phase 38.1 execution started
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-07-24)
 ## Current Position
 
 Phase: 38.1 (Downloaded-Trail Blocker Closure) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-08-04 -- Phase 38.1 execution started
 
@@ -179,6 +179,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 38 P06 | 9min | 2 tasks | 2 files |
 | Phase 38.1 P01 | 12min | 3 tasks | 6 files |
 | Phase 38.1 P02 | 14min | 3 tasks | 5 files |
+| Phase 38.1-downloaded-trail-blocker-closure P03 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -428,6 +429,8 @@ Recent decisions affecting current work:
 - [Phase 38.1]: D-16: Trail.isLocal's doc now names its only two live consumers (trail_card.dart, trail_list_item.dart) and explicitly forbids using it for destructive-action gating, badges, or tab visibility.
 - [Phase 38.1]: D-18: Phase 36's D-10 corrected in place (not deleted/renumbered) as RETRACTED -- the two cosmetic badges it justified still hold, but any destructive-action gating/scoping derived from it does not.
 - [Phase 38.1]: 38.1-02: nullable Riverpod family param on ownLiveCapture worked with riverpod_generator on first try; no fallback to non-nullable String needed — Recorded per plan instruction to note if the fallback path was used
+- [Phase 38.1-downloaded-trail-blocker-closure]: 38.1-03: photosNotYetOnServer skips (not throws) its filter when no account is signed in, matching the malformed-id fall-back discipline already in the file.
+- [Phase 38.1-downloaded-trail-blocker-closure]: 38.1-03: fixed a pre-existing test broken by this plan's own _deletePhotoDirBestEffort signature change (two args), rather than leaving it failing.
 
 ### Roadmap Evolution
 
@@ -581,8 +584,8 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-04T18:20:28.722Z
-Stopped at: Completed 38.1-02-PLAN.md
+Last session: 2026-08-04T18:37:33.362Z
+Stopped at: Completed 38.1-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
