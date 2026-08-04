@@ -140,6 +140,39 @@
 
 ---
 
+## Post-discussion correction — scope of the automatic refresh
+
+Raised by the user after CONTEXT.md was first written: *"When we open a downloaded trail online, do
+we not automatically download the GPX already?"*
+
+**Correct, and it invalidated the reasoning behind D-14's original narrow scope.** Verified in code:
+`TrailNotifier.build()` fetches the GPX file on every online open of every trail, and
+`TrailDownloadService` never fetches the GPX at all — it takes an already-fetched model and pulls
+only photos. So the fresh track is already in hand on every online view, and restricting the
+opportunistic refresh to metadata was based on a false premise about where the bytes go.
+
+The user's follow-up: *"At that point just refresh the whole thing including photos. Should we keep
+the update button? I tend to say yes. It's essentially the same just without opening the trail."*
+
+Photos were then priced explicitly, since they are the one asset **not** already in the response —
+each is a separate file download, and refreshing them on every view would be the app's single most
+expensive automatic behaviour.
+
+### Q — How far does the automatic refresh go on an online view?
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Everything, photos by filename diff | Metadata + GPX free; photos compared against the server's filename list, fetching only genuine changes. Requires retaining server filenames, untangling Phase 36's D-10 `photos`/`localPhotos` overloading. | |
+| Everything, re-fetch all photos every view | Simplest; an online view fully restores the download. Cost: every online open re-downloads every full-size photo automatically. | |
+| Metadata + GPX only; photos on Update | Draws the line at free-vs-costly. Nothing automatic ever spends bytes. A trail whose author swapped photos shows old ones offline until Update. | ✓ |
+
+**User's choice:** Metadata + GPX only; photos on Update
+**Notes:** Update retained, with its purpose sharpened per the user's own framing — "the same refresh
+without opening the trail". Captured as D-12a, D-14, D-14a and D-23. The filename-diff approach was
+recorded as a deferred idea rather than discarded.
+
+---
+
 ## Claude's Discretion
 
 - Exact wording of the new confirm body and the new edit-refusal string, within the agreed shapes.

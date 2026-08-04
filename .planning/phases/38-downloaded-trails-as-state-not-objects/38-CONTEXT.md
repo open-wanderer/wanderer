@@ -96,6 +96,12 @@ any change to unsynced-capture behaviour (Phase 36 owns that).
   re-enabling the action that `downloadEnabled = !availableOffline && !isDownloading` currently
   disables. It also removes the neither-copy window of today's only workaround (Remove download →
   Download), where a failed re-download leaves the hiker with nothing.
+- **D-12a:** Given D-14, *Update*'s remaining job is precise: **it is the same refresh, without
+  having to open the trail** (user's framing) — and **photos are the only thing it actually pulls
+  over the network**. Its two real uses are refreshing several trails deliberately before heading
+  out of signal, and recovering when an earlier refresh failed partway. Keep it in the menu:
+  metadata and track staying fresh via D-14 does *not* make it redundant, because photos never
+  refresh on their own and a trail the hiker has not opened online refreshes nothing at all.
 
 ### Bug 2 — the stored copy never receives the hiker's own edit
 
@@ -106,10 +112,14 @@ any change to unsynced-capture behaviour (Phase 36 owns that).
   row has `localId == null`, so nothing writes the edit into ObjectBox. **No new network traffic** —
   the response is already in hand.
 - **D-14:** Generalised beyond the edit case: **any successful fetch of a trail that is also
-  downloaded opportunistically refreshes the stored row's metadata**, at zero network cost, since
-  the response is in hand either way. Heavy assets (GPX file, photos) are *not* touched — those
-  remain *Update*'s job. This keeps the offline copy's name, description and waypoints from
-  drifting between Updates.
+  downloaded opportunistically refreshes the stored row's metadata *and* its `gpxData`**, since
+  both arrive in the same response and writing them costs **zero additional network traffic**
+  (see D-23). **Photos are explicitly excluded** — they are the one asset not already in hand.
+  Effect: a downloaded trail's name, description, waypoints and track stay current merely by being
+  viewed online, with no bytes spent beyond what opening any trail already costs.
+- **D-14a:** The line is drawn at *free versus costly*, deliberately and not arbitrarily: nothing
+  automatic ever spends bytes. A trail whose author swapped its photos shows the old ones offline
+  until *Update* is tapped, while its name and track are already current. Accepted trade.
 
 ### Bug 1 — editing a Library trail duplicates its photos on the server
 
@@ -159,6 +169,20 @@ any change to unsynced-capture behaviour (Phase 36 owns that).
   data-saving** — that is the reframing that reconciles this with the "bandwidth is an active
   decision" principle: nothing re-downloads automatically, and both *Download* and *Update* remain
   explicit.
+- **D-23:** **The actual network-cost model**, verified 2026-08-04 — planning should rely on this
+  rather than re-deriving it, and an earlier draft of this document got it wrong:
+  - `TrailNotifier.build()` fetches the trail record **and then unconditionally fetches the GPX
+    file** `/files/trails/$id/${trail.gpx}` (`app/lib/provider/trail/trail_provider.dart:35-58`).
+    This happens on **every online open of every trail**, downloaded or not. The GPX is therefore
+    *already paid for* by the time a downloaded trail renders — which is what makes D-14 free.
+  - `TrailDownloadService.download(trail)` takes an **already-fetched model** and pulls **only
+    photos** over the network — trail photos plus per-waypoint photos
+    (`app/lib/services/trail_download_service.dart:70-97`). It never fetches the GPX.
+  - The track is persisted straight from memory: `TrailEntity.gpxData` is a plain `String?`
+    populated from `trail.expand?.gpxData` (`app/lib/entities/trail_entity.dart:48`, `:241`), not
+    a file on disk. Refreshing it is a single ObjectBox string write, no file I/O.
+  - Consequence: **photos are the only expensive asset in the entire download path**, which is
+    exactly where the "active decision" principle is enforced (D-14a, D-12a).
 
 ### Claude's Discretion
 
@@ -281,6 +305,14 @@ live Store, or verified on device.
 - **Automatic GPX re-fetch when the track itself changed** — considered under the safety argument
   that a wrong route is not a convenience issue. Rejected for this phase as the only option that
   spends bytes without being asked; revisit if stale tracks prove to be a real problem.
+- **Photo refresh by filename diff** — considered as a way to make photos auto-refresh nearly free:
+  the trail record lists the server's photo filenames and PocketBase mints a new filename whenever
+  a file is replaced, so diffing would fetch nothing in the common unchanged case and only the
+  genuinely new files otherwise. **Not taken** for this phase: it requires retaining the server
+  filenames on the entity, which means untangling the `photos` / `localPhotos` overloading that
+  Phase 36's D-10 deliberately established (`TrailDownloadService` currently overwrites
+  `entity.photos` with local paths at `trail_download_service.dart:148`). Revisit if stale photos
+  prove to be a real problem — the decision was to keep every automatic action free of bytes.
 - **Server-side cleanup of already-duplicated photos** — D-18 stops the duplication, but any
   trail already edited from the Library carries duplicate photos server-side and nothing prunes
   them. Out of scope; needs its own decision about touching existing user data.
