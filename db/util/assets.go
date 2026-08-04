@@ -2,11 +2,13 @@ package util
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
@@ -60,26 +62,7 @@ func CreatePhotoAsset(app core.App, input PhotoAssetInput) (*core.Record, error)
 			return nil, err
 		}
 		if existing != nil {
-			changed := false
-			if input.File != nil && (existing.GetString("file") == "" || existing.GetString("storage_mode") != "copy") {
-				existing.Set("file", input.File)
-				existing.Set("storage_mode", "copy")
-				existing.Set("remote_status", "available")
-				changed = true
-			}
-			if input.TakenAt != nil && existing.GetDateTime("taken_at").IsZero() {
-				existing.Set("taken_at", input.TakenAt)
-				changed = true
-			}
-			if changed {
-				if err := app.Save(existing); err != nil {
-					return nil, err
-				}
-			}
-			if err := LinkAssetToPhotoTargets(app, existing.Id, input); err != nil {
-				return nil, err
-			}
-			return existing, nil
+			return reuseExternalPhotoAsset(app, existing, input)
 		}
 	}
 
@@ -116,12 +99,57 @@ func CreatePhotoAsset(app core.App, input PhotoAssetInput) (*core.Record, error)
 	}
 
 	if err := app.Save(record); err != nil {
+		if isExternalPhotoAssetUniqueConflict(err) {
+			existing, findErr := findExistingExternalPhotoAsset(app, author, input.ExternalProvider, input.ExternalID)
+			if findErr != nil {
+				return nil, errors.Join(err, findErr)
+			}
+			if existing != nil {
+				return reuseExternalPhotoAsset(app, existing, input)
+			}
+		}
 		return nil, err
 	}
 	if err := LinkAssetToPhotoTargets(app, record.Id, input); err != nil {
 		return nil, err
 	}
 	return record, nil
+}
+
+func reuseExternalPhotoAsset(app core.App, existing *core.Record, input PhotoAssetInput) (*core.Record, error) {
+	changed := false
+	if input.File != nil && (existing.GetString("file") == "" || existing.GetString("storage_mode") != "copy") {
+		existing.Set("file", input.File)
+		existing.Set("storage_mode", "copy")
+		existing.Set("remote_status", "available")
+		changed = true
+	}
+	if input.TakenAt != nil && existing.GetDateTime("taken_at").IsZero() {
+		existing.Set("taken_at", input.TakenAt)
+		changed = true
+	}
+	if changed {
+		if err := app.Save(existing); err != nil {
+			return nil, err
+		}
+	}
+	if err := LinkAssetToPhotoTargets(app, existing.Id, input); err != nil {
+		return nil, err
+	}
+	return existing, nil
+}
+
+func isExternalPhotoAssetUniqueConflict(err error) bool {
+	var fieldErrors validation.Errors
+	if !errors.As(err, &fieldErrors) {
+		return false
+	}
+	for _, field := range []string{"author", "external_provider", "external_id", "type"} {
+		if fieldErrors[field] == nil {
+			return false
+		}
+	}
+	return true
 }
 
 func findExistingExternalPhotoAsset(app core.App, author string, provider string, externalID string) (*core.Record, error) {

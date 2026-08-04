@@ -48,24 +48,29 @@ func init() {
 
 const assetFileMaxBytes int64 = 50 << 20
 
+const assetExternalUniqueIndex = "CREATE UNIQUE INDEX idx_assets_external ON assets (author, external_provider, external_id, type) WHERE external_provider != '' AND external_id != ''"
+
 const (
 	trailAssetTargetViewRule = `trail.author.user = @request.auth.id || trail.public = true || (@request.auth.id != "" && trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (@request.query.share != "" && trail.trail_link_share_via_trail.token ?= @request.query.share)`
 	trailAssetTargetEditRule = `trail.author.user = @request.auth.id || (trail.trail_share_via_trail.actor.user ?= @request.auth.id && trail.trail_share_via_trail.permission = "edit")`
 	trailAssetReadRule       = `asset.author.user = @request.auth.id || ` + trailAssetTargetViewRule
 	trailAssetCreateRule     = `@request.auth.id != "" && asset.author.user = @request.auth.id && (` + trailAssetTargetEditRule + `)`
 	trailAssetWriteRule      = `@request.auth.id != "" && (asset.author.user = @request.auth.id || ` + trailAssetTargetEditRule + `)`
+	trailAssetUpdateRule     = trailAssetWriteRule + ` && @request.body.asset:changed = false && @request.body.trail:changed = false`
 
 	waypointAssetTargetViewRule = `waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || waypoint.trail.public = true || (@request.auth.id != "" && waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (@request.query.share != "" && waypoint.trail.trail_link_share_via_trail.token ?= @request.query.share)`
 	waypointAssetTargetEditRule = `waypoint.trail.author.user = @request.auth.id || waypoint.author.user = @request.auth.id || (waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id && waypoint.trail.trail_share_via_trail.permission = "edit")`
 	waypointAssetReadRule       = `asset.author.user = @request.auth.id || ` + waypointAssetTargetViewRule
 	waypointAssetCreateRule     = `@request.auth.id != "" && asset.author.user = @request.auth.id && (` + waypointAssetTargetEditRule + `)`
 	waypointAssetWriteRule      = `@request.auth.id != "" && (asset.author.user = @request.auth.id || ` + waypointAssetTargetEditRule + `)`
+	waypointAssetUpdateRule     = waypointAssetWriteRule + ` && @request.body.asset:changed = false && @request.body.waypoint:changed = false`
 
 	summitLogAssetTargetViewRule = `summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || summit_log.trail.public = true || (@request.auth.id != "" && summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (@request.query.share != "" && summit_log.trail.trail_link_share_via_trail.token ?= @request.query.share)`
 	summitLogAssetTargetEditRule = `summit_log.trail.author.user = @request.auth.id || summit_log.author.user = @request.auth.id || (summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id && summit_log.trail.trail_share_via_trail.permission = "edit")`
 	summitLogAssetReadRule       = `asset.author.user = @request.auth.id || ` + summitLogAssetTargetViewRule
 	summitLogAssetCreateRule     = `@request.auth.id != "" && asset.author.user = @request.auth.id && (` + summitLogAssetTargetEditRule + `)`
 	summitLogAssetWriteRule      = `@request.auth.id != "" && (asset.author.user = @request.auth.id || ` + summitLogAssetTargetEditRule + `)`
+	summitLogAssetUpdateRule     = summitLogAssetWriteRule + ` && @request.body.asset:changed = false && @request.body.summit_log:changed = false`
 
 	assetReadRule = `author.user = @request.auth.id || trail_assets_via_asset.trail.author.user ?= @request.auth.id || trail_assets_via_asset.trail.public ?= true || (@request.auth.id != "" && trail_assets_via_asset.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (@request.query.share != "" && trail_assets_via_asset.trail.trail_link_share_via_trail.token ?= @request.query.share) || waypoint_assets_via_asset.waypoint.trail.author.user ?= @request.auth.id || waypoint_assets_via_asset.waypoint.author.user ?= @request.auth.id || waypoint_assets_via_asset.waypoint.trail.public ?= true || (@request.auth.id != "" && waypoint_assets_via_asset.waypoint.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (@request.query.share != "" && waypoint_assets_via_asset.waypoint.trail.trail_link_share_via_trail.token ?= @request.query.share) || summit_log_assets_via_asset.summit_log.author.user ?= @request.auth.id || summit_log_assets_via_asset.summit_log.trail.author.user ?= @request.auth.id || summit_log_assets_via_asset.summit_log.trail.public ?= true || (@request.auth.id != "" && summit_log_assets_via_asset.summit_log.trail.trail_share_via_trail.actor.user ?= @request.auth.id) || (@request.query.share != "" && summit_log_assets_via_asset.summit_log.trail.trail_link_share_via_trail.token ?= @request.query.share)`
 )
@@ -299,7 +304,7 @@ func createAssetsCollection(app core.App) (*core.Collection, error) {
 		],
 		"id": "assetcollect001",
 		"indexes": [
-			"CREATE INDEX idx_assets_external ON assets (author, external_provider, external_id)"
+			%q
 		],
 		"listRule": "author.user = @request.auth.id",
 		"name": "assets",
@@ -307,7 +312,7 @@ func createAssetsCollection(app core.App) (*core.Collection, error) {
 		"type": "base",
 		"updateRule": "@request.auth.id != \"\" && author.user = @request.auth.id",
 		"viewRule": "author.user = @request.auth.id"
-	}`, assetFileMaxBytes)
+	}`, assetFileMaxBytes, assetExternalUniqueIndex)
 
 	collection := &core.Collection{}
 	if err := json.Unmarshal([]byte(jsonData), collection); err != nil {
@@ -351,10 +356,11 @@ func updateAssetSharingAccessRules(app core.App) error {
 		CreateRule string
 		ReadRule   string
 		WriteRule  string
+		UpdateRule string
 	}{
-		{"trail_assets", trailAssetCreateRule, trailAssetReadRule, trailAssetWriteRule},
-		{"waypoint_assets", waypointAssetCreateRule, waypointAssetReadRule, waypointAssetWriteRule},
-		{"summit_log_assets", summitLogAssetCreateRule, summitLogAssetReadRule, summitLogAssetWriteRule},
+		{"trail_assets", trailAssetCreateRule, trailAssetReadRule, trailAssetWriteRule, trailAssetUpdateRule},
+		{"waypoint_assets", waypointAssetCreateRule, waypointAssetReadRule, waypointAssetWriteRule, waypointAssetUpdateRule},
+		{"summit_log_assets", summitLogAssetCreateRule, summitLogAssetReadRule, summitLogAssetWriteRule, summitLogAssetUpdateRule},
 	}
 
 	for _, update := range linkCollections {
@@ -368,7 +374,7 @@ func updateAssetSharingAccessRules(app core.App) error {
 			"listRule": %q,
 			"updateRule": %q,
 			"viewRule": %q
-		}`, update.CreateRule, update.WriteRule, update.ReadRule, update.WriteRule, update.ReadRule)), collection); err != nil {
+			}`, update.CreateRule, update.WriteRule, update.ReadRule, update.UpdateRule, update.ReadRule)), collection); err != nil {
 			return err
 		}
 		if err := app.Save(collection); err != nil {
@@ -403,7 +409,7 @@ func trailAssetLinkCollectionJSON() string {
 		"type": "base",
 		"updateRule": %q,
 		"viewRule": %q
-	}`, trailAssetCreateRule, trailAssetWriteRule, trailAssetReadRule, trailAssetWriteRule, trailAssetReadRule)
+	}`, trailAssetCreateRule, trailAssetWriteRule, trailAssetReadRule, trailAssetUpdateRule, trailAssetReadRule)
 }
 
 func waypointAssetLinkCollectionJSON() string {
@@ -429,7 +435,7 @@ func waypointAssetLinkCollectionJSON() string {
 		"type": "base",
 		"updateRule": %q,
 		"viewRule": %q
-	}`, waypointAssetCreateRule, waypointAssetWriteRule, waypointAssetReadRule, waypointAssetWriteRule, waypointAssetReadRule)
+	}`, waypointAssetCreateRule, waypointAssetWriteRule, waypointAssetReadRule, waypointAssetUpdateRule, waypointAssetReadRule)
 }
 
 func summitLogAssetLinkCollectionJSON() string {
@@ -455,7 +461,7 @@ func summitLogAssetLinkCollectionJSON() string {
 		"type": "base",
 		"updateRule": %q,
 		"viewRule": %q
-	}`, summitLogAssetCreateRule, summitLogAssetWriteRule, summitLogAssetReadRule, summitLogAssetWriteRule, summitLogAssetReadRule)
+	}`, summitLogAssetCreateRule, summitLogAssetWriteRule, summitLogAssetReadRule, summitLogAssetUpdateRule, summitLogAssetReadRule)
 }
 
 func migrateExistingPhotosToAssets(app core.App, assetCollection *core.Collection) error {

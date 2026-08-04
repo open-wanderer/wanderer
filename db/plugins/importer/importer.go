@@ -37,6 +37,8 @@ type Options struct {
 	Auth                        map[string]any
 }
 
+var fetchPublicPluginMedia = util.FetchPublicURL
+
 type PhotoImportLimits struct {
 	MaxPhotosPerTrail     int `json:"maxPhotosPerTrail,omitempty"`
 	MaxPhotosPerWaypoint  int `json:"maxPhotosPerWaypoint,omitempty"`
@@ -699,6 +701,7 @@ func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxB
 }
 
 func FetchPhotoMedia(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64) (*util.SafeFetchResult, error) {
+	maxBytes = effectivePluginMediaMaxBytes(opts.Manifest, maxBytes)
 	switch photo.Source.Type {
 	case "url":
 		if photo.Source.URL == "" {
@@ -707,7 +710,14 @@ func FetchPhotoMedia(ctx context.Context, photo pluginsystem.Photo, opts Options
 		if err := validateRemoteMediaURLSyntax(photo.Source.URL); err != nil {
 			return nil, err
 		}
-		return util.FetchPublicURL(ctx, photo.Source.URL, maxBytes)
+		fetched, err := fetchPublicPluginMedia(ctx, photo.Source.URL, maxBytes)
+		if err != nil {
+			return nil, err
+		}
+		if err := pluginsystem.ValidateResponseContentType(fetched.ContentType, opts.Manifest.Permissions.Downloads.ContentTypes); err != nil {
+			return nil, err
+		}
+		return fetched, nil
 	case "connector":
 		return fetchConnectorMedia(ctx, photo, opts, maxBytes)
 	default:
@@ -785,16 +795,12 @@ func fetchConnectorMedia(ctx context.Context, photo pluginsystem.Photo, opts Opt
 	}
 	defer resp.Body.Close()
 	if storageRedirect != nil && resp.StatusCode >= 300 && resp.StatusCode < 400 {
-		return fetchStorageRedirectMedia(ctx, *storageRedirect, maxBytes)
+		return fetchStorageRedirectMedia(ctx, *storageRedirect, opts.Manifest, maxBytes)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, util.HTTPStatusError{StatusCode: resp.StatusCode, Message: fmt.Sprintf("provider media request failed: %d", resp.StatusCode)}
 	}
-	body, err := util.ReadBoundedForPlugin(resp.Body, maxBytes)
-	if err != nil {
-		return nil, err
-	}
-	return &util.SafeFetchResult{Body: body, ContentType: resp.Header.Get("Content-Type"), FinalURL: resp.Request.URL.String()}, nil
+	return pluginMediaResponse(resp, opts.Manifest, maxBytes)
 }
 
 type storageRedirectTarget struct {
@@ -802,7 +808,7 @@ type storageRedirectTarget struct {
 	Origin pluginsystem.ResolvedConnectorOrigin
 }
 
-func fetchStorageRedirectMedia(ctx context.Context, redirect storageRedirectTarget, maxBytes int64) (*util.SafeFetchResult, error) {
+func fetchStorageRedirectMedia(ctx context.Context, redirect storageRedirectTarget, manifest pluginsystem.Manifest, maxBytes int64) (*util.SafeFetchResult, error) {
 	storageConnector := pluginsystem.ResolvedConnectorTarget{
 		Name:                redirect.Origin.Name,
 		BaseURL:             redirect.Origin.BaseURL,
@@ -841,11 +847,33 @@ func fetchStorageRedirectMedia(ctx context.Context, redirect storageRedirectTarg
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, util.HTTPStatusError{StatusCode: resp.StatusCode, Message: fmt.Sprintf("provider media redirect request failed: %d", resp.StatusCode)}
 	}
+	return pluginMediaResponse(resp, manifest, maxBytes)
+}
+
+func effectivePluginMediaMaxBytes(manifest pluginsystem.Manifest, requested int64) int64 {
+	if requested <= 0 {
+		requested = util.DefaultPluginMediaMaxBytes
+	}
+	manifestMax := manifest.Permissions.Downloads.MaxBytes
+	if manifestMax > 0 && manifestMax < requested {
+		return manifestMax
+	}
+	return requested
+}
+
+func pluginMediaResponse(resp *http.Response, manifest pluginsystem.Manifest, maxBytes int64) (*util.SafeFetchResult, error) {
+	if err := pluginsystem.ValidateResponseContentType(resp.Header.Get("Content-Type"), manifest.Permissions.Downloads.ContentTypes); err != nil {
+		return nil, err
+	}
 	body, err := util.ReadBoundedForPlugin(resp.Body, maxBytes)
 	if err != nil {
 		return nil, err
 	}
-	return &util.SafeFetchResult{Body: body, ContentType: resp.Header.Get("Content-Type"), FinalURL: resp.Request.URL.String()}, nil
+	finalURL := ""
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	return &util.SafeFetchResult{Body: body, ContentType: resp.Header.Get("Content-Type"), FinalURL: finalURL}, nil
 }
 
 func stripConnectorAuth(req *http.Request, manifest pluginsystem.Manifest, authName string) {

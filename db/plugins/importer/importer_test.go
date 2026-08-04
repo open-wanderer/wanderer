@@ -3,6 +3,8 @@ package importer
 import (
 	"context"
 	"encoding/base64"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -563,6 +565,131 @@ func TestPhotoFile(t *testing.T) {
 			t.Fatal("expected error for unsupported source type")
 		}
 	})
+}
+
+func TestEffectivePluginMediaMaxBytes(t *testing.T) {
+	manifest := pluginsystem.Manifest{Permissions: pluginsystem.PermissionManifest{
+		Downloads: pluginsystem.DownloadPermissions{MaxBytes: 16},
+	}}
+	for _, tc := range []struct {
+		name      string
+		manifest  pluginsystem.Manifest
+		requested int64
+		want      int64
+	}{
+		{"manifest narrows host limit", manifest, 50, 16},
+		{"host limit stays narrower", manifest, 8, 8},
+		{"manifest applies to missing host limit", manifest, 0, 16},
+		{"host limit without manifest", pluginsystem.Manifest{}, 8, 8},
+		{"default without either limit", pluginsystem.Manifest{}, 0, util.DefaultPluginMediaMaxBytes},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := effectivePluginMediaMaxBytes(tc.manifest, tc.requested); got != tc.want {
+				t.Fatalf("got %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFetchPhotoMediaURLUsesManifestPolicy(t *testing.T) {
+	originalFetch := fetchPublicPluginMedia
+	t.Cleanup(func() { fetchPublicPluginMedia = originalFetch })
+
+	requestedLimit := int64(0)
+	fetchPublicPluginMedia = func(_ context.Context, _ string, maxBytes int64) (*util.SafeFetchResult, error) {
+		requestedLimit = maxBytes
+		return &util.SafeFetchResult{
+			Body:        []byte("jpeg"),
+			ContentType: "image/jpeg; charset=binary",
+			FinalURL:    "https://media.example/photo.jpg",
+		}, nil
+	}
+	manifest := pluginsystem.Manifest{Permissions: pluginsystem.PermissionManifest{
+		Downloads: pluginsystem.DownloadPermissions{
+			MaxBytes:     4,
+			ContentTypes: []string{"image/jpeg"},
+		},
+	}}
+	photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{
+		Type: "url",
+		URL:  "https://media.example/photo.jpg",
+	}}
+
+	if _, err := FetchPhotoMedia(context.Background(), photo, Options{Manifest: manifest}, 10); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if requestedLimit != 4 {
+		t.Fatalf("public fetch limit = %d, want manifest limit 4", requestedLimit)
+	}
+
+	fetchPublicPluginMedia = func(_ context.Context, _ string, _ int64) (*util.SafeFetchResult, error) {
+		return &util.SafeFetchResult{Body: []byte("html"), ContentType: "text/html"}, nil
+	}
+	if _, err := FetchPhotoMedia(context.Background(), photo, Options{Manifest: manifest}, 10); err == nil || !strings.Contains(err.Error(), "not allowed") {
+		t.Fatalf("got error %v, want content type rejection", err)
+	}
+}
+
+func TestPluginMediaResponseEnforcesManifestPolicy(t *testing.T) {
+	manifest := pluginsystem.Manifest{Permissions: pluginsystem.PermissionManifest{
+		Downloads: pluginsystem.DownloadPermissions{
+			MaxBytes:     4,
+			ContentTypes: []string{"image/jpeg"},
+		},
+	}}
+
+	t.Run("allows declared content type with parameters", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "image/jpeg; charset=binary")
+		result, err := pluginMediaResponse(resp, manifest, 10)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(result.Body) != "1234" || result.FinalURL != "https://media.example/photo" {
+			t.Fatalf("unexpected result: %#v", result)
+		}
+	})
+
+	t.Run("rejects content type outside manifest", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "text/html")
+		if _, err := pluginMediaResponse(resp, manifest, 10); err == nil || !strings.Contains(err.Error(), "not allowed") {
+			t.Fatalf("got error %v, want content type rejection", err)
+		}
+	})
+
+	t.Run("rejects missing content type", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "")
+		if _, err := pluginMediaResponse(resp, manifest, 10); err == nil || !strings.Contains(err.Error(), "invalid content type") {
+			t.Fatalf("got error %v, want invalid content type", err)
+		}
+	})
+
+	t.Run("manifest narrows response size", func(t *testing.T) {
+		resp := pluginMediaTestResponse("12345", "image/jpeg")
+		maxBytes := effectivePluginMediaMaxBytes(manifest, 10)
+		if _, err := pluginMediaResponse(resp, manifest, maxBytes); err == nil || !strings.Contains(err.Error(), "maximum size") {
+			t.Fatalf("got error %v, want size rejection", err)
+		}
+	})
+
+	t.Run("host can narrow response size further", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "image/jpeg")
+		if _, err := pluginMediaResponse(resp, manifest, 3); err == nil || !strings.Contains(err.Error(), "maximum size") {
+			t.Fatalf("got error %v, want size rejection", err)
+		}
+	})
+}
+
+func pluginMediaTestResponse(body string, contentType string) *http.Response {
+	req, _ := http.NewRequest(http.MethodGet, "https://media.example/photo", nil)
+	header := http.Header{}
+	if contentType != "" {
+		header.Set("Content-Type", contentType)
+	}
+	return &http.Response{
+		Body:    io.NopCloser(strings.NewReader(body)),
+		Header:  header,
+		Request: req,
+	}
 }
 
 func TestPluginMediaBudgetRemainingBytes(t *testing.T) {

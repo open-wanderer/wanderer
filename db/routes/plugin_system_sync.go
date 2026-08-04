@@ -22,6 +22,7 @@ const (
 	defaultPluginSyncBatchLimit                = 50
 	defaultPluginSyncMaxBatches                = 100
 	defaultPluginProviderCategoryBackfillLimit = 10
+	maxConcurrentPluginAssetAutoAttach         = 4
 )
 
 var syncCapabilityDescriptors = []syncCapabilityDescriptor{
@@ -38,6 +39,8 @@ var syncCapabilityDescriptors = []syncCapabilityDescriptor{
 		Version:        "v1",
 	},
 }
+
+var pluginAssetAutoAttachSlots = make(chan struct{}, maxConcurrentPluginAssetAutoAttach)
 
 type syncCapabilityDescriptor struct {
 	OptionKey      string
@@ -408,11 +411,16 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 						attachTrailID = mergedTrailID
 					}
 				}
-				go func(userID string, trailID string, provider string) {
-					if err := AutoAttachAssetPluginsForTrail(context.Background(), app, userID, trailID, provider); err != nil {
-						app.Logger().Warn("unable to auto-attach asset plugin photos to imported trail", "provider", provider, "trail", trailID, "error", err)
+				autoAttachUserID := instance.GetString("user")
+				autoAttachProvider := item.Source.Provider
+				if err := startBoundedPluginAssetAutoAttach(ctx, pluginAssetAutoAttachSlots, func() {
+					if err := AutoAttachAssetPluginsForTrail(context.Background(), app, autoAttachUserID, attachTrailID, autoAttachProvider); err != nil {
+						app.Logger().Warn("unable to auto-attach asset plugin photos to imported trail", "provider", autoAttachProvider, "trail", attachTrailID, "error", err)
 					}
-				}(instance.GetString("user"), attachTrailID, item.Source.Provider)
+				}); err != nil {
+					app.Logger().Warn("skipping asset plugin auto-attach while plugin sync is stopping", "provider", autoAttachProvider, "trail", attachTrailID, "error", err)
+					return nil, err
+				}
 			}
 			if imported.Skipped {
 				result.Skipped++
@@ -429,6 +437,22 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		return nil, fmt.Errorf("sync stopped after %d batches", defaultPluginSyncMaxBatches)
 	}
 	return result, nil
+}
+
+func startBoundedPluginAssetAutoAttach(ctx context.Context, slots chan struct{}, task func()) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case slots <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	go func() {
+		defer func() { <-slots }()
+		task()
+	}()
+	return nil
 }
 
 func providerCategoryBackfillCandidatesForSync(app core.App, userID string, provider string, externalIDs []string, limit int) (map[string]*core.Record, error) {

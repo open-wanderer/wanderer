@@ -54,12 +54,13 @@ func TestAssetReadRuleUsesAnyMatchForAssetBackRelations(t *testing.T) {
 
 func TestAssetLinkRulesSeparateReadAndWriteSharing(t *testing.T) {
 	tests := []struct {
-		name string
-		data string
+		name        string
+		data        string
+		targetField string
 	}{
-		{"trail_assets", trailAssetLinkCollectionJSON()},
-		{"waypoint_assets", waypointAssetLinkCollectionJSON()},
-		{"summit_log_assets", summitLogAssetLinkCollectionJSON()},
+		{"trail_assets", trailAssetLinkCollectionJSON(), "trail"},
+		{"waypoint_assets", waypointAssetLinkCollectionJSON(), "waypoint"},
+		{"summit_log_assets", summitLogAssetLinkCollectionJSON(), "summit_log"},
 	}
 
 	for _, tt := range tests {
@@ -91,6 +92,32 @@ func TestAssetLinkRulesSeparateReadAndWriteSharing(t *testing.T) {
 					t.Fatalf("%s %s allows link shares to write: %s", tt.name, field, rule)
 				}
 			}
+
+			updateRule, _ := collection["updateRule"].(string)
+			for _, immutableField := range []string{"asset", tt.targetField} {
+				condition := "@request.body." + immutableField + ":changed = false"
+				if !strings.Contains(updateRule, condition) {
+					t.Fatalf("%s updateRule does not keep %s immutable: %s", tt.name, immutableField, updateRule)
+				}
+			}
+			for _, field := range []string{"createRule", "deleteRule"} {
+				rule, _ := collection[field].(string)
+				if strings.Contains(rule, ":changed") {
+					t.Fatalf("%s %s unexpectedly uses update-only changed checks: %s", tt.name, field, rule)
+				}
+			}
 		})
+	}
+}
+
+func TestExternalAssetIndexIsUniqueOnlyForProviderAssets(t *testing.T) {
+	for _, want := range []string{
+		"CREATE UNIQUE INDEX",
+		"(author, external_provider, external_id, type)",
+		"WHERE external_provider != '' AND external_id != ''",
+	} {
+		if !strings.Contains(assetExternalUniqueIndex, want) {
+			t.Fatalf("assetExternalUniqueIndex does not contain %q: %s", want, assetExternalUniqueIndex)
+		}
 	}
 }

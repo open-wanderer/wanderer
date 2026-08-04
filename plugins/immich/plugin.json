@@ -54,7 +54,7 @@
       "api_key"
     ],
     "downloads": {
-      "maxBytes": 16777216,
+      "maxBytes": 52428800,
       "contentTypes": [
         "application/json",
         "image/jpeg",
