@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Phase 38 context gathered
-last_updated: "2026-08-04T13:50:48.814Z"
-last_activity: 2026-08-03 -- Phase 36 execution started
+stopped_at: Completed 38-01-PLAN.md
+last_updated: "2026-08-04T14:04:54.923Z"
+last_activity: 2026-08-04 -- Phase 38 execution started
 progress:
   total_phases: 4
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 36 — local-first-recording-automatic-upload
+**Current focus:** Phase 38 — downloaded-trails-as-state-not-objects
 
 ## Current Position
 
-Phase: 36 (local-first-recording-automatic-upload) — EXECUTING
-Plan: 2 of 21
+Phase: 38 (downloaded-trails-as-state-not-objects) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-08-03 -- Phase 36 execution started
+Last activity: 2026-08-04 -- Phase 38 execution started
 
 ## v1.8 Phases
 
@@ -171,6 +171,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 36 P18 | 35min | 3 tasks | 7 files |
 | Phase 36 P20 | ~20min | 3 tasks | 3 files |
 | Phase 36 P21 | 15min | 2 tasks | 2 files |
+| Phase 38 P01 | ~20min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -404,6 +405,8 @@ Recent decisions affecting current work:
 - [Phase 36-20]: The CR-02 _localId-ordering gate was left unchanged per the plan's explicit keep-as-is instruction, even though it doesn't literally pair its ordering comparison with a contains()/allMatches() call -- the review judged the gate sufficient and its two presence checks already establish both literals exist before ordering is asserted.
 - [Phase 36-20]: trail_detail_screen_retired_redirect_test.dart's control case substitutes the plan's suggested empty-string fallback with a call-counter proof, after empirically confirming (scratch probe) that an empty serverIdForRetired causes GoRouter to throw rather than render the dead-end text.
 - [Phase 36]: 36-21: Offline pill guard narrowed to isLocal && !isUnsyncedState(trail.syncState), rather than replaced outright -- D-10 guarantees isLocal-unsynced and isLocal-synced partition every local trail — Detail-screen badge must key on sync state, not cache provenance, without regressing the downloaded-trail Offline pill
+- [Phase ?]: [Phase 38] [38-01] Reverted forceOffline entirely rather than adapting it, per D-20/D-21 -- the flag's only job (making Library Delete deterministic) is retired in favor of D-01/D-02's library-membership + authorship model in a later plan
+- [Phase ?]: [Phase 38] [38-01] Regenerated trail_provider.g.dart via build_runner rather than hand-editing; trail_download_state_provider.g.dart's hash also shifted as a side effect of the same project-wide build_runner pass (Phase 27-02 precedent), no logic change
 
 ### Roadmap Evolution
 
@@ -557,9 +560,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-04T12:15:42.028Z
-Stopped at: Phase 38 context gathered
-Resume file: .planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md
+Last session: 2026-08-04T14:04:54.904Z
+Stopped at: Completed 38-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

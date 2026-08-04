@@ -81,20 +81,26 @@ that phase up.
 Derived 2026-08-04 from the Phase 38 success criteria in `.planning/ROADMAP.md` and the decisions
 in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
 
-- [ ] **DL-01**: *Remove download* and *Delete trail* are two separately labelled actions whose
+- [x] **DL-01**: *Remove download* and *Delete trail* are two separately labelled actions whose
   availability derives from library membership and authorship respectively — neither reads
   `Trail.isLocal`. A trail the hiker authored **and** downloaded offers both
+
 - [ ] **DL-02**: Editing always operates on the server copy of a trail; when that copy cannot be
   fetched, the edit is refused with a stated reason rather than silently editing the cached copy
+
 - [ ] **DL-03**: Editing a downloaded trail no longer duplicates its photos on the server, and
   removing a photo in the editor actually removes it
+
 - [ ] **DL-04**: After the hiker's own successful edit, the downloaded copy reflects that edit
   without a re-download
+
 - [ ] **DL-05**: A downloaded trail is never stale while online — its metadata and track are
   refreshed from the response the app already holds, at no additional network cost
+
 - [ ] **DL-06**: Refreshing a stored copy's photos is an explicit *Update* action; nothing
   re-downloads automatically
-- [ ] **DL-07**: DL-01…DL-06 hold with the device offline, with the device online, and when a
+
+- [x] **DL-07**: DL-01…DL-06 hold with the device offline, with the device online, and when a
   request fails mid-view — the third case being the one that produced the original defect report
 
 ---
@@ -171,13 +177,13 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DL-01 | Phase 38 | Pending |
+| DL-01 | Phase 38 | Complete |
 | DL-02 | Phase 38 | Pending |
 | DL-03 | Phase 38 | Pending |
 | DL-04 | Phase 38 | Pending |
 | DL-05 | Phase 38 | Pending |
 | DL-06 | Phase 38 | Pending |
-| DL-07 | Phase 38 | Pending |
+| DL-07 | Phase 38 | Complete |
 
 ---
 *Requirements defined: 2026-07-31*
