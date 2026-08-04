@@ -40,6 +40,10 @@ class TrailQuickFilterBar extends ConsumerWidget {
     return filter.difficulty.length != 3;
   }
 
+  bool _isDistanceActive(TrailFilter filter) {
+    return filter.distanceMin > 0 || filter.distanceMax < filter.distanceLimit;
+  }
+
   bool _isElevationActive(TrailFilter filter) {
     return filter.elevationGainMin > 0 ||
         filter.elevationGainMax < filter.elevationGainLimit ||
@@ -486,7 +490,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              l10n.elevation_gain,
+                              l10n.distance,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             IconButton(
@@ -549,6 +553,92 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                   (f) => f.copyWith(
                                     elevationLossMin: values.start,
                                     elevationLossMax: values.end,
+                                  ),
+                                );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDistanceSheet(
+    BuildContext context,
+    WidgetRef ref,
+    TrailFilter filter,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.3,
+          minChildSize: 0.3,
+          maxChildSize: 0.5,
+          expand: false,
+          builder: (ctx, scrollController) {
+            return Consumer(
+              builder: (context, ref, _) {
+                final filterAsync = ref.watch(trailFilterProvider(filterId));
+                final currentFilter = filterAsync.value ?? filter;
+                final unit = ref.watch(unitProvider);
+                final l10n = AppLocalizations.of(context)!;
+
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              l10n.distance,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: FaIcon(FontAwesomeIcons.xmark, size: 18),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.distance,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        WandererRangeSlider(
+                          values: RangeValues(
+                            currentFilter.distanceMin,
+                            currentFilter.distanceMax,
+                          ),
+                          min: 0,
+                          max: currentFilter.distanceLimit > 0
+                              ? currentFilter.distanceLimit
+                              : 1,
+                          labelsBuilder: (values) => RangeLabels(
+                            formatDistance(values.start, unit: unit),
+                            '${formatDistance(values.end, unit: unit)}${values.end >= currentFilter.distanceLimit ? "+" : ""}',
+                          ),
+                          onChangeEnd: (values) {
+                            ref
+                                .read(trailFilterProvider(filterId).notifier)
+                                .updateFilter(
+                                  (f) => f.copyWith(
+                                    distanceMin: values.start,
+                                    distanceMax: values.end,
                                   ),
                                 );
                           },
@@ -775,6 +865,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
     final categoryActive = filter != null && _isCategoryActive(filter);
     final difficultyActive = filter != null && _isDifficultyActive(filter);
     final elevationActive = filter != null && _isElevationActive(filter);
+    final distanceActive = filter != null && _isDistanceActive(filter);
     final dateActive = filter != null && _isDateActive(filter);
     final completionActive = filter != null && _isCompletionActive(filter);
     final anyActive = filter != null && _isAnyActive(filter);
@@ -814,6 +905,15 @@ class TrailQuickFilterBar extends ConsumerWidget {
                 active: difficultyActive,
                 onPressed: filter != null
                     ? () => _showDifficultySheet(context, ref, filter)
+                    : () {},
+              ),
+              const SizedBox(width: 8),
+              buildChip(
+                label: l10n.distance,
+                icon: Icons.straighten,
+                active: distanceActive,
+                onPressed: filter != null
+                    ? () => _showDistanceSheet(context, ref, filter)
                     : () {},
               ),
               const SizedBox(width: 8),
