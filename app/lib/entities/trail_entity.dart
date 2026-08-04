@@ -353,10 +353,12 @@ extension TrailEntityMapping on TrailEntity {
       // Left at the `Trail.author` default when neither is available.
       author: authorRecordId ?? author.target?.id ?? _unknownAuthorId,
       isLocal: true,
-      // D-10: mutually exclusive by construction — a downloaded row carries
-      // its local file copies in `photos`, an unsynced row carries them in
-      // `localPhotos`. Falling back to `photos` keeps every existing
-      // downloaded-trail reader working unchanged.
+      // A row's own `localPhotos` win when present -- an overlap row's
+      // capture copies are the ones the drain still needs. A plain
+      // downloaded row has an empty `localPhotos`, so the fallback to
+      // `photos` keeps every downloaded-trail reader working. This
+      // expression's correctness never depended on unsynced-ness and
+      // download membership excluding one another.
       localPhotos: localPhotos.isNotEmpty ? localPhotos : photos,
       localId: localId,
       syncState: syncState,

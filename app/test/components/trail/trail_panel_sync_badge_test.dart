@@ -5,6 +5,16 @@
 // surviving green pill onto library membership; Cases D/D2 below now pin
 // that membership-derived behaviour.
 //
+// This suite's fixtures deliberately cover the membership axis (Cases
+// D/D2/E vary `availableOffline` and library membership while holding
+// `syncState: synced`) -- they do NOT construct the overlap state
+// (`availableOffline: true` paired with a non-synced `syncState`, the shape
+// `TrailDownloadService.downloadTrail`'s carry-forward produces). Unsynced-
+// ness and library membership are independent axes, and a row can be both
+// (38.1 D-01); the overlap fixture lives in `trail_dropdown_menu_test.dart`,
+// added by 38.1 plan 05. See
+// .planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md.
+//
 // Why `TrailPanel` IS mountable here, with a `Trail.empty().copyWith(...)`
 // fixture that carries `expand: null`:
 // - `expand: null` => `trail.expand?.gpx == null` => the `TrailMap` /

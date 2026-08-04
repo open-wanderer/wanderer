@@ -200,11 +200,15 @@ class TrailPanel extends ConsumerWidget {
                       // `TrailNotifier.build()` falls back to the cache on
                       // any fetch exception, so gating on it flips with
                       // network conditions: it used to appear when a fetch
-                      // failed and vanish when one succeeded. Phase 36's
-                      // D-03/D-10 guarantee unsynced and downloaded are
-                      // mutually exclusive (a blank-id
-                      // unsynced trail is never a library member), so this
-                      // single badge can never render for one.
+                      // failed and vanish when one succeeded. Unsynced-ness
+                      // and library membership are independent axes and a
+                      // row can be both (38.1 D-01) -- see
+                      // .planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md
+                      // -- which is exactly why this badge is derived from
+                      // membership alone: membership is a fact about this
+                      // account, so the badge stays correct on an overlap
+                      // row instead of depending on a premise that does not
+                      // hold.
                       if (availableOffline) ...[
                         const SizedBox(width: 8),
                         Container(

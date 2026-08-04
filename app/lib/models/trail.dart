@@ -115,13 +115,17 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     /// legible at every call site; every `TrailMap` mount now derives
     /// `offline:` from connectivity instead.
     ///
-    /// Live consumers, all provenance questions: local thumbnail file vs
-    /// network (`trail_card.dart`, `trail_list_item.dart`), the "downloaded"
-    /// badge and the mutually-exclusive "available offline" badge
-    /// (`trail_panel.dart`), hiding the comments/summit-log TabBar for a
-    /// local-only trail (`trail_panel.dart`), and — load-bearing — routing
-    /// delete to `trailLibraryProvider.deleteTrail` (un-download) instead of
-    /// a server delete (`trail_dropdown.dart`).
+    /// The only live consumers are thumbnail-path selection in
+    /// `trail_card.dart` and `trail_list_item.dart` (local file vs network
+    /// image). **Never gate a destructive action, a badge, or tab visibility
+    /// on this flag** — `TrailEntity.toModel()` hardcodes it `true` for
+    /// every cached row (phase 38, D-01), so it cannot distinguish one
+    /// account's own local capture from another account's download.
+    /// Destructive-action *availability* derives from library membership and
+    /// authorship; destructive-action *scoping* derives from `owner`/account
+    /// for local capture state and from `savedByUserIds` membership for a
+    /// download (phase 38.1, D-02). See
+    /// `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`.
     @Default(false) bool isLocal,
     @Default([]) List<String> localPhotos,
 
