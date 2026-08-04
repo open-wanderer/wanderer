@@ -770,12 +770,15 @@ fate (repurpose as a display-source preference, or retire) is in scope here.
   offline use" is a *toggle on the Tour*, and switching it off "removes the tour data from your
   device while keeping the tour in your komoot account." There is no "source" to navigate to
   because the user never left it. (support.komoot.com)
+
 - **AllTrails** — reserves the word **"Remove"** exclusively for downloads, behind a two-step
   confirm on a separate Downloads tab; unsaving a list item is a different flow. Editing is
   online-gated for everyone (web for all tiers, mobile Peak-only, still requires connectivity).
   (support.alltrails.com)
+
 - **Gaia GPS** — deleting *synced* data archives it server-side; only unsynced deletes are
   unrecoverable. (help.gaiagps.com)
+
 - **Not found in any official doc for any app**: a staleness/"update available" affordance, or a
   "view online" affordance. Refresh is user-initiated re-download everywhere. Recorded because it
   killed two candidate designs, and because absence of evidence was confirmed rather than assumed.
@@ -785,11 +788,14 @@ fate (repurpose as a display-source preference, or retire) is in scope here.
   1. *Remove download* and *Delete trail* are two separately labelled menu items whose visibility
      is derived from **library membership** and **authorship** respectively — neither reads
      `Trail.isLocal`. A trail the hiker authored and downloaded shows both.
+
   2. Editing a trail whose server copy is not in hand is refused with a stated reason, rather
      than silently editing the cached copy.
+
   3. Editing a downloaded trail no longer duplicates its photos on the server (see bug 1).
   4. After the hiker's own successful edit, the downloaded copy reflects that edit without a
      re-download (see bug 2).
+
   5. Refreshing a download is an explicit *Update* action. No automatic re-download.
   6. Every one of the above holds with the device offline, with the device online, and with a
      request that times out mid-view — the third case being the one that produced the original
@@ -835,6 +841,7 @@ preserves real server ids so the waypoint diff finds no spurious additions.
 - **"Go to source" menu item** — proposed, then dropped. It bridges a gap that only exists
   because the Library is modelled as separate objects; adopting komoot's single-object model
   removes the gap instead of spanning it, and disposes of the naming problem with it.
+
 - **A staleness badge / "update available"** — no researched app does this, it needs the server
   copy fetched before it can compare `updated` timestamps, and it adds a UI state to earn little.
 
@@ -848,14 +855,20 @@ and the fate of the `forceOffline` flag.
 (Answered by `38-CONTEXT.md`: dedicated "Remove" vocabulary with a new non-permanence confirm body
 D-04/D-06; *Update* replaces the inert item as one of two flat menu items D-08; `forceOffline` is
 retired entirely D-20.)
-
 Plans:
+**Wave 1**
 
 - [ ] 38-01-PLAN.md — Retire the `forceOffline` flag (D-20/D-21) across 9 lib files + codegen
 - [ ] 38-02-PLAN.md — Mint `remove_download_confirm_body` and `edit_needs_connection`; register both in the translation backlog
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 38-03-PLAN.md — `applyServerTrailToLibraryRow` + `fetchServerTrail`: the free stored-row refresh (D-13/D-14) and the network-only fetch seam
 - [ ] 38-04-PLAN.md — One membership-derived offline badge (D-10) + Remove-download vocabulary in the Library
 - [ ] 38-05-PLAN.md — Menu shape: *Update* / *Remove download* / authorship-only *Delete* (D-01/D-02/D-04/D-08)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 38-06-PLAN.md — Edit fetches the server copy or refuses (D-15/D-17/D-18) + menu widget tests + device pass
 
 Waves: 1 = {38-01, 38-02} · 2 = {38-03, 38-04, 38-05} · 3 = {38-06}
