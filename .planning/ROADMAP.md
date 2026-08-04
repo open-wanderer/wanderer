@@ -796,7 +796,7 @@ Plans:
 - [x] 38.1-03-PLAN.md — Account-scope unsynced photo storage and gate deleteUnsynced on the row
   match (CR-01 store half, D-05/D-06/D-07)
 
-- [ ] 38.1-04-PLAN.md — TrailLibraryNotifier.deleteTrail refuses to remove a live capture row
+- [x] 38.1-04-PLAN.md — TrailLibraryNotifier.deleteTrail refuses to remove a live capture row
   (CR-03 store half, D-11/D-12)
 
 - [ ] 38.1-05-PLAN.md — Owner-scoped delete gate and download-family guard on both surfaces, plus
