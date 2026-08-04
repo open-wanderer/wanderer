@@ -183,20 +183,22 @@ void main() {
     );
   });
 
-  test('trail_dropdown hides the download menu item for an unsynced trail '
-      '(if (!isUnsynced) collection-if)', () {
+  test('trail_dropdown hides the download family behind showDownloadFamily, '
+      'never a bare syncState read (if (showDownloadFamily) collection-if)', () {
     final source = File(
       'lib/components/trail/trail_dropdown.dart',
     ).readAsStringSync();
 
-    final guardIdx = source.indexOf('if (!isUnsynced) ...[');
+    final guardIdx = source.indexOf('if (showDownloadFamily) ...[');
     expect(
       guardIdx,
       isNot(-1),
       reason:
-          'The download menu item is no longer gated behind '
-          "if (!isUnsynced) -- offering download for an unsynced trail "
-          "issues a server fetch with an empty trail id (D-17).",
+          'The download family is no longer gated behind '
+          'if (showDownloadFamily) -- a destructive/safe-action gate in '
+          'this file must never be decided by syncState read off the '
+          'shared cache row (D-02/D-12). Offering Download for an unsynced '
+          'trail also issues a server fetch with an empty trail id (D-17).',
     );
 
     final downloadIdx = source.indexOf('value: TrailAction.download', guardIdx);
@@ -204,6 +206,43 @@ void main() {
       downloadIdx,
       isNot(-1),
       reason: 'Could not find the download PopupMenuItem after the guard.',
+    );
+
+    expect(
+      source.contains('ref.watch(ownLiveCaptureProvider('),
+      isTrue,
+      reason:
+          'showDownloadFamily and the delete gate must both derive from '
+          'ownLiveCaptureProvider (D-12: exactly one predicate serving '
+          'both surfaces), not a re-derived local.',
+    );
+
+    final allowDeleteStart = source.indexOf(
+      'bool _allowDelete(WidgetRef ref, {required bool isOwnLiveCapture})',
+    );
+    expect(
+      allowDeleteStart,
+      isNot(-1),
+      reason:
+          '_allowDelete must take isOwnLiveCapture -- the owner-scoped '
+          'escape hatch is now resolved by the caller via '
+          'ownLiveCaptureProvider, not by a bare syncState read inside '
+          '_allowDelete itself.',
+    );
+    final allowDeleteBodyEnd = source.indexOf('\n  }', allowDeleteStart);
+    expect(allowDeleteBodyEnd, isNot(-1));
+    final allowDeleteBody = source.substring(
+      allowDeleteStart,
+      allowDeleteBodyEnd,
+    );
+    expect(
+      allowDeleteBody.contains('isUnsyncedState('),
+      isFalse,
+      reason:
+          '_allowDelete must never re-derive its escape hatch from '
+          'isUnsyncedState(trail.syncState) -- that is exactly the CR-01 '
+          'bug (a destructive gate decided by a field read off the shared '
+          'cache row, with no ownership check at all).',
     );
   });
 

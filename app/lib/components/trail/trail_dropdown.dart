@@ -56,15 +56,57 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final trail = widget.trail;
     final l18n = AppLocalizations.of(context)!;
 
-    // D-01: destructive-action availability below derives from library
-    // membership (`widget.availableOffline`) and authorship, never from a
-    // cached-provenance flag on the model -- that flag drifts with network
-    // conditions (see `_allowDelete`). `isUnsynced` is a different,
-    // load-bearing signal: it distinguishes "on the device only, never
-    // reached the server" from "downloaded from the server", and Phase 36's
-    // D-10 guarantees it is mutually exclusive with `availableOffline` by
-    // construction.
-    final isUnsynced = isUnsyncedState(trail.syncState);
+    // D-01/D-02 (38.1): destructive-action AVAILABILITY still derives from
+    // library membership (`widget.availableOffline`) and authorship, never
+    // from a cached-provenance flag on the model -- that flag drifts with
+    // network conditions (see `_allowDelete`). Destructive-action SCOPING,
+    // one layer down, derives from the identity the action actually
+    // destroys: for local capture state that is `owner`/account, resolved
+    // by `ownLiveCaptureProvider` against the ROW, never by `syncState` read
+    // off the shared cache row (`TrailNotifier._readCached` is scoped only
+    // by `savedByUserIds`, so this model can carry another account's
+    // `localId` and `syncState`).
+    //
+    // Phase 36's D-10 -- which claimed unsynced-ness and downloaded-ness
+    // could never both hold for the same row, by construction -- is
+    // RETRACTED. A row can be both a live capture and a library member
+    // indefinitely: Phase 36's D-07 parks a repeatedly-failing upload in
+    // `failed` state with no scheduled retry, so the overlap window is
+    // unbounded, not a brief race. See
+    // `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`.
+    //
+    // The watch below is unconditional: `ownLiveCaptureProvider` accepts a
+    // null/absent local id and returns `false` for it, so every build reads
+    // it, not just unsynced ones.
+    final isOwnLiveCapture = ref.watch(ownLiveCaptureProvider(trail.localId));
+
+    // D-12/D-13/D-17: the download family (Download / Update / Remove
+    // download) is shown to any library member EXCEPT the account whose own
+    // live capture this row is -- for your own not-yet-uploaded capture
+    // there is nothing meaningful to download or un-download, and unlike
+    // Edit, waiting for connectivity never makes it available. This is what
+    // closes the CR-01 half where the safe action (Remove download) was
+    // hidden from a legitimate library member in the overlap state while
+    // the destructive action (Delete) was offered.
+    //
+    // `trailHasServerId(trail.id)` preserves D-17's original, still-valid
+    // reason for hiding *Download*: offering it for a row with a blank id
+    // (D-06 blanks a local-sentinel id) would fetch from the server with an
+    // empty trail id. Without this term, a null `currentAccountId` making
+    // `isOwnLiveCapture` resolve to `false` could surface a Download item
+    // pointing at nothing, and the `PopupMenuDivider` would otherwise render
+    // with no items behind it.
+    //
+    // Accepted consequence (not worked around): a hiker who downloaded
+    // their OWN trail while its upload was still in flight does not see
+    // *Remove download* for it, because `isOwnLiveCapture` is true for them.
+    // That follows directly from D-13 and costs nothing -- after 38.1 plan
+    // 04 the store keeps that row on removal anyway, and the trail remains
+    // in their own-trails list.
+    final showDownloadItem =
+        !widget.availableOffline && trailHasServerId(trail.id);
+    final showDownloadFamily =
+        !isOwnLiveCapture && (widget.availableOffline || showDownloadItem);
 
     final isDownloading = ref
         .watch(downloadingTrailIdsProvider)
@@ -142,8 +184,12 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             onTap: () async {
               // Unsynced: no server copy exists to fetch, and
               // `trailProvider('')` would be a meaningless family instance,
-              // so the local model is the only one there is.
-              if (isUnsynced) {
+              // so the local model is the only one there is. This is a
+              // ROUTING decision (which model to hand the editor), not a
+              // destructive-action gate, so it stays read directly off
+              // `trail.syncState` -- D-02's scoping rule governs destructive
+              // actions, not this.
+              if (isUnsyncedState(trail.syncState)) {
                 await context.push('/trail/create/edit', extra: trail);
                 final localId = trail.localId;
                 if (localId != null) {
@@ -199,11 +245,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             ),
           ),
         ],
-        // D-17: hidden entirely (not disabled) for an unsynced trail. This
-        // file has no tooltip-on-disabled convention, so a disabled item
-        // with no explanation reads as broken -- and offering it at all
-        // would fetch from the server with an empty trail id.
-        if (!isUnsynced) ...[
+        // D-12/D-13/D-17: hidden entirely (not disabled) when
+        // `showDownloadFamily` is false -- see the comment above where it is
+        // computed. This file has no tooltip-on-disabled convention, so a
+        // disabled item with no explanation reads as broken.
+        if (showDownloadFamily) ...[
           const PopupMenuDivider(),
           if (widget.availableOffline) ...[
             // D-08: the old single inert "Available offline" item becomes
@@ -288,7 +334,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             ),
           ],
         ],
-        if (_allowDelete(ref)) ...[
+        if (_allowDelete(ref, isOwnLiveCapture: isOwnLiveCapture)) ...[
           const PopupMenuDivider(),
           PopupMenuItem<TrailAction>(
             value: TrailAction.delete,
@@ -369,20 +415,26 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             false);
   }
 
-  /// D-01: derives from authorship alone -- deliberately NOT from the
-  /// trail's local/cached provenance, which drifts with network conditions
-  /// (`TrailEntity.toModel()` hardcodes a provenance flag `true` for every
-  /// cached row, and `TrailNotifier.build()` falls back to the cache on ANY
-  /// fetch exception, so one timeout used to arm this gate unconditionally).
-  bool _allowDelete(WidgetRef ref) {
+  /// D-04 (38.1): the escape hatch is now gated on THIS account owning the
+  /// local row, resolved through `ownLiveCaptureProvider` -> `build()`'s
+  /// `isOwnLiveCapture` -> an owner-scoped ObjectBox query
+  /// (`isOwnLiveCapture` in `local_trail_store.dart`) that consults the
+  /// row's own `owner` and `syncState` and never calls `toModel()`.
+  ///
+  /// This closes CR-01: `TrailNotifier._readCached` is scoped only by
+  /// `savedByUserIds`, so account B could be handed a model carrying
+  /// account A's `localId` and `failed` `syncState`, and the old bare
+  /// `isUnsyncedState` branch armed Delete for them with no authorship
+  /// check at all.
+  bool _allowDelete(WidgetRef ref, {required bool isOwnLiveCapture}) {
     // Load-bearing escape hatch, checked first: an unsynced capture is the
     // only copy on earth, and its `author` can be the `Trail.author`
     // placeholder rather than a real actor id, so an authorship-only gate
     // would silently strip the hiker's ability to delete their own
-    // recording. Phase 36's D-10 guarantees unsynced and downloaded are
-    // mutually exclusive by construction, so this branch can never swallow
-    // a downloaded trail.
-    if (isUnsyncedState(widget.trail.syncState)) {
+    // recording. D-04 keeps this hatch rather than dropping it, but scopes
+    // it to THIS account's own row via `isOwnLiveCapture` -- it can no
+    // longer fire for a row this account merely downloaded.
+    if (isOwnLiveCapture) {
       return true;
     }
 
