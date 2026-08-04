@@ -57,7 +57,7 @@ final class DownloadingTrailIdsProvider
 }
 
 String _$downloadingTrailIdsHash() =>
-    r'08090211780b2b568121b81829f50943b9535860';
+    r'5c5e179ab666d76b3345beb68bf727c8787a04e8';
 
 /// Trail ids currently being downloaded, shared across every download entry
 /// point (detail screen button, dropdown menu item) so starting a download

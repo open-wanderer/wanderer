@@ -16,7 +16,7 @@ final class TrailNotifierProvider
     extends $AsyncNotifierProvider<TrailNotifier, Trail> {
   TrailNotifierProvider._({
     required TrailNotifierFamily super.from,
-    required (String, {bool forceOffline}) super.argument,
+    required String super.argument,
   }) : super(
          retry: null,
          name: r'trailProvider',
@@ -32,7 +32,7 @@ final class TrailNotifierProvider
   String toString() {
     return r'trailProvider'
         ''
-        '$argument';
+        '($argument)';
   }
 
   @$internal
@@ -50,7 +50,7 @@ final class TrailNotifierProvider
   }
 }
 
-String _$trailNotifierHash() => r'c1e943c9b3d36cc008e013bfea1fd88f0090ee40';
+String _$trailNotifierHash() => r'799a94070052261cd51973753166159544e4e1ea';
 
 final class TrailNotifierFamily extends $Family
     with
@@ -59,7 +59,7 @@ final class TrailNotifierFamily extends $Family
           AsyncValue<Trail>,
           Trail,
           FutureOr<Trail>,
-          (String, {bool forceOffline})
+          String
         > {
   TrailNotifierFamily._()
     : super(
@@ -70,22 +70,18 @@ final class TrailNotifierFamily extends $Family
         isAutoDispose: true,
       );
 
-  TrailNotifierProvider call(String id, {bool forceOffline = false}) =>
-      TrailNotifierProvider._(
-        argument: (id, forceOffline: forceOffline),
-        from: this,
-      );
+  TrailNotifierProvider call(String id) =>
+      TrailNotifierProvider._(argument: id, from: this);
 
   @override
   String toString() => r'trailProvider';
 }
 
 abstract class _$TrailNotifier extends $AsyncNotifier<Trail> {
-  late final _$args = ref.$arg as (String, {bool forceOffline});
-  String get id => _$args.$1;
-  bool get forceOffline => _$args.forceOffline;
+  late final _$args = ref.$arg as String;
+  String get id => _$args;
 
-  FutureOr<Trail> build(String id, {bool forceOffline = false});
+  FutureOr<Trail> build(String id);
   @$mustCallSuper
   @override
   void runBuild() {
@@ -98,9 +94,6 @@ abstract class _$TrailNotifier extends $AsyncNotifier<Trail> {
               Object?,
               Object?
             >;
-    element.handleCreate(
-      ref,
-      () => build(_$args.$1, forceOffline: _$args.forceOffline),
-    );
+    element.handleCreate(ref, () => build(_$args));
   }
 }

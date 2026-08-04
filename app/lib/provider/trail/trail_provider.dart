@@ -13,23 +13,11 @@ part 'trail_provider.g.dart';
 
 @riverpod
 class TrailNotifier extends _$TrailNotifier {
-  /// [forceOffline] makes the downloaded copy the PREFERRED source instead of
-  /// the last resort. Without it, a trail opened from the library resolves to
-  /// the server copy whenever the device happens to be online, and the delete
-  /// action -- which decides "un-download" vs. "delete on the server" from
-  /// `Trail.isLocal` -- then destroys the trail on the server when the user
-  /// only meant to remove the download.
-  ///
-  /// The network is still the fallback: a library row can disappear (another
-  /// account gave it up, or the cached GPX no longer parses) and a dead end is
-  /// worse than an online copy.
+  /// D-22: online always fetches; the ObjectBox row is the offline fallback
+  /// only (see the `catch` block below). Do not reintroduce a family-key flag
+  /// for display source -- see D-21 for why that broke every consumer.
   @override
-  FutureOr<Trail> build(String id, {bool forceOffline = false}) async {
-    if (forceOffline) {
-      final cached = _readCached(id);
-      if (cached != null) return cached;
-    }
-
+  FutureOr<Trail> build(String id) async {
     final api = ref.watch(apiProvider);
 
     try {
