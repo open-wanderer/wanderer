@@ -554,4 +554,67 @@ void main() {
       expect(outcome.syncNextAttemptAt, now.add(const Duration(minutes: 5)));
     });
   });
+
+  group('isLiveCaptureRow', () {
+    TrailEntity buildEntity({
+      String? owner,
+      String? localId,
+      required TrailSyncState syncState,
+    }) {
+      final entity = TrailEntity(
+        id: 'server-id',
+        name: 'Test Trail',
+        created: DateTime(2026, 1, 1),
+        updated: DateTime(2026, 1, 1),
+        owner: owner,
+        localId: localId,
+        syncState: syncState,
+      );
+      return entity;
+    }
+
+    test('returns false for a plain downloaded row (owner: null, localId: '
+        'null, syncState: synced)', () {
+      final entity = buildEntity(
+        owner: null,
+        localId: null,
+        syncState: TrailSyncState.synced,
+      );
+
+      expect(isLiveCaptureRow(entity), isFalse);
+    });
+
+    test('returns true for a downloaded row that also carries another '
+        "account's carry-forward -- the CR-01/CR-03 overlap row "
+        '(TrailDownloadService.downloadTrail\'s shape)', () {
+      final entity = buildEntity(
+        owner: 'account-a',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.failed,
+      );
+
+      expect(isLiveCaptureRow(entity), isTrue);
+    });
+
+    test('returns false for an owned, synced row', () {
+      final entity = buildEntity(
+        owner: 'account-a',
+        localId: 'local-1-0',
+        syncState: TrailSyncState.synced,
+      );
+
+      expect(isLiveCaptureRow(entity), isFalse);
+    });
+
+    test('returns false when owner is null even with a non-null localId and '
+        'a pending syncState', () {
+      final entity = buildEntity(
+        owner: null,
+        localId: 'local-1-0',
+        syncState: TrailSyncState.pending,
+      );
+
+      expect(isLiveCaptureRow(entity), isFalse);
+    });
+  });
 }

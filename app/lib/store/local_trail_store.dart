@@ -949,6 +949,58 @@ String? readLocalTrailServerId(
   return isLocalId(entity.id) ? null : entity.id;
 }
 
+/// The single owner-scoped live-capture predicate (D-04/D-12/38.1).
+///
+/// True when [entity] is some account's not-yet-uploaded capture. This is
+/// the ONE rule; everything else this phase adds ([isOwnLiveCapture],
+/// `ownLiveCaptureProvider`) is a scoping wrapper around it -- D-12
+/// requires exactly one predicate, never two. A row satisfying this
+/// predicate is some account's not-yet-uploaded capture, and its
+/// [TrailEntity] row is the only handle `selectDrainCandidates` has on it,
+/// so removing the row destroys the recording permanently (CR-03).
+///
+/// `entity.owner != null` is load-bearing: [TrailEntity.fromModel] (the
+/// download path) never sets `owner`, so a plain downloaded row has
+/// `owner == null` and must never satisfy this predicate.
+bool isLiveCaptureRow(TrailEntity entity) {
+  return entity.localId != null &&
+      entity.owner != null &&
+      isUnsyncedState(entity.syncState);
+}
+
+/// [isLiveCaptureRow], scoped to the row identified by [localId] and owned
+/// by [accountId].
+///
+/// Returns `false` immediately when [localId] is null or fails
+/// [isLocalId]. Otherwise builds the same owner-scoped query
+/// [readOwnLocalTrail] builds and evaluates [isLiveCaptureRow] against the
+/// raw row -- deliberately NOT via `entity.toModel()`, for the same reason
+/// [readLocalTrailServerId] avoids it (CR-02, phase 36): a
+/// destructive-action gate must not silently flip because the row's cached
+/// GPX stopped parsing. This function consults the ROW's own `syncState`
+/// and `owner`, never the caller's `Trail` model, because the shared cache
+/// row can carry another account's `localId` and non-synced `syncState`
+/// indefinitely (38.1 D-01/D-02; see
+/// `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`).
+bool isOwnLiveCapture(
+  Store store, {
+  required String? localId,
+  required String accountId,
+}) {
+  if (localId == null || !isLocalId(localId)) return false;
+
+  final query = store
+      .box<TrailEntity>()
+      .query(
+        TrailEntity_.localId.equals(localId) &
+            TrailEntity_.owner.equals(accountId),
+      )
+      .build();
+  final entity = query.findFirst();
+  query.close();
+  return entity != null && isLiveCaptureRow(entity);
+}
+
 /// Every trail [accountId] can see in its own-trails list: trails it
 /// captured on this device (not yet uploaded, or uploaded already, or
 /// downloaded), plus any downloaded trail it happens to have authored

@@ -33,3 +33,23 @@ Trail? localTrail(Ref ref, String localId) {
 
   return readOwnLocalTrail(store, localId: localId, accountId: accountId);
 }
+
+/// Whether [localId] identifies a live, not-yet-uploaded capture owned by
+/// the signed-in account.
+///
+/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
+/// download-family guard, and `library_screen.dart`'s Remove tile -- and
+/// D-12 requires there be exactly one predicate serving both, never two.
+///
+/// [localId] is nullable on purpose so both call sites can watch this
+/// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
+/// rather than writing a conditional `ref.watch`.
+@riverpod
+bool ownLiveCapture(Ref ref, String? localId) {
+  final store = ref.watch(objectBoxProvider);
+  final accountId = currentAccountId(store);
+  if (accountId == null) return false;
+
+  return isOwnLiveCapture(store, localId: localId, accountId: accountId);
+}

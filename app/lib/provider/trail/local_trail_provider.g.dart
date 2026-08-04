@@ -168,3 +168,138 @@ final class LocalTrailFamily extends $Family
   @override
   String toString() => r'localTrailProvider';
 }
+
+/// Whether [localId] identifies a live, not-yet-uploaded capture owned by
+/// the signed-in account.
+///
+/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
+/// download-family guard, and `library_screen.dart`'s Remove tile -- and
+/// D-12 requires there be exactly one predicate serving both, never two.
+///
+/// [localId] is nullable on purpose so both call sites can watch this
+/// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
+/// rather than writing a conditional `ref.watch`.
+
+@ProviderFor(ownLiveCapture)
+final ownLiveCaptureProvider = OwnLiveCaptureFamily._();
+
+/// Whether [localId] identifies a live, not-yet-uploaded capture owned by
+/// the signed-in account.
+///
+/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
+/// download-family guard, and `library_screen.dart`'s Remove tile -- and
+/// D-12 requires there be exactly one predicate serving both, never two.
+///
+/// [localId] is nullable on purpose so both call sites can watch this
+/// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
+/// rather than writing a conditional `ref.watch`.
+
+final class OwnLiveCaptureProvider extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
+  /// the signed-in account.
+  ///
+  /// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+  /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
+  /// download-family guard, and `library_screen.dart`'s Remove tile -- and
+  /// D-12 requires there be exactly one predicate serving both, never two.
+  ///
+  /// [localId] is nullable on purpose so both call sites can watch this
+  /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
+  /// rather than writing a conditional `ref.watch`.
+  OwnLiveCaptureProvider._({
+    required OwnLiveCaptureFamily super.from,
+    required String? super.argument,
+  }) : super(
+         retry: null,
+         name: r'ownLiveCaptureProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$ownLiveCaptureHash();
+
+  @override
+  String toString() {
+    return r'ownLiveCaptureProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    final argument = this.argument as String?;
+    return ownLiveCapture(ref, argument);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is OwnLiveCaptureProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$ownLiveCaptureHash() => r'031de3045552e1a668e534cb9572a51322b1ee46';
+
+/// Whether [localId] identifies a live, not-yet-uploaded capture owned by
+/// the signed-in account.
+///
+/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
+/// download-family guard, and `library_screen.dart`'s Remove tile -- and
+/// D-12 requires there be exactly one predicate serving both, never two.
+///
+/// [localId] is nullable on purpose so both call sites can watch this
+/// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
+/// rather than writing a conditional `ref.watch`.
+
+final class OwnLiveCaptureFamily extends $Family
+    with $FunctionalFamilyOverride<bool, String?> {
+  OwnLiveCaptureFamily._()
+    : super(
+        retry: null,
+        name: r'ownLiveCaptureProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
+  /// the signed-in account.
+  ///
+  /// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+  /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
+  /// download-family guard, and `library_screen.dart`'s Remove tile -- and
+  /// D-12 requires there be exactly one predicate serving both, never two.
+  ///
+  /// [localId] is nullable on purpose so both call sites can watch this
+  /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
+  /// rather than writing a conditional `ref.watch`.
+
+  OwnLiveCaptureProvider call(String? localId) =>
+      OwnLiveCaptureProvider._(argument: localId, from: this);
+
+  @override
+  String toString() => r'ownLiveCaptureProvider';
+}
