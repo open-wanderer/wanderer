@@ -757,11 +757,13 @@ plan-checker and the orchestrator cleared `_allowDelete`'s `isUnsyncedState` esc
   radii — this needs a decision, not an auto-fix:** account-scope the unsynced photo directory, or
   drop the `isUnsyncedState` escape hatch and accept that a placeholder-author unsynced capture
   needs a different delete route.
+
 - **CR-02 — waypoint pruning from a known-incomplete list.** `applyServerTrailToLibraryRow` prunes
   `WaypointEntity` rows absent from `trail.expand.waypointsViaTrail`, but the D-13 trigger feeds it
   `result.trail`, whose `finalWaypoints` (`trail_save_provider.dart:150-191`) omits every waypoint
   whose create/update threw. One failed waypoint PATCH silently deletes a still-live waypoint from
   the offline copy. Sibling `applyNetworkEditToLocalRow` avoids waypoints entirely for this reason.
+
 - **CR-03 — "Remove download" can destroy a capture.** Both new dialogs promise "the trail itself
   is not deleted", then call `TrailLibraryNotifier.deleteTrail`, which does an unscoped
   `box.remove(entity.obxId)` when this is the last library member. On an overlap row that is the
@@ -773,24 +775,30 @@ plan-checker and the orchestrator cleared `_allowDelete`'s `isUnsyncedState` esc
 - **WR-07** — `LibraryDetailScreen` appears unreachable (`/library/:id` is never pushed;
   `grep -rn "'/library" app/lib` confirms). Part of 38-04 Task 2 landed on it. Either wire it up or
   delete it; do not leave a `firstWhere` with no `orElse` in dead code.
+
 - **WR-08** — `Trail.isLocal`'s doc comment still names the three consumers Phase 38 deleted as
   "load-bearing", inviting reintroduction. Correct it.
+
 - **WR-12** — neither new test suite constructs `availableOffline: true` with a non-synced
   `syncState`, so they structurally cannot fail when the D-10 premise breaks. Add that fixture.
+
 - **Correct Phase 36's D-10 in place** so the false premise stops propagating.
 
 **UI hint**: no — this is state/scoping correctness, not visual work.
-
 Plans:
 
 - [ ] 38.1-01-PLAN.md — Delete the unreachable LibraryDetailScreen and route; correct every doc
   comment carrying the retracted premise (WR-07, WR-08, D-18)
+
 - [ ] 38.1-02-PLAN.md — Store foundation: the single owner-scoped live-capture predicate, a
   bool-returning deleteLocalTrailRow, and waypointsAreAuthoritative (CR-02, D-04/D-07/D-08/D-09)
+
 - [ ] 38.1-03-PLAN.md — Account-scope unsynced photo storage and gate deleteUnsynced on the row
   match (CR-01 store half, D-05/D-06/D-07)
+
 - [ ] 38.1-04-PLAN.md — TrailLibraryNotifier.deleteTrail refuses to remove a live capture row
   (CR-03 store half, D-11/D-12)
+
 - [ ] 38.1-05-PLAN.md — Owner-scoped delete gate and download-family guard on both surfaces, plus
   the D-17 overlap fixture (CR-01/CR-03 UI halves, WR-12, D-13/D-14/D-17)
 
