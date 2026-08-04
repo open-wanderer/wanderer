@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
@@ -7,9 +8,61 @@ import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 
 part 'trail_provider.g.dart';
+
+/// Fetches trail [id] from the server, network-only.
+///
+/// Extracted out of `TrailNotifier.build` so plan 38-06's edit flow (D-15)
+/// has a seam that CANNOT serve a cached model: this function never reads
+/// ObjectBox and never falls back to the stored copy, unlike `build`, which
+/// wraps this call in its own `try`/`catch` and falls back to the offline
+/// cache on failure (D-22). Throws on any failure -- the caller decides what
+/// "no server trail" means for its own flow.
+Future<Trail> fetchServerTrail(Dio api, String id) async {
+  final response = await api.get(
+    "/trail/$id",
+    queryParameters: {
+      "expand":
+          "category,waypoints_via_trail,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+    },
+  );
+
+  if (response.data == null) {
+    throw Exception("No trail data received from server");
+  }
+
+  var trail = Trail.fromJson(response.data);
+
+  if (trail.gpx != null && trail.gpx!.isNotEmpty) {
+    final gpxResponse = await api.get("/files/trails/$id/${trail.gpx}");
+
+    if (gpxResponse.data == null) {
+      throw Exception("No gpx data received from server");
+    }
+
+    // parseGpxSafely, not a bare GpxReader: this GPX came off the server
+    // and was authored by any user on the instance (or federated in), so
+    // it needs the full sanitize chain. Parsing it directly used to throw
+    // FormatException on tags package:gpx parses with the throwing
+    // double.parse/int.parse (<hdop></hdop>, <sat></sat>, <pdop>N/A</pdop>
+    // and friends) — and a broad `catch` around this call would swallow it
+    // and silently degrade to the offline cache, showing a stale trail with
+    // no indication why.
+    final parsedGpx = parseGpxSafely(gpxResponse.data as String);
+
+    trail = trail.copyWith(
+      expand: (trail.expand ?? const TrailExpand()).copyWith(
+        gpx: parsedGpx,
+        gpxData: gpxResponse.data,
+      ),
+    );
+  }
+
+  return trail;
+}
 
 @riverpod
 class TrailNotifier extends _$TrailNotifier {
@@ -21,50 +74,40 @@ class TrailNotifier extends _$TrailNotifier {
     final api = ref.watch(apiProvider);
 
     try {
-      final response = await api.get(
-        "/trail/$id",
-        queryParameters: {
-          "expand":
-              "category,waypoints_via_trail,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
-        },
-      );
+      final trail = await fetchServerTrail(api, id);
 
-      if (response.data == null) {
-        throw Exception("No trail data received from server");
-      }
-
-      var trail = Trail.fromJson(response.data);
-
-      if (trail.gpx != null && trail.gpx!.isNotEmpty) {
-        final gpxResponse = await api.get("/files/trails/$id/${trail.gpx}");
-
-        if (gpxResponse.data == null) {
-          throw Exception("No gpx data received from server");
-        }
-
-        // parseGpxSafely, not a bare GpxReader: this GPX came off the server
-        // and was authored by any user on the instance (or federated in), so
-        // it needs the full sanitize chain. Parsing it directly used to throw
-        // FormatException on tags package:gpx parses with the throwing
-        // double.parse/int.parse (<hdop></hdop>, <sat></sat>, <pdop>N/A</pdop>
-        // and friends) — and the broad `catch (_)` below would swallow it and
-        // silently degrade to the offline cache, showing a stale trail with no
-        // indication why.
-        final parsedGpx = parseGpxSafely(gpxResponse.data as String);
-
-        trail = trail.copyWith(
-          expand: (trail.expand ?? const TrailExpand()).copyWith(
-            gpx: parsedGpx,
-            gpxData: gpxResponse.data,
-          ),
-        );
-      }
+      // D-14/D-23: the record and the GPX are both already in hand at this
+      // point, so writing them into a downloaded row costs zero additional
+      // network traffic. Photos are deliberately not refreshed here (D-14a)
+      // -- that stays the explicit *Update* action's job (D-12a).
+      _refreshLibraryRow(trail);
 
       return trail;
     } catch (_) {
       final cached = _readCached(id);
       if (cached != null) return cached;
       rethrow;
+    }
+  }
+
+  /// D-14's trigger: opportunistically refreshes [trail]'s downloaded
+  /// library row, if this account has one.
+  ///
+  /// Its own `try`/`catch` is not optional defensiveness -- this call sits
+  /// INSIDE `build`'s `try`, so an escaping exception would be caught by the
+  /// `catch (_)` above and silently downgrade a perfectly good server
+  /// response to the stale cached copy, the exact inversion this phase
+  /// exists to eliminate.
+  void _refreshLibraryRow(Trail trail) {
+    try {
+      final store = ref.read(objectBoxProvider);
+      final accountId = currentAccountId(store);
+      if (accountId == null) return;
+      applyServerTrailToLibraryRow(store, accountId: accountId, trail: trail);
+    } catch (e) {
+      debugPrint(
+        'TrailNotifier: _refreshLibraryRow failed for "${trail.id}": $e',
+      );
     }
   }
 
