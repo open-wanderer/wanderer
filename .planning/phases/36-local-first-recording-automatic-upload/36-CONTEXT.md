@@ -74,11 +74,35 @@ queuing non-GPX imports for later transcoding (REC-F01), any change to what `/tr
 - **D-09:** The badge answers **only** "is this on the server yet". It does **not** encode how the
   trail was captured. Recorded and imported trails are indistinguishable in the list — one axis
   per badge, the same discipline the `isOffline` → `isLocal` rename restored.
-- **D-10:** **Unsynced and downloaded are mutually exclusive by construction**, so the two badges
-  can never collide. `savedByUserIds` is written only by `TrailDownloadService` and downloading
-  pulls from the server, so a trail with no server copy cannot be downloaded. **Consequence:
-  unsynced trails must NOT be expressed by adding the user to `savedByUserIds`** — doing so would
-  make them indistinguishable from downloads and show the wrong badge.
+- **D-10 (RETRACTED 2026-08-04):** ~~Unsynced and downloaded are mutually exclusive by
+  construction, so the two badges can never collide. `savedByUserIds` is written only by
+  `TrailDownloadService` and downloading pulls from the server, so a trail with no server copy
+  cannot be downloaded.~~ **This premise is false.** `TrailDownloadService.downloadTrail`
+  (`app/lib/services/trail_download_service.dart:210-215`) carries `owner`, `localId`,
+  `syncState`, `syncAttempts` and `syncNextAttemptAt` forward when it writes into an existing row,
+  and `TrailEntity.id` is `@Unique(onConflict: replace)`, so both writers target one row — a row
+  can be both unsynced and a library member at once. This phase's own **D-07** (a repeatedly-
+  failing upload parks in `failed` with no scheduled retry) is what makes the overlap window
+  unbounded rather than a brief race: a `failed` row keeps its `localId` and non-synced
+  `syncState` indefinitely.
+
+  **What survives:** the two **badges** this decision justified are still fine — they are
+  cosmetic and are correctly re-derived from library membership alone (see
+  `app/lib/components/trail/trail_panel.dart`), not from this premise. The consequence clause
+  also still holds: **unsynced trails must NOT be expressed by adding the user to
+  `savedByUserIds`** — doing so would make them indistinguishable from downloads and show the
+  wrong badge.
+
+  **What does not survive:** any reasoning of the form "an `isUnsyncedState` check cannot fire on
+  a downloaded row," and any use of this decision to justify **destructive-action gating or
+  scoping** — that is precisely the class of error Phase 38's CR-01/CR-02/CR-03 found (three
+  destructive code paths trusted this premise).
+
+  See `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md` for the full
+  derivation and `.planning/phases/38.1-downloaded-trail-blocker-closure/` for the remediation.
+  The replacement rule (38.1 **D-02**): any destructive action must be scoped by the identity it
+  actually destroys — local capture state by `owner`/account, download removal by
+  `savedByUserIds` membership, never by a flag read off the shared row.
 - **D-11:** REC-06's offline list mixes unsynced trails and downloaded-authored-by-me trails. That
   is **fine as a flat list** — the badges distinguish them and can never appear on the same row.
   No sectioning, no special sort.
