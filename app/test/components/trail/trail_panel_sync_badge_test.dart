@@ -1,6 +1,9 @@
 // Widget test, deliberately not a source-grep test (36-21, closing the round
-// 2 UAT gap: an unsynced trail's DETAIL screen showed the generic "Offline"
-// badge instead of its upload state).
+// 2 UAT gap: an unsynced trail's DETAIL screen showed the generic
+// cache-provenance-gated "Offline" badge instead of its upload state). That
+// badge no longer exists at all -- 38-04/D-10 deleted it and re-gated the
+// surviving green pill onto library membership; Cases D/D2 below now pin
+// that membership-derived behaviour.
 //
 // Why `TrailPanel` IS mountable here, with a `Trail.empty().copyWith(...)`
 // fixture that carries `expand: null`:
@@ -229,8 +232,9 @@ void main() {
   );
 
   testWidgets(
-    'Case D control -- downloaded trail: shows Offline, renders NO '
-    'SyncStatusChip at all, and renders none of the three sync strings',
+    'Case D control -- downloaded trail (cached AND library member): shows '
+    'Available offline, renders NO SyncStatusChip at all, and renders none '
+    'of the three sync strings',
     (tester) async {
       final controller = ScrollController();
       addTearDown(controller.dispose);
@@ -246,7 +250,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Offline'), findsOneWidget);
+      // D-10 (38-04): the badge follows library membership, not the
+      // cache-provenance flag -- the grey "Offline" pill no longer exists
+      // at all.
+      expect(find.text('Available offline'), findsOneWidget);
+      expect(find.text('Offline'), findsNothing);
       // Load-bearing: the fix gates the chip's construction on
       // isUnsyncedState, so for a synced trail the widget is never built --
       // not merely built-and-self-suppressed. findsNothing proves the
@@ -255,6 +263,37 @@ void main() {
       expect(find.text('Waiting to upload'), findsNothing);
       expect(find.text('Uploading…'), findsNothing);
       expect(find.text('Upload failed · Tap to retry'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Case D2 -- cached-looking trail NOT in this account\'s library: '
+    'renders no stored-on-device badge at all',
+    (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+
+      // The invariant this pins: the badge follows library membership, not
+      // cache provenance, so a timed-out fetch that leaves a downloaded-
+      // looking cached model on screen cannot conjure a badge this account
+      // has no claim to.
+      final trail = baseFixture.copyWith(
+        id: 'server-1',
+        isLocal: true,
+        syncState: TrailSyncState.synced,
+      );
+
+      await tester.pumpWidget(
+        _harness(
+          trail,
+          scrollController: controller,
+          availableOffline: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Available offline'), findsNothing);
+      expect(find.text('Offline'), findsNothing);
     },
   );
 
