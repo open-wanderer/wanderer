@@ -91,10 +91,10 @@ in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
 - [ ] **DL-03**: Editing a downloaded trail no longer duplicates its photos on the server, and
   removing a photo in the editor actually removes it
 
-- [ ] **DL-04**: After the hiker's own successful edit, the downloaded copy reflects that edit
+- [x] **DL-04**: After the hiker's own successful edit, the downloaded copy reflects that edit
   without a re-download
 
-- [ ] **DL-05**: A downloaded trail is never stale while online — its metadata and track are
+- [x] **DL-05**: A downloaded trail is never stale while online — its metadata and track are
   refreshed from the response the app already holds, at no additional network cost
 
 - [ ] **DL-06**: Refreshing a stored copy's photos is an explicit *Update* action; nothing
@@ -180,8 +180,8 @@ Populated during roadmap creation.
 | DL-01 | Phase 38 | Complete |
 | DL-02 | Phase 38 | Complete |
 | DL-03 | Phase 38 | Pending |
-| DL-04 | Phase 38 | Pending |
-| DL-05 | Phase 38 | Pending |
+| DL-04 | Phase 38 | Complete |
+| DL-05 | Phase 38 | Complete |
 | DL-06 | Phase 38 | Pending |
 | DL-07 | Phase 38 | Complete |
 

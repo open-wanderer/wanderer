@@ -863,7 +863,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 38-03-PLAN.md — `applyServerTrailToLibraryRow` + `fetchServerTrail`: the free stored-row refresh (D-13/D-14) and the network-only fetch seam
+- [x] 38-03-PLAN.md — `applyServerTrailToLibraryRow` + `fetchServerTrail`: the free stored-row refresh (D-13/D-14) and the network-only fetch seam
 - [ ] 38-04-PLAN.md — One membership-derived offline badge (D-10) + Remove-download vocabulary in the Library
 - [ ] 38-05-PLAN.md — Menu shape: *Update* / *Remove download* / authorship-only *Delete* (D-01/D-02/D-04/D-08)
 
@@ -1002,5 +1002,5 @@ priority decision, not a technical constraint, and 38 may equally start before v
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 21/21 | Complete   | 2026-08-03 |
-| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 2/6 | In Progress|  |
+| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 3/6 | In Progress|  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
