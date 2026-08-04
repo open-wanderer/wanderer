@@ -160,18 +160,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     },
             ),
             ListTile(
-              leading: const FaIcon(
-                FontAwesomeIcons.trash,
-                color: Colors.red,
-                size: 18,
-              ),
-              title: Text(
-                l18n.delete,
-                style: const TextStyle(color: Colors.red),
-              ),
+              // Not a delete -- this only drops this account's library
+              // membership (D-01, T-38-04-01). No red colour: removing a
+              // download is not destructive the way a server delete is.
+              // The dropdown menu uses the same icon for the same action
+              // (38-05), so the two surfaces stay consistent.
+              leading: const FaIcon(FontAwesomeIcons.circleMinus, size: 18),
+              title: Text(l18n.remove),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _confirmDelete(context, trail);
+                _confirmRemoveDownload(context, trail);
               },
             ),
           ],
@@ -180,28 +178,40 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, Trail trail) {
+  /// D-04/D-05 (38-04): mirrors `settings_offline_regions_screen.dart`'s
+  /// `_onDeleteRegion` -- one dialog, no connectivity branching. The body
+  /// (`remove_download_confirm_body`) states the trail itself is not
+  /// deleted -- unlike the server-delete confirm's false "cannot be
+  /// undone" claim, which this action must never reuse (T-38-04-02).
+  Future<void> _confirmRemoveDownload(BuildContext context, Trail trail) async {
     final l18n = AppLocalizations.of(context)!;
 
-    showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        content: Text(l18n.delete_trail_confirm),
+        title: Text(trail.name),
+        content: Text(l18n.remove_download_confirm_body),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l18n.cancel),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
-            },
-            child: Text(l18n.delete, style: const TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l18n.remove, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    // Scopes membership only -- never a server delete (T-38-04-01,
+    // T-38-04-03). `deleteTrail` drops this account's `savedByUserIds`
+    // entry and removes on-device files only once the last account
+    // sharing the row gives it up.
+    ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
   }
 }
 
