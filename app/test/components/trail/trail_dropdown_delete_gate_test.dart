@@ -9,34 +9,32 @@ import 'package:flutter_test/flutter_test.dart';
 /// and reads the real rendered items. This file's remaining scope is branch
 /// ORDER only: the source-text assertions below pin an invariant no widget
 /// test can observe (that `_deleteTrail`'s unsynced branch runs, and
-/// returns, BEFORE its `isLocal` un-download branch), which stayed green for
-/// the whole phase even while `TrailDropdown` itself was unreachable for an
-/// unsynced trail.
+/// returns, before anything else), which stayed green for the whole phase
+/// even while `TrailDropdown` itself was unreachable for an unsynced trail.
 ///
 /// Source-level guard for a data-loss regression.
 ///
-/// `_deleteTrail` handles THREE different actions behind one menu item,
-/// ordered unsynced -> downloaded -> server:
+/// 38-05 (D-01): `_deleteTrail` used to handle THREE different actions
+/// behind one menu item, ordered unsynced -> downloaded -> server, with the
+/// "downloaded" (un-download) branch gated on `trail.isLocal` -- a
+/// provenance flag `TrailEntity.toModel()` hardcodes `true` for every cached
+/// row, and that `TrailNotifier.build()`'s any-exception cache fallback
+/// could attach to a server-authored trail after nothing more than a
+/// timeout, arming a server DELETE with no ownership check at all. That
+/// branch is now gone: un-downloading is its own labelled menu item
+/// (`TrailAction.removeDownload`) with its own confirm
+/// (`_confirmRemoveDownload`), which calls only the library-membership
+/// provider and never touches `_deleteTrail`.
+///
+/// `_deleteTrail` now handles TWO actions:
 /// - UNSYNCED (never reached the server): `TrailSync.deleteUnsynced` removes
 ///   the only copy that exists, on the device.
-/// - DOWNLOADED (a LOCAL trail with a real server id) means "remove the
-///   download" — and nothing else.
-/// - Otherwise it means a real `DELETE /trail/{id}`.
+/// - Otherwise: falls straight through to `_deleteOnServer`, a real
+///   `DELETE /trail/{id}`, gated on authorship by `_allowDelete`.
 ///
-/// The downloaded branch originally had no `return`, so it fell through into
-/// the server delete: the only un-download gesture in the app (the download
-/// menu item is inert once downloaded) also destroyed the trail on the
-/// server. It was reachable while online, because `TrailNotifier.build()`
-/// falls back to the ObjectBox cache on ANY fetch exception and a cached
-/// model is stamped `isLocal: true` — one timeout on your own downloaded
-/// trail was enough.
-///
-/// After 36-08, `trail.isLocal` is ALSO true for an unsynced trail
-/// (`TrailEntity.toModel()` hardcodes it), so the unsynced branch must be
-/// checked, and must return, BEFORE the downloaded branch — otherwise an
-/// unsynced trail routes into `trailLibraryProvider.deleteTrail('')` with an
-/// empty id and silently no-ops, leaving the hiker's only copy on the device
-/// with no feedback.
+/// The unsynced branch must still be checked, and must still return, before
+/// the fall-through -- an unsynced trail's copy is device-only, and reaching
+/// `_deleteOnServer` for it would be meaningless.
 ///
 /// Tested at source level rather than behaviourally on purpose: driving
 /// `TrailDropdown` needs auth, router, download-state, search, profile-trails
@@ -44,8 +42,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// fragile scaffolding to protect a one-token invariant. This mirrors the
 /// PORT-03 gate in `test/util/trail_import_util_test.dart`.
 void main() {
-  test('trail_dropdown._deleteTrail returns after un-downloading a local trail, '
-      'so it never falls through to the server DELETE', () {
+  test('trail_dropdown._deleteTrail falls straight through to '
+      '_deleteOnServer after the unsynced branch -- no un-download branch '
+      'remains in between', () {
     final source = File(
       'lib/components/trail/trail_dropdown.dart',
     ).readAsStringSync();
@@ -61,32 +60,32 @@ void main() {
           'gate rather than deleting it — the invariant still matters.',
     );
 
-    final branchStart = source.indexOf('if (trail.isLocal) {', methodStart);
+    final deleteTrailBodyEnd = source.indexOf('\n  }', methodStart);
     expect(
-      branchStart,
+      deleteTrailBodyEnd,
       isNot(-1),
-      reason:
-          'The local-trail branch is gone. If un-download moved elsewhere, '
-          'move this gate with it.',
+      reason: 'Could not find the end of _deleteTrail\'s body.',
     );
+    final deleteTrailBody = source.substring(methodStart, deleteTrailBodyEnd);
 
-    final branchEnd = source.indexOf('\n    }', branchStart);
-    expect(branchEnd, isNot(-1), reason: 'Could not find the branch end.');
-
-    final branch = source.substring(branchStart, branchEnd);
-
+    // D-01: nothing in _deleteTrail may branch on a cached-provenance flag
+    // any more, and nothing in it may reach the library-membership provider
+    // -- un-downloading is a separate menu item with a separate handler now.
     expect(
-      branch.contains('deleteTrail(trail.id)'),
-      isTrue,
-      reason: 'The branch no longer un-downloads; this gate is stale.',
+      deleteTrailBody.contains('isLocal'),
+      isFalse,
+      reason:
+          'A cached-provenance branch reappeared in _deleteTrail. '
+          'Destructive-action availability must derive from library '
+          'membership and authorship only (D-01).',
     );
     expect(
-      branch.contains('return;'),
-      isTrue,
+      deleteTrailBody.contains('trailLibraryProvider'),
+      isFalse,
       reason:
-          'MISSING `return` in _deleteTrail\'s local-trail branch. Removing '
-          'a download now also issues DELETE /trail/{id} and destroys the '
-          'user\'s trail on the server.',
+          '_deleteTrail must not touch trailLibraryProvider -- '
+          'un-downloading is now TrailAction.removeDownload / '
+          '_confirmRemoveDownload, a separate handler entirely.',
     );
 
     // The server DELETE (`trailSaveProvider.notifier).deleteTrail(trail)`)
@@ -98,13 +97,6 @@ void main() {
     // such call, and `_deleteOnServer`'s body does -- so the extraction is
     // pinned, not merely tolerated, and the server delete cannot be
     // silently re-inlined into the fall-through path.
-    final deleteTrailBodyEnd = source.indexOf('\n  }', methodStart);
-    expect(
-      deleteTrailBodyEnd,
-      isNot(-1),
-      reason: 'Could not find the end of _deleteTrail\'s body.',
-    );
-    final deleteTrailBody = source.substring(methodStart, deleteTrailBodyEnd);
     expect(
       deleteTrailBody.contains(
         'trailSaveProvider.notifier).deleteTrail(trail)',
@@ -116,6 +108,14 @@ void main() {
           "branch's null-localId fall-through (WR-08) can route to it "
           'directly. Its reappearance here means the extraction was '
           'reverted.',
+    );
+    expect(
+      deleteTrailBody.contains('await _deleteOnServer(context, trail);'),
+      isTrue,
+      reason:
+          '_deleteTrail must fall through directly to _deleteOnServer once '
+          'the unsynced branch is exhausted -- no branch should sit '
+          'between them any more.',
     );
 
     final onServerStart = source.indexOf(
@@ -144,8 +144,8 @@ void main() {
     );
   });
 
-  test('trail_dropdown._deleteTrail checks the unsynced branch BEFORE the '
-      'isLocal (un-download) branch, and returns from it', () {
+  test('trail_dropdown._deleteTrail checks the unsynced branch first and '
+      'returns from it', () {
     final source = File(
       'lib/components/trail/trail_dropdown.dart',
     ).readAsStringSync();
@@ -159,25 +159,15 @@ void main() {
       'isUnsyncedState(trail.syncState)',
       methodStart,
     );
-    final localIdx = source.indexOf('if (trail.isLocal) {', methodStart);
 
     expect(
       unsyncedIdx,
       isNot(-1),
       reason:
           'The unsynced branch is gone from _deleteTrail. An unsynced '
-          'trail also reports isLocal == true, so without its own branch '
-          'checked first it silently routes into '
-          "trailLibraryProvider.deleteTrail('') and no-ops, destroying "
-          "the hiker's only copy with no feedback.",
-    );
-    expect(
-      unsyncedIdx < localIdx,
-      isTrue,
-      reason:
-          'The unsynced branch must be checked BEFORE the isLocal '
-          '(un-download) branch -- an unsynced trail is also isLocal, so '
-          'the wrong order silently no-ops the delete on an empty id.',
+          "trail's copy lives only on the device, so without its own "
+          'branch checked first it would fall through into a meaningless '
+          'server DELETE with no feedback.',
     );
 
     final unsyncedBranchEnd = source.indexOf('\n    }', unsyncedIdx);
@@ -188,8 +178,8 @@ void main() {
       isTrue,
       reason:
           'MISSING `return` in the unsynced branch. Without it, an '
-          'unsynced delete falls through into the un-download / server '
-          'delete branches below.',
+          'unsynced delete falls through into the server delete branch '
+          'below.',
     );
   });
 

@@ -55,11 +55,14 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final trail = widget.trail;
     final l18n = AppLocalizations.of(context)!;
 
-    // After this phase `trail.isLocal` is true for BOTH a downloaded trail
-    // and an unsynced one (`TrailEntity.toModel()` hardcodes it), so the
-    // download and delete actions below branch on `isUnsynced` instead —
-    // it, not `isLocal`, is the signal that distinguishes "on the device
-    // only, never reached the server" from "downloaded from the server".
+    // D-01: destructive-action availability below derives from library
+    // membership (`widget.availableOffline`) and authorship, never from a
+    // cached-provenance flag on the model -- that flag drifts with network
+    // conditions (see `_allowDelete`). `isUnsynced` is a different,
+    // load-bearing signal: it distinguishes "on the device only, never
+    // reached the server" from "downloaded from the server", and Phase 36's
+    // D-10 guarantees it is mutually exclusive with `availableOffline` by
+    // construction.
     final isUnsynced = isUnsyncedState(trail.syncState);
 
     final isDownloading = ref
@@ -330,13 +333,30 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             false);
   }
 
+  /// D-01: derives from authorship alone -- deliberately NOT from the
+  /// trail's local/cached provenance, which drifts with network conditions
+  /// (`TrailEntity.toModel()` hardcodes a provenance flag `true` for every
+  /// cached row, and `TrailNotifier.build()` falls back to the cache on ANY
+  /// fetch exception, so one timeout used to arm this gate unconditionally).
   bool _allowDelete(WidgetRef ref) {
-    if (widget.trail.isLocal) {
+    // Load-bearing escape hatch, checked first: an unsynced capture is the
+    // only copy on earth, and its `author` can be the `Trail.author`
+    // placeholder rather than a real actor id, so an authorship-only gate
+    // would silently strip the hiker's ability to delete their own
+    // recording. Phase 36's D-10 guarantees unsynced and downloaded are
+    // mutually exclusive by construction, so this branch can never swallow
+    // a downloaded trail.
+    if (isUnsyncedState(widget.trail.syncState)) {
       return true;
     }
+
     final user = ref.watch(authProvider).value;
     if (user == null) return false;
 
+    // D-02: independent of `widget.availableOffline` -- a trail the hiker
+    // authored AND downloaded now shows both Remove download and Delete
+    // trail. Someone else's downloaded trail shows Remove download only,
+    // which is correct: it was never theirs to delete.
     return widget.trail.author == user.actorId;
   }
 
@@ -385,14 +405,23 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     );
   }
 
-  // This method now handles THREE different actions behind one menu item,
-  // ordered unsynced -> downloaded -> server. The order is load-bearing: an
-  // unsynced trail ALSO reports `trail.isLocal == true` (`TrailEntity.
-  // toModel()` hardcodes it), so putting the un-download branch first would
-  // route an unsynced trail into `trailLibraryProvider.deleteTrail(trail.id)`
-  // with an empty id -- silently no-oping and leaving the hiker's only copy
-  // of the trail on the device with no feedback at all. The unsynced branch
-  // must be checked, and must return, before the `isLocal` branch runs.
+  // Delete means delete-on-the-server, gated on authorship (`_allowDelete`).
+  // This method has two branches: unsynced local delete (the trail has never
+  // reached the server, so its only copy lives on the device), or fall
+  // through to `_deleteOnServer`. The unsynced branch must be checked, and
+  // must return, before the fall-through -- an unsynced trail's copy is
+  // device-only, and reaching `_deleteOnServer` for it would be meaningless.
+  //
+  // D-01: a third branch used to live here -- un-downloading, gated on a
+  // provenance flag that `TrailEntity.toModel()` hardcodes `true` for every
+  // cached row and that `TrailNotifier.build()`'s any-exception cache
+  // fallback could attach to a server-authored trail after nothing more than
+  // a timeout. It made "remove the download" and "delete on the server" the
+  // same gesture, decided by a signal that drifts with network conditions.
+  // It is gone: un-downloading is now its own labelled menu item
+  // (`TrailAction.removeDownload`) with its own confirm
+  // (`_confirmRemoveDownload`), which calls only the library-membership
+  // provider and never reaches the server.
   Future<void> _deleteTrail(BuildContext context, Trail trail) async {
     // Unsynced: this trail has never reached the server (or, for a null
     // localId below, has no local handle at all), so the ONLY question is
@@ -403,10 +432,10 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       // (WR-08) A null localId is NOT a device-only copy -- it is the shape
       // `retireUploadedLocalTrail`'s demote branch and `TrailDownloadService`'s
       // carry-forward can both produce for a row that already has a server
-      // id. Routing it into the `trail.isLocal` un-download branch below
-      // would silently no-op (`deleteTrail('')`) while `_confirmDelete`
-      // already promised a server delete via `trailHasServerId`. This must
-      // never fall through to that branch.
+      // id. It must be routed to a real server delete when one exists,
+      // matching what `_confirmDelete` already promised via
+      // `trailHasServerId` -- never silently treated as having nothing to
+      // delete.
       if (localId == null) {
         if (trailHasServerId(trail.id)) {
           return _deleteOnServer(context, trail);
@@ -495,35 +524,13 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       }
     }
 
-    // For a downloaded trail this means "remove the download", and NOTHING
-    // else — the `return` is load-bearing. Without it the method fell
-    // through to the server DELETE below, so the only available
-    // un-download gesture (the download menu item is inert once
-    // downloaded) also destroyed the trail on the server.
-    //
-    // Reachable while perfectly online, too: `TrailNotifier.build()` falls
-    // back to the ObjectBox cache on ANY fetch exception, not just offline
-    // (`trail_provider.dart`'s `catch (_)`), and a cached model is stamped
-    // `isLocal: true`. One timeout while viewing your own downloaded trail
-    // was enough to arm it.
-    //
-    // This is also what makes `_allowDelete`'s unconditional `true` for local
-    // trails safe: un-downloading someone else's trail is harmless, whereas
-    // falling through offered a server delete with no ownership check.
-    if (trail.isLocal) {
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
-      return;
-    }
-
     if (!context.mounted) return;
     await _deleteOnServer(context, trail);
   }
 
   /// The real `DELETE /trail/{id}` path, extracted so the unsynced branch's
   /// null-`localId` fall-through (WR-08) can route here directly instead of
-  /// reaching the `trail.isLocal` un-download branch above.
+  /// falling through the rest of `_deleteTrail`.
   Future<void> _deleteOnServer(BuildContext context, Trail trail) async {
     // Resolved before any await, matching the unsynced branch's own
     // discipline -- `context` is a parameter here, not `State.context`, so a
