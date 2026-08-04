@@ -154,7 +154,17 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
 
       // Keep the deduped local prefix intact -- only append network
       // results, and only ones not already represented by a local row.
-      final local = _readOwnLocal(_q, filter);
+      //
+      // Narrowed by `ownTrailsLocalHalf` with the same `offline: false` the
+      // early return above has already established, so page 2+ dedupes
+      // against exactly the rows page 1 put in the list. Using the raw
+      // local list here would have let a SYNCED local row (one the online
+      // merge deliberately excluded) suppress its own network hit on the
+      // next page, silently dropping the trail from the list entirely.
+      final local = ownTrailsLocalHalf(
+        _readOwnLocal(_q, filter),
+        offline: false,
+      );
       final localIds = local
           .map((t) => t.id)
           .where((id) => id.isNotEmpty)
@@ -258,7 +268,11 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
     }
 
     return ProfileTrailsState(
-      trails: mergeOwnTrails(local: local, network: networkTrails),
+      trails: mergeOwnTrails(
+        local: local,
+        network: networkTrails,
+        offline: offline,
+      ),
       page: resultPage,
       perPage: kProfileSearchPerPage,
       totalPages: totalPages,
