@@ -790,7 +790,7 @@ Plans:
 - [x] 38.1-01-PLAN.md — Delete the unreachable LibraryDetailScreen and route; correct every doc
   comment carrying the retracted premise (WR-07, WR-08, D-18)
 
-- [ ] 38.1-02-PLAN.md — Store foundation: the single owner-scoped live-capture predicate, a
+- [x] 38.1-02-PLAN.md — Store foundation: the single owner-scoped live-capture predicate, a
   bool-returning deleteLocalTrailRow, and waypointsAreAuthoritative (CR-02, D-04/D-07/D-08/D-09)
 
 - [ ] 38.1-03-PLAN.md — Account-scope unsynced photo storage and gate deleteUnsynced on the row
