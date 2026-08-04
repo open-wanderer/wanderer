@@ -803,10 +803,17 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         final libraryStore = ref.read(objectBoxProvider);
         final libraryAccountId = currentAccountId(libraryStore);
         if (libraryAccountId != null) {
+          // CR-02/D-08: `result.trail`'s waypoint expand is NOT
+          // authoritative when a waypoint create/update failed -- pass that
+          // signal through so a partial save can't prune a still-live
+          // waypoint from the downloaded copy. `some_waypoints_failed_to_save`
+          // below is accurate again now that the local prune no longer
+          // happens (D-10: no new l10n key needed).
           applyServerTrailToLibraryRow(
             libraryStore,
             accountId: libraryAccountId,
             trail: result.trail,
+            waypointsAreAuthoritative: !result.hadWaypointFailures,
           );
         }
       } catch (e) {

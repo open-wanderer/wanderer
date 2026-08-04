@@ -646,14 +646,32 @@ void applyNetworkEditToLocalRow(
 ///
 /// Waypoints are only touched when `trail.expand?.waypointsViaTrail` is
 /// non-null. When it is, each existing child's `localPhotos` is carried onto
-/// its refreshed counterpart by matching `WaypointEntity.id`, then any
-/// `WaypointEntity` row absent from the refreshed set is removed, following
-/// [updateLocalTrail]'s orphan-pruning loop. When it is null, the existing
-/// children are carried forward untouched.
+/// its refreshed counterpart by matching `WaypointEntity.id` -- unconditionally,
+/// since it only matches by id and is harmless either way. What happens next
+/// depends on [waypointsAreAuthoritative] (D-08/D-09, CR-02):
+/// - `true` (the default): any `WaypointEntity` row absent from the
+///   refreshed set is removed, following [updateLocalTrail]'s orphan-pruning
+///   loop. The D-14 fetch trigger (`trail_provider.dart`) keeps this default
+///   -- a full server fetch IS authoritative, and must stay so or WR-05
+///   (server-side waypoint deletes never propagating) regresses.
+/// - `false`: nothing is pruned. Any existing waypoint absent from the
+///   incoming set is re-added to `entity.waypoints` as-is instead, because
+///   the incoming list is known-incomplete. The D-13 save trigger
+///   (`trail_create_screen.dart`) passes `!result.hadWaypointFailures` --
+///   `TrailSaveResult.finalWaypoints` drops any waypoint whose create/update
+///   threw, so treating it as a complete set here used to delete a
+///   still-live waypoint from the hiker's offline copy and orphan its photo
+///   files, under a warning toast that said nothing about local deletion
+///   (CR-02). The row still reflects the last state the server confirmed,
+///   which is truthful -- the failed PATCH did not happen server-side
+///   either.
+/// When `trail.expand?.waypointsViaTrail` is null, the existing children are
+/// carried forward untouched regardless of [waypointsAreAuthoritative].
 void applyServerTrailToLibraryRow(
   Store store, {
   required String accountId,
   required Trail trail,
+  bool waypointsAreAuthoritative = true,
 }) {
   if (trail.id.isEmpty) return;
 
@@ -708,13 +726,26 @@ void applyServerTrailToLibraryRow(
         if (photos != null) waypointEntity.localPhotos = photos;
       }
 
-      // Remove waypoint rows absent from the refreshed set, mirroring
-      // updateLocalTrail's orphan-pruning loop.
       final newIds = entity.waypoints.map((w) => w.id).toSet();
-      final waypointBox = store.box<WaypointEntity>();
-      for (final oldWaypoint in existing.waypoints) {
-        if (!newIds.contains(oldWaypoint.id)) {
-          waypointBox.remove(oldWaypoint.obxId);
+      if (waypointsAreAuthoritative) {
+        // Remove waypoint rows absent from the refreshed set, mirroring
+        // updateLocalTrail's orphan-pruning loop. Only safe when the
+        // caller has told us the incoming set is complete (CR-02).
+        final waypointBox = store.box<WaypointEntity>();
+        for (final oldWaypoint in existing.waypoints) {
+          if (!newIds.contains(oldWaypoint.id)) {
+            waypointBox.remove(oldWaypoint.obxId);
+          }
+        }
+      } else {
+        // The incoming set is known-incomplete (D-09): re-add any existing
+        // waypoint it omits rather than pruning it. Not marked, no entity
+        // field added -- its photo files under
+        // `library/<id>/waypoints/<key>/` stay valid.
+        for (final oldWaypoint in existing.waypoints) {
+          if (!newIds.contains(oldWaypoint.id)) {
+            entity.waypoints.add(oldWaypoint);
+          }
         }
       }
     } else {

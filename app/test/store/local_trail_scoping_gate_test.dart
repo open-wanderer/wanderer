@@ -109,4 +109,86 @@ void main() {
       );
     });
   });
+
+  group('applyServerTrailToLibraryRow waypointsAreAuthoritative (D-08/D-09, '
+      'CR-02)', () {
+    test('signature declares bool waypointsAreAuthoritative = true', () {
+      final codeOnly = readCodeOnly('lib/store/local_trail_store.dart');
+
+      expect(
+        codeOnly.contains('bool waypointsAreAuthoritative = true'),
+        isTrue,
+        reason:
+            'The default must stay true (D-08): the D-14 fetch trigger in '
+            'trail_provider.dart is a full server response and must keep '
+            'pruning, or WR-05 (server-side waypoint deletes never '
+            'propagating) regresses.',
+      );
+    });
+
+    test('the prune call only runs inside the guarded branch', () {
+      final codeOnly = readCodeOnly('lib/store/local_trail_store.dart');
+
+      final start = codeOnly.indexOf('void applyServerTrailToLibraryRow(');
+      expect(start, isNot(-1));
+      final end = codeOnly.indexOf('\n}\n', start);
+      expect(end, isNot(-1));
+      final body = codeOnly.substring(start, end);
+
+      final guardIdx = body.indexOf('if (waypointsAreAuthoritative)');
+      final pruneIdx = body.indexOf('waypointBox.remove(');
+      expect(guardIdx, isNot(-1));
+      expect(pruneIdx, isNot(-1));
+      expect(
+        guardIdx < pruneIdx,
+        isTrue,
+        reason:
+            'CR-02: one failed waypoint PATCH used to unconditionally '
+            'prune a still-live waypoint from the offline copy. The prune '
+            'must only run when the caller has told us the incoming '
+            'waypoint list is complete.',
+      );
+      expect(
+        body.contains('entity.waypoints.add('),
+        isTrue,
+        reason:
+            'D-09: when the incoming list is not authoritative, an '
+            'existing waypoint absent from it must be re-added as-is, not '
+            'silently dropped.',
+      );
+    });
+
+    test('trail_create_screen.dart wires waypointsAreAuthoritative to '
+        '!result.hadWaypointFailures', () {
+      final codeOnly = readCodeOnly('lib/routes/trail_create_screen.dart');
+
+      expect(
+        codeOnly.contains(
+          'waypointsAreAuthoritative: !result.hadWaypointFailures',
+        ),
+        isTrue,
+        reason:
+            'Without this, the D-13 save trigger silently prunes from a '
+            'known-incomplete waypoint list on any failed waypoint '
+            'create/update (CR-02).',
+      );
+    });
+
+    test('trail_provider.dart (the D-14 fetch trigger) does not pass '
+        'waypointsAreAuthoritative -- it must stay on the authoritative '
+        'default or WR-05 regresses', () {
+      final source = File(
+        'lib/provider/trail/trail_provider.dart',
+      ).readAsStringSync();
+
+      expect(
+        source.contains('waypointsAreAuthoritative'),
+        isFalse,
+        reason:
+            'The D-14 fetch trigger is a full server response and must '
+            'stay authoritative, or WR-05 (server-side waypoint deletes '
+            'never propagating) regresses.',
+      );
+    });
+  });
 }
