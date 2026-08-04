@@ -224,6 +224,10 @@ class AppLocalizationsHu extends AppLocalizations {
   String get edit => 'Szerkesztés';
 
   @override
+  String get edit_needs_connection =>
+      'Editing works on the server copy of this trail. Connect to the internet to edit it.';
+
+  @override
   String get edit_waypoint => 'Útvonalpont szerkesztése';
 
   @override
@@ -899,6 +903,10 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get remove => 'Remove';
+
+  @override
+  String get remove_download_confirm_body =>
+      'This removes the downloaded copy from this device. The trail itself is not deleted — you\'ll need to download it again to use it offline.';
 
   @override
   String get apply => 'Apply';

@@ -500,6 +500,12 @@ abstract class AppLocalizations {
   /// **'Edit'**
   String get edit;
 
+  /// No description provided for @edit_needs_connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing works on the server copy of this trail. Connect to the internet to edit it.'**
+  String get edit_needs_connection;
+
   /// No description provided for @edit_waypoint.
   ///
   /// In en, this message translates to:
@@ -1663,6 +1669,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove'**
   String get remove;
+
+  /// No description provided for @remove_download_confirm_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the downloaded copy from this device. The trail itself is not deleted — you\'ll need to download it again to use it offline.'**
+  String get remove_download_confirm_body;
 
   /// No description provided for @apply.
   ///

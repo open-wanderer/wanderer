@@ -225,6 +225,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get edit => 'Bearbeiten';
 
   @override
+  String get edit_needs_connection =>
+      'Editing works on the server copy of this trail. Connect to the internet to edit it.';
+
+  @override
   String get edit_waypoint => 'Wegpunkt bearbeiten';
 
   @override
@@ -907,6 +911,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get remove => 'Entfernen';
+
+  @override
+  String get remove_download_confirm_body =>
+      'This removes the downloaded copy from this device. The trail itself is not deleted — you\'ll need to download it again to use it offline.';
 
   @override
   String get apply => 'Anwenden';
