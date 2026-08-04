@@ -117,3 +117,7 @@ The `forceOffline` flag is fully retired from `app/lib` and `app/test` (`grep -r
 ---
 *Phase: 38-downloaded-trails-as-state-not-objects*
 *Completed: 2026-08-04*
+
+## Self-Check: PASSED
+
+All 12 files_modified paths verified present on disk; all 4 commit hashes (72cdd98a, 7d826646, f9960197, 8efae9a6) verified present in git log.
