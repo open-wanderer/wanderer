@@ -13,8 +13,23 @@ part 'trail_provider.g.dart';
 
 @riverpod
 class TrailNotifier extends _$TrailNotifier {
+  /// [forceOffline] makes the downloaded copy the PREFERRED source instead of
+  /// the last resort. Without it, a trail opened from the library resolves to
+  /// the server copy whenever the device happens to be online, and the delete
+  /// action -- which decides "un-download" vs. "delete on the server" from
+  /// `Trail.isLocal` -- then destroys the trail on the server when the user
+  /// only meant to remove the download.
+  ///
+  /// The network is still the fallback: a library row can disappear (another
+  /// account gave it up, or the cached GPX no longer parses) and a dead end is
+  /// worse than an online copy.
   @override
-  FutureOr<Trail> build(String id) async {
+  FutureOr<Trail> build(String id, {bool forceOffline = false}) async {
+    if (forceOffline) {
+      final cached = _readCached(id);
+      if (cached != null) return cached;
+    }
+
     final api = ref.watch(apiProvider);
 
     try {
@@ -59,41 +74,47 @@ class TrailNotifier extends _$TrailNotifier {
 
       return trail;
     } catch (_) {
-      // Offline fallback, scoped to the signed-in account: trail rows are
-      // shared and survive a logout (see `TrailEntity.savedByUserIds`), so an
-      // unfiltered read here would serve one account the cached copy of a
-      // private trail only another account had downloaded.
-      final store = ref.read(objectBoxProvider);
-      final userId = currentAccountId(store);
-      if (userId == null) rethrow;
-
-      final box = store.box<TrailEntity>();
-      final query = box
-          .query(
-            TrailEntity_.id.equals(id) &
-                TrailEntity_.savedByUserIds.containsElement(userId),
-          )
-          .build();
-      final entity = query.findFirst();
-      query.close();
-
-      // Guarded for the same reason as TrailLibraryNotifier.build(): toModel()
-      // parses the cached GPX and can throw. Letting it escape from inside
-      // this catch block would replace the ORIGINAL failure (why we fell back
-      // to the cache at all) with an unrelated parse error. A corrupt cache
-      // entry means "no usable cache", so fall through and surface the real
-      // cause.
-      if (entity != null) {
-        try {
-          return entity.toModel();
-        } catch (e, st) {
-          debugPrint(
-            'TrailNotifier: cached trail "$id" failed to parse, falling '
-            'through to the original error: $e\n$st',
-          );
-        }
-      }
+      final cached = _readCached(id);
+      if (cached != null) return cached;
       rethrow;
+    }
+  }
+
+  /// The downloaded copy of [id], or null when there is no usable one.
+  ///
+  /// Scoped to the signed-in account: trail rows are shared and survive a
+  /// logout (see `TrailEntity.savedByUserIds`), so an unfiltered read here
+  /// would serve one account the cached copy of a private trail only another
+  /// account had downloaded.
+  Trail? _readCached(String id) {
+    final store = ref.read(objectBoxProvider);
+    final userId = currentAccountId(store);
+    if (userId == null) return null;
+
+    final box = store.box<TrailEntity>();
+    final query = box
+        .query(
+          TrailEntity_.id.equals(id) &
+              TrailEntity_.savedByUserIds.containsElement(userId),
+        )
+        .build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null) return null;
+
+    // Guarded for the same reason as TrailLibraryNotifier.build(): toModel()
+    // parses the cached GPX and can throw. Letting it escape when this is
+    // called from the fetch failure's catch block would replace the ORIGINAL
+    // failure (why we fell back to the cache at all) with an unrelated parse
+    // error. A corrupt cache entry means "no usable cache", so report none and
+    // let the caller surface the real cause.
+    try {
+      return entity.toModel();
+    } catch (e, st) {
+      debugPrint(
+        'TrailNotifier: cached trail "$id" failed to parse: $e\n$st',
+      );
+      return null;
     }
   }
 

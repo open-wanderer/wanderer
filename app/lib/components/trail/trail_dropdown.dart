@@ -29,10 +29,17 @@ enum TrailAction { open, directions, download, edit, delete }
 class TrailDropdown extends ConsumerStatefulWidget {
   final Trail trail;
   final bool availableOffline;
+
+  /// Which `trailProvider` instance owns [trail]. The flag is part of the
+  /// family key, so it has to be forwarded for the post-edit invalidation to
+  /// refresh the instance the screen is actually showing.
+  final bool forceOffline;
+
   const TrailDropdown({
     super.key,
     required this.trail,
     this.availableOffline = false,
+    this.forceOffline = false,
   });
 
   @override
@@ -65,7 +72,10 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // D-06 blanks a local-sentinel id, so '/trail/${trail.id}/map' is
     // '/trail//map' for a not-yet-uploaded trail -- go_router
     // canonicalizes that to '/trail/map', which matches no route.
-    final String? mapLocation = trailMapLocation(trail);
+    final String? mapLocation = trailMapLocation(
+      trail,
+      forceOffline: widget.forceOffline,
+    );
     return PopupMenuButton<TrailAction>(
       offset: const Offset(0, 48),
       borderRadius: BorderRadius.all(Radius.circular(56)),
@@ -136,7 +146,12 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
                   ref.invalidate(localTrailProvider(localId));
                 }
               } else {
-                ref.invalidate(trailProvider(trail.id));
+                ref.invalidate(
+                  trailProvider(
+                    trail.id,
+                    forceOffline: widget.forceOffline,
+                  ),
+                );
               }
             },
             child: ListTile(

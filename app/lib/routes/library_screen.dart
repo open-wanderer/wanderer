@@ -10,6 +10,7 @@ import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/util/trail/filter.dart';
+import 'package:wanderer/util/trail/route_location.dart';
 import 'dart:math' as math;
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -118,10 +119,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       itemCount: visible.length,
                       itemBuilder: (context, i) {
                         final trail = visible[i];
+                        // forceOffline: every row here IS a download, so the
+                        // detail screen must show the on-disk copy even when
+                        // the device is online. Otherwise it resolves to the
+                        // server trail and its delete action deletes that
+                        // instead of removing the download.
+                        final location = trailDetailLocation(
+                          trail,
+                          forceOffline: true,
+                        );
                         return TrailCard(
                           trail: trail,
-                          onTrailSelect: () =>
-                              router.push('/trail/${trail.id}'),
+                          onTrailSelect: location == null
+                              ? null
+                              : () => router.push(location),
                           onLongPress: () =>
                               _showContextMenu(context, trail, router),
                         );
@@ -136,6 +147,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   void _showContextMenu(BuildContext context, Trail trail, router) {
     final l18n = AppLocalizations.of(context)!;
+    // Same forceOffline reasoning as the list tile above.
+    final location = trailDetailLocation(trail, forceOffline: true);
 
     showModalBottomSheet(
       context: context,
@@ -149,10 +162,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 size: 18,
               ),
               title: Text(l18n.open),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                router.push('/trail/${trail.id}');
-              },
+              enabled: location != null,
+              onTap: location == null
+                  ? null
+                  : () {
+                      Navigator.of(ctx).pop();
+                      router.push(location);
+                    },
             ),
             ListTile(
               leading: const FaIcon(

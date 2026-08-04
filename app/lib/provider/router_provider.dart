@@ -382,14 +382,24 @@ class Router extends _$Router {
           path: '/trail/:id',
           builder: (context, state) {
             final trailId = state.pathParameters['id']!;
-            return TrailDetailScreen(id: trailId);
+            // A query parameter rather than `extra`, so it survives a deep
+            // link and a process restart the same way the id does — a restored
+            // route that quietly lost the flag would put the server delete
+            // back under the library's delete action.
+            return TrailDetailScreen(
+              id: trailId,
+              forceOffline: state.uri.queryParameters['offline'] == '1',
+            );
           },
           routes: [
             GoRoute(
               path: 'map',
               builder: (context, state) {
                 final trailId = state.pathParameters['id']!;
-                return TrailDetailMapScreen(id: trailId);
+                return TrailDetailMapScreen(
+                  id: trailId,
+                  forceOffline: state.uri.queryParameters['offline'] == '1',
+                );
               },
             ),
             GoRoute(

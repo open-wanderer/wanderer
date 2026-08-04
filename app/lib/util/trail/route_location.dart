@@ -20,19 +20,30 @@ import 'package:wanderer/models/trail_summary.dart';
 /// [TrailSummary.localId] is null or empty. A synced trail is addressed by
 /// its [TrailSummary.id] via `/trail/<id>`; null when [TrailSummary.id] is
 /// empty.
-String? trailDetailLocation(TrailSummary trail) {
+///
+/// [forceOffline] appends the `?offline=1` query parameter, which tells the
+/// detail screen to show the downloaded copy rather than the server one. It is
+/// a no-op for an unsynced trail, which has no server copy to prefer over.
+String? trailDetailLocation(TrailSummary trail, {bool forceOffline = false}) {
   if (isUnsyncedState(trail.syncState)) {
     final localId = trail.localId;
     if (localId == null || localId.isEmpty) return null;
     return '/trail/local/$localId';
   }
   if (trail.id.isEmpty) return null;
-  return '/trail/${trail.id}';
+  return forceOffline ? '/trail/${trail.id}?offline=1' : '/trail/${trail.id}';
 }
 
 /// The `/trail/.../map` route location for [trail], or null under the same
 /// conditions as [trailDetailLocation].
-String? trailMapLocation(TrailSummary trail) {
+String? trailMapLocation(TrailSummary trail, {bool forceOffline = false}) {
+  // Built from the UN-flagged base: the query string belongs at the end of the
+  // full path, and '/trail/x?offline=1/map' would match no route. The unsynced
+  // exclusion is repeated here for the same reason it exists above — the local
+  // route has no server copy to prefer the download over.
   final base = trailDetailLocation(trail);
-  return base == null ? null : '$base/map';
+  if (base == null) return null;
+  return forceOffline && !isUnsyncedState(trail.syncState)
+      ? '$base/map?offline=1'
+      : '$base/map';
 }

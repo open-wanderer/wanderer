@@ -31,16 +31,22 @@ class TrailPanel extends ConsumerWidget {
     required this.trail,
     required this.scrollController,
     this.availableOffline = false,
+    this.forceOffline = false,
   });
 
   final Trail trail;
   final bool availableOffline;
+
+  /// Whether this trail was resolved from the downloaded copy on purpose.
+  /// Forwarded onto the map route so it opens the same copy.
+  final bool forceOffline;
   final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).requireValue!;
     final unit = ref.watch(unitProvider);
+    final isOnline = ref.watch(onlineStatusProvider);
 
     final webPhotos = trail.photos
         .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '1200x0') ?? '')
@@ -59,7 +65,10 @@ class TrailPanel extends ConsumerWidget {
     // that to '/trail/map', which matches no route. `trailMapLocation`
     // returns '/trail/local/<localId>/map' instead, and null when the trail
     // is not addressable at all.
-    final String? mapLocation = trailMapLocation(trail);
+    final String? mapLocation = trailMapLocation(
+      trail,
+      forceOffline: forceOffline,
+    );
 
     // WR-11: `trail.isLocal` is a cache-provenance flag -- `TrailEntity.toModel()`
     // hardcodes it to `true` for every cached row, downloaded trails included,
@@ -112,7 +121,7 @@ class TrailPanel extends ConsumerWidget {
                         // that field's doc comment. Online we
                         // always prefer network tiles, even for a
                         // downloaded trail.
-                        offline: !ref.watch(onlineStatusProvider),
+                        offline: !isOnline,
                         onTap: mapLocation == null
                             ? null
                             : (_) => context.push(mapLocation),
@@ -302,9 +311,15 @@ class TrailPanel extends ConsumerWidget {
                   ],
                   if (trail.expand?.author != null)
                     InkWell(
-                      onTap: () => context.push(
-                        '/profile/@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}',
-                      ),
+                      // The profile screen is server-only -- it has no cached
+                      // fallback -- so offline the tap can only land on an
+                      // error state. Null onTap also drops the ripple, which
+                      // is the feedback that the row is inert right now.
+                      onTap: !isOnline
+                          ? null
+                          : () => context.push(
+                              '/profile/@${trail.expand!.author!.preferredUsername}@${trail.expand!.author!.domain}',
+                            ),
                       child: Padding(
                         padding: const EdgeInsets.all(4.0),
                         child: Row(
