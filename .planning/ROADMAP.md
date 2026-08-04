@@ -976,4 +976,5 @@ priority decision, not a technical constraint, and 38 may equally start before v
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 21/21 | Complete   | 2026-08-03 |
+| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 0/0 | Not planned |  |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |
