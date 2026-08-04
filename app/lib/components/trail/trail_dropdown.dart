@@ -10,6 +10,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_share.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
+import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
@@ -139,22 +140,57 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
           PopupMenuItem<TrailAction>(
             value: TrailAction.edit,
             onTap: () async {
-              await context.push('/trail/create/edit', extra: trail);
-              // The edit screen invalidates the LIST providers itself (36-10);
-              // refreshing the single-trail provider stays a caller
-              // responsibility, as it has been since this call site was
-              // written. Which provider that is depends on where the trail
-              // lives: an unsynced trail is keyed on its localId, and
-              // `trailProvider('')` would be a meaningless family instance
-              // that refreshes nothing.
+              // Unsynced: no server copy exists to fetch, and
+              // `trailProvider('')` would be a meaningless family instance,
+              // so the local model is the only one there is.
               if (isUnsynced) {
+                await context.push('/trail/create/edit', extra: trail);
                 final localId = trail.localId;
                 if (localId != null) {
                   ref.invalidate(localTrailProvider(localId));
                 }
-              } else {
-                ref.invalidate(trailProvider(trail.id));
+                return;
               }
+
+              // D-15/D-18: `TrailDownloadService` overwrites a downloaded
+              // row's `photos` with LOCAL FILE PATHS, so the editor's photo
+              // picker (seeded from `trail.localPhotos`/`trail.photos`) was
+              // resending those paths under the append-only `photos+` key on
+              // every save, doubling the server photo set, and computing
+              // `_removedServerPhotos` from an always-empty list made photo
+              // removal a silent no-op. Fetching the server copy here, and
+              // handing THAT to the editor instead of `trail`, makes the
+              // editor structurally unable to receive a cached model, which
+              // is what actually stops both bugs.
+              final api = ref.read(apiProvider);
+              final Trail fetched;
+              try {
+                fetched = await fetchServerTrail(api, trail.id);
+              } catch (e) {
+                debugPrint(
+                  'trail_dropdown: fetchServerTrail("${trail.id}") failed '
+                  'for edit: $e',
+                );
+                if (!mounted) return;
+                ref
+                    .read(toastProvider.notifier)
+                    .add(
+                      ToastMessage(
+                        type: ToastType.warning,
+                        icon: FontAwesomeIcons.circleExclamation,
+                        text: l18n.edit_needs_connection,
+                      ),
+                    );
+                return;
+              }
+
+              if (!context.mounted) return;
+              // The edit screen invalidates the LIST providers itself
+              // (36-10); refreshing the single-trail provider stays a caller
+              // responsibility, as it has been since this call site was
+              // written.
+              await context.push('/trail/create/edit', extra: fetched);
+              ref.invalidate(trailProvider(trail.id));
             },
             child: ListTile(
               leading: FaIcon(FontAwesomeIcons.pen, size: 18),
