@@ -658,7 +658,9 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           l10n,
           updatedTrail,
           authorId: authorId,
-          newPhotoFiles: networkPhotoFiles.where((f) => f.existsSync()).toList(),
+          newPhotoFiles: networkPhotoFiles
+              .where((f) => f.existsSync())
+              .toList(),
           reconcileLocalId: localId,
         );
         return;
@@ -803,8 +805,16 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // than the pre-edit ones. That ordering is the whole reason this runs
       // post-frame — called inline it would still see the old widgets and
       // would revert the user's input.
+      //
+      // `reset()` alone is still not enough to reach the PopScope below: it
+      // setStates the FIELD states, never this screen, so the route keeps the
+      // `canPop: false` this frame was built with and the discard dialog fires
+      // anyway. Nothing else rebuilds this screen after a save — none of the
+      // four providers it watches change — so rebuild explicitly.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _formKey.currentState?.reset();
+        if (!mounted) return;
+        _formKey.currentState?.reset();
+        setState(() {});
       });
 
       ref
@@ -982,9 +992,11 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     }
 
     // See the identical comment on the network-update branch above for why
-    // this must run post-frame.
+    // this must run post-frame, and why the reset needs a rebuild behind it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _formKey.currentState?.reset();
+      if (!mounted) return;
+      _formKey.currentState?.reset();
+      setState(() {});
     });
 
     ref

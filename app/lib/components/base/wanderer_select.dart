@@ -76,73 +76,90 @@ class WandererSelect<T> extends FormBuilderField<T> {
                      ),
 
                    Expanded(
-                     child: DropdownButtonFormField<T>(
-                       initialValue: field.value,
-                       isExpanded: true,
-                       onChanged: disabled
-                           ? null
-                           : (val) => field.didChange(val),
-                       icon: Padding(
-                         padding: const EdgeInsets.only(top: 6.0),
-                         child: const FaIcon(
-                           FontAwesomeIcons.chevronDown,
-                           size: 14,
-                         ),
-                       ),
-                       style: TextStyle(
-                         color: disabled
-                             ? Colors.grey
-                             : theme.colorScheme.onSurface,
-                       ),
-                       hint: placeholder != null
-                           ? Text(
-                               placeholder,
-                               style: const TextStyle(color: Colors.grey),
-                             )
-                           : null,
-                       items: items
-                           .map(
-                             (item) => DropdownMenuItem<T>(
-                               value: item.value,
-                               child: Row(
-                                 mainAxisSize: MainAxisSize.min,
-                                 children: [
-                                   if (item.icon != null) ...[
-                                     item.icon!,
-                                     const SizedBox(width: 8),
-                                   ],
-                                   Flexible(
-                                     child: Text(
-                                       item.label,
-                                       overflow: TextOverflow.ellipsis,
-                                     ),
-                                   ),
-                                 ],
-                               ),
-                             ),
-                           )
-                           .toList(),
-                       decoration: InputDecoration(
-                         filled: true,
-                         fillColor: isError
-                             ? const Color(0xFFFEF2F2)
-                             : theme.inputDecorationTheme.fillColor,
-                         contentPadding: const EdgeInsets.all(12),
-                         enabledBorder: OutlineInputBorder(
-                           borderRadius: BorderRadius.circular(6),
-                           borderSide: BorderSide(
-                             color: isError
-                                 ? Colors.red.shade400
-                                 : theme.colorScheme.outline,
+                     // DropdownButtonFormField is itself a FormField, so
+                     // without a Form of its own it registers with the
+                     // enclosing FormBuilder's Form and is reset alongside the
+                     // WandererSelect wrapping it. Its reset() ends by calling
+                     // `onChanged(value)` (material/dropdown.dart), which lands
+                     // on the OUTER field's didChange and re-latches its
+                     // `_dirty` flag -- unconditionally, value unchanged or
+                     // not -- a moment after that field's own reset() cleared
+                     // it. `FormBuilderState.isDirty` then stayed true for a
+                     // form that had just been reset to its saved values, and
+                     // leaving the trail screen asked the user to discard
+                     // changes they had already saved. A private Form scope
+                     // keeps this inner field out of the outer field set; the
+                     // selection still flows in through `initialValue` below,
+                     // which FormField.didUpdateWidget applies on rebuild.
+                     child: Form(
+                       child: DropdownButtonFormField<T>(
+                         initialValue: field.value,
+                         isExpanded: true,
+                         onChanged: disabled
+                             ? null
+                             : (val) => field.didChange(val),
+                         icon: Padding(
+                           padding: const EdgeInsets.only(top: 6.0),
+                           child: const FaIcon(
+                             FontAwesomeIcons.chevronDown,
+                             size: 14,
                            ),
                          ),
-                         focusedBorder: OutlineInputBorder(
-                           borderRadius: BorderRadius.circular(6),
-                           borderSide: BorderSide(
-                             color: isError
-                                 ? Colors.red.shade400
-                                 : theme.colorScheme.primary,
-                             width: 1.5,
+                         style: TextStyle(
+                           color: disabled
+                               ? Colors.grey
+                               : theme.colorScheme.onSurface,
+                         ),
+                         hint: placeholder != null
+                             ? Text(
+                                 placeholder,
+                                 style: const TextStyle(color: Colors.grey),
+                               )
+                             : null,
+                         items: items
+                             .map(
+                               (item) => DropdownMenuItem<T>(
+                                 value: item.value,
+                                 child: Row(
+                                   mainAxisSize: MainAxisSize.min,
+                                   children: [
+                                     if (item.icon != null) ...[
+                                       item.icon!,
+                                       const SizedBox(width: 8),
+                                     ],
+                                     Flexible(
+                                       child: Text(
+                                         item.label,
+                                         overflow: TextOverflow.ellipsis,
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+                               ),
+                             )
+                             .toList(),
+                         decoration: InputDecoration(
+                           filled: true,
+                           fillColor: isError
+                               ? const Color(0xFFFEF2F2)
+                               : theme.inputDecorationTheme.fillColor,
+                           contentPadding: const EdgeInsets.all(12),
+                           enabledBorder: OutlineInputBorder(
+                             borderRadius: BorderRadius.circular(6),
+                             borderSide: BorderSide(
+                               color: isError
+                                   ? Colors.red.shade400
+                                   : theme.colorScheme.outline,
+                             ),
+                           ),
+                           focusedBorder: OutlineInputBorder(
+                             borderRadius: BorderRadius.circular(6),
+                             borderSide: BorderSide(
+                               color: isError
+                                   ? Colors.red.shade400
+                                   : theme.colorScheme.primary,
+                               width: 1.5,
+                             ),
                            ),
                          ),
                        ),
