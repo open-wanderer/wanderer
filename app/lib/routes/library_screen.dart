@@ -7,6 +7,7 @@ import 'package:wanderer/components/trail/trail_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/router_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/util/trail/filter.dart';
@@ -139,6 +140,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final l18n = AppLocalizations.of(context)!;
     final location = trailDetailLocation(trail);
 
+    // D-12/D-13/D-14 (38.1): resolved once, up front -- this is an event
+    // handler (the sheet is about to open), so `ref.read`, not `ref.watch`.
+    // Every row this screen renders comes from `trailLibraryProvider`,
+    // which filters only on `savedByUserIds`, so this sheet fires
+    // unconditionally for a row that could still be the hiker's own
+    // pending recording -- while `_confirmRemoveDownload`'s copy
+    // (`remove_download_confirm_body`) promises "the trail itself is not
+    // deleted". With plan 04's store guard that promise is now true; with
+    // this guard the action is not offered where it is meaningless in the
+    // first place. `ownLiveCaptureProvider` is the exact same predicate
+    // `trail_dropdown.dart` reads (D-12: one predicate, two surfaces), so
+    // both surfaces behave identically (D-14).
+    final isOwnLiveCapture = ref.read(ownLiveCaptureProvider(trail.localId));
+
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -159,19 +174,24 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       router.push(location);
                     },
             ),
-            ListTile(
-              // Not a delete -- this only drops this account's library
-              // membership (D-01, T-38-04-01). No red colour: removing a
-              // download is not destructive the way a server delete is.
-              // The dropdown menu uses the same icon for the same action
-              // (38-05), so the two surfaces stay consistent.
-              leading: const FaIcon(FontAwesomeIcons.circleMinus, size: 18),
-              title: Text(l18n.remove),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _confirmRemoveDownload(context, trail);
-              },
-            ),
+            // D-13: hidden entirely (not disabled) when this account owns
+            // the row as a live, not-yet-uploaded capture -- there is
+            // nothing meaningful to un-download, and unlike Edit, waiting
+            // for connectivity never makes it available.
+            if (!isOwnLiveCapture)
+              ListTile(
+                // Not a delete -- this only drops this account's library
+                // membership (D-01, T-38-04-01). No red colour: removing a
+                // download is not destructive the way a server delete is.
+                // The dropdown menu uses the same icon for the same action
+                // (38-05), so the two surfaces stay consistent.
+                leading: const FaIcon(FontAwesomeIcons.circleMinus, size: 18),
+                title: Text(l18n.remove),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _confirmRemoveDownload(context, trail);
+                },
+              ),
           ],
         ),
       ),
