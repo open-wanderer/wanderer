@@ -353,6 +353,7 @@ Future<Trail> buildDraftTrail(
     category: category,
     // `''` clears the relation — matches trail_create_screen's own
     // subcategory-on-clear convention.
+    date: DateTime.now(),
     subcategory: subcategory ?? '',
     expand: (trail.expand ?? const TrailExpand()).copyWith(gpx: finalGpx),
   );
