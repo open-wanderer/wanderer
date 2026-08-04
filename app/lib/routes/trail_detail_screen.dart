@@ -24,17 +24,7 @@ class TrailDetailScreen extends ConsumerStatefulWidget {
   /// reads its data from [localTrailProvider] instead of [trailProvider].
   final String? localId;
 
-  /// Prefer the downloaded copy over the server one. Set when the screen is
-  /// entered from the library, where every entry IS a download and the delete
-  /// action must mean "remove the download" — see [TrailNotifier.build].
-  final bool forceOffline;
-
-  const TrailDetailScreen({
-    super.key,
-    required this.id,
-    this.localId,
-    this.forceOffline = false,
-  });
+  const TrailDetailScreen({super.key, required this.id, this.localId});
 
   @override
   ConsumerState<TrailDetailScreen> createState() => _TrailDetailScreenState();
@@ -111,9 +101,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
       return _buildDetail(context, trail);
     }
 
-    final trailAsync = ref.watch(
-      trailProvider(widget.id, forceOffline: widget.forceOffline),
-    );
+    final trailAsync = ref.watch(trailProvider(widget.id));
 
     return trailAsync.when(
       data: (trail) => _buildDetail(context, trail),
@@ -160,17 +148,10 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
 
         actions: [
           if (!isUnsynced) ...[
-            LikeButton(trail: trail, forceOffline: widget.forceOffline),
+            LikeButton(trail: trail),
             const SizedBox(width: 8),
           ],
-          // forceOffline is forwarded, not re-derived: both children reach for
-          // `trailProvider(trail.id)`, and with the flag in the family key that
-          // is a DIFFERENT instance from the one this screen is showing.
-          TrailDropdown(
-            trail: trail,
-            availableOffline: availableOffline,
-            forceOffline: widget.forceOffline,
-          ),
+          TrailDropdown(trail: trail, availableOffline: availableOffline),
         ],
       ),
       body: Stack(
@@ -182,7 +163,6 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
                 trail: trail,
                 scrollController: _scrollController,
                 availableOffline: availableOffline,
-                forceOffline: widget.forceOffline,
               ),
             ),
           ),

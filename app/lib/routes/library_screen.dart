@@ -117,15 +117,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       itemCount: visible.length,
                       itemBuilder: (context, i) {
                         final trail = visible[i];
-                        // forceOffline: every row here IS a download, so the
-                        // detail screen must show the on-disk copy even when
-                        // the device is online. Otherwise it resolves to the
-                        // server trail and its delete action deletes that
-                        // instead of removing the download.
-                        final location = trailDetailLocation(
-                          trail,
-                          forceOffline: true,
-                        );
+                        final location = trailDetailLocation(trail);
                         return TrailCard(
                           trail: trail,
                           onTrailSelect: location == null
@@ -145,8 +137,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   void _showContextMenu(BuildContext context, Trail trail, router) {
     final l18n = AppLocalizations.of(context)!;
-    // Same forceOffline reasoning as the list tile above.
-    final location = trailDetailLocation(trail, forceOffline: true);
+    final location = trailDetailLocation(trail);
 
     showModalBottomSheet(
       context: context,

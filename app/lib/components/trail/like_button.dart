@@ -6,19 +6,9 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 
 class LikeButton extends ConsumerWidget {
-  const LikeButton({
-    super.key,
-    required this.trail,
-    this.forceOffline = false,
-  });
+  const LikeButton({super.key, required this.trail});
 
   final Trail trail;
-
-  /// Which `trailProvider` instance owns [trail]. The flag is part of the
-  /// family key, so a screen showing the forced-offline copy must pass it on —
-  /// otherwise the like lands on a second, invisible instance and the count
-  /// never moves.
-  final bool forceOffline;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,9 +25,7 @@ class LikeButton extends ConsumerWidget {
       children: [
         IconButton(
           onPressed: () {
-            final notifier = ref.read(
-              trailProvider(trail.id, forceOffline: forceOffline).notifier,
-            );
+            final notifier = ref.read(trailProvider(trail.id).notifier);
             if (isLiked) {
               notifier.unlike(actorId);
             } else {

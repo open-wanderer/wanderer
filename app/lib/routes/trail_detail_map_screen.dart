@@ -24,17 +24,7 @@ class TrailDetailMapScreen extends ConsumerStatefulWidget {
   /// reads its data from [localTrailProvider] instead of [trailProvider].
   final String? localId;
 
-  /// Prefer the downloaded copy over the server one. Forwarded from the detail
-  /// screen's own flag (via `?offline=1`) so the map shows the same GPX the
-  /// detail screen did.
-  final bool forceOffline;
-
-  const TrailDetailMapScreen({
-    super.key,
-    required this.id,
-    this.localId,
-    this.forceOffline = false,
-  });
+  const TrailDetailMapScreen({super.key, required this.id, this.localId});
 
   @override
   ConsumerState<TrailDetailMapScreen> createState() =>
@@ -81,9 +71,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
         ? ref.watch(localTrailProvider(localId))
         : null;
     final AsyncValue<Trail>? trailAsync = localId == null
-        ? ref.watch(
-            trailProvider(widget.id, forceOffline: widget.forceOffline),
-          )
+        ? ref.watch(trailProvider(widget.id))
         : null;
 
     return Scaffold(

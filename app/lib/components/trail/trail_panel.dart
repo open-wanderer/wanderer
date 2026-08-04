@@ -31,15 +31,10 @@ class TrailPanel extends ConsumerWidget {
     required this.trail,
     required this.scrollController,
     this.availableOffline = false,
-    this.forceOffline = false,
   });
 
   final Trail trail;
   final bool availableOffline;
-
-  /// Whether this trail was resolved from the downloaded copy on purpose.
-  /// Forwarded onto the map route so it opens the same copy.
-  final bool forceOffline;
   final ScrollController scrollController;
 
   @override
@@ -65,10 +60,7 @@ class TrailPanel extends ConsumerWidget {
     // that to '/trail/map', which matches no route. `trailMapLocation`
     // returns '/trail/local/<localId>/map' instead, and null when the trail
     // is not addressable at all.
-    final String? mapLocation = trailMapLocation(
-      trail,
-      forceOffline: forceOffline,
-    );
+    final String? mapLocation = trailMapLocation(trail);
 
     // WR-11: `trail.isLocal` is a cache-provenance flag -- `TrailEntity.toModel()`
     // hardcodes it to `true` for every cached row, downloaded trails included,
