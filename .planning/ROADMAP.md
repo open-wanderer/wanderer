@@ -739,7 +739,10 @@ flaky.
 **Depends on**: nothing. Phase 36 is complete; the affected files
 (`trail_dropdown.dart`, `trail_create_screen.dart`, `trail_provider.dart`, `library_screen.dart`)
 are not touched by Phase 37's plan.
-**Requirements**: TBD (derive from the Source material below)
+**Requirements**: DL-01, DL-02, DL-03, DL-04, DL-05, DL-06, DL-07
+(`.planning/REQUIREMENTS.md` § "Post-v1.8 Phase Requirements" — derived 2026-08-04 from the
+success criteria below and `38-CONTEXT.md`; DL-05 captures the no-stale-while-online constraint
+and the free metadata+GPX refresh that came out of discuss-phase, which the criteria below predate)
 **Plans**: 0 plans
 
 **Origin**: `/gsd-explore` session 2026-08-04, prompted by a live report — opening a trail from
