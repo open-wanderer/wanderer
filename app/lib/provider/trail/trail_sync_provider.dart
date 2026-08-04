@@ -434,7 +434,7 @@ class TrailSync extends _$TrailSync {
       // row, so a directory left behind by a crash between these two
       // lines is reclaimed by `main.dart`'s startup sweep. The reverse
       // order would leave a live row pointing at deleted files.
-      await _deletePhotoDirBestEffort(localId);
+      await _deletePhotoDirBestEffort(accountId, localId);
 
       ref.invalidate(trailLibraryProvider);
       ref.invalidate(profileTrailsProvider('@${userEntity.preferredUsername}'));
@@ -455,18 +455,22 @@ class TrailSync extends _$TrailSync {
     }
   }
 
-  /// Deletes [localId]'s unsynced photo directory, swallowing and logging any
-  /// failure.
+  /// Deletes [accountId]'s [localId] unsynced photo directory, swallowing
+  /// and logging any failure.
   ///
   /// `deleteUnsyncedPhotoDir` swallows filesystem errors but evaluates
-  /// `unsyncedTrailPhotoDir` -- and therefore the `^local-\d+-\d+$`
-  /// validation -- outside its own try, on purpose, so a malformed id is a
-  /// loud caller bug. Neither of this notifier's two call sites can act on
-  /// that ArgumentError, and both run AFTER the row has already been deleted
-  /// or marked synced, so both need it to degrade rather than escape.
-  Future<void> _deletePhotoDirBestEffort(String localId) async {
+  /// `unsyncedTrailPhotoDir` -- and therefore the `^local-\d+-\d+$`/
+  /// `recordIdDirSegment` validation on BOTH segments (D-05) -- outside its
+  /// own try, on purpose, so a malformed id is a loud caller bug. Neither of
+  /// this notifier's two call sites can act on that ArgumentError, and both
+  /// run AFTER the row has already been deleted or marked synced, so both
+  /// need it to degrade rather than escape into a button callback.
+  Future<void> _deletePhotoDirBestEffort(
+    String accountId,
+    String localId,
+  ) async {
     try {
-      await deleteUnsyncedPhotoDir(localId);
+      await deleteUnsyncedPhotoDir(accountId, localId);
     } catch (e, st) {
       debugPrint(
         'trail_sync_provider: photo dir cleanup failed for "$localId": '
@@ -519,6 +523,15 @@ class TrailSync extends _$TrailSync {
   /// other failure (401, 403, 500, ...) returns
   /// [UnsyncedDeleteResult.failed]. Every branch logs the underlying
   /// exception via [debugPrint].
+  ///
+  /// D-07 (CR-01): [deleteLocalTrailRow]'s owner-scoped write can match no
+  /// row -- the row this caller intended to delete may actually be owned by
+  /// another account (the CR-01 overlap: `savedByUserIds` scoping handed a
+  /// non-owning account a `localId`/non-synced `syncState` that were really
+  /// someone else's). When it matches nothing, this method skips the photo
+  /// directory delete and the provider invalidations entirely and returns
+  /// [UnsyncedDeleteResult.failed] -- it never reports [UnsyncedDeleteResult.deleted]
+  /// for an operation that deleted nothing it was allowed to delete.
   Future<UnsyncedDeleteResult> deleteUnsynced(String localId) async {
     if (state.contains(localId)) return UnsyncedDeleteResult.blockedInFlight;
 
@@ -576,14 +589,30 @@ class TrailSync extends _$TrailSync {
       }
     }
 
-    deleteLocalTrailRow(store, localId, accountId: accountId);
+    final rowMatched = deleteLocalTrailRow(store, localId, accountId: accountId);
+    if (!rowMatched) {
+      // D-07 / CR-01: `deleteLocalTrailRow` is owner-scoped and matched no
+      // row for this account -- either the row belongs to another account
+      // (the exact overlap CR-01 is about) or it is already gone. Reporting
+      // `deleted` here, or running the unscoped recursive photo-dir delete
+      // below, is how a no-op row delete turned into destroying another
+      // account's un-uploaded photos and a success toast for an operation
+      // that touched nothing. Refuse instead: no photo delete, no provider
+      // invalidation, no `deleted` result.
+      debugPrint(
+        'trail_sync_provider: deleteUnsynced("$localId") matched no row '
+        'owned by account "$accountId"; nothing was deleted',
+      );
+      return UnsyncedDeleteResult.failed;
+    }
+
     // `unsyncedTrailPhotoDir` validates the id OUTSIDE
     // `deleteUnsyncedPhotoDir`'s own try, deliberately, so a malformed
     // localId throws an ArgumentError. The row is already gone by this line,
     // so letting that escape into the button's async callback would leave the
     // user with an orphaned photo directory and an unexplained failure. Match
     // the sweep's best-effort discipline instead.
-    await _deletePhotoDirBestEffort(localId);
+    await _deletePhotoDirBestEffort(accountId, localId);
 
     ref.invalidate(trailLibraryProvider);
     final userEntity = store.box<UserEntity>().getAll().firstOrNull;

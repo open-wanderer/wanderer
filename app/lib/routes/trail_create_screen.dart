@@ -462,21 +462,37 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     // already keep an in-dir path verbatim, so nothing changes there.
     var networkPhotoPaths = localPhotoPaths;
     if (persistedLocalId != null) {
-      try {
-        final appDocsPath = (await getApplicationDocumentsDirectory()).path;
-        networkPhotoPaths = photosNotYetOnServer(
-          unsyncedDir: unsyncedTrailPhotoDir(appDocsPath, persistedLocalId),
-          pickedPaths: localPhotoPaths,
-        );
-      } catch (e) {
-        // `unsyncedTrailPhotoDir` routes `persistedLocalId` through
-        // `localIdDirSegment` and throws `ArgumentError` on a malformed id --
-        // fall back to the unfiltered list rather than blocking an otherwise
-        // valid save over this filter.
+      final accountId = currentAccountId(store);
+      if (accountId == null) {
+        // No signed-in account to scope the unsynced photo dir with -- skip
+        // the filter entirely rather than guessing at a path, matching the
+        // catch branch's own fall-back-to-unfiltered discipline below.
         debugPrint(
-          'trail_create_screen: photosNotYetOnServer guard failed for '
-          '"$persistedLocalId", falling back to the unfiltered photo list: $e',
+          'trail_create_screen: photosNotYetOnServer guard skipped for '
+          '"$persistedLocalId" -- no signed-in account',
         );
+      } else {
+        try {
+          final appDocsPath = (await getApplicationDocumentsDirectory()).path;
+          networkPhotoPaths = photosNotYetOnServer(
+            unsyncedDir: unsyncedTrailPhotoDir(
+              appDocsPath,
+              accountId,
+              persistedLocalId,
+            ),
+            pickedPaths: localPhotoPaths,
+          );
+        } catch (e) {
+          // `unsyncedTrailPhotoDir` routes `accountId`/`persistedLocalId`
+          // through their validators and throws `ArgumentError` on a
+          // malformed id -- fall back to the unfiltered list rather than
+          // blocking an otherwise valid save over this filter.
+          debugPrint(
+            'trail_create_screen: photosNotYetOnServer guard failed for '
+            '"$persistedLocalId", falling back to the unfiltered photo '
+            'list: $e',
+          );
+        }
       }
     }
     final networkPhotoFiles = networkPhotoPaths.map((p) => File(p)).toList();
@@ -555,6 +571,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         final localId = mintLocalId();
 
         final photoCopy = await _copyPhotosForLocalSave(
+          accountId,
           localId,
           updatedTrail,
           localPhotoPaths,
@@ -616,12 +633,24 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // undiagnosable generic `error_saving_trail` toast.
       final localId = persisted?.localId ?? updatedTrail.localId ?? _localId!;
 
+      // D-13: read fresh here, never a cached value -- a mid-session
+      // account switch must not mis-attribute this capture. Copied from the
+      // `createLocal` branch's exact shape and message above so the catch
+      // below surfaces the same `error_saving_trail` toast.
+      final accountId = currentAccountId(store);
+      if (accountId == null) {
+        throw StateError(
+          'trail_create_screen: no signed-in account for a local save',
+        );
+      }
+
       // Safe to run unconditionally: `resolveLocalSaveModeForRow` already
       // routed an `alreadyUploaded`/`alreadySynced` row to `networkUpdate`
       // above, before this branch is ever reached -- so this call can no
       // longer mutate the photo directory ahead of a write `updateLocalTrail`
       // is about to refuse (WR-14). Do not re-hoist a pre-routing guard here.
       final photoCopy = await _copyPhotosForLocalSave(
+        accountId,
         localId,
         updatedTrail,
         localPhotoPaths,
@@ -881,9 +910,9 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   }
 
   /// Copies picked photos for a local-first save into app-owned storage
-  /// under [localId] -- the trail's own photos plus each waypoint that
-  /// carries `localPhotos`, keyed on its `localKey` -- and returns the kept
-  /// paths plus a total failure count (D-03).
+  /// under [accountId]'s [localId] -- the trail's own photos plus each
+  /// waypoint that carries `localPhotos`, keyed on its `localKey` -- and
+  /// returns the kept paths plus a total failure count (D-03).
   Future<
     ({
       List<String> trailPhotos,
@@ -892,6 +921,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     })
   >
   _copyPhotosForLocalSave(
+    String accountId,
     String localId,
     Trail forTrail,
     List<String> trailPhotoPaths,
@@ -900,7 +930,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     var failedCount = 0;
 
     final trailResult = await reconcileLocalPhotos(
-      dir: unsyncedTrailPhotoDir(appDir.path, localId),
+      dir: unsyncedTrailPhotoDir(appDir.path, accountId, localId),
       desiredPaths: trailPhotoPaths,
     );
     failedCount += trailResult.failedCount;
@@ -925,7 +955,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       }
 
       final waypointResult = await reconcileLocalPhotos(
-        dir: unsyncedWaypointPhotoDir(appDir.path, localId, key),
+        dir: unsyncedWaypointPhotoDir(appDir.path, accountId, localId, key),
         desiredPaths: wp.localPhotos,
       );
       failedCount += waypointResult.failedCount;
