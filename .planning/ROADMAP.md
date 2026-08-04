@@ -735,7 +735,7 @@ membership; neither can destroy the other's data.
 **Milestone**: none — inherits Phase 38's post-v1.8 placement.
 **Depends on**: Phase 38 complete (executed 2026-08-04).
 **Requirements**: DL-01, DL-07 (both re-opened — CR-01 is precisely a DL-01/DL-07 violation)
-**Plans**: 0 plans
+**Plans**: 5 plans
 
 #### The premise error
 
@@ -783,7 +783,16 @@ plan-checker and the orchestrator cleared `_allowDelete`'s `isUnsyncedState` esc
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 38.1 --gaps to break down)
+- [ ] 38.1-01-PLAN.md — Delete the unreachable LibraryDetailScreen and route; correct every doc
+  comment carrying the retracted premise (WR-07, WR-08, D-18)
+- [ ] 38.1-02-PLAN.md — Store foundation: the single owner-scoped live-capture predicate, a
+  bool-returning deleteLocalTrailRow, and waypointsAreAuthoritative (CR-02, D-04/D-07/D-08/D-09)
+- [ ] 38.1-03-PLAN.md — Account-scope unsynced photo storage and gate deleteUnsynced on the row
+  match (CR-01 store half, D-05/D-06/D-07)
+- [ ] 38.1-04-PLAN.md — TrailLibraryNotifier.deleteTrail refuses to remove a live capture row
+  (CR-03 store half, D-11/D-12)
+- [ ] 38.1-05-PLAN.md — Owner-scoped delete gate and download-family guard on both surfaces, plus
+  the D-17 overlap fixture (CR-01/CR-03 UI halves, WR-12, D-13/D-14/D-17)
 
 ---
 
