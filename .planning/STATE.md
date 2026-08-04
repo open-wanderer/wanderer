@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
 status: executing
-stopped_at: Phase 38.1 context gathered
-last_updated: "2026-08-04T16:36:48.070Z"
-last_activity: 2026-08-04 -- Phase 38 execution started
+stopped_at: Completed 38.1-01-PLAN.md
+last_updated: "2026-08-04T18:08:49.524Z"
+last_activity: 2026-08-04 -- Phase 38.1 execution started
 progress:
   total_phases: 4
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-24)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 38 — downloaded-trails-as-state-not-objects
+**Current focus:** Phase 38.1 — Downloaded-Trail Blocker Closure
 
 ## Current Position
 
-Phase: 38 (downloaded-trails-as-state-not-objects) — EXECUTING
-Plan: 6 of 6
+Phase: 38.1 (Downloaded-Trail Blocker Closure) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-04 -- Phase 38 execution started
+Last activity: 2026-08-04 -- Phase 38.1 execution started
 
 ## v1.8 Phases
 
@@ -177,6 +177,7 @@ v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-RO
 | Phase 38 P04 | 12min | 3 tasks | 4 files |
 | Phase 38 P05 | 40min | 2 tasks | 2 files |
 | Phase 38 P06 | 9min | 2 tasks | 2 files |
+| Phase 38.1 P01 | 12min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -422,6 +423,9 @@ Recent decisions affecting current work:
 - [Phase 38]: _allowDelete checks isUnsyncedState before authorship so a hiker can still delete their own unsynced recording whose author is the placeholder id (D-02, D-03)
 - [Phase ?]: [Phase 38] [38-06] Edit onTap now fetches the server copy via fetchServerTrail before pushing to the editor for any non-unsynced trail, using context.mounted (not State.mounted) as the guard immediately before the post-await context.push
 - [Phase ?]: [Phase 38] [38-06] Test harness gained availableOffline and api (Dio) parameters; toast refusal test flushed Toast.add's 4s self-removal timer via tester.pump(Duration(seconds: 5)) to satisfy flutter_test's pending-timer teardown invariant
+- [Phase 38.1]: D-15: delete LibraryDetailScreen and its nested route outright rather than wire it up -- nothing pushes /library/:id and a second detail surface is exactly where CR-03 came from.
+- [Phase 38.1]: D-16: Trail.isLocal's doc now names its only two live consumers (trail_card.dart, trail_list_item.dart) and explicitly forbids using it for destructive-action gating, badges, or tab visibility.
+- [Phase 38.1]: D-18: Phase 36's D-10 corrected in place (not deleted/renumbered) as RETRACTED -- the two cosmetic badges it justified still hold, but any destructive-action gating/scoping derived from it does not.
 
 ### Roadmap Evolution
 
@@ -575,9 +579,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-08-04T15:54:06.298Z
-Stopped at: Phase 38.1 context gathered
-Resume file: .planning/phases/38.1-downloaded-trail-blocker-closure/38.1-CONTEXT.md
+Last session: 2026-08-04T18:08:39.917Z
+Stopped at: Completed 38.1-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

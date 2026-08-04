@@ -787,7 +787,7 @@ plan-checker and the orchestrator cleared `_allowDelete`'s `isUnsyncedState` esc
 **UI hint**: no — this is state/scoping correctness, not visual work.
 Plans:
 
-- [ ] 38.1-01-PLAN.md — Delete the unreachable LibraryDetailScreen and route; correct every doc
+- [x] 38.1-01-PLAN.md — Delete the unreachable LibraryDetailScreen and route; correct every doc
   comment carrying the retracted premise (WR-07, WR-08, D-18)
 
 - [ ] 38.1-02-PLAN.md — Store foundation: the single owner-scoped live-capture predicate, a
