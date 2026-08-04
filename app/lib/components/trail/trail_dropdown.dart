@@ -12,6 +12,7 @@ import 'package:wanderer/models/trail_share.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
@@ -357,6 +358,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
 
       switch (result) {
         case UnsyncedDeleteResult.deleted:
+          // No-ops for a device-only row (`announce` ignores an empty id),
+          // but `deleteUnsynced` issues a real server DELETE first when the
+          // row already carries a server id (CR-04) — and such a row can be
+          // indexed, so it can be sitting in the map's results.
+          ref.read(trailDeletionsProvider.notifier).announce(trail.id);
           if (context.mounted && Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
@@ -437,6 +443,10 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       await ref.read(trailSaveProvider.notifier).deleteTrail(trail);
       ref.invalidate(trailLibraryProvider);
       ref.invalidate(trailSearchProvider);
+      // The map providers are announced to rather than invalidated — they
+      // hold their last bounds in instance fields, so invalidating them
+      // empties the map instead of refreshing it. See trail_deletion_provider.
+      ref.read(trailDeletionsProvider.notifier).announce(trail.id);
       final handle = ref.read(authProvider).value?.preferredUsername;
       if (handle != null) {
         ref.invalidate(profileTrailsProvider('@$handle'));

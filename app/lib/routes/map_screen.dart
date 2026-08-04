@@ -31,6 +31,7 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/components/category/category_icon.dart';
@@ -323,6 +324,23 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final data = next.value;
       if (style == null || data == null || next.isLoading) return;
       updateClusterSource(style, jsonEncode(data)).ignore();
+    });
+
+    // `_selectedTrail` is local state, so the providers splicing the deleted
+    // trail out of their results does not reach it — without this the user
+    // pops back from the detail screen onto a selection panel (and a drawn
+    // polyline) for a trail that no longer exists, whose "view" button
+    // navigates straight into a 404.
+    //
+    // Keyed on the announced id rather than "selection vanished from
+    // results": panning away from the selected trail also drops it from the
+    // bounds search, and that must keep the selection intact.
+    ref.listen(trailDeletionsProvider, (previous, next) {
+      if (next == null || _selectedTrail?.id != next.id) return;
+      setState(() {
+        _selectedTrail = null;
+        _selectedPolyline = null;
+      });
     });
 
     final filterAsync = ref.watch(trailFilterProvider('map'));

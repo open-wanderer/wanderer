@@ -6,6 +6,7 @@ import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 part 'map_trail_search_provider.g.dart';
@@ -28,7 +29,28 @@ class MapTrailSearch extends _$MapTrailSearch {
       }
     });
 
+    // A deleted trail must leave the bottom-sheet list immediately rather than
+    // waiting for the next bounds search: the user is popped straight back
+    // onto the map from the detail screen without moving the camera, so
+    // nothing would re-run the search. Re-running it wouldn't be reliable
+    // anyway — Meilisearch's index drops the document asynchronously, so a
+    // search fired right after the DELETE can still return the hit.
+    ref.listen(trailDeletionsProvider, (previous, next) {
+      if (next != null) _removeTrail(next.id);
+    });
+
     return [];
+  }
+
+  void _removeTrail(String id) {
+    final current = state.value;
+    if (current == null) return;
+    final remaining = current.where((t) => t.id != id).toList();
+    if (remaining.length == current.length) return;
+    // Written as AsyncData, not `state = AsyncData(...)` on a loading state:
+    // if a bounds search is in flight it will overwrite this shortly anyway,
+    // and the deleted trail is gone from the server by then.
+    state = AsyncData(remaining);
   }
 
   void searchInBounds(LngLatBounds bounds, {TrailFilter? passedFilter}) {

@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 part 'map_cluster_search_provider.g.dart';
@@ -37,7 +38,37 @@ class MapClusterSearch extends _$MapClusterSearch {
       }
     });
 
+    ref.listen(trailDeletionsProvider, (previous, next) {
+      if (next != null) _removeTrail(next.id);
+    });
+
     return <String, dynamic>{'type': 'FeatureCollection', 'features': <Object>[]};
+  }
+
+  /// Drops the deleted trail's marker from the feature collection so its
+  /// category-icon pin disappears with the sheet entry.
+  ///
+  /// Only ever matches an unclustered feature: the server stamps `id` on
+  /// single-trail (`point_count == 1`) features, and a real cluster carries a
+  /// count instead of an id. A trail deleted out of a multi-trail cluster
+  /// therefore leaves the circle's count one too high until the next bounds
+  /// search — the alternative (decrementing a count we didn't compute) would
+  /// desync the marker layer from the server's clustering.
+  void _removeTrail(String id) {
+    final current = state.value;
+    if (current == null) return;
+    final features = current['features'];
+    if (features is! List) return;
+
+    final remaining = features.where((feature) {
+      if (feature is! Map) return true;
+      final properties = feature['properties'];
+      if (properties is! Map) return true;
+      return properties['id'] != id;
+    }).toList();
+    if (remaining.length == features.length) return;
+
+    state = AsyncData(<String, dynamic>{...current, 'features': remaining});
   }
 
   void searchInBounds(
