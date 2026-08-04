@@ -721,6 +721,134 @@ backlog because their scope is already understood at file level, but they must n
 while v1.8 is executing. When the next milestone is opened, `/gsd-new-milestone` should claim
 them explicitly.
 
+### Phase 38: Downloaded Trails as State, Not Objects
+
+> **Execute BEFORE Phase 37.** Numbered 38 only because Phase 37's research artifacts are
+> already named on disk (`.planning/phases/37-way-types-surfaces-breakdown-mobile-first/37-RESEARCH-SOURCE.md`);
+> renumbering would churn a directory, a filename and three files' cross-references for no
+> behavioural gain. The Execution Order block below is authoritative, as it already is for
+> Phases 13/14. This phase fixes live bugs; Phase 37 is a new feature.
+
+**Goal**: A hiker who opens a downloaded trail can tell exactly what they are looking at and
+what each action will destroy — removing a download and deleting the trail are two differently
+labelled things, and neither one can turn into the other because the network happened to be
+flaky.
+
+**Milestone**: none yet — parked like Phase 37, but unlike Phase 37 this is bug work on
+`feature/app` and carries no v1.8 file conflicts.
+**Depends on**: nothing. Phase 36 is complete; the affected files
+(`trail_dropdown.dart`, `trail_create_screen.dart`, `trail_provider.dart`, `library_screen.dart`)
+are not touched by Phase 37's plan.
+**Requirements**: TBD (derive from the Source material below)
+**Plans**: 0 plans
+
+**Origin**: `/gsd-explore` session 2026-08-04, prompted by a live report — opening a trail from
+the Library and tapping Delete deleted it **on the server** rather than removing the download,
+whenever the device happened to be online.
+
+#### The root cause is a coupling, not a bug
+
+One menu item labelled *Delete* means two different things, and which one fires is decided by
+`Trail.isLocal` — a **data-provenance** flag that `TrailEntity.toModel()` hardcodes `true` for
+every cached row (`app/lib/entities/trail_entity.dart:355`). Because `TrailNotifier.build()`
+falls back to the ObjectBox cache on *any* fetch exception, not just when offline, provenance
+drifts with network conditions. One timeout arms the wrong branch. Every fix that keeps a single
+Delete item keeps that coupling alive.
+
+The 2026-08-04 mitigation already on `feature/app` — a `forceOffline` flag on `trailProvider`,
+plumbed from the Library via `?offline=1` — makes the Library entry point deterministic but does
+**not** break the coupling; it only guarantees which side of it you land on. Deciding this flag's
+fate (repurpose as a display-source preference, or retire) is in scope here.
+
+#### Prior art (researched 2026-08-04, official help-centre docs)
+
+- **komoot** — offline copies are strictly read-only; planning/editing offline is unsupported and
+  is an open feature request. Crucially, komoot has **no separate library object**: "Store for
+  offline use" is a *toggle on the Tour*, and switching it off "removes the tour data from your
+  device while keeping the tour in your komoot account." There is no "source" to navigate to
+  because the user never left it. (support.komoot.com)
+- **AllTrails** — reserves the word **"Remove"** exclusively for downloads, behind a two-step
+  confirm on a separate Downloads tab; unsaving a list item is a different flow. Editing is
+  online-gated for everyone (web for all tiers, mobile Peak-only, still requires connectivity).
+  (support.alltrails.com)
+- **Gaia GPS** — deleting *synced* data archives it server-side; only unsynced deletes are
+  unrecoverable. (help.gaiagps.com)
+- **Not found in any official doc for any app**: a staleness/"update available" affordance, or a
+  "view online" affordance. Refresh is user-initiated re-download everywhere. Recorded because it
+  killed two candidate designs, and because absence of evidence was confirmed rather than assumed.
+
+#### Success Criteria (what must be TRUE)
+
+  1. *Remove download* and *Delete trail* are two separately labelled menu items whose visibility
+     is derived from **library membership** and **authorship** respectively — neither reads
+     `Trail.isLocal`. A trail the hiker authored and downloaded shows both.
+  2. Editing a trail whose server copy is not in hand is refused with a stated reason, rather
+     than silently editing the cached copy.
+  3. Editing a downloaded trail no longer duplicates its photos on the server (see bug 1).
+  4. After the hiker's own successful edit, the downloaded copy reflects that edit without a
+     re-download (see bug 2).
+  5. Refreshing a download is an explicit *Update* action. No automatic re-download.
+  6. Every one of the above holds with the device offline, with the device online, and with a
+     request that times out mid-view — the third case being the one that produced the original
+     report.
+
+#### Source material — two live bugs, independently shippable
+
+Both are real on `feature/app` today and were verified by reading the call chain, not inferred.
+
+**Bug 1 — editing a Library trail duplicates its photos on the server. Data damage; nothing
+cleans it up.** `TrailDownloadService` overwrites `entity.photos` with *local file paths*
+(`app/lib/services/trail_download_service.dart:148`), and `toModel()` surfaces those as
+`localPhotos` while leaving the model's `photos` at its `[]` default
+(`app/lib/entities/trail_entity.dart:360`). The edit form therefore seeds
+`initialValue: trail.localPhotos` (real files under `library/<id>/photos/`, so they render
+normally and look correct) and `initialWebPhotos: trail.photos` — **empty**
+(`app/lib/routes/trail_create_screen.dart:1469`). On save those local paths survive the
+`existsSync()` filter and are sent under the **append-only `photos+`** key
+(`app/lib/util/trail/form_data.dart:47-51`): the server photo set doubles per edit.
+Correspondingly `_removedServerPhotos` is computed from the empty `trail.photos`
+(`trail_create_screen.dart:383`), so removing a photo in the editor silently no-ops.
+Pre-existed as a fetch-failure edge case; `forceOffline` made it the guaranteed path for every
+Library edit. Criterion 2 (online-gated editing) fixes this at the root by never handing a cached
+model to the editor.
+
+**Bug 2 — the hiker's own edit never reaches the downloaded copy.**
+`applyNetworkEditToLocalRow` runs only when `reconcileLocalId != null`
+(`app/lib/routes/trail_create_screen.dart:756`), which is the unsynced-capture path; a downloaded
+row has `localId == null`, so nothing writes the edit into ObjectBox. Fix chosen during
+exploration: after a successful `POST /trail/form/{id}`, write the returned model into the
+existing row when one exists for that server id and the current account holds it. **No new
+network traffic** — the response is already in hand — so this does not violate the
+"re-download is an explicit decision" principle, which continues to govern staleness caused by
+*other* people (that stays a manual *Update*).
+
+Routing and edit-mode selection are already correct and must not regress: a downloaded row is
+`syncState: synced` with a real id, so `resolveLocalSaveModeForRow` correctly returns
+`networkUpdate` (`app/lib/store/local_trail_store.dart:71-79`), and `WaypointEntity.toModel()`
+preserves real server ids so the waypoint diff finds no spurious additions.
+
+#### Explicitly rejected during exploration
+
+- **"Go to source" menu item** — proposed, then dropped. It bridges a gap that only exists
+  because the Library is modelled as separate objects; adopting komoot's single-object model
+  removes the gap instead of spanning it, and disposes of the naming problem with it.
+- **A staleness badge / "update available"** — no researched app does this, it needs the server
+  copy fetched before it can compare `updated` timestamps, and it adds a UI state to earn little.
+
+**UI hint**: yes
+
+**Open for discuss-phase**: whether *Remove download* keeps the existing shared
+`delete_trail_confirm` string (which today doubles as the un-download confirm — see the comment
+at `trail_dropdown.dart:239-244`) or earns AllTrails-style dedicated "Remove" vocabulary;
+whether *Update* belongs in the overflow menu or replaces the inert "Available offline" item;
+and the fate of the `forceOffline` flag.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 38 to break down)
+
+---
+
 ### Phase 37: Way Types & Surfaces Breakdown (mobile-first)
 
 **Goal**: A hiker looking at any trail sees what they will actually be walking on — a stacked
@@ -797,10 +925,17 @@ v1.8 continues from Phase 32. Phases 33-36 are strictly sequential — each phas
 
 Phase 37 is unscheduled and sits outside v1.8, but it is **not parallelizable with Phase 36** —
 both edit `app/lib/models/trail.dart`, the `api/v1/trail` handlers, and the `trails` collection
-migrations. It starts only after 36 lands:
+migrations. It starts only after 36 lands.
+
+**Phase 38 executes before Phase 37**, despite the higher number — numbering follows artifact
+creation order here, not execution order, exactly as it already does for Phases 13/14. Phase 38
+is bug work (photo duplication on every Library edit, plus a destructive-action ambiguity that
+deletes server trails when the network is flaky); Phase 37 is a new feature. Phase 38 depends on
+nothing and conflicts with nothing — the two phases share no files, so the ordering is a
+priority decision, not a technical constraint, and 38 may equally start before v1.8 ships:
 
 ```
-36 → (v1.8 ships) → 37
+36 → (v1.8 ships) → 38 → 37
 ```
 
 | Phase | Milestone | Plans Complete | Status | Completed |
