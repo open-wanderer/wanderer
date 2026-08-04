@@ -11,11 +11,16 @@ import 'package:wanderer/store/local_photo_store.dart';
 // directory segment must be validated before any dart:io call, and a
 // per-photo copy failure must never abort a save or fall back to an
 // OS-purgeable picker path.
+//
+// 38.1 D-05 adds an account segment (`unsynced/<accountId>/<localId>/`) so
+// one account's unsynced photos are structurally unreachable from another
+// account's delete path -- the CR-01 defect this file also proves closed.
 // ---------------------------------------------------------------------------
 
-/// Fakes the app-docs directory as a temp dir for [sweepOrphanedUnsyncedPhotos],
-/// the only function under test that resolves `getApplicationDocumentsDirectory()`
-/// internally rather than taking an `appDocsPath` parameter.
+/// Fakes the app-docs directory as a temp dir for [sweepOrphanedUnsyncedPhotos]
+/// and [deleteUnsyncedPhotoDir], the two functions under test that resolve
+/// `getApplicationDocumentsDirectory()` internally rather than taking an
+/// `appDocsPath` parameter.
 class _FakePathProviderPlatform extends PathProviderPlatform {
   _FakePathProviderPlatform(this.appDocsPath);
 
@@ -39,6 +44,7 @@ void main() {
   });
 
   group('path builders', () {
+    const accountId = 'acct000000000a1';
     const localId = 'local-1700000000000000-1';
     const waypointKey = 'local-1700000000000001-2';
 
@@ -47,48 +53,141 @@ void main() {
       expect(path, p.join(tempRoot.path, 'unsynced'));
     });
 
-    test('unsyncedTrailPhotoDir is p.join-shaped under the unsynced root', () {
-      final path = unsyncedTrailPhotoDir(tempRoot.path, localId);
-      expect(path, p.join(tempRoot.path, 'unsynced', localId));
-      expect(p.isWithin(unsyncedPhotoRoot(tempRoot.path), path), isTrue);
-    });
+    test(
+      'unsyncedAccountPhotoDir is p.join-shaped under the unsynced root',
+      () {
+        final path = unsyncedAccountPhotoDir(tempRoot.path, accountId);
+        expect(path, p.join(tempRoot.path, 'unsynced', accountId));
+        expect(p.isWithin(unsyncedPhotoRoot(tempRoot.path), path), isTrue);
+      },
+    );
+
+    test(
+      'unsyncedTrailPhotoDir is p.join-shaped under the account dir, in '
+      'appDocsPath/accountId/localId order',
+      () {
+        final path = unsyncedTrailPhotoDir(tempRoot.path, accountId, localId);
+        expect(
+          path,
+          p.join(tempRoot.path, 'unsynced', accountId, localId),
+        );
+        expect(
+          p.isWithin(
+            unsyncedAccountPhotoDir(tempRoot.path, accountId),
+            path,
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('unsyncedWaypointPhotoDir is p.join-shaped under the trail dir', () {
       final path = unsyncedWaypointPhotoDir(
         tempRoot.path,
+        accountId,
         localId,
         waypointKey,
       );
       expect(
         path,
-        p.join(tempRoot.path, 'unsynced', localId, 'waypoints', waypointKey),
+        p.join(
+          tempRoot.path,
+          'unsynced',
+          accountId,
+          localId,
+          'waypoints',
+          waypointKey,
+        ),
       );
       expect(
-        p.isWithin(unsyncedTrailPhotoDir(tempRoot.path, localId), path),
+        p.isWithin(
+          unsyncedTrailPhotoDir(tempRoot.path, accountId, localId),
+          path,
+        ),
         isTrue,
       );
     });
 
-    test('unsyncedTrailPhotoDir throws ArgumentError for a traversal id', () {
-      expect(
-        () => unsyncedTrailPhotoDir(tempRoot.path, '../escape'),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'unsyncedAccountPhotoDir throws ArgumentError for a traversal id',
+      () {
+        expect(
+          () => unsyncedAccountPhotoDir(tempRoot.path, '../escape'),
+          throwsArgumentError,
+        );
+      },
+    );
 
-    test('unsyncedTrailPhotoDir throws ArgumentError for a malformed id', () {
+    test(
+      'unsyncedAccountPhotoDir throws ArgumentError for an id containing a '
+      'path separator',
+      () {
+        expect(
+          () => unsyncedAccountPhotoDir(tempRoot.path, 'a/b'),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test('unsyncedAccountPhotoDir throws ArgumentError for an empty id', () {
       expect(
-        () => unsyncedTrailPhotoDir(tempRoot.path, 'not-a-local-id'),
+        () => unsyncedAccountPhotoDir(tempRoot.path, ''),
         throwsArgumentError,
       );
     });
 
     test(
+      'unsyncedTrailPhotoDir throws ArgumentError for a traversal accountId '
+      'even when localId is valid',
+      () {
+        expect(
+          () => unsyncedTrailPhotoDir(tempRoot.path, '../escape', localId),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test('unsyncedTrailPhotoDir throws ArgumentError for a traversal localId', () {
+      expect(
+        () => unsyncedTrailPhotoDir(tempRoot.path, accountId, '../escape'),
+        throwsArgumentError,
+      );
+    });
+
+    test('unsyncedTrailPhotoDir throws ArgumentError for a malformed localId', () {
+      expect(
+        () =>
+            unsyncedTrailPhotoDir(tempRoot.path, accountId, 'not-a-local-id'),
+        throwsArgumentError,
+      );
+    });
+
+    test(
+      'unsyncedWaypointPhotoDir throws ArgumentError for a traversal '
+      'accountId',
+      () {
+        expect(
+          () => unsyncedWaypointPhotoDir(
+            tempRoot.path,
+            '../escape',
+            localId,
+            waypointKey,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
       'unsyncedWaypointPhotoDir throws ArgumentError for a traversal trail id',
       () {
         expect(
-          () =>
-              unsyncedWaypointPhotoDir(tempRoot.path, '../escape', waypointKey),
+          () => unsyncedWaypointPhotoDir(
+            tempRoot.path,
+            accountId,
+            '../escape',
+            waypointKey,
+          ),
           throwsArgumentError,
         );
       },
@@ -98,7 +197,12 @@ void main() {
       'unsyncedWaypointPhotoDir throws ArgumentError for a traversal waypoint key',
       () {
         expect(
-          () => unsyncedWaypointPhotoDir(tempRoot.path, localId, '../escape'),
+          () => unsyncedWaypointPhotoDir(
+            tempRoot.path,
+            accountId,
+            localId,
+            '../escape',
+          ),
           throwsArgumentError,
         );
       },
@@ -110,6 +214,7 @@ void main() {
         expect(
           () => unsyncedWaypointPhotoDir(
             tempRoot.path,
+            accountId,
             localId,
             'not-a-local-id',
           ),
@@ -266,8 +371,8 @@ void main() {
   group('photosNotYetOnServer', () {
     test('a path directly inside unsyncedDir is excluded', () {
       final result = photosNotYetOnServer(
-        unsyncedDir: '/docs/unsynced/local-1-0',
-        pickedPaths: ['/docs/unsynced/local-1-0/a.jpg'],
+        unsyncedDir: '/docs/unsynced/acct-a/local-1-0',
+        pickedPaths: ['/docs/unsynced/acct-a/local-1-0/a.jpg'],
       );
 
       expect(result, isEmpty);
@@ -278,9 +383,9 @@ void main() {
       'excluded',
       () {
         final result = photosNotYetOnServer(
-          unsyncedDir: '/docs/unsynced/local-1-0',
+          unsyncedDir: '/docs/unsynced/acct-a/local-1-0',
           pickedPaths: [
-            '/docs/unsynced/local-1-0/waypoints/local-2-0/b.jpg',
+            '/docs/unsynced/acct-a/local-1-0/waypoints/local-2-0/b.jpg',
           ],
         );
 
@@ -290,7 +395,7 @@ void main() {
 
     test('an image_picker-style cache path outside unsyncedDir is kept', () {
       final result = photosNotYetOnServer(
-        unsyncedDir: '/docs/unsynced/local-1-0',
+        unsyncedDir: '/docs/unsynced/acct-a/local-1-0',
         pickedPaths: ['/cache/picker/c.jpg'],
       );
 
@@ -303,8 +408,8 @@ void main() {
       'canonicalization fix',
       () {
         final result = photosNotYetOnServer(
-          unsyncedDir: '/docs/unsynced/local-1-0',
-          pickedPaths: ['/docs/unsynced/local-1-0/./a.jpg'],
+          unsyncedDir: '/docs/unsynced/acct-a/local-1-0',
+          pickedPaths: ['/docs/unsynced/acct-a/local-1-0/./a.jpg'],
         );
 
         expect(result, isEmpty);
@@ -313,10 +418,10 @@ void main() {
 
     test('input order is preserved for the kept entries in a mixed list', () {
       final result = photosNotYetOnServer(
-        unsyncedDir: '/docs/unsynced/local-1-0',
+        unsyncedDir: '/docs/unsynced/acct-a/local-1-0',
         pickedPaths: [
           '/cache/picker/first.jpg',
-          '/docs/unsynced/local-1-0/already-uploaded.jpg',
+          '/docs/unsynced/acct-a/local-1-0/already-uploaded.jpg',
           '/cache/picker/second.jpg',
         ],
       );
@@ -326,12 +431,57 @@ void main() {
 
     test('an empty pickedPaths returns an empty list', () {
       final result = photosNotYetOnServer(
-        unsyncedDir: '/docs/unsynced/local-1-0',
+        unsyncedDir: '/docs/unsynced/acct-a/local-1-0',
         pickedPaths: const [],
       );
 
       expect(result, isEmpty);
     });
+  });
+
+  group('deleteUnsyncedPhotoDir -- CR-01 cross-account isolation', () {
+    setUp(() {
+      PathProviderPlatform.instance = _FakePathProviderPlatform(tempRoot.path);
+    });
+
+    // CR-01: before 38.1 D-05, `unsyncedTrailPhotoDir` resolved
+    // `<appDocs>/unsynced/<localId>/` with no account component at all --
+    // so two accounts that happened to share the same `localId` (the
+    // overlap `TrailDownloadService`'s carry-forward produces) resolved to
+    // the SAME directory. Account B tapping Delete on a row that actually
+    // carried account A's `localId` therefore recursively deleted account
+    // A's un-uploaded photos and reported success. This test proves the
+    // account segment makes that directory structurally unreachable.
+    test(
+      'CR-01: deleting account B\'s photo dir for a localId also held by '
+      'account A leaves account A\'s identically-named directory intact',
+      () async {
+        const accountA = 'acctA0000000001';
+        const accountB = 'acctB0000000002';
+        const localId = 'local-1700000000000000-1';
+
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        final dirA = p.join(root, accountA, localId);
+        final dirB = p.join(root, accountB, localId);
+        await Directory(dirA).create(recursive: true);
+        await Directory(dirB).create(recursive: true);
+        final fileA = File(p.join(dirA, 'photo.jpg'))
+          ..writeAsStringSync('account-a-bytes');
+        File(p.join(dirB, 'photo.jpg')).writeAsStringSync('account-b-bytes');
+
+        await deleteUnsyncedPhotoDir(accountB, localId);
+
+        expect(
+          fileA.existsSync(),
+          isTrue,
+          reason:
+              'account B\'s delete must never reach account A\'s directory, '
+              'even though both share the same localId (CR-01).',
+        );
+        expect(Directory(dirA).existsSync(), isTrue);
+        expect(Directory(dirB).existsSync(), isFalse);
+      },
+    );
   });
 
   group('sweepOrphanedUnsyncedPhotos', () {
@@ -340,23 +490,98 @@ void main() {
     });
 
     test(
-      'deletes a directory not in keepLocalIds and leaves a kept one intact',
+      'deletes exactly the orphaned second-level localId directories across '
+      'two account directories, leaving both account dirs and both kept '
+      'dirs intact',
       () async {
         final root = unsyncedPhotoRoot(tempRoot.path);
-        const keptId = 'local-1700000000000000-1';
-        const orphanId = 'local-1700000000000000-2';
-        await Directory(p.join(root, keptId)).create(recursive: true);
-        await Directory(p.join(root, orphanId)).create(recursive: true);
-        File(p.join(root, keptId, 'photo.jpg')).writeAsStringSync('bytes');
+        const accountA = 'acctA0000000001';
+        const accountB = 'acctB0000000002';
+        const keptA = 'local-1700000000000000-1';
+        const orphanA = 'local-1700000000000000-2';
+        const keptB = 'local-1700000000000000-3';
+        const orphanB = 'local-1700000000000000-4';
+
+        await Directory(p.join(root, accountA, keptA)).create(recursive: true);
+        await Directory(
+          p.join(root, accountA, orphanA),
+        ).create(recursive: true);
+        await Directory(p.join(root, accountB, keptB)).create(recursive: true);
+        await Directory(
+          p.join(root, accountB, orphanB),
+        ).create(recursive: true);
+        File(
+          p.join(root, accountA, keptA, 'photo.jpg'),
+        ).writeAsStringSync('bytes');
 
         final deleted = await sweepOrphanedUnsyncedPhotos(
-          keepLocalIds: {keptId},
+          keepLocalIds: {keptA, keptB},
         );
 
-        expect(deleted, 1);
-        expect(Directory(p.join(root, keptId)).existsSync(), isTrue);
-        expect(File(p.join(root, keptId, 'photo.jpg')).existsSync(), isTrue);
-        expect(Directory(p.join(root, orphanId)).existsSync(), isFalse);
+        expect(deleted, 2);
+        expect(Directory(p.join(root, accountA)).existsSync(), isTrue);
+        expect(Directory(p.join(root, accountB)).existsSync(), isTrue);
+        expect(Directory(p.join(root, accountA, keptA)).existsSync(), isTrue);
+        expect(
+          File(p.join(root, accountA, keptA, 'photo.jpg')).existsSync(),
+          isTrue,
+        );
+        expect(Directory(p.join(root, accountB, keptB)).existsSync(), isTrue);
+        expect(
+          Directory(p.join(root, accountA, orphanA)).existsSync(),
+          isFalse,
+        );
+        expect(
+          Directory(p.join(root, accountB, orphanB)).existsSync(),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'a "waypoints" directory sitting at the second level is not deleted -- '
+      'its basename fails isLocalId, proving the sweep cannot reach a '
+      'waypoint subtree by accident',
+      () async {
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        const accountA = 'acctA0000000001';
+        const localId = 'local-1700000000000000-1';
+
+        final waypointsDir = Directory(p.join(root, accountA, 'waypoints'));
+        await waypointsDir.create(recursive: true);
+        final strayFile = File(p.join(waypointsDir.path, 'local-2-0.jpg'))
+          ..writeAsStringSync('bytes');
+
+        final deleted = await sweepOrphanedUnsyncedPhotos(
+          keepLocalIds: {localId},
+        );
+
+        expect(deleted, 0);
+        expect(waypointsDir.existsSync(), isTrue);
+        expect(strayFile.existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'a legacy first-level unsynced/<localId>/ directory (the pre-D-05 '
+      'layout) and its contents survive the sweep untouched (D-06: no '
+      'migration, no cleanup)',
+      () async {
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        const legacyLocalId = 'local-1700000000000000-9';
+
+        final legacyDir = Directory(p.join(root, legacyLocalId));
+        await legacyDir.create(recursive: true);
+        final legacyFile = File(p.join(legacyDir.path, 'photo.jpg'))
+          ..writeAsStringSync('legacy-bytes');
+
+        final deleted = await sweepOrphanedUnsyncedPhotos(
+          keepLocalIds: const {},
+        );
+
+        expect(deleted, 0);
+        expect(legacyDir.existsSync(), isTrue);
+        expect(legacyFile.existsSync(), isTrue);
       },
     );
   });

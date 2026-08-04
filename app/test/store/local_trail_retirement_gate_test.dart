@@ -328,7 +328,9 @@ void main() {
         final body = drainOneBody();
 
         final retireIdx = body.indexOf('retireUploadedLocalTrail(');
-        final sweepIdx = body.indexOf('_deletePhotoDirBestEffort(localId)');
+        final sweepIdx = body.indexOf(
+          '_deletePhotoDirBestEffort(accountId, localId)',
+        );
 
         expect(retireIdx, isNot(-1));
         expect(sweepIdx, isNot(-1));
@@ -750,6 +752,91 @@ void main() {
             'proceeds automatically.',
       );
     });
+
+    test(
+      'deleteLocalTrailRow(\'s result gates the photo delete -- a no-op row '
+      'delete must not be followed by an unscoped recursive photo delete '
+      '(D-07, CR-01)',
+      () {
+        final body = deleteUnsyncedBody();
+
+        final assignMatch = RegExp(
+          r'(\w+)\s*=\s*deleteLocalTrailRow\(',
+        ).firstMatch(body);
+        expect(
+          assignMatch,
+          isNotNull,
+          reason:
+              'deleteLocalTrailRow now returns bool (plan 38.1-02); '
+              'deleteUnsynced must capture that result rather than '
+              'discarding it, or a no-op row delete cannot be '
+              'distinguished from a real one.',
+        );
+        final resultVar = assignMatch!.group(1)!;
+
+        final guardIdx = body.indexOf('if (!$resultVar)');
+        expect(
+          guardIdx,
+          isNot(-1),
+          reason:
+              'The captured bool must be guarded with `if (!$resultVar)` '
+              'before anything destructive runs.',
+        );
+
+        final photoDeleteIdx = body.indexOf('_deletePhotoDirBestEffort(');
+        expect(photoDeleteIdx, isNot(-1));
+
+        expect(
+          guardIdx < photoDeleteIdx,
+          isTrue,
+          reason:
+              'CR-01: a no-op row delete (deleteLocalTrailRow matched no '
+              'row owned by this account) followed by an unscoped '
+              'recursive photo delete is exactly how account B destroyed '
+              'account A\'s photos -- deleteUnsyncedPhotoDir had no '
+              'account component and resolved the same directory for '
+              'both accounts. The guard must sit before the photo '
+              'delete, not after.',
+        );
+      },
+    );
+
+    test(
+      'a no-op row delete returns UnsyncedDeleteResult.failed, never '
+      '.deleted -- reporting success for a delete that never happened '
+      'produces a success toast, a popped route and a map-provider '
+      'announcement for nothing (D-07)',
+      () {
+        final body = deleteUnsyncedBody();
+
+        final assignMatch = RegExp(
+          r'(\w+)\s*=\s*deleteLocalTrailRow\(',
+        ).firstMatch(body);
+        expect(assignMatch, isNotNull);
+        final resultVar = assignMatch!.group(1)!;
+
+        final guardIdx = body.indexOf('if (!$resultVar)');
+        expect(guardIdx, isNot(-1));
+
+        final guardEnd = body.indexOf('}', guardIdx);
+        expect(
+          guardEnd,
+          isNot(-1),
+          reason: 'Could not find the end of the no-op-row-delete guard.',
+        );
+        final guardBlock = body.substring(guardIdx, guardEnd);
+
+        expect(
+          guardBlock.contains('return UnsyncedDeleteResult.failed;'),
+          isTrue,
+          reason:
+              'Reporting UnsyncedDeleteResult.deleted for an operation '
+              'that matched no row produces a success toast, a popped '
+              'route and a map-provider announcement for a delete that '
+              'never happened.',
+        );
+      },
+    );
   });
 
   group(
