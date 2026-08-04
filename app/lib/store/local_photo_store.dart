@@ -7,12 +7,23 @@
 /// copy into app-owned storage here, a picked photo can be gone by the time
 /// the sync drain (36-05/36-06) runs (D-01).
 ///
-/// Root: `<app-docs>/unsynced`, deliberately named distinctly from
-/// `library/` (downloaded trails, see `trail_download_service.dart`) so
-/// [deleteUnsyncedPhotoDir] and [sweepOrphanedUnsyncedPhotos] can target it
-/// without ever touching a downloaded trail's files --
-/// `account_data_purge.dart`'s `accountScopedDirNames` doc comment
-/// reasons about `library`/`regions`/`map_cache` the same way (T-36-02-03).
+/// Root: `<app-docs>/unsynced/<accountId>/<localId>/`, deliberately named
+/// distinctly from `library/` (downloaded trails, see
+/// `trail_download_service.dart`) so [deleteUnsyncedPhotoDir] and
+/// [sweepOrphanedUnsyncedPhotos] can target it without ever touching a
+/// downloaded trail's files -- `account_data_purge.dart`'s
+/// `accountScopedDirNames` doc comment reasons about
+/// `library`/`regions`/`map_cache` the same way (T-36-02-03).
+///
+/// The `<accountId>` segment (38.1 D-05) exists because a destructive action
+/// must be scoped by the identity it actually destroys (38.1 D-02): before
+/// D-05 this root had no account component at all, so
+/// `<appDocs>/unsynced/<localId>/` was literally the same directory for
+/// every account, and one account's Delete could recursively remove another
+/// account's un-uploaded photos (CR-01). There is deliberately NO migration
+/// and NO first-launch cleanup for the pre-D-05 one-level layout (38.1
+/// D-06) -- the app is not yet in real-world use, and any `unsynced/<localId>/`
+/// directory left over from before this change is simply never read again.
 ///
 /// Every path below is built with `p.join` -- never string interpolation.
 /// RESEARCH.md's Security Domain names `p.join` as the required pattern
@@ -29,27 +40,49 @@ String unsyncedPhotoRoot(String appDocsPath) {
   return p.join(appDocsPath, 'unsynced');
 }
 
-/// Directory holding [localId]'s trail-level photo copies.
+/// Directory holding [accountId]'s unsynced photo storage.
+///
+/// [accountId] is a PocketBase-issued [UserEntity.id], routed through
+/// [recordIdDirSegment] (not [localIdDirSegment], which is reserved for
+/// device-minted ids) before any path is built, so a tampered or malformed
+/// account id throws [ArgumentError] before any filesystem call happens --
+/// the same T-36-02-01 discipline extended one level up (38.1 D-05).
+String unsyncedAccountPhotoDir(String appDocsPath, String accountId) {
+  return p.join(unsyncedPhotoRoot(appDocsPath), recordIdDirSegment(accountId));
+}
+
+/// Directory holding [localId]'s trail-level photo copies, nested under
+/// [accountId]'s account directory.
 ///
 /// [localId] is routed through [localIdDirSegment] before any path is
 /// built, so a tampered or malformed id throws [ArgumentError] before any
-/// filesystem call happens (T-36-02-01).
-String unsyncedTrailPhotoDir(String appDocsPath, String localId) {
-  return p.join(unsyncedPhotoRoot(appDocsPath), localIdDirSegment(localId));
+/// filesystem call happens (T-36-02-01). Parameter order is always
+/// `appDocsPath, accountId, localId` across every builder and every caller
+/// in this file, so a two-string call site cannot silently transpose them.
+String unsyncedTrailPhotoDir(
+  String appDocsPath,
+  String accountId,
+  String localId,
+) {
+  return p.join(
+    unsyncedAccountPhotoDir(appDocsPath, accountId),
+    localIdDirSegment(localId),
+  );
 }
 
 /// Directory holding a single waypoint's photo copies, nested under
-/// [localId]'s trail directory.
+/// [accountId]'s and [localId]'s trail directory.
 ///
-/// Both [localId] and [waypointLocalKey] are routed through
-/// [localIdDirSegment] before any path is built (T-36-02-01).
+/// [accountId], [localId] and [waypointLocalKey] are all routed through
+/// their respective validators before any path is built (T-36-02-01).
 String unsyncedWaypointPhotoDir(
   String appDocsPath,
+  String accountId,
   String localId,
   String waypointLocalKey,
 ) {
   return p.join(
-    unsyncedTrailPhotoDir(appDocsPath, localId),
+    unsyncedTrailPhotoDir(appDocsPath, accountId, localId),
     'waypoints',
     localIdDirSegment(waypointLocalKey),
   );
@@ -194,18 +227,29 @@ List<String> photosNotYetOnServer({
       .toList();
 }
 
-/// Deletes [localId]'s unsynced photo directory (and its `waypoints/`
-/// subtree) recursively, if present. Used both on a successful drain and on
-/// an unsynced-trail delete (D-02/D-14).
+/// Deletes [accountId]'s [localId] unsynced photo directory (and its
+/// `waypoints/` subtree) recursively, if present. Used both on a successful
+/// drain and on an unsynced-trail delete (D-02/D-14).
 ///
 /// Best-effort: a failure to delete is swallowed, matching
 /// `account_data_purge.dart`'s discipline for this kind of best-effort
-/// on-disk cleanup. [localId] is still validated via [unsyncedTrailPhotoDir]
-/// before that try/catch begins, so a malformed id is a caller bug that
-/// surfaces as an [ArgumentError], not a silently swallowed no-op.
-Future<void> deleteUnsyncedPhotoDir(String localId) async {
+/// on-disk cleanup. [accountId] and [localId] are still validated via
+/// [unsyncedTrailPhotoDir] before that try/catch begins, so a malformed id
+/// is a caller bug that surfaces as an [ArgumentError], not a silently
+/// swallowed no-op.
+///
+/// Before 38.1 D-05, this resolved `<appDocs>/unsynced/<localId>/` with no
+/// account component at all -- so when account B's Delete button routed
+/// here carrying a `localId` still owned by account A (the CR-01 overlap:
+/// `savedByUserIds` scoping let a shared row hand B a `localId`/`failed`
+/// `syncState` that were actually A's), this function recursively deleted
+/// account A's un-uploaded photos and reported success. The account segment
+/// makes that directory structurally unreachable across accounts.
+Future<void> deleteUnsyncedPhotoDir(String accountId, String localId) async {
   final appDir = await getApplicationDocumentsDirectory();
-  final dir = Directory(unsyncedTrailPhotoDir(appDir.path, localId));
+  final dir = Directory(
+    unsyncedTrailPhotoDir(appDir.path, accountId, localId),
+  );
   try {
     if (await dir.exists()) {
       await dir.delete(recursive: true);
@@ -215,19 +259,34 @@ Future<void> deleteUnsyncedPhotoDir(String localId) async {
   }
 }
 
-/// Deletes every immediate child directory of `<app-docs>/unsynced` whose
-/// basename is not in [keepLocalIds], and returns how many were deleted.
+/// Deletes every second-level (account/localId) directory under
+/// `<app-docs>/unsynced` whose basename is a local id absent from
+/// [keepLocalIds], and returns how many were deleted.
 ///
-/// The caller supplies [keepLocalIds] from live not-yet-synced rows, so a
-/// row still in the `uploading` state after a crash keeps its photos for
-/// the resume (D-05), while a directory leaked by a crash between "server
-/// accepted" and "local files deleted" is reclaimed (D-02).
+/// The caller supplies [keepLocalIds] from live not-yet-synced rows across
+/// ALL accounts (`local_trail_store.dart`'s `unsyncedLocalIds` is
+/// deliberately not account-scoped, so a signed-out account's pending
+/// photos are never swept), so a row still in the `uploading` state after a
+/// crash keeps its photos for the resume (D-05), while a directory leaked
+/// by a crash between "server accepted" and "local files deleted" is
+/// reclaimed (D-02).
 ///
-/// Only the immediate children of the unsynced root are ever enumerated or
-/// deleted, so this can never reach `library/`, `regions/`, `map_cache/` or
+/// Two levels are enumerated, never more and never fewer: the immediate
+/// children of the unsynced root are always treated as ACCOUNT directories
+/// and are never themselves deleted, and only THEIR immediate children --
+/// where `isLocalId(basename)` is true -- are candidates for deletion. The
+/// `isLocalId` term is load-bearing: it is what keeps this sweep off a
+/// `waypoints/` directory sitting at the second level, and off the contents
+/// of any pre-existing one-level `unsynced/<localId>/` directory from
+/// before 38.1 D-05. Per 38.1 D-06 there is deliberately NO migration and NO
+/// first-launch cleanup for that old layout -- the app is not yet in
+/// real-world use, so a legacy first-level directory is simply left alone
+/// forever, not "helpfully" reclaimed by widening this sweep to look at it.
+///
+/// This can never reach `library/`, `regions/`, `map_cache/` or
 /// `objectbox/` (T-36-02-03). Best-effort throughout: a failure to list the
-/// root, or to delete any one child directory, is swallowed so it can never
-/// abort the sweep or throw.
+/// root, an account directory, or to delete any one local-id directory, is
+/// swallowed so it can never abort the sweep or throw.
 Future<int> sweepOrphanedUnsyncedPhotos({
   required Set<String> keepLocalIds,
 }) async {
@@ -237,15 +296,24 @@ Future<int> sweepOrphanedUnsyncedPhotos({
     final root = Directory(unsyncedPhotoRoot(appDir.path));
     if (!await root.exists()) return 0;
 
-    for (final entry in root.listSync()) {
-      if (entry is! Directory) continue;
-      final name = p.basename(entry.path);
-      if (keepLocalIds.contains(name)) continue;
+    for (final accountEntry in root.listSync()) {
+      if (accountEntry is! Directory) continue;
       try {
-        await entry.delete(recursive: true);
-        deletedCount++;
+        for (final entry in accountEntry.listSync()) {
+          if (entry is! Directory) continue;
+          final name = p.basename(entry.path);
+          if (!isLocalId(name)) continue;
+          if (keepLocalIds.contains(name)) continue;
+          try {
+            await entry.delete(recursive: true);
+            deletedCount++;
+          } catch (_) {
+            // Best-effort -- one bad directory must never stop the sweep.
+          }
+        }
       } catch (_) {
-        // Best-effort -- one bad directory must never stop the sweep.
+        // Best-effort -- one unreadable account directory must never abort
+        // the sweep of the others.
       }
     }
   } catch (_) {
