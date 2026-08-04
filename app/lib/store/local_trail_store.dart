@@ -739,12 +739,21 @@ void applyServerTrailToLibraryRow(
 /// could delete account A's device-only row. Does NOT touch the filesystem
 /// -- the caller pairs this with `deleteUnsyncedPhotoDir` (from
 /// `local_photo_store.dart`, 36-02).
-void deleteLocalTrailRow(
+///
+/// Returns whether a row was actually matched and removed (D-07, store
+/// half of CR-01). `false` means no row owned by [accountId] carried this
+/// [localId], so the caller deleted NOTHING and must not go on to delete
+/// files or report success. This closes CR-01: account B's tap routed
+/// into `deleteUnsynced` with account A's `localId`; the owner clause
+/// correctly matched no row, but the caller then deleted the photo
+/// directory anyway and reported `deleted`. A `void` signature made that
+/// no-match case indistinguishable from success.
+bool deleteLocalTrailRow(
   Store store,
   String localId, {
   required String accountId,
 }) {
-  store.runInTransaction(TxMode.write, () {
+  return store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();
     final query = trailBox
         .query(
@@ -754,13 +763,14 @@ void deleteLocalTrailRow(
         .build();
     final entity = query.findFirst();
     query.close();
-    if (entity == null) return;
+    if (entity == null) return false;
 
     final waypointBox = store.box<WaypointEntity>();
     for (final waypoint in entity.waypoints) {
       waypointBox.remove(waypoint.obxId);
     }
     trailBox.remove(entity.obxId);
+    return true;
   });
 }
 
