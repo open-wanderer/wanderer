@@ -869,7 +869,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 38-06-PLAN.md — Edit fetches the server copy or refuses (D-15/D-17/D-18) + menu widget tests + device pass
+- [x] 38-06-PLAN.md — Edit fetches the server copy or refuses (D-15/D-17/D-18) + menu widget tests + device pass
 
 Waves: 1 = {38-01, 38-02} · 2 = {38-03, 38-04, 38-05} · 3 = {38-06}
 
@@ -1002,5 +1002,5 @@ priority decision, not a technical constraint, and 38 may equally start before v
 | 34. Dart Conversion Port | v1.8 | 7/7 | Complete    | 2026-08-01 |
 | 35. Offline Trail Creation | v1.8 | 1/0 | Complete    | 2026-08-02 |
 | 36. Local-First Recording & Automatic Upload | v1.8 | 21/21 | Complete   | 2026-08-03 |
-| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 5/6 | In Progress|  |
+| 38. Downloaded Trails as State, Not Objects | — (post-v1.8) | 6/6 | Complete   | 2026-08-04 |
 | 37. Way Types & Surfaces Breakdown (mobile-first) | — (post-v1.8) | 0/0 | Not planned |  |

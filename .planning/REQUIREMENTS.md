@@ -88,7 +88,7 @@ in `.planning/phases/38-downloaded-trails-as-state-not-objects/38-CONTEXT.md`.
 - [x] **DL-02**: Editing always operates on the server copy of a trail; when that copy cannot be
   fetched, the edit is refused with a stated reason rather than silently editing the cached copy
 
-- [ ] **DL-03**: Editing a downloaded trail no longer duplicates its photos on the server, and
+- [x] **DL-03**: Editing a downloaded trail no longer duplicates its photos on the server, and
   removing a photo in the editor actually removes it
 
 - [x] **DL-04**: After the hiker's own successful edit, the downloaded copy reflects that edit
@@ -179,7 +179,7 @@ Populated during roadmap creation.
 |-------------|-------|--------|
 | DL-01 | Phase 38 | Complete |
 | DL-02 | Phase 38 | Complete |
-| DL-03 | Phase 38 | Pending |
+| DL-03 | Phase 38 | Complete |
 | DL-04 | Phase 38 | Complete |
 | DL-05 | Phase 38 | Complete |
 | DL-06 | Phase 38 | Complete |
