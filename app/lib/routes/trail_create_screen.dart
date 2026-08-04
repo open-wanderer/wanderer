@@ -791,6 +791,31 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         }
       }
 
+      // D-13: reconcile the hiker's own edit onto the downloaded LIBRARY row,
+      // independent of `reconcileLocalId` -- that gate is the unsynced-capture
+      // path, and a downloaded row has `localId == null`, which is precisely
+      // why nothing writes the hiker's own edit into ObjectBox today. Same
+      // mechanism as D-14's opportunistic refresh, with a different trigger:
+      // the `POST /trail/form/{id}` response above is already in hand, so
+      // this spends no bytes either. Best-effort, logged, for the same reason
+      // as the block above -- the server write already succeeded.
+      try {
+        final libraryStore = ref.read(objectBoxProvider);
+        final libraryAccountId = currentAccountId(libraryStore);
+        if (libraryAccountId != null) {
+          applyServerTrailToLibraryRow(
+            libraryStore,
+            accountId: libraryAccountId,
+            trail: result.trail,
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          'trail_create_screen: applyServerTrailToLibraryRow failed for '
+          '"${result.trail.id}": $e',
+        );
+      }
+
       // Must run AFTER the reconciliation above, never before -- otherwise
       // the own-trails list re-reads the local row before the edit lands on
       // it, reproducing CR-03 under a green success toast.
