@@ -128,6 +128,36 @@ void main() {
             'rowRemoved -- deleting the downloaded files while keeping the '
             'row would strand a live capture pointing at missing images.',
       );
+
+      // The guard above pins that the directory delete is gated; these two
+      // pin WHICH BRANCH sets the gate. Without them, swapping the two
+      // `return` statements -- exactly the rename-and-invert 38.1 performed
+      // when `stillHeldByAnother` became `rowRemoved` -- leaves every other
+      // assertion in this file green while `library/<id>/` is deleted on
+      // the KEEP-the-row path: the downloaded photo files of a live capture
+      // the guard just refused to remove, leaving the hiker's pending
+      // recording pointing at missing images (WR-06).
+      expect(
+        RegExp(
+          r'box\.remove\(entity\.obxId\);\s*return true;',
+        ).hasMatch(body),
+        isTrue,
+        reason:
+            'The REMOVAL branch must return true. rowRemoved gates the '
+            'library/<id>/ delete, so inverting it deletes the downloaded '
+            'files on the keep-the-row path -- the precise outcome '
+            'deleteTrail\'s doc comment says this guard exists to prevent.',
+      );
+      expect(
+        RegExp(
+          r'entity\.savedByUserIds = remaining;\s*box\.put\(entity\);\s*'
+          r'return false;',
+        ).hasMatch(body),
+        isTrue,
+        reason:
+            'The KEEP-the-row branch must return false: its library/<id>/ '
+            'files are still referenced by the row it just kept.',
+      );
     },
   );
 }
