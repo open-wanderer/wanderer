@@ -4,12 +4,13 @@ import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 
 part 'list_search_provider.freezed.dart';
 part 'list_search_provider.g.dart';
 
 @freezed
-abstract class ListSearchState with _$ListSearchState {
+abstract class ListSearchState with _$ListSearchState implements PagedState {
   const factory ListSearchState({
     required List<ListSearchResult> lists,
     required int page,
@@ -18,6 +19,7 @@ abstract class ListSearchState with _$ListSearchState {
   }) = _ListSearchState;
 
   const ListSearchState._();
+  @override
   bool get hasMore => page < totalPages;
 
   factory ListSearchState.mock() => ListSearchState(
@@ -29,30 +31,25 @@ abstract class ListSearchState with _$ListSearchState {
 }
 
 @riverpod
-class ListSearchNotifier extends _$ListSearchNotifier {
+class ListSearchNotifier extends _$ListSearchNotifier
+    with PagedLoadMore<ListSearchState> {
   @override
   FutureOr<ListSearchState> build() async {
+    resetPaging();
     return await _fetchPage(page: 1);
   }
 
-  Future<void> loadNextPage() async {
-    final currentState = state.value;
-
-    if (currentState == null || state.isLoading || !currentState.hasMore) {
-      return;
-    }
-
-    // Do NOT set AsyncLoading here — stay in AsyncData while fetching the
-    // next page so the existing list remains visible.
-    state = await AsyncValue.guard(() async {
-      final nextPage = currentState.page + 1;
-      final responseState = await _fetchPage(page: nextPage);
-      return currentState.copyWith(
-        lists: [...currentState.lists, ...responseState.lists],
-        page: responseState.page,
-        totalPages: responseState.totalPages,
-      );
-    });
+  @override
+  Future<ListSearchState> appendPage(
+    ListSearchState current,
+    int nextPage,
+  ) async {
+    final responseState = await _fetchPage(page: nextPage);
+    return current.copyWith(
+      lists: [...current.lists, ...responseState.lists],
+      page: responseState.page,
+      totalPages: responseState.totalPages,
+    );
   }
 
   Future<ListSearchState> _fetchPage({required int page}) async {

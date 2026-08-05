@@ -8,6 +8,7 @@ import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_constants.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/store/current_account.dart';
@@ -19,7 +20,9 @@ part 'profile_trails_provider.freezed.dart';
 part 'profile_trails_provider.g.dart';
 
 @freezed
-abstract class ProfileTrailsState with _$ProfileTrailsState {
+abstract class ProfileTrailsState
+    with _$ProfileTrailsState
+    implements PagedState {
   const factory ProfileTrailsState({
     required List<TrailSummary> trails,
     required int page,
@@ -38,6 +41,7 @@ abstract class ProfileTrailsState with _$ProfileTrailsState {
   }) = _ProfileTrailsState;
 
   const ProfileTrailsState._();
+  @override
   bool get hasMore => page < totalPages;
 }
 
@@ -52,7 +56,8 @@ typedef _NetworkPage = ({
 });
 
 @riverpod
-class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
+class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
+    with PagedLoadMore<ProfileTrailsState> {
   late String _handle;
   String _q = '';
 
@@ -70,6 +75,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
   @override
   FutureOr<ProfileTrailsState> build(String handle) async {
     _handle = handle;
+    resetPaging();
 
     // Watch only the filter's *value*, not its AsyncValue wrapper. A plain
     // `ref.watch` invalidates with `asReload: true`, so every emission of the
@@ -130,55 +136,44 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier {
     );
   }
 
-  Future<void> loadNextPage() async {
-    final currentState = state.value;
+  /// Never poll for a next page while showing device-only content -- there
+  /// is no server to page through.
+  @override
+  bool canLoadMore(ProfileTrailsState current) => !current.offline;
 
-    if (currentState == null || state.isLoading || !currentState.hasMore) {
-      return;
-    }
-    // Never poll for a next page while showing device-only content -- there
-    // is no server to page through.
-    if (currentState.offline) return;
+  @override
+  Future<ProfileTrailsState> appendPage(
+    ProfileTrailsState current,
+    int nextPage,
+  ) async {
+    final filter = ref.read(trailFilterProvider('profile_trail_$_handle')).value;
+    final fetched = await _fetchPage(
+      handle: _handle,
+      page: nextPage,
+      q: _q,
+      filter: filter,
+    );
 
-    state = await AsyncValue.guard(() async {
-      final filter = ref
-          .read(trailFilterProvider('profile_trail_$_handle'))
-          .value;
-      final nextPage = currentState.page + 1;
-      final fetched = await _fetchPage(
-        handle: _handle,
-        page: nextPage,
-        q: _q,
-        filter: filter,
-      );
+    // Keep the deduped local prefix intact -- only append network
+    // results, and only ones not already represented by a local row.
+    //
+    // Narrowed by `ownTrailsLocalHalf` with the same `offline: false`
+    // `canLoadMore` has already established, so page 2+ dedupes
+    // against exactly the rows page 1 put in the list. Using the raw
+    // local list here would have let a SYNCED local row (one the online
+    // merge deliberately excluded) suppress its own network hit on the
+    // next page, silently dropping the trail from the list entirely.
+    final local = ownTrailsLocalHalf(_readOwnLocal(_q, filter), offline: false);
+    final localIds = local.map((t) => t.id).where((id) => id.isNotEmpty).toSet();
+    final dedupedNetwork = fetched.trails.where(
+      (t) => !localIds.contains(t.id),
+    );
 
-      // Keep the deduped local prefix intact -- only append network
-      // results, and only ones not already represented by a local row.
-      //
-      // Narrowed by `ownTrailsLocalHalf` with the same `offline: false` the
-      // early return above has already established, so page 2+ dedupes
-      // against exactly the rows page 1 put in the list. Using the raw
-      // local list here would have let a SYNCED local row (one the online
-      // merge deliberately excluded) suppress its own network hit on the
-      // next page, silently dropping the trail from the list entirely.
-      final local = ownTrailsLocalHalf(
-        _readOwnLocal(_q, filter),
-        offline: false,
-      );
-      final localIds = local
-          .map((t) => t.id)
-          .where((id) => id.isNotEmpty)
-          .toSet();
-      final dedupedNetwork = fetched.trails.where(
-        (t) => !localIds.contains(t.id),
-      );
-
-      return currentState.copyWith(
-        trails: [...currentState.trails, ...dedupedNetwork],
-        page: fetched.page,
-        totalPages: fetched.totalPages,
-      );
-    });
+    return current.copyWith(
+      trails: [...current.trails, ...dedupedNetwork],
+      page: fetched.page,
+      totalPages: fetched.totalPages,
+    );
   }
 
   /// Re-reads [ProfileTrailsState]'s local half fresh from the store, gated

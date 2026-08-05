@@ -53,7 +53,7 @@ final class ProfileFollowsNotifierProvider
 }
 
 String _$profileFollowsNotifierHash() =>
-    r'52a1cdf0dff1248c9942c41a7055dd6237bdae3a';
+    r'e472dc6bedc53fc45b5da6636acd7090e7f05d96';
 
 final class ProfileFollowsNotifierFamily extends $Family
     with

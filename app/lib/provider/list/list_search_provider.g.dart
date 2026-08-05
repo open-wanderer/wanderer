@@ -34,7 +34,7 @@ final class ListSearchNotifierProvider
 }
 
 String _$listSearchNotifierHash() =>
-    r'f4ac70057c1b155a97ffd8a67c5adc87ebd47d89';
+    r'8c403ccf1e8c24ca02db252eccac00026ea64e23';
 
 abstract class _$ListSearchNotifier extends $AsyncNotifier<ListSearchState> {
   FutureOr<ListSearchState> build();

@@ -3,13 +3,16 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_constants.dart';
 
 part 'profile_lists_provider.g.dart';
 part 'profile_lists_provider.freezed.dart';
 
 @freezed
-abstract class ProfileListsState with _$ProfileListsState {
+abstract class ProfileListsState
+    with _$ProfileListsState
+    implements PagedState {
   const factory ProfileListsState({
     required List<ListSearchResult> lists,
     required int page,
@@ -28,17 +31,20 @@ abstract class ProfileListsState with _$ProfileListsState {
     );
   }
 
+  @override
   bool get hasMore => page < totalPages;
 }
 
 @riverpod
-class ProfileListsNotifier extends _$ProfileListsNotifier {
+class ProfileListsNotifier extends _$ProfileListsNotifier
+    with PagedLoadMore<ProfileListsState> {
   late String _handle;
   String _q = '';
 
   @override
   FutureOr<ProfileListsState> build(String handle) async {
     _handle = handle;
+    resetPaging();
     ref.watch(listFilterProvider('profile_list_$handle'));
     return await _fetchPage(handle: handle, page: 1, q: _q);
   }
@@ -51,29 +57,21 @@ class ProfileListsNotifier extends _$ProfileListsNotifier {
     );
   }
 
-  Future<void> loadNextPage() async {
-    final currentState = state.value;
-
-    if (currentState == null || state.isLoading || !currentState.hasMore) {
-      return;
-    }
-
-    // Do NOT set AsyncLoading here — stay in AsyncData while fetching the
-    // next page so the UI keeps showing the existing list without flickering
-    // to an empty spinner. State transitions directly AsyncData -> AsyncData.
-    state = await AsyncValue.guard(() async {
-      final nextPage = currentState.page + 1;
-      final responseState = await _fetchPage(
-        handle: _handle,
-        page: nextPage,
-        q: _q,
-      );
-      return currentState.copyWith(
-        lists: [...currentState.lists, ...responseState.lists],
-        page: responseState.page,
-        totalPages: responseState.totalPages,
-      );
-    });
+  @override
+  Future<ProfileListsState> appendPage(
+    ProfileListsState current,
+    int nextPage,
+  ) async {
+    final responseState = await _fetchPage(
+      handle: _handle,
+      page: nextPage,
+      q: _q,
+    );
+    return current.copyWith(
+      lists: [...current.lists, ...responseState.lists],
+      page: responseState.page,
+      totalPages: responseState.totalPages,
+    );
   }
 
   Future<ProfileListsState> _fetchPage({

@@ -2,12 +2,15 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 
 part 'profile_follows_provider.freezed.dart';
 part 'profile_follows_provider.g.dart';
 
 @freezed
-abstract class ProfileFollowsState with _$ProfileFollowsState {
+abstract class ProfileFollowsState
+    with _$ProfileFollowsState
+    implements PagedState {
   const factory ProfileFollowsState({
     required List<Actor> items,
     required int page,
@@ -15,27 +18,30 @@ abstract class ProfileFollowsState with _$ProfileFollowsState {
   }) = _ProfileFollowsState;
 
   const ProfileFollowsState._();
+  @override
   bool get hasMore => page < totalPages;
 }
 
 @riverpod
-class ProfileFollowsNotifier extends _$ProfileFollowsNotifier {
+class ProfileFollowsNotifier extends _$ProfileFollowsNotifier
+    with PagedLoadMore<ProfileFollowsState> {
   @override
   FutureOr<ProfileFollowsState> build(String handle, String type) async {
+    resetPaging();
     return await _fetchPage(page: 1);
   }
 
-  Future<void> loadNextPage() async {
-    final current = state.value;
-    if (current == null || state.isLoading || !current.hasMore) return;
-    state = await AsyncValue.guard(() async {
-      final next = await _fetchPage(page: current.page + 1);
-      return current.copyWith(
-        items: [...current.items, ...next.items],
-        page: next.page,
-        totalPages: next.totalPages,
-      );
-    });
+  @override
+  Future<ProfileFollowsState> appendPage(
+    ProfileFollowsState current,
+    int nextPage,
+  ) async {
+    final next = await _fetchPage(page: nextPage);
+    return current.copyWith(
+      items: [...current.items, ...next.items],
+      page: next.page,
+      totalPages: next.totalPages,
+    );
   }
 
   Future<ProfileFollowsState> _fetchPage({required int page}) async {
