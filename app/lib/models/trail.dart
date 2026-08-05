@@ -152,15 +152,17 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   /// The absences are deliberate: no `expand` means `TrailPanel` mounts
   /// neither `TrailMap` nor `ElevationProfile`, and empty `photos` means no
   /// `PhotoCollage` -- so a fake trail never triggers a tile or image fetch.
-  /// The id is a sentinel that cannot collide with a real record, because
-  /// `TrailDetailScreen` matches it against the download library.
+  /// `TrailPanel` draws a skeleton-only placeholder where the map would go,
+  /// so the missing route does not leave a hole. The id is a sentinel that
+  /// cannot collide with a real record, because `TrailDetailScreen` matches
+  /// it against the download library.
+  ///
+  /// Text length does not drive the layout: `TrailPanel` replaces the
+  /// description with a fixed-size block while the skeleton is on.
   factory Trail.mock() => Trail(
     id: 'mock-trail-id',
     name: 'Mock Trail Name',
-    description:
-        'Mock trail description that runs long enough to occupy the two or '
-        'three lines a real description usually takes, so the bones do not '
-        'collapse to a single row while the trail loads.',
+    description: 'Mock trail description.',
     date: DateTime(2024, 1, 1),
     created: DateTime(2024, 1, 1),
     updated: DateTime(2024, 1, 1),

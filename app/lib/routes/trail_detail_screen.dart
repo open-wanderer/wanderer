@@ -99,7 +99,15 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
           ),
         );
       }
-      return _buildDetail(context, trail);
+      return _buildScreen(
+        context,
+        trail,
+        panel: TrailPanel(
+          trail: trail,
+          scrollController: _scrollController,
+          availableOffline: _availableOffline(trail),
+        ),
+      );
     }
 
     final trailAsync = ref.watch(trailProvider(widget.id));
@@ -116,23 +124,48 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
       );
     }
 
-    // The detail layout itself is the loading state -- skeletonized over
-    // `Trail.mock()` until the fetch lands. On a refresh AsyncLoader prefers
-    // the retained `.value`, so an optimistic like never flashes the mock.
-    return AsyncLoader<Trail>(
-      asyncValue: trailAsync,
-      mockData: Trail.mock(),
-      builder: (trail) => _buildDetail(context, trail),
+    // Only the panel goes through AsyncLoader. Skeletonizing the chrome too
+    // turned every icon button into a filled circle bone -- three of them,
+    // with the leading one butting into the date bone below -- and boned the
+    // two bottom-bar buttons for actions that cannot be taken yet. The chrome
+    // instead renders for real with its actions withheld until there is a
+    // trail to act on, which also keeps the back button live during the fetch.
+    //
+    // `trailAsync.value` is null only on a first load; a refresh retains it,
+    // so an optimistic like never flashes the mock.
+    return _buildScreen(
+      context,
+      trailAsync.value,
+      panel: AsyncLoader<Trail>(
+        asyncValue: trailAsync,
+        mockData: Trail.mock(),
+        builder: (trail) => TrailPanel(
+          trail: trail,
+          scrollController: _scrollController,
+          availableOffline: _availableOffline(trail),
+        ),
+      ),
     );
   }
 
-  Widget _buildDetail(BuildContext context, Trail trail) {
+  bool _availableOffline(Trail trail) => ref
+      .watch(trailLibraryProvider)
+      .any((t) => t.id.isNotEmpty && t.id == trail.id);
+
+  /// The screen's chrome. [trail] is null while the first fetch is in flight —
+  /// the app bar actions and the bottom action bar are withheld until then,
+  /// since none of them has anything to act on. The body's reserved bottom
+  /// padding stays constant either way, so nothing shifts when data lands.
+  Widget _buildScreen(
+    BuildContext context,
+    Trail? trail, {
+    required Widget panel,
+  }) {
     final theme = Theme.of(context);
-    final isUnsynced = isUnsyncedState(trail.syncState);
-    final availableOffline = ref
-        .watch(trailLibraryProvider)
-        .any((t) => t.id.isNotEmpty && t.id == trail.id);
+    final isUnsynced = trail != null && isUnsyncedState(trail.syncState);
+    final availableOffline = trail != null && _availableOffline(trail);
     final isDownloading =
+        trail != null &&
         trail.id.isNotEmpty &&
         ref.watch(downloadingTrailIdsProvider).contains(trail.id);
     return Scaffold(
@@ -158,11 +191,13 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         scrolledUnderElevation: 0,
 
         actions: [
-          if (!isUnsynced) ...[
-            LikeButton(trail: trail),
-            const SizedBox(width: 8),
+          if (trail != null) ...[
+            if (!isUnsynced) ...[
+              LikeButton(trail: trail),
+              const SizedBox(width: 8),
+            ],
+            TrailDropdown(trail: trail, availableOffline: availableOffline),
           ],
-          TrailDropdown(trail: trail, availableOffline: availableOffline),
         ],
       ),
       body: Stack(
@@ -170,114 +205,116 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
           Positioned.fill(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 72),
-              child: TrailPanel(
-                trail: trail,
-                scrollController: _scrollController,
-                availableOffline: availableOffline,
-              ),
+              child: panel,
             ),
           ),
 
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              color: theme.scaffoldBackgroundColor,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Row(
-                children: isUnsynced
-                    ? [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              await context.push(
-                                '/trail/create/edit',
-                                extra: trail,
-                              );
-                              if (!mounted) return;
-                              final lid = trail.localId;
-                              if (lid != null) {
-                                ref.invalidate(localTrailProvider(lid));
-                              }
-                            },
-                            icon: const FaIcon(FontAwesomeIcons.pen),
-                            label: Text(AppLocalizations.of(context)!.edit),
-                          ),
-                        ),
-                      ]
-                    : [
-                        if (!availableOffline) ...[
+          if (trail != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                color: theme.scaffoldBackgroundColor,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Row(
+                  children: isUnsynced
+                      ? [
                           Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: isDownloading
-                                  ? null
-                                  : () => ref
-                                        .read(
-                                          downloadingTrailIdsProvider.notifier,
-                                        )
-                                        .download(trail),
-                              icon: isDownloading
-                                  ? SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await context.push(
+                                  '/trail/create/edit',
+                                  extra: trail,
+                                );
+                                if (!mounted) return;
+                                final lid = trail.localId;
+                                if (lid != null) {
+                                  ref.invalidate(localTrailProvider(lid));
+                                }
+                              },
+                              icon: const FaIcon(FontAwesomeIcons.pen),
+                              label: Text(AppLocalizations.of(context)!.edit),
+                            ),
+                          ),
+                        ]
+                      : [
+                          if (!availableOffline) ...[
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isDownloading
+                                    ? null
+                                    : () => ref
+                                          .read(
+                                            downloadingTrailIdsProvider
+                                                .notifier,
+                                          )
+                                          .download(trail),
+                                icon: isDownloading
+                                    ? SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                        ),
+                                      )
+                                    : FaIcon(
+                                        FontAwesomeIcons.download,
                                         color: Theme.of(
                                           context,
                                         ).colorScheme.onSurface,
                                       ),
-                                    )
-                                  : FaIcon(
-                                      FontAwesomeIcons.download,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                    ),
-                              label: Text(
-                                AppLocalizations.of(context)!.download,
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
+                                label: Text(
+                                  AppLocalizations.of(context)!.download,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _isLaunching
-                                ? null
-                                : () async {
-                                    setState(() => _isLaunching = true);
-                                    await launchNavigation(
-                                      context: context,
-                                      ref: ref,
-                                      trail: trail,
-                                    );
-                                    if (mounted) {
-                                      setState(() => _isLaunching = false);
-                                    }
-                                  },
-                            icon: _isLaunching
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isLaunching
+                                  ? null
+                                  : () async {
+                                      setState(() => _isLaunching = true);
+                                      await launchNavigation(
+                                        context: context,
+                                        ref: ref,
+                                        trail: trail,
+                                      );
+                                      if (mounted) {
+                                        setState(() => _isLaunching = false);
+                                      }
+                                    },
+                              icon: _isLaunching
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const FaIcon(
+                                      FontAwesomeIcons.locationArrow,
                                     ),
-                                  )
-                                : const FaIcon(FontAwesomeIcons.locationArrow),
-                            label: Text(AppLocalizations.of(context)!.navigate),
+                              label: Text(
+                                AppLocalizations.of(context)!.navigate,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

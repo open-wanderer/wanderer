@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/base/trail_map.dart';
 import 'package:wanderer/components/trail/comment_list.dart';
@@ -42,6 +43,11 @@ class TrailPanel extends ConsumerWidget {
     final user = ref.watch(authProvider).requireValue!;
     final unit = ref.watch(unitProvider);
     final isOnline = ref.watch(onlineStatusProvider);
+
+    // True only while `AsyncLoader` skeletonizes this panel over `Trail.mock()`
+    // (`trail_detail_screen.dart`). The `Skeleton.*` annotations below are
+    // inert without it, so the local-trail path renders identically.
+    final isSkeleton = Skeletonizer.maybeOf(context)?.enabled ?? false;
 
     final webPhotos = trail.photos
         .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '1200x0') ?? '')
@@ -84,7 +90,15 @@ class TrailPanel extends ConsumerWidget {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          if (trail.description.isNotEmpty) html.Html(data: trail.description),
+          // Replaced rather than boned in place: Skeletonizer merges Html's
+          // multi-line rich text into one notched, pill-shaped blob that
+          // dominates the loading screen. A plain block reads as a paragraph.
+          if (trail.description.isNotEmpty)
+            Skeleton.replace(
+              width: double.infinity,
+              height: 60,
+              child: html.Html(data: trail.description),
+            ),
           if (trail.description.isEmpty)
             Text(
               l18n.no_description_for_now,
@@ -155,6 +169,29 @@ class TrailPanel extends ConsumerWidget {
             ),
             SizedBox(height: 16),
           },
+          // The mock trail carries no gpx (loading one would mean fetching map
+          // tiles for a trail that does not exist), so without this the
+          // skeleton stops dead after the "Route" heading and leaves the lower
+          // half of the screen empty. Stands in for the map block above at the
+          // same geometry, since nearly every real trail has a route.
+          if (isSkeleton && trail.expand?.gpx == null)
+            // A single padded element rather than SizedBox/child/SizedBox:
+            // the enclosing collection is a set literal, so two identical
+            // spacer boxes would collapse into one.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Skeleton.leaf(
+                child: Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: const BorderRadius.all(Radius.circular(16)),
+                  ),
+                ),
+              ),
+            ),
           TrailTimeline(
             waypoints: trail.expand?.waypointsViaTrail ?? [],
             totalDistance: metrics?.distance,
@@ -303,44 +340,69 @@ class TrailPanel extends ConsumerWidget {
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
-                    children: [
-                      if (trail.categoryId?.isNotEmpty == true)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: TrailCategoryLabel(
-                            categoryId: trail.categoryId!,
-                            subcategoryId: trail.subcategoryId,
-                          ),
-                        ),
-                      StatChip(
-                        icon: FontAwesomeIcons.ruler,
-                        label: formatDistance(trail.distance, unit: unit),
-                      ),
-                      if (displayDuration != null && displayDuration > 0)
-                        StatChip(
-                          icon: FontAwesomeIcons.clock,
-                          label: Duration(seconds: displayDuration.toInt())
-                              .pretty(
-                                abbreviated: true,
-                                tersity: DurationTersity.minute,
+                    children:
+                        [
+                              if (trail.categoryId?.isNotEmpty == true)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: TrailCategoryLabel(
+                                    categoryId: trail.categoryId!,
+                                    subcategoryId: trail.subcategoryId,
+                                  ),
+                                ),
+                              StatChip(
+                                icon: FontAwesomeIcons.ruler,
+                                label: formatDistance(
+                                  trail.distance,
+                                  unit: unit,
+                                ),
                               ),
-                        ),
-                      StatChip(
-                        icon: FontAwesomeIcons.arrowTrendUp,
-                        label: formatElevation(trail.elevationGain, unit: unit),
-                      ),
-                      StatChip(
-                        icon: FontAwesomeIcons.arrowTrendDown,
-                        label: formatElevation(trail.elevationLoss, unit: unit),
-                      ),
-                    ],
+                              if (displayDuration != null &&
+                                  displayDuration > 0)
+                                StatChip(
+                                  icon: FontAwesomeIcons.clock,
+                                  label:
+                                      Duration(
+                                        seconds: displayDuration.toInt(),
+                                      ).pretty(
+                                        abbreviated: true,
+                                        tersity: DurationTersity.minute,
+                                      ),
+                                ),
+                              StatChip(
+                                icon: FontAwesomeIcons.arrowTrendUp,
+                                label: formatElevation(
+                                  trail.elevationGain,
+                                  unit: unit,
+                                ),
+                              ),
+                              StatChip(
+                                icon: FontAwesomeIcons.arrowTrendDown,
+                                label: formatElevation(
+                                  trail.elevationLoss,
+                                  unit: unit,
+                                ),
+                              ),
+                            ]
+                            // Each chip is a tinted pill wrapping an icon and a label,
+                            // which skeletonizes into a pill with two bones rattling
+                            // around inside it -- four of those was the busiest band
+                            // on the loading screen. United, a chip is one clean pill.
+                            // Inert when the skeleton is off.
+                            .map(
+                              (chip) => Skeleton.unite(
+                                borderRadius: BorderRadius.circular(32),
+                                child: chip,
+                              ),
+                            )
+                            .toList(),
                   ),
                 ],
               ),
@@ -350,17 +412,25 @@ class TrailPanel extends ConsumerWidget {
 
             const Divider(height: 1, thickness: 1),
             if (showsServerTabs)
-              TabBar(
-                labelStyle: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-                unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
-                dividerHeight: 0,
-                tabs: [
-                  Tab(text: l18n.about),
-                  Tab(text: l18n.summit_book),
-                  Tab(text: l18n.comment(2)),
-                ],
+              // Replaced while loading: the selected-tab indicator keeps its
+              // real colour under Skeletonizer, so it was the one dark stroke
+              // on an otherwise grey screen. One block of the same height
+              // holds the space without drawing attention.
+              Skeleton.replace(
+                width: double.infinity,
+                height: 46,
+                child: TabBar(
+                  labelStyle: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                  unselectedLabelStyle: Theme.of(context).textTheme.labelLarge,
+                  dividerHeight: 0,
+                  tabs: [
+                    Tab(text: l18n.about),
+                    Tab(text: l18n.summit_book),
+                    Tab(text: l18n.comment(2)),
+                  ],
+                ),
               ),
 
             // dart format off
