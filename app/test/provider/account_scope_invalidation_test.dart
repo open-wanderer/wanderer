@@ -6,6 +6,7 @@ import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
 import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
@@ -27,6 +28,32 @@ void main() {
         expect(accountScopedProviders, contains(trailLibraryProvider));
       },
     );
+
+    test('contains localTrailProvider and ownLiveCaptureProvider — both '
+        'resolve currentAccountId inside build() but are keyed only on '
+        'localId (38.1 CR-01)', () {
+      expect(
+        accountScopedProviders,
+        contains(localTrailProvider),
+        reason:
+            'localTrailProvider is a family keyed only on localId that '
+            'resolves currentAccountId(store) inside build(). Auto-dispose '
+            'only fires when the last listener goes away, and Flutter keeps '
+            'pushed-under routes mounted, so without this entry a detail '
+            'screen retained on the back stack across an account switch '
+            "re-renders account A's not-yet-uploaded trail for account B.",
+      );
+      expect(
+        accountScopedProviders,
+        contains(ownLiveCaptureProvider),
+        reason:
+            'ownLiveCaptureProvider gates a DESTRUCTIVE action '
+            "(trail_dropdown's _allowDelete escape hatch). A value cached "
+            'across an account switch re-arms that gate for an account that '
+            'did not record the trail — the exact CR-01 shape 38.1 exists '
+            'to eliminate.',
+      );
+    });
 
     test('contains no duplicate entries', () {
       expect(

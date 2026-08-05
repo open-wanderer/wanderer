@@ -46,6 +46,7 @@ import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
+import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
@@ -81,6 +82,21 @@ final accountScopedProviders = <ProviderOrFamily>[
   routeAnchorsProvider,
   categoryProvider,
   subcategoryProvider,
+  // 38.1 CR-01. Both are FAMILIES keyed only on `localId` and both resolve
+  // `currentAccountId(store)` INSIDE `build()`, so the account is baked into
+  // a cache entry whose key does not mention it. Auto-dispose does not save
+  // them: it only fires when the LAST listener goes away, and Flutter keeps
+  // pushed-under routes mounted (`maintainState: true`). A screen retained
+  // on the back stack across an account switch therefore keeps serving
+  // account A's answer to account B -- for `localTrailProvider` that renders
+  // A's not-yet-uploaded trail to B (the exact leak `readOwnLocalTrail`'s
+  // owner clause exists to prevent, arriving through the cache instead of
+  // the query), and for `ownLiveCaptureProvider` it re-arms
+  // `trail_dropdown.dart`'s `_allowDelete` escape hatch with no authorship
+  // check. A cached value also never recomputes when the drain retires the
+  // row, so Delete stays offered on a trail that is now fully synced.
+  localTrailProvider,
+  ownLiveCaptureProvider,
 ];
 
 /// Invalidates every provider in [accountScopedProviders] from widget-tree
