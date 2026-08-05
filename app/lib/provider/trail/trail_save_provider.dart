@@ -16,6 +16,19 @@ part 'trail_save_provider.g.dart';
 
 class TrailSaveResult {
   final Trail trail;
+
+  /// Whether `trail.expand.waypointsViaTrail` may be INCOMPLETE.
+  ///
+  /// Read by callers as "this waypoint set is not authoritative" -- it is
+  /// wired straight to `applyServerTrailToLibraryRow`'s
+  /// `waypointsAreAuthoritative:` (negated) in `trail_create_screen.dart`,
+  /// where a false negative makes the store prune a still-live waypoint out
+  /// of the offline copy (38.1 CR-02).
+  ///
+  /// So EVERY path that omits a waypoint from the returned set must set
+  /// this, not just the ones that caught an exception (38.1 WR-04). The name
+  /// says "failures" for history; the property callers depend on is
+  /// completeness.
   final bool hadWaypointFailures;
 
   const TrailSaveResult({
@@ -170,7 +183,22 @@ class TrailSave extends _$TrailSave {
       final old = (oldTrail.expand?.waypointsViaTrail ?? const [])
           .where((o) => o.id == wp.id)
           .firstOrNull;
-      if (old == null) continue;
+      if (old == null) {
+        // 38.1 WR-04: dropping `wp` here without marking makes
+        // `finalWaypoints` incomplete while `hadWaypointFailures` stays
+        // false, and the caller passes `waypointsAreAuthoritative:
+        // !hadWaypointFailures` -- so `applyServerTrailToLibraryRow` prunes
+        // a still-live waypoint out of the offline copy. That is exactly
+        // the CR-02 failure `waypointsAreAuthoritative` was added to close.
+        // Reachable because `diff` is keyed on `listKey` (`id` when
+        // non-empty, else `localKey`) while this re-lookup is on `id`: an
+        // old waypoint with id `X` and no localKey against a new one with
+        // `localKey == 'X'` and an empty id matches on listKey and misses
+        // here. `hadWaypointFailures` means "this waypoint set is not
+        // authoritative", not "an exception was thrown".
+        hadFailures = true;
+        continue;
+      }
       try {
         finalWaypoints.add(
           await waypointNotifier.updateWaypoint(old, wp, authorId: authorId),
