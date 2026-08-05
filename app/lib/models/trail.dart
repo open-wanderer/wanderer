@@ -145,6 +145,31 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
 
   const Trail._();
 
+  /// Placeholder trail whose only job is to size Skeletonizer's bones while a
+  /// real one loads (`AsyncLoader.mockData`). The literal strings are never
+  /// visible -- same convention as [FeedItem.mock].
+  ///
+  /// The absences are deliberate: no `expand` means `TrailPanel` mounts
+  /// neither `TrailMap` nor `ElevationProfile`, and empty `photos` means no
+  /// `PhotoCollage` -- so a fake trail never triggers a tile or image fetch.
+  /// The id is a sentinel that cannot collide with a real record, because
+  /// `TrailDetailScreen` matches it against the download library.
+  factory Trail.mock() => Trail(
+    id: 'mock-trail-id',
+    name: 'Mock Trail Name',
+    description:
+        'Mock trail description that runs long enough to occupy the two or '
+        'three lines a real description usually takes, so the bones do not '
+        'collapse to a single row while the trail loads.',
+    date: DateTime(2024, 1, 1),
+    created: DateTime(2024, 1, 1),
+    updated: DateTime(2024, 1, 1),
+    distance: 8000,
+    elevationGain: 350,
+    elevationLoss: 350,
+    duration: 120,
+  );
+
   LngLatBounds get bounds => LngLatBounds(
     longitudeEast: maxLon,
     longitudeWest: minLon,

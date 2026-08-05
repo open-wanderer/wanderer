@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/trail/like_button.dart';
 import 'package:wanderer/components/trail/trail_dropdown.dart';
@@ -103,15 +104,25 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
 
     final trailAsync = ref.watch(trailProvider(widget.id));
 
-    return trailAsync.when(
-      data: (trail) => _buildDetail(context, trail),
-      loading: () => Container(
-        color: Theme.of(context).colorScheme.surface,
-        child: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, stack) => Scaffold(
-        body: WandererError(err: err, stack: stack),
-      ),
+    // Handled here rather than left to AsyncLoader: its `errorBuilder` is a
+    // method, not a constructor param, and it renders `WandererError` with
+    // neither a Scaffold nor the stack trace. Keep the error UX as it was.
+    if (trailAsync.hasError && !trailAsync.hasValue) {
+      return Scaffold(
+        body: WandererError(
+          err: trailAsync.error!,
+          stack: trailAsync.stackTrace,
+        ),
+      );
+    }
+
+    // The detail layout itself is the loading state -- skeletonized over
+    // `Trail.mock()` until the fetch lands. On a refresh AsyncLoader prefers
+    // the retained `.value`, so an optimistic like never flashes the mock.
+    return AsyncLoader<Trail>(
+      asyncValue: trailAsync,
+      mockData: Trail.mock(),
+      builder: (trail) => _buildDetail(context, trail),
     );
   }
 
