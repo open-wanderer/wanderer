@@ -456,11 +456,15 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final l18n = AppLocalizations.of(context)!;
 
     // D-14: an unsynced trail's own copy is the only copy on earth, so it
-    // needs its own l10n key stating the deletion can't be undone. The
-    // shared `delete_trail_confirm` string also doubles as the *un-download*
-    // confirm in `library_screen.dart`, where "cannot be undone" is false —
-    // un-downloading is genuinely undoable — so the two flows must never
-    // share copy.
+    // needs its own l10n key stating the deletion can't be undone.
+    //
+    // `delete_trail_confirm` is the SERVER-delete confirm only (38.1 WR-12).
+    // The un-download confirm is `remove_download_confirm_body` -- used by
+    // `_confirmRemoveDownload` here and by `library_screen.dart` -- and the
+    // two must never be merged: un-downloading is genuinely undoable, a
+    // server delete is not. `library_screen_remove_guard_test.dart` asserts
+    // `delete_trail_confirm` is ABSENT from `library_screen.dart` for
+    // exactly this reason (T-38-04-02).
     //
     // Decided on `trail.id`, NOT `trail.syncState` (CR-04): `writeServerTrailId`
     // stamps a real server id the instant `PUT /trail/form` is accepted, well
