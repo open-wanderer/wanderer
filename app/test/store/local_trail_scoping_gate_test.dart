@@ -27,53 +27,115 @@ void main() {
   }
 
   group('deleteLocalTrailRow (D-07, store half of CR-01)', () {
-    test('is declared bool, not void -- a void signature makes the '
-        'no-match case indistinguishable from success', () {
+    test('is declared LocalRowDeleteOutcome, not void or bool -- neither '
+        'can tell the caller whether the ROW is gone', () {
       final codeOnly = readCodeOnly('lib/store/local_trail_store.dart');
 
       expect(
-        codeOnly.contains('bool deleteLocalTrailRow('),
+        codeOnly.contains('LocalRowDeleteOutcome deleteLocalTrailRow('),
         isTrue,
         reason:
             'deleteLocalTrailRow was renamed, removed, or reverted to '
-            'void. Re-point this gate rather than deleting it -- callers '
-            'must be able to tell whether a row was actually matched and '
-            'removed (CR-01).',
+            'void/bool. Re-point this gate rather than deleting it -- '
+            'callers must be able to tell "removed", "demoted because '
+            'another account still holds it" and "no row I was allowed to '
+            'touch" apart (CR-01, CR-02).',
       );
       expect(
-        codeOnly.contains('void deleteLocalTrailRow('),
+        codeOnly.contains('void deleteLocalTrailRow(') ||
+            codeOnly.contains('bool deleteLocalTrailRow('),
         isFalse,
         reason:
             'A void deleteLocalTrailRow cannot distinguish "matched and '
             'removed" from "no row owned by this account carried this '
-            'localId" -- exactly the CR-01 failure: the caller deleted '
-            'photo files and reported success for an operation that '
-            'deleted nothing it was allowed to delete.',
+            'localId" -- the CR-01 failure: the caller deleted photo files '
+            'and reported success for an operation that deleted nothing it '
+            'was allowed to delete. A bool cannot distinguish "the row is '
+            'gone" from "the row was kept for another account" -- the '
+            'CR-02 failure: only on the former may the caller reclaim '
+            'library/<serverId>/.',
       );
     });
 
-    test('body contains both return false; and return true;', () {
+    test('returns all three LocalRowDeleteOutcome values from the branches '
+        'that own them', () {
       final codeOnly = readCodeOnly('lib/store/local_trail_store.dart');
 
-      final start = codeOnly.indexOf('bool deleteLocalTrailRow(');
+      final start = codeOnly.indexOf(
+        'LocalRowDeleteOutcome deleteLocalTrailRow(',
+      );
       expect(start, isNot(-1));
       final end = codeOnly.indexOf('\n}\n', start);
       expect(end, isNot(-1));
       final body = codeOnly.substring(start, end);
 
       expect(
-        body.contains('return false;'),
+        RegExp(
+          r'if \(entity == null\) return LocalRowDeleteOutcome\.noMatch;',
+        ).hasMatch(body),
         isTrue,
         reason:
-            'The entity == null (no-match) path must report false so the '
+            'The entity == null (no-match) path must report noMatch so the '
             'caller can refuse to delete files or report deleted (D-07).',
       );
       expect(
-        body.contains('return true;'),
+        RegExp(
+          r'trailBox\.remove\(entity\.obxId\);\s*'
+          r'return LocalRowDeleteOutcome\.removed;',
+        ).hasMatch(body),
         isTrue,
         reason:
-            'The matched-and-removed path must report true so the caller '
-            'can proceed with the rest of the delete flow.',
+            'The branch that actually removes the row must report '
+            '`removed` -- that is what tells the caller library/<serverId>/ '
+            'has no referent left and may be reclaimed. Inverting this '
+            'deletes another account\'s downloaded photos.',
+      );
+      expect(
+        RegExp(
+          r'trailBox\.put\(entity\);\s*'
+          r'return LocalRowDeleteOutcome\.demotedStillHeld;',
+        ).hasMatch(body),
+        isTrue,
+        reason:
+            'The keep-the-row branch must report `demotedStillHeld`, never '
+            '`removed`: its library/<serverId>/ files still belong to the '
+            'account holding this trail in savedByUserIds.',
+      );
+    });
+
+    test('gates the row removal on shouldDeleteUploadedRow -- CR-02: an '
+        'unconditional remove destroys another account\'s library entry', () {
+      final codeOnly = readCodeOnly('lib/store/local_trail_store.dart');
+
+      final start = codeOnly.indexOf(
+        'LocalRowDeleteOutcome deleteLocalTrailRow(',
+      );
+      expect(start, isNot(-1));
+      final end = codeOnly.indexOf('\n}\n', start);
+      expect(end, isNot(-1));
+      final body = codeOnly.substring(start, end);
+
+      final guardIdx = body.indexOf('!shouldDeleteUploadedRow(');
+      final removeIdx = body.indexOf('trailBox.remove(');
+      expect(
+        guardIdx,
+        isNot(-1),
+        reason:
+            'TrailEntity.id is @Unique(onConflict: replace), so once '
+            'writeServerTrailId has stamped a server id another account\'s '
+            'download lands in THIS row. Removing it unconditionally '
+            'destroys that account\'s savedByUserIds entry and orphans '
+            'library/<serverId>/ forever -- there is no library/ sweep '
+            'anywhere in the app. This is the same guard '
+            'retireUploadedLocalTrail uses for the other way a capture '
+            'ends.',
+      );
+      expect(removeIdx, isNot(-1));
+      expect(
+        guardIdx < removeIdx,
+        isTrue,
+        reason:
+            'A guard checked after the removal is no guard at all.',
       );
     });
   });

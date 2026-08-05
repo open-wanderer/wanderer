@@ -226,6 +226,42 @@ void main() {
 
   group('reconcileLocalPhotos', () {
     test(
+      '38.1 WR-10: an undirectory-able dir is reported as failedCount, not '
+      'raised -- the batch contract covers the batch\'s own setup',
+      () async {
+        // `dir`'s parent is a FILE, so `create(recursive: true)` throws.
+        // Before WR-10 that exception escaped `_copyPhotosForLocalSave` into
+        // `_onSave`'s generic catch, and the hiker saw `error_saving_trail`
+        // (the whole save failed) instead of `photo_copy_failed_toast(n)`.
+        final blocker = File(p.join(tempRoot.path, 'not-a-dir'))
+          ..writeAsStringSync('bytes');
+        final dir = p.join(blocker.path, 'dest');
+        final source = File(p.join(tempRoot.path, 'photo.jpg'))
+          ..writeAsStringSync('fake-photo-bytes');
+
+        // Awaited bare, not wrapped in expect(..., throwsA/returnsNormally):
+        // reconcileLocalPhotos raises nothing at all, so any throw fails
+        // this test directly with the real stack. failedCount is the only
+        // channel by which its caller learns of a failure.
+        final result = await reconcileLocalPhotos(
+          dir: dir,
+          desiredPaths: [source.path, source.path],
+        );
+
+        expect(result.paths, isEmpty);
+        expect(
+          result.failedCount,
+          2,
+          reason:
+              'No destination directory means no photo could be copied, so '
+              'every desired path is a failure -- an honest count is what '
+              'the caller\'s toast is built on.',
+        );
+        expect(source.existsSync(), isTrue);
+      },
+    );
+
+    test(
       'copies a real temp file in and returns its new path inside dir',
       () async {
         final dir = p.join(tempRoot.path, 'dest');
@@ -582,6 +618,73 @@ void main() {
         expect(deleted, 0);
         expect(legacyDir.existsSync(), isTrue);
         expect(legacyFile.existsSync(), isTrue);
+      },
+    );
+
+    test(
+      '38.1 WR-11: an account directory left empty by the sweep is '
+      'reclaimed, while one that still holds a kept localId dir survives',
+      () async {
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        const emptiedAccount = 'acctA0000000001';
+        const keepingAccount = 'acctB0000000002';
+        const orphan = 'local-1700000000000000-1';
+        const kept = 'local-1700000000000000-2';
+
+        await Directory(
+          p.join(root, emptiedAccount, orphan),
+        ).create(recursive: true);
+        await Directory(
+          p.join(root, keepingAccount, kept),
+        ).create(recursive: true);
+
+        final deleted = await sweepOrphanedUnsyncedPhotos(
+          keepLocalIds: const {kept},
+        );
+
+        // The account directory is NOT counted -- the return value stays
+        // "orphaned localId directories deleted", which is what the caller
+        // logs.
+        expect(deleted, 1);
+        expect(
+          Directory(p.join(root, emptiedAccount)).existsSync(),
+          isFalse,
+          reason:
+              'A signed-out account whose UserEntity row is long gone '
+              'otherwise leaves a permanent inode behind -- the same '
+              'unbounded-growth class this sweep exists to close.',
+        );
+        expect(Directory(p.join(root, keepingAccount)).existsSync(), isTrue);
+        expect(
+          Directory(p.join(root, keepingAccount, kept)).existsSync(),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      '38.1 WR-11: an account directory holding a non-localId entry is left '
+      'alone -- the empty-dir reclamation never widens what is deletable',
+      () async {
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        const accountA = 'acctA0000000001';
+
+        final waypointsDir = Directory(p.join(root, accountA, 'waypoints'));
+        await waypointsDir.create(recursive: true);
+
+        final deleted = await sweepOrphanedUnsyncedPhotos(
+          keepLocalIds: const {},
+        );
+
+        expect(deleted, 0);
+        expect(
+          Directory(p.join(root, accountA)).existsSync(),
+          isTrue,
+          reason:
+              'The account dir is not empty -- `waypoints/` survived the '
+              'isLocalId filter, so the dir it lives in must survive too.',
+        );
+        expect(waypointsDir.existsSync(), isTrue);
       },
     );
   });

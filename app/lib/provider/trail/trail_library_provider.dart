@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/store/local_trail_store.dart';
+import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/util/local/library_membership.dart';
 import 'dart:io';
 
@@ -98,6 +101,19 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
       );
 
       if (remaining.isEmpty && !isLiveCaptureRow(entity)) {
+        // The waypoint children go with the row (38.1 WR-01).
+        // `local_trail_store.dart` names this exact call site as the leak
+        // `retireUploadedLocalTrail` deliberately does not copy: an orphaned
+        // WaypointEntity has a dangling `trail` ToOne, is invisible to every
+        // read path, and accumulates for the life of the install (it only
+        // self-heals if the same trail is re-downloaded, because
+        // WaypointEntity.id is @Unique(onConflict: replace)). `author` and
+        // `category` are ToOne targets SHARED with other trails and are
+        // deliberately left alone, exactly as in retireUploadedLocalTrail.
+        final waypointBox = store.box<WaypointEntity>();
+        for (final waypoint in entity.waypoints) {
+          waypointBox.remove(waypoint.obxId);
+        }
         box.remove(entity.obxId);
         return true;
       }
@@ -111,10 +127,31 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
     });
 
     if (rowRemoved) {
-      final appDir = await getApplicationDocumentsDirectory();
-      final trailDir = Directory('${appDir.path}/library/$id');
-      if (await trailDir.exists()) {
-        await trailDir.delete(recursive: true);
+      // Best-effort (38.1 WR-02). Both call sites are confirm handlers that
+      // discard this future, so an I/O error here -- a file held open by the
+      // photo viewer, a permission failure, a malformed id rejected by
+      // `recordIdDirSegment` -- used to escape as an unhandled async error
+      // AND skip the `state` update below, leaving the library list
+      // rendering a trail whose row is already gone. An unreclaimed
+      // directory must never leave the list stale. This matches the
+      // best-effort discipline of `_deletePhotoDirBestEffort`,
+      // `sweepOrphanedUnsyncedPhotos` and `deleteUnsyncedPhotoDir`; this
+      // path was the odd one out.
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        // p.join + a whitelisted segment, never interpolation: `id` comes
+        // straight off a `Trail` model built from a server response, and
+        // `trail_download_service.dart` builds this same path this same way.
+        final trailDir = Directory(
+          p.join(appDir.path, 'library', recordIdDirSegment(id)),
+        );
+        if (await trailDir.exists()) {
+          await trailDir.delete(recursive: true);
+        }
+      } catch (e, st) {
+        debugPrint(
+          'TrailLibrary: library dir cleanup failed for "$id": $e\n$st',
+        );
       }
     }
 

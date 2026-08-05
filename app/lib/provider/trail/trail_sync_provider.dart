@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
@@ -416,9 +418,20 @@ class TrailSync extends _$TrailSync {
       // This also retires step 2's photo-list reasoning: the row's
       // `photos` column no longer has to survive anything, because the
       // row does not.
-      final retiredServerId = retireUploadedLocalTrail(store, localId);
+      final retirement = retireUploadedLocalTrail(store, localId);
+      final retiredServerId = retirement.serverId;
       if (retiredServerId != null) {
         _rememberRetiredServerId(localId, retiredServerId, accountId);
+      }
+      // WR-03 (38.1): the remove branch runs only when `savedByUserIds` is
+      // empty, so nothing holds this trail offline any more -- but
+      // `library/<serverId>/` may still exist from when something did, and
+      // the row that was removed held the only paths into it. Reclaim it
+      // here, mirroring `deleteUnsynced`'s `removed` branch. On the demote
+      // branch the row is kept as an ordinary downloaded row and those files
+      // are still its photos, so it is deliberately left alone.
+      if (retirement.rowRemoved && retiredServerId != null) {
+        await _deleteLibraryDirBestEffort(retiredServerId);
       }
       // WR-01: a hiker sitting on `/trail/local/<localId>` while the upload
       // completes otherwise keeps rendering a row that no longer exists,
@@ -479,6 +492,43 @@ class TrailSync extends _$TrailSync {
     }
   }
 
+  /// Deletes `library/<serverId>/` -- the downloaded-photo directory keyed
+  /// on the trail's SERVER id -- swallowing and logging any failure.
+  ///
+  /// Only ever called after [deleteLocalTrailRow] reported
+  /// [LocalRowDeleteOutcome.removed], i.e. no account held the row in
+  /// `savedByUserIds`. Before 38.1 CR-02 nothing reclaimed this directory
+  /// on the capture-delete path: `deleteUnsynced` cleaned only
+  /// `unsynced/<accountId>/<localId>/`, and the row whose `photos` column
+  /// held the absolute paths into `library/<serverId>/` had just been
+  /// removed, so the whole downloaded photo set (tens of MB) leaked
+  /// permanently.
+  ///
+  /// Best-effort by the same reasoning as [_deletePhotoDirBestEffort]: the
+  /// row is already gone by this line, so an I/O error or a
+  /// [recordIdDirSegment] rejection must degrade into a leaked directory,
+  /// never escape into the delete button's async callback.
+  Future<void> _deleteLibraryDirBestEffort(String serverId) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      // p.join + a whitelisted segment, never interpolation: `serverId`
+      // arrives from a response body that a federated or compromised
+      // instance controls (`trail_download_service.dart` builds the same
+      // path the same way).
+      final dir = Directory(
+        p.join(appDir.path, 'library', recordIdDirSegment(serverId)),
+      );
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+    } catch (e, st) {
+      debugPrint(
+        'trail_sync_provider: library dir cleanup failed for "$serverId": '
+        '$e\n$st',
+      );
+    }
+  }
+
   /// SYNC-03's manual retry: resets the row's backoff/attempt bookkeeping
   /// then immediately re-drains.
   ///
@@ -529,9 +579,17 @@ class TrailSync extends _$TrailSync {
   /// another account (the CR-01 overlap: `savedByUserIds` scoping handed a
   /// non-owning account a `localId`/non-synced `syncState` that were really
   /// someone else's). When it matches nothing, this method skips the photo
-  /// directory delete and the provider invalidations entirely and returns
-  /// [UnsyncedDeleteResult.failed] -- it never reports [UnsyncedDeleteResult.deleted]
-  /// for an operation that deleted nothing it was allowed to delete.
+  /// directory delete and the provider invalidations entirely -- it never
+  /// touches data it was not allowed to touch.
+  ///
+  /// WR-08 (38.1): the no-match branch still reports [UnsyncedDeleteResult.deleted]
+  /// in exactly one case -- when the owner-scoped [readLocalTrailServerId]
+  /// yielded an id for THIS account and the server DELETE then succeeded (or
+  /// 404'd), proving we owned the row and the server copy is gone. That is a
+  /// race with the drain, not a scoping failure, and reporting `failed` for it
+  /// suppressed the map announcement and route pop. In the CR-01 overlap the
+  /// owner-scoped read returns null, no DELETE is issued, and this still
+  /// returns [UnsyncedDeleteResult.failed] having deleted nothing.
   Future<UnsyncedDeleteResult> deleteUnsynced(String localId) async {
     if (state.contains(localId)) return UnsyncedDeleteResult.blockedInFlight;
 
@@ -553,6 +611,10 @@ class TrailSync extends _$TrailSync {
       accountId: accountId,
     );
 
+    // WR-08 (38.1): tracks whether the server copy is provably gone by the
+    // time the local row is touched. Only meaningful when `serverId != null`.
+    var serverCopyDeleted = false;
+
     if (serverId != null) {
       final String path;
       try {
@@ -567,6 +629,7 @@ class TrailSync extends _$TrailSync {
 
       try {
         await ref.read(apiProvider).delete(path);
+        serverCopyDeleted = true;
       } on DioException catch (e) {
         final outcome = resolveServerDeleteOutcome(
           statusCode: e.response?.statusCode,
@@ -584,13 +647,18 @@ class TrailSync extends _$TrailSync {
           case ServerDeleteOutcome.proceedWithLocalDelete:
             // 404: the server already agrees there is nothing left to
             // delete. Fall through to the local delete below.
+            serverCopyDeleted = true;
             break;
         }
       }
     }
 
-    final rowMatched = deleteLocalTrailRow(store, localId, accountId: accountId);
-    if (!rowMatched) {
+    final rowOutcome = deleteLocalTrailRow(
+      store,
+      localId,
+      accountId: accountId,
+    );
+    if (rowOutcome == LocalRowDeleteOutcome.noMatch) {
       // D-07 / CR-01: `deleteLocalTrailRow` is owner-scoped and matched no
       // row for this account -- either the row belongs to another account
       // (the exact overlap CR-01 is about) or it is already gone. Reporting
@@ -601,9 +669,25 @@ class TrailSync extends _$TrailSync {
       // invalidation, no `deleted` result.
       debugPrint(
         'trail_sync_provider: deleteUnsynced("$localId") matched no row '
-        'owned by account "$accountId"; nothing was deleted',
+        'owned by account "$accountId"; nothing was deleted '
+        '(serverCopyDeleted: $serverCopyDeleted)',
       );
-      return UnsyncedDeleteResult.failed;
+      // WR-08 (38.1): distinguish "raced" from "not ours". `serverCopyDeleted`
+      // can only be true when `readLocalTrailServerId` -- itself owner-scoped
+      // -- returned an id for THIS account, so we provably owned the row when
+      // the method started and the server copy is now gone. The row vanishing
+      // between the DELETE and here is a drain pass or a concurrent tap, not a
+      // scoping failure; reporting `failed` toasted an error for a trail the
+      // server had already deleted and skipped both the map announcement and
+      // the route pop, leaving the map rendering a trail that exists nowhere.
+      //
+      // This does NOT weaken CR-01: in the overlap case the localId belongs to
+      // another account, the owner-scoped `readLocalTrailServerId` returns
+      // null, no DELETE is issued, `serverCopyDeleted` stays false, and this
+      // still returns `failed` having touched nothing.
+      return serverCopyDeleted
+          ? UnsyncedDeleteResult.deleted
+          : UnsyncedDeleteResult.failed;
     }
 
     // `unsyncedTrailPhotoDir` validates the id OUTSIDE
@@ -613,6 +697,15 @@ class TrailSync extends _$TrailSync {
     // user with an orphaned photo directory and an unexplained failure. Match
     // the sweep's best-effort discipline instead.
     await _deletePhotoDirBestEffort(accountId, localId);
+
+    // CR-02 (38.1): the row was the ONLY handle on `library/<serverId>/` --
+    // `entity.photos` held the absolute paths into it and there is no
+    // `library/` sweep anywhere in the app. Reclaim it here, and ONLY on the
+    // `removed` branch: on `demotedStillHeld` another account still holds
+    // the trail in its offline library and those files are its photos.
+    if (rowOutcome == LocalRowDeleteOutcome.removed && serverId != null) {
+      await _deleteLibraryDirBestEffort(serverId);
+    }
 
     ref.invalidate(trailLibraryProvider);
     final userEntity = store.box<UserEntity>().getAll().firstOrNull;

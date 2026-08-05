@@ -44,16 +44,19 @@ void main() {
           .where((line) => !RegExp(r'^\s*//').hasMatch(line))
           .join('\n');
 
-      final methodStart = codeOnly.indexOf(
-        'void _showContextMenu(BuildContext context, Trail trail, router) {',
-      );
+      // Matched on the method NAME only, never the full parameter list
+      // (38.1 WR-09). Pinning the exact signature made an untyped `router`
+      // parameter load-bearing: typing it correctly failed this gate, so
+      // the test was actively holding an unchecked `dynamic` dispatch in
+      // place. The invariant this file protects is about the Remove
+      // ListTile's guard, not about the parameter list.
+      final methodStart = codeOnly.indexOf('void _showContextMenu(');
       expect(
         methodStart,
         isNot(-1),
         reason:
-            '_showContextMenu was renamed or its signature changed -- '
-            're-point this gate rather than deleting it, the invariant '
-            'still matters.',
+            '_showContextMenu was renamed -- re-point this gate rather '
+            'than deleting it, the invariant still matters.',
       );
 
       final methodEnd = codeOnly.indexOf('\n  }', methodStart);

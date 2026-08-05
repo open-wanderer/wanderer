@@ -73,8 +73,12 @@ void main() {
         .where((line) => !RegExp(r'^\s*//').hasMatch(line))
         .join('\n');
 
+    // 38.1 WR-03: the return type became a record so the caller can tell the
+    // demote branch from the remove branch and reclaim library/<serverId>/.
+    // Matched on the record type + name so a further signature change still
+    // trips this gate rather than silently skipping the whole group.
     final sigStart = codeOnly.indexOf(
-      'String? retireUploadedLocalTrail(Store store, String localId) {',
+      '({String? serverId, bool rowRemoved}) retireUploadedLocalTrail(',
     );
     expect(
       sigStart,
@@ -181,8 +185,11 @@ void main() {
               'matters.',
         );
 
+        // 38.1 WR-03: both exits now return a record. The CR-01 invariant is
+        // unchanged -- each must still carry the captured serverId -- so the
+        // gate matches `serverId: serverId` instead of `return serverId;`.
         final returnCount = RegExp(
-          r'return serverId;',
+          r'serverId:\s*serverId',
         ).allMatches(body).length;
         expect(
           returnCount,
@@ -193,6 +200,23 @@ void main() {
               'either exit re-opens CR-01: the screen\'s trail.id stays '
               '\'\' forever and every post-upload save fails for a trail '
               'retired down that exit.',
+        );
+
+        // 38.1 WR-03: and they must disagree on rowRemoved, or the caller
+        // cannot tell which branch ran and the library/<serverId>/ reclaim
+        // either never fires or fires on the demote branch and deletes a
+        // still-held library entry's photos.
+        expect(
+          RegExp(r'rowRemoved:\s*false').allMatches(body).length,
+          greaterThanOrEqualTo(1),
+          reason: 'No exit reports rowRemoved: false -- the demote branch '
+              'would trigger the caller\'s library-directory reclaim.',
+        );
+        expect(
+          RegExp(r'rowRemoved:\s*true').allMatches(body).length,
+          greaterThanOrEqualTo(1),
+          reason: 'No exit reports rowRemoved: true -- WR-03\'s orphaned '
+              'library/<serverId>/ is never reclaimed.',
         );
 
         final ownerNullIdx = body.indexOf('entity.owner = null');
@@ -767,20 +791,23 @@ void main() {
           assignMatch,
           isNotNull,
           reason:
-              'deleteLocalTrailRow now returns bool (plan 38.1-02); '
-              'deleteUnsynced must capture that result rather than '
-              'discarding it, or a no-op row delete cannot be '
-              'distinguished from a real one.',
+              'deleteLocalTrailRow now returns LocalRowDeleteOutcome (plan '
+              '38.1-02, 38.1 CR-02); deleteUnsynced must capture that '
+              'result rather than discarding it, or a no-op row delete '
+              'cannot be distinguished from a real one.',
         );
         final resultVar = assignMatch!.group(1)!;
 
-        final guardIdx = body.indexOf('if (!$resultVar)');
+        final guardIdx = body.indexOf(
+          'if ($resultVar == LocalRowDeleteOutcome.noMatch)',
+        );
         expect(
           guardIdx,
           isNot(-1),
           reason:
-              'The captured bool must be guarded with `if (!$resultVar)` '
-              'before anything destructive runs.',
+              'The captured outcome must be guarded with '
+              '`if ($resultVar == LocalRowDeleteOutcome.noMatch)` before '
+              'anything destructive runs.',
         );
 
         final photoDeleteIdx = body.indexOf('_deletePhotoDirBestEffort(');
@@ -815,7 +842,9 @@ void main() {
         expect(assignMatch, isNotNull);
         final resultVar = assignMatch!.group(1)!;
 
-        final guardIdx = body.indexOf('if (!$resultVar)');
+        final guardIdx = body.indexOf(
+          'if ($resultVar == LocalRowDeleteOutcome.noMatch)',
+        );
         expect(guardIdx, isNot(-1));
 
         final guardEnd = body.indexOf('}', guardIdx);
@@ -827,7 +856,7 @@ void main() {
         final guardBlock = body.substring(guardIdx, guardEnd);
 
         expect(
-          guardBlock.contains('return UnsyncedDeleteResult.failed;'),
+          guardBlock.contains('UnsyncedDeleteResult.failed'),
           isTrue,
           reason:
               'Reporting UnsyncedDeleteResult.deleted for an operation '
@@ -835,6 +864,61 @@ void main() {
               'route and a map-provider announcement for a delete that '
               'never happened.',
         );
+
+        // WR-08 (38.1): `deleted` is now reachable from this branch, but ONLY
+        // when gated on `serverCopyDeleted`. An ungated `deleted` here is the
+        // exact D-07 regression this gate exists to catch.
+        if (guardBlock.contains('UnsyncedDeleteResult.deleted')) {
+          expect(
+            guardBlock.contains('serverCopyDeleted'),
+            isTrue,
+            reason:
+                'The no-match branch may only report .deleted when '
+                'serverCopyDeleted proves we owned the row and the server '
+                'copy is gone. An unconditional .deleted here reports '
+                'success for a delete that touched nothing (D-07).',
+          );
+        }
+      },
+    );
+
+    test(
+      'serverCopyDeleted can only be set inside the owner-scoped serverId '
+      'branch -- otherwise WR-08 would hand the CR-01 overlap a success '
+      'result for another account\'s row (D-07/CR-01)',
+      () {
+        final body = deleteUnsyncedBody();
+
+        final serverIdGuardIdx = body.indexOf('if (serverId != null)');
+        expect(
+          serverIdGuardIdx,
+          isNot(-1),
+          reason: 'Could not find the serverId != null guard.',
+        );
+
+        // Every assignment that sets the flag true must appear after the
+        // owner-scoped `readLocalTrailServerId` result has been proven
+        // non-null. `readLocalTrailServerId` is owner-scoped, so in the CR-01
+        // overlap it returns null, this block never runs, and the flag stays
+        // false -- keeping the no-match branch on `failed`.
+        final assignments = RegExp(
+          r'serverCopyDeleted\s*=\s*true',
+        ).allMatches(body).toList();
+        expect(
+          assignments,
+          isNotEmpty,
+          reason: 'serverCopyDeleted is never set -- WR-08 has regressed.',
+        );
+        for (final m in assignments) {
+          expect(
+            m.start,
+            greaterThan(serverIdGuardIdx),
+            reason:
+                'serverCopyDeleted is set outside the `serverId != null` '
+                'branch. That lets a non-owning account reach a .deleted '
+                'result for a row it never owned (CR-01).',
+          );
+        }
       },
     );
   });

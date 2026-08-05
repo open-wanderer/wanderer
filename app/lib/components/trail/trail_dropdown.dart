@@ -90,12 +90,22 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // the destructive action (Delete) was offered.
     //
     // `trailHasServerId(trail.id)` preserves D-17's original, still-valid
-    // reason for hiding *Download*: offering it for a row with a blank id
+    // reason for hiding the family: offering it for a row with a blank id
     // (D-06 blanks a local-sentinel id) would fetch from the server with an
     // empty trail id. Without this term, a null `currentAccountId` making
     // `isOwnLiveCapture` resolve to `false` could surface a Download item
     // pointing at nothing, and the `PopupMenuDivider` would otherwise render
     // with no items behind it.
+    //
+    // 38.1 WR-07: the term guards the WHOLE family, not just the not-offline
+    // branch. `Update` (the `availableOffline` branch below) calls the same
+    // `downloadingTrailIdsProvider.notifier.download(trail)` the Download
+    // item does, so an empty `trail.id` reaching it is the same "fetch with
+    // an empty trail id" this term exists to prevent. Today no library
+    // member can have a blank id -- the CR-01/CR-03 overlap only begins
+    // after `writeServerTrailId` has run -- but that premise lives in
+    // another file and nothing asserted it, so the guard was asymmetric
+    // with its own stated rationale.
     //
     // Accepted consequence (not worked around): a hiker who downloaded
     // their OWN trail while its upload was still in flight does not see
@@ -103,10 +113,8 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // That follows directly from D-13 and costs nothing -- after 38.1 plan
     // 04 the store keeps that row on removal anyway, and the trail remains
     // in their own-trails list.
-    final showDownloadItem =
-        !widget.availableOffline && trailHasServerId(trail.id);
     final showDownloadFamily =
-        !isOwnLiveCapture && (widget.availableOffline || showDownloadItem);
+        !isOwnLiveCapture && trailHasServerId(trail.id);
 
     final isDownloading = ref
         .watch(downloadingTrailIdsProvider)
@@ -398,7 +406,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // the server, so this must never issue a network delete. It also must
     // NOT pop the route -- the screen stays, this provider's state updates,
     // `availableOffline` flips to false and the menu offers Download again.
-    ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
+    //
+    // Awaited (38.1 WR-02): discarding this future dropped any error into
+    // the zone as an unhandled async error instead of surfacing it, and
+    // skipped `deleteTrail`'s own `state` update.
+    await ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
   }
 
   bool _canEditTrail(WidgetRef ref) {
@@ -452,11 +464,15 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final l18n = AppLocalizations.of(context)!;
 
     // D-14: an unsynced trail's own copy is the only copy on earth, so it
-    // needs its own l10n key stating the deletion can't be undone. The
-    // shared `delete_trail_confirm` string also doubles as the *un-download*
-    // confirm in `library_screen.dart`, where "cannot be undone" is false —
-    // un-downloading is genuinely undoable — so the two flows must never
-    // share copy.
+    // needs its own l10n key stating the deletion can't be undone.
+    //
+    // `delete_trail_confirm` is the SERVER-delete confirm only (38.1 WR-12).
+    // The un-download confirm is `remove_download_confirm_body` -- used by
+    // `_confirmRemoveDownload` here and by `library_screen.dart` -- and the
+    // two must never be merged: un-downloading is genuinely undoable, a
+    // server delete is not. `library_screen_remove_guard_test.dart` asserts
+    // `delete_trail_confirm` is ABSENT from `library_screen.dart` for
+    // exactly this reason (T-38-04-02).
     //
     // Decided on `trail.id`, NOT `trail.syncState` (CR-04): `writeServerTrailId`
     // stamps a real server id the instant `PUT /trail/form` is accepted, well
@@ -599,16 +615,44 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
               );
           return;
         case UnsyncedDeleteResult.failed:
-          ref
-              .read(toastProvider.notifier)
-              .add(
-                ToastMessage(
-                  type: ToastType.error,
-                  icon: FontAwesomeIcons.xmark,
-                  text: l18n.error_deleting_trail,
-                ),
-              );
-          return;
+          {
+            // WR-05 (38.1): the drain can retire this row between the
+            // screen's last read and this tap, leaving `trail.id` on the
+            // blank local sentinel while the trail is alive on the server.
+            // `deleteUnsynced` then finds no row, issues no DELETE (the
+            // owner-scoped `readLocalTrailServerId` returns null) and
+            // reports `failed` -- so the hiker could not delete the trail
+            // from this screen at all, under a toast blaming a failure that
+            // never happened.
+            //
+            // `trail_create_screen.dart`'s `resolveNetworkSaveTarget`
+            // already handles exactly this shape on the save path (CR-01,
+            // phase 36). Mirror it here rather than inventing a second
+            // recovery route.
+            //
+            // Safe with respect to CR-01: `serverIdForRetired` is itself
+            // account-guarded -- a memo minted under another account is
+            // refused and returns null -- so this can only ever recover a
+            // trail this account actually retired. When it yields nothing
+            // we fall through to the original toast unchanged.
+            final retiredId = ref
+                .read(trailSyncProvider.notifier)
+                .serverIdForRetired(localId);
+            if (retiredId != null && context.mounted) {
+              await _deleteOnServer(context, trail.copyWith(id: retiredId));
+              return;
+            }
+            ref
+                .read(toastProvider.notifier)
+                .add(
+                  ToastMessage(
+                    type: ToastType.error,
+                    icon: FontAwesomeIcons.xmark,
+                    text: l18n.error_deleting_trail,
+                  ),
+                );
+            return;
+          }
       }
     }
 
