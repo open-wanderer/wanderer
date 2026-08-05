@@ -120,20 +120,46 @@ class LocalPhotoCopyResult {
 /// likely cause of a copy failure -- is exactly when the OS cache purge
 /// that motivated this whole util (D-01) is most likely to have already
 /// happened (D-03).
+///
+/// The directory operations obey the same contract (38.1 WR-10): a failure
+/// to create [dir] is reported as `failedCount == desiredPaths.length` with
+/// no kept paths, and either directory listing degrades to empty. This
+/// function raises nothing at all -- the only way its caller learns of a
+/// failure is [LocalPhotoCopyResult.failedCount].
 Future<LocalPhotoCopyResult> reconcileLocalPhotos({
   required String dir,
   required List<String> desiredPaths,
 }) async {
   final directory = Directory(dir);
-  if (!await directory.exists()) {
-    await directory.create(recursive: true);
+
+  // 38.1 WR-10: the directory calls are inside the contract, not outside
+  // it. `create`/`listSync` used to sit outside any try, so a permission or
+  // I/O error on one of them threw straight past `_copyPhotosForLocalSave`
+  // into `_onSave`'s generic catch -- the hiker saw `error_saving_trail`
+  // (the whole save failed) instead of `photo_copy_failed_toast(n)`, which
+  // is precisely the failure mode the `failedCount` machinery exists to
+  // report. "Per-photo failures never abort the batch" is only true if the
+  // batch's own setup cannot abort it either.
+  try {
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+  } catch (_) {
+    // No destination directory means no photo can be copied. Count every
+    // one of them as failed and return no kept paths -- the honest
+    // `failedCount` the caller's toast is built on. Nothing to reconcile
+    // away either: a directory that does not exist holds no stale files.
+    return LocalPhotoCopyResult(
+      paths: const [],
+      failedCount: desiredPaths.length,
+    );
   }
 
   // Filenames already claimed in `dir`, refreshed as new copies land so a
   // collision-free destination never overwrites a pre-existing file or a
   // photo copied earlier in this same call.
   final reservedNames = <String>{
-    for (final entry in directory.listSync())
+    for (final entry in _listSyncBestEffort(directory))
       if (entry is File) p.basename(entry.path),
   };
 
@@ -173,7 +199,7 @@ Future<LocalPhotoCopyResult> reconcileLocalPhotos({
   // pointing at a file that no longer exists. Silently, since both loops
   // swallow their errors and nothing increments `failedCount`.
   final keptSet = keptPaths.map(p.canonicalize).toSet();
-  for (final entry in directory.listSync()) {
+  for (final entry in _listSyncBestEffort(directory)) {
     if (entry is! File) continue;
     if (keptSet.contains(p.canonicalize(entry.path))) continue;
     try {
@@ -184,6 +210,29 @@ Future<LocalPhotoCopyResult> reconcileLocalPhotos({
   }
 
   return LocalPhotoCopyResult(paths: keptPaths, failedCount: failedCount);
+}
+
+/// [Directory.listSync], degrading to an empty listing instead of throwing
+/// (38.1 WR-10).
+///
+/// Both of [reconcileLocalPhotos]'s listings are advisory, and both must
+/// obey its "never raise back to the caller" contract:
+/// - the first builds `reservedNames`, so an empty listing only costs
+///   collision detection against pre-existing files -- and the copy that
+///   would collide is itself inside a try that counts the failure;
+/// - the second drives the stale-file cleanup, so an empty listing only
+///   leaves a stale file on disk, which the next successful save reconciles
+///   away.
+///
+/// Neither can be allowed to abort the save. See [reconcileLocalPhotos]'s
+/// doc comment for why this file inverts `trail_download_service.dart`'s
+/// abort-everything polarity.
+List<FileSystemEntity> _listSyncBestEffort(Directory directory) {
+  try {
+    return directory.listSync();
+  } catch (_) {
+    return const [];
+  }
 }
 
 /// Returns [basename] unchanged if it is not already in [reservedNames],

@@ -226,6 +226,42 @@ void main() {
 
   group('reconcileLocalPhotos', () {
     test(
+      '38.1 WR-10: an undirectory-able dir is reported as failedCount, not '
+      'raised -- the batch contract covers the batch\'s own setup',
+      () async {
+        // `dir`'s parent is a FILE, so `create(recursive: true)` throws.
+        // Before WR-10 that exception escaped `_copyPhotosForLocalSave` into
+        // `_onSave`'s generic catch, and the hiker saw `error_saving_trail`
+        // (the whole save failed) instead of `photo_copy_failed_toast(n)`.
+        final blocker = File(p.join(tempRoot.path, 'not-a-dir'))
+          ..writeAsStringSync('bytes');
+        final dir = p.join(blocker.path, 'dest');
+        final source = File(p.join(tempRoot.path, 'photo.jpg'))
+          ..writeAsStringSync('fake-photo-bytes');
+
+        // Awaited bare, not wrapped in expect(..., throwsA/returnsNormally):
+        // reconcileLocalPhotos raises nothing at all, so any throw fails
+        // this test directly with the real stack. failedCount is the only
+        // channel by which its caller learns of a failure.
+        final result = await reconcileLocalPhotos(
+          dir: dir,
+          desiredPaths: [source.path, source.path],
+        );
+
+        expect(result.paths, isEmpty);
+        expect(
+          result.failedCount,
+          2,
+          reason:
+              'No destination directory means no photo could be copied, so '
+              'every desired path is a failure -- an honest count is what '
+              'the caller\'s toast is built on.',
+        );
+        expect(source.existsSync(), isTrue);
+      },
+    );
+
+    test(
       'copies a real temp file in and returns its new path inside dir',
       () async {
         final dir = p.join(tempRoot.path, 'dest');
