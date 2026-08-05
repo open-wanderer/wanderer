@@ -90,12 +90,22 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // the destructive action (Delete) was offered.
     //
     // `trailHasServerId(trail.id)` preserves D-17's original, still-valid
-    // reason for hiding *Download*: offering it for a row with a blank id
+    // reason for hiding the family: offering it for a row with a blank id
     // (D-06 blanks a local-sentinel id) would fetch from the server with an
     // empty trail id. Without this term, a null `currentAccountId` making
     // `isOwnLiveCapture` resolve to `false` could surface a Download item
     // pointing at nothing, and the `PopupMenuDivider` would otherwise render
     // with no items behind it.
+    //
+    // 38.1 WR-07: the term guards the WHOLE family, not just the not-offline
+    // branch. `Update` (the `availableOffline` branch below) calls the same
+    // `downloadingTrailIdsProvider.notifier.download(trail)` the Download
+    // item does, so an empty `trail.id` reaching it is the same "fetch with
+    // an empty trail id" this term exists to prevent. Today no library
+    // member can have a blank id -- the CR-01/CR-03 overlap only begins
+    // after `writeServerTrailId` has run -- but that premise lives in
+    // another file and nothing asserted it, so the guard was asymmetric
+    // with its own stated rationale.
     //
     // Accepted consequence (not worked around): a hiker who downloaded
     // their OWN trail while its upload was still in flight does not see
@@ -103,10 +113,8 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // That follows directly from D-13 and costs nothing -- after 38.1 plan
     // 04 the store keeps that row on removal anyway, and the trail remains
     // in their own-trails list.
-    final showDownloadItem =
-        !widget.availableOffline && trailHasServerId(trail.id);
     final showDownloadFamily =
-        !isOwnLiveCapture && (widget.availableOffline || showDownloadItem);
+        !isOwnLiveCapture && trailHasServerId(trail.id);
 
     final isDownloading = ref
         .watch(downloadingTrailIdsProvider)
