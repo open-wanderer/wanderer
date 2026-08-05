@@ -63,7 +63,7 @@ class Auth extends _$Auth {
       unawaited(validation.catchError((_) => null));
 
       try {
-        final validated = await validation.timeout(const Duration(seconds: 3));
+        final validated = await validation.timeout(const Duration(seconds: 2));
         return validated ?? savedUserEntity;
       } on TimeoutException {
         // Offline/slow network: preserve the cached session.

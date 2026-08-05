@@ -59,6 +59,27 @@ class RouterNotifier extends ChangeNotifier {
   void notify() => notifyListeners();
 }
 
+/// Whether the splash screen's trail reveal has finished, been skipped, or hit
+/// its failsafe deadline.
+///
+/// `HomeScreen` cannot time its own exit: the redirect below leaves `/` the
+/// moment auth settles, tearing the splash down mid-animation. This flag is how
+/// the splash asks the router to wait for it.
+///
+/// One-way by construction — it flips false→true exactly once per process and
+/// never back. Anything that holds a route on it is therefore guaranteed to be
+/// released, provided *someone* calls [SplashReveal.complete]; `HomeScreen`
+/// arms a wall-clock failsafe so that holds even if the animation never runs.
+@riverpod
+class SplashReveal extends _$SplashReveal {
+  @override
+  bool build() => false;
+
+  void complete() {
+    if (!state) state = true;
+  }
+}
+
 @riverpod
 Listenable routerListenable(Ref ref) {
   final notifier = RouterNotifier();
@@ -79,6 +100,15 @@ Listenable routerListenable(Ref ref) {
     if (loggedIn == lastLoggedIn) return;
     lastLoggedIn = loggedIn;
     notifier.notify();
+  });
+
+  // Second, independent trigger for the splash hold. Deliberately a separate
+  // listen rather than a widened condition above: that filter exists to stop
+  // equivalent-value auth emissions from rebuilding the route stack, and
+  // relaxing it to carry this flag would reintroduce the modal teardown it was
+  // added to prevent. This one fires at most once, on the false→true flip.
+  ref.listen<bool>(splashRevealProvider, (bool? previous, bool next) {
+    if (next) notifier.notify();
   });
 
   return notifier;
@@ -113,6 +143,15 @@ class Router extends _$Router {
         ];
         final isAtSplash = location == '/';
         final isAtAuthRoute = authRoutes.contains(location);
+
+        // Hold the splash until its trail reveal lands on the summit. Auth
+        // usually settles in a few hundred ms, which would otherwise cut the
+        // animation off partway — an unfinished ascent reads as a failure
+        // rather than a load. Costs up to ~500ms on a fast cold start;
+        // accepted so the animation always pays off.
+        if (isAtSplash && !ref.read(splashRevealProvider)) {
+          return null;
+        }
 
         if (!loggedIn) {
           if (isAtSplash || !isAtAuthRoute) {

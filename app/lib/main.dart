@@ -250,6 +250,13 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     final file = pending.first;
     _pendingShare = null;
 
+    // Release the splash's trail-reveal hold for the same reason this method
+    // skips the auth gate: a share is usually a cold start, and making the
+    // import wait out a ~700ms animation is precisely the splash flash the
+    // optimistic routing above exists to avoid. The reveal is decoration on a
+    // wait; here there is a real destination to get to.
+    ref.read(splashRevealProvider.notifier).complete();
+
     _runImportWhenRouterSettled(file);
   }
 
