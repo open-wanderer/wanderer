@@ -584,5 +584,72 @@ void main() {
         expect(legacyFile.existsSync(), isTrue);
       },
     );
+
+    test(
+      '38.1 WR-11: an account directory left empty by the sweep is '
+      'reclaimed, while one that still holds a kept localId dir survives',
+      () async {
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        const emptiedAccount = 'acctA0000000001';
+        const keepingAccount = 'acctB0000000002';
+        const orphan = 'local-1700000000000000-1';
+        const kept = 'local-1700000000000000-2';
+
+        await Directory(
+          p.join(root, emptiedAccount, orphan),
+        ).create(recursive: true);
+        await Directory(
+          p.join(root, keepingAccount, kept),
+        ).create(recursive: true);
+
+        final deleted = await sweepOrphanedUnsyncedPhotos(
+          keepLocalIds: const {kept},
+        );
+
+        // The account directory is NOT counted -- the return value stays
+        // "orphaned localId directories deleted", which is what the caller
+        // logs.
+        expect(deleted, 1);
+        expect(
+          Directory(p.join(root, emptiedAccount)).existsSync(),
+          isFalse,
+          reason:
+              'A signed-out account whose UserEntity row is long gone '
+              'otherwise leaves a permanent inode behind -- the same '
+              'unbounded-growth class this sweep exists to close.',
+        );
+        expect(Directory(p.join(root, keepingAccount)).existsSync(), isTrue);
+        expect(
+          Directory(p.join(root, keepingAccount, kept)).existsSync(),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      '38.1 WR-11: an account directory holding a non-localId entry is left '
+      'alone -- the empty-dir reclamation never widens what is deletable',
+      () async {
+        final root = unsyncedPhotoRoot(tempRoot.path);
+        const accountA = 'acctA0000000001';
+
+        final waypointsDir = Directory(p.join(root, accountA, 'waypoints'));
+        await waypointsDir.create(recursive: true);
+
+        final deleted = await sweepOrphanedUnsyncedPhotos(
+          keepLocalIds: const {},
+        );
+
+        expect(deleted, 0);
+        expect(
+          Directory(p.join(root, accountA)).existsSync(),
+          isTrue,
+          reason:
+              'The account dir is not empty -- `waypoints/` survived the '
+              'isLocalId filter, so the dir it lives in must survive too.',
+        );
+        expect(waypointsDir.existsSync(), isTrue);
+      },
+    );
   });
 }

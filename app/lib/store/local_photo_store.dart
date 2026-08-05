@@ -273,8 +273,13 @@ Future<void> deleteUnsyncedPhotoDir(String accountId, String localId) async {
 ///
 /// Two levels are enumerated, never more and never fewer: the immediate
 /// children of the unsynced root are always treated as ACCOUNT directories
-/// and are never themselves deleted, and only THEIR immediate children --
-/// where `isLocalId(basename)` is true -- are candidates for deletion. The
+/// and are never deletion CANDIDATES, and only THEIR immediate children --
+/// where `isLocalId(basename)` is true -- are candidates for deletion. An
+/// account directory left EMPTY once its candidates are gone is reclaimed
+/// (non-recursively, so a file that landed in the meantime is never
+/// destroyed) and is not counted in the return value -- see 38.1 WR-11 at
+/// the call site. That is a reclamation of an empty inode, not a widening
+/// of what this sweep considers deletable. The
 /// `isLocalId` term is load-bearing: it is what keeps this sweep off a
 /// `waypoints/` directory sitting at the second level, and off the contents
 /// of any pre-existing one-level `unsynced/<localId>/` directory from
@@ -310,6 +315,21 @@ Future<int> sweepOrphanedUnsyncedPhotos({
           } catch (_) {
             // Best-effort -- one bad directory must never stop the sweep.
           }
+        }
+
+        // 38.1 WR-11: an account directory is never a deletion CANDIDATE
+        // (the two-level rule above is what keeps this sweep off the legacy
+        // one-level layout), but an EMPTY one has nothing left to protect.
+        // Without this, every account that ever saved an unsynced photo
+        // leaves a permanent inode behind -- including accounts that have
+        // been signed out and whose `UserEntity` row is long gone
+        // (`current_account.dart` enforces at most one `UserEntity`, so a
+        // departed account has no representation anywhere to sweep by).
+        // `deleteSync()` without `recursive`, deliberately: it deletes an
+        // empty directory and throws on a non-empty one, so a file that
+        // landed between the listing and this call is never destroyed.
+        if (accountEntry.listSync().isEmpty) {
+          accountEntry.deleteSync();
         }
       } catch (_) {
         // Best-effort -- one unreadable account directory must never abort
