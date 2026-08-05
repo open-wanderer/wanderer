@@ -615,16 +615,44 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
               );
           return;
         case UnsyncedDeleteResult.failed:
-          ref
-              .read(toastProvider.notifier)
-              .add(
-                ToastMessage(
-                  type: ToastType.error,
-                  icon: FontAwesomeIcons.xmark,
-                  text: l18n.error_deleting_trail,
-                ),
-              );
-          return;
+          {
+            // WR-05 (38.1): the drain can retire this row between the
+            // screen's last read and this tap, leaving `trail.id` on the
+            // blank local sentinel while the trail is alive on the server.
+            // `deleteUnsynced` then finds no row, issues no DELETE (the
+            // owner-scoped `readLocalTrailServerId` returns null) and
+            // reports `failed` -- so the hiker could not delete the trail
+            // from this screen at all, under a toast blaming a failure that
+            // never happened.
+            //
+            // `trail_create_screen.dart`'s `resolveNetworkSaveTarget`
+            // already handles exactly this shape on the save path (CR-01,
+            // phase 36). Mirror it here rather than inventing a second
+            // recovery route.
+            //
+            // Safe with respect to CR-01: `serverIdForRetired` is itself
+            // account-guarded -- a memo minted under another account is
+            // refused and returns null -- so this can only ever recover a
+            // trail this account actually retired. When it yields nothing
+            // we fall through to the original toast unchanged.
+            final retiredId = ref
+                .read(trailSyncProvider.notifier)
+                .serverIdForRetired(localId);
+            if (retiredId != null && context.mounted) {
+              await _deleteOnServer(context, trail.copyWith(id: retiredId));
+              return;
+            }
+            ref
+                .read(toastProvider.notifier)
+                .add(
+                  ToastMessage(
+                    type: ToastType.error,
+                    icon: FontAwesomeIcons.xmark,
+                    text: l18n.error_deleting_trail,
+                  ),
+                );
+            return;
+          }
       }
     }
 

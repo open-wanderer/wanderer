@@ -262,4 +262,43 @@ void main() {
           'library_screen.dart.',
     );
   });
+
+  test(
+    '38.1 WR-05: the unsynced branch consults serverIdForRetired before '
+    'toasting error_deleting_trail',
+    () {
+      final source = File(
+        'lib/components/trail/trail_dropdown.dart',
+      ).readAsStringSync();
+
+      final failedIdx = source.indexOf('case UnsyncedDeleteResult.failed:');
+      expect(
+        failedIdx,
+        isNot(-1),
+        reason:
+            'Could not find the failed case. Re-point this gate rather '
+            'than deleting it -- the invariant still matters.',
+      );
+
+      final retiredIdx = source.indexOf('serverIdForRetired(', failedIdx);
+      final toastIdx = source.indexOf('error_deleting_trail', failedIdx);
+      expect(
+        retiredIdx,
+        isNot(-1),
+        reason:
+            'The failed branch must consult serverIdForRetired. Without it, '
+            'a drain that retires the row between this screen\'s last read '
+            'and the confirm tap leaves the hiker unable to delete the '
+            'trail at all, under a toast blaming a failure that never '
+            'happened (WR-05).',
+      );
+      expect(
+        retiredIdx,
+        lessThan(toastIdx),
+        reason:
+            'serverIdForRetired must be consulted BEFORE the error toast -- '
+            'toasting first means the recovery route is unreachable.',
+      );
+    },
+  );
 }
