@@ -832,7 +832,7 @@ void main() {
         final guardBlock = body.substring(guardIdx, guardEnd);
 
         expect(
-          guardBlock.contains('return UnsyncedDeleteResult.failed;'),
+          guardBlock.contains('UnsyncedDeleteResult.failed'),
           isTrue,
           reason:
               'Reporting UnsyncedDeleteResult.deleted for an operation '
@@ -840,6 +840,61 @@ void main() {
               'route and a map-provider announcement for a delete that '
               'never happened.',
         );
+
+        // WR-08 (38.1): `deleted` is now reachable from this branch, but ONLY
+        // when gated on `serverCopyDeleted`. An ungated `deleted` here is the
+        // exact D-07 regression this gate exists to catch.
+        if (guardBlock.contains('UnsyncedDeleteResult.deleted')) {
+          expect(
+            guardBlock.contains('serverCopyDeleted'),
+            isTrue,
+            reason:
+                'The no-match branch may only report .deleted when '
+                'serverCopyDeleted proves we owned the row and the server '
+                'copy is gone. An unconditional .deleted here reports '
+                'success for a delete that touched nothing (D-07).',
+          );
+        }
+      },
+    );
+
+    test(
+      'serverCopyDeleted can only be set inside the owner-scoped serverId '
+      'branch -- otherwise WR-08 would hand the CR-01 overlap a success '
+      'result for another account\'s row (D-07/CR-01)',
+      () {
+        final body = deleteUnsyncedBody();
+
+        final serverIdGuardIdx = body.indexOf('if (serverId != null)');
+        expect(
+          serverIdGuardIdx,
+          isNot(-1),
+          reason: 'Could not find the serverId != null guard.',
+        );
+
+        // Every assignment that sets the flag true must appear after the
+        // owner-scoped `readLocalTrailServerId` result has been proven
+        // non-null. `readLocalTrailServerId` is owner-scoped, so in the CR-01
+        // overlap it returns null, this block never runs, and the flag stays
+        // false -- keeping the no-match branch on `failed`.
+        final assignments = RegExp(
+          r'serverCopyDeleted\s*=\s*true',
+        ).allMatches(body).toList();
+        expect(
+          assignments,
+          isNotEmpty,
+          reason: 'serverCopyDeleted is never set -- WR-08 has regressed.',
+        );
+        for (final m in assignments) {
+          expect(
+            m.start,
+            greaterThan(serverIdGuardIdx),
+            reason:
+                'serverCopyDeleted is set outside the `serverId != null` '
+                'branch. That lets a non-owning account reach a .deleted '
+                'result for a row it never owned (CR-01).',
+          );
+        }
       },
     );
   });

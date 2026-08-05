@@ -568,9 +568,17 @@ class TrailSync extends _$TrailSync {
   /// another account (the CR-01 overlap: `savedByUserIds` scoping handed a
   /// non-owning account a `localId`/non-synced `syncState` that were really
   /// someone else's). When it matches nothing, this method skips the photo
-  /// directory delete and the provider invalidations entirely and returns
-  /// [UnsyncedDeleteResult.failed] -- it never reports [UnsyncedDeleteResult.deleted]
-  /// for an operation that deleted nothing it was allowed to delete.
+  /// directory delete and the provider invalidations entirely -- it never
+  /// touches data it was not allowed to touch.
+  ///
+  /// WR-08 (38.1): the no-match branch still reports [UnsyncedDeleteResult.deleted]
+  /// in exactly one case -- when the owner-scoped [readLocalTrailServerId]
+  /// yielded an id for THIS account and the server DELETE then succeeded (or
+  /// 404'd), proving we owned the row and the server copy is gone. That is a
+  /// race with the drain, not a scoping failure, and reporting `failed` for it
+  /// suppressed the map announcement and route pop. In the CR-01 overlap the
+  /// owner-scoped read returns null, no DELETE is issued, and this still
+  /// returns [UnsyncedDeleteResult.failed] having deleted nothing.
   Future<UnsyncedDeleteResult> deleteUnsynced(String localId) async {
     if (state.contains(localId)) return UnsyncedDeleteResult.blockedInFlight;
 
@@ -592,6 +600,10 @@ class TrailSync extends _$TrailSync {
       accountId: accountId,
     );
 
+    // WR-08 (38.1): tracks whether the server copy is provably gone by the
+    // time the local row is touched. Only meaningful when `serverId != null`.
+    var serverCopyDeleted = false;
+
     if (serverId != null) {
       final String path;
       try {
@@ -606,6 +618,7 @@ class TrailSync extends _$TrailSync {
 
       try {
         await ref.read(apiProvider).delete(path);
+        serverCopyDeleted = true;
       } on DioException catch (e) {
         final outcome = resolveServerDeleteOutcome(
           statusCode: e.response?.statusCode,
@@ -623,6 +636,7 @@ class TrailSync extends _$TrailSync {
           case ServerDeleteOutcome.proceedWithLocalDelete:
             // 404: the server already agrees there is nothing left to
             // delete. Fall through to the local delete below.
+            serverCopyDeleted = true;
             break;
         }
       }
@@ -644,9 +658,25 @@ class TrailSync extends _$TrailSync {
       // invalidation, no `deleted` result.
       debugPrint(
         'trail_sync_provider: deleteUnsynced("$localId") matched no row '
-        'owned by account "$accountId"; nothing was deleted',
+        'owned by account "$accountId"; nothing was deleted '
+        '(serverCopyDeleted: $serverCopyDeleted)',
       );
-      return UnsyncedDeleteResult.failed;
+      // WR-08 (38.1): distinguish "raced" from "not ours". `serverCopyDeleted`
+      // can only be true when `readLocalTrailServerId` -- itself owner-scoped
+      // -- returned an id for THIS account, so we provably owned the row when
+      // the method started and the server copy is now gone. The row vanishing
+      // between the DELETE and here is a drain pass or a concurrent tap, not a
+      // scoping failure; reporting `failed` toasted an error for a trail the
+      // server had already deleted and skipped both the map announcement and
+      // the route pop, leaving the map rendering a trail that exists nowhere.
+      //
+      // This does NOT weaken CR-01: in the overlap case the localId belongs to
+      // another account, the owner-scoped `readLocalTrailServerId` returns
+      // null, no DELETE is issued, `serverCopyDeleted` stays false, and this
+      // still returns `failed` having touched nothing.
+      return serverCopyDeleted
+          ? UnsyncedDeleteResult.deleted
+          : UnsyncedDeleteResult.failed;
     }
 
     // `unsyncedTrailPhotoDir` validates the id OUTSIDE
