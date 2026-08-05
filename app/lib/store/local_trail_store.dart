@@ -759,8 +759,30 @@ void applyServerTrailToLibraryRow(
   });
 }
 
-/// Removes the local row for [localId], owned by [accountId], and its
-/// [WaypointEntity] children.
+/// What [deleteLocalTrailRow] actually did.
+///
+/// A plain `bool` could only say "I matched a row"; it could not tell the
+/// caller whether the ROW is gone, and that is the fact the caller needs
+/// in order to know whether `library/<serverId>/` still has a referent
+/// (CR-02).
+enum LocalRowDeleteOutcome {
+  /// The row and its [WaypointEntity] children were removed outright. No
+  /// account held it in `savedByUserIds`, so nothing on this device points
+  /// at `library/<serverId>/` any more and the caller owns reclaiming it.
+  removed,
+
+  /// A row owned by [accountId] matched and its capture bookkeeping was
+  /// cleared, but the ROW WAS KEPT because some account still holds it in
+  /// its offline library. This account's capture state is gone (which is
+  /// what it asked for); the other account's library entry survives.
+  demotedStillHeld,
+
+  /// No row carrying this `localId` is owned by this account. NOTHING was
+  /// touched, and the caller must not delete files or report success.
+  noMatch,
+}
+
+/// Ends the local capture for [localId], owned by [accountId].
 ///
 /// A no-op for an unknown [localId] (or one owned by a different account),
 /// mirroring `TrailLibraryNotifier.deleteTrail`'s silent no-op precedent.
@@ -771,15 +793,32 @@ void applyServerTrailToLibraryRow(
 /// -- the caller pairs this with `deleteUnsyncedPhotoDir` (from
 /// `local_photo_store.dart`, 36-02).
 ///
-/// Returns whether a row was actually matched and removed (D-07, store
-/// half of CR-01). `false` means no row owned by [accountId] carried this
-/// [localId], so the caller deleted NOTHING and must not go on to delete
-/// files or report success. This closes CR-01: account B's tap routed
-/// into `deleteUnsynced` with account A's `localId`; the owner clause
+/// [shouldDeleteUploadedRow] picks between two shapes, exactly as
+/// [retireUploadedLocalTrail] does for the other way a capture's life ends
+/// (38.1 CR-02):
+/// - No library membership (the ordinary case): the row and its
+///   [WaypointEntity] children are removed outright.
+/// - Some account holds it in its offline library: the row is KEPT and only
+///   the capture bookkeeping is cleared, so it becomes an ordinary
+///   downloaded row. `TrailEntity.id` is `@Unique(onConflict: replace)`, so
+///   once `writeServerTrailId` has stamped a server id another account's
+///   download lands in THIS row. Removing it outright destroyed that
+///   account's library entry and orphaned `library/<serverId>/` -- whose
+///   only referent was the `entity.photos` column on the row just removed
+///   -- with no `library/` sweep anywhere in the app to reclaim it. That is
+///   the phase's own defect class: a destructive action scoped by one
+///   identity (`owner`) destroying state belonging to another
+///   (`savedByUserIds`).
+///
+/// Returns which of those happened, or [LocalRowDeleteOutcome.noMatch]
+/// (D-07, store half of CR-01). `noMatch` means no row owned by [accountId]
+/// carried this [localId], so the caller deleted NOTHING and must not go on
+/// to delete files or report success. This closes CR-01: account B's tap
+/// routed into `deleteUnsynced` with account A's `localId`; the owner clause
 /// correctly matched no row, but the caller then deleted the photo
 /// directory anyway and reported `deleted`. A `void` signature made that
 /// no-match case indistinguishable from success.
-bool deleteLocalTrailRow(
+LocalRowDeleteOutcome deleteLocalTrailRow(
   Store store,
   String localId, {
   required String accountId,
@@ -794,14 +833,29 @@ bool deleteLocalTrailRow(
         .build();
     final entity = query.findFirst();
     query.close();
-    if (entity == null) return false;
+    if (entity == null) return LocalRowDeleteOutcome.noMatch;
+
+    if (!shouldDeleteUploadedRow(entity.savedByUserIds)) {
+      // Demote to an ordinary downloaded row -- the same shape
+      // `retireUploadedLocalTrail` produces, so nothing downstream needs to
+      // know it was ever a capture. The waypoint children stay: they are
+      // part of the downloaded copy the other account still holds.
+      entity.owner = null;
+      entity.localId = null;
+      entity.syncState = TrailSyncState.synced;
+      entity.syncAttempts = 0;
+      entity.syncNextAttemptAt = null;
+      entity.localPhotos = [];
+      trailBox.put(entity);
+      return LocalRowDeleteOutcome.demotedStillHeld;
+    }
 
     final waypointBox = store.box<WaypointEntity>();
     for (final waypoint in entity.waypoints) {
       waypointBox.remove(waypoint.obxId);
     }
     trailBox.remove(entity.obxId);
-    return true;
+    return LocalRowDeleteOutcome.removed;
   });
 }
 

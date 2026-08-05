@@ -767,20 +767,23 @@ void main() {
           assignMatch,
           isNotNull,
           reason:
-              'deleteLocalTrailRow now returns bool (plan 38.1-02); '
-              'deleteUnsynced must capture that result rather than '
-              'discarding it, or a no-op row delete cannot be '
-              'distinguished from a real one.',
+              'deleteLocalTrailRow now returns LocalRowDeleteOutcome (plan '
+              '38.1-02, 38.1 CR-02); deleteUnsynced must capture that '
+              'result rather than discarding it, or a no-op row delete '
+              'cannot be distinguished from a real one.',
         );
         final resultVar = assignMatch!.group(1)!;
 
-        final guardIdx = body.indexOf('if (!$resultVar)');
+        final guardIdx = body.indexOf(
+          'if ($resultVar == LocalRowDeleteOutcome.noMatch)',
+        );
         expect(
           guardIdx,
           isNot(-1),
           reason:
-              'The captured bool must be guarded with `if (!$resultVar)` '
-              'before anything destructive runs.',
+              'The captured outcome must be guarded with '
+              '`if ($resultVar == LocalRowDeleteOutcome.noMatch)` before '
+              'anything destructive runs.',
         );
 
         final photoDeleteIdx = body.indexOf('_deletePhotoDirBestEffort(');
@@ -815,7 +818,9 @@ void main() {
         expect(assignMatch, isNotNull);
         final resultVar = assignMatch!.group(1)!;
 
-        final guardIdx = body.indexOf('if (!$resultVar)');
+        final guardIdx = body.indexOf(
+          'if ($resultVar == LocalRowDeleteOutcome.noMatch)',
+        );
         expect(guardIdx, isNot(-1));
 
         final guardEnd = body.indexOf('}', guardIdx);
