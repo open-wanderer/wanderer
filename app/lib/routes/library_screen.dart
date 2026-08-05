@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -136,7 +137,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  void _showContextMenu(BuildContext context, Trail trail, router) {
+  void _showContextMenu(BuildContext context, Trail trail, GoRouter router) {
     final l18n = AppLocalizations.of(context)!;
     final location = trailDetailLocation(trail);
 
