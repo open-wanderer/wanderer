@@ -418,9 +418,20 @@ class TrailSync extends _$TrailSync {
       // This also retires step 2's photo-list reasoning: the row's
       // `photos` column no longer has to survive anything, because the
       // row does not.
-      final retiredServerId = retireUploadedLocalTrail(store, localId);
+      final retirement = retireUploadedLocalTrail(store, localId);
+      final retiredServerId = retirement.serverId;
       if (retiredServerId != null) {
         _rememberRetiredServerId(localId, retiredServerId, accountId);
+      }
+      // WR-03 (38.1): the remove branch runs only when `savedByUserIds` is
+      // empty, so nothing holds this trail offline any more -- but
+      // `library/<serverId>/` may still exist from when something did, and
+      // the row that was removed held the only paths into it. Reclaim it
+      // here, mirroring `deleteUnsynced`'s `removed` branch. On the demote
+      // branch the row is kept as an ordinary downloaded row and those files
+      // are still its photos, so it is deliberately left alone.
+      if (retirement.rowRemoved && retiredServerId != null) {
+        await _deleteLibraryDirBestEffort(retiredServerId);
       }
       // WR-01: a hiker sitting on `/trail/local/<localId>` while the upload
       // completes otherwise keeps rendering a row that no longer exists,

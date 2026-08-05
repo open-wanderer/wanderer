@@ -890,15 +890,33 @@ LocalRowDeleteOutcome deleteLocalTrailRow(
 /// the two is reclaimed by the next startup sweep. The reverse
 /// order self-heals into a row with broken thumbnails instead.
 ///
-/// Returns the server id the row carried at the moment it was retired, or
-/// null when no row matched. That id is the trail's identity after this
+/// Returns `serverId` -- the server id the row carried at the moment it was
+/// retired, or null when no row matched -- alongside `rowRemoved`, which
+/// distinguishes the two branches above.
+///
+/// WR-03 (38.1): `rowRemoved` exists because the remove branch can strand
+/// `library/<serverId>/`. That branch runs precisely when `savedByUserIds`
+/// is empty, so no account holds the trail offline any more, yet the
+/// directory (populated by `TrailDownloadService` back when someone did)
+/// outlives the only row that referenced it -- `entity.photos` held the
+/// absolute paths into it and there is no `library/` sweep anywhere in the
+/// app. `TrailLibraryNotifier.deleteTrail`'s keep-the-row path reaches this
+/// state legitimately: it writes `savedByUserIds = []` onto a row it keeps
+/// because the row is a live capture, and this function later removes that
+/// row. The caller pairs `rowRemoved` with a best-effort directory reclaim,
+/// exactly as `deleteUnsynced` does on its own `removed` branch.
+///
+/// The id is the trail's identity after this
 /// row is gone -- once retirement runs (either branch), it is the ONLY
 /// handle a still-mounted create/edit or detail screen has left on the
 /// trail (CR-01): there are no ObjectBox `Query.watch()` streams anywhere
 /// in this app, so a screen's own `trail.id` snapshot, taken while the row
 /// was still local, keeps reading the blank local-sentinel value forever
 /// unless the caller captures and memoizes this return value.
-String? retireUploadedLocalTrail(Store store, String localId) {
+({String? serverId, bool rowRemoved}) retireUploadedLocalTrail(
+  Store store,
+  String localId,
+) {
   return store.runInTransaction(TxMode.write, () {
     final trailBox = store.box<TrailEntity>();
     // No account scoping and no `owner` clause: the only caller reached
@@ -907,7 +925,7 @@ String? retireUploadedLocalTrail(Store store, String localId) {
     final query = trailBox.query(TrailEntity_.localId.equals(localId)).build();
     final entity = query.findFirst();
     query.close();
-    if (entity == null) return null;
+    if (entity == null) return (serverId: null, rowRemoved: false);
 
     // Captured before the row is mutated or removed by either branch below
     // -- see this function's doc comment (CR-01).
@@ -924,7 +942,7 @@ String? retireUploadedLocalTrail(Store store, String localId) {
       entity.syncNextAttemptAt = null;
       entity.localPhotos = [];
       trailBox.put(entity);
-      return serverId;
+      return (serverId: serverId, rowRemoved: false);
     }
 
     final waypointBox = store.box<WaypointEntity>();
@@ -932,7 +950,7 @@ String? retireUploadedLocalTrail(Store store, String localId) {
       waypointBox.remove(waypoint.obxId);
     }
     trailBox.remove(entity.obxId);
-    return serverId;
+    return (serverId: serverId, rowRemoved: true);
   });
 }
 

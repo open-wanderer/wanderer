@@ -73,8 +73,12 @@ void main() {
         .where((line) => !RegExp(r'^\s*//').hasMatch(line))
         .join('\n');
 
+    // 38.1 WR-03: the return type became a record so the caller can tell the
+    // demote branch from the remove branch and reclaim library/<serverId>/.
+    // Matched on the record type + name so a further signature change still
+    // trips this gate rather than silently skipping the whole group.
     final sigStart = codeOnly.indexOf(
-      'String? retireUploadedLocalTrail(Store store, String localId) {',
+      '({String? serverId, bool rowRemoved}) retireUploadedLocalTrail(',
     );
     expect(
       sigStart,
@@ -181,8 +185,11 @@ void main() {
               'matters.',
         );
 
+        // 38.1 WR-03: both exits now return a record. The CR-01 invariant is
+        // unchanged -- each must still carry the captured serverId -- so the
+        // gate matches `serverId: serverId` instead of `return serverId;`.
         final returnCount = RegExp(
-          r'return serverId;',
+          r'serverId:\s*serverId',
         ).allMatches(body).length;
         expect(
           returnCount,
@@ -193,6 +200,23 @@ void main() {
               'either exit re-opens CR-01: the screen\'s trail.id stays '
               '\'\' forever and every post-upload save fails for a trail '
               'retired down that exit.',
+        );
+
+        // 38.1 WR-03: and they must disagree on rowRemoved, or the caller
+        // cannot tell which branch ran and the library/<serverId>/ reclaim
+        // either never fires or fires on the demote branch and deletes a
+        // still-held library entry's photos.
+        expect(
+          RegExp(r'rowRemoved:\s*false').allMatches(body).length,
+          greaterThanOrEqualTo(1),
+          reason: 'No exit reports rowRemoved: false -- the demote branch '
+              'would trigger the caller\'s library-directory reclaim.',
+        );
+        expect(
+          RegExp(r'rowRemoved:\s*true').allMatches(body).length,
+          greaterThanOrEqualTo(1),
+          reason: 'No exit reports rowRemoved: true -- WR-03\'s orphaned '
+              'library/<serverId>/ is never reclaimed.',
         );
 
         final ownerNullIdx = body.indexOf('entity.owner = null');
