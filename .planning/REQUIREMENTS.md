@@ -177,14 +177,14 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DL-01 | Phase 38 → 38.1 | Re-opened (CR-01) |
+| DL-01 | Phase 38 → 38.1 | Complete (closed by 38.1) |
 | DL-02 | Phase 38 | Complete |
 | DL-03 | Phase 38 | Complete |
 | DL-04 | Phase 38 | Complete |
 | DL-05 | Phase 38 | Complete |
 | DL-06 | Phase 38 | Complete |
-| DL-07 | Phase 38 → 38.1 | Re-opened (CR-01) |
+| DL-07 | Phase 38 → 38.1 | Complete (closed by 38.1) |
 
 ---
 *Requirements defined: 2026-07-31*
-*Last updated: 2026-08-04 — added DL-01…DL-07 (Phase 38, post-v1.8); v1.8 coverage unchanged*
+*Last updated: 2026-08-05 — DL-01/DL-07 closed by Phase 38.1; v1.8 coverage unchanged*
