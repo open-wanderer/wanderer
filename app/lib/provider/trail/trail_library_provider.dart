@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -98,6 +99,19 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
       );
 
       if (remaining.isEmpty && !isLiveCaptureRow(entity)) {
+        // The waypoint children go with the row (38.1 WR-01).
+        // `local_trail_store.dart` names this exact call site as the leak
+        // `retireUploadedLocalTrail` deliberately does not copy: an orphaned
+        // WaypointEntity has a dangling `trail` ToOne, is invisible to every
+        // read path, and accumulates for the life of the install (it only
+        // self-heals if the same trail is re-downloaded, because
+        // WaypointEntity.id is @Unique(onConflict: replace)). `author` and
+        // `category` are ToOne targets SHARED with other trails and are
+        // deliberately left alone, exactly as in retireUploadedLocalTrail.
+        final waypointBox = store.box<WaypointEntity>();
+        for (final waypoint in entity.waypoints) {
+          waypointBox.remove(waypoint.obxId);
+        }
         box.remove(entity.obxId);
         return true;
       }
