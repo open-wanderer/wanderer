@@ -83,6 +83,14 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
       appBar: AppBar(
         leading: BackButton(onPressed: () => context.pop()),
         title: Text(l10n.trail(2)),
+        actions: [
+          IconButton(
+            icon: const FaIcon(FontAwesomeIcons.mapLocationDot, size: 18),
+            tooltip: l10n.map,
+            onPressed: () =>
+                context.push('/profile/${widget.handle}/trails/map'),
+          ),
+        ],
       ),
       body: Column(
         children: [

@@ -32,7 +32,7 @@ final class TrailSaveProvider extends $AsyncNotifierProvider<TrailSave, void> {
   TrailSave create() => TrailSave();
 }
 
-String _$trailSaveHash() => r'1cd4cf93ecd8c55e6b84d2490a01c840d4ba6c89';
+String _$trailSaveHash() => r'e12d23179a6e0a0d2d55faa569f12e683871aba7';
 
 abstract class _$TrailSave extends $AsyncNotifier<void> {
   FutureOr<void> build();

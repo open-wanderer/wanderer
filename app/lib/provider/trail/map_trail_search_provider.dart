@@ -17,10 +17,13 @@ class MapTrailSearch extends _$MapTrailSearch {
   Timer? _debounce;
 
   @override
-  FutureOr<List<TrailSearchResult>> build() async {
+  FutureOr<List<TrailSearchResult>> build({
+    String? authorId,
+    required String filterId,
+  }) async {
     ref.onDispose(() => _debounce?.cancel());
 
-    ref.listen(trailFilterProvider('map'), (previous, next) {
+    ref.listen(trailFilterProvider(filterId), (previous, next) {
       if (_lastBounds != null && next.hasValue && !next.isLoading) {
         final currentFilter = next.value;
         if (currentFilter != null) {
@@ -67,7 +70,7 @@ class MapTrailSearch extends _$MapTrailSearch {
     TrailFilter? passedFilter,
   }) async {
     final TrailFilter filter =
-        passedFilter ?? await ref.read(trailFilterProvider('map').future);
+        passedFilter ?? await ref.read(trailFilterProvider(filterId).future);
     final user = await ref.read(authProvider.future);
     final api = ref.read(apiProvider);
 
@@ -96,6 +99,7 @@ class MapTrailSearch extends _$MapTrailSearch {
             'filter': [
               '_geoBoundingBox([$neLat, $neLng], [$swLat, $swLng])',
               if (filterText.isNotEmpty) filterText,
+              if (authorId != null) 'author = $authorId',
             ],
             'sort': ["${filter.sort.name}:${filter.sortOrder.name}"],
             'attributesToRetrieve': [...defaultTrailSearchAttributes],

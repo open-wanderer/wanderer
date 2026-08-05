@@ -106,7 +106,11 @@ class _RoutingAdapter implements HttpClientAdapter {
       return ResponseBody.fromString(
         jsonEncode({
           'type': 'FeatureCollection',
-          'features': [_feature(_deletedId), _feature(_keptId), _clusterFeature()],
+          'features': [
+            _feature(_deletedId),
+            _feature(_keptId),
+            _clusterFeature(),
+          ],
         }),
         200,
         headers: {
@@ -179,12 +183,19 @@ void main() {
   test('deleted trail leaves the map result list, others stay', () async {
     final container = _makeContainer();
 
-    await container.read(mapTrailSearchProvider.future);
-    container.read(mapTrailSearchProvider.notifier).searchInBounds(_bounds);
+    await container.read(
+      mapTrailSearchProvider(authorId: null, filterId: 'map').future,
+    );
+    container
+        .read(mapTrailSearchProvider(authorId: null, filterId: 'map').notifier)
+        .searchInBounds(_bounds);
     await _settleSearch();
 
     expect(
-      container.read(mapTrailSearchProvider).value!.map((t) => t.id),
+      container
+          .read(mapTrailSearchProvider(authorId: null, filterId: 'map'))
+          .value!
+          .map((t) => t.id),
       containsAll([_deletedId, _keptId]),
       reason: 'search fixture must land before the deletion is announced',
     );
@@ -192,7 +203,7 @@ void main() {
     container.read(trailDeletionsProvider.notifier).announce(_deletedId);
 
     final ids = container
-        .read(mapTrailSearchProvider)
+        .read(mapTrailSearchProvider(authorId: null, filterId: 'map'))
         .value!
         .map((t) => t.id)
         .toList();
@@ -200,49 +211,73 @@ void main() {
     expect(ids, contains(_keptId));
   });
 
-  test("deleted trail's marker leaves the cluster feature collection", () async {
-    final container = _makeContainer();
+  test(
+    "deleted trail's marker leaves the cluster feature collection",
+    () async {
+      final container = _makeContainer();
 
-    await container.read(mapClusterSearchProvider.future);
-    container
-        .read(mapClusterSearchProvider.notifier)
-        .searchInBounds(_bounds, 12);
-    await _settleSearch();
+      await container.read(
+        mapClusterSearchProvider(authorId: null, filterId: 'map').future,
+      );
+      container
+          .read(
+            mapClusterSearchProvider(authorId: null, filterId: 'map').notifier,
+          )
+          .searchInBounds(_bounds, 12);
+      await _settleSearch();
 
-    expect(
-      (container.read(mapClusterSearchProvider).value!['features'] as List),
-      hasLength(3),
-      reason: 'cluster fixture must land before the deletion is announced',
-    );
+      expect(
+        (container
+                .read(mapClusterSearchProvider(authorId: null, filterId: 'map'))
+                .value!['features']
+            as List),
+        hasLength(3),
+        reason: 'cluster fixture must land before the deletion is announced',
+      );
 
-    container.read(trailDeletionsProvider.notifier).announce(_deletedId);
+      container.read(trailDeletionsProvider.notifier).announce(_deletedId);
 
-    final features =
-        container.read(mapClusterSearchProvider).value!['features'] as List;
-    final ids = features
-        .map((f) => (f as Map)['properties'] as Map)
-        .map((p) => p['id'])
-        .toList();
+      final features =
+          container
+                  .read(
+                    mapClusterSearchProvider(authorId: null, filterId: 'map'),
+                  )
+                  .value!['features']
+              as List;
+      final ids = features
+          .map((f) => (f as Map)['properties'] as Map)
+          .map((p) => p['id'])
+          .toList();
 
-    expect(ids, isNot(contains(_deletedId)));
-    expect(ids, contains(_keptId));
-    // The multi-trail cluster circle survives untouched: it carries a
-    // server-computed count and no id, so there is nothing to match against
-    // and decrementing a count we did not compute would desync the circle
-    // from the server's clustering.
-    expect(features, hasLength(2));
-  });
+      expect(ids, isNot(contains(_deletedId)));
+      expect(ids, contains(_keptId));
+      // The multi-trail cluster circle survives untouched: it carries a
+      // server-computed count and no id, so there is nothing to match against
+      // and decrementing a count we did not compute would desync the circle
+      // from the server's clustering.
+      expect(features, hasLength(2));
+    },
+  );
 
   test('an unrelated deletion leaves both providers alone', () async {
     final container = _makeContainer();
 
-    await container.read(mapTrailSearchProvider.future);
-    container.read(mapTrailSearchProvider.notifier).searchInBounds(_bounds);
+    await container.read(
+      mapTrailSearchProvider(authorId: null, filterId: 'map').future,
+    );
+    container
+        .read(mapTrailSearchProvider(authorId: null, filterId: 'map').notifier)
+        .searchInBounds(_bounds);
     await _settleSearch();
 
     container.read(trailDeletionsProvider.notifier).announce('some_other_id');
 
-    expect(container.read(mapTrailSearchProvider).value, hasLength(2));
+    expect(
+      container
+          .read(mapTrailSearchProvider(authorId: null, filterId: 'map'))
+          .value,
+      hasLength(2),
+    );
   });
 
   test('an empty id is never announced', () async {
@@ -265,10 +300,9 @@ void main() {
       ..announce(_deletedId)
       ..announce(_deletedId);
 
-    expect(
-      seen,
-      [_deletedId, _deletedId],
-      reason: 'Riverpod skips equal states -- hence TrailDeletion.seq',
-    );
+    expect(seen, [
+      _deletedId,
+      _deletedId,
+    ], reason: 'Riverpod skips equal states -- hence TrailDeletion.seq');
   });
 }

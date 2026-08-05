@@ -15,10 +15,10 @@ import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
+import 'package:wanderer/components/map/trail_markers.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
@@ -34,7 +34,7 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
-import 'package:wanderer/components/category/category_icon.dart';
+import 'package:wanderer/util/map/sheet_metrics.dart';
 
 /// Zoom used when centering on a specific point (GPS fix or saved home
 /// location).
@@ -130,9 +130,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
               final bounds = controller.getVisibleRegion();
               final zoom = controller.getCamera().zoom;
               ref
-                  .read(mapClusterSearchProvider.notifier)
+                  .read(
+                    mapClusterSearchProvider(
+                      authorId: null,
+                      filterId: 'map',
+                    ).notifier,
+                  )
                   .searchInBounds(bounds, zoom);
-              ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+              ref
+                  .read(
+                    mapTrailSearchProvider(
+                      authorId: null,
+                      filterId: 'map',
+                    ).notifier,
+                  )
+                  .searchInBounds(bounds);
             });
       }, onError: (_) {});
     }
@@ -156,9 +168,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
             final bounds = controller.getVisibleRegion();
             final zoom = controller.getCamera().zoom;
             ref
-                .read(mapClusterSearchProvider.notifier)
+                .read(
+                  mapClusterSearchProvider(
+                    authorId: null,
+                    filterId: 'map',
+                  ).notifier,
+                )
                 .searchInBounds(bounds, zoom);
-            ref.read(mapTrailSearchProvider.notifier).searchInBounds(bounds);
+            ref
+                .read(
+                  mapTrailSearchProvider(
+                    authorId: null,
+                    filterId: 'map',
+                  ).notifier,
+                )
+                .searchInBounds(bounds);
           });
     }
   }
@@ -193,7 +217,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// `firstWhereOrNull`, since the id is untrusted input), then fits the
   /// camera to the trail's polyline once it resolves.
   void _selectTrail(String trailId) {
-    final trails = ref.read(mapTrailSearchProvider).value ?? [];
+    final trails =
+        ref
+            .read(mapTrailSearchProvider(authorId: null, filterId: 'map'))
+            .value ??
+        [];
     setState(() {
       _selectedTrail = trails.firstWhereOrNull((t) => t.id == trailId);
       _selectedPolyline = null;
@@ -319,7 +347,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
     // Swap the native cluster source's data in place on every new
     // mapClusterSearchProvider result — never remove and re-add the source.
-    ref.listen(mapClusterSearchProvider, (previous, next) {
+    ref.listen(mapClusterSearchProvider(authorId: null, filterId: 'map'), (
+      previous,
+      next,
+    ) {
       final style = _controller?.style;
       final data = next.value;
       if (style == null || data == null || next.isLoading) return;
@@ -354,7 +385,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // mapTrailSearchProvider still powers the bottom-sheet TrailCard list and
     // the tapped-trail metadata lookup — the cluster endpoint's
     // attributesToRetrieve only includes id/_geo/bounding_box_diagonal.
-    final searchResultAsync = ref.watch(mapTrailSearchProvider);
+    final searchResultAsync = ref.watch(
+      mapTrailSearchProvider(authorId: null, filterId: 'map'),
+    );
     final trails = searchResultAsync.value ?? [];
     final allCategories = ref.watch(categoryProvider).value ?? [];
     final allSubcategories = ref.watch(subcategoryProvider);
@@ -362,77 +395,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // mapClusterSearchProvider drives the native cluster circle/count layers
     // (cluster_layer.dart) AND the unclustered category-icon WidgetLayer
     // markers below.
-    final clusterAsync = ref.watch(mapClusterSearchProvider);
+    final clusterAsync = ref.watch(
+      mapClusterSearchProvider(authorId: null, filterId: 'map'),
+    );
     final featureCollection = clusterAsync.value;
     final features =
         (featureCollection?['features'] as List<dynamic>?) ?? const [];
 
-    final unclusteredMarkers = <ml.Marker>[];
-    for (final feature in features) {
-      if (feature is! Map) continue;
-      final properties = feature['properties'];
-      if (properties is! Map) continue;
-
-      final pointCount = properties['point_count'];
-      if (pointCount is! num || pointCount.toInt() != 1) continue;
-      // is_large not filtered here: full-polyline rendering for is_large
-      // trails isn't implemented yet, so every unclustered point still
-      // renders as a category-icon marker.
-
-      final trailId = properties['id'];
-      if (trailId is! String) continue;
-      // The feature's id is untrusted input, so use firstWhereOrNull, not
-      // firstWhere, so a missing match skips the marker instead of crashing.
-      final trail = trails.firstWhereOrNull((t) => t.id == trailId);
-      if (trail == null) continue;
-
-      final geometry = feature['geometry'];
-      if (geometry is! Map) continue;
-      final coordinates = geometry['coordinates'];
-      if (coordinates is! List || coordinates.length < 2) continue;
-      final lon = (coordinates[0] as num).toDouble();
-      final lat = (coordinates[1] as num).toDouble();
-
-      final Category? category = trail.categoryId != null
-          ? allCategories.firstWhereOrNull((c) => c.id == trail.categoryId)
-          : null;
-      final subcategory = trail.subcategoryId != null
-          ? allSubcategories.firstWhereOrNull(
-              (s) => s.id == trail.subcategoryId,
-            )
-          : null;
-
-      unclusteredMarkers.add(
-        ml.Marker(
-          point: ml.Geographic(lat: lat, lon: lon),
-          size: const Size(36, 36),
-          child: GestureDetector(
-            onTap: () => _selectTrail(trailId),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: trailCategoryIcon(
-                  category,
-                  subcategory: subcategory,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    final unclusteredMarkers = buildUnclusteredTrailMarkers(
+      features: features,
+      trails: trails,
+      categories: allCategories,
+      subcategories: allSubcategories,
+      context: context,
+      onTrailTap: _selectTrail,
+    );
 
     return Stack(
       children: [
@@ -457,7 +434,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
               // crash the map.
               try {
                 final data =
-                    ref.read(mapClusterSearchProvider).value ??
+                    ref
+                        .read(
+                          mapClusterSearchProvider(
+                            authorId: null,
+                            filterId: 'map',
+                          ),
+                        )
+                        .value ??
                     const {'type': 'FeatureCollection', 'features': <Object>[]};
                 await addClusterLayers(style, jsonEncode(data));
               } catch (e) {
@@ -473,10 +457,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   final bounds = controller.getVisibleRegion();
                   final zoom = controller.getCamera().zoom;
                   ref
-                      .read(mapClusterSearchProvider.notifier)
+                      .read(
+                        mapClusterSearchProvider(
+                          authorId: null,
+                          filterId: 'map',
+                        ).notifier,
+                      )
                       .searchInBounds(bounds, zoom);
                   ref
-                      .read(mapTrailSearchProvider.notifier)
+                      .read(
+                        mapTrailSearchProvider(
+                          authorId: null,
+                          filterId: 'map',
+                        ).notifier,
+                      )
                       .searchInBounds(bounds);
                 }
               }
@@ -512,10 +506,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         final bounds = controller.getVisibleRegion();
                         final zoom = controller.getCamera().zoom;
                         ref
-                            .read(mapClusterSearchProvider.notifier)
+                            .read(
+                              mapClusterSearchProvider(
+                                authorId: null,
+                                filterId: 'map',
+                              ).notifier,
+                            )
                             .searchInBounds(bounds, zoom);
                         ref
-                            .read(mapTrailSearchProvider.notifier)
+                            .read(
+                              mapTrailSearchProvider(
+                                authorId: null,
+                                filterId: 'map',
+                              ).notifier,
+                            )
                             .searchInBounds(bounds);
                       });
                   return;
@@ -663,10 +667,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         final bounds = controller.getVisibleRegion();
                         final zoom = controller.getCamera().zoom;
                         ref
-                            .read(mapClusterSearchProvider.notifier)
+                            .read(
+                              mapClusterSearchProvider(
+                                authorId: null,
+                                filterId: 'map',
+                              ).notifier,
+                            )
                             .searchInBounds(bounds, zoom);
                         ref
-                            .read(mapTrailSearchProvider.notifier)
+                            .read(
+                              mapTrailSearchProvider(
+                                authorId: null,
+                                filterId: 'map',
+                              ).notifier,
+                            )
                             .searchInBounds(bounds);
                       },
                       icon: const FaIcon(
@@ -740,7 +754,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             ValueListenableBuilder<double>(
                               valueListenable: _sheetSize,
                               builder: (context, size, child) {
-                                final opacity = _sheetHeaderOpacity(size);
+                                final opacity = sheetHeaderOpacity(
+                                  size,
+                                  sheetMediumsize: sheetMediumsize,
+                                );
 
                                 return Column(
                                   children: [
@@ -788,7 +805,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                           ],
                                         ),
                                       ),
-                                    SizedBox(height: _getDynamicPadding(size)),
+                                    SizedBox(
+                                      height: dynamicSheetPadding(
+                                        size,
+                                        sheetMinSize: sheetMinSize,
+                                        sheetMediumsize: sheetMediumsize,
+                                        sheetMaxSize: sheetMaxSize,
+                                      ),
+                                    ),
                                   ],
                                 );
                               },
@@ -1000,41 +1024,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
           ),
       ],
     );
-  }
-
-  /// Fades the sheet's drag handle and trail-count header out as the sheet
-  /// is dragged open past [sheetMediumsize], fully gone by max size.
-  double _sheetHeaderOpacity(double currentSize) {
-    if (currentSize <= sheetMediumsize) return 1.0;
-
-    final opacity =
-        1.0 - ((currentSize - sheetMediumsize) / (1 - sheetMediumsize));
-    return opacity.clamp(0.0, 1.0);
-  }
-
-  double _getDynamicPadding(double currentSize) {
-    const double minPadding = 0.0;
-    const double maxTopPadding = 156.0;
-    const double maxBottomPadding = 64.0;
-
-    double startThreshold = sheetMediumsize;
-    double endTopThreshold = sheetMaxSize;
-    double endBottomThreshold = sheetMinSize;
-
-    if (currentSize >= endTopThreshold) return maxTopPadding;
-    if (currentSize <= endBottomThreshold) return maxBottomPadding;
-
-    if (currentSize <= startThreshold) {
-      double percentage =
-          (startThreshold - currentSize) /
-          (startThreshold - endBottomThreshold);
-      return minPadding + (percentage * (maxBottomPadding - minPadding));
-    } else {
-      double percentage =
-          (currentSize - startThreshold) / (endTopThreshold - startThreshold);
-
-      return minPadding + (percentage * (maxTopPadding - minPadding));
-    }
   }
 
   int _countActiveFilters(TrailFilter current, TrailFilter defaultFilter) {

@@ -15,7 +15,7 @@ part of 'map_cluster_search_provider.dart';
 /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
 
 @ProviderFor(MapClusterSearch)
-final mapClusterSearchProvider = MapClusterSearchProvider._();
+final mapClusterSearchProvider = MapClusterSearchFamily._();
 
 /// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
 /// Companion to [MapTrailSearch] — that provider still powers the
@@ -29,26 +29,83 @@ final class MapClusterSearchProvider
   /// bottom-sheet trail list (full attributes); this one only feeds the
   /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
   /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
-  MapClusterSearchProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'mapClusterSearchProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  MapClusterSearchProvider._({
+    required MapClusterSearchFamily super.from,
+    required ({String? authorId, String filterId}) super.argument,
+  }) : super(
+         retry: null,
+         name: r'mapClusterSearchProvider',
+         isAutoDispose: false,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$mapClusterSearchHash();
 
+  @override
+  String toString() {
+    return r'mapClusterSearchProvider'
+        ''
+        '$argument';
+  }
+
   @$internal
   @override
   MapClusterSearch create() => MapClusterSearch();
+
+  @override
+  bool operator ==(Object other) {
+    return other is MapClusterSearchProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
 }
 
-String _$mapClusterSearchHash() => r'd82a92886c7367adfce1586568848430d0ebd3a7';
+String _$mapClusterSearchHash() => r'928630e765db3d3a46e05553c130529c28050b22';
+
+/// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+/// Companion to [MapTrailSearch] — that provider still powers the
+/// bottom-sheet trail list (full attributes); this one only feeds the
+/// native cluster circle/count layers (`cluster_layer.dart`), so it returns
+/// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
+
+final class MapClusterSearchFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          MapClusterSearch,
+          AsyncValue<Map<String, dynamic>>,
+          Map<String, dynamic>,
+          FutureOr<Map<String, dynamic>>,
+          ({String? authorId, String filterId})
+        > {
+  MapClusterSearchFamily._()
+    : super(
+        retry: null,
+        name: r'mapClusterSearchProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: false,
+      );
+
+  /// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
+  /// Companion to [MapTrailSearch] — that provider still powers the
+  /// bottom-sheet trail list (full attributes); this one only feeds the
+  /// native cluster circle/count layers (`cluster_layer.dart`), so it returns
+  /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
+
+  MapClusterSearchProvider call({String? authorId, required String filterId}) =>
+      MapClusterSearchProvider._(
+        argument: (authorId: authorId, filterId: filterId),
+        from: this,
+      );
+
+  @override
+  String toString() => r'mapClusterSearchProvider';
+}
 
 /// Debounced, bounds+zoom-keyed provider hitting `POST /search/trails/cluster`.
 /// Companion to [MapTrailSearch] — that provider still powers the
@@ -57,7 +114,14 @@ String _$mapClusterSearchHash() => r'd82a92886c7367adfce1586568848430d0ebd3a7';
 /// the server's already-clustered GeoJSON `FeatureCollection` verbatim.
 
 abstract class _$MapClusterSearch extends $AsyncNotifier<Map<String, dynamic>> {
-  FutureOr<Map<String, dynamic>> build();
+  late final _$args = ref.$arg as ({String? authorId, String filterId});
+  String? get authorId => _$args.authorId;
+  String get filterId => _$args.filterId;
+
+  FutureOr<Map<String, dynamic>> build({
+    String? authorId,
+    required String filterId,
+  });
   @$mustCallSuper
   @override
   void runBuild() {
@@ -75,6 +139,9 @@ abstract class _$MapClusterSearch extends $AsyncNotifier<Map<String, dynamic>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    element.handleCreate(
+      ref,
+      () => build(authorId: _$args.authorId, filterId: _$args.filterId),
+    );
   }
 }

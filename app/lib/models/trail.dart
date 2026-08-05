@@ -426,11 +426,15 @@ abstract class TrailFilterValues with _$TrailFilterValues {
 @freezed
 abstract class TrailBoundingBox with _$TrailBoundingBox {
   const factory TrailBoundingBox({
-    required double maxLat,
-    required double minLat,
-    required double maxLon,
-    required double minLon,
+    @JsonKey(name: 'max_lat') required double maxLat,
+    @JsonKey(name: 'min_lat') required double minLat,
+    @JsonKey(name: 'max_lon') required double maxLon,
+    @JsonKey(name: 'min_lon') required double minLon,
+    @JsonKey(name: 'has_trails') @Default(false) bool hasTrails,
   }) = _TrailBoundingBox;
+
+  factory TrailBoundingBox.fromJson(Map<String, dynamic> json) =>
+      _$TrailBoundingBoxFromJson(json);
 }
 
 const List<String> defaultTrailSearchAttributes = [

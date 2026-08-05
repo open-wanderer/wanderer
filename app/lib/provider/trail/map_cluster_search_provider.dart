@@ -22,10 +22,13 @@ class MapClusterSearch extends _$MapClusterSearch {
   Timer? _debounce;
 
   @override
-  FutureOr<Map<String, dynamic>> build() async {
+  FutureOr<Map<String, dynamic>> build({
+    String? authorId,
+    required String filterId,
+  }) async {
     ref.onDispose(() => _debounce?.cancel());
 
-    ref.listen(trailFilterProvider('map'), (previous, next) {
+    ref.listen(trailFilterProvider(filterId), (previous, next) {
       if (_lastBounds != null && next.hasValue && !next.isLoading) {
         final currentFilter = next.value;
         if (currentFilter != null) {
@@ -91,16 +94,25 @@ class MapClusterSearch extends _$MapClusterSearch {
     TrailFilter? passedFilter,
   }) async {
     final TrailFilter filter =
-        passedFilter ?? await ref.read(trailFilterProvider('map').future);
+        passedFilter ?? await ref.read(trailFilterProvider(filterId).future);
     final user = await ref.read(authProvider.future);
     final api = ref.read(apiProvider);
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final filterText = filter.toFilterText(
+      final baseFilterText = filter.toFilterText(
         actor: user?.actorId ?? "",
         includeGeo: false,
       );
+
+      // The cluster endpoint takes `filterText` as a single string (unlike
+      // `/search/trails`'s `filter` array), so the author clause must be
+      // ` AND `-joined rather than appended as a third array element.
+      final filterText = authorId == null
+          ? baseFilterText
+          : (baseFilterText.isEmpty
+              ? 'author = $authorId'
+              : '$baseFilterText AND author = $authorId');
 
       final response = await api.post(
         '/search/trails/cluster',

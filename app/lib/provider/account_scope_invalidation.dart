@@ -60,9 +60,13 @@ import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
 ///
 /// `trailFilterProvider` is a FAMILY (`TrailFilterNotifierFamily`, keyed by
 /// filter id); invalidating the family object invalidates all of its
-/// instances, which is exactly what an account switch needs. Every other entry
-/// is a plain provider — note `ownProfileProvider`, not the `profileProvider`
-/// family that lives beside it.
+/// instances, which is exactly what an account switch needs.
+/// `mapTrailSearchProvider` and `mapClusterSearchProvider` are also FAMILIES
+/// (keyed by `(authorId, filterId)`, see `profile_trail_map_screen.dart`) for
+/// the same reason: a family-level invalidate hits every instance regardless
+/// of which profile map created it. Every other entry here is a plain
+/// provider — note `ownProfileProvider`, not the `profileProvider` family
+/// that lives beside it.
 ///
 /// Riverpod keeps one Notifier instance alive across rebuilds and only re-runs
 /// `build()`, so anything listed here must tolerate `build()` running more than

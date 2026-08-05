@@ -166,3 +166,21 @@ Map<String, dynamic> _$TrailFilterValuesToJson(_TrailFilterValues instance) =>
       'min_duration': instance.minDuration,
       'max_duration': instance.maxDuration,
     };
+
+_TrailBoundingBox _$TrailBoundingBoxFromJson(Map<String, dynamic> json) =>
+    _TrailBoundingBox(
+      maxLat: (json['max_lat'] as num).toDouble(),
+      minLat: (json['min_lat'] as num).toDouble(),
+      maxLon: (json['max_lon'] as num).toDouble(),
+      minLon: (json['min_lon'] as num).toDouble(),
+      hasTrails: json['has_trails'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$TrailBoundingBoxToJson(_TrailBoundingBox instance) =>
+    <String, dynamic>{
+      'max_lat': instance.maxLat,
+      'min_lat': instance.minLat,
+      'max_lon': instance.maxLon,
+      'min_lon': instance.minLon,
+      'has_trails': instance.hasTrails,
+    };

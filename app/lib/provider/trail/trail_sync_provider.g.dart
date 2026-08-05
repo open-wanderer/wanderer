@@ -71,7 +71,7 @@ final class TrailSyncProvider
   }
 }
 
-String _$trailSyncHash() => r'40591e29b0bb6edc4b217d66dd895d45fa8d2701';
+String _$trailSyncHash() => r'367b876765e0346300827380c9f808c00a6ff626';
 
 /// The local ids of trails whose upload is currently draining, shared
 /// across every trigger (app foreground, connectivity regained, cold

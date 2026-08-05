@@ -417,13 +417,17 @@ mixin _$Trail {
 /// legible at every call site; every `TrailMap` mount now derives
 /// `offline:` from connectivity instead.
 ///
-/// Live consumers, all provenance questions: local thumbnail file vs
-/// network (`trail_card.dart`, `trail_list_item.dart`), the "downloaded"
-/// badge and the mutually-exclusive "available offline" badge
-/// (`trail_panel.dart`), hiding the comments/summit-log TabBar for a
-/// local-only trail (`trail_panel.dart`), and — load-bearing — routing
-/// delete to `trailLibraryProvider.deleteTrail` (un-download) instead of
-/// a server delete (`trail_dropdown.dart`).
+/// The only live consumers are thumbnail-path selection in
+/// `trail_card.dart` and `trail_list_item.dart` (local file vs network
+/// image). **Never gate a destructive action, a badge, or tab visibility
+/// on this flag** — `TrailEntity.toModel()` hardcodes it `true` for
+/// every cached row (phase 38, D-01), so it cannot distinguish one
+/// account's own local capture from another account's download.
+/// Destructive-action *availability* derives from library membership and
+/// authorship; destructive-action *scoping* derives from `owner`/account
+/// for local capture state and from `savedByUserIds` membership for a
+/// download (phase 38.1, D-02). See
+/// `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`.
  bool get isLocal; List<String> get localPhotos;/// Permanent local identity minted once at first local save. Device-local
 /// only — never serialized. `Trail.toJson()` feeds `util/trail/form_data.dart`,
 /// so this MUST carry `includeFromJson/includeToJson: false` or a
@@ -739,13 +743,17 @@ class _Trail extends Trail {
 /// legible at every call site; every `TrailMap` mount now derives
 /// `offline:` from connectivity instead.
 ///
-/// Live consumers, all provenance questions: local thumbnail file vs
-/// network (`trail_card.dart`, `trail_list_item.dart`), the "downloaded"
-/// badge and the mutually-exclusive "available offline" badge
-/// (`trail_panel.dart`), hiding the comments/summit-log TabBar for a
-/// local-only trail (`trail_panel.dart`), and — load-bearing — routing
-/// delete to `trailLibraryProvider.deleteTrail` (un-download) instead of
-/// a server delete (`trail_dropdown.dart`).
+/// The only live consumers are thumbnail-path selection in
+/// `trail_card.dart` and `trail_list_item.dart` (local file vs network
+/// image). **Never gate a destructive action, a badge, or tab visibility
+/// on this flag** — `TrailEntity.toModel()` hardcodes it `true` for
+/// every cached row (phase 38, D-01), so it cannot distinguish one
+/// account's own local capture from another account's download.
+/// Destructive-action *availability* derives from library membership and
+/// authorship; destructive-action *scoping* derives from `owner`/account
+/// for local capture state and from `savedByUserIds` membership for a
+/// download (phase 38.1, D-02). See
+/// `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`.
 @override@JsonKey() final  bool isLocal;
  final  List<String> _localPhotos;
 @override@JsonKey() List<String> get localPhotos {
@@ -1819,30 +1827,33 @@ as double,
 
 }
 
+
 /// @nodoc
 mixin _$TrailBoundingBox {
 
- double get maxLat; double get minLat; double get maxLon; double get minLon;
+@JsonKey(name: 'max_lat') double get maxLat;@JsonKey(name: 'min_lat') double get minLat;@JsonKey(name: 'max_lon') double get maxLon;@JsonKey(name: 'min_lon') double get minLon;@JsonKey(name: 'has_trails') bool get hasTrails;
 /// Create a copy of TrailBoundingBox
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $TrailBoundingBoxCopyWith<TrailBoundingBox> get copyWith => _$TrailBoundingBoxCopyWithImpl<TrailBoundingBox>(this as TrailBoundingBox, _$identity);
 
+  /// Serializes this TrailBoundingBox to a JSON map.
+  Map<String, dynamic> toJson();
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.hasTrails, hasTrails) || other.hasTrails == hasTrails));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,maxLat,minLat,maxLon,minLon);
+int get hashCode => Object.hash(runtimeType,maxLat,minLat,maxLon,minLon,hasTrails);
 
 @override
 String toString() {
-  return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon)';
+  return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon, hasTrails: $hasTrails)';
 }
 
 
@@ -1853,7 +1864,7 @@ abstract mixin class $TrailBoundingBoxCopyWith<$Res>  {
   factory $TrailBoundingBoxCopyWith(TrailBoundingBox value, $Res Function(TrailBoundingBox) _then) = _$TrailBoundingBoxCopyWithImpl;
 @useResult
 $Res call({
- double maxLat, double minLat, double maxLon, double minLon
+@JsonKey(name: 'max_lat') double maxLat,@JsonKey(name: 'min_lat') double minLat,@JsonKey(name: 'max_lon') double maxLon,@JsonKey(name: 'min_lon') double minLon,@JsonKey(name: 'has_trails') bool hasTrails
 });
 
 
@@ -1870,13 +1881,14 @@ class _$TrailBoundingBoxCopyWithImpl<$Res>
 
 /// Create a copy of TrailBoundingBox
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? maxLat = null,Object? minLat = null,Object? maxLon = null,Object? minLon = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? maxLat = null,Object? minLat = null,Object? maxLon = null,Object? minLon = null,Object? hasTrails = null,}) {
   return _then(_self.copyWith(
 maxLat: null == maxLat ? _self.maxLat : maxLat // ignore: cast_nullable_to_non_nullable
 as double,minLat: null == minLat ? _self.minLat : minLat // ignore: cast_nullable_to_non_nullable
 as double,maxLon: null == maxLon ? _self.maxLon : maxLon // ignore: cast_nullable_to_non_nullable
 as double,minLon: null == minLon ? _self.minLon : minLon // ignore: cast_nullable_to_non_nullable
-as double,
+as double,hasTrails: null == hasTrails ? _self.hasTrails : hasTrails // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -1961,10 +1973,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( double maxLat,  double minLat,  double maxLon,  double minLon)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'max_lat')  double maxLat, @JsonKey(name: 'min_lat')  double minLat, @JsonKey(name: 'max_lon')  double maxLon, @JsonKey(name: 'min_lon')  double minLon, @JsonKey(name: 'has_trails')  bool hasTrails)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TrailBoundingBox() when $default != null:
-return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon);case _:
+return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon,_that.hasTrails);case _:
   return orElse();
 
 }
@@ -1982,10 +1994,10 @@ return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( double maxLat,  double minLat,  double maxLon,  double minLon)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'max_lat')  double maxLat, @JsonKey(name: 'min_lat')  double minLat, @JsonKey(name: 'max_lon')  double maxLon, @JsonKey(name: 'min_lon')  double minLon, @JsonKey(name: 'has_trails')  bool hasTrails)  $default,) {final _that = this;
 switch (_that) {
 case _TrailBoundingBox():
-return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon);case _:
+return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon,_that.hasTrails);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2002,10 +2014,10 @@ return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( double maxLat,  double minLat,  double maxLon,  double minLon)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'max_lat')  double maxLat, @JsonKey(name: 'min_lat')  double minLat, @JsonKey(name: 'max_lon')  double maxLon, @JsonKey(name: 'min_lon')  double minLon, @JsonKey(name: 'has_trails')  bool hasTrails)?  $default,) {final _that = this;
 switch (_that) {
 case _TrailBoundingBox() when $default != null:
-return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon);case _:
+return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon,_that.hasTrails);case _:
   return null;
 
 }
@@ -2014,16 +2026,17 @@ return $default(_that.maxLat,_that.minLat,_that.maxLon,_that.minLon);case _:
 }
 
 /// @nodoc
-
+@JsonSerializable()
 
 class _TrailBoundingBox implements TrailBoundingBox {
-  const _TrailBoundingBox({required this.maxLat, required this.minLat, required this.maxLon, required this.minLon});
-  
+  const _TrailBoundingBox({@JsonKey(name: 'max_lat') required this.maxLat, @JsonKey(name: 'min_lat') required this.minLat, @JsonKey(name: 'max_lon') required this.maxLon, @JsonKey(name: 'min_lon') required this.minLon, @JsonKey(name: 'has_trails') this.hasTrails = false});
+  factory _TrailBoundingBox.fromJson(Map<String, dynamic> json) => _$TrailBoundingBoxFromJson(json);
 
-@override final  double maxLat;
-@override final  double minLat;
-@override final  double maxLon;
-@override final  double minLon;
+@override@JsonKey(name: 'max_lat') final  double maxLat;
+@override@JsonKey(name: 'min_lat') final  double minLat;
+@override@JsonKey(name: 'max_lon') final  double maxLon;
+@override@JsonKey(name: 'min_lon') final  double minLon;
+@override@JsonKey(name: 'has_trails') final  bool hasTrails;
 
 /// Create a copy of TrailBoundingBox
 /// with the given fields replaced by the non-null parameter values.
@@ -2031,20 +2044,23 @@ class _TrailBoundingBox implements TrailBoundingBox {
 @pragma('vm:prefer-inline')
 _$TrailBoundingBoxCopyWith<_TrailBoundingBox> get copyWith => __$TrailBoundingBoxCopyWithImpl<_TrailBoundingBox>(this, _$identity);
 
-
+@override
+Map<String, dynamic> toJson() {
+  return _$TrailBoundingBoxToJson(this, );
+}
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.hasTrails, hasTrails) || other.hasTrails == hasTrails));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,maxLat,minLat,maxLon,minLon);
+int get hashCode => Object.hash(runtimeType,maxLat,minLat,maxLon,minLon,hasTrails);
 
 @override
 String toString() {
-  return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon)';
+  return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon, hasTrails: $hasTrails)';
 }
 
 
@@ -2055,7 +2071,7 @@ abstract mixin class _$TrailBoundingBoxCopyWith<$Res> implements $TrailBoundingB
   factory _$TrailBoundingBoxCopyWith(_TrailBoundingBox value, $Res Function(_TrailBoundingBox) _then) = __$TrailBoundingBoxCopyWithImpl;
 @override @useResult
 $Res call({
- double maxLat, double minLat, double maxLon, double minLon
+@JsonKey(name: 'max_lat') double maxLat,@JsonKey(name: 'min_lat') double minLat,@JsonKey(name: 'max_lon') double maxLon,@JsonKey(name: 'min_lon') double minLon,@JsonKey(name: 'has_trails') bool hasTrails
 });
 
 
@@ -2072,13 +2088,14 @@ class __$TrailBoundingBoxCopyWithImpl<$Res>
 
 /// Create a copy of TrailBoundingBox
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? maxLat = null,Object? minLat = null,Object? maxLon = null,Object? minLon = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? maxLat = null,Object? minLat = null,Object? maxLon = null,Object? minLon = null,Object? hasTrails = null,}) {
   return _then(_TrailBoundingBox(
 maxLat: null == maxLat ? _self.maxLat : maxLat // ignore: cast_nullable_to_non_nullable
 as double,minLat: null == minLat ? _self.minLat : minLat // ignore: cast_nullable_to_non_nullable
 as double,maxLon: null == maxLon ? _self.maxLon : maxLon // ignore: cast_nullable_to_non_nullable
 as double,minLon: null == minLon ? _self.minLon : minLon // ignore: cast_nullable_to_non_nullable
-as double,
+as double,hasTrails: null == hasTrails ? _self.hasTrails : hasTrails // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
