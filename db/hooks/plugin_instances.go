@@ -13,6 +13,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 )
 
 // ListPluginInstanceHandler censors auth values before plugin instances leave
@@ -125,11 +126,7 @@ func preventAssetPluginRemovalWithRemoteLinks(app core.App, r *core.Record, acti
 
 func mergePluginInstanceDefaultConfig(app core.App, r *core.Record) {
 	defaults := installedPluginDefaultConfig(app, r.GetString("plugin_id"))
-	if len(defaults) == 0 {
-		return
-	}
-	merged := pluginsystem.CloneJSONMap(defaults)
-	pluginsystem.MergePluginConfig(merged, pluginsystem.JSONMapFromRecord(r, "config"))
+	merged := pluginhost.MergeInstanceConfigDefaults(defaults, pluginsystem.JSONMapFromRecord(r, "config"))
 	r.Set("config", merged)
 }
 

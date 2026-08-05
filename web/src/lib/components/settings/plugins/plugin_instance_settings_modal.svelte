@@ -463,6 +463,44 @@
         };
     }
 
+    function instanceHostConfigOverrides(): Record<string, unknown> {
+        const source = hostConfig();
+        const projected: Record<string, unknown> = {};
+        for (const key of [
+            "planned",
+            "completed",
+            "privacy",
+            "createSummitLogForCompleted",
+            "categoryMapping",
+            "categoryMappingUpdatedAt",
+            "photoMode",
+            "maxPhotosPerTrail",
+            "maxPhotosPerWaypoint",
+            "maxPhotosPerSummitLog",
+        ]) {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+                projected[key] = source[key];
+            }
+        }
+        const merge = source.merge;
+        if (merge && typeof merge === "object" && Object.prototype.hasOwnProperty.call(merge, "enabled")) {
+            projected.merge = { enabled: (merge as Record<string, unknown>).enabled };
+        }
+        const autoAttach = source.autoAttach;
+        if (autoAttach && typeof autoAttach === "object") {
+            const projectedAutoAttach: Record<string, unknown> = {};
+            for (const key of ["trailPlugins", "upload"]) {
+                if (Object.prototype.hasOwnProperty.call(autoAttach, key)) {
+                    projectedAutoAttach[key] = (autoAttach as Record<string, unknown>)[key];
+                }
+            }
+            if (Object.keys(projectedAutoAttach).length > 0) {
+                projected.autoAttach = projectedAutoAttach;
+            }
+        }
+        return projected;
+    }
+
     function hostConfigDeclares(key: string): boolean {
         return Object.prototype.hasOwnProperty.call(plugin.hostConfig ?? {}, key);
     }
@@ -516,7 +554,7 @@
         }
 
         const pluginRuntimeConfig: Record<string, unknown> = { ...pluginConfig() };
-        const pluginHostConfig: Record<string, unknown> = { ...hostConfig() };
+        const pluginHostConfig = instanceHostConfigOverrides();
         if (supportsPlanned) {
             pluginHostConfig.planned = hasTourKindChoice ? planned : true;
         } else {

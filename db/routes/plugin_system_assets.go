@@ -1092,11 +1092,15 @@ func assetPluginDraftInvocation(e *core.RequestEvent, pluginID string, submitted
 
 	config := pluginhost.EffectiveConfig(e.App, plugin.Manifest.ID, instance)
 	if submittedConfig != nil {
-		pluginsystem.DeepMergeConfig(config, submittedConfig)
+		mergeAssetPluginDraftConfig(config, submittedConfig)
 	}
 	config = assetPluginConnectorConfig(plugin, config)
 
 	return plugin, capability, instance, auth, config, nil
+}
+
+func mergeAssetPluginDraftConfig(config map[string]any, submitted map[string]any) {
+	pluginsystem.DeepMergeConfig(config, pluginhost.InstanceConfigOverrides(submitted))
 }
 
 func mergeSubmittedPluginAuth(auth map[string]any, submitted map[string]any) {

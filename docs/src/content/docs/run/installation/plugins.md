@@ -79,3 +79,7 @@ For Immich, review the connector settings before enabling the plugin:
 If Immich is only reachable from the server running wanderer, make sure the
 backend container can resolve and reach that URL. Browser access from your
 desktop is not enough; the backend performs all provider and media requests.
+Private-network access, custom CAs, and storage redirect origins require a fixed
+administrator-configured connector base URL. When the base URL is instead taken
+from a user's Immich plugin setting, wanderer enforces public-network access and
+system TLS and does not allow storage redirects.

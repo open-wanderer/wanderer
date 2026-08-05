@@ -17,6 +17,23 @@ import (
 
 var ErrMissingEncryptionKey = errors.New("POCKETBASE_ENCRYPTION_KEY not set")
 
+var instanceHostConfigKeys = []string{
+	"planned",
+	"completed",
+	"privacy",
+	"createSummitLogForCompleted",
+	"categoryMapping",
+	"categoryMappingUpdatedAt",
+	"photoMode",
+	"maxPhotosPerTrail",
+	"maxPhotosPerWaypoint",
+	"maxPhotosPerSummitLog",
+}
+
+var instanceMergeConfigKeys = []string{"enabled"}
+
+var instanceAutoAttachConfigKeys = []string{"trailPlugins", "upload"}
+
 func LocalPlugin(app core.App, pluginID string) (pluginsystem.LocalPlugin, error) {
 	plugin, err := pluginsystem.LoadInstalledPlugin(app, "", pluginID)
 	if err != nil {
@@ -26,11 +43,75 @@ func LocalPlugin(app core.App, pluginID string) (pluginsystem.LocalPlugin, error
 }
 
 func EffectiveConfig(app core.App, pluginID string, instance *core.Record) map[string]any {
-	config := InstalledConfig(app, pluginID)
+	instanceConfig := map[string]any{}
 	if instance != nil {
-		pluginsystem.MergePluginConfig(config, pluginsystem.JSONMapFromRecord(instance, "config"))
+		instanceConfig = pluginsystem.JSONMapFromRecord(instance, "config")
 	}
-	return config
+	return mergeEffectiveConfig(InstalledConfig(app, pluginID), instanceConfig)
+}
+
+// InstanceConfigOverrides projects user-owned plugin instance config onto the
+// fields that instances are allowed to override. Connector targets and trust
+// policy intentionally have no entry here: they are owned exclusively by the
+// installed plugin config controlled by the host administrator.
+func InstanceConfigOverrides(config map[string]any) map[string]any {
+	projected := map[string]any{}
+	if pluginConfig, ok := config["plugin"].(map[string]any); ok {
+		projected["plugin"] = pluginsystem.CloneJSONMap(pluginConfig)
+	}
+
+	hostConfig, ok := config["host"].(map[string]any)
+	if !ok {
+		return projected
+	}
+	projectedHost := projectConfigKeys(hostConfig, instanceHostConfigKeys)
+	if mergeConfig := projectNestedConfig(hostConfig, "merge", instanceMergeConfigKeys); mergeConfig != nil {
+		projectedHost["merge"] = mergeConfig
+	}
+	if autoAttachConfig := projectNestedConfig(hostConfig, "autoAttach", instanceAutoAttachConfigKeys); autoAttachConfig != nil {
+		projectedHost["autoAttach"] = autoAttachConfig
+	}
+	if len(projectedHost) > 0 {
+		projected["host"] = projectedHost
+	}
+	return projected
+}
+
+// MergeInstanceConfigDefaults builds the value persisted in plugin_instances.
+// It retains plugin and user-level host defaults while ensuring that trusted
+// connector config is never copied into a user-owned record.
+func MergeInstanceConfigDefaults(defaults map[string]any, current map[string]any) map[string]any {
+	merged := InstanceConfigOverrides(defaults)
+	pluginsystem.MergePluginConfig(merged, InstanceConfigOverrides(current))
+	return merged
+}
+
+func mergeEffectiveConfig(installed map[string]any, instance map[string]any) map[string]any {
+	merged := pluginsystem.CloneJSONMap(installed)
+	pluginsystem.MergePluginConfig(merged, InstanceConfigOverrides(instance))
+	return merged
+}
+
+func projectConfigKeys(config map[string]any, keys []string) map[string]any {
+	projected := map[string]any{}
+	for _, key := range keys {
+		if value, ok := config[key]; ok {
+			projected[key] = pluginsystem.CloneJSONValue(value)
+		}
+	}
+	return projected
+}
+
+func projectNestedConfig(config map[string]any, key string, allowedKeys []string) map[string]any {
+	nested, ok := config[key].(map[string]any)
+	if !ok {
+		return nil
+	}
+	projected := projectConfigKeys(nested, allowedKeys)
+	if len(projected) == 0 {
+		return nil
+	}
+	return projected
 }
 
 func RuntimeConfig(config map[string]any) map[string]any {
@@ -92,6 +173,11 @@ func AssetConnectorConfig(plugin pluginsystem.LocalPlugin, config map[string]any
 		}
 		if existing, _ := rawConnector["baseURL"].(string); existing == "" {
 			rawConnector["baseURL"] = urlValue
+			// A target selected by a normal user must not inherit trust that the
+			// administrator granted to a different, fixed connector origin.
+			rawConnector["allowPrivate"] = false
+			delete(rawConnector, "tls")
+			delete(rawConnector, "storageOrigins")
 		}
 	}
 	config["host"] = hostConfig

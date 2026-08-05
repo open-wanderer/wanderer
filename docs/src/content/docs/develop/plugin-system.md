@@ -238,6 +238,12 @@ Connector types:
 `configured` connectors must declare `configKey`; the host supplies the concrete
 base URL and trust settings:
 
+Asset plugins may derive a connector base URL from a user-owned plugin URL when
+the administrator leaves the connector `baseURL` empty. Such derived targets
+are always public-network only and do not inherit custom TLS trust or storage
+redirect origins. Private-network access, custom CAs, and storage redirects
+therefore require a fixed administrator-configured connector `baseURL`.
+
 ```json
 {
   "name": "media",
@@ -268,7 +274,11 @@ Connector fields:
 The host validates scheme, host, effective port, base path, path prefixes,
 redirect targets, TLS policy, and IP policy. `allowPrivate`, custom CA bundles,
 and storage origins are host-owned settings; plugin output can never enable
-private-network access.
+private-network access. When a configured connector has no administrative
+`baseURL` and the target is therefore derived from the user-editable
+`plugin.url`, `allowPrivate`, custom TLS, and storage origins fall back to their
+defaults: trust granted for a fixed administrative origin is never inherited by
+a target a normal user picked.
 
 ## Capabilities
 
@@ -650,8 +660,12 @@ Nominatim reverse geocoding, then to the photo coordinate.
 
 Plugin manifests may suggest defaults for host-owned settings with
 `hostConfig`. These values are stored in `installed_plugins.config.host` and can
-be overridden per plugin instance with `plugin_instances.config.host`. Host
-config is never passed to plugin exports.
+be overridden per plugin instance with `plugin_instances.config.host` only for
+the explicitly supported user-level fields listed below. Connector targets and
+trust settings under `host.connectors` remain exclusively in the
+administrator-controlled `installed_plugins.config.host` and are ignored if
+submitted through a plugin instance. Host config is never passed to plugin
+exports.
 
 Supported host fields:
 
@@ -664,7 +678,7 @@ Supported host fields:
 | `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
 | `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
 | `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category or subcategory targets. |
-| `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
+| `connectors` | object | Host request/media policy | Administrator-owned concrete settings for configured connectors; never overridable per plugin instance. |
 | `photoMode` | string | Asset import | `copy` or `link_private`. Defaults to `copy`. |
 | `maxPhotosPerTrail` | integer | Asset import | Maximum number of asset plugin photos imported for one trail during enforced automatic attachment flows. Defaults to `20`. |
 | `maxPhotosPerWaypoint` | integer | Asset import | Maximum number of asset plugin photos imported for one waypoint during enforced automatic attachment flows. Defaults to `5`. |
@@ -750,6 +764,13 @@ Configured connector host config shape:
 `tls.mode` supports `system` and `customCA`. Custom CA bundles are trusted only
 when the manifest connector declares `supportsCustomTLS`; certificate
 verification is not disabled.
+
+Leaving `baseURL` empty makes the connector target follow the user-editable
+`plugin.url` of each plugin instance. In that case `allowPrivate`, `tls`, and
+`storageOrigins` configured here do not apply, so combining an empty `baseURL`
+with `allowPrivate: true` does not grant users private-network access. Set a
+concrete `baseURL` for connectors that must reach a private or otherwise
+specially trusted origin.
 
 The host defines the semantics of these fields. Plugins only provide defaults
 or hints; custom plugin settings belong in `configSchema` and are passed to the
