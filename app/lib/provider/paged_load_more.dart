@@ -1,5 +1,17 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+/// How much unseen content may remain below the viewport before the next page
+/// is fetched, in logical pixels -- roughly three quarters of a phone screen.
+///
+/// Deliberately a DISTANCE, not the fraction (`pixels / maxScrollExtent >=
+/// 0.8`) the scroll listeners used to compare. A fraction makes the trigger
+/// distance scale with the list's current length, which is backwards at both
+/// ends: on page 1 of a 20-row list, 20% left is only ~240px of runway, so the
+/// user reaches the bottom and waits; after ten pages it is ~3800px, so pages
+/// are fetched while the user is still dozens of rows away. A constant
+/// distance behaves the same on page 1 and page 50.
+const double kPagedPrefetchExtent = 600;
+
 /// The shape every paged provider's state already had before this mixin
 /// existed: a 1-based [page] cursor, a [totalPages] ceiling, and the
 /// [hasMore] test derived from them.

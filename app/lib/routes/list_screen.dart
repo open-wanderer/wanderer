@@ -9,6 +9,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/list/list_filter_provider.dart';
 import 'package:wanderer/provider/list/list_search_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 
 class ListScreen extends ConsumerStatefulWidget {
   const ListScreen({super.key});
@@ -38,7 +39,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
     final pos = _scrollController.position;
     if (!pos.hasContentDimensions) return;
     if (pos.maxScrollExtent <= 0) return;
-    if (pos.pixels / pos.maxScrollExtent >= 0.8) {
+    if (pos.extentAfter < kPagedPrefetchExtent) {
       final state = ref.read(listSearchProvider);
       if (state.value?.hasMore == true && !state.isLoading) {
         ref.read(listSearchProvider.notifier).loadNextPage();

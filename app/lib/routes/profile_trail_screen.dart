@@ -11,6 +11,7 @@ import 'package:wanderer/components/trail/trail_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_summary.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/util/trail/route_location.dart';
 
@@ -42,7 +43,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
     final pos = _scrollController.position;
     if (!pos.hasContentDimensions) return;
     if (pos.maxScrollExtent <= 0) return;
-    if (pos.pixels / pos.maxScrollExtent >= 0.8) {
+    if (pos.extentAfter < kPagedPrefetchExtent) {
       final state = ref.read(profileTrailsProvider(widget.handle));
       if (state.value?.hasMore == true && !state.isLoading) {
         ref.read(profileTrailsProvider(widget.handle).notifier).loadNextPage();

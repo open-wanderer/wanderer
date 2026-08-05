@@ -16,6 +16,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/follow_provider.dart';
 import 'package:wanderer/provider/profile/profile_counts_provider.dart';
 import 'package:wanderer/provider/profile/profile_feed_provider.dart';
@@ -58,8 +59,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final pos = _scrollController.position;
     if (!pos.hasContentDimensions) return;
     if (pos.maxScrollExtent <= 0) return;
-    final ratio = pos.pixels / pos.maxScrollExtent;
-    if (ratio >= 0.8) {
+    if (pos.extentAfter < kPagedPrefetchExtent) {
       final h = _handle;
       if (h == null) return;
       final feed = ref.read(profileFeedProvider(h));

@@ -5,6 +5,7 @@ import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/actor.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_follows_provider.dart';
 
 class ProfileFollowScreen extends ConsumerStatefulWidget {
@@ -50,7 +51,7 @@ class _ProfileFollowScreenState extends ConsumerState<ProfileFollowScreen> {
     final pos = _scrollController.position;
     if (!pos.hasContentDimensions) return;
     if (pos.maxScrollExtent <= 0) return;
-    if (pos.pixels / pos.maxScrollExtent >= 0.8) {
+    if (pos.extentAfter < kPagedPrefetchExtent) {
       _maybeLoadNextPage();
     }
   }

@@ -6,6 +6,7 @@ import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/list/list_list_item.dart';
 import 'package:wanderer/components/list/list_quick_filter_bar.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 
 class ProfileListScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,7 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
     final pos = _scrollController.position;
     if (!pos.hasContentDimensions) return;
     if (pos.maxScrollExtent <= 0) return;
-    if (pos.pixels / pos.maxScrollExtent >= 0.8) {
+    if (pos.extentAfter < kPagedPrefetchExtent) {
       final state = ref.read(profileListsProvider(widget.handle));
       if (state.value?.hasMore == true && !state.isLoading) {
         ref.read(profileListsProvider(widget.handle).notifier).loadNextPage();
