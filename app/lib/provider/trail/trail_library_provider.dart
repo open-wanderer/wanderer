@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/entities/trail_entity.dart';
@@ -8,6 +9,7 @@ import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/store/local_trail_store.dart';
+import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/util/local/library_membership.dart';
 import 'dart:io';
 
@@ -125,10 +127,31 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
     });
 
     if (rowRemoved) {
-      final appDir = await getApplicationDocumentsDirectory();
-      final trailDir = Directory('${appDir.path}/library/$id');
-      if (await trailDir.exists()) {
-        await trailDir.delete(recursive: true);
+      // Best-effort (38.1 WR-02). Both call sites are confirm handlers that
+      // discard this future, so an I/O error here -- a file held open by the
+      // photo viewer, a permission failure, a malformed id rejected by
+      // `recordIdDirSegment` -- used to escape as an unhandled async error
+      // AND skip the `state` update below, leaving the library list
+      // rendering a trail whose row is already gone. An unreclaimed
+      // directory must never leave the list stale. This matches the
+      // best-effort discipline of `_deletePhotoDirBestEffort`,
+      // `sweepOrphanedUnsyncedPhotos` and `deleteUnsyncedPhotoDir`; this
+      // path was the odd one out.
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        // p.join + a whitelisted segment, never interpolation: `id` comes
+        // straight off a `Trail` model built from a server response, and
+        // `trail_download_service.dart` builds this same path this same way.
+        final trailDir = Directory(
+          p.join(appDir.path, 'library', recordIdDirSegment(id)),
+        );
+        if (await trailDir.exists()) {
+          await trailDir.delete(recursive: true);
+        }
+      } catch (e, st) {
+        debugPrint(
+          'TrailLibrary: library dir cleanup failed for "$id": $e\n$st',
+        );
       }
     }
 

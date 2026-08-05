@@ -231,7 +231,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     // T-38-04-03). `deleteTrail` drops this account's `savedByUserIds`
     // entry and removes on-device files only once the last account
     // sharing the row gives it up.
-    ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
+    //
+    // Awaited (38.1 WR-02): discarding this future dropped any error into
+    // the zone as an unhandled async error instead of surfacing it, and
+    // skipped `deleteTrail`'s own `state` update.
+    await ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
   }
 }
 

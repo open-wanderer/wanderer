@@ -398,7 +398,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // the server, so this must never issue a network delete. It also must
     // NOT pop the route -- the screen stays, this provider's state updates,
     // `availableOffline` flips to false and the menu offers Download again.
-    ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
+    //
+    // Awaited (38.1 WR-02): discarding this future dropped any error into
+    // the zone as an unhandled async error instead of surfacing it, and
+    // skipped `deleteTrail`'s own `state` update.
+    await ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
   }
 
   bool _canEditTrail(WidgetRef ref) {
