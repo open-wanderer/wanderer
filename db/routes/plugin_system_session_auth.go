@@ -89,7 +89,7 @@ func PluginSystemSessionAuthValidate(e *core.RequestEvent) error {
 	// hammerhead, but configured connectors need host config for policy
 	// resolution and refresh input parity with production auth injection.
 	policy := pluginhost.InstancePolicy(plugin, map[string]any{}).WithHostAuth(auth)
-	output, err := runtime.Call(e.Request.Context(), plugin, authContext.Refresh.Function, inputBytes, policy)
+	output, err := runtime.Call(e.Request.Context(), plugin, authContext.Refresh.Function, inputBytes, policy, pluginsystem.RuntimeCallOptions{MaxHostRequests: 4})
 	if err != nil {
 		return apis.NewBadRequestError("plugin credentials validation failed", err)
 	}

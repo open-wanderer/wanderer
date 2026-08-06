@@ -589,11 +589,13 @@ time data. `takenAfter` and `takenBefore` are explicit search-window hints when
 the host or user provides them. For waypoint searches, the host may only provide
 `lat` and `lon`.
 
+Runtime failures are reported by the failed export call, application failures
+must use the structured `error` field, and HTTP clients use the response status.
+
 Candidate output:
 
 ```json
 {
-  "ok": true,
   "candidates": [
     {
       "assetId": "provider-asset-id",
@@ -620,7 +622,6 @@ Candidate output:
 
 ```json
 {
-  "ok": true,
   "photos": [
     {
       "externalId": "provider-asset-id",

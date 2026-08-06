@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMatchAssetsReturnsAllMatchingCandidates(t *testing.T) {
+func TestMatchAssetCandidatesReturnsAllMatchingCandidates(t *testing.T) {
 	assets := make([]immichAsset, 0, 30)
 	for i := 0; i < 30; i++ {
 		lat := 46.0 + float64(i)*0.000001
@@ -21,7 +21,7 @@ func TestMatchAssetsReturnsAllMatchingCandidates(t *testing.T) {
 		})
 	}
 
-	candidates := matchAssets(assets, assetLibraryRequest{Lat: 46.0, Lon: 8.0}, immichConfig{MaxDistanceMeters: 1000})
+	candidates := sortMatches(matchAssetCandidates(assets, assetLibraryRequest{Lat: 46.0, Lon: 8.0}, immichConfig{MaxDistanceMeters: 1000}))
 
 	if len(candidates) != len(assets) {
 		t.Fatalf("got %d candidates, want %d", len(candidates), len(assets))

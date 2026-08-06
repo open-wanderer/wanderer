@@ -18,6 +18,11 @@ interface AssetPluginImportResult {
     asset?: Asset;
 }
 
+interface AssetPluginImportResponse {
+    imported?: AssetPluginImportResult[];
+    omitted?: { assetId: string; reason: string }[];
+}
+
 interface AssetAttachmentInput {
     files?: File[];
     assetIds?: string[];
@@ -156,8 +161,8 @@ export async function assets_import_plugin_links(
             const response = await r.json();
             throw new APIError(r.status, response.message, response.detail);
         }
-        const imported: AssetPluginImportResult[] = await r.json();
-        assets.push(...imported.map((result) => result.asset).filter((asset): asset is Asset => Boolean(asset)));
+        const response: AssetPluginImportResponse = await r.json();
+        assets.push(...(response.imported ?? []).map((result) => result.asset).filter((asset): asset is Asset => Boolean(asset)));
     }
     return assets;
 }

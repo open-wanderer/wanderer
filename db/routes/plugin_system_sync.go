@@ -307,7 +307,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes)
+		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
 		if err != nil {
 			return nil, err
 		}
@@ -537,7 +537,7 @@ func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plug
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
-	outputBytes, err := session.Call(ctx, capability.Export, inputBytes)
+	outputBytes, err := session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 16})
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}

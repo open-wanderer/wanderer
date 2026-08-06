@@ -20,7 +20,20 @@
         candidates?: PhotoLibraryCandidate[];
         existingExternalRefs?: { provider: string; id: string }[];
         hasMore?: boolean;
+        cursorId?: string;
+        restartRequired?: boolean;
         error?: { message?: string };
+    }
+
+    interface PluginCandidateBatch {
+        candidates: PhotoLibraryCandidate[];
+        restartRequired: boolean;
+    }
+
+    interface PluginPaginationState {
+        cursorId?: string;
+        hasMore: boolean;
+        loading: boolean;
     }
 
     interface PhotoCluster {
@@ -104,6 +117,7 @@
     let dateRange = $state(dateSliderDefaults());
     let wandererPage = $state(1);
     let wandererHasMore = $state(false);
+    let pluginPagination = $state<Record<string, PluginPaginationState>>({});
 
     onDestroy(() => {
         destroyMap();
@@ -120,6 +134,12 @@
     const selectedCandidates = $derived(candidates.filter((candidate) => selectedKeys.has(candidateKey(candidate))));
     const providerOptions = $derived(buildProviderOptions(candidates));
     const showWandererLoadMore = $derived(wandererHasMore && (providerFilter === "all" || providerFilter === WANDERER_PROVIDER_ID));
+    const pluginLoadMoreIds = $derived(
+        activeAssetPluginIds.filter(
+            (pluginId) => pluginPagination[pluginId]?.hasMore && (providerFilter === "all" || providerFilter === pluginId),
+        ),
+    );
+    const showLoadMore = $derived(showWandererLoadMore || pluginLoadMoreIds.length > 0);
     const dateRangeLabel = $derived(formatDateRangeLabel(dateRange.start, dateRange.end, dateRange.min, dateRange.max));
     const previewCandidate = $derived(visibleCandidates[Math.min(previewIndex, Math.max(visibleCandidates.length - 1, 0))]);
     const mapFiltered = $derived(
@@ -208,6 +228,7 @@
         existingWandererExternalKeys = new Set();
         wandererPage = 1;
         wandererHasMore = false;
+        pluginPagination = {};
         activeClusterKey = undefined;
         highlightedClusterKey = undefined;
         mapZoom = 0;
@@ -216,7 +237,7 @@
         try {
             const loaders: Promise<PhotoLibraryCandidate[]>[] = [
                 loadWandererCandidates(1),
-                ...activeAssetPluginIds.map((id) => loadPluginCandidates(id)),
+                ...activeAssetPluginIds.map(async (id) => (await loadPluginCandidates(id)).candidates),
             ];
 
             const settled = await Promise.allSettled(loaders);
@@ -245,12 +266,12 @@
         }
     }
 
-    async function loadPluginCandidates(pluginId: string): Promise<PhotoLibraryCandidate[]> {
+    async function loadPluginCandidates(pluginId: string, cursorId?: string): Promise<PluginCandidateBatch> {
         const pluginPath = `/api/v1/plugins/assets/${encodeURIComponent(pluginId)}`;
         const r = await fetch(`${pluginPath}/candidates`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody()),
+            body: JSON.stringify(requestBody(cursorId ? { cursorId } : {})),
         });
         if (!r.ok) {
             const response = await r.json().catch(() => ({}));
@@ -260,9 +281,21 @@
         if (output.error) {
             throw new Error(output.error.message ?? "Unable to load plugin photos");
         }
-        return (output.candidates ?? []).map((candidate) => ({
+        if (output.restartRequired) {
+            pluginPagination[pluginId] = { hasMore: false, loading: false };
+            return { candidates: [], restartRequired: true };
+        }
+        if (output.hasMore === true && !output.cursorId) {
+            throw new Error("Plugin candidate response is missing its cursor");
+        }
+        pluginPagination[pluginId] = {
+            cursorId: output.cursorId,
+            hasMore: output.hasMore === true && Boolean(output.cursorId),
+            loading: false,
+        };
+        const pluginCandidates: PhotoLibraryCandidate[] = (output.candidates ?? []).map((candidate) => ({
             ...candidate,
-            source: "plugin",
+            source: "plugin" as const,
             pluginId,
             providerId: candidate.providerId ?? pluginId,
             externalProvider: candidate.externalProvider ?? candidate.providerId ?? pluginId,
@@ -273,6 +306,30 @@
                 providerId: candidate.providerId ?? pluginId,
             }),
         }));
+        return { candidates: pluginCandidates, restartRequired: false };
+    }
+
+    async function loadMorePluginCandidates(pluginId: string) {
+        const pagination = pluginPagination[pluginId];
+        if (!pagination?.hasMore || !pagination.cursorId || pagination.loading) {
+            return;
+        }
+        pagination.loading = true;
+        error = "";
+        try {
+            let batch = await loadPluginCandidates(pluginId, pagination.cursorId);
+            if (batch.restartRequired) {
+                candidates = candidates.filter((candidate) => candidate.pluginId !== pluginId);
+                batch = await loadPluginCandidates(pluginId);
+            }
+            candidates = uniqueCandidates([...candidates, ...batch.candidates]);
+            await tick();
+            syncMap();
+        } catch (e: any) {
+            console.error(e);
+            error = e?.message ?? "Unable to load plugin photos";
+            pluginPagination[pluginId] = { ...pagination, loading: false };
+        }
     }
 
     async function loadWandererCandidates(page: number): Promise<PhotoLibraryCandidate[]> {
@@ -1277,19 +1334,43 @@
                                         </button>
                                     </div>
                                 {/each}
-                                {#if showWandererLoadMore}
-                                    <div class="border-t border-separator p-3 text-center">
-                                        <button type="button" class="btn-link text-sm" onclick={loadMoreWandererCandidates} disabled={loadingMore}>
-                                            {loadingMore ? $_("loading") : $_("more")}
-                                        </button>
+                                {#if showLoadMore}
+                                    <div class="flex flex-wrap justify-center gap-3 border-t border-separator p-3 text-center">
+                                        {#if showWandererLoadMore}
+                                            <button type="button" class="btn-link text-sm" onclick={loadMoreWandererCandidates} disabled={loadingMore}>
+                                                {providerLabel(WANDERER_PROVIDER_ID)}: {loadingMore ? $_("loading") : $_("more")}
+                                            </button>
+                                        {/if}
+                                        {#each pluginLoadMoreIds as pluginId}
+                                            <button
+                                                type="button"
+                                                class="btn-link text-sm"
+                                                onclick={() => loadMorePluginCandidates(pluginId)}
+                                                disabled={pluginPagination[pluginId]?.loading}
+                                            >
+                                                {providerLabel(pluginId)}: {pluginPagination[pluginId]?.loading ? $_("loading") : $_("more")}
+                                            </button>
+                                        {/each}
                                     </div>
                                 {/if}
                             </div>
-                        {:else if showWandererLoadMore}
-                            <div class="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-input-border text-sm text-gray-500">
-                                <button type="button" class="btn-link text-sm" onclick={loadMoreWandererCandidates} disabled={loadingMore}>
-                                    {loadingMore ? $_("loading") : $_("more")}
-                                </button>
+                        {:else if showLoadMore}
+                            <div class="flex min-h-0 flex-1 flex-wrap items-center justify-center gap-3 rounded-lg border border-dashed border-input-border text-sm text-gray-500">
+                                {#if showWandererLoadMore}
+                                    <button type="button" class="btn-link text-sm" onclick={loadMoreWandererCandidates} disabled={loadingMore}>
+                                        {providerLabel(WANDERER_PROVIDER_ID)}: {loadingMore ? $_("loading") : $_("more")}
+                                    </button>
+                                {/if}
+                                {#each pluginLoadMoreIds as pluginId}
+                                    <button
+                                        type="button"
+                                        class="btn-link text-sm"
+                                        onclick={() => loadMorePluginCandidates(pluginId)}
+                                        disabled={pluginPagination[pluginId]?.loading}
+                                    >
+                                        {providerLabel(pluginId)}: {pluginPagination[pluginId]?.loading ? $_("loading") : $_("more")}
+                                    </button>
+                                {/each}
                             </div>
                         {:else}
                             <div class="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-input-border text-sm text-gray-500">

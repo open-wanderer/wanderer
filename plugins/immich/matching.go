@@ -13,10 +13,6 @@ type immichConfig struct {
 	UserID            string
 }
 
-func matchAssets(assets []immichAsset, req assetLibraryRequest, cfg immichConfig) []assetCandidate {
-	return sortMatches(matchAssetCandidates(assets, req, cfg))
-}
-
 func matchAssetCandidates(assets []immichAsset, req assetLibraryRequest, cfg immichConfig) []assetCandidate {
 	maxDistance := float64(cfg.MaxDistanceMeters)
 	if req.DoubleRadius {

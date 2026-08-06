@@ -33,7 +33,7 @@ func handleAssetLibrary(input assetLibraryInput) (assetLibraryOutput, error) {
 		if err != nil {
 			return assetLibraryOutput{}, err
 		}
-		return assetLibraryOutput{OK: true, UserID: userID}, nil
+		return assetLibraryOutput{UserID: userID}, nil
 	case "import":
 		return client.importAssets(input)
 	case "thumbnail":
@@ -65,16 +65,16 @@ func (c immichClient) candidates(input assetLibraryInput) (assetLibraryOutput, e
 	req := input.Request
 	cfg := configFromInput(input)
 	window := candidateWindow(req, cfg)
-	assets, hasMore, err := c.searchAssets(window, 250)
+	candidates, state, hasMore, scanned, err := c.searchAssetCandidates(window, req, cfg, input.State, input.Search)
 	if err != nil {
 		return assetLibraryOutput{}, err
 	}
 
-	candidates := matchAssets(assets, req, cfg)
 	return assetLibraryOutput{
-		OK:            true,
 		Candidates:    candidates,
+		State:         state,
 		HasMore:       hasMore,
+		Stats:         &sdk.AssetSearchStats{ScannedItems: scanned},
 		TakenAfter:    window.takenAfter,
 		HasTimestamps: len(req.Points) > 0 && hasPointTimestamps(req.Points),
 	}, nil
@@ -82,7 +82,7 @@ func (c immichClient) candidates(input assetLibraryInput) (assetLibraryOutput, e
 
 func (c immichClient) importAssets(input assetLibraryInput) (assetLibraryOutput, error) {
 	if len(input.Request.AssetIDs) == 0 {
-		return assetLibraryOutput{OK: true}, nil
+		return assetLibraryOutput{}, nil
 	}
 	cfg := configFromInput(input)
 	assets, err := c.assetsByID(input.Request.AssetIDs)
@@ -90,13 +90,19 @@ func (c immichClient) importAssets(input assetLibraryInput) (assetLibraryOutput,
 		return assetLibraryOutput{}, err
 	}
 	photos := make([]sdk.Photo, 0, len(assets))
-	for _, asset := range assets {
+	omitted := make([]sdk.OmittedAsset, 0)
+	for index, asset := range assets {
 		photo, ok := photoFromAsset(asset, cfg.ImportSize)
 		if ok {
 			photos = append(photos, photo)
+			continue
 		}
+		omitted = append(omitted, sdk.OmittedAsset{
+			AssetID: input.Request.AssetIDs[index],
+			Reason:  "asset cannot be converted to a photo",
+		})
 	}
-	return assetLibraryOutput{OK: true, Photos: photos}, nil
+	return assetLibraryOutput{Photos: photos, OmittedAssets: omitted}, nil
 }
 
 func (c immichClient) thumbnail(input assetLibraryInput) (assetLibraryOutput, error) {
@@ -105,7 +111,6 @@ func (c immichClient) thumbnail(input assetLibraryInput) (assetLibraryOutput, er
 	}
 	assetID := input.Request.AssetIDs[0]
 	return assetLibraryOutput{
-		OK: true,
 		Photos: []sdk.Photo{{
 			ExternalID: assetID,
 			Filename:   assetID + ".jpg",
@@ -164,6 +169,39 @@ func (c immichClient) searchAssets(window searchTimeWindow, maxPages int) ([]imm
 		hasMore = true
 	}
 	return assets, hasMore, nil
+}
+
+func (c immichClient) searchAssetCandidates(
+	window searchTimeWindow,
+	req assetLibraryRequest,
+	cfg immichConfig,
+	state map[string]any,
+	limits sdk.AssetSearchLimits,
+) ([]assetCandidate, map[string]any, bool, int, error) {
+	result, err := searchAssetCandidatePages(req, cfg, state, assetCandidateSearchLimits{
+		MaxItems:            limits.MaxItems,
+		MaxScannedItems:     limits.MaxScannedItems,
+		MaxProviderRequests: limits.MaxProviderRequests,
+	}, func(page int) (assetCandidateProviderPage, error) {
+		var response metadataSearchResponse
+		request := metadataSearchRequest{
+			TakenAfter:  window.takenAfter,
+			TakenBefore: window.takenBefore,
+			Type:        "IMAGE",
+			WithExif:    true,
+			IsArchived:  false,
+			Page:        page,
+			Size:        250,
+		}
+		if err := c.postJSON("/api/search/metadata", request, &response); err != nil {
+			return assetCandidateProviderPage{}, err
+		}
+		return assetCandidateProviderPage{Items: response.Assets.Items, NextPage: response.Assets.NextPage}, nil
+	})
+	if err != nil {
+		return nil, nil, false, 0, err
+	}
+	return result.Candidates, result.State, result.HasMore, result.ScannedItems, nil
 }
 
 func (c immichClient) assetsByID(ids []string) ([]immichAsset, error) {

@@ -32,6 +32,20 @@ const pluginAssetThumbnailCacheMaxEntries = 512
 const pluginAssetThumbnailCacheTTL = 24 * time.Hour
 const defaultAssetPluginMaxWaypoints = 25
 const pluginAssetMaintenanceProvider = "maintenance"
+const pluginAssetImportMaxIDs = 200
+const defaultAssetAutoAttachMaxBatches = 25
+
+var pluginAssetPickerSearchLimits = pluginAssetSearchLimits{
+	MaxItems:            100,
+	MaxScannedItems:     2500,
+	MaxProviderRequests: 10,
+}
+
+var pluginAssetAutoAttachSearchLimits = pluginAssetSearchLimits{
+	MaxItems:            2500,
+	MaxScannedItems:     2500,
+	MaxProviderRequests: 16,
+}
 
 type pluginAssetThumbnailCacheEntry struct {
 	ContentType string
@@ -73,6 +87,7 @@ type pluginAssetLibraryRequest struct {
 	WaypointID  string   `json:"waypointId,omitempty"`
 	SummitLogID string   `json:"summitLogId,omitempty"`
 	AssetIDs    []string `json:"assetIds,omitempty"`
+	CursorID    string   `json:"cursorId,omitempty"`
 	Page        int      `json:"page,omitempty"`
 	PerPage     int      `json:"perPage,omitempty"`
 
@@ -106,7 +121,15 @@ type pluginAssetLibraryInput struct {
 	Auth     map[string]any                `json:"auth,omitempty"`
 	Config   map[string]any                `json:"config,omitempty"`
 	Limits   importer.PhotoImportLimits    `json:"limits,omitempty"`
+	Search   *pluginAssetSearchLimits      `json:"search,omitempty"`
+	State    map[string]any                `json:"state,omitempty"`
 	Request  pluginAssetLibraryActionInput `json:"request"`
+}
+
+type pluginAssetSearchLimits struct {
+	MaxItems            int `json:"maxItems,omitempty"`
+	MaxScannedItems     int `json:"maxScannedItems,omitempty"`
+	MaxProviderRequests int `json:"maxProviderRequests,omitempty"`
 }
 
 type pluginAssetLibraryActionInput struct {
@@ -137,14 +160,25 @@ type pluginAssetTrackPoint struct {
 }
 
 type pluginAssetLibraryOutput struct {
-	OK            bool                      `json:"ok"`
 	UserID        string                    `json:"userId,omitempty"`
 	Candidates    []pluginAssetCandidate    `json:"candidates,omitempty"`
 	Photos        []pluginsystem.Photo      `json:"photos,omitempty"`
+	OmittedAssets []pluginAssetOmission     `json:"omittedAssetIds,omitempty"`
+	State         map[string]any            `json:"state,omitempty"`
 	HasMore       bool                      `json:"hasMore,omitempty"`
+	Stats         *pluginAssetSearchStats   `json:"stats,omitempty"`
 	TakenAfter    string                    `json:"takenAfter,omitempty"`
 	HasTimestamps bool                      `json:"hasTimestamps,omitempty"`
 	Error         *pluginsystem.PluginError `json:"error,omitempty"`
+}
+
+type pluginAssetOmission struct {
+	AssetID string `json:"assetId"`
+	Reason  string `json:"reason"`
+}
+
+type pluginAssetSearchStats struct {
+	ScannedItems int `json:"scannedItems,omitempty"`
 }
 
 type pluginAssetCandidate struct {
@@ -179,10 +213,24 @@ type assetLibraryResponse struct {
 	TakenAfter           string                    `json:"takenAfter"`
 }
 
+type pluginAssetCandidatesResponse struct {
+	Candidates      []pluginAssetCandidate `json:"candidates"`
+	HasMore         bool                   `json:"hasMore"`
+	TakenAfter      string                 `json:"takenAfter"`
+	HasTimestamps   bool                   `json:"hasTimestamps"`
+	CursorID        string                 `json:"cursorId,omitempty"`
+	RestartRequired bool                   `json:"restartRequired,omitempty"`
+}
+
 type pluginAssetImportResult struct {
 	AssetID  string       `json:"assetId"`
 	Waypoint *core.Record `json:"waypoint,omitempty"`
 	Asset    *core.Record `json:"asset,omitempty"`
+}
+
+type pluginAssetImportResponse struct {
+	Imported []pluginAssetImportResult `json:"imported"`
+	Omitted  []pluginAssetOmission     `json:"omitted"`
 }
 
 type pluginAssetAutoAttachRequest struct {
@@ -191,17 +239,24 @@ type pluginAssetAutoAttachRequest struct {
 }
 
 type pluginAssetAutoAttachPluginResult struct {
-	PluginID   string `json:"pluginId"`
-	InstanceID string `json:"instanceId"`
-	Imported   int    `json:"imported"`
-	Error      string `json:"error,omitempty"`
+	PluginID   string                `json:"pluginId"`
+	InstanceID string                `json:"instanceId"`
+	Imported   int                   `json:"imported"`
+	Omitted    []pluginAssetOmission `json:"omitted"`
+	Error      string                `json:"error,omitempty"`
 }
 
 type pluginAssetAutoAttachSummary struct {
 	OK       bool                                `json:"ok"`
 	TrailID  string                              `json:"trailId"`
 	Imported int                                 `json:"imported"`
+	Omitted  int                                 `json:"omitted"`
 	Plugins  []pluginAssetAutoAttachPluginResult `json:"plugins"`
+}
+
+type pluginAssetAutoAttachOutcome struct {
+	Imported int
+	Omitted  []pluginAssetOmission
 }
 
 type pluginAssetTrailPhotoMaintenanceCandidate struct {
@@ -700,6 +755,13 @@ func pluginSystemAssetCall(e *core.RequestEvent, action string) error {
 	if action == "import-to-waypoint" || action == "import-to-target" {
 		data.Action = "import"
 	}
+	if data.Action == "import" {
+		normalizedAssetIDs, err := normalizeAssetPluginImportIDs(data.AssetIDs)
+		if err != nil {
+			return err
+		}
+		data.AssetIDs = normalizedAssetIDs
+	}
 
 	if data.TrailID != "" {
 		if err := ensureOwnsTrail(e.App, e.Auth.Id, data.TrailID); err != nil {
@@ -744,12 +806,20 @@ func pluginSystemAssetCall(e *core.RequestEvent, action string) error {
 	if err != nil {
 		return err
 	}
+	if action == "candidates" {
+		return callAssetPluginCandidates(e, plugin, capability, instance, auth, config, request, data.CursorID)
+	}
 	output, err := callAssetPlugin(e.Request.Context(), plugin, capability, instance, auth, config, request)
 	if err != nil {
 		return err
 	}
 	if output.Error != nil {
 		return apis.NewBadRequestError(output.Error.Message, output.Error)
+	}
+	if data.Action == "import" {
+		if err := validateAssetPluginImportPartition(data.AssetIDs, output); err != nil {
+			return err
+		}
 	}
 
 	switch action {
@@ -762,6 +832,142 @@ func pluginSystemAssetCall(e *core.RequestEvent, action string) error {
 	default:
 		return e.JSON(http.StatusOK, output)
 	}
+}
+
+func callAssetPluginCandidates(e *core.RequestEvent, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any, request pluginAssetLibraryActionInput, cursorID string) error {
+	actorID, err := util.ResolveAssetAuthor(e.App, e.Auth.Id)
+	if err != nil {
+		return err
+	}
+	binding, err := newPluginAssetCursorBinding(e.Auth.Id, actorID, plugin.Manifest.ID, instance.Id, request, auth, config)
+	if err != nil {
+		return err
+	}
+
+	cursorID = strings.TrimSpace(cursorID)
+	state := map[string]any(nil)
+	inputStateHash := ""
+	seen := map[string]bool{}
+	if cursorID != "" {
+		entry, restartRequired, err := assetPluginCursors.resume(cursorID, binding)
+		if err != nil {
+			return err
+		}
+		if restartRequired {
+			return e.JSON(http.StatusOK, pluginAssetCandidatesResponse{Candidates: []pluginAssetCandidate{}, RestartRequired: true})
+		}
+		state = entry.State
+		inputStateHash = entry.StateHash
+		seen = entry.Seen
+	}
+
+	output, err := callAssetPlugin(e.Request.Context(), plugin, capability, instance, auth, config, request, pluginAssetCallInput{
+		Search: pluginAssetPickerSearchLimits,
+		State:  state,
+	})
+	if err != nil {
+		return err
+	}
+	if output.Error != nil {
+		return apis.NewBadRequestError(output.Error.Message, output.Error)
+	}
+	if err := validateAssetPluginCandidateBatch(output, pluginAssetPickerSearchLimits); err != nil {
+		return err
+	}
+
+	outputStateHash, _, err := validatePluginAssetContinuation(state, output.State, output.HasMore, seen)
+	if err != nil {
+		return err
+	}
+	responseCursorID := ""
+	if cursorID == "" && output.HasMore {
+		responseCursorID, err = assetPluginCursors.create(binding, output.State, outputStateHash)
+		if err != nil {
+			return err
+		}
+	} else if cursorID != "" {
+		if output.HasMore {
+			seen[outputStateHash] = true
+		}
+		restartRequired, err := assetPluginCursors.advance(cursorID, binding, inputStateHash, output.State, outputStateHash, seen, output.HasMore)
+		if err != nil {
+			return err
+		}
+		if restartRequired {
+			return e.JSON(http.StatusOK, pluginAssetCandidatesResponse{Candidates: []pluginAssetCandidate{}, RestartRequired: true})
+		}
+		if output.HasMore {
+			responseCursorID = cursorID
+		}
+	}
+
+	return e.JSON(http.StatusOK, pluginAssetCandidatesResponse{
+		Candidates:    append([]pluginAssetCandidate{}, output.Candidates...),
+		HasMore:       output.HasMore,
+		TakenAfter:    output.TakenAfter,
+		HasTimestamps: output.HasTimestamps,
+		CursorID:      responseCursorID,
+	})
+}
+
+func stableUniqueAssetIDs(values []string) []string {
+	unique := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		unique = append(unique, value)
+	}
+	return unique
+}
+
+func normalizeAssetPluginImportIDs(values []string) ([]string, error) {
+	unique := stableUniqueAssetIDs(values)
+	if len(unique) > pluginAssetImportMaxIDs {
+		return nil, apis.NewBadRequestError(fmt.Sprintf("assetIds must contain at most %d unique IDs", pluginAssetImportMaxIDs), nil)
+	}
+	return unique, nil
+}
+
+func validateAssetPluginImportPartition(requested []string, output pluginAssetLibraryOutput) error {
+	requested = stableUniqueAssetIDs(requested)
+	requestedSet := make(map[string]bool, len(requested))
+	for _, assetID := range requested {
+		requestedSet[assetID] = true
+	}
+	accounted := make(map[string]string, len(requested))
+	for _, photo := range output.Photos {
+		assetID := strings.TrimSpace(photo.ExternalID)
+		if !requestedSet[assetID] {
+			return fmt.Errorf("asset plugin import returned unrequested photo %q", assetID)
+		}
+		if previous := accounted[assetID]; previous != "" {
+			return fmt.Errorf("asset plugin import returned duplicate asset %q in %s and photos", assetID, previous)
+		}
+		accounted[assetID] = "photos"
+	}
+	for _, omitted := range output.OmittedAssets {
+		assetID := strings.TrimSpace(omitted.AssetID)
+		if strings.TrimSpace(omitted.Reason) == "" {
+			return fmt.Errorf("asset plugin import omitted asset %q without a reason", assetID)
+		}
+		if !requestedSet[assetID] {
+			return fmt.Errorf("asset plugin import omitted unrequested asset %q", assetID)
+		}
+		if previous := accounted[assetID]; previous != "" {
+			return fmt.Errorf("asset plugin import returned duplicate asset %q in %s and omittedAssetIds", assetID, previous)
+		}
+		accounted[assetID] = "omittedAssetIds"
+	}
+	for _, assetID := range requested {
+		if accounted[assetID] == "" {
+			return fmt.Errorf("asset plugin import did not account for requested asset %q", assetID)
+		}
+	}
+	return nil
 }
 
 func AutoAttachAssetPluginsForTrail(ctx context.Context, app core.App, userID string, trailID string, provider string) error {
@@ -833,19 +1039,22 @@ func autoAttachAssetPluginsForTrail(ctx context.Context, app core.App, userID st
 		result := pluginAssetAutoAttachPluginResult{
 			PluginID:   plugin.Manifest.ID,
 			InstanceID: instance.Id,
+			Omitted:    []pluginAssetOmission{},
 		}
-		imported, err := autoAttachAssetPluginForTrail(ctx, app, userID, trailID, plugin, capability, instance, auth, config)
+		outcome, err := autoAttachAssetPluginForTrail(ctx, app, userID, trailID, plugin, capability, instance, auth, config)
 		if err != nil {
 			result.Error = err.Error()
 			summary.Plugins = append(summary.Plugins, result)
 			app.Logger().Warn("asset plugin auto attach failed for plugin", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", provider, "trail", trailID, "error", err)
 			continue
 		}
-		result.Imported = imported
-		summary.Imported += imported
+		result.Imported = outcome.Imported
+		result.Omitted = append([]pluginAssetOmission{}, outcome.Omitted...)
+		summary.Imported += outcome.Imported
+		summary.Omitted += len(outcome.Omitted)
 		summary.Plugins = append(summary.Plugins, result)
-		if imported > 0 {
-			app.Logger().Info("asset plugin auto attach imported photos", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", provider, "trail", trailID, "photos", imported)
+		if outcome.Imported > 0 || len(outcome.Omitted) > 0 {
+			app.Logger().Info("asset plugin auto attach completed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", provider, "trail", trailID, "imported", outcome.Imported, "omitted", len(outcome.Omitted))
 		}
 	}
 	return summary, nil
@@ -949,72 +1158,157 @@ func trailAssetMaintenanceState(app core.App, trails []*core.Record) (map[string
 	return visiblePhotos, thumbnails, nil
 }
 
-func autoAttachAssetPluginForTrail(ctx context.Context, app core.App, userID string, trailID string, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any) (int, error) {
+func autoAttachAssetPluginForTrail(ctx context.Context, app core.App, userID string, trailID string, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any) (pluginAssetAutoAttachOutcome, error) {
 	candidatesRequest, err := assetLibraryActionInputForApp(app, pluginAssetLibraryRequest{
 		Action:  "candidates",
 		TrailID: trailID,
 	}, true)
 	if err != nil {
-		return 0, err
+		return pluginAssetAutoAttachOutcome{}, err
 	}
 	if !assetPluginAutoAttachHasTimeWindow(candidatesRequest) {
-		return 0, nil
-	}
-	candidatesOutput, err := callAssetPlugin(ctx, plugin, capability, instance, auth, config, candidatesRequest)
-	if err != nil {
-		return 0, err
-	}
-	if candidatesOutput.Error != nil {
-		return 0, fmt.Errorf("%s: %s", candidatesOutput.Error.Code, candidatesOutput.Error.Message)
+		return pluginAssetAutoAttachOutcome{}, nil
 	}
 
-	assetIDs := make([]string, 0, len(candidatesOutput.Candidates))
-	seen := map[string]bool{}
-	for _, candidate := range candidatesOutput.Candidates {
-		assetID := strings.TrimSpace(candidate.AssetID)
-		if assetID == "" || seen[assetID] {
-			continue
+	allCandidates := make([]pluginAssetCandidate, 0)
+	seenAssetIDs := map[string]bool{}
+	seenStates := map[string]bool{}
+	var state map[string]any
+	for batch := 0; batch < defaultAssetAutoAttachMaxBatches; batch++ {
+		candidatesOutput, err := callAssetPlugin(ctx, plugin, capability, instance, auth, config, candidatesRequest, pluginAssetCallInput{
+			Search: pluginAssetAutoAttachSearchLimits,
+			State:  state,
+		})
+		if err != nil {
+			return pluginAssetAutoAttachOutcome{}, err
 		}
-		seen[assetID] = true
-		assetIDs = append(assetIDs, assetID)
+		if candidatesOutput.Error != nil {
+			return pluginAssetAutoAttachOutcome{}, fmt.Errorf("%s: %s", candidatesOutput.Error.Code, candidatesOutput.Error.Message)
+		}
+		if err := validateAssetPluginCandidateBatch(candidatesOutput, pluginAssetAutoAttachSearchLimits); err != nil {
+			return pluginAssetAutoAttachOutcome{}, err
+		}
+		stateHash, _, err := validatePluginAssetContinuation(state, candidatesOutput.State, candidatesOutput.HasMore, seenStates)
+		if err != nil {
+			return pluginAssetAutoAttachOutcome{}, err
+		}
+		for _, candidate := range candidatesOutput.Candidates {
+			assetID := strings.TrimSpace(candidate.AssetID)
+			if assetID == "" || seenAssetIDs[assetID] {
+				continue
+			}
+			candidate.AssetID = assetID
+			seenAssetIDs[assetID] = true
+			allCandidates = append(allCandidates, candidate)
+		}
+		if !candidatesOutput.HasMore {
+			break
+		}
+		if batch+1 >= defaultAssetAutoAttachMaxBatches {
+			return pluginAssetAutoAttachOutcome{}, fmt.Errorf("asset plugin candidates exceeded %d batches", defaultAssetAutoAttachMaxBatches)
+		}
+		seenStates[stateHash] = true
+		state = candidatesOutput.State
+	}
+
+	sortAssetPluginAutoAttachCandidates(allCandidates)
+	assetIDs := make([]string, 0, len(allCandidates))
+	for _, candidate := range allCandidates {
+		assetIDs = append(assetIDs, candidate.AssetID)
 	}
 	if len(assetIDs) == 0 {
-		return 0, nil
+		return pluginAssetAutoAttachOutcome{}, nil
 	}
 	existing, err := existingTrailAssetExternalIDs(app, userID, plugin.Manifest.ID, trailID, assetIDs)
 	if err != nil {
-		return 0, err
+		return pluginAssetAutoAttachOutcome{}, err
 	}
-	filteredAssetIDs := assetIDs[:0]
+	filteredAssetIDs := make([]string, 0, len(assetIDs))
 	for _, assetID := range assetIDs {
 		if !existing[assetID] {
 			filteredAssetIDs = append(filteredAssetIDs, assetID)
 		}
 	}
 	if len(filteredAssetIDs) == 0 {
-		return 0, nil
+		return pluginAssetAutoAttachOutcome{}, nil
 	}
 
-	importRequest := candidatesRequest
-	importRequest.Action = "import"
-	importRequest.AssetIDs = filteredAssetIDs
-	importOutput, err := callAssetPlugin(ctx, plugin, capability, instance, auth, config, importRequest)
-	if err != nil {
-		return 0, err
+	photos := make([]pluginsystem.Photo, 0, len(filteredAssetIDs))
+	omitted := make([]pluginAssetOmission, 0)
+	for start := 0; start < len(filteredAssetIDs); start += pluginAssetImportMaxIDs {
+		end := start + pluginAssetImportMaxIDs
+		if end > len(filteredAssetIDs) {
+			end = len(filteredAssetIDs)
+		}
+		block := filteredAssetIDs[start:end]
+		importRequest := candidatesRequest
+		importRequest.Action = "import"
+		importRequest.AssetIDs = block
+		importOutput, err := callAssetPlugin(ctx, plugin, capability, instance, auth, config, importRequest)
+		if err != nil {
+			return pluginAssetAutoAttachOutcome{}, err
+		}
+		if importOutput.Error != nil {
+			return pluginAssetAutoAttachOutcome{}, fmt.Errorf("%s: %s", importOutput.Error.Code, importOutput.Error.Message)
+		}
+		if err := validateAssetPluginImportPartition(block, importOutput); err != nil {
+			return pluginAssetAutoAttachOutcome{}, err
+		}
+		photos = append(photos, importOutput.Photos...)
+		omitted = append(omitted, importOutput.OmittedAssets...)
 	}
-	if importOutput.Error != nil {
-		return 0, fmt.Errorf("%s: %s", importOutput.Error.Code, importOutput.Error.Message)
+
+	rank := make(map[string]int, len(filteredAssetIDs))
+	for index, assetID := range filteredAssetIDs {
+		rank[assetID] = index
 	}
-	results, err := importAssetPluginPhotosForTrail(ctx, app, userID, plugin, auth, config, importOutput, pluginAssetLibraryRequest{
+	sort.SliceStable(photos, func(i, j int) bool {
+		return rank[strings.TrimSpace(photos[i].ExternalID)] < rank[strings.TrimSpace(photos[j].ExternalID)]
+	})
+	results, err := importAssetPluginPhotosForTrail(ctx, app, userID, plugin, auth, config, pluginAssetLibraryOutput{Photos: photos}, pluginAssetLibraryRequest{
 		PluginID: plugin.Manifest.ID,
 		Action:   "import",
 		TrailID:  trailID,
 		AssetIDs: filteredAssetIDs,
 	}, "", true)
 	if err != nil {
-		return 0, err
+		return pluginAssetAutoAttachOutcome{}, err
 	}
-	return len(results), nil
+	return pluginAssetAutoAttachOutcome{Imported: len(results), Omitted: omitted}, nil
+}
+
+func validateAssetPluginCandidateBatch(output pluginAssetLibraryOutput, limits pluginAssetSearchLimits) error {
+	if limits.MaxItems > 0 && len(output.Candidates) > limits.MaxItems {
+		return fmt.Errorf("asset plugin returned %d candidates, exceeding maxItems %d", len(output.Candidates), limits.MaxItems)
+	}
+	return nil
+}
+
+func sortAssetPluginAutoAttachCandidates(candidates []pluginAssetCandidate) {
+	sort.Slice(candidates, func(i, j int) bool {
+		a := candidates[i]
+		b := candidates[j]
+		if a.DistanceFromStart != b.DistanceFromStart {
+			return a.DistanceFromStart < b.DistanceFromStart
+		}
+		if a.Distance != b.Distance {
+			return a.Distance < b.Distance
+		}
+		aTime, aValid := parseAssetPluginCandidateTime(a.TakenAt)
+		bTime, bValid := parseAssetPluginCandidateTime(b.TakenAt)
+		if aValid != bValid {
+			return aValid
+		}
+		if aValid && !aTime.Equal(bTime) {
+			return aTime.Before(bTime)
+		}
+		return a.AssetID < b.AssetID
+	})
+}
+
+func parseAssetPluginCandidateTime(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	return parsed, err == nil
 }
 
 func assetPluginAutoAttachAllowedForTrail(provider string, completed bool) bool {
@@ -1119,7 +1413,12 @@ func assetPluginConnectorConfig(plugin pluginsystem.LocalPlugin, config map[stri
 	return pluginhost.AssetConnectorConfig(plugin, config)
 }
 
-func callAssetPlugin(ctx context.Context, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any, request pluginAssetLibraryActionInput) (pluginAssetLibraryOutput, error) {
+type pluginAssetCallInput struct {
+	Search pluginAssetSearchLimits
+	State  map[string]any
+}
+
+func callAssetPlugin(ctx context.Context, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, config map[string]any, request pluginAssetLibraryActionInput, callInputs ...pluginAssetCallInput) (pluginAssetLibraryOutput, error) {
 	runtime, err := pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
 	if err != nil {
 		return pluginAssetLibraryOutput{}, err
@@ -1132,18 +1431,29 @@ func callAssetPlugin(ctx context.Context, plugin pluginsystem.LocalPlugin, capab
 	defer func() {
 		_ = session.Close(context.Background())
 	}()
+	callInput := pluginAssetCallInput{}
+	if len(callInputs) > 0 {
+		callInput = callInputs[0]
+	}
+	var search *pluginAssetSearchLimits
+	if callInput.Search != (pluginAssetSearchLimits{}) {
+		searchValue := callInput.Search
+		search = &searchValue
+	}
 	input := pluginAssetLibraryInput{
 		Instance: pluginsystem.InstanceRef{ID: instance.Id, PluginID: instance.GetString("plugin_id")},
 		Auth:     pluginsystem.PluginInputAuth(plugin, auth),
 		Config:   pluginhost.RuntimeConfig(config),
 		Limits:   pluginPhotoImportLimits(pluginhost.HostConfig(config)),
+		Search:   search,
+		State:    callInput.State,
 		Request:  request,
 	}
 	inputBytes, err := json.Marshal(input)
 	if err != nil {
 		return pluginAssetLibraryOutput{}, err
 	}
-	outputBytes, err := session.Call(ctx, capability.Export, inputBytes)
+	outputBytes, err := session.Call(ctx, capability.Export, inputBytes, assetPluginRuntimeCallOptions(request))
 	if err != nil {
 		return pluginAssetLibraryOutput{}, err
 	}
@@ -1152,6 +1462,17 @@ func callAssetPlugin(ctx context.Context, plugin pluginsystem.LocalPlugin, capab
 		return pluginAssetLibraryOutput{}, fmt.Errorf("plugin returned invalid %s output: %w", capability.Export, err)
 	}
 	return output, nil
+}
+
+func assetPluginRuntimeCallOptions(request pluginAssetLibraryActionInput) pluginsystem.RuntimeCallOptions {
+	maxHostRequests := 24
+	switch request.Action {
+	case "check", "thumbnail":
+		maxHostRequests = 4
+	case "import":
+		maxHostRequests = len(request.AssetIDs) + 8
+	}
+	return pluginsystem.RuntimeCallOptions{MaxHostRequests: maxHostRequests}
 }
 
 func assetLibraryActionInput(e *core.RequestEvent, data pluginAssetLibraryRequest) (pluginAssetLibraryActionInput, error) {
@@ -1670,12 +1991,12 @@ func importAssetPluginPhotos(e *core.RequestEvent, plugin pluginsystem.LocalPlug
 	if err != nil {
 		return err
 	}
-	return e.JSON(http.StatusOK, results)
+	return e.JSON(http.StatusOK, pluginAssetImportResponse{Imported: results, Omitted: append([]pluginAssetOmission{}, output.OmittedAssets...)})
 }
 
 func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.LocalPlugin, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest) error {
 	if len(output.Photos) == 0 {
-		return e.JSON(http.StatusOK, []pluginAssetImportResult{})
+		return e.JSON(http.StatusOK, pluginAssetImportResponse{Imported: []pluginAssetImportResult{}, Omitted: append([]pluginAssetOmission{}, output.OmittedAssets...)})
 	}
 	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
 	if err != nil {
@@ -1709,7 +2030,7 @@ func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.L
 		result.AssetID = record.GetString("external_id")
 		results = append(results, result)
 	}
-	return e.JSON(http.StatusOK, results)
+	return e.JSON(http.StatusOK, pluginAssetImportResponse{Imported: results, Omitted: append([]pluginAssetOmission{}, output.OmittedAssets...)})
 }
 
 func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID string, plugin pluginsystem.LocalPlugin, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest, waypointID string, enforceLimits bool) ([]pluginAssetImportResult, error) {

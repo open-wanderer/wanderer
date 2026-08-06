@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -318,6 +319,267 @@ func TestSortAssetLibraryCandidatesUsesRouteOrderBeforeDistance(t *testing.T) {
 
 	if candidates[0].AssetID != "earlier-farther" {
 		t.Fatalf("got first candidate %q, want route-order candidate", candidates[0].AssetID)
+	}
+}
+
+func TestSortAssetPluginAutoAttachCandidatesUsesStableGlobalOrder(t *testing.T) {
+	candidates := []pluginAssetCandidate{
+		{AssetID: "invalid-time", DistanceFromStart: 10, Distance: 5, TakenAt: "invalid"},
+		{AssetID: "later", DistanceFromStart: 10, Distance: 5, TakenAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "earlier", DistanceFromStart: 10, Distance: 5, TakenAt: "2026-01-01T00:00:00Z"},
+		{AssetID: "near-start", DistanceFromStart: 5, Distance: 100, TakenAt: "invalid"},
+	}
+
+	sortAssetPluginAutoAttachCandidates(candidates)
+
+	want := []string{"near-start", "earlier", "later", "invalid-time"}
+	for index, assetID := range want {
+		if candidates[index].AssetID != assetID {
+			t.Fatalf("candidate %d = %q, want %q", index, candidates[index].AssetID, assetID)
+		}
+	}
+}
+
+func TestStableUniqueAssetIDsTrimsAndPreservesFirstOccurrence(t *testing.T) {
+	got := stableUniqueAssetIDs([]string{" a ", "b", "a", "", " b "})
+	want := []string{"a", "b"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+}
+
+func TestNormalizeAssetPluginImportIDsChecksLimitAfterDeduplication(t *testing.T) {
+	duplicateValues := make([]string, pluginAssetImportMaxIDs+1)
+	for index := range duplicateValues {
+		duplicateValues[index] = "same"
+	}
+	got, err := normalizeAssetPluginImportIDs(duplicateValues)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("deduplicated request got %#v, err=%v", got, err)
+	}
+
+	uniqueValues := make([]string, pluginAssetImportMaxIDs+1)
+	for index := range uniqueValues {
+		uniqueValues[index] = fmt.Sprintf("asset-%d", index)
+	}
+	if _, err := normalizeAssetPluginImportIDs(uniqueValues); err == nil {
+		t.Fatalf("request with %d unique IDs was accepted", len(uniqueValues))
+	}
+}
+
+func TestAssetImportAtMaximumSizeGetsSufficientRequestBudget(t *testing.T) {
+	request := pluginAssetLibraryActionInput{Action: "import", AssetIDs: make([]string, pluginAssetImportMaxIDs)}
+	options := assetPluginRuntimeCallOptions(request)
+	want := pluginAssetImportMaxIDs + 8
+	if options.MaxHostRequests != want {
+		t.Fatalf("budget = %d, want %d", options.MaxHostRequests, want)
+	}
+	if pluginsystem.EffectiveMaxHostRequests(options) != want {
+		t.Fatalf("effective budget does not permit maximum import: %#v", options)
+	}
+}
+
+func TestValidateAssetPluginImportPartition(t *testing.T) {
+	valid := pluginAssetLibraryOutput{
+		Photos:        []pluginsystem.Photo{{ExternalID: "a"}},
+		OmittedAssets: []pluginAssetOmission{{AssetID: "b", Reason: "unsupported"}},
+	}
+	if err := validateAssetPluginImportPartition([]string{"a", "b"}, valid); err != nil {
+		t.Fatalf("valid partition rejected: %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		output pluginAssetLibraryOutput
+	}{
+		{"missing", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}}}},
+		{"unrequested", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}, {ExternalID: "c"}}, OmittedAssets: []pluginAssetOmission{{AssetID: "b", Reason: "unsupported"}}}},
+		{"duplicate photo", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}, {ExternalID: "a"}}, OmittedAssets: []pluginAssetOmission{{AssetID: "b", Reason: "unsupported"}}}},
+		{"overlap", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}}, OmittedAssets: []pluginAssetOmission{{AssetID: "a", Reason: "unsupported"}, {AssetID: "b", Reason: "unsupported"}}}},
+		{"unrequested omission", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}, {ExternalID: "b"}}, OmittedAssets: []pluginAssetOmission{{AssetID: "c", Reason: "unsupported"}}}},
+		{"duplicate omission", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}}, OmittedAssets: []pluginAssetOmission{{AssetID: "b", Reason: "unsupported"}, {AssetID: "b", Reason: "unsupported"}}}},
+		{"omission without reason", pluginAssetLibraryOutput{Photos: []pluginsystem.Photo{{ExternalID: "a"}}, OmittedAssets: []pluginAssetOmission{{AssetID: "b"}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateAssetPluginImportPartition([]string{"a", "b"}, tc.output); err == nil {
+				t.Fatal("invalid partition accepted")
+			}
+		})
+	}
+}
+
+func TestValidatePluginAssetContinuationRejectsProtocolViolations(t *testing.T) {
+	if _, _, err := validatePluginAssetContinuation(nil, nil, true, nil); err == nil {
+		t.Fatal("hasMore without state was accepted")
+	}
+	state := map[string]any{"page": 2.0, "offset": 10.0}
+	if _, _, err := validatePluginAssetContinuation(state, state, true, nil); err == nil {
+		t.Fatal("unchanged state was accepted")
+	}
+	hash, _, err := pluginAssetStateHash(map[string]any{"page": 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := validatePluginAssetContinuation(state, map[string]any{"page": 3}, true, map[string]bool{hash: true}); err == nil {
+		t.Fatal("cyclic state was accepted")
+	}
+}
+
+func TestPluginAssetCandidatesResponseDoesNotExposeRawStateOrStats(t *testing.T) {
+	encoded, err := json.Marshal(pluginAssetCandidatesResponse{Candidates: []pluginAssetCandidate{}, CursorID: "opaque"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(encoded)
+	if strings.Contains(text, `"state"`) || strings.Contains(text, `"stats"`) {
+		t.Fatalf("browser response exposed plugin internals: %s", text)
+	}
+}
+
+func TestPluginAssetCursorIsOpaqueBoundAndProgressive(t *testing.T) {
+	store := pluginAssetCursorStore{items: map[string]pluginAssetCursorEntry{}}
+	binding := pluginAssetCursorBinding{UserID: "user", ActorID: "actor", PluginID: "immich", InstanceID: "instance", QueryFingerprint: "query", ConfigFingerprint: "config"}
+	state := map[string]any{"page": 2, "offset": 10}
+	stateHash, _, err := pluginAssetStateHash(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursorID, err := store.create(binding, state, stateHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cursorID) != 32 || strings.Contains(cursorID, "page") {
+		t.Fatalf("cursor ID is not an opaque 128-bit token: %q", cursorID)
+	}
+	entry, restartRequired, err := store.resume(cursorID, binding)
+	if err != nil || restartRequired || entry.StateHash != stateHash {
+		t.Fatalf("resume = %#v, restart=%v, err=%v", entry, restartRequired, err)
+	}
+	wrongBinding := binding
+	wrongBinding.UserID = "other"
+	if _, restartRequired, err := store.resume(cursorID, wrongBinding); err != nil || !restartRequired {
+		t.Fatalf("mismatched binding restart=%v err=%v", restartRequired, err)
+	}
+
+	nextState := map[string]any{"page": 3, "offset": 0}
+	nextHash, _, err := pluginAssetStateHash(nextState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restartRequired, err = store.advance(cursorID, binding, stateHash, nextState, nextHash, map[string]bool{stateHash: true, nextHash: true}, true)
+	if err != nil || restartRequired {
+		t.Fatalf("advance restart=%v err=%v", restartRequired, err)
+	}
+	resumed, restartRequired, err := store.resume(cursorID, binding)
+	if err != nil || restartRequired {
+		t.Fatalf("second resume restart=%v err=%v", restartRequired, err)
+	}
+	if _, _, err := validatePluginAssetContinuation(resumed.State, state, true, resumed.Seen); err == nil {
+		t.Fatal("A -> B -> A cycle across cursor requests was accepted")
+	}
+	if restartRequired, err = store.advance(cursorID, binding, stateHash, nextState, nextHash, nil, true); err != nil || !restartRequired {
+		t.Fatalf("stale advance restart=%v err=%v", restartRequired, err)
+	}
+}
+
+func TestPluginAssetCursorDiscardsSameUserBindingMismatchAndCompletion(t *testing.T) {
+	store := pluginAssetCursorStore{items: map[string]pluginAssetCursorEntry{}}
+	binding := pluginAssetCursorBinding{UserID: "user", ActorID: "actor", PluginID: "immich", InstanceID: "instance", QueryFingerprint: "query", ConfigFingerprint: "config"}
+	state := map[string]any{"page": 2}
+	hash, _, err := pluginAssetStateHash(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursorID, err := store.create(binding, state, hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mismatch := binding
+	mismatch.QueryFingerprint = "changed-query"
+	if _, restartRequired, err := store.resume(cursorID, mismatch); err != nil || !restartRequired {
+		t.Fatalf("mismatched query restart=%v err=%v", restartRequired, err)
+	}
+	if _, restartRequired, err := store.resume(cursorID, binding); err != nil || !restartRequired {
+		t.Fatalf("mismatched cursor was not discarded: restart=%v err=%v", restartRequired, err)
+	}
+
+	cursorID, err = store.create(binding, state, hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restartRequired, err := store.advance(cursorID, binding, hash, nil, "", nil, false); err != nil || restartRequired {
+		t.Fatalf("completion restart=%v err=%v", restartRequired, err)
+	}
+	if _, restartRequired, err := store.resume(cursorID, binding); err != nil || !restartRequired {
+		t.Fatalf("completed cursor remained available: restart=%v err=%v", restartRequired, err)
+	}
+}
+
+func TestPluginAssetCursorBindingIncludesAuthentication(t *testing.T) {
+	request := pluginAssetLibraryActionInput{Action: "candidates", TakenAfter: "2026-01-01T00:00:00Z"}
+	first, err := newPluginAssetCursorBinding("user", "actor", "immich", "instance", request, map[string]any{"apiKey": "first"}, map[string]any{"url": "https://example.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := newPluginAssetCursorBinding("user", "actor", "immich", "instance", request, map[string]any{"apiKey": "second"}, map[string]any{"url": "https://example.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ConfigFingerprint == second.ConfigFingerprint {
+		t.Fatal("changing only authentication did not invalidate cursor binding")
+	}
+}
+
+func TestPluginAssetCursorStoreExpiresAndLimitsEntriesPerUser(t *testing.T) {
+	store := pluginAssetCursorStore{items: map[string]pluginAssetCursorEntry{}}
+	binding := pluginAssetCursorBinding{UserID: "user", ActorID: "actor", PluginID: "immich", InstanceID: "instance", QueryFingerprint: "query", ConfigFingerprint: "config"}
+	state := map[string]any{"page": 2}
+	hash, _, err := pluginAssetStateHash(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstID, err := store.create(binding, state, hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.Lock()
+	entry := store.items[firstID]
+	entry.ExpiresAt = time.Now().Add(-time.Second)
+	store.items[firstID] = entry
+	store.Unlock()
+	if _, restartRequired, err := store.resume(firstID, binding); err != nil || !restartRequired {
+		t.Fatalf("expired cursor restart=%v err=%v", restartRequired, err)
+	}
+
+	for index := 0; index < pluginAssetCursorMaxEntriesPerUser+2; index++ {
+		binding.QueryFingerprint = fmt.Sprintf("query-%d", index)
+		if _, err := store.create(binding, state, hash); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.Lock()
+	count := store.userEntryCountLocked("user")
+	store.Unlock()
+	if count != pluginAssetCursorMaxEntriesPerUser {
+		t.Fatalf("user cursor count = %d, want %d", count, pluginAssetCursorMaxEntriesPerUser)
+	}
+}
+
+func TestPluginAssetStateHashUsesCanonicalMapOrderingAndSizeLimit(t *testing.T) {
+	left, _, err := pluginAssetStateHash(map[string]any{"page": 2, "offset": 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	right, _, err := pluginAssetStateHash(map[string]any{"offset": 4, "page": 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if left != right {
+		t.Fatalf("equivalent states hashed differently: %s != %s", left, right)
+	}
+	if _, _, err := pluginAssetStateHash(map[string]any{"value": strings.Repeat("x", pluginAssetCursorMaxStateBytes)}); err == nil {
+		t.Fatal("oversized state was accepted")
 	}
 }
 
