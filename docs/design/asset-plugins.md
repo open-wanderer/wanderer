@@ -2,7 +2,7 @@
 
 This document describes the current asset plugin stack in wanderer from the browser to an external media provider. It covers the generic contract for plugins of type `assets`, the first-party Immich implementation, all import, storage, attachment, and maintenance workflows, and the files and functions involved in each workflow.
 
-The general plugin infrastructure and trail plugins are documented in [`plugin-system.md`](../src/content/docs/develop/plugin-system.md). The asset plugin type is generic, but Immich is currently the only first-party implementation in this repository. Planned candidate pagination and per-call request budgets are specified separately in [`asset-candidates-pagination.md`](asset-candidates-pagination.md); this reference documents the implementation as it exists today.
+The general plugin infrastructure and trail plugins are documented in [`plugin-system.md`](../src/content/docs/develop/plugin-system.md). The asset plugin type is generic, but Immich is currently the only first-party implementation in this repository. The design and implementation decisions behind candidate pagination and per-call request budgets are recorded separately in [`asset-candidates-pagination.md`](asset-candidates-pagination.md); this reference documents their current operational behavior.
 
 ## 1. Terminology and scope
 
