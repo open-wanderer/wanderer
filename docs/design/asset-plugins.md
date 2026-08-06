@@ -60,7 +60,7 @@ plugin returns Photo descriptors
 | Provider types | `plugins/immich/types.go`, `plugins/immich/types_tinygo.go` | Shared matching types plus TinyGo-only SDK protocol and Immich response types. |
 | Plugin SDK | `plugins/sdk/types.go`, `plugins/sdk/host_http.go` | `Photo`, `MediaSource`, `MediaRef`, host-request protocol, and WASM host imports. |
 | Host endpoints | `db/routes/plugin_system_assets.go` | Capability calls, candidate search, import, auto-attach, thumbnail cache, and authorization. |
-| Waypoint naming | `db/routes/plugin_system_assets_naming.go` | Overpass, Nominatim, and coordinate fallback. |
+| Waypoint naming | `db/routes/waypoint_naming.go` | Provider-independent server-side name resolution through Overpass, Nominatim, and coordinate fallback. |
 | Clustering | `db/routes/waypoint_cluster.go` | Merging nearby photos and assigning them to existing waypoints. |
 | Importer | `db/plugins/importer/importer.go` | Storage strategy, media retrieval, limits, and handoff to the asset data model. |
 | Asset data model | `db/util/assets.go` | Asset creation, deduplication, reuse, and linking. |
@@ -451,13 +451,12 @@ Before any plugin call, all import routes trim and stably deduplicate `assetIds`
 
 1. `AssetWaypointModal` opens the same photo-library picker with track data.
 2. `candidateClusterInput` prefers `pointLat` and `pointLon`, which identify the nearest track point, and falls back to the photo coordinate.
-3. `clusterSelectedCandidates` calls `/api/v1/waypoint/cluster` with selected photos, existing waypoints, and the trail category.
+3. `clusterSelectedCandidates` calls `/api/v1/waypoint/cluster` with selected photos, existing waypoints, the trail category, and `resolveNames=true`.
 4. `getWaypointMergeSettings` reads `wp_merge_enabled` and `wp_merge_radius` from category settings; the default is enabled with a radius of 50 metres.
 5. `clusterWaypointPhotos` assigns a photo to the first cluster whose current center lies within the radius. The center becomes the arithmetic mean after every insertion. With merging disabled, each photo receives its own cluster.
-6. `clusterToWaypoint` reuses an existing waypoint or creates a new frontend waypoint model with a camera icon. Provider IDs remain in `_assetPluginLinks` until the waypoint is saved.
-7. `waypoints_create` or `waypoints_update` saves the waypoint first and then calls `assets_attach_to_target`.
-
-This UI workflow differs from server-side auto-attach: UI-created waypoint names initially use the filename, while auto-attach resolves names through OpenStreetMap.
+6. With `resolveNames=true`, `resolveWaypointClusterNames` applies the provider-independent `resolveWaypointName` server function to every new spatial cluster. Clusters assigned to existing waypoints are not renamed. The local-photo workflow sets the same flag, while merge-only checks omit it because they do not create photo waypoints.
+7. `clusterToWaypoint` reuses an existing waypoint or creates a new frontend waypoint model with the server-provided name and a camera icon. Provider IDs remain in `_assetPluginLinks` until the waypoint is saved.
+8. `waypoints_create` or `waypoints_update` saves the waypoint first and then calls `assets_attach_to_target`.
 
 ### 7.8 Auto-attach after a trail plugin import
 
@@ -505,16 +504,16 @@ The maintenance page uses `GET /plugins/assets/maintenance/trails` and `POST /pl
 7. When limits are enforced, `limitAssetPluginWaypointClusters` preserves existing-waypoint clusters and standalone photos but limits the number of newly created spatial waypoints to `maxWaypoints`.
 8. If photo import fails after a waypoint was created, that waypoint is deleted. A newly created waypoint is also deleted when import produces no asset records.
 
-`createAssetPluginWaypoint` stores the resolved name, an empty description, coordinates, `icon=camera`, author, and trail. `assetPluginDistanceFromStart` copies the cumulative distance of the nearest track point.
+`assetPluginWaypointForCluster` calls the same provider-independent `resolveWaypointName` function as the frontend clustering route. `createAssetPluginWaypoint` stores the resolved name, an empty description, coordinates, `icon=camera`, author, and trail. `assetPluginDistanceFromStart` copies the cumulative distance of the nearest track point.
 
 ### 7.12 Automatic waypoint names
 
-`assetPluginWaypointName` uses this fallback chain:
+`resolveWaypointName` is server-side Wanderer domain logic in `db/routes/waypoint_naming.go`; asset plugins only provide candidate metadata and never determine waypoint names. Both automatic attachment and photo-based waypoint creation in the trail editor use this function with the cluster center and merge radius. It uses this fallback chain:
 
-1. `assetPluginOverpassPOIName` searches the merge radius for named, relevant OpenStreetMap points of interest.
-2. `assetPluginBestOverpassPOIName` ranks POI types. Attractions and viewpoints have the highest considered priority; parks and gardens have the lowest. Distance breaks ties.
-3. Without a matching POI, `assetPluginNominatimReverseName` performs reverse geocoding at zoom levels 18, 16, 14, 12, and 10.
-4. `assetPluginNominatimWaypointName` prefers the direct name, relevant address fields, and finally the first usable part of `display_name`.
+1. `waypointNameFromOverpassPOI` searches the merge radius for named, relevant OpenStreetMap points of interest.
+2. `bestWaypointNameFromOverpass` ranks POI types. Attractions and viewpoints have the highest considered priority; parks and gardens have the lowest. Distance breaks ties.
+3. Without a matching POI, `waypointNameFromNominatim` performs reverse geocoding at zoom levels 18, 16, 14, 12, and 10.
+4. `waypointNameFromNominatimResponse` prefers the direct name, relevant address fields, and finally the first usable part of `display_name`.
 5. The final fallback is `"lat, lon"` with five decimal places.
 
 The default services are `https://overpass-api.de` and `https://nominatim.openstreetmap.org`. `OVERPASS_API_URL`, `PUBLIC_OVERPASS_API_URL`, `NOMINATIM_URL`, or `PUBLIC_NOMINATIM_URL` may replace them. Public default URLs use the SSRF-protected fetcher; explicitly configured trusted services use a client with an eight-second timeout and origin-bound redirects. Responses are limited to 1 MiB. Requests to the public Nominatim host are serialized with at least one second between them.
@@ -925,20 +924,21 @@ The cursor implementation in `db/routes/plugin_system_asset_cursor.go` provides 
 
 | Function | File | Detailed responsibility |
 | --- | --- | --- |
-| `WaypointCluster` | `db/routes/waypoint_cluster.go` | Validates the frontend clustering request and returns settings and clusters. |
+| `WaypointCluster` | `db/routes/waypoint_cluster.go` | Validates the frontend clustering request and returns settings plus clusters; when `resolveNames=true`, new spatial clusters include server-resolved names. |
 | `getWaypointMergeSettings` | `db/routes/waypoint_cluster.go` | Reads category settings with defaults of `enabled=true` and a 50-metre radius. |
 | `clusterWaypointPhotos` | `db/routes/waypoint_cluster.go` | Assigns photos to existing or dynamically centered new clusters. |
 | `newWaypointPhotoCluster`, `newWaypointCluster` | `db/routes/waypoint_cluster.go` | Initialize photo and existing-waypoint clusters. |
 | `addPhotoToWaypointCluster` | `db/routes/waypoint_cluster.go` | Adds an ID and recalculates the arithmetic center. |
-| `assetPluginWaypointName` | `db/routes/plugin_system_assets_naming.go` | Orchestrates Overpass, Nominatim, and coordinate fallback. |
-| `assetPluginOverpassPOIName` | `db/routes/plugin_system_assets_naming.go` | Builds an Overpass URL, loads JSON, and chooses the best POI. |
-| `assetPluginBestOverpassPOIName` | `db/routes/plugin_system_assets_naming.go` | Filters by radius and ranks POI category before distance. |
-| `assetPluginNominatimReverseName` | `db/routes/plugin_system_assets_naming.go` | Tries several zoom levels until a usable name is found. |
-| `assetPluginNominatimWaypointName` | `db/routes/plugin_system_assets_naming.go` | Extracts a direct name, address hierarchy, or display-name component. |
-| `assetPluginNominatimRateLimit` | `db/routes/plugin_system_assets_naming.go` | Serializes public Nominatim requests with at least one second between calls. |
-| `assetPluginFetchJSON` | `db/routes/plugin_system_assets_naming.go` | Selects the SSRF-protected default fetcher or an explicitly trusted service client. |
-| `assetPluginExternalServiceURL` | `db/routes/plugin_system_assets_naming.go` | Normalizes a base URL, joins the path safely, and encodes query parameters. |
-| `assetPluginCleanWaypointName` | `db/routes/plugin_system_assets_naming.go` | Trims and normalizes whitespace and limits names to 120 Unicode code points. |
+| `resolveWaypointClusterNames` | `db/routes/waypoint_cluster.go` | Resolves names for new spatial clusters while leaving existing-waypoint and empty clusters unchanged. |
+| `resolveWaypointName` | `db/routes/waypoint_naming.go` | Orchestrates Overpass, Nominatim, and coordinate fallback. |
+| `waypointNameFromOverpassPOI` | `db/routes/waypoint_naming.go` | Builds an Overpass URL, loads JSON, and chooses the best POI. |
+| `bestWaypointNameFromOverpass` | `db/routes/waypoint_naming.go` | Filters by radius and ranks POI category before distance. |
+| `waypointNameFromNominatim` | `db/routes/waypoint_naming.go` | Tries several zoom levels until a usable name is found. |
+| `waypointNameFromNominatimResponse` | `db/routes/waypoint_naming.go` | Extracts a direct name, address hierarchy, or display-name component. |
+| `nominatimRateLimit` | `db/routes/waypoint_naming.go` | Serializes public Nominatim requests with at least one second between calls. |
+| `geocodingFetchJSON` | `db/routes/waypoint_naming.go` | Selects the SSRF-protected default fetcher or an explicitly trusted service client. |
+| `geocodingExternalServiceURL` | `db/routes/waypoint_naming.go` | Normalizes a base URL, joins the path safely, and encodes query parameters. |
+| `cleanWaypointName` | `db/routes/waypoint_naming.go` | Trims and normalizes whitespace and limits names to 120 Unicode code points. |
 
 ### 13.13 Runtime, policy, and effective configuration
 
@@ -983,6 +983,7 @@ The cursor implementation in `db/routes/plugin_system_asset_cursor.go` provides 
 | `plugins/immich/matching_test.go` | Immich candidate filtering, ordering, and output shape. |
 | `plugins/immich/pagination_test.go` | Dense-page continuation, strict mid-page scan limits, raw-asset offsets, provider-request limits, and monotonic `nextPage` validation without TinyGo build tags. |
 | `db/routes/plugin_system_assets_test.go` | Trigger flags, time windows, GPX points, internal pagination, cursor binding and state validation, import partitions and limits, global ordering, clustering, naming fallbacks, and browser output shape. |
+| `db/routes/waypoint_cluster_test.go` | Server-side naming of new spatial clusters without renaming existing-waypoint or empty clusters. |
 | `db/pluginsystem/worker_test.go` | Runtime request defaults and ceilings, whole-call budget failure, per-call counter reset, and the maximum 200-photo import request count. |
 | `db/routes/plugin_system_policy_test.go` | Host connector configuration and protection against connector overrides during draft checks. |
 | `db/plugins/importer/importer_test.go` | Media policy, limits, photo metadata mapping, and trail import helpers. |

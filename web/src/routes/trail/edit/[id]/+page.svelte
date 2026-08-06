@@ -1894,6 +1894,7 @@
         lat: number;
         lon: number;
         waypoint?: string;
+        name?: string;
         photos: string[];
     }
 
@@ -1913,6 +1914,7 @@
         category?: string;
         photos: WaypointClusterPoint[];
         waypoints: WaypointClusterPoint[];
+        resolveNames?: boolean;
     }
 
     async function clusterWaypointPhotos(
@@ -1972,6 +1974,7 @@
         try {
             clusterResponse = await clusterWaypointPhotos({
                 category: $formData.category,
+                resolveNames: true,
                 photos: photoCoords.map((coords) => ({
                     id: coords.id,
                     lat: coords.latitude,
@@ -2025,6 +2028,7 @@
                 cluster.lat,
                 cluster.lon,
                 {
+                    name: cluster.name,
                     icon: photos.length > 1 ? "images" : "image",
                 },
             );

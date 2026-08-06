@@ -2150,7 +2150,7 @@ func assetPluginWaypointForCluster(ctx context.Context, app core.App, actorID st
 	}
 	name := ""
 	if cluster.Count > 0 {
-		resolvedName, _ := assetPluginWaypointName(ctx, app.Logger(), cluster.Lat, cluster.Lon, mergeSettings.Radius)
+		resolvedName, _ := resolveWaypointName(ctx, app.Logger(), cluster.Lat, cluster.Lon, mergeSettings.Radius)
 		name = resolvedName
 	}
 	waypoint, err := createAssetPluginWaypoint(app, actorID, trailID, name, cluster.Lat, cluster.Lon, trackPoints)

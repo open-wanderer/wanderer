@@ -54,17 +54,17 @@ func GeocodingSearch(e *core.RequestEvent) error {
 }
 
 func geocodingNominatim(e *core.RequestEvent, path string, params url.Values) error {
-	baseURL := assetPluginExternalServiceBaseURL("NOMINATIM_URL", assetPluginNominatimDefaultURL)
-	requestURL, err := assetPluginExternalServiceURL(baseURL, path, params)
+	baseURL := geocodingExternalServiceBaseURL("NOMINATIM_URL", waypointNameNominatimDefaultURL)
+	requestURL, err := geocodingExternalServiceURL(baseURL, path, params)
 	if err != nil {
 		return apis.NewBadRequestError("invalid Nominatim URL", err)
 	}
-	if err := assetPluginNominatimRateLimit(e.Request.Context(), baseURL); err != nil {
+	if err := nominatimRateLimit(e.Request.Context(), baseURL); err != nil {
 		return err
 	}
 
 	var raw json.RawMessage
-	if err := assetPluginFetchJSON(e.Request.Context(), baseURL, requestURL, &raw); err != nil {
+	if err := geocodingFetchJSON(e.Request.Context(), baseURL, requestURL, &raw); err != nil {
 		return apis.NewBadRequestError("Nominatim request failed", err)
 	}
 	return e.Blob(http.StatusOK, "application/json", raw)

@@ -236,19 +236,19 @@ func TestPluginAssetLibraryRequestIgnoresNullLocationPresence(t *testing.T) {
 	}
 }
 
-func TestAssetPluginUsesTrustedServiceClientForCustomServiceBase(t *testing.T) {
+func TestGeocodingUsesTrustedServiceClientForCustomServiceBase(t *testing.T) {
 	cases := []struct {
 		baseURL string
 		want    bool
 	}{
-		{assetPluginOverpassDefaultURL, false},
-		{assetPluginNominatimDefaultURL + "/", false},
+		{waypointNameOverpassDefaultURL, false},
+		{waypointNameNominatimDefaultURL + "/", false},
 		{"http://nominatim:8080", true},
 		{"https://maps.example.test/nominatim", true},
 	}
 	for _, tc := range cases {
-		if got := assetPluginUsesTrustedServiceClient(tc.baseURL); got != tc.want {
-			t.Fatalf("assetPluginUsesTrustedServiceClient(%q) = %v, want %v", tc.baseURL, got, tc.want)
+		if got := geocodingUsesTrustedServiceClient(tc.baseURL); got != tc.want {
+			t.Fatalf("geocodingUsesTrustedServiceClient(%q) = %v, want %v", tc.baseURL, got, tc.want)
 		}
 	}
 }
@@ -785,7 +785,7 @@ func TestAssetPluginWaypointForClusterRejectsStandaloneCluster(t *testing.T) {
 	}
 }
 
-func TestAssetPluginWaypointNameUsesOverpassPOI(t *testing.T) {
+func TestResolveWaypointNameUsesOverpassPOI(t *testing.T) {
 	reverseCalled := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -807,9 +807,9 @@ func TestAssetPluginWaypointNameUsesOverpassPOI(t *testing.T) {
 
 	t.Setenv("OVERPASS_API_URL", server.URL)
 	t.Setenv("NOMINATIM_URL", server.URL)
-	withAssetPluginWaypointNameHTTPClient(t, server.Client())
+	withWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), nil, 46, 8, 50)
+	name, err := resolveWaypointName(context.Background(), nil, 46, 8, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -821,7 +821,7 @@ func TestAssetPluginWaypointNameUsesOverpassPOI(t *testing.T) {
 	}
 }
 
-func TestAssetPluginWaypointNameFallsBackToNominatim(t *testing.T) {
+func TestResolveWaypointNameFallsBackToNominatim(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/interpreter":
@@ -841,9 +841,9 @@ func TestAssetPluginWaypointNameFallsBackToNominatim(t *testing.T) {
 
 	t.Setenv("OVERPASS_API_URL", server.URL)
 	t.Setenv("NOMINATIM_URL", server.URL)
-	withAssetPluginWaypointNameHTTPClient(t, server.Client())
+	withWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), nil, 46, 8, 50)
+	name, err := resolveWaypointName(context.Background(), nil, 46, 8, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -852,7 +852,7 @@ func TestAssetPluginWaypointNameFallsBackToNominatim(t *testing.T) {
 	}
 }
 
-func TestAssetPluginWaypointNameFallsBackToLowerNominatimZoom(t *testing.T) {
+func TestResolveWaypointNameFallsBackToLowerNominatimZoom(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/interpreter":
@@ -873,9 +873,9 @@ func TestAssetPluginWaypointNameFallsBackToLowerNominatimZoom(t *testing.T) {
 
 	t.Setenv("OVERPASS_API_URL", server.URL)
 	t.Setenv("NOMINATIM_URL", server.URL)
-	withAssetPluginWaypointNameHTTPClient(t, server.Client())
+	withWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), nil, 46, 8, 50)
+	name, err := resolveWaypointName(context.Background(), nil, 46, 8, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -884,7 +884,7 @@ func TestAssetPluginWaypointNameFallsBackToLowerNominatimZoom(t *testing.T) {
 	}
 }
 
-func TestAssetPluginWaypointNameFallsBackToCoordinates(t *testing.T) {
+func TestResolveWaypointNameFallsBackToCoordinates(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/interpreter":
@@ -901,9 +901,9 @@ func TestAssetPluginWaypointNameFallsBackToCoordinates(t *testing.T) {
 
 	t.Setenv("OVERPASS_API_URL", server.URL)
 	t.Setenv("NOMINATIM_URL", server.URL)
-	withAssetPluginWaypointNameHTTPClient(t, server.Client())
+	withWaypointNameHTTPClient(t, server.Client())
 
-	name, err := assetPluginWaypointName(context.Background(), nil, 46.123456, 8.654321, 50)
+	name, err := resolveWaypointName(context.Background(), nil, 46.123456, 8.654321, 50)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -912,15 +912,15 @@ func TestAssetPluginWaypointNameFallsBackToCoordinates(t *testing.T) {
 	}
 }
 
-func withAssetPluginWaypointNameHTTPClient(t *testing.T, client *http.Client) {
+func withWaypointNameHTTPClient(t *testing.T, client *http.Client) {
 	t.Helper()
-	oldClient := assetPluginWaypointNameHTTPClient
-	oldLastNominatimCall := assetPluginLastNominatimCall
-	assetPluginWaypointNameHTTPClient = client
-	assetPluginLastNominatimCall = time.Time{}
+	oldClient := waypointNameHTTPClient
+	oldLastNominatimCall := waypointNameLastNominatimCall
+	waypointNameHTTPClient = client
+	waypointNameLastNominatimCall = time.Time{}
 	t.Cleanup(func() {
-		assetPluginWaypointNameHTTPClient = oldClient
-		assetPluginLastNominatimCall = oldLastNominatimCall
+		waypointNameHTTPClient = oldClient
+		waypointNameLastNominatimCall = oldLastNominatimCall
 	})
 }
 

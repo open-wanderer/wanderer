@@ -18,101 +18,101 @@ import (
 )
 
 const (
-	assetPluginOverpassDefaultURL  = "https://overpass-api.de"
-	assetPluginNominatimDefaultURL = "https://nominatim.openstreetmap.org"
-	assetPluginNominatimMinDelay   = time.Second
-	assetPluginHTTPResponseLimit   = 1 << 20
+	waypointNameOverpassDefaultURL  = "https://overpass-api.de"
+	waypointNameNominatimDefaultURL = "https://nominatim.openstreetmap.org"
+	waypointNameNominatimMinDelay   = time.Second
+	waypointNameHTTPResponseLimit   = 1 << 20
 )
 
 var (
-	assetPluginWaypointNameDefaultHTTPClient = &http.Client{
+	waypointNameDefaultHTTPClient = &http.Client{
 		Timeout:       8 * time.Second,
-		CheckRedirect: assetPluginTrustedServiceRedirectPolicy,
+		CheckRedirect: geocodingTrustedServiceRedirectPolicy,
 	}
-	assetPluginWaypointNameHTTPClient = assetPluginWaypointNameDefaultHTTPClient
-	assetPluginNominatimMu            sync.Mutex
-	assetPluginLastNominatimCall      time.Time
-	assetPluginNominatimZoomLevels    = []int{18, 16, 14, 12, 10}
+	waypointNameHTTPClient          = waypointNameDefaultHTTPClient
+	waypointNameNominatimMu         sync.Mutex
+	waypointNameLastNominatimCall   time.Time
+	waypointNameNominatimZoomLevels = []int{18, 16, 14, 12, 10}
 )
 
-type assetPluginOverpassResponse struct {
-	Elements []assetPluginOverpassElement `json:"elements"`
+type waypointNameOverpassResponse struct {
+	Elements []waypointNameOverpassElement `json:"elements"`
 }
 
-type assetPluginOverpassElement struct {
-	Type   string            `json:"type"`
-	ID     int64             `json:"id"`
-	Lat    float64           `json:"lat"`
-	Lon    float64           `json:"lon"`
-	Center *assetPluginCoord `json:"center"`
-	Tags   map[string]string `json:"tags"`
+type waypointNameOverpassElement struct {
+	Type   string             `json:"type"`
+	ID     int64              `json:"id"`
+	Lat    float64            `json:"lat"`
+	Lon    float64            `json:"lon"`
+	Center *waypointNameCoord `json:"center"`
+	Tags   map[string]string  `json:"tags"`
 }
 
-type assetPluginCoord struct {
+type waypointNameCoord struct {
 	Lat float64 `json:"lat"`
 	Lon float64 `json:"lon"`
 }
 
-type assetPluginNominatimReverseResponse struct {
+type waypointNameNominatimReverseResponse struct {
 	Name        string            `json:"name"`
 	DisplayName string            `json:"display_name"`
 	Address     map[string]string `json:"address"`
 }
 
-func assetPluginWaypointName(ctx context.Context, logger *slog.Logger, lat float64, lon float64, radius float64) (string, error) {
+func resolveWaypointName(ctx context.Context, logger *slog.Logger, lat float64, lon float64, radius float64) (string, error) {
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
 		return "", nil
 	}
 
-	poiName, poiErr := assetPluginOverpassPOIName(ctx, lat, lon, radius)
+	poiName, poiErr := waypointNameFromOverpassPOI(ctx, lat, lon, radius)
 	if poiName != "" {
-		assetPluginLogResolved(logger, "overpass", poiName, lat, lon, radius, nil)
+		logResolvedWaypointName(logger, "overpass", poiName, lat, lon, radius, nil)
 		return poiName, nil
 	}
 
-	reverseName, reverseErr := assetPluginNominatimReverseName(ctx, lat, lon)
+	reverseName, reverseErr := waypointNameFromNominatim(ctx, lat, lon)
 	if reverseName != "" {
-		assetPluginLogResolved(logger, "nominatim", reverseName, lat, lon, radius, nil)
+		logResolvedWaypointName(logger, "nominatim", reverseName, lat, lon, radius, nil)
 		return reverseName, nil
 	}
 
-	fallbackName := assetPluginCoordinateWaypointName(lat, lon)
+	fallbackName := coordinateWaypointName(lat, lon)
 	if reverseErr != nil {
-		assetPluginLogResolved(logger, "coordinate", fallbackName, lat, lon, radius, reverseErr)
+		logResolvedWaypointName(logger, "coordinate", fallbackName, lat, lon, radius, reverseErr)
 		return fallbackName, nil
 	}
 	if poiErr != nil {
-		assetPluginLogResolved(logger, "coordinate", fallbackName, lat, lon, radius, poiErr)
+		logResolvedWaypointName(logger, "coordinate", fallbackName, lat, lon, radius, poiErr)
 		return fallbackName, nil
 	}
-	assetPluginLogResolved(logger, "coordinate", fallbackName, lat, lon, radius, nil)
+	logResolvedWaypointName(logger, "coordinate", fallbackName, lat, lon, radius, nil)
 	return fallbackName, nil
 }
 
-func assetPluginOverpassPOIName(ctx context.Context, lat float64, lon float64, radius float64) (string, error) {
+func waypointNameFromOverpassPOI(ctx context.Context, lat float64, lon float64, radius float64) (string, error) {
 	radiusMeters := int(math.Ceil(radius))
 	if radiusMeters <= 0 {
 		return "", nil
 	}
 
-	baseURL := assetPluginExternalServiceBaseURL("OVERPASS_API_URL", assetPluginOverpassDefaultURL)
-	requestURL, err := assetPluginExternalServiceURL(
+	baseURL := geocodingExternalServiceBaseURL("OVERPASS_API_URL", waypointNameOverpassDefaultURL)
+	requestURL, err := geocodingExternalServiceURL(
 		baseURL,
 		"/api/interpreter",
-		url.Values{"data": []string{assetPluginOverpassPOIQuery(lat, lon, radiusMeters)}},
+		url.Values{"data": []string{waypointNameOverpassPOIQuery(lat, lon, radiusMeters)}},
 	)
 	if err != nil {
 		return "", err
 	}
 
-	var result assetPluginOverpassResponse
-	if err := assetPluginFetchJSON(ctx, baseURL, requestURL, &result); err != nil {
+	var result waypointNameOverpassResponse
+	if err := geocodingFetchJSON(ctx, baseURL, requestURL, &result); err != nil {
 		return "", err
 	}
-	return assetPluginBestOverpassPOIName(result.Elements, lat, lon, radius), nil
+	return bestWaypointNameFromOverpass(result.Elements, lat, lon, radius), nil
 }
 
-func assetPluginOverpassPOIQuery(lat float64, lon float64, radiusMeters int) string {
+func waypointNameOverpassPOIQuery(lat float64, lon float64, radiusMeters int) string {
 	return fmt.Sprintf(`[out:json][timeout:5];
 (
   nwr(around:%d,%.7f,%.7f)["name"]["tourism"~"^(attraction|viewpoint|museum|gallery|artwork|information|picnic_site|alpine_hut|wilderness_hut)$"];
@@ -134,16 +134,16 @@ out center 20;`,
 	)
 }
 
-func assetPluginBestOverpassPOIName(elements []assetPluginOverpassElement, lat float64, lon float64, radius float64) string {
+func bestWaypointNameFromOverpass(elements []waypointNameOverpassElement, lat float64, lon float64, radius float64) string {
 	bestName := ""
 	bestScore := 0
 	bestDistance := math.MaxFloat64
 	for _, element := range elements {
-		name := assetPluginCleanWaypointName(element.Tags["name"])
+		name := cleanWaypointName(element.Tags["name"])
 		if name == "" {
 			continue
 		}
-		poiLat, poiLon, ok := assetPluginOverpassElementCoord(element)
+		poiLat, poiLon, ok := waypointNameOverpassElementCoord(element)
 		if !ok {
 			continue
 		}
@@ -151,7 +151,7 @@ func assetPluginBestOverpassPOIName(elements []assetPluginOverpassElement, lat f
 		if radius > 0 && distance > radius {
 			continue
 		}
-		score := assetPluginPOIScore(element.Tags)
+		score := waypointNamePOIScore(element.Tags)
 		if score == 0 {
 			continue
 		}
@@ -164,7 +164,7 @@ func assetPluginBestOverpassPOIName(elements []assetPluginOverpassElement, lat f
 	return bestName
 }
 
-func assetPluginOverpassElementCoord(element assetPluginOverpassElement) (float64, float64, bool) {
+func waypointNameOverpassElementCoord(element waypointNameOverpassElement) (float64, float64, bool) {
 	if element.Type == "node" {
 		return element.Lat, element.Lon, element.Lat >= -90 && element.Lat <= 90 && element.Lon >= -180 && element.Lon <= 180
 	}
@@ -174,7 +174,7 @@ func assetPluginOverpassElementCoord(element assetPluginOverpassElement) (float6
 	return 0, 0, false
 }
 
-func assetPluginPOIScore(tags map[string]string) int {
+func waypointNamePOIScore(tags map[string]string) int {
 	switch tags["tourism"] {
 	case "attraction", "viewpoint", "museum", "gallery", "artwork":
 		return 100
@@ -206,11 +206,11 @@ func assetPluginPOIScore(tags map[string]string) int {
 	return 0
 }
 
-func assetPluginNominatimReverseName(ctx context.Context, lat float64, lon float64) (string, error) {
-	baseURL := assetPluginExternalServiceBaseURL("NOMINATIM_URL", assetPluginNominatimDefaultURL)
+func waypointNameFromNominatim(ctx context.Context, lat float64, lon float64) (string, error) {
+	baseURL := geocodingExternalServiceBaseURL("NOMINATIM_URL", waypointNameNominatimDefaultURL)
 	var lastErr error
-	for _, zoom := range assetPluginNominatimZoomLevels {
-		name, err := assetPluginNominatimReverseNameAtZoom(ctx, baseURL, lat, lon, zoom)
+	for _, zoom := range waypointNameNominatimZoomLevels {
+		name, err := waypointNameFromNominatimAtZoom(ctx, baseURL, lat, lon, zoom)
 		if name != "" {
 			return name, nil
 		}
@@ -222,8 +222,8 @@ func assetPluginNominatimReverseName(ctx context.Context, lat float64, lon float
 	return "", lastErr
 }
 
-func assetPluginNominatimReverseNameAtZoom(ctx context.Context, baseURL string, lat float64, lon float64, zoom int) (string, error) {
-	requestURL, err := assetPluginExternalServiceURL(
+func waypointNameFromNominatimAtZoom(ctx context.Context, baseURL string, lat float64, lon float64, zoom int) (string, error) {
+	requestURL, err := geocodingExternalServiceURL(
 		baseURL,
 		"/reverse",
 		url.Values{
@@ -238,19 +238,19 @@ func assetPluginNominatimReverseNameAtZoom(ctx context.Context, baseURL string, 
 		return "", err
 	}
 
-	if err := assetPluginNominatimRateLimit(ctx, baseURL); err != nil {
+	if err := nominatimRateLimit(ctx, baseURL); err != nil {
 		return "", err
 	}
 
-	var result assetPluginNominatimReverseResponse
-	if err := assetPluginFetchJSON(ctx, baseURL, requestURL, &result); err != nil {
+	var result waypointNameNominatimReverseResponse
+	if err := geocodingFetchJSON(ctx, baseURL, requestURL, &result); err != nil {
 		return "", err
 	}
-	return assetPluginNominatimWaypointName(result), nil
+	return waypointNameFromNominatimResponse(result), nil
 }
 
-func assetPluginNominatimWaypointName(result assetPluginNominatimReverseResponse) string {
-	if name := assetPluginCleanWaypointName(result.Name); name != "" {
+func waypointNameFromNominatimResponse(result waypointNameNominatimReverseResponse) string {
+	if name := cleanWaypointName(result.Name); name != "" {
 		return name
 	}
 
@@ -278,29 +278,29 @@ func assetPluginNominatimWaypointName(result assetPluginNominatimReverseResponse
 		"state",
 	}
 	for _, key := range addressKeys {
-		if name := assetPluginCleanWaypointName(result.Address[key]); name != "" {
+		if name := cleanWaypointName(result.Address[key]); name != "" {
 			return name
 		}
 	}
 
 	for _, part := range strings.Split(result.DisplayName, ",") {
-		name := assetPluginCleanWaypointName(part)
-		if name != "" && !assetPluginLooksLikeHouseNumber(name) {
+		name := cleanWaypointName(part)
+		if name != "" && !looksLikeHouseNumber(name) {
 			return name
 		}
 	}
 	return ""
 }
 
-func assetPluginNominatimRateLimit(ctx context.Context, baseURL string) error {
+func nominatimRateLimit(ctx context.Context, baseURL string) error {
 	if !strings.Contains(baseURL, "nominatim.openstreetmap.org") {
 		return nil
 	}
 
-	assetPluginNominatimMu.Lock()
-	defer assetPluginNominatimMu.Unlock()
+	waypointNameNominatimMu.Lock()
+	defer waypointNameNominatimMu.Unlock()
 
-	wait := assetPluginNominatimMinDelay - time.Since(assetPluginLastNominatimCall)
+	wait := waypointNameNominatimMinDelay - time.Since(waypointNameLastNominatimCall)
 	if wait > 0 {
 		timer := time.NewTimer(wait)
 		defer timer.Stop()
@@ -310,30 +310,30 @@ func assetPluginNominatimRateLimit(ctx context.Context, baseURL string) error {
 		case <-timer.C:
 		}
 	}
-	assetPluginLastNominatimCall = time.Now()
+	waypointNameLastNominatimCall = time.Now()
 	return nil
 }
 
-func assetPluginFetchJSON(ctx context.Context, baseURL string, requestURL string, out any) error {
-	headers := assetPluginFetchHeaders()
-	if assetPluginWaypointNameHTTPClient != assetPluginWaypointNameDefaultHTTPClient || assetPluginUsesTrustedServiceClient(baseURL) {
-		return assetPluginFetchJSONWithClient(ctx, requestURL, out, headers)
+func geocodingFetchJSON(ctx context.Context, baseURL string, requestURL string, out any) error {
+	headers := geocodingFetchHeaders()
+	if waypointNameHTTPClient != waypointNameDefaultHTTPClient || geocodingUsesTrustedServiceClient(baseURL) {
+		return geocodingFetchJSONWithClient(ctx, requestURL, out, headers)
 	}
 
-	fetched, err := util.FetchPublicURLWithHeaders(ctx, requestURL, assetPluginHTTPResponseLimit, headers)
+	fetched, err := util.FetchPublicURLWithHeaders(ctx, requestURL, waypointNameHTTPResponseLimit, headers)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(fetched.Body, out)
 }
 
-func assetPluginUsesTrustedServiceClient(baseURL string) bool {
-	normalized := strings.TrimRight(assetPluginNormalizeBaseURL(baseURL), "/")
-	return normalized != strings.TrimRight(assetPluginOverpassDefaultURL, "/") &&
-		normalized != strings.TrimRight(assetPluginNominatimDefaultURL, "/")
+func geocodingUsesTrustedServiceClient(baseURL string) bool {
+	normalized := strings.TrimRight(normalizeGeocodingBaseURL(baseURL), "/")
+	return normalized != strings.TrimRight(waypointNameOverpassDefaultURL, "/") &&
+		normalized != strings.TrimRight(waypointNameNominatimDefaultURL, "/")
 }
 
-func assetPluginTrustedServiceRedirectPolicy(req *http.Request, via []*http.Request) error {
+func geocodingTrustedServiceRedirectPolicy(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return fmt.Errorf("stopped after 10 redirects")
 	}
@@ -347,7 +347,7 @@ func assetPluginTrustedServiceRedirectPolicy(req *http.Request, via []*http.Requ
 	return nil
 }
 
-func assetPluginFetchJSONWithClient(ctx context.Context, requestURL string, out any, headers map[string]string) error {
+func geocodingFetchJSONWithClient(ctx context.Context, requestURL string, out any, headers map[string]string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
 		return err
@@ -356,7 +356,7 @@ func assetPluginFetchJSONWithClient(ctx context.Context, requestURL string, out 
 		req.Header.Set(key, value)
 	}
 
-	resp, err := assetPluginWaypointNameHTTPClient.Do(req)
+	resp, err := waypointNameHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -367,10 +367,10 @@ func assetPluginFetchJSONWithClient(ctx context.Context, requestURL string, out 
 		return fmt.Errorf("GET %s failed with status %d: %s", requestURL, resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
-	return json.NewDecoder(io.LimitReader(resp.Body, assetPluginHTTPResponseLimit)).Decode(out)
+	return json.NewDecoder(io.LimitReader(resp.Body, waypointNameHTTPResponseLimit)).Decode(out)
 }
 
-func assetPluginFetchHeaders() map[string]string {
+func geocodingFetchHeaders() map[string]string {
 	headers := map[string]string{
 		"Accept":     "application/json",
 		"User-Agent": "wanderer",
@@ -381,7 +381,7 @@ func assetPluginFetchHeaders() map[string]string {
 	return headers
 }
 
-func assetPluginExternalServiceBaseURL(key string, fallback string) string {
+func geocodingExternalServiceBaseURL(key string, fallback string) string {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
 		raw = strings.TrimSpace(os.Getenv("PUBLIC_" + key))
@@ -389,10 +389,10 @@ func assetPluginExternalServiceBaseURL(key string, fallback string) string {
 	if raw == "" {
 		raw = fallback
 	}
-	return assetPluginNormalizeBaseURL(raw)
+	return normalizeGeocodingBaseURL(raw)
 }
 
-func assetPluginNormalizeBaseURL(raw string) string {
+func normalizeGeocodingBaseURL(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return ""
@@ -403,8 +403,8 @@ func assetPluginNormalizeBaseURL(raw string) string {
 	return raw
 }
 
-func assetPluginExternalServiceURL(baseURL string, path string, params url.Values) (string, error) {
-	baseURL = assetPluginNormalizeBaseURL(baseURL)
+func geocodingExternalServiceURL(baseURL string, path string, params url.Values) (string, error) {
+	baseURL = normalizeGeocodingBaseURL(baseURL)
 	if baseURL == "" {
 		return "", fmt.Errorf("base URL is empty")
 	}
@@ -425,7 +425,7 @@ func assetPluginExternalServiceURL(baseURL string, path string, params url.Value
 	return requestURL.String(), nil
 }
 
-func assetPluginCleanWaypointName(name string) string {
+func cleanWaypointName(name string) string {
 	name = strings.Join(strings.Fields(strings.TrimSpace(name)), " ")
 	if len([]rune(name)) <= 120 {
 		return name
@@ -434,11 +434,11 @@ func assetPluginCleanWaypointName(name string) string {
 	return strings.TrimSpace(string(runes[:120]))
 }
 
-func assetPluginCoordinateWaypointName(lat float64, lon float64) string {
+func coordinateWaypointName(lat float64, lon float64) string {
 	return fmt.Sprintf("%.5f, %.5f", lat, lon)
 }
 
-func assetPluginLooksLikeHouseNumber(name string) bool {
+func looksLikeHouseNumber(name string) bool {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return false
@@ -460,7 +460,7 @@ func assetPluginLooksLikeHouseNumber(name string) bool {
 	return hasDigit
 }
 
-func assetPluginLogResolved(logger *slog.Logger, source string, name string, lat float64, lon float64, radius float64, err error) {
+func logResolvedWaypointName(logger *slog.Logger, source string, name string, lat float64, lon float64, radius float64, err error) {
 	if logger == nil {
 		return
 	}
@@ -474,5 +474,5 @@ func assetPluginLogResolved(logger *slog.Logger, source string, name string, lat
 	if err != nil {
 		args = append(args, "fallback_error", err)
 	}
-	logger.Info("asset plugin waypoint name resolved", args...)
+	logger.Info("waypoint name resolved", args...)
 }

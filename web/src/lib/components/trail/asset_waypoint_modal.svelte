@@ -31,6 +31,7 @@
         lat: number;
         lon: number;
         waypoint?: string;
+        name?: string;
         photos: string[];
     }
 
@@ -90,6 +91,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 category,
+                resolveNames: true,
                 photos: inputs.map((input) => ({
                     id: input.id,
                     lat: input.lat,
@@ -129,12 +131,11 @@
         const existing = cluster.waypoint
             ? existingWaypoints.find((waypoint) => waypoint.id === cluster.waypoint)
             : undefined;
-        const firstCandidate = candidates[0];
         const wandererCandidates = candidates.filter((candidate) => candidate.source === "wanderer");
         const pluginCandidates = candidates.filter((candidate) => candidate.source !== "wanderer");
         const waypoint = new Waypoint(existing?.lat ?? cluster.lat, existing?.lon ?? cluster.lon, {
             id: existing?.id,
-            name: existing?.name || firstCandidate?.originalFileName,
+            name: existing ? existing.name : cluster.name,
             icon: existing?.icon ?? "camera",
             photos: Array.from(new Set([
                 ...(existing?.photos ?? []),
