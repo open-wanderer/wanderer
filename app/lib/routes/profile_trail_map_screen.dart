@@ -640,10 +640,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                 ),
                 ml.MapScalebar(
                   alignment: Alignment.topLeft,
-                  padding: EdgeInsets.only(
-                    left: 24,
-                    top: topOverlayClearance + 4,
-                  ),
+                  padding: EdgeInsets.only(left: 24, top: kToolbarHeight + 24),
                 ),
                 WandererAttribution(
                   alignment: Alignment.bottomLeft,

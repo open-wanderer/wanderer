@@ -125,7 +125,9 @@ class LocationMarkerLayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final positionStream = ref.watch(foregroundPositionStreamProvider);
+    // liveLocationProvider (not the raw stream) so the receiver is held open
+    // only while this layer is mounted.
+    final positionStream = ref.watch(liveLocationProvider);
     return StreamBuilder<LocationMarkerPosition?>(
       stream: positionStream,
       builder: (context, snapshot) {

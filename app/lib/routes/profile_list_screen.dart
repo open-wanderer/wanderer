@@ -55,6 +55,7 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
         title: Text(AppLocalizations.of(context)!.list(2)),
       ),
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),

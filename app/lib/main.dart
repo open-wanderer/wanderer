@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:maplibre/maplibre.dart' as ml;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -53,6 +54,10 @@ void main() async {
     ignoreExpires: false,
   );
 
+  // Fire-and-forget: the setting persists in MapLibre's own database, and a
+  // map surfacing before it lands only misses caching for the first tiles.
+  unawaited(_raiseAmbientTileCacheSize());
+
   runApp(
     ProviderScope(
       overrides: [
@@ -63,6 +68,32 @@ void main() async {
       child: MainApp(),
     ),
   );
+}
+
+/// Raises MapLibre's ambient tile cache above its 50 MB default.
+///
+/// Measured panning pulls roughly 80 MB of tiles per 90 seconds, so at the
+/// default the cache evicts faster than it fills and panning back over ground
+/// covered a minute ago refetches all of it. Every byte the app pulls is
+/// camera-driven tile traffic (an idle map measured exactly zero), so this is
+/// the main lever on data use.
+///
+/// Best-effort: unsupported platforms and native failures are logged and
+/// ignored, since a wrong cache size must never stop the app from starting.
+Future<void> _raiseAmbientTileCacheSize() async {
+  if (!ml.OfflineManager.isSupported) return;
+  try {
+    final manager = await ml.OfflineManager.createInstance();
+    try {
+      await manager.setMaximumAmbientCacheSize(bytes: 256 * 1024 * 1024);
+    } finally {
+      // Releases this JNI handle only — the native manager is a singleton
+      // and the cache setting persists in its database.
+      manager.dispose();
+    }
+  } catch (e) {
+    debugPrint('main: ambient tile cache size not applied — $e');
+  }
 }
 
 class MainApp extends ConsumerStatefulWidget {

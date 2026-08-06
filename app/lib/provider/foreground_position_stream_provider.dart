@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -38,16 +40,100 @@ class PermissionDeniedException implements Exception {
 /// later enables GPS manually, [getServiceStatusStream] fires [enabled]
 /// and we restart [getPositionStream] so the location marker appears
 /// without requiring another navigation or app restart.
+///
+/// The GPS hardware itself is *not* tied to that controller's lifetime — it
+/// is reference counted via [ForegroundPositionStream.acquire]/[release].
+/// Previously the ghost subscription meant nothing could ever stop the
+/// stream, so the receiver ran at 100% duty cycle for the whole app session
+/// (measured) even on screens with no map, which in turn drove continuous
+/// Play Services WiFi scanning. Consumers now declare their demand instead:
+/// use [liveLocationProvider] for a live marker, or
+/// [ForegroundPositionStream.currentFix] for a single fix.
 final foregroundPositionStreamProvider =
     NotifierProvider<ForegroundPositionStream, Stream<LocationMarkerPosition?>>(
   ForegroundPositionStream.new,
 );
+
+/// Scopes a live GPS subscription to widget lifetime.
+///
+/// Watching this acquires the receiver; when the last watcher is disposed
+/// the receiver stops. Returns the same broadcast stream as
+/// [foregroundPositionStreamProvider] so error handling (service disabled /
+/// permission denied) is unchanged for callers.
+final liveLocationProvider =
+    Provider.autoDispose<Stream<LocationMarkerPosition?>>((ref) {
+  final notifier = ref.read(foregroundPositionStreamProvider.notifier);
+  notifier.acquire();
+  ref.onDispose(notifier.release);
+  return ref.read(foregroundPositionStreamProvider);
+});
 
 class ForegroundPositionStream
     extends Notifier<Stream<LocationMarkerPosition?>> {
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<ServiceStatus>? _statusSub;
   late StreamController<LocationMarkerPosition?> _controller;
+
+  /// Number of live consumers. The receiver runs only while this is > 0.
+  int _consumers = 0;
+
+  /// Whether a start attempt has already been allowed to raise the system
+  /// "Turn on GPS?" dialog this session. See [_startPositionStream].
+  bool _promptedForService = false;
+
+  /// `best` requests the most expensive mode the hardware offers; `high`
+  /// (~10m) is ample for a map dot. The distance filter is what actually
+  /// stops the Play Services location churn — a stationary device produces
+  /// no callbacks at all, rather than a fix every second.
+  static LocationSettings get _settings {
+    const accuracy = LocationAccuracy.high;
+    const distanceFilter = 10; // metres
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return AndroidSettings(
+          accuracy: accuracy,
+          distanceFilter: distanceFilter,
+          intervalDuration: const Duration(seconds: 2),
+        );
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return AppleSettings(
+          accuracy: accuracy,
+          distanceFilter: distanceFilter,
+        );
+      default:
+        return const LocationSettings(
+          accuracy: accuracy,
+          distanceFilter: distanceFilter,
+        );
+    }
+  }
+
+  /// Registers a live consumer, starting the receiver on the first one.
+  void acquire() {
+    if (_consumers++ == 0) unawaited(_startPositionStream());
+  }
+
+  /// Releases a live consumer, stopping the receiver once none remain.
+  void release() {
+    if (_consumers > 0 && --_consumers == 0) _cancelPosition();
+  }
+
+  /// Resolves a single GPS fix, holding the receiver open only as long as it
+  /// takes. Returns `null` on timeout, denial, or a disabled location
+  /// service — every existing caller already treats a miss as non-fatal.
+  Future<LocationMarkerPosition?> currentFix({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    acquire();
+    try {
+      return await state.firstWhere((p) => p != null).timeout(timeout);
+    } catch (_) {
+      return null;
+    } finally {
+      release();
+    }
+  }
 
   void _cancelPosition() {
     _positionSub?.cancel();
@@ -70,7 +156,23 @@ class ForegroundPositionStream
     }
     if (_controller.isClosed) return;
 
-    _positionSub = Geolocator.getPositionStream().listen(
+    // Subscribing while location services are off is what raises the system
+    // "Turn on GPS?" dialog. Reference counting means this can now run many
+    // times per session, so only the first attempt is allowed to raise it —
+    // later ones surface the disabled state instead. This preserves the
+    // at-most-once-per-session dialog contract the ghost subscription below
+    // was originally introduced to guarantee.
+    if (_promptedForService && !await Geolocator.isLocationServiceEnabled()) {
+      if (!_controller.isClosed) {
+        _controller.addError(const ServiceDisabledException());
+      }
+      return;
+    }
+    _promptedForService = true;
+    if (_controller.isClosed) return;
+
+    _positionSub =
+        Geolocator.getPositionStream(locationSettings: _settings).listen(
       (pos) {
         if (!_controller.isClosed) {
           _controller.add(LocationMarkerPosition(
@@ -98,7 +200,11 @@ class ForegroundPositionStream
           if (_controller.isClosed) return;
           if (status == ServiceStatus.enabled) {
             _controller.add(null); // reset layer to "locating"
-            unawaited(_startPositionStream()); // restart after GPS was re-enabled
+            // Only resume if something is actually watching; otherwise the
+            // receiver would restart on a GPS toggle with no consumer.
+            if (_consumers > 0) {
+              unawaited(_startPositionStream());
+            }
           } else {
             _cancelPosition();
             _controller.addError(const ServiceDisabledException());
@@ -112,13 +218,6 @@ class ForegroundPositionStream
         if (!serviceEnabled) {
           _controller.addError(const ServiceDisabledException());
         }
-
-        // Subscribe to the live position stream.
-        // On Android + Google Play Services this triggers the "Turn on GPS?"
-        // system dialog when location services are disabled.
-        // Because the ghost subscription below keeps this controller alive,
-        // onListen fires only once per session — the dialog appears at most once.
-        await _startPositionStream();
       },
     );
 
@@ -128,7 +227,10 @@ class ForegroundPositionStream
       _controller.close();
     });
 
-    // Ghost subscription: keeps the broadcast stream alive between navigations.
+    // Ghost subscription: keeps the broadcast stream alive between
+    // navigations so onListen (and therefore the service-status listener)
+    // is set up exactly once per session. It deliberately does not start
+    // the receiver — acquire() does.
     final ghost = _controller.stream.listen(null, onError: (_) {});
     ref.onDispose(ghost.cancel);
 

@@ -11,7 +11,8 @@
     },
     "hillshadeSource": {
       "type": "raster-dem",
-      "url": "https://tiles.mapterhorn.com/tilejson.json"
+      "url": "https://tiles.mapterhorn.com/tilejson.json",
+      "maxzoom": 12
     }
   },
   "layers": [

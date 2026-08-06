@@ -196,6 +196,15 @@ class _TrailMapState extends ConsumerState<TrailMap> {
             ? const ml.MapGestures.none()
             : const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
+        // MapLibre's texture mode renders into a TextureView, costing a
+        // GPU→CPU→GPU copy per frame — measured at 76% of a core on the
+        // TextureViewRend thread alone while panning. SurfaceView renders
+        // direct. `hc` is required alongside it: with textureMode off, the
+        // default `tlhc_vd` falls back to Virtual Display (its own slow
+        // path), whereas Hybrid Composition keeps correct z-ordering for
+        // the Flutter marker layers drawn over the map.
+        androidTextureMode: false,
+        androidMode: ml.AndroidPlatformViewMode.hc,
       ),
       onMapCreated: (controller) {
         _controller = controller;

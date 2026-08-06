@@ -99,15 +99,9 @@ class _TrailSourceSelectScreenState
           .read(onlineStatusProvider.notifier)
           .refresh()
           .then((online) => !online);
-      LocationMarkerPosition? pos;
-      try {
-        pos = await ref
-            .read(foregroundPositionStreamProvider)
-            .firstWhere((p) => p != null)
-            .timeout(const Duration(seconds: 20));
-      } catch (_) {
-        pos = null;
-      }
+      final pos = await ref
+          .read(foregroundPositionStreamProvider.notifier)
+          .currentFix(timeout: const Duration(seconds: 20));
       if (!mounted) return;
       if (pos == null) {
         showError(l10n.location_unavailable);
@@ -159,16 +153,11 @@ class _TrailSourceSelectScreenState
 
     if (settings?.behavior?.allowAutoGeolocate != true) return fallback;
 
-    try {
-      final pos = await ref
-          .read(foregroundPositionStreamProvider)
-          .firstWhere((p) => p != null)
-          .timeout(const Duration(seconds: 4));
-      if (pos == null) return fallback;
-      return Geographic(lat: pos.latitude, lon: pos.longitude);
-    } catch (_) {
-      return fallback;
-    }
+    final pos = await ref
+        .read(foregroundPositionStreamProvider.notifier)
+        .currentFix(timeout: const Duration(seconds: 4));
+    if (pos == null) return fallback;
+    return Geographic(lat: pos.latitude, lon: pos.longitude);
   }
 
   Geographic _fallbackCenter(Settings? settings) {

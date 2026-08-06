@@ -131,16 +131,10 @@ Future<void> launchNavigation({
   // NavigationScreen. Short timeout and swallowed failure — unlike
   // `_openRecorder`'s blocking fetch, a miss here must never delay or block
   // starting navigation, since the tracelet fix will still arrive shortly.
-  Position? seedFix;
-  try {
-    final pos = await ref
-        .read(foregroundPositionStreamProvider)
-        .firstWhere((p) => p != null)
-        .timeout(const Duration(seconds: 3));
-    if (pos != null) seedFix = seedPositionFrom(pos);
-  } catch (_) {
-    seedFix = null;
-  }
+  final pos = await ref
+      .read(foregroundPositionStreamProvider.notifier)
+      .currentFix(timeout: const Duration(seconds: 3));
+  final Position? seedFix = pos == null ? null : seedPositionFrom(pos);
 
   final gpx = trail.expand?.gpx;
   if (gpx == null) {

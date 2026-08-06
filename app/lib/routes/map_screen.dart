@@ -109,9 +109,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     // Only chase a GPS fix when neither an explicit route target nor a
     // saved camera already decides the initial focus.
     if (widget.initialCenter == null && ref.read(mapCameraProvider) == null) {
+      // Held open until the seed fix lands (or the screen goes away), then
+      // released — see _cancelGpsSeed. Without the pairing the receiver
+      // would keep running for the rest of the app session.
+      ref.read(foregroundPositionStreamProvider.notifier).acquire();
       _gpsSub = ref.read(foregroundPositionStreamProvider).listen((position) {
         if (position == null || _resolvedGpsCenter != null) return;
-        _gpsSub?.cancel();
+        _cancelGpsSeed();
         final center = ml.Geographic(
           lat: position.latitude,
           lon: position.longitude,
@@ -201,9 +205,20 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
+  /// Cancels the one-shot seed subscription and releases the GPS receiver
+  /// acquired alongside it. Idempotent, because both the first fix and
+  /// [dispose] race to end the seed.
+  void _cancelGpsSeed() {
+    final sub = _gpsSub;
+    if (sub == null) return;
+    _gpsSub = null;
+    sub.cancel();
+    ref.read(foregroundPositionStreamProvider.notifier).release();
+  }
+
   @override
   void dispose() {
-    _gpsSub?.cancel();
+    _cancelGpsSeed();
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _sheetSize.dispose();
@@ -611,7 +626,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
               );
             },
             child: StreamBuilder<LocationMarkerPosition?>(
-              stream: ref.watch(foregroundPositionStreamProvider),
+              stream: ref.watch(liveLocationProvider),
               builder: (context, snapshot) {
                 final position = snapshot.data;
                 return Material(

@@ -106,6 +106,9 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap> {
             ? const ml.MapGestures.none()
             : const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
+        // See TrailMap for why texture mode is off and `hc` is pinned.
+        androidTextureMode: false,
+        androidMode: ml.AndroidPlatformViewMode.hc,
       ),
       onMapCreated: (controller) {
         _controller = controller;
