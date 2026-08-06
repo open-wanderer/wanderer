@@ -69,43 +69,50 @@ class WandererLayout extends ConsumerWidget {
         color: Theme.of(context).colorScheme.surface,
         height: kBottomNavigationBarHeight,
         padding: EdgeInsets.zero,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-              icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
-              label: AppLocalizations.of(context)!.trail(2),
-              selected: selectedIndex == 0,
-              selectedColor: selectedColor,
-              unselectedColor: unselectedColor,
-              onTap: () => onTap(0),
-            ),
-            _NavItem(
-              icon: const FaIcon(FontAwesomeIcons.list),
-              label: AppLocalizations.of(context)!.list(2),
-              selected: selectedIndex == 1,
-              selectedColor: selectedColor,
-              unselectedColor: unselectedColor,
-              onTap: () => onTap(1),
-            ),
-            const SizedBox(width: kBottomNavigationBarHeight - 16),
-            _NavItem(
-              icon: const FaIcon(FontAwesomeIcons.bookAtlas),
-              label: AppLocalizations.of(context)!.library,
-              selected: selectedIndex == 2,
-              selectedColor: selectedColor,
-              unselectedColor: unselectedColor,
-              onTap: () => onTap(2),
-            ),
-            _NavItem(
-              icon: _NavAvatar(user: user, isOnline: isOnline),
-              label: AppLocalizations.of(context)!.profile,
-              selected: selectedIndex == 3,
-              selectedColor: selectedColor,
-              unselectedColor: unselectedColor,
-              onTap: () => onTap(3),
-            ),
-          ],
+        // `extendBody: true` puts the page content directly behind the bar, and
+        // Material alone doesn't absorb pointer events — without this, taps in
+        // the gaps between nav items fall through to the page underneath.
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {},
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
+                label: AppLocalizations.of(context)!.trail(2),
+                selected: selectedIndex == 0,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
+                onTap: () => onTap(0),
+              ),
+              _NavItem(
+                icon: const FaIcon(FontAwesomeIcons.list),
+                label: AppLocalizations.of(context)!.list(2),
+                selected: selectedIndex == 1,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
+                onTap: () => onTap(1),
+              ),
+              const SizedBox(width: kBottomNavigationBarHeight - 16),
+              _NavItem(
+                icon: const FaIcon(FontAwesomeIcons.bookAtlas),
+                label: AppLocalizations.of(context)!.library,
+                selected: selectedIndex == 2,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
+                onTap: () => onTap(2),
+              ),
+              _NavItem(
+                icon: _NavAvatar(user: user, isOnline: isOnline),
+                label: AppLocalizations.of(context)!.profile,
+                selected: selectedIndex == 3,
+                selectedColor: selectedColor,
+                unselectedColor: unselectedColor,
+                onTap: () => onTap(3),
+              ),
+            ],
+          ),
         ),
       ),
       body:
