@@ -7,6 +7,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/map/map_marker_gestures.dart';
 import 'package:wanderer/components/map/trail_layer.dart'
     show TrailLayer, kTrailRouteColor;
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -106,7 +107,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
             return ml.Marker(
               point: ml.Geographic(lat: t.lat!, lon: t.lon!),
               size: const Size(36, 36),
-              child: GestureDetector(
+              child: MapMarkerGestures(
                 onTap: () => _onMarkerTap(t),
                 child: Container(
                   decoration: BoxDecoration(

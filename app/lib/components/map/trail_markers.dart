@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/category/category_icon.dart';
+import 'package:wanderer/components/map/map_marker_gestures.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/subcategory.dart';
@@ -57,7 +58,9 @@ List<ml.Marker> buildUnclusteredTrailMarkers({
       ml.Marker(
         point: ml.Geographic(lat: lat, lon: lon),
         size: const Size(36, 36),
-        child: GestureDetector(
+        // MapMarkerGestures, not GestureDetector: the marker must stay
+        // tappable without stealing the map's pan/pinch.
+        child: MapMarkerGestures(
           onTap: () => onTrailTap(trailId),
           child: Container(
             decoration: BoxDecoration(

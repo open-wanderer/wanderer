@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/map/map_marker_gestures.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
@@ -301,6 +302,11 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
 
     if (widget.showWaypoints &&
         widget.trail.expand?.waypointsViaTrail != null) {
+      // Drag handlers are registered only where dragging is actually wired up
+      // (the trail create/edit flow). Elsewhere they would take single-finger
+      // drags away from the map for nothing.
+      final isDraggable = widget.onWaypointDragEnd != null;
+
       for (final wp in widget.trail.expand!.waypointsViaTrail!) {
         final isSelected = widget.selectedWaypoint?.id == wp.id;
         final isDragging = _draggingWaypointId == wp.id;
@@ -312,36 +318,46 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
           ml.Marker(
             point: point,
             size: const Size(32, 32),
-            child: GestureDetector(
+            child: MapMarkerGestures(
               onTap: () => widget.onWaypointTap?.call(wp),
-              onPanStart: (details) {
-                final c = ml.MapController.maybeOf(context);
-                if (c == null || widget.onWaypointDragEnd == null) return;
-                setState(() {
-                  _draggingWaypointId = wp.id;
-                  _dragOffset = c.toScreenLocation(
-                    ml.Geographic(lon: wp.lon, lat: wp.lat),
-                  );
-                });
-              },
-              onPanUpdate: (details) {
-                if (_draggingWaypointId != wp.id || _dragOffset == null) {
-                  return;
-                }
-                setState(() => _dragOffset = _dragOffset! + details.delta);
-              },
-              onPanEnd: (details) {
-                if (_draggingWaypointId != wp.id) return;
-                final c = ml.MapController.maybeOf(context);
-                final offset = _dragOffset;
-                _clearDrag();
-                if (c != null && offset != null) {
-                  widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset));
-                }
-              },
-              onPanCancel: () {
-                if (_draggingWaypointId == wp.id) _clearDrag();
-              },
+              onPanStart: !isDraggable
+                  ? null
+                  : (details) {
+                      final c = ml.MapController.maybeOf(context);
+                      if (c == null) return;
+                      setState(() {
+                        _draggingWaypointId = wp.id;
+                        _dragOffset = c.toScreenLocation(
+                          ml.Geographic(lon: wp.lon, lat: wp.lat),
+                        );
+                      });
+                    },
+              onPanUpdate: !isDraggable
+                  ? null
+                  : (details) {
+                      if (_draggingWaypointId != wp.id || _dragOffset == null) {
+                        return;
+                      }
+                      setState(
+                        () => _dragOffset = _dragOffset! + details.delta,
+                      );
+                    },
+              onPanEnd: !isDraggable
+                  ? null
+                  : (details) {
+                      if (_draggingWaypointId != wp.id) return;
+                      final c = ml.MapController.maybeOf(context);
+                      final offset = _dragOffset;
+                      _clearDrag();
+                      if (c != null && offset != null) {
+                        widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset));
+                      }
+                    },
+              onPanCancel: !isDraggable
+                  ? null
+                  : () {
+                      if (_draggingWaypointId == wp.id) _clearDrag();
+                    },
               child: AnimatedScale(
                 scale: (isSelected || isDragging) ? 1.0 : 0.875,
                 duration: const Duration(milliseconds: 200),

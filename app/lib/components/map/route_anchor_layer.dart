@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/map/map_marker_gestures.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 
 /// Interactive route-anchor markers rendered as Flutter widgets over the
@@ -62,7 +63,9 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
         ml.Marker(
           point: point,
           size: const Size(32, 32),
-          child: GestureDetector(
+          // Anchors keep their single-finger drag; MapMarkerGestures only
+          // hands two-finger gestures back to the map.
+          child: MapMarkerGestures(
             onTap: () => widget.onAnchorTap?.call(anchor.id),
             onPanStart: (details) {
               final c = ml.MapController.maybeOf(context);
