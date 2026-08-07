@@ -16,6 +16,15 @@ abstract class ProfileFeedState with _$ProfileFeedState implements PagedState {
     required int perPage,
     required int totalPages,
     required int totalItems,
+
+    /// True only while a next-page fetch is actually in flight.
+    ///
+    /// Distinct from [hasMore], which merely says another page *exists*. The
+    /// feed's trailing spinner is gated on this: keyed on [hasMore] it stayed
+    /// mounted from first paint on any multi-page profile, and since a
+    /// `CircularProgressIndicator` drives a repeating ticker, that scheduled a
+    /// frame every vsync forever on an idle screen.
+    @Default(false) bool isLoadingMore,
   }) = _ProfileFeedState;
 
   const ProfileFeedState._();
@@ -42,6 +51,10 @@ class ProfileFeedNotifier extends _$ProfileFeedNotifier
     resetPaging();
     return await _fetchPage(handle: handle, page: 1);
   }
+
+  @override
+  ProfileFeedState withLoadingMore(ProfileFeedState current, bool value) =>
+      current.copyWith(isLoadingMore: value);
 
   @override
   Future<ProfileFeedState> appendPage(

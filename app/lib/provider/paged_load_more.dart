@@ -76,6 +76,20 @@ mixin PagedLoadMore<S extends PagedState> on $AsyncNotifier<S> {
   /// page through.
   bool canLoadMore(S current) => true;
 
+  /// Returns [current] carrying a "next page is in flight" marker, so screens
+  /// can show a loading affordance for exactly as long as a fetch is running.
+  ///
+  /// [_inFlight] cannot serve that purpose on its own: it is a plain field, so
+  /// flipping it notifies nobody and the UI never rebuilds to see it. The flag
+  /// has to live in the state for a screen to observe it.
+  ///
+  /// Defaults to returning [current] unchanged, which leaves every provider
+  /// that has no such affordance exactly as it was -- opting in costs one
+  /// override plus one field on the state. Overriders must not touch anything
+  /// else about [current]; this is called on the state the user is already
+  /// looking at, mid-scroll.
+  S withLoadingMore(S current, bool value) => current;
+
   Future<void> loadNextPage() async {
     final current = state.value;
 
@@ -92,9 +106,20 @@ mixin PagedLoadMore<S extends PagedState> on $AsyncNotifier<S> {
       // Still no `AsyncLoading` here -- the seamless AsyncData -> AsyncData
       // transition is the point. It is safe now only because `_inFlight`,
       // not the state's own loading flag, is what holds the door shut.
-      state = await AsyncValue.guard(
+      //
+      // Published as AsyncData for the same reason: an `AsyncLoading` would
+      // put `AsyncLoader`'s skeleton over the whole list. This publish is what
+      // makes the marker visible to the UI at the *start* of the fetch; the
+      // reassignment below clears it at the end.
+      state = AsyncData(withLoadingMore(current, true));
+
+      // `current`, not the state just published -- `appendPage` merges onto
+      // the list as it was, and the marker is cleared on the way out rather
+      // than being inherited by the merged result.
+      final next = await AsyncValue.guard(
         () => appendPage(current, current.page + 1),
       );
+      state = next.whenData((v) => withLoadingMore(v, false));
     } finally {
       // `finally`, so a failed page does not wedge pagination the way a bare
       // reset after the await would have.

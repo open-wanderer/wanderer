@@ -14,7 +14,14 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ProfileFeedState {
 
- List<FeedItem> get items; int get page; int get perPage; int get totalPages; int get totalItems;
+ List<FeedItem> get items; int get page; int get perPage; int get totalPages; int get totalItems;/// True only while a next-page fetch is actually in flight.
+///
+/// Distinct from [hasMore], which merely says another page *exists*. The
+/// feed's trailing spinner is gated on this: keyed on [hasMore] it stayed
+/// mounted from first paint on any multi-page profile, and since a
+/// `CircularProgressIndicator` drives a repeating ticker, that scheduled a
+/// frame every vsync forever on an idle screen.
+ bool get isLoadingMore;
 /// Create a copy of ProfileFeedState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +32,16 @@ $ProfileFeedStateCopyWith<ProfileFeedState> get copyWith => _$ProfileFeedStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFeedState&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFeedState&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,perPage,totalPages,totalItems);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,perPage,totalPages,totalItems,isLoadingMore);
 
 @override
 String toString() {
-  return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems)';
+  return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems, isLoadingMore: $isLoadingMore)';
 }
 
 
@@ -45,7 +52,7 @@ abstract mixin class $ProfileFeedStateCopyWith<$Res>  {
   factory $ProfileFeedStateCopyWith(ProfileFeedState value, $Res Function(ProfileFeedState) _then) = _$ProfileFeedStateCopyWithImpl;
 @useResult
 $Res call({
- List<FeedItem> items, int page, int perPage, int totalPages, int totalItems
+ List<FeedItem> items, int page, int perPage, int totalPages, int totalItems, bool isLoadingMore
 });
 
 
@@ -62,14 +69,15 @@ class _$ProfileFeedStateCopyWithImpl<$Res>
 
 /// Create a copy of ProfileFeedState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? totalItems = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? totalItems = null,Object? isLoadingMore = null,}) {
   return _then(_self.copyWith(
 items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<FeedItem>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
 as int,totalItems: null == totalItems ? _self.totalItems : totalItems // ignore: cast_nullable_to_non_nullable
-as int,
+as int,isLoadingMore: null == isLoadingMore ? _self.isLoadingMore : isLoadingMore // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -154,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<FeedItem> items,  int page,  int perPage,  int totalPages,  int totalItems)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<FeedItem> items,  int page,  int perPage,  int totalPages,  int totalItems,  bool isLoadingMore)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProfileFeedState() when $default != null:
-return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.totalItems);case _:
+return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.totalItems,_that.isLoadingMore);case _:
   return orElse();
 
 }
@@ -175,10 +183,10 @@ return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.tota
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<FeedItem> items,  int page,  int perPage,  int totalPages,  int totalItems)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<FeedItem> items,  int page,  int perPage,  int totalPages,  int totalItems,  bool isLoadingMore)  $default,) {final _that = this;
 switch (_that) {
 case _ProfileFeedState():
-return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.totalItems);case _:
+return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.totalItems,_that.isLoadingMore);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +203,10 @@ return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.tota
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<FeedItem> items,  int page,  int perPage,  int totalPages,  int totalItems)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<FeedItem> items,  int page,  int perPage,  int totalPages,  int totalItems,  bool isLoadingMore)?  $default,) {final _that = this;
 switch (_that) {
 case _ProfileFeedState() when $default != null:
-return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.totalItems);case _:
+return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.totalItems,_that.isLoadingMore);case _:
   return null;
 
 }
@@ -210,7 +218,7 @@ return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.tota
 
 
 class _ProfileFeedState extends ProfileFeedState {
-  const _ProfileFeedState({required final  List<FeedItem> items, required this.page, required this.perPage, required this.totalPages, required this.totalItems}): _items = items,super._();
+  const _ProfileFeedState({required final  List<FeedItem> items, required this.page, required this.perPage, required this.totalPages, required this.totalItems, this.isLoadingMore = false}): _items = items,super._();
   
 
  final  List<FeedItem> _items;
@@ -224,6 +232,14 @@ class _ProfileFeedState extends ProfileFeedState {
 @override final  int perPage;
 @override final  int totalPages;
 @override final  int totalItems;
+/// True only while a next-page fetch is actually in flight.
+///
+/// Distinct from [hasMore], which merely says another page *exists*. The
+/// feed's trailing spinner is gated on this: keyed on [hasMore] it stayed
+/// mounted from first paint on any multi-page profile, and since a
+/// `CircularProgressIndicator` drives a repeating ticker, that scheduled a
+/// frame every vsync forever on an idle screen.
+@override@JsonKey() final  bool isLoadingMore;
 
 /// Create a copy of ProfileFeedState
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +251,16 @@ _$ProfileFeedStateCopyWith<_ProfileFeedState> get copyWith => __$ProfileFeedStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFeedState&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFeedState&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,perPage,totalPages,totalItems);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,perPage,totalPages,totalItems,isLoadingMore);
 
 @override
 String toString() {
-  return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems)';
+  return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems, isLoadingMore: $isLoadingMore)';
 }
 
 
@@ -255,7 +271,7 @@ abstract mixin class _$ProfileFeedStateCopyWith<$Res> implements $ProfileFeedSta
   factory _$ProfileFeedStateCopyWith(_ProfileFeedState value, $Res Function(_ProfileFeedState) _then) = __$ProfileFeedStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<FeedItem> items, int page, int perPage, int totalPages, int totalItems
+ List<FeedItem> items, int page, int perPage, int totalPages, int totalItems, bool isLoadingMore
 });
 
 
@@ -272,14 +288,15 @@ class __$ProfileFeedStateCopyWithImpl<$Res>
 
 /// Create a copy of ProfileFeedState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? items = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? totalItems = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? items = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? totalItems = null,Object? isLoadingMore = null,}) {
   return _then(_ProfileFeedState(
 items: null == items ? _self._items : items // ignore: cast_nullable_to_non_nullable
 as List<FeedItem>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
 as int,totalItems: null == totalItems ? _self.totalItems : totalItems // ignore: cast_nullable_to_non_nullable
-as int,
+as int,isLoadingMore: null == isLoadingMore ? _self.isLoadingMore : isLoadingMore // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

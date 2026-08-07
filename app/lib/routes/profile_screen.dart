@@ -480,7 +480,15 @@ class _FeedSection extends ConsumerWidget {
             ...state.items.map(
               (item) => FeedItemCard(item: item, profileActor: actor),
             ),
-            if (state.hasMore)
+            // Gated on the fetch actually being in flight, never on `hasMore`
+            // alone -- the spinner's ticker schedules a frame every vsync for
+            // as long as it is mounted, and this sliver builds eagerly, so a
+            // `hasMore` gate kept an idle screen rendering forever.
+            //
+            // Not `feedAsync.isLoading` either: `loadNextPage` deliberately
+            // stays in AsyncData for the whole fetch, so that flag is false
+            // throughout and the spinner would never appear at all.
+            if (state.isLoadingMore)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(child: CircularProgressIndicator()),
