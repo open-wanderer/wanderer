@@ -23,7 +23,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.0.1",
-    "postcss": "^8.5.16",
+    "postcss": "^8.5.26",
     "svelte": "^5.56.4",
     "svelte-check": "^4.7.1",
     "sveltekit-openapi-generator": "^0.1.6",
