@@ -38,6 +38,10 @@ test('delete a list card', async ({ listsPage }) => {
     await expect(listsPage.listItems).toHaveCount(countBefore - 1);
 });
 
+type ListWithAuthor = {
+    expand: { author: { preferred_username: string; domain: string } };
+};
+
 base('renders one shared-list layout when previewing inline rich text', async ({ page }) => {
     const listsPage = new ListsPage(page);
     const testListName = `Inline Rich Text List ${Date.now()}`;
@@ -78,12 +82,20 @@ base('renders one shared-list layout when previewing inline rich text', async ({
         expect(truncatedHtml).toContain('<em>');
         expect(truncatedHtml).not.toContain('</em>');
 
-        // Navigate to the list first, then reload: only a server-rendered load
-        // exercises hydration, which is where the duplication happened.
-        await listsPage.goto();
-        await listsPage.listItems.filter({ hasText: testListName }).click();
-        await page.waitForURL(new RegExp(`/lists/.+/${createdList.id}`));
-        await page.reload({ waitUntil: 'domcontentloaded' });
+        // Clicking a list card only selects it client-side, so build the
+        // shared-list URL the way the app does and load it directly. It has to
+        // be a full server-rendered load: that is where the duplication was.
+        const authorResponse = await page.request.get(
+            `/api/v1/list/${createdList.id}?expand=author`,
+        );
+        expect(authorResponse.status()).toBe(200);
+        const author = ((await authorResponse.json()) as ListWithAuthor).expand
+            .author;
+
+        await page.goto(
+            `/lists/@${author.preferred_username}@${author.domain}/${createdList.id}`,
+            { waitUntil: 'domcontentloaded' },
+        );
 
         const heading = page.getByRole('heading', { name: testListName });
         await expect(heading).toHaveCount(1);
