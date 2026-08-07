@@ -1,5 +1,60 @@
 # Milestones
 
+## v1.8 Offline Recording & Deferred Upload (Shipped: 2026-08-07)
+
+**Phases completed:** 6 phases (33-36, 38, 38.1), 44 plans, 110 tasks
+**Timeline:** 2026-07-31 → 2026-08-05 (6 days) · 319 code files, +30,563/−3,526 · `f981ce15..b4e8d341`
+
+**Delivered:** A hiker who records a trail or imports a GPX with no signal can save it, review it,
+and fill in its details on the spot — and it uploads itself the next time the phone has a
+connection, without the hiker doing anything.
+
+**Key accomplishments:**
+
+- Corrected the shared GPX→trail metrics computation before anything was built on it (CONV-01…06):
+  the accumulation loop no longer drops each segment's first point, the centroid divides by the
+  count it actually summed, missing `<ele>` no longer fabricates a plunge to sea level, elevation
+  is sampled independently of the horizontal threshold, and `cumulativeDistance` was rebuilt as a
+  raw index-aligned array — backed by the domain's first Vitest fixture suites. CONV-05's smoothed
+  distance was later superseded: FIT ground truth measured the raw accumulator at +0.54% against
+  the 5 m gate's −3.29%, so distance now reports raw.
+
+- Ported the whole conversion to Dart, so the app computes a trail's name, waypoints, distance,
+  elevation, duration and bounding box entirely on-device with no network call — pinned to the
+  TypeScript implementation by a ten-fixture on-disk corpus both languages read (30 Dart tests,
+  30 TS tests). `POST /api/v1/trail/convert` became transcode-only, reached solely for
+  kml/kmz/tcx/fit, and the app's second, CONV-01-buggy metrics implementation was deleted.
+
+- Made `trail_create_screen` fully usable with no connection: the map renders from downloaded
+  regions instead of going blank, tag autocomplete degrades to no suggestions instead of throwing,
+  a `.gpx` import completes with zero HTTP requests, and a kml/kmz/tcx/fit import explains that
+  those formats need a connection rather than failing generically.
+
+- Gave locally-captured trails a real identity — collision-free local id, owning account, sync
+  state, and app-owned `<app-docs>/unsynced` photo storage — with `local_trail_store.dart` as the
+  single owner-scoped read/write layer. `/profile/<handle>/trails` is now local-first: unsynced
+  trails appear immediately behind a four-state `SyncStatusChip`, the list still renders offline
+  behind an honest banner, and `/trail/local/<localId>` resolves to the ordinary detail screen.
+
+- Built the automatic upload drain: a `keepAlive` `TrailSync` notifier replays
+  `PUT /tag` → `PUT /trail/form` → `PUT /waypoint` resume-from-step, writing each server id back
+  before the next step so an interrupted upload can never duplicate a trail. It fires on
+  foreground, regained connectivity, and cold start, backs off and parks after four failures,
+  offers manual retry, and retires a local row the instant its upload completes — carrying the
+  server id forward so a record-then-fix-a-typo edit still reaches the server.
+
+- Separated downloaded-trail state from trail identity (Phases 38, 38.1): *Remove download* and
+  *Delete trail* are now distinct actions derived from library membership and authorship rather
+  than `Trail.isLocal`, editing always fetches the server copy and refuses with a stated reason
+  when it cannot, the Library edit path stopped duplicating photos on the server, and unsynced
+  photo directories became account-scoped so they are structurally unreachable across accounts.
+
+**Known deferred items at close:** 51 (see STATE.md → Deferred Items — v1.8 Close). Most predate
+v1.8; the v1.8-scoped ones are Phase 36's unresolved VERIFICATION.md (`human_needed`) and its one
+pending UAT scenario. No `v1.8-MILESTONE-AUDIT.md` was run before close.
+
+---
+
 ## v1.7 Admin Region Picker (Shipped: 2026-07-28)
 
 **Phases completed:** 5 phases, 19 plans, 46 tasks
@@ -14,19 +69,24 @@ settings screen presents the same hierarchy.
 - Seeded the full 1,306-row CoMaps region catalog (153 groups, 1,153 leaves) into a new `regions`
   PocketBase collection via a maintainer-run Cobra command plus an auto-run migration, so a fresh
   self-hosted instance boots with a populated, toggleable catalog and zero admin action.
+
 - Retired `region_config.json` entirely: the archive cron now reads build targets from
   `kind='leaf' AND enabled=true` and clips both vector and DEM PMTiles to each leaf's canonical
   GeoJSON polygon via `pmtiles extract --region`, replacing bbox-based extraction.
+
 - Shipped a standalone PocketBase admin page rendering the catalog as a collapsible, filterable
   tree with optimistic enable/disable toggles and a live MapLibre map showing every enabled
   region's true boundary.
+
 - Brought the Flutter Settings → Offline Maps/Regions screen to the same hierarchy, pruned to
   admin-enabled regions plus their ancestors, with every existing download/cancel/delete action
   and the disk-usage summary preserved.
+
 - Moved boundary geometry off-repo entirely: the committed catalog went from **54.65 MB gzipped
   to ~315 KB of plain hierarchy JSON** (~190×), geometry is now fetched on demand from CoMaps at a
   pinned commit and cached only for regions an admin actually enabled, and the maintainer seed run
   collapsed from ~1,153 HTTP requests to one.
+
 - Purged the retired 57 MB seed blob from 133 commits of published history with
   `--force-with-lease`, shrinking a fresh clone's pack from 268.00 MiB to 198.14 MiB while still
   migrating up to the identical 1,306-row catalog.
@@ -40,6 +100,7 @@ seams wired and the full E2E flow unbroken.
 - **EXTRACT-01/02/03 (Phase 29)** — the phase has no VERIFICATION.md. Wiring is code-verified
   correct today, but nothing phase-owned would catch it regressing. The `region_id` → `path`
   rename already broke this area once, silently.
+
 - **APPUI-01/02 (Phase 31)** — `status: human_needed`. The on-device pass its VERIFICATION.md
   explicitly requires after Phase 32's server rewrite has never been performed.
 
@@ -49,9 +110,11 @@ seams wired and the full E2E flow unbroken.
 
 - CATALOG-02 was satisfied in Phase 28 and then deliberately superseded by Phase 32; leaf rows
   store neither `polygon` nor `bbox`. Recorded as superseded-by-design, not a gap.
+
 - Three integration bugs surfaced through manual use *after* Phase 32's verification passed
   (`4b98c48b`, `0149b83e`, `6069cb57`), all fixed. Phase-level verification under-covered
   cross-phase wiring in this milestone.
+
 - No holed `Polygon` exists anywhere in the real 1,306-row CoMaps catalog — Phase 28's multi-ring
   hole support has never been exercised by actual data.
 

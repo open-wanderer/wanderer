@@ -2,44 +2,50 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Offline Recording & Deferred Upload
-status: verifying
+status: Awaiting next milestone
 stopped_at: Completed 38.1-05-PLAN.md
-last_updated: "2026-08-05T09:51:45.824Z"
-last_activity: 2026-08-05
+last_updated: "2026-08-07T16:09:16.256Z"
+last_activity: 2026-08-07 — Milestone v1.8 completed and archived
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 33
-  completed_plans: 34
-  percent: 75
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 44
+  completed_plans: 44
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-24)
+See: .planning/PROJECT.md (updated 2026-08-07)
 
 **Core value:** A hiker can tap "Navigate" on any online trail and follow it step by step without leaving the app.
-**Current focus:** Phase 38.1 — Downloaded-Trail Blocker Closure
+**Current focus:** Planning next milestone (v1.9) — Phase 37 is the only phase already scoped and unscheduled
 
 ## Current Position
 
-Phase: 38.1
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-08-05
+Phase: Milestone v1.8 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-07 — Milestone v1.8 completed and archived
 
-## v1.8 Phases
+## v1.8 Phases — SHIPPED 2026-08-07
 
 - [x] **Phase 33: Conversion Correctness** — CONV-01/02/03/04/05 (completed 2026-07-31)
 - [x] **Phase 34: Dart Conversion Port** — PORT-01/02/03/04/05, CONV-06 (completed 2026-08-01)
 - [x] **Phase 35: Offline Trail Creation** — OFFUI-01/02/03/04 (completed 2026-08-02)
 - [x] **Phase 36: Local-First Recording & Automatic Upload** — REC-01/02/03/04/05/06, SYNC-01/02/03/04/05 (completed 2026-08-03)
+- [x] **Phase 38: Downloaded Trails as State, Not Objects** — DL-01…DL-07 (completed 2026-08-04)
+- [x] **Phase 38.1: Downloaded-Trail Blocker Closure (INSERTED)** — closes DL-01/DL-07 blockers from 38-REVIEW.md (completed 2026-08-05)
 
-Execution order: 33 → 34 → 35 → 36, strictly sequential. Phase 34 needs Phase 33's corrected algorithm (porting first would pin the buggy behavior in Dart). Phase 35's OFFUI-03/04 need Phase 34's on-device conversion and transcode-only endpoint contract; OFFUI-01/02 are independent live bugs plan-phase may schedule first within Phase 35. Phase 36's REC-05 (offline edit) reuses Phase 35's trail_create_screen map/tag fixes, and REC-01 needs Phase 34's on-device conversion to save an offline recording at all.
+Phases 38 and 38.1 were originally parked as post-v1.8 but were executed before the milestone
+closed, and were claimed by v1.8 at close rather than left unassigned.
 
-v1.7 phase history (Phases 28-32) archived — see `.planning/milestones/v1.7-ROADMAP.md` / MILESTONES.md.
+**Phase 37: Way Types & Surfaces Breakdown** remains unscheduled — only `37-RESEARCH-SOURCE.md`
+exists. It must be claimed explicitly by the next milestone.
+
+v1.8 phase history archived — see `.planning/milestones/v1.8-ROADMAP.md` / MILESTONES.md.
 
 ## Performance Metrics
 
@@ -598,7 +604,7 @@ Resume file: None
 
 - Start the next milestone with /gsd-new-milestone
 
-## Deferred Items
+## Deferred Items — v1.7 Close
 
 Items acknowledged and deferred at the v1.7 milestone close on 2026-07-28.
 39 predate v1.7 (v1.2–v1.6 backlog); 1 is v1.7-scoped (Phase 31 verification).
@@ -646,3 +652,64 @@ See `.planning/v1.7-MILESTONE-AUDIT.md` for the two v1.7 verification gaps.
 | todos | 2026-07-18-way-types-and-surfaces-breakdown | mobile |
 | todos | 2026-07-24-comaps-poly-region-extraction-spike (stale — Phase 29 shipped) | backend |
 | verification_gaps | Phase 31 on-device pass | human_needed |
+
+## Deferred Items — v1.8 Close
+
+Items acknowledged and deferred at the v1.8 milestone close on 2026-08-07 (51 total).
+The two v1.8-scoped items are Phase 36's unresolved VERIFICATION.md and its one pending UAT
+scenario; the remaining 49 predate v1.8 and largely carry forward from the v1.7 close above.
+No `v1.8-MILESTONE-AUDIT.md` was produced before close.
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug_sessions | 26-04-dem-status-not-reflected | diagnosed |
+| debug_sessions | 26-04-progress-bar-resets | diagnosed |
+| debug_sessions | convert-endpoint-json-content-type | diagnosed |
+| debug_sessions | navigation-screen-region-swap-broken | diagnosed |
+| debug_sessions | planner-save-options-sheet-pointless | diagnosed |
+| debug_sessions | region-download-diskspace | diagnosed |
+| debug_sessions | region-download-stale-toone | diagnosed |
+| debug_sessions | save-options-sheet-title-and-padding | diagnosed |
+| debug_sessions | web-app-distance-mismatch | diagnosed |
+| quick_tasks | 260610-kdc-fix-trail-pmtiles-download-add-missing-g | unknown |
+| quick_tasks | 260611-whq-support-multiple-pmtiles-sources-in-offl | unknown |
+| quick_tasks | 260612-gmg-add-proper-dark-mode-to-the-flutter-app- | missing |
+| quick_tasks | 260615-k0w-implement-along-track-projection-for-way | unknown |
+| quick_tasks | 260615-ktn-research-flutter-background-geolocation- | unknown |
+| quick_tasks | 260615-mxk-implement-background-navigation-so-locat | unknown |
+| quick_tasks | 260616-h99-create-wandereractorsearch-component-for | unknown |
+| quick_tasks | 260616-j2n-implement-the-like-feature-from-the-web- | unknown |
+| quick_tasks | 260702-e3g-fix-non-optimistic-reorder-animation-in- | unknown |
+| quick_tasks | 260702-ek7-fix-white-flash-on-sub-category-toggle-r | unknown |
+| quick_tasks | 260702-ere-cascade-category-visibility-to-settingss | unknown |
+| quick_tasks | 260702-gib-add-subcategory-chips-under-each-categor | unknown |
+| quick_tasks | 260702-m4u-make-auth-provider-dart-build-optimistic | unknown |
+| quick_tasks | 260710-kpd-fix-the-6-small-ui-gaps-that-i-found-aft | unknown |
+| quick_tasks | 260710-lem-fix-2-issues-found-during-manual-verific | unknown |
+| quick_tasks | 260710-ptb-clean-up-comments-across-all-files-added | missing |
+| quick_tasks | 260711-d37-shrink-the-navigation-screen-location-pu | unknown |
+| quick_tasks | 260711-lzb-make-hillshading-work-offline-in-the-flu | unknown |
+| quick_tasks | 260712-m9v-resume-navigation-after-manual-app-termi | unknown |
+| quick_tasks | 260712-pac-fix-nosuchmethoderror-in-main-dart-type- | unknown |
+| quick_tasks | 260713-nes-fix-500-errors-on-app-launch-by-gating-n | missing |
+| quick_tasks | 260714-qma-revert-speculative-persisted-500-counter | unknown |
+| quick_tasks | 260714-qtl-fix-meilisearch-token-cookie-never-valid | unknown |
+| quick_tasks | 260715-q01-update-the-ios-bundle-id-and-android-app | unknown |
+| quick_tasks | 260717-seb-reverse-geocode-route-planner-anchors-on | unknown |
+| quick_tasks | 260718-e9j-a-user-should-be-able-to-edit-an-existin | unknown |
+| quick_tasks | 260719-d6a-the-navigation-timer-should-show-time-in | unknown |
+| quick_tasks | 260719-fjw-save-track-recorded-during-navigation-cr | unknown |
+| quick_tasks | 260719-n8g-implement-the-missing-route-recorder-mos | unknown |
+| quick_tasks | 260720-s7m-clean-up-arb-translation-files-remove-un | unknown |
+| quick_tasks | 260721-eob-add-a-bottom-modal-sheet-on-track-save-f | unknown |
+| quick_tasks | 260726-rn1-replace-heuristic-category-travel-profil | unknown |
+| quick_tasks | 260729-i4k-harden-offline-behavior-map-screen-and-l | unknown |
+| quick_tasks | 260730-h2p-fix-account-switch-data-leakage-library- | unknown |
+| quick_tasks | 260801-opr-report-raw-distance-instead-of-the-5m-ga | unknown |
+| todos | 2026-07-18-way-types-and-surfaces-breakdown | mobile — promoted to Phase 37 (unscheduled) |
+| todos | 2026-07-24-comaps-poly-region-extraction-spike | backend — stale, Phase 29 shipped |
+| todos | 2026-07-31-trail-create-screen-offline-gaps | app — closed by Phase 35, not yet retired |
+| todos | 2026-08-03-destructive-action-strings-untranslated | app — open (WR-06 from Phase 36) |
+| todos | 2026-08-05-splash-trail-reveal-animation | app — open |
+| uat_gaps | 36 (36-UAT.md) | testing |
+| verification_gaps | 36 (36-VERIFICATION.md) | human_needed |

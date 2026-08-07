@@ -2,34 +2,49 @@
 
 ## Current State
 
-**Shipped:** v1.7 Admin Region Picker (2026-07-28) — a server owner defines downloadable regions by toggling entries in a seeded 1,306-row CoMaps catalog with real polygon boundaries, instead of hand-authoring `region_config.json`. The archive cron clips PMTiles to each leaf's canonical polygon; a custom PocketBase admin page renders the catalog as a filterable tree with a live coverage map; the Flutter Settings screen mirrors the same hierarchy pruned to enabled regions. Boundary geometry is fetched on demand from CoMaps at a pinned commit rather than shipped in the repo — the committed catalog is ~315 KB of plain hierarchy JSON, down from 54.65 MB gzipped.
+**Shipped:** v1.8 Offline Recording & Deferred Upload (2026-08-07) — a hiker who records a trail or
+imports a GPX with no signal can save it, review it, and fill in its details on the spot, and it
+uploads itself the next time the phone has a connection. The GPX→trail metrics computation was
+corrected (CONV-01…06) and then ported to Dart, pinned to the TypeScript by a ten-fixture on-disk
+corpus both languages read; `POST /api/v1/trail/convert` is transcode-only. Locally-captured trails
+carry a collision-free local id, owning account, sync state, and app-owned photo storage, appear
+in `/profile/<handle>/trails` behind a four-state sync chip, and are drained by a resume-from-step
+uploader that cannot duplicate a trail. Phases 38/38.1 additionally separated downloaded-trail
+*state* from trail *identity*: *Remove download* and *Delete trail* are distinct actions derived
+from library membership and authorship rather than `Trail.isLocal`.
 
-**Previously shipped:** v1.6 Offline Region Tile Repository (2026-07-24) — region-based offline tile repository (vector + optional Mapterhorn DEM) managed in Settings, replacing trail-scoped PMTiles downloads app-wide.
+**Previously shipped:** v1.7 Admin Region Picker (2026-07-28) — a server owner defines downloadable
+regions by toggling entries in a seeded 1,306-row CoMaps catalog with real polygon boundaries.
 
-**Known gaps carried forward from v1.7** (accepted at close, see `.planning/milestones/v1.7-MILESTONE-AUDIT.md`):
-- Phase 29 has no VERIFICATION.md — EXTRACT-01/02/03 are code-verified correct but have no phase-owned repeatable check
-- Phase 31 is `human_needed` — the on-device pass required after Phase 32's server rewrite has not been run
+**Known gaps carried forward** (accepted at close):
+- Phase 36 has an unresolved VERIFICATION.md (`human_needed`) and one pending UAT scenario — the
+  only two v1.8-scoped items among the 51 deferred at close (see STATE.md → Deferred Items — v1.8 Close)
+- No `v1.8-MILESTONE-AUDIT.md` was run before close, unlike v1.7
+- Phase 29 has no VERIFICATION.md; Phase 31's on-device pass is still `human_needed` (both from v1.7)
 
-## Current Milestone: v1.8 Offline Recording & Deferred Upload
+## Next Milestone Goals
+
+**Not yet defined.** Run `/gsd-new-milestone` to scope v1.9.
+
+Already scoped and unscheduled, available to claim:
+- **Phase 37: Way Types & Surfaces Breakdown (mobile-first)** — only `37-RESEARCH-SOURCE.md` exists;
+  it was blocked behind Phase 36 (shared `trail.dart`, `api/v1/trail` handlers, `trails` migrations)
+  and is now unblocked
+
+Standing candidates from the deferred backlog: dark mode for the Flutter app (quick task
+260612-gmg), the untranslated destructive-action strings from Phase 36 (WR-06), and CONV-F01/F02
+plus REC-F01/F02 from the v1.8 requirements archive.
+
+<details>
+<summary>v1.8 milestone scope as originally stated (archived)</summary>
 
 **Goal:** A hiker who records a trail with no signal can save it, review it, and fill in its details on the spot — and it uploads itself when the phone next has a connection, without the hiker doing anything.
 
-**Target features:**
-- Corrected GPX→trail metrics, shared by app and web — fixes four real defects found by auditing the TS implementation before porting
-- A Dart port of the metrics computation, used for recordings, planner output, and `.gpx` file imports
-- `/api/v1/trail/convert` reduced to transcode-only (kml/kmz/tcx/fit → GPX); the app computes trail metrics itself
-- Local-first recorded trails in ObjectBox with automatic background upload
-- `trail_create_screen` usable with no connection
+**Deliberate scope exceptions taken:**
+- **Web frontend changes were in scope**, overriding the standing app-only boundary — the metrics defects live in shared conversion logic used by both, and fixing only one side would make a single GPX yield two different answers.
+- **Trail metrics were re-baselined.** Newly converted trails report different distance/elevation/duration than the same file converted before v1.8. Already-saved trails are unaffected (`PUT /trail/form` stores client values and never recomputes). Accepted: the app is pre-production.
 
-**Deliberate scope exceptions:**
-- **Web frontend changes are in scope for this milestone**, overriding the standing app-only boundary — the metrics defects live in shared conversion logic used by both, and fixing only one side would make a single GPX yield two different answers.
-- **Trail metrics are re-baselined.** Newly converted trails report different distance/elevation/duration than the same file converted before v1.8. Already-saved trails are unaffected (`PUT /trail/form` stores client values and never recomputes), so the library will contain trails measured two ways with nothing marking which is which. Accepted: the app is pre-production.
-
-**Not carried into v1.8** (deliberately deferred to keep the milestone focused):
-- 40 deferred artifacts (see STATE.md Deferred Items) — 5 diagnosed debug sessions, 32 quick tasks, 2 todos, 1 verification gap; 39 predate v1.7
-- Phase 31's outstanding on-device pass and Phase 29's missing VERIFICATION.md (v1.7 known gaps)
-- Dark mode for the Flutter app (quick task 260612-gmg)
-- CATALOG-F01 (automated CoMaps catalog refresh), CATALOG-F02 (group-level cascading enable), CATALOG-F03 (group-node map preview)
+</details>
 
 ## What This Is
 
@@ -94,16 +109,21 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - ✓ Flutter Settings screen: flat region list → collapsible hierarchy matching admin tree (v1.7 — Phase 31, on-device pass outstanding)
 - ✓ Geometry fetched on demand from CoMaps at a pinned commit; catalog 54.65 MB → ~315 KB (v1.7 — Phase 32)
 
+
+- ✓ Four metric defects fixed in the shared GPX→trail computation: per-segment first-point skip, centroid divisor mismatch, `ele ?? 0` treating missing elevation as sea level, and elevation sampling gated behind the 5 m horizontal threshold (v1.8 — Phase 33)
+- ✓ `cumulativeDistance` rebuilt as a raw, index-aligned array and the trail-edit crop slider rescaled to it (v1.8 — Phase 33). **Adjusted:** CONV-05's switch to the *smoothed* accumulator was superseded 2026-08-01 — FIT ground truth measured raw at +0.54% against the 5 m gate's −3.29%, so distance reports raw
+- ✓ Recorded trails report moving time, excluding `pausedAccum`; imported files keep elapsed time (v1.8 — Phase 34)
+- ✓ Dart port of the metrics computation, pinned against the TS by a ten-fixture on-disk corpus both languages read (v1.8 — Phase 34)
+- ✓ `/api/v1/trail/convert` reduced to transcode-only; `.gpx` imports, recordings, and planner output all measured in Dart (v1.8 — Phase 34)
+- ✓ Locally-captured trails persist with no server id and a sync state, account-scoped, visible in the hiker's own-trails list immediately (v1.8 — Phase 36). **Widened during execution** from "recorded" to any on-device capture, so an offline GPX import can be saved too
+- ✓ Undrained captures upload automatically on foreground/connectivity/cold-start, with inline progress, manual retry, and resume-from-step so an interrupted upload cannot duplicate a trail (v1.8 — Phase 36)
+- ✓ `trail_create_screen` works with no connection: offline basemap, non-throwing tag autocomplete, and a clear message when a non-GPX import needs a connection (v1.8 — Phase 35)
+- ✓ *Remove download* and *Delete trail* separated, derived from library membership and authorship rather than `Trail.isLocal`; editing always operates on the server copy and refuses with a stated reason when it cannot be fetched (v1.8 — Phases 38, 38.1)
+- ✓ Library edits stopped duplicating photos on the server; unsynced photo directories are account-scoped (v1.8 — Phases 38, 38.1)
+
 ### Active
 
-- [ ] Four metric defects fixed in the shared GPX→trail computation: per-segment first-point skip, centroid divisor mismatch, `ele ?? 0` treating missing elevation as sea level, and elevation sampling gated behind the 5 m horizontal threshold (v1.8)
-- [ ] Distance switched from the raw haversine sum to the smoothed accumulator; `cumulativeDistance` (dead, misaligned) deleted (v1.8)
-- [ ] Recorded trails report moving time, excluding `pausedAccum`; imported files keep elapsed time (v1.8)
-- [ ] Dart port of the metrics computation, pinned against the TS by a shared fixture test (v1.8)
-- [ ] `/api/v1/trail/convert` reduced to transcode-only; `.gpx` imports, recordings, and planner output all measured in Dart (v1.8)
-- [ ] Recorded trails persist locally with no server id and a sync state, account-scoped, visible in the trail library immediately (v1.8)
-- [ ] Undrained recordings upload automatically on app-foreground + connectivity, with per-item inline progress and manual retry (v1.8)
-- [ ] `trail_create_screen` works with no connection: offline basemap, non-throwing tag autocomplete, and a clear message when a non-GPX import needs a connection (v1.8)
+(None — v1.8 shipped. Run `/gsd-new-milestone` to define v1.9's requirements.)
 
 ### Out of Scope
 
@@ -177,6 +197,13 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 - `app/lib/util/offline_style_rewriter.dart` special-cases `raster-dem` style sources (encoding `terrarium`, tileSize 512, max zoom locked to 12) and drops hillshade layers cleanly when no DEM was downloaded — reused as-is, now sourcing from region-based files
 - Downloads are never resumable, at any level (amended 2026-07-23) — cancelling (deliberate or a genuine transfer error) always deletes the `.part` file via Dio's `deleteOnError: true`; a later attempt always restarts from byte 0
 - Region catalog is admin-defined per instance via a config file mounted through Docker volume (`db/` backend), not a bundled Flutter asset — a fresh/default instance with no admin config returns an empty catalog
+- Shipped v1.8 (2026-08-07): Offline Recording & Deferred Upload — corrected + Dart-ported GPX→trail metrics, transcode-only `/trail/convert`, local-first unsynced trails with automatic background upload, and downloaded-trail state separated from trail identity. See `.planning/milestones/v1.8-ROADMAP.md` / `v1.8-REQUIREMENTS.md`
+- **Trail metrics have exactly one implementation per language, and they are pinned to each other.** `fixtures/gpx-corpus/` (10 on-disk fixtures + README contract) is read by both `web/src/lib/models/gpx/gpx-corpus.test.ts` and `app/test/util/gpx_corpus_test.dart`. `GpxMappingUtils.getTotals()`/`GpxStats` were deleted — do not reintroduce a second Dart metrics path
+- Distance is the **raw** haversine accumulator, not the 5 m-gated smoothed total (amended 2026-08-01). `thresholdXY_m` and both `GpxMetricsComputation(5, 5)` call sites remain because the XY threshold still drives the elevation noise filter — elevation is unchanged and its 5 m Z-gate is known to undercount ~12% on barometric data
+- `duration` means GPX-derived elapsed time everywhere; recorded moving time lives in the separate `moving_duration` field (PocketBase, OpenAPI, TS, Dart), surfaced via `trailDisplayDuration()` on both sides
+- **"Unsynced" and "downloaded" are independent axes, not mutually exclusive** — a trail can be both. `Trail.isLocal` is cache provenance only and must never gate a destructive action, a badge, or a tab; use `syncState` / library membership / authorship instead (Phase 36's D-10 is retracted in place)
+- Locally-captured trails live in ObjectBox via `local_trail_store.dart` (the single owner-scoped read/write layer), addressed by `localId` through `trailDetailLocation`/`trailMapLocation`, never by the blanked server id. Their photos live under `<app-docs>/unsynced/<accountId>/<localId>/`
+- `TrailSync` (keepAlive) drains uploads on foreground, regained connectivity, and cold start, replaying `PUT /tag` → `PUT /trail/form` → `PUT /waypoint` and writing each server id back before the next step; it parks after 4 attempts and retires the local row the instant an upload completes
 
 ## Constraints
 
@@ -193,12 +220,12 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| v1.8: audit the TS `gpx2trail` before porting it, rather than porting bug-for-bug | Surfaced four real defects (per-segment first-point skip, centroid divisor, `ele ?? 0`, elevation gated behind the XY threshold); a faithful port would have made them permanent and unfixable without diverging | — Pending |
-| v1.8: fix the metrics in web and app together, overriding the app-only boundary | The defects live in shared conversion logic; fixing one side means a single GPX yields two different answers | — Pending |
-| v1.8: accept re-baselined metrics with no backfill | `PUT /trail/form` stores client values and never recomputes, so old trails keep old numbers; app is pre-production, so no meaningful install base to migrate | — Pending |
-| v1.8: recorded trails are local-first records that acquire a server id later, not a pending-upload queue | Matches how Komoot and AllTrails both model it — the recording is in the library immediately with an inline sync badge, not in a separate inbox | — Pending |
-| v1.8: `/api/v1/trail/convert` becomes transcode-only rather than gaining an opt-in mode | The Flutter app is its only caller (web converts in-browser via `fromFile`/`gpx2trail`) and the endpoint is not deployed in production anywhere, so the breaking change is safe | — Pending |
-| v1.8: don't port the kml/kmz/tcx/fit transcoders to Dart | They need vendored `toGeoJSON`, JSZip, and `fit-parser`; no recording can reach them, so the cost buys only offline import of rare formats | — Pending |
+| [v1.8] Audit the TS `gpx2trail` before porting it, rather than porting bug-for-bug | Surfaced four real defects (per-segment first-point skip, centroid divisor, `ele ?? 0`, elevation gated behind the XY threshold); a faithful port would have made them permanent and unfixable without diverging | ✓ Good — all four fixed in Phase 33 and pinned by the cross-language corpus in Phase 34 |
+| [v1.8] Fix the metrics in web and app together, overriding the app-only boundary | The defects live in shared conversion logic; fixing one side means a single GPX yields two different answers | ✓ Good — the ten-fixture on-disk corpus is now the executable contract between the two implementations |
+| [v1.8] Accept re-baselined metrics with no backfill | `PUT /trail/form` stores client values and never recomputes, so old trails keep old numbers; app is pre-production, so no meaningful install base to migrate | ✓ Good — no migration written; CONV-F01 tracked as future work |
+| [v1.8] Locally-captured trails are local-first records that acquire a server id later, not a pending-upload queue | Matches how Komoot and AllTrails both model it — the capture is in the hiker's own-trails list immediately with an inline sync badge, not in a separate inbox | ✓ Good — but the model's edges cost six gap-closure plans (36-15…36-20) and a whole inserted phase (38.1); every one was about what happens to a row *between* capture and retirement |
+| [v1.8] `/api/v1/trail/convert` becomes transcode-only rather than gaining an opt-in mode | The Flutter app is its only caller (web converts in-browser via `fromFile`/`gpx2trail`) and the endpoint is not deployed in production anywhere, so the breaking change is safe | ✓ Good — landed last within Phase 34, after every app call site had already moved to the Dart path |
+| [v1.8] Don't port the kml/kmz/tcx/fit transcoders to Dart | They need vendored `toGeoJSON`, JSZip, and `fit-parser`; no recording can reach them, so the cost buys only offline import of rare formats | ✓ Good — OFFUI-04 explains the limit to the hiker instead; REC-F01 (queue-for-reconnect) tracked as future work |
 | Extend SvelteKit Valhalla API rather than calling Valhalla directly from Flutter | Keeps credentials server-side, consistent with existing route endpoint pattern | ✓ Good — used in v1.0 through v1.2 |
 | DraggableScrollableSheet for stats, not fixed bottom bar | Matches MapScreen pattern; user can expand for more detail without blocking map | ✓ Good |
 | Button-driven PageView for stats (not horizontal swipe) | Locked during Phase 3 context; horizontal swipe conflicts with map pan gesture | ✓ Good |
@@ -237,6 +264,9 @@ A hiker can tap "Navigate" on any online trail and follow it step by step withou
 | [v1.7] `bbox` moved out of the catalog into `region_geometry` alongside the polygon | Verified every consumer needs bbox only for *enabled* regions; keeping it in the catalog would have forced the generator to keep scraping all ~1,153 `.poly` files for data most regions never use | ✓ Good — what made the one-request seed run possible |
 | [v1.7] Geometry persists on the `enabled` false→true transition via a server hook, not a client call | The original design made persistence depend on one specific UI call site doing one specific thing, and it silently never fired — enabling a region cached nothing. Keying off the record transition covers the picker, a REST PATCH, and the collection editor alike | ✓ Good — amended 2026-07-28 (`4b98c48b`) after the hole surfaced in manual use |
 | [v1.7] Phase-level verification under-covered cross-phase wiring | Three integration bugs surfaced through manual use *after* Phase 32's verification passed (`4b98c48b`, `0149b83e`, `6069cb57`), all in the seam where a field moved between collections and its writers weren't all traced | ⚠️ Revisit — milestone audit's integration check caught what phase verification did not; consider making cross-phase checks routine rather than milestone-only |
+| [v1.8] Report raw distance, not the 5 m-gated smoothed total (supersedes CONV-05's smoothed half) | The gate chord-shortcuts switchbacks at real GPS sampling density. FIT ground truth (`session.total_distance` = 10912.01 m) put raw at +0.54% against the gate's −3.29%, and the corpus's own `04-switchback-scramble` asserted 0.000 m for an 88 m climb | ✓ Good — `thresholdXY_m` deliberately left intact, since it is load-bearing for the elevation noise filter |
+| [v1.8] `Trail.isLocal` (cache provenance) must never gate destructive actions, badges, or tabs | Phase 36 shipped on the premise that "unsynced" and "downloaded" were mutually exclusive. They are independent axes. Phase 38's review found three real defects following from that false premise, and Phase 38.1 was inserted to close them | ⚠️ Revisit — a wrong premise inherited across two phases cost an inserted phase to unwind. The premise was stated in comments, not encoded in a type or a test |
+| [v1.8] Close the milestone without a `/gsd-audit-milestone` pass | Requirements were 25/25 with a full traceability table, and Phases 38/38.1 had already had code review + verification | — Pending — v1.7's audit caught integration gaps phase verification missed; skipping it here means Phase 36's `human_needed` verification is the only unclosed signal |
 
 ## Evolution
 
@@ -259,3 +289,6 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 *Last updated: 2026-07-31 after starting milestone v1.8*
+
+---
+*Last updated: 2026-08-07 after v1.8 milestone*

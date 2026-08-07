@@ -216,6 +216,87 @@ the retired blob purged from 133 commits of published history.
   mapper, plan checker, verifier, and integration checker — the verifier independently closed
   three human-check items by standing up a live instance, which the phase had recorded as pending
 
+## Milestone: v1.8 — Offline Recording & Deferred Upload
+
+**Shipped:** 2026-08-07
+**Phases:** 6 (33-36, 38, 38.1) | **Plans:** 44 | **Tasks:** 110 | **Timeline:** 6 days (2026-07-31 → 08-05)
+**Code changes:** 319 files, +30,563/−3,526 (`f981ce15..b4e8d341`)
+
+### What Was Built
+Audited the shared TypeScript GPX→trail computation before porting it, fixing five real defects;
+ported it to Dart so the app measures recordings, planner output, and file imports entirely
+on-device, pinned to the TS by a ten-fixture on-disk corpus both languages read; reduced
+`/api/v1/trail/convert` to transcode-only; made `trail_create_screen` fully usable offline; gave
+locally-captured trails a real identity (local id, owning account, sync state, app-owned photo
+storage) with a local-first own-trails list and a resume-from-step background uploader; then
+separated downloaded-trail *state* from trail *identity* so destructive actions stop reading
+`Trail.isLocal`.
+
+### What Worked
+- **Auditing before porting.** Phase 33 existed only to fix the TS before Phase 34 pinned Dart to
+  it. It found five defects. A faithful port would have made all five permanent and, worse,
+  indistinguishable from intended behaviour in a second language.
+- **A language-neutral on-disk fixture corpus as the contract.** `fixtures/gpx-corpus/` with a
+  README stating the tolerance table is read by 30 Dart tests and 30 TS tests. The contract is a
+  file, not a convention — a drift shows up as a red test in whichever language drifted.
+- **Measuring against external ground truth.** CONV-05's smoothed distance was overturned by a
+  real FIT file's own `session.total_distance` (raw at +0.54%, the 5 m gate at −3.29%). The
+  corpus's `04-switchback-scramble` fixture had been asserting 0.000 m for an 88 m climb, and
+  nobody noticed until an external number was put next to it.
+- **Widening a requirement when a phase goal outgrew it.** REC-01…06 were written "recording"-only,
+  which left Phase 36's own goal ("records a trail **or uploads a GPX**") uncarried by any
+  requirement. Rewording them source-agnostic mid-milestone, with the reasoning recorded in
+  REQUIREMENTS.md, was cheaper than discovering the gap at UAT.
+
+### What Was Inefficient
+- **A fix pass that created new blockers.** Phase 36's first code review produced a blocker-fix
+  pass; the second full-phase review then found **three NEW blockers created by that pass**, plus
+  17 open warnings — six gap-closure plans (36-15…36-20) and a 21st plan to absorb them. Roughly a
+  third of the milestone's plan count went to closing gaps in its own largest phase.
+- **A false premise inherited across two phases.** Phase 36 shipped on "unsynced and downloaded are
+  mutually exclusive" (its D-10). They are independent axes. Phase 38 built destructive-action
+  gating on top of it, its review found three real defects following from the premise, and a whole
+  phase (38.1) had to be inserted to unwind it. The premise lived in doc comments — nothing typed
+  or tested could contradict it.
+- **Closed without a milestone audit.** v1.7's audit caught integration gaps that phase-level
+  verification missed, and that lesson was recorded in this file. v1.8 skipped it anyway, so Phase
+  36's `human_needed` VERIFICATION.md and one pending UAT scenario are still the only unclosed
+  signals at close.
+- **The deferred backlog keeps growing.** 51 items acknowledged at close, up from 40 at v1.7. The
+  35 incomplete quick tasks are almost all "unknown" status — the tooling cannot tell shipped work
+  from abandoned work, so the number is noise rather than a signal anyone acts on.
+
+### Patterns Established
+- **A cross-language algorithm needs a data contract, not a code review.** On-disk fixtures + a
+  written tolerance table + a test on each side. Neither implementation can silently drift.
+- **Delete the second implementation as part of the port.** `GpxMappingUtils.getTotals()`/`GpxStats`
+  were removed and both consumers redirected in the same phase. A tolerated duplicate is a future
+  divergence.
+- **Write the server id back before the next step of a multi-step upload.** `PUT /tag` →
+  `PUT /trail/form` → `PUT /waypoint`, persisting each id as it arrives, makes an interrupted
+  upload resumable instead of duplicating.
+- **A premise that gates behaviour belongs in a type or a test, not a comment.** Phase 38.1's
+  closure work included retracting Phase 36's D-10 *in place* with counter-evidence, and adding an
+  overlap fixture (`unsyncedButDownloaded`) proven to fail against pre-fix code.
+
+### Key Lessons
+- When a review's fix pass is large, **re-review the fix pass**. Phase 36's second review existed
+  only because someone ran it; it found three blockers the first review's fixes had introduced.
+- **Independent axes get conflated whenever one flag is convenient.** `Trail.isLocal` meant cache
+  provenance and was reached for as a proxy for "unsynced" three separate times. The fix was not
+  more comments — it was owner-scoped predicates (`isLiveCaptureRow`, `isOwnLiveCapture`) that name
+  the real question.
+- **Ground truth beats a plausible algorithm.** The smoothing gate was defensible reasoning about
+  GPS jitter, and it was wrong by 3.8 percentage points against a real activity file.
+- The milestone-audit lesson from v1.7 was recorded and then not applied. **A lesson in this file
+  does not enforce itself** — the audit needs to be a gate, not a recommendation.
+
+### Cost Observations
+- Model mix: opus for planning and orchestration, sonnet for execution/verification subagents
+- Notable: Phase 36 alone ran 21 plans across two full code-review rounds. Its 14 execution plans
+  produced 7 more plans of gap closure — the clearest signal so far that a phase this wide should
+  have been split at the roadmap stage, not absorbed as one unit.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -229,6 +310,8 @@ the retired blob purged from 133 commits of published history.
 | v1.4 MapLibre Migration | 6 | 17 | Full native-GL map migration; risk-gate spike pattern; both-stacks-coexist screen-by-screen cutover |
 | v1.5 Route Planner | 3 | 13 | Editable route-anchor map layers; fetch-at-handoff pattern for derived data; scope changes resolved pre-plan via discuss-phase |
 | v1.6 Offline Region Tile Repository | 8 | 30 | Backend-first phase insertion when a client-only assumption broke; structural fix (tile proxy) over defensive patching for a UAT-found race; documented mid-milestone amendments with commit hashes |
+| v1.7 Admin Region Picker | 5 | 19 | Milestone audit's integration check as a real gate; measuring instead of estimating; tombstoning superseded decisions in place |
+| v1.8 Offline Recording & Deferred Upload | 6 | 44 | Audit-before-port for a cross-language algorithm; on-disk fixture corpus as the contract between two implementations; a second code-review round that found blockers created by the first round's fixes; an inserted phase (38.1) to unwind a false premise inherited across two phases |
 
 ### Cumulative Quality
 
@@ -238,6 +321,7 @@ the retired blob purged from 133 commits of published history.
 | v1.1 | ~4 (serialization roundtrip, offline fallback) | ObjectBox integration tests via unit tests |
 | v1.2 | ~5 (one per settings screen) | Tall-viewport pattern for lazy ListViews |
 | v1.4 | On-device checkpoints per phase (15, 17, 18) rather than widget tests | Native GL / platform-channel bugs are invisible to `flutter analyze` and unit tests |
+| v1.8 | 62 cross-language corpus tests (30 Dart + 30 TS + 2 suites), plus behavioural widget tests mounting real `GoRouter`/`PopupMenuButton` | Source-grep "gates" were rewritten as effect assertions after review flagged them as token-order-only; a test that greps source proves nothing about behaviour |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -245,3 +329,6 @@ the retired blob purged from 133 commits of published history.
 2. **Wave parallelism requires explicit file-overlap analysis at plan time** — confirmed valuable in v1.2 Phase 6
 3. **Human/device testing needs a dedicated quick task before milestone close** — first surfaced v1.2; confirmed again in v1.4 (Phase 18's on-device walk found 6 real UI gaps only a physical device could surface)
 4. **Risk gates (throwaway spikes) for the riskiest unknown de-risk everything downstream** — v1.4's 15-01 glyph spike validated the offline parity approach before 5 more plans were built on top of it
+5. **A wrong premise costs more than a wrong implementation** — v1.7's circular planning constraint and v1.8's "unsynced and downloaded are mutually exclusive" both survived plan review, verification, and a full phase before manual use or a second review caught them. Reviewers check whether work satisfies the premise, never whether the premise is true
+6. **Re-review a large fix pass** — first surfaced v1.8 (Phase 36's second review found three blockers the first review's fixes created)
+7. **The milestone audit needs to be a gate, not a recommendation** — v1.7 proved its value, v1.8 skipped it and closed with an unresolved `human_needed` verification
