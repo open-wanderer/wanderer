@@ -38,10 +38,17 @@ end
 
 # Share Extension target — links the receive_sharing_intent pod so the
 # extension can write shared files into the App Group and redirect to the app.
-target 'Share Extension' do
-  use_frameworks!
+# The target itself has to be created by hand in Xcode (see
+# SHARE_EXTENSION_SETUP.md), so skip it until that has happened — otherwise
+# `pod install` aborts and the app can't be built at all.
+if File.read(File.expand_path('Runner.xcodeproj/project.pbxproj', __dir__)).include?('Share Extension')
+  target 'Share Extension' do
+    use_frameworks!
 
-  pod 'receive_sharing_intent', :path => '.symlinks/plugins/receive_sharing_intent/ios'
+    pod 'receive_sharing_intent', :path => '.symlinks/plugins/receive_sharing_intent/ios'
+  end
+else
+  Pod::UI.warn 'Skipping the `Share Extension` pod target: no such target in Runner.xcodeproj. See ios/SHARE_EXTENSION_SETUP.md.'
 end
 
 post_install do |installer|

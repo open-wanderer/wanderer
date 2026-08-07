@@ -109,9 +109,23 @@ class ForegroundPositionStream
     }
   }
 
+  /// Serializes start attempts. `Geolocator.requestPermission()` throws on
+  /// iOS if a request is already in flight, and reference counting means an
+  /// acquire can land while an earlier start is still awaiting the permission
+  /// dialog — as happens when autoDispose churn produces a release/acquire
+  /// pair on the first map screen. Chaining rather than dropping keeps a
+  /// GPS-enabled restart from being swallowed by an in-flight start.
+  Future<void> _startQueue = Future<void>.value();
+
+  void _scheduleStart() {
+    _startQueue = _startQueue
+        .then((_) => _startPositionStream())
+        .catchError((Object _) {});
+  }
+
   /// Registers a live consumer, starting the receiver on the first one.
   void acquire() {
-    if (_consumers++ == 0) unawaited(_startPositionStream());
+    if (_consumers++ == 0) _scheduleStart();
   }
 
   /// Releases a live consumer, stopping the receiver once none remain.
@@ -171,6 +185,11 @@ class ForegroundPositionStream
     _promptedForService = true;
     if (_controller.isClosed) return;
 
+    // The awaits above can outlive the consumer that asked for this start
+    // (a queued start whose acquirer has since released). Starting anyway
+    // would run the receiver with nobody watching.
+    if (_consumers == 0) return;
+
     _positionSub =
         Geolocator.getPositionStream(locationSettings: _settings).listen(
       (pos) {
@@ -203,7 +222,7 @@ class ForegroundPositionStream
             // Only resume if something is actually watching; otherwise the
             // receiver would restart on a GPS toggle with no consumer.
             if (_consumers > 0) {
-              unawaited(_startPositionStream());
+              _scheduleStart();
             }
           } else {
             _cancelPosition();

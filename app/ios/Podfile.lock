@@ -1,26 +1,19 @@
 PODS:
   - Flutter (1.0.0)
+  - flutter_local_notifications (0.0.1):
+    - Flutter
   - flutter_rotation_sensor (0.0.1):
-    - Flutter
-  - geolocator_apple (1.2.0):
-    - Flutter
-    - FlutterMacOS
-  - native_device_orientation (0.0.1):
     - Flutter
   - ObjectBox (5.3.0-beta.4)
   - objectbox_flutter_libs (0.0.1):
     - Flutter
     - ObjectBox (= 5.3.0-beta.4)
-  - share_plus (0.0.1):
-    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_rotation_sensor (from `.symlinks/plugins/flutter_rotation_sensor/ios`)
-  - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
-  - native_device_orientation (from `.symlinks/plugins/native_device_orientation/ios`)
   - objectbox_flutter_libs (from `.symlinks/plugins/objectbox_flutter_libs/ios`)
-  - share_plus (from `.symlinks/plugins/share_plus/ios`)
 
 SPEC REPOS:
   trunk:
@@ -29,26 +22,20 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_local_notifications:
+    :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_rotation_sensor:
     :path: ".symlinks/plugins/flutter_rotation_sensor/ios"
-  geolocator_apple:
-    :path: ".symlinks/plugins/geolocator_apple/darwin"
-  native_device_orientation:
-    :path: ".symlinks/plugins/native_device_orientation/ios"
   objectbox_flutter_libs:
     :path: ".symlinks/plugins/objectbox_flutter_libs/ios"
-  share_plus:
-    :path: ".symlinks/plugins/share_plus/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_local_notifications: df98d66e515e1ca797af436137b4459b160ad8c9
   flutter_rotation_sensor: f37d8d24050572029bdd2d55a93e0f334e2eeac6
-  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
-  native_device_orientation: 42487b19c552fb5a6a2b51e61b93366f628113df
   ObjectBox: eccb95ea2054c39d81dfa2d4ccc5f1e31187228a
   objectbox_flutter_libs: 893a4322e8ec87438912bae6dfa745929adc6bf5
-  share_plus: 8b6f8b3447e494cca5317c8c3073de39b3600d1f
 
-PODFILE CHECKSUM: 53a6aebc29ccee84c41f92f409fc20cd4ca011f1
+PODFILE CHECKSUM: 4142bb0354a11e55506272561ccae2ff78e924f4
 
 COCOAPODS: 1.16.2
