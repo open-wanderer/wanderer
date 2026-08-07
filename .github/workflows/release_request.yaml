@@ -23,10 +23,11 @@ jobs:
           node-version: '22'
 
       - name: Bump versions
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          VERSION=${{ github.event.inputs.version }}
-          cd web && npm version $VERSION --no-git-tag-version && cd ..
-          cd docs && npm version $VERSION --no-git-tag-version && cd ..
+          cd web && npm version "$VERSION" --no-git-tag-version && cd ..
+          cd docs && npm version "$VERSION" --no-git-tag-version && cd ..
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8

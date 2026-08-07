@@ -2,7 +2,7 @@ name: Web CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
     paths:
       - '.github/**'
       - 'web/**'
