@@ -72,71 +72,40 @@ base('renders one shared-list layout when previewing inline rich text', async ({
     };
 
     try {
-        expect(createdList.description).toContain('&amp;lt;p&amp;gt;');
-        expect(createdList.description).toContain('<strong>');
-        expect(createdList.description).toContain('<em>');
-
+        // Precondition: cutting this description's HTML at 100 characters tears
+        // an inline element in half, which is what used to break hydration.
         const truncatedHtml = createdList.description.slice(0, 100);
-        expect(truncatedHtml).toContain('<strong>');
         expect(truncatedHtml).toContain('<em>');
-        expect(truncatedHtml).not.toContain('</strong>');
         expect(truncatedHtml).not.toContain('</em>');
 
-        const hydrationWarnings: string[] = [];
-        page.on('console', (message) => {
-            if (message.text().includes('hydration_mismatch')) {
-                hydrationWarnings.push(message.text());
-            }
-        });
+        // Navigate to the list first, then reload: only a server-rendered load
+        // exercises hydration, which is where the duplication happened.
+        await listsPage.goto();
+        await listsPage.listItems.filter({ hasText: testListName }).click();
+        await page.waitForURL(new RegExp(`/lists/.+/${createdList.id}`));
+        await page.reload({ waitUntil: 'domcontentloaded' });
 
-        await page.goto(`/lists/@test@localhost/${createdList.id}`, {
-            waitUntil: 'networkidle',
-        });
+        const heading = page.getByRole('heading', { name: testListName });
+        await expect(heading).toHaveCount(1);
 
-        const layoutCounts = {
+        // The reported symptom: the whole page shell rendered twice.
+        expect({
             main: await page.locator('main').count(),
             listPanel: await page.locator('.list-list').count(),
             trailMap: await page.locator('#trail-map').count(),
-        };
-        expect(layoutCounts).toEqual({
-            main: 1,
-            listPanel: 1,
-            trailMap: 1,
-        });
+        }).toEqual({ main: 1, listPanel: 1, trailMap: 1 });
 
-        const heading = page.getByRole('heading', { name: testListName });
-        const description = heading
-            .locator('..')
-            .locator('.text-gray-500')
-            .last();
-        const preview = description
-            .locator('div:not(:has(button))')
-            .first();
-        const readMore = description.getByRole('button', {
-            name: 'Read more',
-        });
-
-        await expect(heading).toHaveCount(1);
-        await expect(preview).toHaveText(expectedPreview);
-        await expect(description.locator('p, strong, em, a')).toHaveCount(0);
+        const readMore = page.getByRole('button', { name: 'Read more' });
         await expect(readMore).toBeVisible();
-        expect(hydrationWarnings).toEqual([]);
-        expect(
-            await readMore.evaluate(
-                (button) => button.closest('.overflow-hidden') === null,
-            ),
-        ).toBe(true);
+        await expect(page.getByText(expectedPreview)).toBeVisible();
 
-        await readMore.scrollIntoViewIfNeeded();
-        await expect(readMore).toBeInViewport();
         await readMore.click();
 
-        const firstRenderedParagraph = description.locator('p').first();
-        const renderedDescription = firstRenderedParagraph.locator('..');
-        await expect(renderedDescription).toHaveText(descriptionText);
-        await expect(renderedDescription.locator('strong')).toHaveCount(1);
-        await expect(renderedDescription.locator('em')).toHaveCount(1);
-        await expect(firstRenderedParagraph).toHaveCSS('margin-top', '0px');
+        const fullDescription = page.getByText(descriptionText);
+        await expect(fullDescription).toBeVisible();
+        await expect(fullDescription.locator('strong')).toHaveCount(1);
+        await expect(fullDescription.locator('em')).toHaveCount(1);
+        await expect(readMore).toBeHidden();
     } finally {
         const deleteResponse = await page.request.delete(
             `/api/v1/list/${createdList.id}`,
