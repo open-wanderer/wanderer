@@ -12,6 +12,7 @@
     "hillshadeSource": {
       "type": "raster-dem",
       "url": "https://tiles.mapterhorn.com/tilejson.json",
+      "minzoom": 7,
       "maxzoom": 12
     }
   },
@@ -477,7 +478,19 @@
     {
       "id": "hillshade",
       "type": "hillshade",
-      "source": "hillshadeSource"
+      "source": "hillshadeSource",
+      "minzoom": 7,
+      "paint": {
+        "hillshade-exaggeration": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          7.5,
+          0,
+          9.5,
+          0.5
+        ]
+      }
     },
     {
       "id": "roads_tunnels_other_casing",

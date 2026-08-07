@@ -78,6 +78,11 @@ void main() async {
 /// camera-driven tile traffic (an idle map measured exactly zero), so this is
 /// the main lever on data use.
 ///
+/// Nearly all of that volume is the hillshade raster-DEM source (~384 KB per
+/// 512 px tile, vs tens of KB per vector tile), so the cache is sized for DEM:
+/// 512 MB holds ~1300 DEM tiles — enough that browsing back over a
+/// region-sized area at z8–12 serves from cache instead of refetching.
+///
 /// Best-effort: unsupported platforms and native failures are logged and
 /// ignored, since a wrong cache size must never stop the app from starting.
 Future<void> _raiseAmbientTileCacheSize() async {
@@ -85,7 +90,7 @@ Future<void> _raiseAmbientTileCacheSize() async {
   try {
     final manager = await ml.OfflineManager.createInstance();
     try {
-      await manager.setMaximumAmbientCacheSize(bytes: 256 * 1024 * 1024);
+      await manager.setMaximumAmbientCacheSize(bytes: 512 * 1024 * 1024);
     } finally {
       // Releases this JNI handle only — the native manager is a singleton
       // and the cache setting persists in its database.
