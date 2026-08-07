@@ -53,9 +53,9 @@ base('renders one shared-list layout when previewing inline rich text', async ({
     await listsPage.createListButton.click();
     await listsPage.listFormName.fill(testListName);
     await listsPage.listFormDescription.fill(descriptionText);
-    await listsPage.listFormDescription.press('Control+a');
+    await listsPage.listFormDescription.press('ControlOrMeta+a');
     await listsPage.listForm.getByRole('button', { name: 'Bold' }).click();
-    await listsPage.listFormDescription.press('Control+a');
+    await listsPage.listFormDescription.press('ControlOrMeta+a');
     await listsPage.listForm.getByRole('button', { name: 'Italic' }).click();
     await listsPage.listFormAvatar.setInputFiles([
         './tests/playwright/fixtures/avatar.webp',
@@ -113,8 +113,11 @@ base('renders one shared-list layout when previewing inline rich text', async ({
 
         await readMore.click();
 
-        const fullDescription = page.getByText(descriptionText);
-        await expect(fullDescription).toBeVisible();
+        // Expanding restores the full text and its formatting.
+        const fullDescription = page
+            .locator('.prose')
+            .filter({ hasText: descriptionText });
+        await expect(fullDescription).toHaveText(descriptionText);
         await expect(fullDescription.locator('strong')).toHaveCount(1);
         await expect(fullDescription.locator('em')).toHaveCount(1);
         await expect(readMore).toBeHidden();
