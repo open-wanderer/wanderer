@@ -107,13 +107,13 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   bool _resumeHandled = false;
   ProviderSubscription? _authSub;
 
-  // Account-switch cache invalidation (T-h2p-02): tracks the last-seen auth
+  // Account-switch cache invalidation: tracks the last-seen auth
   // user id so a change is detected exactly once per switch, without acting
   // on the listener's first (baseline) emission.
   String? _lastAuthUserId;
   bool _authSeen = false;
 
-  // D-15: the deferred-upload drain's three triggers. Cold start needs its
+  // The deferred-upload drain's three triggers. Cold start needs its
   // own one-shot kick because `AppLifecycleState.resumed` never fires on a
   // fresh launch; `_syncDrainColdStartKicked` keeps a later auth
   // re-emission from re-firing it (the drain's own re-entrancy guard would
@@ -142,7 +142,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     // startup must not block on a network probe.
     unawaited(ref.read(onlineStatusProvider.notifier).refresh());
 
-    // D-02's startup orphan sweep: a photo directory left behind by a crash
+    // The startup orphan sweep: a photo directory left behind by a crash
     // between "server accepted the create" and "local files deleted" is
     // reclaimed here. `unsyncedLocalIds` includes rows still `uploading`
     // after a crash, so a resume-in-progress upload's photos are never swept
@@ -153,7 +153,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       sweepOrphanedUnsyncedPhotos(keepLocalIds: unsyncedLocalIds(store)),
     );
 
-    // D-15's connectivity-regained trigger: fires only on a false-to-true
+    // The connectivity-regained trigger: fires only on a false-to-true
     // transition. `listenManual` with no `fireImmediately` never calls this
     // for the provider's baseline value, so there is no separate guard
     // needed for that case. Closed alongside `_authSub` in [dispose].
@@ -177,7 +177,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       if (next.isLoading) return;
 
       // Drop every keepAlive cache holding account-scoped state on any auth
-      // user-id change (T-h2p-02). `_authSeen` gates this: `fireImmediately:
+      // user-id change. `_authSeen` gates this: `fireImmediately:
       // true` makes the first emission a baseline, not a change, so it must
       // not trigger an invalidation.
       final userId = next.value?.id;
@@ -190,7 +190,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       if (next.value != null) {
         _maybeHandleShare();
 
-        // D-15's cold-start trigger: `AppLifecycleState.resumed` never
+        // The cold-start trigger: `AppLifecycleState.resumed` never
         // fires on a fresh launch, so the drain needs its own kick once a
         // signed-in user has settled. One-shot — a later auth re-emission
         // (e.g. a token refresh) must not re-fire it.
@@ -224,7 +224,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     });
   }
 
-  // D-15's foreground trigger.
+  // The foreground trigger.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {

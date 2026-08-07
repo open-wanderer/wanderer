@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source-level gate for D-12: a hiker who signs out while trails are still
+/// Source-level gate for: a hiker who signs out while trails are still
 /// waiting to upload must be warned first, naming the count.
 ///
 /// Tested at source level rather than behaviourally, on purpose: driving the
@@ -51,7 +51,7 @@ void main() {
             'MISSING confirmSignOutWithUnsyncedTrails in the Settings '
             'sign-out button\'s onPressed. A hiker who taps Logout with '
             'trails still pending would sign out and their trails would '
-            'silently stop uploading with no warning (D-12).',
+            'silently stop uploading with no warning.',
       );
 
       final logoutIndex = body.indexOf('authProvider.notifier).logout()');

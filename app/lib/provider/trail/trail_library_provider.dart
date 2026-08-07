@@ -60,17 +60,17 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
   /// files are deleted ONLY when this account was the last library member
   /// AND the row is not still some account's live capture ([isLiveCaptureRow]).
   ///
-  /// CR-03 (38.1): both "Remove download" confirm dialogs promise "the
-  /// trail itself is not deleted", then called this method, which used to
-  /// unconditionally remove the row from the box whenever this account was
-  /// the last library member. On the CR-01/CR-03 overlap row -- `owner` set,
-  /// `localId` set, `syncState` unsynced, `savedByUserIds == [thisAccount]`
-  /// -- that row IS the hiker's pending recording: removing it destroyed
-  /// the queued upload (`selectDrainCandidates` can never find it again),
-  /// leaked its `WaypointEntity` children, and orphaned its unsynced photo
-  /// directory that this method does not (and must not) clean. 38.1 D-02:
-  /// download removal is scoped by `savedByUserIds` membership, never by
-  /// anything that could also be capture state.
+  /// Both "Remove download" confirm dialogs promise "the trail itself is
+  /// not deleted". This method used to unconditionally remove the row from
+  /// the box whenever this account was the last library member -- but on a
+  /// row with `owner` set, `localId` set, `syncState` unsynced and
+  /// `savedByUserIds == [thisAccount]`, that row IS the hiker's pending
+  /// recording: removing it destroyed the queued upload
+  /// (`selectDrainCandidates` can never find it again), leaked its
+  /// `WaypointEntity` children, and orphaned its unsynced photo directory
+  /// that this method does not (and must not) clean. Download removal is
+  /// therefore scoped by `savedByUserIds` membership, never by anything
+  /// that could also be capture state.
   ///
   /// Deliberate consequence: when the row is kept as a live capture with no
   /// remaining library members, `library/<id>/` is NOT deleted. That
@@ -101,7 +101,7 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
       );
 
       if (remaining.isEmpty && !isLiveCaptureRow(entity)) {
-        // The waypoint children go with the row (38.1 WR-01).
+        // The waypoint children go with the row.
         // `local_trail_store.dart` names this exact call site as the leak
         // `retireUploadedLocalTrail` deliberately does not copy: an orphaned
         // WaypointEntity has a dangling `trail` ToOne, is invisible to every
@@ -127,7 +127,7 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
     });
 
     if (rowRemoved) {
-      // Best-effort (38.1 WR-02). Both call sites are confirm handlers that
+      // Best-effort. Both call sites are confirm handlers that
       // discard this future, so an I/O error here -- a file held open by the
       // photo viewer, a permission failure, a malformed id rejected by
       // `recordIdDirSegment` -- used to escape as an unhandled async error

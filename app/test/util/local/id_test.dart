@@ -49,7 +49,7 @@ void main() {
     });
   });
 
-  // WR-14. These guard the ids that arrive over the network -- a federated or
+  // These guard the ids that arrive over the network -- a federated or
   // compromised instance returning an id containing `..` used to write
   // outside `library/`, because trail_download_service.dart interpolated them
   // straight into a path.

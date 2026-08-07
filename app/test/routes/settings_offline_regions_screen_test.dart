@@ -20,10 +20,10 @@ import 'package:wanderer/routes/settings_offline_regions_screen.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 // ---------------------------------------------------------------------------
-// Widget tests for the flat->tree conversion (31-02). This screen has no
-// prior widget-test baseline (RESEARCH.md Pitfall 5) -- these tests are
-// written from scratch, focused on the two APPUI-02 regression surfaces
-// (leaf download actions, disk-usage summary) plus the new APPUI-01
+// Widget tests for the flat->tree conversion. This screen has no
+// prior widget-test baseline -- these tests are written from scratch,
+// focused on the two regression surfaces
+// (leaf download actions, disk-usage summary) plus the new
 // hierarchy behavior (chevron expand/collapse).
 //
 // No real ObjectBox Store or network is available in a widget test, so:
@@ -192,49 +192,48 @@ Future<void> _pumpScreen(WidgetTester tester) async {
 void main() {
   testWidgets(
     'a downloaded leaf renders its Vector delete action and DEM tile nested '
-    'under its group (APPUI-01, APPUI-02 no-regression)',
+    'under its group (no-regression)',
     (tester) async {
       await _pumpScreen(tester);
 
-      // Group row renders with its name (APPUI-01).
+      // Group row renders with its name.
       expect(find.text('Europe'), findsOneWidget);
 
       // The leaf has an existing Vector download, so computeDefaultExpanded
-      // (D-02) auto-expands its group -- the leaf's own header is visible
+      // auto-expands its group -- the leaf's own header is visible
       // without any tap.
       expect(find.text('North Rhine-Westphalia'), findsOneWidget);
 
       // Vector tile: downloaded -> trash (delete) action, same as the flat
-      // list rendered before this phase (APPUI-02).
+      // list rendered before this phase.
       expect(find.byIcon(FontAwesomeIcons.trash.data), findsOneWidget);
 
       // DEM tile renders (demUrl != null) with its own not-yet-downloaded
-      // download action -- independent of the Vector package (APPUI-02).
+      // download action -- independent of the Vector package.
       expect(find.byIcon(FontAwesomeIcons.download.data), findsOneWidget);
     },
   );
 
   testWidgets(
     'the disk-usage summary total still renders in the hierarchical layout '
-    '(APPUI-02 no-regression)',
+    '(no-regression)',
     (tester) async {
       await _pumpScreen(tester);
 
       // The summary line always renders regardless of the real on-disk byte
       // count (unavailable in a widget test without a real filesystem/path
       // provider plugin) -- its presence, not its exact figure, is what
-      // APPUI-02 requires to survive the flat->tree conversion.
+      // must survive the flat->tree conversion.
       expect(find.textContaining('used across'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'a group row shows a chevron and toggles child-row visibility on tap '
-    '(APPUI-01)',
+    'a group row shows a chevron and toggles child-row visibility on tap',
     (tester) async {
       await _pumpScreen(tester);
 
-      // Auto-expanded by default (D-02: the leaf has a Vector download) --
+      // Auto-expanded by default (the leaf has a Vector download) --
       // the chevron reads "expanded" and the leaf is visible.
       expect(find.byIcon(FontAwesomeIcons.angleDown.data), findsOneWidget);
       expect(find.byIcon(FontAwesomeIcons.angleRight.data), findsNothing);

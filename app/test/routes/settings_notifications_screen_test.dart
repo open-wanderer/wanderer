@@ -9,7 +9,7 @@ import 'package:wanderer/routes/settings_notifications_screen.dart';
 
 void main() {
   testWidgets(
-    'notifications screen renders nine sections with web+email toggles (NOTIF-01..09)',
+    'notifications screen renders nine sections with web+email toggles',
     (tester) async {
       // 18 tiles + 9 headers need a tall viewport so the lazily-built ListView
       // mounts all rows at once.
@@ -55,7 +55,7 @@ void main() {
     },
   );
 
-  testWidgets('null notifications defaults every toggle to ON (D-07)', (
+  testWidgets('null notifications defaults every toggle to ON', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1080, 8000);

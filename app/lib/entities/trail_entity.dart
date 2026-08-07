@@ -36,7 +36,7 @@ class TrailEntity {
   double? duration;
   // Moving time in seconds for trails recorded in the Wanderer app. No
   // default and stays nullable: absence is the meaningful "no moving time
-  // known" state (D-10, phase 34) -- `duration` always means GPX-derived
+  // known" state -- `duration` always means GPX-derived
   // elapsed time.
   double? movingDuration;
   double? lat;
@@ -121,8 +121,8 @@ class TrailEntity {
   /// device.
   ///
   /// Singular, not a list: authorship is 1:1, while downloading is 1:N
-  /// (RESEARCH.md A3). This is NOT [savedByUserIds] and must never be
-  /// conflated with it (D-10) — `savedByUserIds` tracks who has this trail
+  /// This is NOT [savedByUserIds] and must never be
+  /// conflated with it — `savedByUserIds` tracks who has this trail
   /// in their offline library, `owner` tracks who recorded it on this
   /// device. A null owner means "not authored on this device" and must
   /// never match an owner filter.
@@ -136,16 +136,16 @@ class TrailEntity {
   /// find the trail's photo directory and its in-flight-set key.
   String? localId;
 
-  /// D-04's Trail half: app-owned copies of picked photos for a trail that
+  /// The Trail half: app-owned copies of picked photos for a trail that
   /// has not uploaded yet. Declared as a plain field with an initializer,
   /// exactly like [photos] (not a constructor parameter).
   List<String> localPhotos = [];
 
-  /// D-07 backoff bookkeeping: how many upload attempts have failed so far.
+  /// Backoff bookkeeping: how many upload attempts have failed so far.
   /// Persisted so a parked failure survives an app restart.
   int syncAttempts = 0;
 
-  /// D-07 backoff bookkeeping: the earliest time the drain should retry this
+  /// Backoff bookkeeping: the earliest time the drain should retry this
   /// trail's upload. Persisted so a parked failure survives an app restart.
   @Property(type: PropertyType.dateUtc)
   DateTime? syncNextAttemptAt;
@@ -314,7 +314,7 @@ extension TrailEntityMapping on TrailEntity {
     final tags = decodeTrailTags(tagsJson);
 
     return Trail(
-      // D-06: a local-sentinel id is blanked here so an empty id means
+      // A local-sentinel id is blanked here so an empty id means
       // "not-yet-uploaded" at the model layer, even though ObjectBox needs
       // a unique non-empty value to store the row.
       id: isLocalId(id) ? '' : id,

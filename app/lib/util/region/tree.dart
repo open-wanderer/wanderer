@@ -1,8 +1,8 @@
 import 'package:wanderer/models/region_hierarchy_row.dart';
 import 'package:wanderer/models/region_tree_node.dart';
 
-/// Assembles a flat `List<RegionHierarchyRow>` into a group/leaf tree
-/// (D-01), ported 1:1 from `regions_ui.html:515-533`'s `buildTree`.
+/// Assembles a flat `List<RegionHierarchyRow>` into a group/leaf tree,
+/// ported 1:1 from `regions_ui.html:515-533`'s `buildTree`.
 ///
 /// A row whose `parent` is `""` becomes a root. A row whose `parentId` is
 /// non-empty but whose parent id is absent from the map ALSO falls back to
@@ -46,7 +46,7 @@ List<RegionTreeNode> buildRegionTree(List<RegionHierarchyRow> rows) {
 }
 
 /// Given a predicate over leaf nodes, returns the set of group node ids that
-/// should be expanded by default (D-02) — a group is expanded iff ANY
+/// should be expanded by default — a group is expanded iff ANY
 /// descendant leaf satisfies [hasDownloadOrInProgress]. Ported 1:1 from
 /// `regions_ui.html:599-609`'s `computeDefaultExpanded`/
 /// `hasEnabledDescendant`, generalized from a hardcoded `node.enabled` check
@@ -81,7 +81,7 @@ Set<String> computeDefaultExpanded(
   return expanded;
 }
 
-/// Flattens [roots] into a depth-annotated, render-ready list (D-06),
+/// Flattens [roots] into a depth-annotated, render-ready list,
 /// ported 1:1 from `regions_ui.html:611-633`'s `flattenVisible`. Returns a
 /// record type (`({RegionTreeNode node, int depth})`, matching
 /// `tile_repository_manager.dart`'s `splitRegionTilePaths` precedent)
@@ -117,7 +117,7 @@ List<({RegionTreeNode node, int depth})> flattenVisible(
 
 /// Returns the set of node ids that match [query] (case-insensitive
 /// substring of `name`) plus every matched node's full ancestor chain, or
-/// `null` for an empty query (D-06). Ported 1:1 from
+/// `null` for an empty query. Ported 1:1 from
 /// `regions_ui.html:635-667`'s `computeFilterMatches`.
 ///
 /// A node whose own name matches pulls in its WHOLE subtree (so searching

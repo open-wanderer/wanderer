@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source-level guard for CR-03's UI half (38.1 plan 05): a widget test is
+/// Source-level guard for the UI half: a widget test is
 /// deliberately not used here. Mounting `LibraryScreen` requires
 /// `trailLibraryProvider`, `routerProvider` and `trailFilterProvider`
 /// overrides plus a live `Store` behind the library provider, and there is
@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// The invariant this file protects: `_showContextMenu`'s Remove `ListTile`
 /// must be guarded by `ownLiveCaptureProvider` -- the SAME predicate
-/// `trail_dropdown.dart` reads (D-12: one predicate, two surfaces) -- and
+/// `trail_dropdown.dart` reads (one predicate, two surfaces) -- and
 /// that guard must precede the call that reaches
 /// `trailLibraryProvider.notifier.deleteTrail`. Every row this screen
 /// renders comes from `trailLibraryProvider`, which filters only on
@@ -44,8 +44,8 @@ void main() {
           .where((line) => !RegExp(r'^\s*//').hasMatch(line))
           .join('\n');
 
-      // Matched on the method NAME only, never the full parameter list
-      // (38.1 WR-09). Pinning the exact signature made an untyped `router`
+      // Matched on the method NAME only, never the full parameter list.
+      // Pinning the exact signature made an untyped `router`
       // parameter load-bearing: typing it correctly failed this gate, so
       // the test was actively holding an unchecked `dynamic` dispatch in
       // place. The invariant this file protects is about the Remove
@@ -72,7 +72,7 @@ void main() {
         isTrue,
         reason:
             '_showContextMenu must consult ownLiveCaptureProvider -- the '
-            'same predicate trail_dropdown.dart reads (D-12: exactly one '
+            'same predicate trail_dropdown.dart reads (exactly one '
             'predicate serving both surfaces), not a second implementation.',
       );
 
@@ -83,7 +83,7 @@ void main() {
         isNot(-1),
         reason:
             'The Remove ListTile must be wrapped in if (!isOwnLiveCapture) '
-            '-- D-13: hidden entirely (not disabled) when this account owns '
+            '-- hidden entirely (not disabled) when this account owns '
             'the row as a live, not-yet-uploaded capture.',
       );
       expect(
@@ -107,7 +107,7 @@ void main() {
         isFalse,
         reason:
             'The guard must not be re-derived from isUnsyncedState read '
-            'off the shared model\'s syncState -- D-02/D-12 require it '
+            'off the shared model\'s syncState -- it must be '
             'come from the owner-scoped ownLiveCaptureProvider only.',
       );
 

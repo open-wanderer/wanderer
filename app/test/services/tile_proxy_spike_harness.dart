@@ -1,5 +1,5 @@
-// PROXY-03 on-device spike harness for Phase 25.1
-// (local-http-tile-proxy-for-region-based-offline-map-rendering).
+// On-device spike harness for the local HTTP tile proxy behind
+// region-based offline map rendering.
 //
 // This is NOT a `flutter test` unit test and NOT part of the production app
 // -- it is a standalone Flutter entry point meant to be launched directly
@@ -7,21 +7,20 @@
 //
 //   cd app && flutter run -t test/services/tile_proxy_spike_harness.dart
 //
-// Purpose: settle PROXY-03 -- does MapLibre Native reliably load a
+// Purpose: does MapLibre Native reliably load a
 // loopback-HTTP tile source (served by the REAL production TileProxyServer)
 // while the device is offline, up to and including full airplane mode? This
 // cannot be resolved by source reading (the HTTP fetch lives in MapLibre
 // Native's C++/JNI/Swift core, outside the Dart surface), so a human must
-// run this harness on real hardware. Settles PROXY-03 via this plan's
-// `checkpoint:decision`.
+// run this harness on real hardware.
 //
 // It starts the REAL `TileProxyServer` (`lib/services/tile_proxy_server.dart`)
 // and composes the map's offline style through the REAL production
 // `rewriteStyleForProxy` transform (`lib/util/region/offline_style_rewriter.dart`)
-// -- exactly the wiring Plan 04 will add to `main.dart` -- so a pass here
+// -- exactly the wiring `main.dart` uses -- so a pass here
 // means the real pipeline works, not a bespoke test path.
 //
-// Exercises the five RESEARCH.md "Open Questions" item 1 test cases:
+// Exercises five test cases:
 //   (a) tiles load online via the proxy
 //   (b) tiles keep loading with Wi-Fi/cellular data OFF (airplane NOT
 //       engaged)
@@ -30,16 +29,16 @@
 //   (d) a region finishing its download mid-session becomes visible
 //       (reload regions + pan into the newly-covered area) WITHOUT
 //       remounting this screen
-//   (e) the Android cleartext (Plan 01) / iOS ATS (Plan 01) exceptions are
+//   (e) the Android cleartext / iOS ATS exceptions are
 //       confirmed necessary/sufficient on real hardware (watch `adb logcat`
 //       for `CLEARTEXT ... not permitted`, or iOS ATS failures, alongside
 //       this harness's own log panel/debugPrint output)
 //
-// This file is throwaway -- deleted or ignored once PROXY-03 is settled by
-// the checkpoint decision (Phase 27 legacy cleanup). It is intentionally
+// This file is throwaway -- delete or ignore it once the question above is
+// settled. It is intentionally
 // kept out of `router_provider.dart` / production navigation (its location
 // under `app/test/` keeps it off the shipped app), mirroring the
-// `region_render_spike_harness.dart` (RENDER-03) / `tile_repository_manager_harness.dart`
+// `region_render_spike_harness.dart` / `tile_repository_manager_harness.dart`
 // (23-06) precedents.
 
 import 'dart:convert';
@@ -105,7 +104,7 @@ class TileProxySpikeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PROXY-03 tile-proxy spike',
+      title: 'Tile-proxy spike',
       home: const TileProxySpikeScreen(),
     );
   }
@@ -282,7 +281,7 @@ class _TileProxySpikeScreenState extends ConsumerState<TileProxySpikeScreen> {
     final proxyBaseUrl = ref.watch(tileProxyBaseUrlProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('PROXY-03 tile-proxy spike')),
+      appBar: AppBar(title: const Text('Tile-proxy spike')),
       body: Column(
         children: [
           Padding(

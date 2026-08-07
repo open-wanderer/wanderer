@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source-level guard for T-36-11-01/T-36-11-02: a real ObjectBox [Store]
+/// Source-level guard: a real ObjectBox [Store]
 /// cannot be opened in `flutter test` (`libobjectbox.dylib` fails to load),
 /// so the query itself is not behaviourally testable here -- same rationale
 /// as `test/routes/trail_create_screen_local_save_gate_test.dart` and
@@ -48,7 +48,7 @@ void main() {
         reason:
             'This is the security invariant: without the owner clause, '
             'account B could render account A\'s not-yet-uploaded trail '
-            '(D-13). The gate fails the moment someone "simplifies" the '
+            '. The gate fails the moment someone "simplifies" the '
             'scoping away.',
       );
     },
@@ -72,20 +72,20 @@ void main() {
         reason:
             'localTrailProvider must fail closed on a non-local id -- a '
             'server-issued id reaching this provider is a caller bug '
-            '(T-36-11-02).',
+            '.',
       );
       expect(
         codeOnly.contains('currentAccountId('),
         isTrue,
         reason:
             'localTrailProvider must resolve the signed-in account fresh '
-            'and delegate account scoping to readOwnLocalTrail (T-36-11-01).',
+            'and delegate account scoping to readOwnLocalTrail.',
       );
       expect(
         codeOnly.contains('savedByUserIds'),
         isFalse,
         reason:
-            'D-10: ownership ("I made this") and library membership ("I '
+            'Ownership ("I made this") and library membership ("I '
             'downloaded this") must stay strictly separate. A local '
             'capture never sets savedByUserIds.',
       );

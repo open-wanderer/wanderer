@@ -28,7 +28,7 @@ sealed class FeedItem with _$FeedItem {
   // Hand-written dispatch factory.
   // Callers MUST pre-filter summit_log items before calling fromJson
   // (see profile_feed_provider.dart). Unknown types throw UnsupportedError
-  // rather than silently corrupting state (mitigates T-01-01).
+  // rather than silently corrupting state.
   factory FeedItem.mock() => FeedItem.trail(
         id: 'mock-feed-id',
         actor: 'mock-actor-id',

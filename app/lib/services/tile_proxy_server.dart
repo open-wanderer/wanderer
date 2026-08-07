@@ -9,24 +9,24 @@ import 'package:wanderer/services/tile_repository_manager.dart';
 import 'package:wanderer/util/geo/xyz_tile_bounds.dart';
 
 /// Loopback-only `HttpServer` that serves vector/DEM map tiles from a
-/// downloaded region's `.pmtiles` archive (PROXY-01/02/03).
+/// downloaded region's `.pmtiles` archive.
 ///
 /// Both `TrailMap` and `navigation_screen` bake a single STATIC
 /// `tiles: ['<baseUrl>/vector/{z}/{x}/{y}.pbf']` /
 /// `['<baseUrl>/dem/{z}/{x}/{y}.png']` XYZ source into every composed offline
 /// style (see `offline_style_rewriter.dart`'s `rewriteStyleForProxy`) instead
 /// of incrementally `addSource`/`removeSource`-ing per-region `pmtiles://`
-/// archives. That incremental reconcile (`_reconcileRegionComposition` in the
-/// pre-25.1 `navigation_screen.dart`) had no reentrancy guard and desynced
-/// its tracking sets from the real native style under overlapping camera-idle
-/// events — the Phase 25 UAT Test 4 failure. Routing every tile request
+/// archives. That incremental reconcile (an earlier
+/// `_reconcileRegionComposition` in `navigation_screen.dart`) had no
+/// reentrancy guard and desynced its tracking sets from the real native style
+/// under overlapping camera-idle events. Routing every tile request
 /// through this single static-source server structurally eliminates that bug
 /// class: there is no reconcile call left to race, because MapLibre Native's
 /// own viewport tracking decides which tiles to request, and every request
 /// resolves its winning region fresh, per-request, via [resolveRegionForTile].
 ///
 /// Binds `InternetAddress.loopbackIPv4` on an OS-assigned ephemeral port
-/// (never the wildcard-bind address / a fixed port — T-25.1-03/T-25.1-04):
+/// (never the wildcard-bind address, never a fixed port):
 /// the server must never be reachable from the LAN/hotspot, and a co-resident
 /// app must not be
 /// able to pre-target a guessable port.
@@ -77,7 +77,7 @@ class TileProxyServer {
   /// Routes `/vector/{z}/{x}/{y}.pbf` and `/dem/{z}/{x}/{y}.png`. Any other
   /// shape, an out-of-range z/x/y, an unresolvable region, or a missing tile
   /// all resolve to the same user-visible outcome as today's blank-basemap
-  /// behavior (Phase 25 D-01/D-02): HTTP 404, empty body.
+  /// behavior: HTTP 404, empty body.
   Future<void> _handle(HttpRequest request) async {
     final segments = request.uri.pathSegments;
     if (segments.length != 4) {
@@ -97,7 +97,7 @@ class TileProxyServer {
 
     // Explicit bounds check BEFORE constructing a ZXY — never rely on ZXY's
     // constructor `assert`, which is stripped in release builds
-    // (T-25.1-05 / RESEARCH.md Anti-Pattern "Trusting ZXY's assert").
+    // — trusting that assert is an anti-pattern.
     if (z == null ||
         x == null ||
         y == null ||
@@ -139,7 +139,7 @@ class TileProxyServer {
     // DownloadedTilePackageEntity.localFilePath — a DB-derived value already
     // validated at write time via util/region/file_path.dart's
     // assertValidRegionPath, NEVER assembled from the request path. This
-    // structurally eliminates path traversal (T-25.1-06).
+    // structurally eliminates path traversal.
     final localFilePath = kind == 'dem'
         ? region.demPackage.target?.localFilePath
         : region.vectorPackage.target?.localFilePath;
@@ -166,8 +166,7 @@ class TileProxyServer {
     }
 
     // Serve decompressed bytes with NO Content-Encoding header (safer
-    // default than serving compressed bytes + Content-Encoding: gzip —
-    // RESEARCH.md Assumption A2).
+    // default than serving compressed bytes + Content-Encoding: gzip).
     request.response.headers.contentType = ContentType.parse(
       tile.type.mimeType(),
     );
@@ -181,7 +180,7 @@ class TileProxyServer {
 /// (each open re-reads/parses the archive header and root directory).
 /// Capped at a small fixed size so an unbounded number of distinct regions
 /// visited in one session can't leave an ever-growing set of open file
-/// handles (T-25.1-07). Evicts (and treats as a cache miss) any path whose
+/// handles. Evicts (and treats as a cache miss) any path whose
 /// backing file no longer exists on disk, covering a mid-session region
 /// delete.
 class _ArchiveCache {

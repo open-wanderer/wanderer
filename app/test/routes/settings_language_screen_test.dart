@@ -9,7 +9,7 @@ import 'package:wanderer/routes/settings_language_screen.dart';
 
 void main() {
   testWidgets(
-    'language screen renders 14 locale tiles + units switch (LANG-01)',
+    'language screen renders 14 locale tiles + units switch',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(

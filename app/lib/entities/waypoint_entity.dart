@@ -25,7 +25,7 @@ class WaypointEntity {
   List<String> localPhotos;
 
   /// Carries list identity for a waypoint that has no server id yet
-  /// (D-06 / RESEARCH.md Pitfall 1). Mirrors [id] once a not-yet-uploaded
+  /// yet. Mirrors [id] once a not-yet-uploaded
   /// waypoint gains a real server id and its persisted `id` column changes.
   String? localKey;
 
@@ -79,7 +79,7 @@ class WaypointEntity {
 extension WaypointEntityMapping on WaypointEntity {
   Waypoint toModel() {
     return Waypoint(
-      // D-06: a local-sentinel id is blanked here, same discipline as
+      // A local-sentinel id is blanked here, same discipline as
       // TrailEntity.toModel — an empty id means not-yet-uploaded.
       id: isLocalId(id) ? '' : id,
       name: name,

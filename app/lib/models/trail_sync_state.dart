@@ -5,7 +5,7 @@
 /// and ObjectBox defaults a new int column to `0` on every row that existed
 /// before this phase. Reordering these values would make every
 /// already-downloaded trail read back as some other sync state and show a
-/// sync badge it never earned (D-08).
+/// sync badge it never earned.
 enum TrailSyncState { synced, pending, uploading, failed }
 
 /// Whether [state] represents a trail that has not (yet, or not

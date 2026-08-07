@@ -1,8 +1,8 @@
 /// Real on-disk byte usage for the region tile repository's disk-usage
-/// summary (SETUI-05, D-06).
+/// summary.
 ///
 /// `DownloadedTilePackageEntity.sizeBytesOnDisk` is only ever populated on a
-/// successful download completion (RESEARCH.md Pitfall 1) -- it stays null
+/// successful download completion -- it stays null
 /// for a `downloading`/`paused` package, silently under-reporting usage if
 /// naively summed. This util instead stats the filesystem directly: a
 /// region's usage is its final vector/DEM file size if present, else its
@@ -11,7 +11,7 @@
 ///
 /// Every path is built via `util/region/file_path.dart`'s sanctioned builders
 /// (never string-concatenated) so an invalid region path fails closed via
-/// [assertValidRegionPath]'s `ArgumentError` (T-24-01).
+/// [assertValidRegionPath]'s `ArgumentError`.
 library;
 
 import 'dart:io';

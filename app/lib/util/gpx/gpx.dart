@@ -54,14 +54,14 @@ Gpx buildGpxFromPoints(List<Wpt> points) {
   return gpx;
 }
 
-// D-17: trail metrics live in util/gpx/conversion.dart's
-// computeTrailMetrics/GpxTrailMetrics — the port of the Phase 33-corrected
-// TS algorithm. No second metrics implementation (a "totals"-style method or
+// Trail metrics live in util/gpx/conversion.dart's
+// computeTrailMetrics/GpxTrailMetrics — the port of the corrected TS
+// algorithm. No second metrics implementation (a "totals"-style method or
 // value class, or anything computing distance/elevation summaries) may be
-// re-added to this extension: this file previously carried a second,
-// CONV-01-buggy metrics implementation that disagreed with the ported one,
-// so an unsaved-GPX preview showed one distance and the saved trail another
-// for the same GPX (T-34-19). Both former consumers (elevation_profile.dart,
+// re-added to this extension: this file previously carried a second, buggy
+// metrics implementation that disagreed with the ported one, so an
+// unsaved-GPX preview showed one distance and the saved trail another for
+// the same GPX. Both former consumers (elevation_profile.dart,
 // trail_panel.dart) now call computeTrailMetrics.
 extension GpxMappingUtils on Gpx {
   List<Wpt> get allWaypoints {

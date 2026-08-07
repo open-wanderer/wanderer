@@ -1,6 +1,6 @@
 // Widget test, deliberately not a source-grep test.
 //
-// 36-20 (WR-05, T-36-20-04): the drain's retired-id carry-forward (36-16)
+// The drain's retired-id carry-forward
 // and the detail screen's redirect that reads it are pinned everywhere else
 // in this phase by source-slicing gates (`local_trail_retirement_gate_test.
 // dart`), because `_drainOne` and `retireUploadedLocalTrail` both mutate a

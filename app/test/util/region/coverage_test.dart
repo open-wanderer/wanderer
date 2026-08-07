@@ -5,8 +5,8 @@ import 'package:wanderer/models/region_status.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/region/coverage.dart';
 
-/// Table-driven unit tests for the pure trail/region coverage functions
-/// (GUARD-01/GUARD-04). Mirrors the group/test style of
+/// Table-driven unit tests for the pure trail/region coverage functions.
+/// Mirrors the group/test style of
 /// `region_tile_status_util_test.dart`.
 void main() {
   Trail trailWithBbox({
@@ -286,8 +286,7 @@ void main() {
     );
 
     test(
-      'updateAvailable region is EXCLUDED from missingCoverageRegions '
-      '(GUARD-04)',
+      'updateAvailable region is EXCLUDED from missingCoverageRegions',
       () {
         final trail = trailWithBbox(
           minLon: 0,

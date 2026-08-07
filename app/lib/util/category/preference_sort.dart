@@ -8,7 +8,7 @@ import 'package:wanderer/models/subcategory_preference.dart';
 
 /// Sort helpers + visibility resolution for the settings categories screens.
 ///
-/// Ported from `web/src/lib/util/category_util.ts` (SETCAT-06/07). These are
+/// Ported from `web/src/lib/util/category_util.ts`. These are
 /// pure functions with no Riverpod dependency, preserving the Phase-10
 /// read-only-provider boundary — callers pass already-fetched data.
 ///

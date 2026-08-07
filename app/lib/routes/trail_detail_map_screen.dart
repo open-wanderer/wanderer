@@ -20,7 +20,7 @@ class TrailDetailMapScreen extends ConsumerStatefulWidget {
   final String id;
 
   /// The local identity of a not-yet-uploaded trail. When set, [id] is empty
-  /// (D-06 blanks a local-sentinel id at the model boundary) and the screen
+  /// (a local-sentinel id is blanked at the model boundary) and the screen
   /// reads its data from [localTrailProvider] instead of [trailProvider].
   final String? localId;
 

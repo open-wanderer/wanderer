@@ -94,7 +94,7 @@ class _TrailMapState extends ConsumerState<TrailMap>
 
     // Swap the style in place on theme toggle, or once the offline
     // glyph/sprite cache finishes warming — no remount, no flash. Region
-    // coverage is resolved by the loopback tile proxy per-tile (PROXY-01),
+    // coverage is resolved by the loopback tile proxy per-tile,
     // so no separate region-change listener is needed here. Offline reads the
     // network-free providers so no `/map/style-sources` call is ever made.
     if (widget.offline) {
@@ -137,16 +137,15 @@ class _TrailMapState extends ConsumerState<TrailMap>
   /// [rewriteStyleForProxy] when offline. Returns null while an input is
   /// still resolving or the rewrite rejects it.
   ///
-  /// Offline tiles resolve through the loopback tile proxy (PROXY-01) — a
+  /// Offline tiles resolve through the loopback tile proxy — a
   /// single static XYZ source baked into every composed style, with
   /// per-tile region coverage resolved server-side
   /// (`resolveRegionForTile`) rather than pre-queried here. This means
   /// `TrailMap` now serves tiles for any downloaded region the (fixed,
   /// trail-bounded) camera happens to render, not only the trail's own
-  /// bbox — an intentional D-01 consequence (RESEARCH Pitfall 6), harmless
-  /// because the camera stays fit to the trail. Uncovered tiles resolve to
-  /// a blank basemap via the proxy's own 404 responses, so no banner/
-  /// empty-state is added here (D-01/D-02 carried forward).
+  /// bbox — intentional, and harmless because the camera stays fit to the
+  /// trail. Uncovered tiles resolve to a blank basemap via the proxy's own
+  /// 404 responses, so no banner or empty state is added here.
   String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
     if (baseJson == null) return null;
     if (!widget.offline) return baseJson;

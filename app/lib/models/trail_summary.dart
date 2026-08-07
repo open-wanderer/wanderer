@@ -8,7 +8,7 @@ abstract class TrailSummary with RecordFunctions {
   String? get location;
   double get distance;
   double get duration;
-  // D-10 display rule support: only `Trail` has a real moving-time value (a
+  // Display-rule support: only `Trail` has a real moving-time value (a
   // separate, session-derived field). Every other TrailSummary implementer
   // (e.g. search-result summaries) has no such concept and must override
   // this with `null`, which `trailDisplayDuration` treats as "show

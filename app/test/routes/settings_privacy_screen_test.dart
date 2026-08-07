@@ -9,7 +9,7 @@ import 'package:wanderer/routes/settings_privacy_screen.dart';
 
 void main() {
   testWidgets(
-    'privacy screen renders three visibility sections (PRIV-01, PRIV-02, PRIV-03)',
+    'privacy screen renders three visibility sections',
     (tester) async {
       // The six tiles carry long wrapping subtitles; give the test a tall
       // viewport so the lazily-built ListView mounts all six at once.
@@ -56,7 +56,7 @@ void main() {
       expect(find.text('Lists'), findsOneWidget);
 
       // Labels: Public appears in all three sections; Only me in trails + lists;
-      // Private only in the account section (D-03).
+      // Private only in the account section.
       expect(find.text('Public'), findsWidgets);
       expect(find.text('Only me'), findsNWidgets(2));
       expect(find.text('Private'), findsOneWidget);
@@ -67,7 +67,7 @@ void main() {
     },
   );
 
-  testWidgets('null privacy applies web-parity defaults (D-04)', (tester) async {
+  testWidgets('null privacy applies web-parity defaults', (tester) async {
     tester.view.physicalSize = const Size(1080, 4000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

@@ -4,18 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Source-level guard for `retireUploadedLocalTrail`'s invariants.
 ///
-/// `flutter test` cannot open an ObjectBox `Store` (Phase 31 established
-/// there is no ObjectBox test harness for plain `flutter test`, restated in
-/// `local_trail_store_test.dart`'s own header), and there is no PocketBase in
+/// `flutter test` cannot open an ObjectBox `Store` (there is no ObjectBox
+/// test harness for plain `flutter test`, as
+/// `local_trail_store_test.dart`'s own header restates), and there is no PocketBase in
 /// the test environment. So the transaction this function runs in has NO
 /// behavioural surface here at all -- not a hard-to-reach one, an ABSENT one.
 /// `local_trail_store_test.dart` covers the pure half of this plan
 /// (`shouldDeleteUploadedRow`, `resolveLocalSaveModeForRow`) with real
 /// assertions on real inputs; this file pins only the structural invariants a
 /// reader cannot see from the call site -- the cascade, the delete-or-demote
-/// choice, and (once Task 2 lands) the drain's ordering. The end-to-end
-/// behaviour is covered by the device re-test in `36-14-PLAN.md`'s
-/// `<verification>` (UAT Test 5).
+/// choice, and the drain's ordering. The end-to-end behaviour is covered by
+/// a manual re-test on a device.
 ///
 /// The technique mirrors `test/components/trail/trail_dropdown_delete_gate_test.dart`:
 /// slice the function body out of the source file and assert on substrings
@@ -24,9 +23,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// check would pass for a call placed in the `catch` block just as easily as
 /// the right place.
 ///
-/// 36-20 (WR-05/T-36-20-01/T-36-20-03): the assertions in this file split
-/// into two honest categories, and every group below is labelled with which
-/// one it is:
+/// The assertions in this file split into two honest categories, and every
+/// group below is labelled with which one it is:
 ///
 /// - EFFECT assertions -- a value is assigned to a variable and later
 ///   CONSUMED (not merely mentioned), or a call is ordered relative to a
@@ -43,9 +41,9 @@ import 'package:flutter_test/flutter_test.dart';
 ///   against a genuine incident), but they do not prove a value flows
 ///   anywhere.
 ///
-/// Neither category is a substitute for the device UAT named in each of this
-/// phase's plans' `<verification>` sections -- `flutter test` cannot open an
-/// ObjectBox `Store` or reach PocketBase, so no assertion here proves the
+/// Neither category is a substitute for testing on a device -- `flutter
+/// test` cannot open an ObjectBox `Store` or reach PocketBase, so no
+/// assertion here proves the
 /// retirement transaction actually runs correctly against live data. What
 /// this file proves is narrower and still real: that the SOURCE, as written,
 /// cannot silently regress to a shape a past incident already produced.
@@ -73,7 +71,7 @@ void main() {
         .where((line) => !RegExp(r'^\s*//').hasMatch(line))
         .join('\n');
 
-    // 38.1 WR-03: the return type became a record so the caller can tell the
+    // The return type became a record so the caller can tell the
     // demote branch from the remove branch and reclaim library/<serverId>/.
     // Matched on the record type + name so a further signature change still
     // trips this gate rather than silently skipping the whole group.
@@ -122,7 +120,7 @@ void main() {
         isTrue,
         reason:
             'The local id is the only handle the drain holds for the '
-            'whole resume sequence (D-05); keying on anything else breaks '
+            'whole resume sequence; keying on anything else breaks '
             'retirement for a row the drain is mid-sequence with.',
       );
     });
@@ -166,12 +164,12 @@ void main() {
       );
     });
 
-    // EFFECT assertion (36-20): the captured server id must actually be
-    // RETURNED from both exits, not merely computed and discarded -- CR-01's
+    // EFFECT assertion: the captured server id must actually be
+    // RETURNED from both exits, not merely computed and discarded -- the
     // whole fix depends on the caller receiving this value.
     test(
       'captures the server id once, before either exit mutates the row, '
-      'and returns it from BOTH exits (CR-01)',
+      'and returns it from BOTH exits',
       () {
         final body = retirementBody();
 
@@ -185,7 +183,7 @@ void main() {
               'matters.',
         );
 
-        // 38.1 WR-03: both exits now return a record. The CR-01 invariant is
+        // Both exits now return a record. The invariant is
         // unchanged -- each must still carry the captured serverId -- so the
         // gate matches `serverId: serverId` instead of `return serverId;`.
         final returnCount = RegExp(
@@ -197,12 +195,12 @@ void main() {
           reason:
               'retireUploadedLocalTrail has two exits (demote, delete) and '
               'both must return the captured serverId -- discarding it on '
-              'either exit re-opens CR-01: the screen\'s trail.id stays '
+              'either exit re-opens the dead end: the screen\'s trail.id stays '
               '\'\' forever and every post-upload save fails for a trail '
               'retired down that exit.',
         );
 
-        // 38.1 WR-03: and they must disagree on rowRemoved, or the caller
+        // And they must disagree on rowRemoved, or the caller
         // cannot tell which branch ran and the library/<serverId>/ reclaim
         // either never fires or fires on the demote branch and deletes a
         // still-held library entry's photos.
@@ -215,7 +213,7 @@ void main() {
         expect(
           RegExp(r'rowRemoved:\s*true').allMatches(body).length,
           greaterThanOrEqualTo(1),
-          reason: 'No exit reports rowRemoved: true -- WR-03\'s orphaned '
+          reason: 'No exit reports rowRemoved: true -- the orphaned '
               'library/<serverId>/ is never reclaimed.',
         );
 
@@ -305,7 +303,7 @@ void main() {
                 'means a row survives its own upload as '
                 '`owner != null && syncState == synced`, which '
                 'readOwnLocalTrails re-emits forever and no delete affordance '
-                'in the app can remove (UAT Test 5, blocker).',
+                'in the app can remove.',
           );
         }
       });
@@ -325,7 +323,7 @@ void main() {
           isTrue,
           reason:
               'Retiring before every waypoint is created destroys the '
-              'resume state D-05 depends on -- the trail would exist '
+              'resume state the drain depends on -- the trail would exist '
               'server-side with missing waypoints and no local row to '
               'retry from.',
         );
@@ -371,7 +369,7 @@ void main() {
 
       test('hasKeylessPendingWaypoint( is checked before the in-flight set '
           'is joined -- an invariant break must not record a failed '
-          'attempt (WR-04)', () {
+          'attempt', () {
         final body = drainOneBody();
 
         final guardIdx = body.indexOf('hasKeylessPendingWaypoint(');
@@ -395,8 +393,7 @@ void main() {
       });
 
       test('the body contains no StateError( -- the keyless-waypoint '
-          'throw is gone, so it can no longer reach recordDrainFailure '
-          '(WR-04)', () {
+          'throw is gone, so it can no longer reach recordDrainFailure', () {
         final body = drainOneBody();
 
         expect(
@@ -411,13 +408,13 @@ void main() {
         );
       });
 
-      // EFFECT assertion (36-20, CR-01/WR-01): the retirement return value
+      // EFFECT assertion: the retirement return value
       // must be ASSIGNED (not discarded) and CONSUMED by the memo before the
       // detail/create screen's only other handle on the trail (the memo
       // itself) can exist.
       test(
         'assigns retireUploadedLocalTrail\'s return value -- it is never '
-        'discarded (CR-01)',
+        'discarded',
         () {
           final body = drainOneBody();
 
@@ -426,7 +423,7 @@ void main() {
             isTrue,
             reason:
                 'Calling retireUploadedLocalTrail( for its side effect '
-                'alone and discarding the return value re-opens CR-01: the '
+                'alone and discarding the return value re-opens the dead end: the '
                 'screen\'s trail.id snapshot stays the blank local-'
                 'sentinel value forever (there are no ObjectBox '
                 'Query.watch() streams anywhere in this app), and every '
@@ -437,7 +434,7 @@ void main() {
 
       test(
         '_rememberRetiredServerId( runs after the retirement return value '
-        'is captured, not before (CR-01)',
+        'is captured, not before',
         () {
           final body = drainOneBody();
 
@@ -467,8 +464,7 @@ void main() {
 
       test(
         'invalidates localTrailProvider(localId) AFTER retirement runs, so '
-        'a mounted detail screen re-reads instead of rendering a dead row '
-        '(WR-01)',
+        'a mounted detail screen re-reads instead of rendering a dead row',
         () {
           final body = drainOneBody();
 
@@ -485,7 +481,7 @@ void main() {
                 '_drainOne. A hiker sitting on /trail/local/<localId> '
                 'while the upload completes keeps rendering a row that no '
                 'longer exists, with a live Edit button that walks '
-                'straight into CR-01\'s dead end.',
+                'straight into that dead end.',
           );
           expect(
             retireIdx < invalidateIdx,
@@ -502,12 +498,12 @@ void main() {
 
   // Both an EFFECT assertion (the account comparison actually gates the
   // return, not merely appears somewhere in the body) and a threat-model
-  // control (T-36-16-01/T-36-20-03): `trailSyncProvider` is deliberately
+  // control: `trailSyncProvider` is deliberately
   // excluded from `accountScopedProviders`, so this memo survives an account
   // switch, and without the check account B could resolve account A's
   // retired server id and post an edit to A's trail.
   group('serverIdForRetired -- the memoized value never crosses an account '
-      'boundary (T-36-16-01, T-36-20-03)', () {
+      'boundary', () {
     /// [TrailSync.serverIdForRetired]'s body, comment-stripped, isolated
     /// from the rest of the file. Built the same way as [drainOneBody]
     /// above.
@@ -550,7 +546,7 @@ void main() {
         isTrue,
         reason:
             'serverIdForRetired must re-read currentAccountId fresh at the '
-            'point of use (D-13), not from a cached field -- a stale '
+            'point of use, not from a cached field -- a stale '
             'cached id here is exactly the cross-account leak the account '
             'check exists to prevent.',
       );
@@ -589,7 +585,7 @@ void main() {
 
         // Everything between the memo lookup and the eventual return is the
         // region that MUST contain the account comparison -- removing it
-        // (T-36-20-03's falsifying rewrite: delete the
+        // (the falsifying rewrite: delete the
         // `if (entry.accountId != accountId) { ...; return null; }` block)
         // collapses this slice to nothing but the null-check, and the
         // assertions below fail.
@@ -619,7 +615,7 @@ void main() {
   });
 
   group('deleteUnsynced -- a row with a server id gets a real server '
-      'DELETE too (CR-04)', () {
+      'DELETE too', () {
     /// `TrailSync.deleteUnsynced`'s body, comment-stripped, isolated from
     /// the rest of the file. Same technique as [drainOneBody] above --
     /// `deleteUnsynced` awaits `apiProvider.delete` and mutates a live
@@ -669,7 +665,7 @@ void main() {
 
     test('decides on readLocalTrailServerId(, never readLocalTrail( -- a '
         'delete decision must not depend on the row\'s cached GPX still '
-        'parsing (CR-02)', () {
+        'parsing', () {
       final body = deleteUnsyncedBody();
 
       expect(
@@ -693,12 +689,12 @@ void main() {
             'readLocalTrail() -> toModel() can silently return null on '
             'an unparseable cached GPX, which previously made this '
             'method treat a row with a real server id as if it had '
-            'none (CR-02). The decision must never route through it.',
+            'none. The decision must never route through it.',
       );
     });
 
     test('validates the server id through recordIdDirSegment( before it '
-        'reaches the Dio path (WR-17)', () {
+        'reaches the Dio path', () {
       final body = deleteUnsyncedBody();
 
       expect(
@@ -729,12 +725,12 @@ void main() {
             'the server DELETE ran after (or the local delete were not '
             'gated on it succeeding), a network failure would strand the '
             'local row deleted and the server copy alive -- exactly the '
-            'shape CR-04 exists to prevent.',
+            'shape this gate exists to prevent.',
       );
     });
 
     test('deleteLocalTrailRow( is called with accountId: -- every write on '
-        'the delete path is owner-scoped (WR-10)', () {
+        'the delete path is owner-scoped', () {
       final body = deleteUnsyncedBody();
 
       final localDeleteIdx = body.indexOf('deleteLocalTrailRow(');
@@ -748,13 +744,13 @@ void main() {
         isTrue,
         reason:
             'Without an owner clause, account B could delete account '
-            'A\'s device-only row through a stale localId (WR-10).',
+            'A\'s device-only row through a stale localId.',
       );
     });
 
     test('a failed server DELETE is classified via resolveServerDeleteOutcome( '
         'between the DELETE call and the local delete -- the failure is '
-        'classified, not swallowed unconditionally (WR-15)', () {
+        'classified, not swallowed unconditionally', () {
       final body = deleteUnsyncedBody();
 
       final serverDeleteIdx = body.indexOf('apiProvider).delete(');
@@ -779,8 +775,7 @@ void main() {
 
     test(
       'deleteLocalTrailRow(\'s result gates the photo delete -- a no-op row '
-      'delete must not be followed by an unscoped recursive photo delete '
-      '(D-07, CR-01)',
+      'delete must not be followed by an unscoped recursive photo delete',
       () {
         final body = deleteUnsyncedBody();
 
@@ -792,7 +787,7 @@ void main() {
           isNotNull,
           reason:
               'deleteLocalTrailRow now returns LocalRowDeleteOutcome (plan '
-              '38.1-02, 38.1 CR-02); deleteUnsynced must capture that '
+              'the row was its only handle); deleteUnsynced must capture that '
               'result rather than discarding it, or a no-op row delete '
               'cannot be distinguished from a real one.',
         );
@@ -817,7 +812,7 @@ void main() {
           guardIdx < photoDeleteIdx,
           isTrue,
           reason:
-              'CR-01: a no-op row delete (deleteLocalTrailRow matched no '
+              'A no-op row delete (deleteLocalTrailRow matched no '
               'row owned by this account) followed by an unscoped '
               'recursive photo delete is exactly how account B destroyed '
               'account A\'s photos -- deleteUnsyncedPhotoDir had no '
@@ -832,7 +827,7 @@ void main() {
       'a no-op row delete returns UnsyncedDeleteResult.failed, never '
       '.deleted -- reporting success for a delete that never happened '
       'produces a success toast, a popped route and a map-provider '
-      'announcement for nothing (D-07)',
+      'announcement for nothing',
       () {
         final body = deleteUnsyncedBody();
 
@@ -865,9 +860,9 @@ void main() {
               'never happened.',
         );
 
-        // WR-08 (38.1): `deleted` is now reachable from this branch, but ONLY
+        // `deleted` is reachable from this branch, but ONLY
         // when gated on `serverCopyDeleted`. An ungated `deleted` here is the
-        // exact D-07 regression this gate exists to catch.
+        // exact regression this gate exists to catch.
         if (guardBlock.contains('UnsyncedDeleteResult.deleted')) {
           expect(
             guardBlock.contains('serverCopyDeleted'),
@@ -876,7 +871,7 @@ void main() {
                 'The no-match branch may only report .deleted when '
                 'serverCopyDeleted proves we owned the row and the server '
                 'copy is gone. An unconditional .deleted here reports '
-                'success for a delete that touched nothing (D-07).',
+                'success for a delete that touched nothing.',
           );
         }
       },
@@ -884,8 +879,8 @@ void main() {
 
     test(
       'serverCopyDeleted can only be set inside the owner-scoped serverId '
-      'branch -- otherwise WR-08 would hand the CR-01 overlap a success '
-      'result for another account\'s row (D-07/CR-01)',
+      'branch -- otherwise the overlap gets a success '
+      'result for another account\'s row',
       () {
         final body = deleteUnsyncedBody();
 
@@ -898,7 +893,7 @@ void main() {
 
         // Every assignment that sets the flag true must appear after the
         // owner-scoped `readLocalTrailServerId` result has been proven
-        // non-null. `readLocalTrailServerId` is owner-scoped, so in the CR-01
+        // non-null. `readLocalTrailServerId` is owner-scoped, so in the
         // overlap it returns null, this block never runs, and the flag stays
         // false -- keeping the no-match branch on `failed`.
         final assignments = RegExp(
@@ -907,7 +902,7 @@ void main() {
         expect(
           assignments,
           isNotEmpty,
-          reason: 'serverCopyDeleted is never set -- WR-08 has regressed.',
+          reason: 'serverCopyDeleted is never set -- this has regressed.',
         );
         for (final m in assignments) {
           expect(
@@ -916,7 +911,7 @@ void main() {
             reason:
                 'serverCopyDeleted is set outside the `serverId != null` '
                 'branch. That lets a non-owning account reach a .deleted '
-                'result for a row it never owned (CR-01).',
+                'result for a row it never owned.',
           );
         }
       },
@@ -925,7 +920,7 @@ void main() {
 
   group(
     'writeServerWaypointId -- localPhotos survive until the trail is '
-    'retired (WR-09)',
+    'retired',
     () {
       /// [writeServerWaypointId]'s body, comment-stripped, isolated from
       /// the rest of the file.

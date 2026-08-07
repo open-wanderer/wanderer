@@ -10,7 +10,7 @@ import 'package:wanderer/util/region/tile_status.dart';
 
 /// The user's checkbox selection from [showMissingCoverageSheet] — the
 /// regions whose Vector package the user checked, and the regions whose DEM
-/// package the user checked. Both lists can be empty (D-08's trail-only
+/// package the user checked. Both lists can be empty (the trail-only
 /// escape hatch). Plain class (not freezed): no build_runner run needed for
 /// this self-contained contract.
 class MissingCoverageSelection {
@@ -23,10 +23,10 @@ class MissingCoverageSelection {
   });
 }
 
-/// GUARD-02/GUARD-03's user surface: a bottom modal sheet listing every
+/// The user surface: a bottom modal sheet listing every
 /// region overlapping a trail's bbox that isn't yet `downloaded`/
 /// `updateAvailable`, with independent Vector/DEM checkboxes per region
-/// (D-06/D-07) and a single always-enabled Download button (D-08). Mirrors
+/// and a single always-enabled Download button. Mirrors
 /// `track_save_options_sheet.dart`'s shape; the region rows mirror
 /// `settings_offline_regions_screen.dart`'s styling.
 ///
@@ -90,8 +90,8 @@ class _MissingCoverageSheetContent extends ConsumerStatefulWidget {
 
 class _MissingCoverageSheetContentState
     extends ConsumerState<_MissingCoverageSheetContent> {
-  // D-07: Vector defaults checked, DEM defaults unchecked, for every listed
-  // region. Toggling only mutates this local state (D-06) — no download
+  // Vector defaults checked, DEM defaults unchecked, for every listed
+  // region. Toggling only mutates this local state — no download
   // starts from this widget.
   late final Map<String, bool> _vectorChecked = {
     for (final region in widget.missingRegions) region.path: true,

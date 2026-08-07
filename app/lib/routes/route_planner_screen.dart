@@ -497,7 +497,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// Hands the finished route off: in edit mode pops the ele-merged [Gpx]
   /// back to the awaiting `trail_create_screen`; otherwise invokes
   /// [finishPlanning] to forward-push a draft Trail (built entirely on-device
-  /// since 34-05 — see `buildDraftTrail`).
+  /// — see `buildDraftTrail`).
   ///
   /// Neither branch shows a save-options sheet. The planner used to route the
   /// forward-push branch through the shared online gate
@@ -505,7 +505,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// change a planned route's output, so it was removed — see
   /// [finishPlanning].
   ///
-  /// WR-04: [_finishing] guards against a double-tap firing two concurrent
+  /// [_finishing] guards against a double-tap firing two concurrent
   /// conversions/navigations, and the guard is sound only because nothing is
   /// awaited between the `if (_finishing) return;` below and the `setState`
   /// that raises the flag. The removed gate WAS such an await, which is why
@@ -514,7 +514,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// action stays enabled while the flag is down (`_buildFinishAction` reads
   /// `!_finishing`).
   ///
-  /// D-16: with plan 34-05's local conversion, an offline finish reaches the
+  /// With the local conversion, an offline finish reaches the
   /// create screen instead of throwing — the `catch` below is not deleted, it
   /// remains a genuine last-resort guard for anything else that could still
   /// fail (e.g. an unexpected local error), matching `import_trail_file.dart`'s

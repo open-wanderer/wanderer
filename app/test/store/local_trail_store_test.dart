@@ -6,7 +6,7 @@ import 'package:wanderer/store/local_trail_store.dart';
 
 // ---------------------------------------------------------------------------
 // Pure-decision tests for local_trail_store.dart. No Store construction --
-// Phase 31 established there is no ObjectBox test harness for plain
+// There is no ObjectBox test harness for plain
 // `flutter test`, so every Store-touching function here is covered only at
 // source level (see the plan's grep-based acceptance criteria) or verified
 // on-device.
@@ -54,7 +54,7 @@ void main() {
   });
 
   group(
-    'resolveLocalSaveMode routing input: snapshot vs persisted row (CR-04)',
+    'resolveLocalSaveMode routing input: snapshot vs persisted row',
     () {
       // TrailCreateScreen used to route on its own `trail` field, captured at
       // the end of _finishLocalSave while syncState was still `pending`. The
@@ -227,14 +227,14 @@ void main() {
       );
     });
 
-    // CR-03: a persisted row that already carries a real server id, even
+    // A persisted row that already carries a real server id, even
     // though its syncState has not (yet) reached `synced`, must route to
     // the network -- this is the exact `alreadyUploaded` window
     // updateLocalTrail refuses. Getting this wrong (routing it to
     // updateLocal) is what let a network edit reach the server while the
     // local row silently kept its pre-edit values.
     test('returns networkUpdate for a persisted row with a non-empty server '
-        'id whose syncState is still pending (CR-03 window)', () {
+        'id whose syncState is still pending', () {
       final screenTrail = Trail.empty().copyWith(
         id: '',
         localId: 'local-1-0',
@@ -257,7 +257,7 @@ void main() {
     });
 
     test('returns networkUpdate for a persisted row with a non-empty server '
-        'id whose syncState is failed (CR-03 window, deterministic waypoint '
+        'id whose syncState is failed (deterministic waypoint '
         'failure)', () {
       final screenTrail = Trail.empty().copyWith(
         id: '',
@@ -281,9 +281,9 @@ void main() {
     });
 
     // Control case: an ordinary unsynced re-save (empty id, still pending)
-    // must stay local. This fails if the CR-03 fix accidentally widens the
+    // must stay local. This fails if the fix accidentally widens the
     // routing to also catch a trail that has never reached the server at
-    // all (REC-01's offline-edit path).
+    // all (the offline-edit path).
     test('still returns updateLocal for a persisted row with an empty id '
         'and syncState pending -- an ordinary offline re-save', () {
       final screenTrail = Trail.empty().copyWith(
@@ -324,13 +324,13 @@ void main() {
 
   group('trailHasServerId', () {
     test('is false for the blank id a still-local sentinel row reads as '
-        '(TrailEntity.toModel() blanks it, D-06)', () {
+        '(TrailEntity.toModel() blanks it)', () {
       expect(trailHasServerId(''), isFalse);
     });
 
     test('is true for a real server id, regardless of syncState -- a '
         '`failed` row can carry one from a create that succeeded before a '
-        'later waypoint upload failed (CR-03, CR-04)', () {
+        'later waypoint upload failed', () {
       expect(trailHasServerId('server-1'), isTrue);
     });
   });
@@ -484,7 +484,7 @@ void main() {
 
     test(
       'is true for a local-id waypoint with a null localKey -- the '
-      'invariant break WR-04 guards against',
+      'invariant break this guards against',
       () {
         expect(
           hasKeylessPendingWaypoint(const [
@@ -585,7 +585,7 @@ void main() {
     });
 
     test('returns true for a downloaded row that also carries another '
-        "account's carry-forward -- the CR-01/CR-03 overlap row "
+        "account's carry-forward -- the overlap row "
         '(TrailDownloadService.downloadTrail\'s shape)', () {
       final entity = buildEntity(
         owner: 'account-a',

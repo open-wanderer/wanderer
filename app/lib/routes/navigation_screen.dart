@@ -696,8 +696,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   }
 
   /// Builds a stub [Trail] from the recorded breadcrumb (via the same
-  /// on-device conversion the Route Planner and GPX-file import use, since
-  /// 34-05 — see `buildDraftTrail`) and hands off to `trail_create_screen`.
+  /// on-device conversion the Route Planner and GPX-file import use — see
+  /// `buildDraftTrail`) and hands off to `trail_create_screen`.
   /// Callers must only invoke this with a breadcrumb of >=2 points (see the
   /// completion-banner and exit-dialog guards) — the conversion isn't
   /// meaningful for a near-empty track.
@@ -716,7 +716,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// Opens the shared online gate (see `resolve_track_save_options.dart`)
   /// FIRST, before the [_savingTrack] guard, so both call sites
   /// (exit-dialog and completion-banner) inherit it with no change. The
-  /// sheet itself is now shown only when online (D-15); offline, the save
+  /// sheet itself is now shown only when online; offline, the save
   /// proceeds straight through with both transforms off.
   /// Cancelling/dismissing an online sheet still aborts the save entirely —
   /// no change to the session.
@@ -793,7 +793,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           // `fallbackShape` is what enforces that: without it a failed or
           // rejected snap returned the hint itself, so a flaky connection
           // silently saved a 500-point decimation of a full-resolution
-          // recording (WR-02).
+          // recording.
           workingShape = await snapShapeToRoads(
             ref,
             buildNavShape(breadcrumbPoints),
@@ -861,11 +861,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       final subcategory =
           originalTrail?.subcategoryId ?? selection?.subcategoryId;
 
-      // D-09: NavigationStats.elapsed is already moving time — the 1-second
+      // NavigationStats.elapsed is already moving time — the 1-second
       // tick is a no-op while isPaused || isStationary, and it is already
       // the value shown to the user during the session, so no second
-      // derivation is invented here. D-11: no planner-style estimated
-      // duration fallback is passed here — `duration` must come from the
+      // derivation is invented here. No planner-style estimated duration
+      // fallback is passed either — `duration` must come from the
       // GPX so a later web recompute reproduces it.
       final trail = await buildDraftTrail(
         ref,
@@ -940,7 +940,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// Online: [baseJson] as-is. Offline: [baseJson] rewritten via
   /// [rewriteStyleForProxy] so `glyphs`/`sprite` resolve from [cache] and the
   /// protomaps/hillshade tiles resolve from the loopback tile proxy
-  /// (PROXY-01) — a single static XYZ source, with per-tile region coverage
+  /// — a single static XYZ source, with per-tile region coverage
   /// resolved server-side (`resolveRegionForTile`) rather than a live
   /// viewport query here. This screen's camera moves freely across a
   /// session, unlike `TrailMap`'s fixed trail bounds, but the proxy's
@@ -948,8 +948,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// Returns null while a required input is still resolving — the caller
   /// then shows the loading passthrough (initStyle path) or leaves the
   /// mounted style unchanged (`_swapStyle` path). An uncovered viewport
-  /// resolves to a blank basemap via the proxy's own 404 responses
-  /// (D-01/D-02 carried forward).
+  /// resolves to a blank basemap via the proxy's own 404 responses.
   String? _composeStyle(String? baseJson, GlyphSpriteCachePaths? cache) {
     if (baseJson == null) return null;
     if (!widget.isOffline) return baseJson;
@@ -1077,10 +1076,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     // Live style swap: theme toggle or (offline) glyph/sprite cache warm
     // swaps the composed style in place on the already-mounted map. Region
-    // coverage is resolved by the loopback tile proxy per-tile (PROXY-01):
+    // coverage is resolved by the loopback tile proxy per-tile:
     // a newly-downloaded region's tiles resolve the next time MapLibre
-    // requests them (confirmed on-device, 25.1-03-SUMMARY.md test case d,
-    // no remount needed) — no separate region-change listener is required.
+    // requests them (confirmed on-device, no remount needed) — no separate
+    // region-change listener is required.
     // Offline reads the network-free providers so no `/map/style-sources`
     // call is ever made.
     if (widget.isOffline) {

@@ -62,8 +62,8 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
     final categories = ref.watch(categoryProvider);
     final unit = ref.watch(unitProvider);
 
-    // FILTER-06: hide categories the user has marked visible:false in
-    // preferences. A null/absent preference means visible (D-06: `!= false`).
+    // Hide categories the user has marked visible:false in
+    // preferences. A null/absent preference means visible (`!= false`).
     final catPrefs = ref.watch(categoryPreferenceProvider).value ?? [];
     final visibleCategories = (categories.value ?? [])
         .where(
@@ -87,10 +87,10 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
       ),
       body: filter.when(
         data: (f) {
-          // Subcategory options (FILTER-02/-07): scoped to the selected
-          // categories (D-05) and filtered by visibility preferences (null pref
+          // Subcategory options: scoped to the selected
+          // categories and filtered by visibility preferences (null pref
           // = visible). `subcategoryProvider` is a synchronous List, NOT an
-          // AsyncValue, so no `.value` (RESEARCH Pitfall 2).
+          // AsyncValue, so no `.value`.
           final subcategories = ref.watch(subcategoryProvider);
           final subPrefs = ref.watch(subcategoryPreferenceProvider).value ?? [];
           final visibleSubs = subcategories
@@ -161,7 +161,7 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Subcategories section (FILTER-02). Animates in only when ≥1
+                // Subcategories section. Animates in only when ≥1
                 // category is selected and at least one scoped, visible
                 // subcategory exists; otherwise it silently collapses to
                 // nothing (UI-SPEC: no placeholder text).

@@ -16,7 +16,7 @@
 // shipped app).
 //
 // See this plan's `<verify><human-check>` block for the five on-device
-// behaviors (TILE-02/03/04, DEM-01/02, TILE-05) this harness is built to
+// behaviors this harness is built to
 // confirm.
 
 import 'dart:io';
@@ -35,7 +35,7 @@ import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 // Drives `tileRepositoryManagerProvider` (the construction-only manager
-// seam from 23-05); `TileRepositoryStatus` is the notifier Phase 24's
+// seam from 23-05); `TileRepositoryStatus` is the notifier the
 // Settings UI will subscribe to, referenced here only in doc comments since
 // this harness talks to the manager directly to observe raw
 // received/total byte counts, which `TileRepositoryStatus` collapses into a

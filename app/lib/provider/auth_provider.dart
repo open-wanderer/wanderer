@@ -224,7 +224,7 @@ class Auth extends _$Auth {
     await jar.deleteAll();
     _box.removeAll();
     // Privacy invariant: after logout, no content belonging to the signed-out
-    // account is REACHABLE by whoever signs in next (T-h2p-01/T-h2p-03). Not
+    // account is REACHABLE by whoever signs in next. Not
     // the same as erasing it -- the offline library deliberately survives and
     // is scoped per account via `TrailEntity.savedByUserIds`, because deleting
     // it meant signing out of an account destroyed every trail it had
@@ -268,7 +268,7 @@ class Auth extends _$Auth {
     // `_box.removeAll()` must run before the later `_box.put(userEntity)` so
     // the store can never hold two UserEntity rows — every reader resolves
     // the session via `getAll().firstOrNull`, which would otherwise be able
-    // to return the previous account (T-h2p-03).
+    // to return the previous account.
     final cachedUserId = _box.getAll().firstOrNull?.id;
     if (shouldPurgeForIncomingUser(cachedUserId, userEntity.id)) {
       _box.removeAll();

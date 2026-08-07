@@ -10,7 +10,7 @@ import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/util/trail/offline_filter_bounds.dart';
 
 // ---------------------------------------------------------------------------
-// WR-03 regression harness: a non-connection failure (a 500, not a dropped
+// Regression harness: a non-connection failure (a 500, not a dropped
 // connection) from `/trail/filter` must still leave `resetFilter()` safe to
 // call. Mirrors test/provider/trail_filter_provider_test.dart's
 // ProviderContainer + stubbed apiProvider pattern.
@@ -43,8 +43,8 @@ class _StubApi extends Api {
   Dio build() => _dio;
 }
 
-/// Never reaches a server -- throws a genuine `DioExceptionType
-/// .connectionError`, so `isConnectionFailure` returns true and `build()`
+/// Never reaches a server -- throws a genuine `DioExceptionType.
+/// connectionError`, so `isConnectionFailure` returns true and `build()`
 /// must take the offline-fallback branch (`AsyncData`, never `AsyncError`).
 class _ConnectionErrorAdapter implements HttpClientAdapter {
   @override
@@ -156,7 +156,7 @@ void main() {
     });
   });
 
-  group('WR-03: resetFilter after a non-connection build failure', () {
+  group('ResetFilter after a non-connection build failure', () {
     late ProviderContainer container;
 
     setUp(() {
@@ -215,7 +215,7 @@ void main() {
     );
   });
 
-  group('connection-failure fallback (regression guard, unchanged by WR-03)', () {
+  group('connection-failure fallback (regression guard)', () {
     test(
       'a connectionError build yields AsyncData, never AsyncError',
       () async {
@@ -228,7 +228,7 @@ void main() {
 
         // No retry is ever triggered on this path -- build()'s catch block
         // resolves the connection-failure branch itself, so `.future`
-        // completes normally (unlike the WR-03 group above, which only
+        // completes normally (unlike the group above, which only
         // exercises `.future` after a genuine retry has occurred).
         final value = await container.read(
           trailFilterProvider('wr-03-conn').future,

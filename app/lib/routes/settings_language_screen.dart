@@ -9,7 +9,7 @@ import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/actions/guard_online.dart';
 
-/// Native names for each supported language (D-09). These are the single
+/// Native names for each supported language. These are the single
 /// approved hardcoded-string exception — a language's own name must read in
 /// its own script regardless of the active UI locale, so they are NOT ARB keys.
 const Map<Language, String> _languageNames = {

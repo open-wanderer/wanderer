@@ -25,7 +25,7 @@ import 'package:wanderer/models/trail_sync_state.dart';
 /// server's (freshly indexed) copy as the one that renders.
 ///
 /// Offline there is no network half at all, so every local row is kept —
-/// the device copy is the only copy there is (REC-06).
+/// the device copy is the only copy there is.
 ///
 /// The unsynced rows stay at the top online because they exist nowhere else
 /// yet; they leave the top of their own accord as soon as the drain retires
@@ -44,9 +44,9 @@ List<Trail> ownTrailsLocalHalf(List<Trail> local, {required bool offline}) {
 ///
 /// This ordering buys two things:
 /// - A just-saved trail is visible at the top of the list immediately,
-///   because it is a local row with no round trip required (REC-02).
-/// - A trail that has finished uploading appears exactly once, not twice
-///   (SYNC-05): online it is dropped from the local half outright; offline
+///   because it is a local row with no round trip required.
+/// - A trail that has finished uploading appears exactly once, not twice:
+/// online it is dropped from the local half outright; offline
 ///   its local row and the server's search hit share the same `id`, and any
 ///   network hit whose `id` matches a surviving local row's `id` is dropped
 ///   below.
@@ -59,7 +59,7 @@ List<Trail> ownTrailsLocalHalf(List<Trail> local, {required bool offline}) {
 /// built with a `where((id) => id.isNotEmpty)` guard rather than a bare
 /// `.map((t) => t.id).toSet()`.
 ///
-/// Produces one flat list — D-11 explicitly rules out sectioning or a
+/// Produces one flat list — deliberately no sectioning and no
 /// special sort mixing unsynced and downloaded-authored-by-me rows.
 List<TrailSummary> mergeOwnTrails({
   required List<Trail> local,

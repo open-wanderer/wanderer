@@ -14,7 +14,7 @@ import 'package:wanderer/provider/account_scope_invalidation.dart';
 
 // ---------------------------------------------------------------------------
 // Tests for account_scope_invalidation's declarative provider list and its
-// invalidator (T-h2p-02) — no ObjectBox store or widget tree is needed
+// invalidator — no ObjectBox store or widget tree is needed
 // because invalidate() on a never-built provider is a no-op.
 // ---------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ void main() {
 
     test('contains localTrailProvider and ownLiveCaptureProvider — both '
         'resolve currentAccountId inside build() but are keyed only on '
-        'localId (38.1 CR-01)', () {
+        'localId', () {
       expect(
         accountScopedProviders,
         contains(localTrailProvider),
@@ -50,7 +50,7 @@ void main() {
             'ownLiveCaptureProvider gates a DESTRUCTIVE action '
             "(trail_dropdown's _allowDelete escape hatch). A value cached "
             'across an account switch re-arms that gate for an account that '
-            'did not record the trail — the exact CR-01 shape 38.1 exists '
+            'did not record the trail — the exact shape this exists '
             'to eliminate.',
       );
     });
@@ -75,7 +75,7 @@ void main() {
     );
 
     test('does not contain trailSyncProvider — a deliberate, test-pinned '
-        'exclusion (36-04)', () {
+        'exclusion', () {
       expect(
         accountScopedProviders,
         isNot(contains(trailSyncProvider)),

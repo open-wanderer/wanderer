@@ -8,7 +8,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/util/local/id.dart';
 
 void main() {
-  group('TrailEntity movingDuration round-trip (D-10)', () {
+  group('TrailEntity movingDuration round-trip', () {
     Trail buildSampleTrail({double? movingDuration}) {
       return Trail(
         id: 'trail-1',
@@ -52,7 +52,7 @@ void main() {
     });
   });
 
-  group('TrailEntity category/subcategory/tags/completed round-trip (CR-01)', () {
+  group('TrailEntity category/subcategory/tags/completed round-trip', () {
     // Regression guard for the four form-entered fields that TrailEntity had
     // no column for. Before this, a local-first save ran the user's category,
     // subcategory, tags and "completed" through fromModel -> toModel and got
@@ -199,7 +199,7 @@ void main() {
     });
   });
 
-  group('local-first round trip (D-04/D-06/D-10, 36-01)', () {
+  group('local-first round trip', () {
     test(
       'a TrailEntity with a minted local id round-trips to id == "" and '
       'preserves localId',
@@ -303,7 +303,7 @@ void main() {
 
     test(
       'a Waypoint with id: "", a localKey and two localPhotos survives '
-      'fromModel -> toModel intact (D-04 regression guard)',
+      'fromModel -> toModel intact (regression guard)',
       () {
         final waypoint = Waypoint(
           id: '',

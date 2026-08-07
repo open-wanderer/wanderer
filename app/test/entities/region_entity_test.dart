@@ -30,7 +30,7 @@ void main() {
     });
 
     test(
-      'the retired paused code (3) falls back to notDownloaded (REGN-02)',
+      'the retired paused code (3) falls back to notDownloaded',
       () {
         final entity = DownloadedTilePackageEntity();
         entity.dbStatus = 3;

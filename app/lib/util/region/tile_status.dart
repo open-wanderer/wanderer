@@ -1,8 +1,7 @@
 import 'package:wanderer/models/region_status.dart';
 
 /// Pure resolvers for the status each of the Settings/Regions row's two
-/// tiles (Vector, Elevation data) should render (SETUI gap closure — see
-/// `.planning/debug/region-download-stale-toone.md`).
+/// tiles (Vector, Elevation data) should render.
 ///
 /// `persisted` (`RegionEntity.status` / `DownloadedTilePackageEntity.status`
 /// read through the `demPackage` `ToOne`) is computed from an ObjectBox

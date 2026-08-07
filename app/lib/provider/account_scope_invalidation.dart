@@ -1,7 +1,7 @@
 /// One declarative list of every keepAlive Riverpod provider holding
 /// account-scoped state, plus its invalidator — invalidated on any auth
 /// user-id change so no in-memory cache can serve the previous account's
-/// data after a switch (T-h2p-02).
+/// data after a switch.
 ///
 /// Inclusion rule: a cache holding server data or draft content belonging to
 /// the signed-in account, that outlives a screen because it is `keepAlive`.
@@ -23,10 +23,9 @@
 ///   is pre-create). Account scoping for the drain is already enforced at
 ///   the query, not by cache invalidation: `drainIfOnline` re-reads
 ///   `currentAccountId(store)` fresh on every run and `selectDrainCandidates`
-///   filters on that id via an owner predicate (D-13). This is a deliberate
-///   decision, not an omission — see 36-RESEARCH.md, which flags this
-///   provider as the one case the `downloadingTrailIdsProvider` precedent
-///   does not automatically cover.
+///   filters on that id via an owner predicate. This is a deliberate
+///   decision, not an omission: this is the one case the
+///   `downloadingTrailIdsProvider` precedent does not automatically cover.
 /// - Every region provider stays: downloaded regions are PUBLIC, device-level
 ///   data shared by all accounts on the device (they are expensive basemap
 ///   archives with no user-specific content and must never be re-downloaded
@@ -86,7 +85,7 @@ final accountScopedProviders = <ProviderOrFamily>[
   routeAnchorsProvider,
   categoryProvider,
   subcategoryProvider,
-  // 38.1 CR-01. Both are FAMILIES keyed only on `localId` and both resolve
+  // Both are FAMILIES keyed only on `localId` and both resolve
   // `currentAccountId(store)` INSIDE `build()`, so the account is baked into
   // a cache entry whose key does not mention it. Auto-dispose does not save
   // them: it only fires when the LAST listener goes away, and Flutter keeps

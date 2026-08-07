@@ -61,21 +61,21 @@ class TrailPanel extends ConsumerWidget {
 
     final l18n = AppLocalizations.of(context)!;
 
-    // D-06 blanks a local-sentinel id, so '/trail/${trail.id}/map' is
+    // A local-sentinel id is blanked, so '/trail/${trail.id}/map' is
     // '/trail//map' for a not-yet-uploaded trail -- go_router canonicalizes
     // that to '/trail/map', which matches no route. `trailMapLocation`
     // returns '/trail/local/<localId>/map' instead, and null when the trail
     // is not addressable at all.
     final String? mapLocation = trailMapLocation(trail);
 
-    // WR-11: the trail model's cache-provenance flag is hardcoded `true` by
+    // The trail model's cache-provenance flag is hardcoded `true` by
     // `TrailEntity.toModel()` for every cached row, downloaded trails
     // included, and `TrailNotifier.build()` falls back to the cache on any
     // fetch exception. Gating the server-backed tabs on that flag hid summit
     // logs and comments on any trail read off the device. `isUnsyncedState`
     // is the signal that actually means "has never reached the server, so
     // there is nothing server-side to show" -- same reasoning as
-    // `trail_dropdown.dart:48-53`.
+    // `trail_dropdown.dart`.
     final showsServerTabs = !isUnsyncedState(trail.syncState);
 
     final aboutTab = Padding(
@@ -228,7 +228,7 @@ class TrailPanel extends ConsumerWidget {
                           ).format(trail.summaryDate!),
                           style: TextStyle(color: Colors.grey[600]),
                         ),
-                      // D-10 (38-04): this badge's axis is "is it stored on
+                      // This badge's axis is "is it stored on
                       // this device", which is library membership
                       // (`trailLibraryProvider`) and nothing else -- never
                       // the cache-provenance flag the trail model carries.
@@ -239,9 +239,8 @@ class TrailPanel extends ConsumerWidget {
                       // network conditions: it used to appear when a fetch
                       // failed and vanish when one succeeded. Unsynced-ness
                       // and library membership are independent axes and a
-                      // row can be both (38.1 D-01) -- see
-                      // .planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md
-                      // -- which is exactly why this badge is derived from
+                      // row can be both -- which is exactly why this badge
+                      // is derived from
                       // membership alone: membership is a fact about this
                       // account, so the badge stays correct on an overlap
                       // row instead of depending on a premise that does not

@@ -68,8 +68,8 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
   /// from `accountScopedProviders`), and which any other refresh would have
   /// hit too.
   ///
-  /// Dropping to plain `late` "fixed" that but introduced a second bug
-  /// (WR-03): `build()` only assigns this field on two of its three exit
+  /// Dropping to plain `late` "fixed" that but introduced a second bug:
+  /// `build()` only assigns this field on two of its three exit
   /// paths (the success path and the connection-failure fallback). Any other
   /// failure — a 500, a malformed payload, `TrailFilterValues.fromJson`
   /// throwing — rethrows without assigning it, and `resetFilter()` reads it
@@ -132,7 +132,7 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
   /// `runApp`), and `ref.read` cannot create a dependency edge at all -- so
   /// this cannot reintroduce the rebuild storm this plan exists to remove.
   ///
-  /// A null account returns [kOfflineTrailFilterValues] (D-13): no signed-in
+  /// A null account returns [kOfflineTrailFilterValues]: no signed-in
   /// account means no account scope, and per `current_account.dart`'s
   /// contract that means an EMPTY read, never an unfiltered one. An
   /// unfiltered read here would let the slider's maximum disclose the

@@ -6,8 +6,7 @@
 /// against the same allow-list (`regionIDPattern` in
 /// `db/services/regions/config.go`), this file re-validates every value on the
 /// client before it ever reaches `package:path` — defense in depth against a
-/// corrupted local catalog row or a future non-catalog caller (RESEARCH
-/// Pitfall 4 / T-23-01).
+/// corrupted local catalog row or a future non-catalog caller.
 ///
 /// The value is NEVER string-concatenated into a path; every path builder
 /// routes it through [assertValidRegionPath] first, then joins via
@@ -36,7 +35,7 @@ bool isValidRegionPath(String path) =>
     regionPathPattern.hasMatch(path) && !path.contains('..');
 
 /// Returns [path] unchanged if valid; otherwise throws [ArgumentError] — no
-/// download URL may be built from a path that fails this check (T-23-01).
+/// download URL may be built from a path that fails this check.
 String assertValidRegionPath(String path) {
   if (!isValidRegionPath(path)) {
     throw ArgumentError.value(

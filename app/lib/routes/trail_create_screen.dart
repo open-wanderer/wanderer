@@ -89,7 +89,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   List<String> _removedServerPhotos = [];
 
   // Seeded from widget.trail.localId so re-opening an unsynced trail resumes
-  // against the same local row instead of minting a new one (REC-05).
+  // against the same local row instead of minting a new one.
   String? _localId;
 
   // Ensures the default-category assignment below fires only once.
@@ -175,8 +175,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     final stub = Waypoint(
       // Empty id + a minted local key, not a synthetic id: an id derived
       // from a timestamp would look already-uploaded to the drain's
-      // `id.isEmpty` resume check and silently never reach the server
-      // (RESEARCH.md Pitfall 1).
+      // `id.isEmpty` resume check and silently never reach the server.
       id: '',
       localKey: mintLocalId(),
       lat: point?.lat ?? trail.lat ?? 0,
@@ -213,7 +212,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         _withDistanceFromStart(
           Waypoint(
             // Empty id + a minted local key -- see the identical comment in
-            // `_onCreateWaypoint` (RESEARCH.md Pitfall 1).
+            // `_onCreateWaypoint`.
             id: '',
             localKey: mintLocalId(),
             lat: coords.lat,
@@ -422,8 +421,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     );
 
     // Routes on the LOCAL identity of the trail rather than `trail.id.isEmpty`
-    // alone: after this phase an empty server id means both "never saved
-    // anywhere" AND "saved locally, still unsynced" (RESEARCH.md Pitfall 2).
+    // alone: an empty server id means both "never saved anywhere" AND
+    // "saved locally, still unsynced".
     //
     // The routing input is the PERSISTED row, not this screen's `trail`
     // snapshot. `trail` is captured once at the end of `_finishLocalSave`,
@@ -452,7 +451,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       persisted: persisted,
     );
 
-    // WR-13: a picked path already living under this trail's unsynced photo
+    // A picked path already living under this trail's unsynced photo
     // directory is a copy the drain's step 2 has already sent as part of
     // `PUT /trail/form` -- resending it under the append-only `photos+` key
     // would double the server-side set on every save in the `alreadyUploaded`
@@ -499,12 +498,12 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
     if (saveMode == LocalSaveMode.networkUpdate) {
       // This screen's own `trail.id` snapshot can still be the blank
-      // local-sentinel value (D-06) if the upload finished after this
+      // local-sentinel value if the upload finished after this
       // screen's last read and nothing re-reads it -- there are no
       // ObjectBox `Query.watch()` streams anywhere in this app.
       // `serverIdForRetired` is the memo `_drainOne` populated the instant
       // it retired this row, so the trail may still have a real target even
-      // though this screen never watched the upload complete (CR-01).
+      // though this screen never watched the upload complete.
       final retiredServerId = persistedLocalId == null
           ? null
           : ref
@@ -524,7 +523,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         // Deliberately does NOT pop the route: `_hasUnsavedChanges` is still
         // true, so popping would trigger the discard-changes dialog and
         // destroy the hiker's typed edit, the opposite of what this message
-        // asks them to do (T-36-16-06).
+        // asks them to do.
         if (mounted) {
           ref
               .read(toastProvider.notifier)
@@ -559,7 +558,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // First save of a captured trail (recording or offline GPX import).
       // Fully local-first: never touches the network, online or offline.
       try {
-        // D-13: read fresh here, never a cached value -- a mid-session
+        // Read fresh here, never a cached value -- a mid-session
         // account switch must not mis-attribute this capture.
         final accountId = currentAccountId(store);
         if (accountId == null) {
@@ -593,8 +592,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         // succeeded left it pointing at an id with no row. The next save
         // then saw `persistedLocalId != null && persisted == null` --
         // indistinguishable from a row a completed upload had retired -- and
-        // routed into CR-01's dead POST, bricking the screen for the rest of
-        // its life (CR-02).
+        // routed into the dead POST, bricking the screen for the rest of
+        // its life.
         _localId = localId;
 
         await _finishLocalSave(
@@ -622,8 +621,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       return;
     }
 
-    // LocalSaveMode.updateLocal -- a re-save of a still-unsynced trail
-    // (REC-05). Fully local-first: never touches the network, online or
+    // LocalSaveMode.updateLocal -- a re-save of a still-unsynced trail.
+    // Fully local-first: never touches the network, online or
     // offline.
     try {
       // Prefer the id the router actually decided on. `_localId` is kept in
@@ -633,7 +632,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // undiagnosable generic `error_saving_trail` toast.
       final localId = persisted?.localId ?? updatedTrail.localId ?? _localId!;
 
-      // D-13: read fresh here, never a cached value -- a mid-session
+      // Read fresh here, never a cached value -- a mid-session
       // account switch must not mis-attribute this capture. Copied from the
       // `createLocal` branch's exact shape and message above so the catch
       // below surfaces the same `error_saving_trail` toast.
@@ -648,7 +647,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       // routed an `alreadyUploaded`/`alreadySynced` row to `networkUpdate`
       // above, before this branch is ever reached -- so this call can no
       // longer mutate the photo directory ahead of a write `updateLocalTrail`
-      // is about to refuse (WR-14). Do not re-hoist a pre-routing guard here.
+      // is about to refuse. Do not re-hoist a pre-routing guard here.
       final photoCopy = await _copyPhotosForLocalSave(
         accountId,
         localId,
@@ -677,7 +676,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         // the three: the drain's create step stamps a real server id well
         // before the row is retired, so a row parked `pending`/`uploading`/
         // `failed` can carry one for as long as later waypoint uploads keep
-        // failing (CR-03) -- and `updateLocalTrail` has no update path for
+        // failing -- and `updateLocalTrail` has no update path for
         // it, only `missing`-vs-write. Either way the trail is on the server
         // now, so the network `PUT` is the only write target that can carry
         // this edit anywhere. A `missing` row that was never real routes
@@ -725,8 +724,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// that the drain promoted this trail to `synced` while the save was already
   /// under way ([LocalUpdateOutcome.alreadySynced]).
   ///
-  /// Editing a synced server trail offline remains out of scope for this phase
-  /// (D-16): with no connection this fails and reports `error_saving_trail`.
+  /// Editing a synced server trail offline remains out of scope for this phase:
+  /// with no connection this fails and reports `error_saving_trail`.
   /// That is the point -- the user is told the edit did not land, instead of
   /// being shown a success toast over an edit that no longer has anywhere to
   /// go.
@@ -735,8 +734,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// this account) that should be reconciled onto the just-accepted server
   /// result via [applyNetworkEditToLocalRow], immediately after `trail` is
   /// updated and BEFORE [_invalidateOwnTrailsList] re-reads it -- that
-  /// ordering is the whole CR-03 fix: reconciling after the invalidate would
-  /// let the own-trails list read the row's pre-edit values one more time.
+  /// ordering is load-bearing: reconciling after the invalidate would let
+  /// the own-trails list read the row's pre-edit values one more time.
   /// Null when the caller has no persisted row to reconcile (e.g. the
   /// retired-id fallback path, where the row is already gone).
   Future<void> _saveViaNetwork(
@@ -748,7 +747,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   }) async {
     if (!trailHasServerId(updatedTrail.id)) {
       // Every caller is now supposed to resolve a real id via
-      // `resolveNetworkSaveTarget` BEFORE reaching this method (CR-01) --
+      // `resolveNetworkSaveTarget` BEFORE reaching this method --
       // this is a last-resort backstop, not the normal path, so a blank id
       // reaching here is an invariant break worth logging. Posting
       // `/trail/form/` with a blank id can never be routed (SvelteKit's
@@ -759,7 +758,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       debugPrint(
         'trail_create_screen: _saveViaNetwork reached with no server id -- '
         'every caller is supposed to resolve one via resolveNetworkSaveTarget '
-        'first (CR-01 invariant break)',
+        'first (invariant break)',
       );
       if (mounted) {
         ref
@@ -800,7 +799,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         // misreport an edit the server already accepted. Best-effort,
         // logged: the row stays stale until `retireUploadedLocalTrail`
         // removes it, which is today's behaviour (nothing currently
-        // reconciles the row at all), not a regression (T-36-17-07).
+        // reconciles the row at all), not a regression.
         try {
           final reconcileStore = ref.read(objectBoxProvider);
           final accountId = currentAccountId(reconcileStore);
@@ -820,11 +819,11 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         }
       }
 
-      // D-13: reconcile the hiker's own edit onto the downloaded LIBRARY row,
+      // Reconcile the hiker's own edit onto the downloaded LIBRARY row,
       // independent of `reconcileLocalId` -- that gate is the unsynced-capture
       // path, and a downloaded row has `localId == null`, which is precisely
       // why nothing writes the hiker's own edit into ObjectBox today. Same
-      // mechanism as D-14's opportunistic refresh, with a different trigger:
+      // mechanism as the opportunistic refresh, with a different trigger:
       // the `POST /trail/form/{id}` response above is already in hand, so
       // this spends no bytes either. Best-effort, logged, for the same reason
       // as the block above -- the server write already succeeded.
@@ -832,12 +831,12 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         final libraryStore = ref.read(objectBoxProvider);
         final libraryAccountId = currentAccountId(libraryStore);
         if (libraryAccountId != null) {
-          // CR-02/D-08: `result.trail`'s waypoint expand is NOT
+          // `result.trail`'s waypoint expand is NOT
           // authoritative when a waypoint create/update failed -- pass that
           // signal through so a partial save can't prune a still-live
           // waypoint from the downloaded copy. `some_waypoints_failed_to_save`
           // below is accurate again now that the local prune no longer
-          // happens (D-10: no new l10n key needed).
+          // happens.
           applyServerTrailToLibraryRow(
             libraryStore,
             accountId: libraryAccountId,
@@ -854,7 +853,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
       // Must run AFTER the reconciliation above, never before -- otherwise
       // the own-trails list re-reads the local row before the edit lands on
-      // it, reproducing CR-03 under a green success toast.
+      // it, showing pre-edit values under a green success toast.
       _invalidateOwnTrailsList();
 
       // Every field latches `_dirty` on its first edit and nothing but
@@ -912,7 +911,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// Copies picked photos for a local-first save into app-owned storage
   /// under [accountId]'s [localId] -- the trail's own photos plus each
   /// waypoint that carries `localPhotos`, keyed on its `localKey` -- and
-  /// returns the kept paths plus a total failure count (D-03).
+  /// returns the kept paths plus a total failure count.
   Future<
     ({
       List<String> trailPhotos,
@@ -945,7 +944,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
       // A keyless waypoint has nowhere to copy its photos TO, so its picked
       // files stay at OS-purgeable image_picker cache paths -- precisely the
-      // D-01 failure local_photo_store.dart exists to prevent. Skipping
+      // failure local_photo_store.dart exists to prevent. Skipping
       // silently reported success over photos that can disappear at any
       // moment; counting them makes the user see photo_copy_failed_toast
       // instead.
@@ -985,14 +984,14 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   /// refresh, and the family key must match the one
   /// `profile_trail_screen` watches or the invalidation is a silent
   /// no-op. The username is read FRESH here, never from a cached
-  /// field (D-13).
+  /// field.
   ///
   /// `ref.read(authProvider).value` is nullable -- it reads null during a
   /// token refresh in flight and in a mid-logout race (per project
   /// convention, `.value` not `.valueOrNull`). Interpolating that straight
   /// into the family key used to produce the literal string `'@null'`,
   /// which matches no mounted `profile_trail_screen` instance -- exactly
-  /// the silent no-op the paragraph above warns against (WR-02). The
+  /// the silent no-op the paragraph above warns against. The
   /// family key is now only ever built from a non-null handle;
   /// `trail_sync_provider.dart`'s counterpart (`:420`) is correct because it
   /// reads the non-nullable `userEntity.preferredUsername`, and the two
@@ -1000,7 +999,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   ///
   /// `asReload` defaults to false, i.e. a seamless refresh --
   /// `AsyncValue.when`'s `skipLoadingOnRefresh` defaults to true, so
-  /// the list updates without flashing a spinner (36-09).
+  /// the list updates without flashing a spinner.
   void _invalidateOwnTrailsList() {
     ref.invalidate(trailLibraryProvider);
     final username = ref.read(authProvider).value?.preferredUsername;
@@ -1015,8 +1014,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   }
 
   /// Shared tail of both local-first [LocalSaveMode] save branches (create
-  /// and update): kicks the upload drain, reports any photo-copy failures
-  /// (D-03), and mirrors the network path's post-save bookkeeping (re-read,
+  /// and update): kicks the upload drain, reports any photo-copy failures,
+  /// and mirrors the network path's post-save bookkeeping (re-read,
   /// form reset, success toast).
   Future<void> _finishLocalSave(
     Store store,
@@ -1519,7 +1518,7 @@ class TrailForm extends ConsumerWidget {
                 final serverUrl = ref.watch(authProvider).value?.serverUrl;
                 return WandererPhotoPicker(
                   initialLocalPhotos: trail.localPhotos,
-                  // WR-13: in the `alreadyUploaded` window `trail.photos`
+                  // In the `alreadyUploaded` window `trail.photos`
                   // (server filenames written by `writeServerTrailId`) and
                   // `trail.localPhotos` (the app-owned copies) name the SAME
                   // images -- rendering both doubles every thumbnail before

@@ -118,18 +118,18 @@ void main() {
       expect(merged, [network]);
     });
 
-    // CR-03. A local row can carry a real server id while its syncState is
+    // A local row can carry a real server id while its syncState is
     // still not `synced` (the `alreadyUploaded` window: the drain's create
     // step stamps a server id well before the row is retired). Such a row
     // survives the online narrowing -- it is still unsynced -- and the
     // network hit for that same id is dropped by the id dedupe. That is
-    // correct only because `applyNetworkEditToLocalRow` (36-17) reconciles
+    // correct only because `applyNetworkEditToLocalRow` reconciles
     // this exact row onto the server's accepted result right after a
     // successful network save, before the own-trails list is ever re-read.
     test(
       'an unsynced local row carrying a real server id still suppresses the '
       'matching network hit -- correct only because '
-      'applyNetworkEditToLocalRow keeps that row current (CR-03)',
+      'applyNetworkEditToLocalRow keeps that row current',
       () {
         final local = _unsynced(id: 'server-1', name: 'Reconciled Name');
         final network = TrailSearchResult.mock().copyWith(
@@ -156,9 +156,9 @@ void main() {
           'Reconciled Name',
           reason:
               'the local row wins the dedupe. This is only correct because '
-              'applyNetworkEditToLocalRow (36-17) keeps it reconciled to the '
+              'applyNetworkEditToLocalRow keeps it reconciled to the '
               'server-accepted edit; without that reconciliation this row '
-              'would still show its pre-edit name, which is exactly CR-03.',
+              'would still show its pre-edit name.',
         );
       },
     );

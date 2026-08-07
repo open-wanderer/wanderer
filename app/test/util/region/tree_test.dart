@@ -6,10 +6,10 @@ import 'package:wanderer/util/region/tree.dart';
 // Tests for region_tree_util's buildRegionTree/computeDefaultExpanded/
 // flattenVisible/computeFilterMatches — pure functions, no ObjectBox/network
 // needed (mirrors region_disk_usage_util_test.dart's precedent for testing
-// pure utils directly, per 31-RESEARCH.md Pitfall 5 -- this screen has zero
+// pure utils directly -- this screen has zero
 // widget-test baseline, so these pure-function tests are the cheapest
-// highest-value coverage). Ported 1:1 from regions_ui.html:515-615
-// (D-01/D-02/D-06); Pitfall 3 covers the ""-root gotcha, Pitfall 4 the
+// highest-value coverage). Ported 1:1 from regions_ui.html:515-615;
+// Pitfall 3 covers the ""-root gotcha, Pitfall 4 the
 // sort_order ordering gotcha.
 // ---------------------------------------------------------------------------
 

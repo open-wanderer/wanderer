@@ -58,7 +58,7 @@ enum UnsyncedDeleteResult {
 /// The KEY is the local id, not the server `id` -- a trail mid-drain may
 /// still have no server id at all (pre-create) or one assigned moments ago
 /// (post-create, pre-waypoints), so only the local id is stable across the
-/// whole resume-from-step sequence (D-05).
+/// whole resume-from-step sequence.
 @Riverpod(keepAlive: true)
 class TrailSync extends _$TrailSync {
   /// Whole-drain re-entrancy guard, separate from the per-trail [state] set.
@@ -82,7 +82,7 @@ class TrailSync extends _$TrailSync {
   /// Memoizes the server id a completed upload retired a local row into,
   /// keyed on `localId`, so a still-mounted create/edit or detail screen for
   /// that trail can still reach it after [retireUploadedLocalTrail] removes
-  /// the row (CR-01) -- there are no ObjectBox `Query.watch()` streams
+  /// the row -- there are no ObjectBox `Query.watch()` streams
   /// anywhere in this app, so this memo is the only surviving handle.
   ///
   /// Each entry stores the owning `accountId` alongside the server id.
@@ -117,10 +117,10 @@ class TrailSync extends _$TrailSync {
   /// account does not match the one that captured it.
   ///
   /// Re-reads `currentAccountId(objectBoxProvider)` fresh at the point of
-  /// use rather than a cached field (D-13) -- a stale cached id here is
+  /// use rather than a cached field -- a stale cached id here is
   /// exactly the cross-account leak the account check exists to prevent. A
   /// mismatch is refused and logged rather than silently returning null
-  /// indistinguishably from "nothing memoized" (T-36-16-01/02).
+  /// indistinguishably from "nothing memoized".
   String? serverIdForRetired(String localId) {
     final store = ref.read(objectBoxProvider);
     final accountId = currentAccountId(store);
@@ -147,7 +147,7 @@ class TrailSync extends _$TrailSync {
   /// immediately when it reports offline -- mandatory, not defensive:
   /// `OnlineStatus.build()` is optimistic (`true`), settles only from
   /// ordinary request/response traffic, and trusting it at a cold moment
-  /// already shipped a bug once (Phase 35 OFFUI-04, RESEARCH.md Pitfall 5).
+  /// already shipped a bug once.
   /// A call arriving while a pass is already running is REMEMBERED, not
   /// dropped: it sets [_rerunRequested] so the running pass loops once more
   /// and picks up whatever changed. Returning immediately was what made
@@ -182,7 +182,7 @@ class TrailSync extends _$TrailSync {
     if (!isOnline) return;
 
     final store = ref.read(objectBoxProvider);
-    // D-13: read fresh every run, never a cached field -- a stale id here
+    // Read fresh every run, never a cached field -- a stale id here
     // is exactly the leak account-scoping exists to prevent.
     final accountId = currentAccountId(store);
     if (accountId == null) return;
@@ -202,7 +202,7 @@ class TrailSync extends _$TrailSync {
     }
   }
 
-  /// Implements D-05's resume-from-step for a single trail.
+  /// Implements the resume-from-step for a single trail.
   ///
   /// Guards on the entity having a [TrailEntity.localId] (nothing to key
   /// the in-flight set or the photo directory on otherwise), adds it to the
@@ -244,8 +244,8 @@ class TrailSync extends _$TrailSync {
     final authorId = userEntity.actorId;
 
     // Resolved BEFORE the in-flight set is joined and before the try below,
-    // same placement and reasoning as the missing-UserEntity bail above
-    // (WR-04): a waypoint whose id is still a local sentinel but has no
+    // same placement and reasoning as the missing-UserEntity bail above:
+    // a waypoint whose id is still a local sentinel but has no
     // localKey to record the server's returned id against is an invariant
     // break, not a network condition -- `WaypointEntity.fromModel` always
     // mints a localKey for an empty-id waypoint, so no retry will ever fix
@@ -272,7 +272,7 @@ class TrailSync extends _$TrailSync {
     try {
       markTrailUploading(store, localId);
 
-      // Step 1: tag reuse/create (D-06) applies whether or not the trail
+      // Step 1: tag reuse/create applies whether or not the trail
       // itself still needs to be created.
       final trailModel = entity.toModel();
       final resolvedTags = await ref
@@ -300,11 +300,10 @@ class TrailSync extends _$TrailSync {
               data: formData,
               queryParameters: {'expand': 'category,tags,author'},
             );
-        // SYNC-04: commits the instant the server accepted the create,
+        // Commits the instant the server accepted the create,
         // BEFORE any waypoint upload starts below. There is no server-side
         // idempotency key, so a crash between "server accepted" and "id
-        // persisted" is exactly what produces a duplicate trail
-        // (RESEARCH.md Pitfall 3).
+        // persisted" is exactly what produces a duplicate trail.
         //
         // The id and photo list are pulled straight off the raw body rather
         // than out of `Trail.fromJson` below, because "the server accepted the
@@ -325,13 +324,13 @@ class TrailSync extends _$TrailSync {
         final rawId = rawBody['id'];
         if (rawId is String && rawId.isNotEmpty) {
           final rawPhotos = rawBody['photos'];
-          // WR-17 suggested validating `rawId` through `recordIdDirSegment`
-          // right here, before it is ever persisted. Deliberately NOT done:
-          // a throw at this point means the id is never persisted, so the
-          // NEXT drain pass sees `isLocalId(entity.id) == true` again and
-          // issues a second `PUT /trail/form` -- creating a duplicate trail
-          // server-side (the exact SYNC-04 failure this file's step 2 exists
-          // to prevent). Validation happens at every REQUEST site instead
+          // `rawId` is deliberately NOT validated through
+          // `recordIdDirSegment` here, before it is ever persisted: a throw
+          // at this point means the id is never persisted, so the NEXT drain
+          // pass sees `isLocalId(entity.id) == true` again and issues a
+          // second `PUT /trail/form` -- creating exactly the duplicate trail
+          // this file's step 2 exists to prevent. Validation happens at
+          // every REQUEST site instead
           // (`deleteUnsynced`'s `recordIdDirSegment(serverId)`,
           // `trail_save_provider.dart`'s `deleteTrail`), where a rejected id
           // only aborts that one request rather than corrupting the row's
@@ -357,7 +356,7 @@ class TrailSync extends _$TrailSync {
         // `WaypointEntity.fromModel` always mints a key for an empty-id
         // waypoint, and the hasKeylessPendingWaypoint guard above this
         // method's try already bailed the whole drain out before this loop
-        // could ever run against a corrupt row (WR-04) -- so a null here is
+        // could ever run against a corrupt row -- so a null here is
         // unreachable by construction, not merely unlikely. Previously this
         // was a `StateError` thrown from inside the try, which consumed one
         // of the four kMaxSyncAttempts for an invariant break no retry could
@@ -378,7 +377,7 @@ class TrailSync extends _$TrailSync {
               );
         } on WaypointPhotoUploadException catch (e) {
           // The record exists server-side; only its photos failed. Persist
-          // the id NOW, exactly as SYNC-04 does for the trail itself, so the
+          // the id NOW, exactly as the trail itself does, so the
           // next attempt resumes at the photo upload instead of re-running
           // `PUT /waypoint` and creating a duplicate. Then rethrow: this
           // trail's upload really did not complete, so it must still count a
@@ -403,8 +402,8 @@ class TrailSync extends _$TrailSync {
       }
 
       // Step 4: full success. The capture row has done its job and is
-      // retired here. Per the 2026-08-03 product decision an uploaded
-      // trail is reachable through the SERVER entry, not through a
+      // retired here: an uploaded trail is reachable through the SERVER
+      // entry, not through a
       // retained device row; the hiker downloads it like any other trail
       // to have it offline again.
       //
@@ -423,7 +422,7 @@ class TrailSync extends _$TrailSync {
       if (retiredServerId != null) {
         _rememberRetiredServerId(localId, retiredServerId, accountId);
       }
-      // WR-03 (38.1): the remove branch runs only when `savedByUserIds` is
+      // The remove branch runs only when `savedByUserIds` is
       // empty, so nothing holds this trail offline any more -- but
       // `library/<serverId>/` may still exist from when something did, and
       // the row that was removed held the only paths into it. Reclaim it
@@ -433,9 +432,9 @@ class TrailSync extends _$TrailSync {
       if (retirement.rowRemoved && retiredServerId != null) {
         await _deleteLibraryDirBestEffort(retiredServerId);
       }
-      // WR-01: a hiker sitting on `/trail/local/<localId>` while the upload
+      // A hiker sitting on `/trail/local/<localId>` while the upload
       // completes otherwise keeps rendering a row that no longer exists,
-      // with a live Edit button that walks straight into CR-01's dead end.
+      // with a live Edit button that walks straight into the dead end.
       ref.invalidate(localTrailProvider(localId));
       // Best-effort, and deliberately NOT inside the failure handler's
       // reach: the row is already retired by this line, so an
@@ -473,7 +472,7 @@ class TrailSync extends _$TrailSync {
   ///
   /// `deleteUnsyncedPhotoDir` swallows filesystem errors but evaluates
   /// `unsyncedTrailPhotoDir` -- and therefore the `^local-\d+-\d+$`/
-  /// `recordIdDirSegment` validation on BOTH segments (D-05) -- outside its
+  /// `recordIdDirSegment` validation on BOTH segments -- outside its
   /// own try, on purpose, so a malformed id is a loud caller bug. Neither of
   /// this notifier's two call sites can act on that ArgumentError, and both
   /// run AFTER the row has already been deleted or marked synced, so both
@@ -497,8 +496,8 @@ class TrailSync extends _$TrailSync {
   ///
   /// Only ever called after [deleteLocalTrailRow] reported
   /// [LocalRowDeleteOutcome.removed], i.e. no account held the row in
-  /// `savedByUserIds`. Before 38.1 CR-02 nothing reclaimed this directory
-  /// on the capture-delete path: `deleteUnsynced` cleaned only
+  /// `savedByUserIds`. Nothing used to reclaim this directory on the
+  /// capture-delete path: `deleteUnsynced` cleaned only
   /// `unsynced/<accountId>/<localId>/`, and the row whose `photos` column
   /// held the absolute paths into `library/<serverId>/` had just been
   /// removed, so the whole downloaded photo set (tens of MB) leaked
@@ -529,7 +528,7 @@ class TrailSync extends _$TrailSync {
     }
   }
 
-  /// SYNC-03's manual retry: resets the row's backoff/attempt bookkeeping
+  /// The manual retry: resets the row's backoff/attempt bookkeeping
   /// then immediately re-drains.
   ///
   /// Safe to call on a row that is already draining -- [_drainOne]'s
@@ -540,7 +539,7 @@ class TrailSync extends _$TrailSync {
   /// foreground or connectivity trigger.
   Future<void> retry(String localId) async {
     final store = ref.read(objectBoxProvider);
-    // D-13: read fresh, never cached -- a null account means nothing to
+    // Read fresh, never cached -- a null account means nothing to
     // scope the reset to, so the retry is a no-op rather than an unscoped
     // write.
     final accountId = currentAccountId(store);
@@ -549,19 +548,19 @@ class TrailSync extends _$TrailSync {
     await drainIfOnline();
   }
 
-  /// D-14: deletes the local row and its photo copies for [localId] --
+  /// Deletes the local row and its photo copies for [localId] --
   /// and, when the row already carries a real server id, the server's copy
-  /// too (CR-04) -- classifying every outcome instead of throwing (WR-15).
+  /// too -- classifying every outcome instead of throwing.
   ///
   /// Returns [UnsyncedDeleteResult.blockedInFlight] without doing anything
   /// while [localId] is in [state] -- deletion is blocked while a drain is
   /// in flight, never raced against it.
   ///
   /// The server id is read via [readLocalTrailServerId], never
-  /// `readLocalTrail`/`toModel()` (CR-02): a delete decision must not
+  /// `readLocalTrail`/`toModel()`: a delete decision must not
   /// depend on the row's cached GPX still parsing. When a server id exists,
   /// it is validated through [recordIdDirSegment] before it reaches the
-  /// Dio path (WR-17) -- a rejected id returns
+  /// Dio path -- a rejected id returns
   /// [UnsyncedDeleteResult.failed] without touching the local row.
   ///
   /// A DELETE failure is classified via [resolveServerDeleteOutcome]:
@@ -574,27 +573,27 @@ class TrailSync extends _$TrailSync {
   /// [UnsyncedDeleteResult.failed]. Every branch logs the underlying
   /// exception via [debugPrint].
   ///
-  /// D-07 (CR-01): [deleteLocalTrailRow]'s owner-scoped write can match no
-  /// row -- the row this caller intended to delete may actually be owned by
-  /// another account (the CR-01 overlap: `savedByUserIds` scoping handed a
-  /// non-owning account a `localId`/non-synced `syncState` that were really
-  /// someone else's). When it matches nothing, this method skips the photo
+  /// [deleteLocalTrailRow]'s owner-scoped write can match no row -- the row
+  /// this caller intended to delete may actually be owned by another account
+  /// (`savedByUserIds` scoping can hand a non-owning account a
+  /// `localId`/non-synced `syncState` that were really someone else's). When it matches nothing, this method skips the photo
   /// directory delete and the provider invalidations entirely -- it never
   /// touches data it was not allowed to touch.
   ///
-  /// WR-08 (38.1): the no-match branch still reports [UnsyncedDeleteResult.deleted]
+  /// The no-match branch still reports [UnsyncedDeleteResult.deleted]
   /// in exactly one case -- when the owner-scoped [readLocalTrailServerId]
   /// yielded an id for THIS account and the server DELETE then succeeded (or
   /// 404'd), proving we owned the row and the server copy is gone. That is a
   /// race with the drain, not a scoping failure, and reporting `failed` for it
-  /// suppressed the map announcement and route pop. In the CR-01 overlap the
+  /// suppressed the map announcement and route pop. In the cross-account
+  /// case the
   /// owner-scoped read returns null, no DELETE is issued, and this still
   /// returns [UnsyncedDeleteResult.failed] having deleted nothing.
   Future<UnsyncedDeleteResult> deleteUnsynced(String localId) async {
     if (state.contains(localId)) return UnsyncedDeleteResult.blockedInFlight;
 
     final store = ref.read(objectBoxProvider);
-    // D-13: read fresh, never cached -- a stale id here is exactly the
+    // Read fresh, never cached -- a stale id here is exactly the
     // leak account-scoping exists to prevent.
     final accountId = currentAccountId(store);
     if (accountId == null) {
@@ -611,7 +610,7 @@ class TrailSync extends _$TrailSync {
       accountId: accountId,
     );
 
-    // WR-08 (38.1): tracks whether the server copy is provably gone by the
+    // Tracks whether the server copy is provably gone by the
     // time the local row is touched. Only meaningful when `serverId != null`.
     var serverCopyDeleted = false;
 
@@ -659,9 +658,9 @@ class TrailSync extends _$TrailSync {
       accountId: accountId,
     );
     if (rowOutcome == LocalRowDeleteOutcome.noMatch) {
-      // D-07 / CR-01: `deleteLocalTrailRow` is owner-scoped and matched no
-      // row for this account -- either the row belongs to another account
-      // (the exact overlap CR-01 is about) or it is already gone. Reporting
+      // `deleteLocalTrailRow` is owner-scoped and matched no row for this
+      // account -- either the row belongs to another account or it is
+      // already gone. Reporting
       // `deleted` here, or running the unscoped recursive photo-dir delete
       // below, is how a no-op row delete turned into destroying another
       // account's un-uploaded photos and a success toast for an operation
@@ -672,7 +671,7 @@ class TrailSync extends _$TrailSync {
         'owned by account "$accountId"; nothing was deleted '
         '(serverCopyDeleted: $serverCopyDeleted)',
       );
-      // WR-08 (38.1): distinguish "raced" from "not ours". `serverCopyDeleted`
+      // Distinguish "raced" from "not ours". `serverCopyDeleted`
       // can only be true when `readLocalTrailServerId` -- itself owner-scoped
       // -- returned an id for THIS account, so we provably owned the row when
       // the method started and the server copy is now gone. The row vanishing
@@ -681,8 +680,9 @@ class TrailSync extends _$TrailSync {
       // server had already deleted and skipped both the map announcement and
       // the route pop, leaving the map rendering a trail that exists nowhere.
       //
-      // This does NOT weaken CR-01: in the overlap case the localId belongs to
-      // another account, the owner-scoped `readLocalTrailServerId` returns
+      // This does NOT weaken account scoping: in the cross-account case the
+      // localId belongs to another account, the owner-scoped
+      // `readLocalTrailServerId` returns
       // null, no DELETE is issued, `serverCopyDeleted` stays false, and this
       // still returns `failed` having touched nothing.
       return serverCopyDeleted
@@ -698,7 +698,7 @@ class TrailSync extends _$TrailSync {
     // the sweep's best-effort discipline instead.
     await _deletePhotoDirBestEffort(accountId, localId);
 
-    // CR-02 (38.1): the row was the ONLY handle on `library/<serverId>/` --
+    // The row was the ONLY handle on `library/<serverId>/` --
     // `entity.photos` held the absolute paths into it and there is no
     // `library/` sweep anywhere in the app. Reclaim it here, and ONLY on the
     // `removed` branch: on `demotedStillHeld` another account still holds

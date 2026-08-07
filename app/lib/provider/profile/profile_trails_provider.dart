@@ -30,13 +30,12 @@ abstract class ProfileTrailsState
     required int totalPages,
 
     /// True when the last network fetch failed and this state is showing
-    /// only what's on this device (REC-06). Decided from the fetch outcome
-    /// itself, never from `onlineStatusProvider`'s optimistic default
-    /// (RESEARCH.md Pitfall 5).
+    /// only what's on this device. Decided from the fetch outcome
+    /// itself, never from `onlineStatusProvider`'s optimistic default.
     @Default(false) bool offline,
 
     /// True when this state is for the signed-in hiker's own handle --
-    /// only then does the local half of the merge run (T-36-07-02).
+    /// only then does the local half of the merge run.
     @Default(false) bool isOwnHandle,
   }) = _ProfileTrailsState;
 
@@ -65,11 +64,11 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
   // the state and read by `_fetchAndMerge`'s rethrow decision; the local read
   // path does NOT use it -- `_readOwnLocal` re-derives both the own-handle
   // test and the actor id from a fresh `authProvider`/`currentAccountId`
-  // read, which is D-13's "always fresh, never cached" invariant actually
+  // read, which is the "always fresh, never cached" invariant actually
   // enforced rather than merely asserted. There is deliberately no cached
   // `_authorActorId` companion: it existed only for the inline local read
-  // `build()` used to do, and a cached actor id is precisely what D-13
-  // forbids.
+  // `build()` used to do, and a cached actor id is precisely what account
+  // scoping forbids.
   bool _isOwnHandle = false;
 
   @override
@@ -178,8 +177,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
 
   /// Re-reads [ProfileTrailsState]'s local half fresh from the store, gated
   /// on the handle being the signed-in hiker's own -- a different handle's
-  /// profile, or a signed-out account, always gets an empty local list
-  /// (T-36-07-01, T-36-07-02).
+  /// profile, or a signed-out account, always gets an empty local list.
   ///
   /// Derives BOTH the own-handle test and the author actor id here rather
   /// than reading [_isOwnHandle], which is what the field's own doc comment
@@ -187,7 +185,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
   /// `readOwnLocalTrails`' second clause
   /// (`entity.author.target?.id == authorActorId`), so a stale one paired the
   /// NEW account's id with the PREVIOUS account's actor -- the exact shape of
-  /// the leak D-13 exists to prevent. `build()` watching `authProvider` kept
+  /// the leak account scoping exists to prevent. `build()` watching `authProvider` kept
   /// the window narrow, but narrow is not the guarantee the comment claimed.
   ///
   /// The rows are narrowed by [q] AND by [filter], the same two things the
@@ -222,7 +220,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
   ///
   /// A failed TRANSPORT fetch for the signed-in hiker's own handle is
   /// swallowed (never rethrown) so the local half still renders with
-  /// `offline: true` (REC-06) -- regardless of whether [local] happens to be
+  /// `offline: true` -- regardless of whether [local] happens to be
   /// empty, since the offline empty state is itself a valid rendered outcome.
   /// The same failure for another hiker's handle is rethrown, keeping today's
   /// error behaviour so that profile does not silently render empty.

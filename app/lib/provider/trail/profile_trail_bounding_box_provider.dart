@@ -14,15 +14,15 @@ const _worldViewBoundingBox = TrailBoundingBox(
 );
 
 /// Per-profile-handle bounding box, backing the initial camera fit for
-/// `ProfileTrailMapScreen` (D-01).
+/// `ProfileTrailMapScreen`.
 ///
 /// This is autoDispose, deliberately not keepAlive: a stale bbox for a
 /// profile whose trails changed would frame the map wrongly, and one extra
 /// request per screen open is cheap relative to the search requests that
 /// follow.
 ///
-/// Never surfaces an error to the UI. This is the world-view fallback path
-/// D-05 makes first-class, not an edge case: on a mixed-version federation
+/// Never surfaces an error to the UI. The world-view fallback path is
+/// first-class here, not an edge case: on a mixed-version federation
 /// the remote will commonly not support the `handle` param, and the correct
 /// behaviour is a silent degrade to the default camera with the bounds
 /// search still running. Any `DioException`, timeout, or parse failure

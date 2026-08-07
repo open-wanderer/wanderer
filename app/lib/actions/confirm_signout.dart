@@ -4,7 +4,7 @@
 /// purged on logout (`account_data_purge.dart`) -- nothing is ever lost
 /// by signing out. But the hiker has no way to know that, and signing into a
 /// different account while trails are still waiting to upload is the single
-/// most common "my tour is missing" report the design record cites (D-12).
+/// most common "my tour is missing" report the design record cites.
 ///
 /// This gate never blocks the sign-out itself. It exists only to tell the
 /// hiker, before they act, how many trails are still pending -- confirming

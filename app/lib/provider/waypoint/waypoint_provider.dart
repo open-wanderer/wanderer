@@ -16,7 +16,7 @@ part 'waypoint_provider.g.dart';
 /// timeout-prone request in the create sequence) was indistinguishable from a
 /// failure to create the record at all, so the upload drain retried the whole
 /// step and `PUT /waypoint` ran a second time. There is no server-side
-/// idempotency key (RESEARCH.md Pitfall 3), so that produced a duplicate
+/// idempotency key, so that produced a duplicate
 /// waypoint on the server -- up to `kMaxSyncAttempts` of them.
 ///
 /// A caller that can persist an id should persist `created.id` before

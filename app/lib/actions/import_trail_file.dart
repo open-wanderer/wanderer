@@ -33,13 +33,13 @@ Trail? pendingImportedTrail;
 /// navigates to the trail create/edit screen with the resulting [Trail].
 /// Shared by the Import picker and the OS share-sheet handler.
 ///
-/// PORT-03: a `.gpx` file is read and converted entirely on-device — no
+/// A `.gpx` file is read and converted entirely on-device — no
 /// network call for the conversion itself. Every other supported extension
-/// is transcoded server-side via [transcodeToGpx] (PORT-05) and then
+/// is transcoded server-side via [transcodeToGpx] and then
 /// measured locally, same as a native `.gpx`.
 ///
 /// After parsing, gates the same two post-capture toggles the recording and
-/// route-planner paths offer (D-15, see `resolve_track_save_options.dart`):
+/// route-planner paths offer (see `resolve_track_save_options.dart`):
 /// shown only when online, skipped entirely offline (both toggles treated
 /// as declined, so the parsed track is used unchanged) — this is what makes
 /// an offline import complete end to end with no network call. A cancelled
@@ -82,7 +82,7 @@ Future<void> importTrailFile({
     return;
   }
 
-  // WR-12: the `try` deliberately ENDS after `buildLocalTrail`. It used to
+  // The `try` deliberately ENDS after `buildLocalTrail`. It used to
   // span the navigation push too, so a throw from `navContext.push` — or from
   // anything after `pendingImportedTrail` was assigned — showed the user
   // "import failed" for an import that had in fact succeeded, while leaving a
@@ -119,7 +119,7 @@ Future<void> importTrailFile({
     if (!navContext.mounted) return;
 
     // (false, false) covers BOTH the offline path and "the user declined
-    // both toggles online" (D-15) — the single most important branch below:
+    // both toggles online" — the single most important branch below:
     // it is what makes an offline import work end to end, since neither
     // conditional block runs and no network call is ever attempted.
     final (recalcHeights, followRoads) = options;
@@ -144,7 +144,6 @@ Future<void> importTrailFile({
         // `fallbackShape` is the full-resolution geometry, NOT the ≤500-point
         // request hint: a failed/rejected snap must leave the imported track
         // at its own resolution rather than persisting a decimation of it
-        // (WR-02).
         workingShape = await snapShapeToRoads(
           ref,
           buildNavShape(points),
@@ -163,7 +162,7 @@ Future<void> importTrailFile({
       // returns an empty list), so a mid-import network drop degrades to
       // the untransformed track rather than failing the import outright.
       final originalWaypoints = gpx.allWaypoints;
-      // `source: gpx` is load-bearing, not defensive (CR-01): only the track
+      // `source: gpx` is load-bearing, not defensive: only the track
       // GEOMETRY is being replaced here, so the source document's own
       // metadata name/description, its `<wpt>` markers, its routes and its
       // track name must survive the transform. Without it the re-serialised
@@ -194,7 +193,7 @@ Future<void> importTrailFile({
     // transcodeToGpx's StateError, a FormatException from an unsanitised
     // tag, a StateError from a <trkpt> missing lat/lon — collapses into one
     // untyped toast. Logging the exception is what makes the import path
-    // diagnosable in the field at all (WR-12); it was previously bound and
+    // diagnosable in the field at all; it was previously bound and
     // dropped on the floor.
     debugPrint('importTrailFile failed for "$name": $e\n$st');
     showError(l10n.trail_source_import_error);
@@ -207,17 +206,16 @@ Future<void> importTrailFile({
 }
 
 /// The sole remaining caller of the convert endpoint's `POST` route in the
-/// app (PORT-03). Reached only for a non-GPX extension (kml/kmz/tcx/fit)
+/// app. Reached only for a non-GPX extension (kml/kmz/tcx/fit)
 /// that the app cannot parse itself — the server transcodes it to GPX,
-/// which the app then measures on its own via [buildLocalTrail] (PORT-05:
-/// server transcodes, app computes).
+/// which the app then measures on its own via [buildLocalTrail]: the server
+/// transcodes, the app computes.
 ///
 /// Tolerates BOTH response shapes the endpoint may return: a raw
-/// `application/gpx+xml` body (a [String] `res.data` — what plan 34-07 makes
-/// the endpoint return) and the legacy JSON body with
-/// `expand.gpx_data` (a [Map] `res.data` — what it returns today, before
-/// 34-07 lands). This is deliberate CLIENT tolerance for server/app version
-/// skew in self-hosted setups (D-05's rationale: "self-hosters control their
+/// `application/gpx+xml` body (a [String] `res.data`) and the legacy JSON
+/// body with `expand.gpx_data` (a [Map] `res.data` — what older servers
+/// still return). This is deliberate CLIENT tolerance for server/app version
+/// skew in self-hosted setups (the rationale: "self-hosters control their
 /// own server/app pairing"), not a server-versioning scheme, and it keeps no
 /// trail-computing behaviour alive on the server.
 Future<String> transcodeToGpx(WidgetRef ref, String path, String name) async {
@@ -245,16 +243,16 @@ Future<String> transcodeToGpx(WidgetRef ref, String path, String name) async {
 }
 
 /// Builds a complete, unsaved [Trail] from a parsed [gpx] entirely on-device
-/// (PORT-01/PORT-03) via [trailFromGpx], then performs D-07's optional,
+/// via [trailFromGpx], then performs the optional,
 /// best-effort reverse-geocode fill for `location`.
 ///
 /// The geocode step runs only when [ref]'s [onlineStatusProvider] is true
 /// AND the trail has a start coordinate; any failure (offline flip mid-call,
 /// no address for the point, network error) is swallowed and the trail is
 /// still returned with `location` left null — offline, the field is simply
-/// empty for the user to type (D-07). `includeRoad: false` and `fullLabel`
-/// reproduce the old server behaviour this replaces (the convert endpoint's
-/// `+server.ts:87-99`, which called `searchLocationReverse` with an empty
+/// empty for the user to type. `includeRoad: false` and `fullLabel`
+/// reproduce the old server behaviour this replaces (the convert endpoint
+/// called `searchLocationReverse` with an empty
 /// options object — i.e. `includeRoad` falsy — and used `fullLabel`,
 /// warning-and-continuing on failure).
 Future<Trail> buildLocalTrail(
@@ -285,7 +283,7 @@ Future<Trail> buildLocalTrail(
         return trail.copyWith(location: result.fullLabel);
       }
     } catch (_) {
-      // Best-effort only — never blocks the save (D-07).
+      // Best-effort only — never blocks the save.
     }
   }
 

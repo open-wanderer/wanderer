@@ -2,15 +2,15 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source-level guard for CR-03 (38.1): there is no ObjectBox test harness
+/// Source-level guard for: there is no ObjectBox test harness
 /// for plain `flutter test` (see `test/store/local_trail_store_test.dart`'s
 /// header), so `TrailLibraryNotifier.deleteTrail` -- which touches a real
 /// `Store` -- is covered here at source level rather than behaviourally.
-/// The behavioural half of CR-03 (hiding the action where it is meaningless)
+/// The behavioural half (hiding the action where it is meaningless)
 /// is covered by the menu tests plan 05 adds.
 ///
 /// The invariant this file protects: `deleteTrail` must never `box.remove`
-/// a row that is still some account's live capture. On the CR-01/CR-03
+/// a row that is still some account's live capture. On the cross-account
 /// overlap row (`owner` set, `localId` set, `syncState` unsynced), an
 /// unguarded removal permanently destroys the hiker's queued upload --
 /// `selectDrainCandidates` has no other handle on it once the row is gone.
@@ -78,7 +78,7 @@ void main() {
         isNot(-1),
         reason:
             'isLiveCaptureRow must be consulted inside deleteTrail -- '
-            'CR-03: on the overlap row, box.remove destroys the hiker\'s '
+            'On the overlap row, box.remove destroys the hiker\'s '
             'pending recording permanently, because selectDrainCandidates '
             'has no other handle on it.',
       );
@@ -87,7 +87,7 @@ void main() {
         isTrue,
         reason:
             'isLiveCaptureRow must be evaluated BEFORE box.remove -- '
-            'CR-03: on the overlap row, box.remove destroys the hiker\'s '
+            'On the overlap row, box.remove destroys the hiker\'s '
             'pending recording permanently, because selectDrainCandidates '
             'has no other handle on it. A guard checked after the removal '
             'is no guard at all.',
@@ -131,12 +131,12 @@ void main() {
 
       // The guard above pins that the directory delete is gated; these two
       // pin WHICH BRANCH sets the gate. Without them, swapping the two
-      // `return` statements -- exactly the rename-and-invert 38.1 performed
+      // `return` statements -- exactly the rename-and-invert performed
       // when `stillHeldByAnother` became `rowRemoved` -- leaves every other
       // assertion in this file green while `library/<id>/` is deleted on
       // the KEEP-the-row path: the downloaded photo files of a live capture
       // the guard just refused to remove, leaving the hiker's pending
-      // recording pointing at missing images (WR-06).
+      // recording pointing at missing images.
       expect(
         RegExp(
           r'box\.remove\(entity\.obxId\);\s*return true;',

@@ -9,16 +9,15 @@
 /// at first save, [mintLocalId]), and [TrailEntity.syncState].
 ///
 /// Ownership is expressed EXCLUSIVELY by [TrailEntity.owner] and must never
-/// be conflated with [TrailEntity.savedByUserIds] (D-10) -- `owner` is 1:1
+/// be conflated with [TrailEntity.savedByUserIds] -- `owner` is 1:1
 /// authorship-on-this-device, `savedByUserIds` is 1:N offline-library
 /// membership. Every function in this file that carries `savedByUserIds`
 /// forward does so verbatim, never as an ownership check.
 ///
 /// Every function that takes an account id as a parameter requires the
 /// CALLER to have re-read it fresh via `currentAccountId(store)` at the
-/// point of use, never from a long-lived cached value (D-13,
-/// RESEARCH.md Open Question 2) -- a stale cached id is exactly the leak
-/// that would show one account's captures to another.
+/// point of use, never from a long-lived cached value -- a stale cached id
+/// is exactly the leak that would show one account's captures to another.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -50,13 +49,12 @@ enum LocalSaveMode {
 
 /// Decides which [LocalSaveMode] a save of [trail] should take.
 ///
-/// `trail.id.isEmpty` alone is NOT a sufficient discriminator after this
-/// phase (RESEARCH.md Pitfall 2): an empty id now means both "never saved
-/// anywhere" AND "saved locally, still unsynced". Collapsing those two into
-/// one branch would route a re-save of an already-local trail back through
-/// [createLocal], minting a second local id and creating a second row where
-/// only one edit session happened. [Trail.localId] is what actually
-/// distinguishes them.
+/// `trail.id.isEmpty` alone is NOT a sufficient discriminator: an empty id
+/// means both "never saved anywhere" AND "saved locally, still unsynced".
+/// Collapsing those two into one branch would route a re-save of an
+/// already-local trail back through [createLocal], minting a second local id
+/// and creating a second row where only one edit session happened.
+/// [Trail.localId] is what actually distinguishes them.
 ///
 /// This is the COARSE decision: it sees exactly one [Trail] and cannot tell
 /// whether that trail is the screen's own in-memory snapshot or the
@@ -67,7 +65,7 @@ enum LocalSaveMode {
 /// And even [resolveLocalSaveModeForRow] is only a routing decision, not a
 /// legality check: [updateLocalTrail] is the final authority on whether a
 /// local write actually lands, via [LocalUpdateOutcome.alreadyUploaded] and
-/// [LocalUpdateOutcome.alreadySynced] (CR-03, WR-16).
+/// [LocalUpdateOutcome.alreadySynced].
 LocalSaveMode resolveLocalSaveMode(Trail trail) {
   if (trail.syncState == TrailSyncState.synced && trail.id.isNotEmpty) {
     return LocalSaveMode.networkUpdate;
@@ -84,9 +82,9 @@ LocalSaveMode resolveLocalSaveMode(Trail trail) {
 /// A locally-captured row normally has an EMPTY
 /// [TrailEntity.savedByUserIds]: [saveNewLocalTrail] never writes
 /// it and [updateLocalTrail] only carries it forward, so nothing on
-/// the capture path can populate it -- D-10 keeps ownership ("I
-/// recorded this") and library membership ("I downloaded this")
-/// strictly separate.
+/// the capture path can populate it -- ownership ("I recorded this")
+/// and library membership ("I downloaded this") are kept strictly
+/// separate.
 ///
 /// A non-empty list therefore means some account downloaded this
 /// trail while its upload was in flight. That is possible from the
@@ -121,11 +119,11 @@ bool shouldDeleteUploadedRow(List<String> savedByUserIds) =>
 /// [resolveLocalSaveMode] ever runs, when [persisted] is non-null and is
 /// EITHER already [TrailSyncState.synced] OR already carries a real server
 /// id ([trailHasServerId]) regardless of [TrailSyncState] -- the exact
-/// `alreadyUploaded` shape [updateLocalTrail] refuses (CR-03). Anticipating
+/// `alreadyUploaded` shape [updateLocalTrail] refuses. Anticipating
 /// that refusal here, rather than discovering it only after
 /// [updateLocalTrail] returns, is what keeps the caller's
 /// `_copyPhotosForLocalSave` from ever running against a row the store is
-/// going to refuse (WR-14): a save doomed to be refused must never reach the
+/// going to refuse: a save doomed to be refused must never reach the
 /// filesystem step first.
 LocalSaveMode resolveLocalSaveModeForRow({
   required Trail screenTrail,
@@ -147,15 +145,15 @@ LocalSaveMode resolveLocalSaveModeForRow({
 /// placeholder [Trail.id] carries for a row that has never reached the
 /// server.
 ///
-/// `TrailEntity.toModel()` blanks a still-local sentinel id to `''` (D-06),
+/// `TrailEntity.toModel()` blanks a still-local sentinel id to `''`,
 /// so this is the one signal that survives from ObjectBox all the way to a
 /// [Trail] model: non-empty here means `writeServerTrailId` already stamped
 /// a real id onto the row, independent of [TrailSyncState] entirely -- which
 /// is what makes [TrailSyncState.failed] in particular an unreliable stand-in
-/// for "the device holds the only copy" (CR-04: a `failed` row can still
-/// carry a real server id from a create that succeeded before a later
-/// waypoint upload failed). Empty here means there is nothing to route a
-/// network write or a network delete to (CR-01).
+/// for "the device holds the only copy": a `failed` row can still carry a
+/// real server id from a create that succeeded before a later waypoint
+/// upload failed. Empty here means there is nothing to route a
+/// network write or a network delete to.
 bool trailHasServerId(String id) => id.isNotEmpty;
 
 /// Decides which id a network save should target once
@@ -166,8 +164,9 @@ bool trailHasServerId(String id) => id.isNotEmpty;
 /// ordinary case, where the screen's own snapshot is trustworthy. Otherwise
 /// falls back to [retiredServerId]: the id [retireUploadedLocalTrail]
 /// returned when it retired this trail's row, memoized by `TrailSync` for
-/// exactly this situation (CR-01) -- a still-mounted create/edit screen
-/// whose `trail.id` reads `''` (D-06 blanks a local-sentinel id) because the
+/// exactly this situation -- a still-mounted create/edit screen
+/// whose `trail.id` reads `''` (`toModel()` blanks a local-sentinel id)
+/// because the
 /// upload finished after this screen's last snapshot and there are no
 /// ObjectBox `Query.watch()` streams to tell it. Returns null when neither
 /// is a real id: there is no target at all, and the caller must refuse the
@@ -214,8 +213,8 @@ enum ServerDeleteOutcome {
 ///   there is deliberately NO "delete on this device only" escape hatch
 ///   for the offline case here. That would destroy the device's only
 ///   pointer to a trail that may still be live (and possibly public) on
-///   the server, which is precisely the CR-02/CR-04 failure this decision
-///   exists to prevent. An offline hiker is told to reconnect instead, and
+///   the server, which is precisely the failure this decision exists to
+///   prevent. An offline hiker is told to reconnect instead, and
 ///   nothing is destroyed.
 /// - Every other case (401, 403, 500, or a null status with
 ///   `connectionFailed == false`) is [abortAndReport]: the failure is real
@@ -240,8 +239,8 @@ ServerDeleteOutcome resolveServerDeleteOutcome({
 /// or [TrailSyncState.uploading], AND whose [TrailEntity.syncNextAttemptAt]
 /// is either unset or not in the future relative to [now].
 ///
-/// A [TrailSyncState.failed] row is deliberately NEVER due -- D-07 parks a
-/// row that exhausted its retry budget for manual retry only
+/// A [TrailSyncState.failed] row is deliberately NEVER due: a row that
+/// exhausted its retry budget is parked for manual retry only
 /// ([resetDrainBackoff]), not automatic pickup by the next drain pass.
 bool isDrainDue(TrailEntity entity, DateTime now) {
   final isUploadable =
@@ -257,7 +256,7 @@ bool isDrainDue(TrailEntity entity, DateTime now) {
 /// `id` is a local sentinel) but has no `localKey` to record the server's
 /// returned id against.
 ///
-/// An INVARIANT BREAK, not a network condition (WR-04):
+/// An INVARIANT BREAK, not a network condition:
 /// `WaypointEntity.fromModel` always mints a `localKey` for an empty-id
 /// waypoint, so a true result means the row is corrupt in a way no number of
 /// drain retries can fix. `_drainOne` must bail on this BEFORE joining the
@@ -279,8 +278,7 @@ bool hasKeylessPendingWaypoint(
 
 /// Pure decision core of [recordDrainFailure], extracted so its
 /// attempt-count boundary is unit-testable without a live ObjectBox [Store]
-/// (Phase 31 established there is no ObjectBox test harness for plain
-/// `flutter test`).
+/// (there is no ObjectBox test harness for plain `flutter test`).
 typedef DrainFailureOutcome = ({
   TrailSyncState syncState,
   int syncAttempts,
@@ -291,7 +289,7 @@ typedef DrainFailureOutcome = ({
 /// one more failed upload attempt.
 ///
 /// When the incremented attempt count reaches [maxAttempts], the row is
-/// parked as [TrailSyncState.failed] with no further scheduled retry (D-07).
+/// parked as [TrailSyncState.failed] with no further scheduled retry.
 /// Otherwise it goes back to [TrailSyncState.pending] with its next attempt
 /// scheduled via [backoff].
 DrainFailureOutcome resolveDrainFailureOutcome({
@@ -403,7 +401,7 @@ enum LocalUpdateOutcome {
   /// The row's id is already a real server id, even though its
   /// [TrailSyncState] is NOT [TrailSyncState.synced] (still
   /// `pending`/`uploading`/`failed`). Nothing was written -- see
-  /// [updateLocalTrail]'s doc comment for why (CR-03).
+  /// [updateLocalTrail]'s doc comment for why.
   alreadyUploaded,
 }
 
@@ -416,7 +414,7 @@ enum LocalUpdateOutcome {
 /// `id`, `owner`, `localId`, `syncState`, `syncAttempts`,
 /// `syncNextAttemptAt`, `savedByUserIds` and `photos` are carried forward
 /// onto it before the put, so a metadata re-edit never changes the row's
-/// identity or ownership (REC-05, SYNC-05).
+/// identity or ownership.
 ///
 /// REFUSES to write, returning [LocalUpdateOutcome.alreadySynced], when the
 /// existing row is [TrailSyncState.synced]. Writing would carry that `synced`
@@ -441,8 +439,8 @@ enum LocalUpdateOutcome {
 /// `isLocalId(entity.id)`, so it has no update path for a row in this
 /// window either: writing the edit here would sit on the row until a later
 /// retry succeeds and [retireUploadedLocalTrail] destroys it, silently
-/// discarding the edit under a green "trail saved successfully" toast
-/// (CR-03). The caller must route this case to the network write instead,
+/// discarding the edit under a green "trail saved successfully" toast.
+/// The caller must route this case to the network write instead,
 /// exactly as it already does for [LocalUpdateOutcome.alreadySynced] and
 /// [LocalUpdateOutcome.missing].
 LocalUpdateOutcome updateLocalTrail(
@@ -509,7 +507,6 @@ LocalUpdateOutcome updateLocalTrail(
 /// Reconciles the local row for [localId], owned by [accountId], onto the
 /// metadata [trail] carries -- called ONLY after a successful network save
 /// for a row [resolveLocalSaveModeForRow] routed to [LocalSaveMode.networkUpdate]
-/// (CR-03).
 ///
 /// This is the missing half of the `alreadyUploaded` fix:
 /// [resolveLocalSaveModeForRow] correctly sends the edit to the server, but
@@ -533,7 +530,7 @@ LocalUpdateOutcome updateLocalTrail(
 /// retirement, so the caller should catch and log rather than surface a
 /// local-write failure as a failed save when the server already accepted it.
 ///
-/// Query is scoped by BOTH [localId] AND [accountId] (T-36-17-01, D-13):
+/// Query is scoped by BOTH [localId] AND [accountId]:
 /// [accountId] must be read fresh via `currentAccountId(store)` at the call
 /// site, never a cached value, or account B's edit could be written onto
 /// account A's row. Silently returns when no row matches -- the row may
@@ -549,7 +546,7 @@ LocalUpdateOutcome updateLocalTrail(
 /// drop the sync bookkeeping. Never touches `id`, `owner`, `localId`,
 /// `syncState`, `syncAttempts`, `syncNextAttemptAt`, `savedByUserIds`,
 /// `photos`, `localPhotos`, `gpxData` or `waypoints` -- each omission is
-/// deliberate (T-36-17-02): those are the row's identity, ownership, sync
+/// deliberate: those are the row's identity, ownership, sync
 /// resume position, and the fields with no source of truth in a plain
 /// [Trail] model, and clobbering any of them here would either corrupt the
 /// drain's resume state or silently discard data this function was never
@@ -596,30 +593,31 @@ void applyNetworkEditToLocalRow(
 /// [applyNetworkEditToLocalRow] keys on `TrailEntity.localId` +
 /// `TrailEntity.owner` -- the unsynced-capture identity. A downloaded row has
 /// `localId == null`, so that function's query can never match it, which is
-/// exactly bug 2 (D-13): the hiker's own edit of a downloaded trail never
+/// exactly bug 2: the hiker's own edit of a downloaded trail never
 /// reached the stored copy. This function is a SEPARATE write path, keyed on
 /// `TrailEntity.id` + `TrailEntity.savedByUserIds.containsElement(accountId)`
 /// -- the same predicate `TrailNotifier._readCached` already builds to read
 /// library membership.
 ///
 /// Two triggers call this, both best-effort:
-/// - D-13: right after the hiker's own successful `POST /trail/form/{id}`,
-///   so their edit lands on the downloaded copy without a re-download.
-/// - D-14: any successful fetch of a trail this account has downloaded,
-///   opportunistically refreshing its metadata and track.
+/// - The save trigger: right after the hiker's own successful
+///   `POST /trail/form/{id}`, so their edit lands on the downloaded copy
+///   without a re-download.
+/// - The fetch trigger: any successful fetch of a trail this account has
+///   downloaded, opportunistically refreshing its metadata and track.
 ///
 /// Both triggers cost ZERO additional network traffic -- the server record
-/// and the GPX are already in hand by the time either call site runs (D-23).
-/// Photos are deliberately never touched here (D-14a): they are the one
+/// and the GPX are already in hand by the time either call site runs.
+/// Photos are deliberately never touched here: they are the one
 /// asset not already in the response, so an automatic refresh must never
 /// spend bytes on them -- that stays the explicit *Update* action's job.
 ///
 /// [accountId] MUST be read fresh via `currentAccountId(store)` at the call
 /// site, never a cached value -- a stale id would let account B's fetch
-/// write onto account A's row (T-38-03-01).
+/// write onto account A's row.
 ///
 /// A silent no-op, never an error, when [trail]'s `id` is empty (a
-/// local-sentinel id, D-06, must never match a row) or when no row in this
+/// local-sentinel id must never match a row) or when no row in this
 /// account's library matches -- either means there is nothing to refresh.
 ///
 /// Rebuilds the row via [TrailEntity.fromModel] (the [updateLocalTrail]
@@ -636,8 +634,8 @@ void applyNetworkEditToLocalRow(
 ///
 /// `gpxData` is guarded: when the incoming `trail.expand?.gpxData` is null or
 /// empty, the existing row's `gpxData` is kept rather than blanking the
-/// stored track. When it is present, it is taken -- D-14's track refresh, a
-/// single ObjectBox string write with no file I/O (D-23).
+/// stored track. When it is present, it is taken -- the track refresh, a
+/// single ObjectBox string write with no file I/O.
 ///
 /// The author/category relations and `authorRecordId`/`categoryRecordId`
 /// fall back to the existing row's values whenever the incoming model
@@ -648,21 +646,21 @@ void applyNetworkEditToLocalRow(
 /// non-null. When it is, each existing child's `localPhotos` is carried onto
 /// its refreshed counterpart by matching `WaypointEntity.id` -- unconditionally,
 /// since it only matches by id and is harmless either way. What happens next
-/// depends on [waypointsAreAuthoritative] (D-08/D-09, CR-02):
+/// depends on [waypointsAreAuthoritative]:
 /// - `true` (the default): any `WaypointEntity` row absent from the
 ///   refreshed set is removed, following [updateLocalTrail]'s orphan-pruning
-///   loop. The D-14 fetch trigger (`trail_provider.dart`) keeps this default
-///   -- a full server fetch IS authoritative, and must stay so or WR-05
-///   (server-side waypoint deletes never propagating) regresses.
+///   loop. The fetch trigger (`trail_provider.dart`) keeps this default
+///   -- a full server fetch IS authoritative, and must stay so, or
+///   server-side waypoint deletes stop propagating.
 /// - `false`: nothing is pruned. Any existing waypoint absent from the
 ///   incoming set is re-added to `entity.waypoints` as-is instead, because
-///   the incoming list is known-incomplete. The D-13 save trigger
+///   the incoming list is known-incomplete. The save trigger
 ///   (`trail_create_screen.dart`) passes `!result.hadWaypointFailures` --
 ///   `TrailSaveResult.finalWaypoints` drops any waypoint whose create/update
 ///   threw, so treating it as a complete set here used to delete a
 ///   still-live waypoint from the hiker's offline copy and orphan its photo
-///   files, under a warning toast that said nothing about local deletion
-///   (CR-02). The row still reflects the last state the server confirmed,
+///   files, under a warning toast that said nothing about local deletion.
+/// The row still reflects the last state the server confirmed,
 ///   which is truthful -- the failed PATCH did not happen server-side
 ///   either.
 /// When `trail.expand?.waypointsViaTrail` is null, the existing children are
@@ -730,7 +728,7 @@ void applyServerTrailToLibraryRow(
       if (waypointsAreAuthoritative) {
         // Remove waypoint rows absent from the refreshed set, mirroring
         // updateLocalTrail's orphan-pruning loop. Only safe when the
-        // caller has told us the incoming set is complete (CR-02).
+        // caller has told us the incoming set is complete.
         final waypointBox = store.box<WaypointEntity>();
         for (final oldWaypoint in existing.waypoints) {
           if (!newIds.contains(oldWaypoint.id)) {
@@ -738,7 +736,7 @@ void applyServerTrailToLibraryRow(
           }
         }
       } else {
-        // The incoming set is known-incomplete (D-09): re-add any existing
+        // The incoming set is known-incomplete: re-add any existing
         // waypoint it omits rather than pruning it. Not marked, no entity
         // field added -- its photo files under
         // `library/<id>/waypoints/<key>/` stay valid.
@@ -764,7 +762,6 @@ void applyServerTrailToLibraryRow(
 /// A plain `bool` could only say "I matched a row"; it could not tell the
 /// caller whether the ROW is gone, and that is the fact the caller needs
 /// in order to know whether `library/<serverId>/` still has a referent
-/// (CR-02).
 enum LocalRowDeleteOutcome {
   /// The row and its [WaypointEntity] children were removed outright. No
   /// account held it in `savedByUserIds`, so nothing on this device points
@@ -786,16 +783,15 @@ enum LocalRowDeleteOutcome {
 ///
 /// A no-op for an unknown [localId] (or one owned by a different account),
 /// mirroring `TrailLibraryNotifier.deleteTrail`'s silent no-op precedent.
-/// Owner-scoped per WR-10 and the project rule "scope, don't delete user
+/// Owner-scoped and the project rule "scope, don't delete user
 /// data": the `localId` this is called with may arrive from a [Trail] model
 /// constructed before an account switch, and without the clause account B
 /// could delete account A's device-only row. Does NOT touch the filesystem
 /// -- the caller pairs this with `deleteUnsyncedPhotoDir` (from
-/// `local_photo_store.dart`, 36-02).
+/// `local_photo_store.dart`).
 ///
 /// [shouldDeleteUploadedRow] picks between two shapes, exactly as
-/// [retireUploadedLocalTrail] does for the other way a capture's life ends
-/// (38.1 CR-02):
+/// [retireUploadedLocalTrail] does for the other way a capture's life ends:
 /// - No library membership (the ordinary case): the row and its
 ///   [WaypointEntity] children are removed outright.
 /// - Some account holds it in its offline library: the row is KEPT and only
@@ -805,19 +801,18 @@ enum LocalRowDeleteOutcome {
 ///   download lands in THIS row. Removing it outright destroyed that
 ///   account's library entry and orphaned `library/<serverId>/` -- whose
 ///   only referent was the `entity.photos` column on the row just removed
-///   -- with no `library/` sweep anywhere in the app to reclaim it. That is
-///   the phase's own defect class: a destructive action scoped by one
-///   identity (`owner`) destroying state belonging to another
-///   (`savedByUserIds`).
+///   -- with no `library/` sweep anywhere in the app to reclaim it: a
+///   destructive action scoped by one identity (`owner`) destroying state
+///   belonging to another (`savedByUserIds`).
 ///
 /// Returns which of those happened, or [LocalRowDeleteOutcome.noMatch]
-/// (D-07, store half of CR-01). `noMatch` means no row owned by [accountId]
-/// carried this [localId], so the caller deleted NOTHING and must not go on
-/// to delete files or report success. This closes CR-01: account B's tap
-/// routed into `deleteUnsynced` with account A's `localId`; the owner clause
-/// correctly matched no row, but the caller then deleted the photo
-/// directory anyway and reported `deleted`. A `void` signature made that
-/// no-match case indistinguishable from success.
+/// [LocalRowDeleteOutcome.noMatch]. `noMatch` means no row owned by
+/// [accountId] carried this [localId], so the caller deleted NOTHING and
+/// must not go on to delete files or report success. Without it, account B
+/// tapping delete with account A's `localId` matched no row -- correctly --
+/// yet the caller went on to delete the photo directory and report
+/// `deleted`, because a `void` signature made no-match indistinguishable
+/// from success.
 LocalRowDeleteOutcome deleteLocalTrailRow(
   Store store,
   String localId, {
@@ -894,7 +889,7 @@ LocalRowDeleteOutcome deleteLocalTrailRow(
 /// retired, or null when no row matched -- alongside `rowRemoved`, which
 /// distinguishes the two branches above.
 ///
-/// WR-03 (38.1): `rowRemoved` exists because the remove branch can strand
+/// `rowRemoved` exists because the remove branch can strand
 /// `library/<serverId>/`. That branch runs precisely when `savedByUserIds`
 /// is empty, so no account holds the trail offline any more, yet the
 /// directory (populated by `TrailDownloadService` back when someone did)
@@ -909,7 +904,7 @@ LocalRowDeleteOutcome deleteLocalTrailRow(
 /// The id is the trail's identity after this
 /// row is gone -- once retirement runs (either branch), it is the ONLY
 /// handle a still-mounted create/edit or detail screen has left on the
-/// trail (CR-01): there are no ObjectBox `Query.watch()` streams anywhere
+/// trail: there are no ObjectBox `Query.watch()` streams anywhere
 /// in this app, so a screen's own `trail.id` snapshot, taken while the row
 /// was still local, keeps reading the blank local-sentinel value forever
 /// unless the caller captures and memoizes this return value.
@@ -928,7 +923,7 @@ LocalRowDeleteOutcome deleteLocalTrailRow(
     if (entity == null) return (serverId: null, rowRemoved: false);
 
     // Captured before the row is mutated or removed by either branch below
-    // -- see this function's doc comment (CR-01).
+    // -- see this function's doc comment.
     final serverId = isLocalId(entity.id) ? null : entity.id;
 
     if (!shouldDeleteUploadedRow(entity.savedByUserIds)) {
@@ -991,12 +986,12 @@ Trail? readLocalTrail(Store store, String localId) {
 /// which is attacker-supplied as far as this layer is concerned and
 /// survives a logout in the deep-link and back-stack. Without the owner
 /// clause, account B could render account A's not-yet-uploaded trail --
-/// the exact leak D-13 exists to prevent, arriving through a door
+/// the exact leak account scoping exists to prevent, arriving through a door
 /// `readOwnLocalTrails` had already bolted.
 ///
-/// Deliberately owner-only, with NO `savedByUserIds` clause: D-10 keeps
-/// ownership ("I made this") and library membership ("I downloaded
-/// this") strictly separate.
+/// Deliberately owner-only, with NO `savedByUserIds` clause: ownership
+/// ("I made this") and library membership ("I downloaded this") stay
+/// strictly separate.
 Trail? readOwnLocalTrail(
   Store store, {
   required String localId,
@@ -1028,7 +1023,7 @@ Trail? readOwnLocalTrail(
 /// and owned by [accountId], or null when no such row exists or the row's
 /// id is still a local sentinel.
 ///
-/// Deliberately NOT via [TrailEntity.toModel()] (CR-02): a delete decision
+/// Deliberately NOT via [TrailEntity.toModel()]: a delete decision
 /// must not depend on the row's cached GPX still parsing.
 /// `TrailEntity.toModel()` runs `parseGpxSafely` and returns null on ANY
 /// conversion failure -- including one caused only by unparseable GPX --
@@ -1038,7 +1033,7 @@ Trail? readOwnLocalTrail(
 /// pointing at it. Reading `entity.id` off the column sidesteps `toModel()`
 /// entirely.
 ///
-/// Owner-scoped for the same reason [readOwnLocalTrail] is (WR-10): the
+/// Owner-scoped for the same reason [readOwnLocalTrail] is: the
 /// `localId` this is called with arrives from a [Trail] model that may have
 /// been constructed before an account switch, or retained by a
 /// backgrounded widget -- the same class of value `readOwnLocalTrail`
@@ -1062,15 +1057,15 @@ String? readLocalTrailServerId(
   return isLocalId(entity.id) ? null : entity.id;
 }
 
-/// The single owner-scoped live-capture predicate (D-04/D-12/38.1).
+/// The single owner-scoped live-capture predicate.
 ///
 /// True when [entity] is some account's not-yet-uploaded capture. This is
-/// the ONE rule; everything else this phase adds ([isOwnLiveCapture],
-/// `ownLiveCaptureProvider`) is a scoping wrapper around it -- D-12
-/// requires exactly one predicate, never two. A row satisfying this
+/// the ONE rule; everything around it ([isOwnLiveCapture],
+/// `ownLiveCaptureProvider`) is a scoping wrapper -- there must be exactly
+/// one predicate, never two. A row satisfying this
 /// predicate is some account's not-yet-uploaded capture, and its
 /// [TrailEntity] row is the only handle `selectDrainCandidates` has on it,
-/// so removing the row destroys the recording permanently (CR-03).
+/// so removing the row destroys the recording permanently.
 ///
 /// `entity.owner != null` is load-bearing: [TrailEntity.fromModel] (the
 /// download path) never sets `owner`, so a plain downloaded row has
@@ -1088,13 +1083,12 @@ bool isLiveCaptureRow(TrailEntity entity) {
 /// [isLocalId]. Otherwise builds the same owner-scoped query
 /// [readOwnLocalTrail] builds and evaluates [isLiveCaptureRow] against the
 /// raw row -- deliberately NOT via `entity.toModel()`, for the same reason
-/// [readLocalTrailServerId] avoids it (CR-02, phase 36): a
+/// [readLocalTrailServerId] avoids it: a
 /// destructive-action gate must not silently flip because the row's cached
 /// GPX stopped parsing. This function consults the ROW's own `syncState`
 /// and `owner`, never the caller's `Trail` model, because the shared cache
 /// row can carry another account's `localId` and non-synced `syncState`
-/// indefinitely (38.1 D-01/D-02; see
-/// `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`).
+/// indefinitely -- unsynced and downloaded are not mutually exclusive.
 bool isOwnLiveCapture(
   Store store, {
   required String? localId,
@@ -1122,15 +1116,15 @@ bool isOwnLiveCapture(
 /// The query casts a broad net (`owner == accountId` OR `savedByUserIds`
 /// contains `accountId`), then keeps a row only when `entity.owner ==
 /// accountId` OR (`authorActorId != null && entity.author.target?.id ==
-/// authorActorId`). The second clause is REC-06's "downloaded trails the
+/// authorActorId`). The second clause is the "downloaded trails the
 /// hiker authored themselves"; the `owner` clause is every not-yet-uploaded
 /// capture. A row whose `owner` is null can NEVER satisfy the first clause
 /// -- that is what keeps a pre-existing downloaded row (owner unset) from
-/// leaking into another account's own-trails list (T-36-03-01).
+/// leaking into another account's own-trails list.
 ///
 /// Converted with the same per-entity `try/catch` guard
 /// [TrailLibraryNotifier.build] uses, sorted by `created` descending, and
-/// returned as a flat list -- no sectioning and no special sort (D-11).
+/// returned as a flat list -- no sectioning and no special sort.
 List<Trail> readOwnLocalTrails(
   Store store, {
   required String accountId,
@@ -1171,7 +1165,7 @@ List<Trail> readOwnLocalTrails(
 }
 
 /// Counts [accountId]'s not-yet-synced local trails. Used by the sign-out
-/// warning (D-12).
+/// warning.
 int countUnsyncedTrails(Store store, String accountId) {
   final query = store
       .box<TrailEntity>()
@@ -1191,7 +1185,7 @@ int countUnsyncedTrails(Store store, String accountId) {
 /// Deliberately NOT account-scoped: its only consumer is the startup photo
 /// orphan sweep, which must not delete a signed-out account's still-pending
 /// photos just because that account is not the currently signed-in one
-/// (D-13 hides another account's content, it never deletes it).
+/// (account scoping hides another account's content, it never deletes it).
 Set<String> unsyncedLocalIds(Store store) {
   final query = store
       .box<TrailEntity>()
@@ -1238,14 +1232,14 @@ List<TrailEntity> selectDrainCandidates(
 // Drain bookkeeping -- each one its own small write transaction
 // ---------------------------------------------------------------------------
 
-/// SYNC-04's load-bearing write: stamps the server-assigned [serverId] and
+/// The load-bearing write: stamps the server-assigned [serverId] and
 /// [serverPhotoFilenames] onto the local row identified by [localId], leaving
 /// `localId`, `owner` and `syncState` untouched.
 ///
 /// Must be callable, and must commit, the instant `PUT /trail/form`
-/// returns, before any waypoint upload starts (RESEARCH.md Pitfall 3 --
-/// there is no server-side idempotency key, so a crash between "server
-/// accepted" and "id persisted" is what produces a duplicate trail).
+/// returns, before any waypoint upload starts: there is no server-side
+/// idempotency key, so a crash between "server accepted" and "id persisted"
+/// is what produces a duplicate trail.
 ///
 /// [serverPhotoFilenames] commits in the SAME transaction as [serverId] on
 /// purpose. The two facts are learned from one response and are only
@@ -1281,7 +1275,7 @@ void writeServerTrailId(
 /// onto the child [WaypointEntity] identified by [waypointLocalKey] under
 /// the trail [localId].
 ///
-/// Deliberately does NOT clear `localPhotos` (WR-09): the trail's upload as
+/// Deliberately does NOT clear `localPhotos`: the trail's upload as
 /// a whole is not complete the instant one waypoint's create succeeds -- a
 /// LATER waypoint in the same drain loop can still fail and park the row as
 /// `failed`, and a waypoint whose `localPhotos` was already wiped would then
@@ -1317,7 +1311,6 @@ void writeServerWaypointId(
     target.id = serverWaypointId;
     target.photos = serverPhotoFilenames;
     // localPhotos deliberately retained -- see this function's doc comment
-    // (WR-09).
     store.box<WaypointEntity>().put(target);
   });
 }
@@ -1351,7 +1344,7 @@ void markTrailUploading(Store store, String localId) {
 ///
 /// Delegates the attempt-count/backoff decision to
 /// [resolveDrainFailureOutcome] -- see that function's doc comment for the
-/// D-07 parking behaviour.
+/// parking behaviour.
 void recordDrainFailure(
   Store store, {
   required String localId,
@@ -1380,11 +1373,11 @@ void recordDrainFailure(
   });
 }
 
-/// SYNC-03's manual-retry primitive: resets the local row for [localId],
+/// The manual-retry primitive: resets the local row for [localId],
 /// owned by [accountId], back to a fresh [TrailSyncState.pending] state
 /// with zero attempts and no scheduled backoff.
 ///
-/// Owner-scoped per WR-10 and the project rule "scope, don't delete user
+/// Owner-scoped and the project rule "scope, don't delete user
 /// data": `SyncStatusChip`'s retry tap reaches this with the same kind of
 /// value [deleteLocalTrailRow] guards against -- a `localId` that may have
 /// survived an account switch.

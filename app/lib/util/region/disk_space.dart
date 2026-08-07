@@ -2,12 +2,11 @@ import 'package:disk_space_2/disk_space_2.dart';
 import 'package:meta/meta.dart';
 
 /// Disk free-space query + fail-closed safety-margin decision for the
-/// region download engine (TILE-03).
+/// region download engine.
 ///
 /// `disk_space_2` is the only genuinely new third-party dependency this
-/// milestone introduces (v1.6 Phase 23), added behind a blocking
-/// `checkpoint:human-verify` legitimacy gate because `slopcheck` cannot scan
-/// the pub.dev ecosystem. The installed package's public API
+/// region work introduces, and it was vetted by hand before adoption. The
+/// installed package's public API
 /// (`~/.pub-cache/hosted/pub.dev/disk_space_2-1.0.12/lib/disk_space_2.dart`)
 /// exposes exactly three read-only static free/total-space queries backed by
 /// `StatFs` on Android and `NSFileManager`/`URLResourceKey` on iOS — no
@@ -43,7 +42,7 @@ typedef DeviceSpaceQuery = Future<double?> Function();
 ///
 /// When BOTH queries throw (or [forPath] is `null` and [deviceQuery]
 /// throws), returns `null` — there is no further fallback, and callers must
-/// fail closed via [hasEnoughSpace]. This preserves TILE-03's genuine
+/// fail closed via [hasEnoughSpace]. This preserves the genuine
 /// low-disk protection: a real "disk is full" condition still can't be
 /// worked around by this fallback, only the "path doesn't exist yet"
 /// condition can.
@@ -72,7 +71,7 @@ Future<int?> resolveFreeDiskSpaceBytes({
       freeMebibytes = await deviceQuery();
     } catch (e) {
       // Both the path-specific and device-wide queries failed — fail
-      // closed, TILE-03's low-disk protection is preserved.
+      // closed, the low-disk protection is preserved.
       return null;
     }
   }
@@ -104,10 +103,10 @@ Future<int?> freeDiskSpaceBytes([String? forPath]) {
 /// [declaredSizeBytes]?
 ///
 /// Fails closed (`false`) when [freeBytes] is `null` (unknown free space is
-/// treated as "not enough" — TILE-03's fail-closed requirement) — refusing a
+/// treated as "not enough" — the fail-closed requirement) — refusing a
 /// download is always safer than risking a mid-write `ENOSPC`.
 ///
-/// [safetyMultiplier] is a tunable heuristic (RESEARCH Assumption A3), not a
+/// [safetyMultiplier] is a tunable heuristic, not a
 /// fixed guarantee: it accounts for the coexisting `.part` file during a
 /// resumed download (twice the declared size, momentarily) plus a margin for
 /// the OS's own reserved space. Defaults to `1.75`.

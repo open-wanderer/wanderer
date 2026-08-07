@@ -11,7 +11,7 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
   Future<List<SubcategoryPreference>> build() async {
     final user = ref.watch(authProvider).value;
     if (user == null) {
-      // Graceful degradation (D-07): anonymous users have no preferences and
+      // Graceful degradation: anonymous users have no preferences and
       // consumers treat the empty list as "all visible" — no API call made.
       return <SubcategoryPreference>[];
     }
@@ -39,7 +39,7 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
   }
 
   /// Creates or updates a single subcategory preference. The server injects the
-  /// owning `user` from the session (Security V4 / T-10-05) — never send it.
+  /// owning `user` from the session — never send it.
   Future<void> upsert(String subcategoryId, bool visible) async {
     await ref.read(apiProvider).put(
       '/user-subcategory-preference',
@@ -50,7 +50,7 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
 
   /// Persists a new ordering of subcategory preferences within a parent
   /// category. The server injects the owning `user` from the session
-  /// (Security V4 / T-10-05) — never send it. Callers wrap this in
+  /// — never send it. Callers wrap this in
   /// try/catch + toast; no error handling here.
   Future<void> reorder(
     String categoryId,

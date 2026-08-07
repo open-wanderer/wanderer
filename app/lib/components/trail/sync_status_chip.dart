@@ -7,11 +7,11 @@ import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 
 /// The four-state sync-status indicator rendered below a trail's title on
-/// both `TrailCard` and `TrailListItem` (REC-03, SYNC-02, SYNC-03).
+/// both `TrailCard` and `TrailListItem`.
 ///
-/// Renders nothing at all when the trail is [TrailSyncState.synced] (D-08)
+/// Renders nothing at all when the trail is [TrailSyncState.synced]
 /// -- an always-present chip would make every ordinary trail noisier, and
-/// it deliberately does not join the public/shared badge group (D-09):
+/// it deliberately does not join the public/shared badge group:
 /// "is this on the server yet" is a separate axis from visibility.
 class SyncStatusChip extends ConsumerWidget {
   final TrailSummary trail;

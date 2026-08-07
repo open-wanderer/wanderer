@@ -36,7 +36,7 @@ void main() {
   // environment, so the widget throws before rendering. Needs a fake
   // WebViewPlatform test double to re-enable.
   testWidgets(
-    'account screen renders all five sections in fixed order (ACCT-01..05)',
+    'account screen renders all five sections in fixed order',
     skip: true,
     (tester) async {
       // The screen may carry long content; give the test a tall viewport so
@@ -72,17 +72,17 @@ void main() {
       // AppBar title.
       expect(find.text('Account'), findsOneWidget);
 
-      // Bio section header (ACCT-02) — also appears as TextField hint text.
+      // Bio section header — also appears as TextField hint text.
       expect(find.text('Add Bio'), findsWidgets);
 
-      // Bio text field (ACCT-02).
+      // Bio text field.
       expect(find.byType(TextField), findsWidgets);
 
-      // Change email and Change password list tiles (ACCT-03, ACCT-04).
+      // Change email and Change password list tiles.
       expect(find.text('Change email'), findsOneWidget);
       expect(find.text('Change password'), findsOneWidget);
 
-      // Delete account tile (ACCT-05) — last row.
+      // Delete account tile — last row.
       expect(find.text('Delete Account'), findsWidgets);
 
       // TODO: tap-to-save assertions require apiProvider/HTTP override fixtures

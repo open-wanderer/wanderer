@@ -109,7 +109,7 @@ double haversineMeters(Wpt a, Wpt b) {
 /// filter plus the threshold-gated distance-smoothing accumulator.
 ///
 /// The raw per-point cumulative-distance array from the TS original is
-/// deliberately NOT ported (D-04 / Pitfall 3): its only consumer is the web
+/// deliberately NOT ported: its only consumer is the web
 /// trail-edit crop slider, which has no Dart equivalent, so porting it
 /// would be dead code.
 class GpxMetricsComputation {
@@ -148,10 +148,8 @@ class GpxMetricsComputation {
   double totalElevationLossSmoothed = 0;
 
   double totalDistance = 0;
-  // NOT REPORTED as of 2026-08-01: no consumer reads this for a trail's
-  // distance anymore — computeTrailMetrics reports the raw totalDistance
-  // instead (CONV-05 superseded, see
-  // .planning/quick/260801-opr-report-raw-distance-instead-of-the-5m-ga/).
+  // NOT REPORTED: no consumer reads this for a trail's distance anymore —
+  // computeTrailMetrics reports the raw totalDistance instead.
   // Kept, and _thresholdXYm/GpxMetricsComputation(5, 5) untouched, because
   // _lastFilteredPointXY sits in a class whose other anchors are
   // elevation-critical, and a future speed-aware filter would build on it.
@@ -192,8 +190,8 @@ class GpxMetricsComputation {
   double _haversine(Wpt a, Wpt b) => haversineMeters(a, b);
 
   /// Line-for-line port of `addAndFilter` (`gpx-metrics-computation.ts:97-235`).
-  /// Do not simplify this into a plain accumulator — that reintroduces the
-  /// CONV-04 defect Phase 33 fixed.
+  /// Do not simplify this into a plain accumulator — that reintroduces a
+  /// defect this shape exists to avoid.
   void addAndFilter(Wpt point) {
     // A point with no usable POSITION is not a trackpoint, and is dropped
     // before it can touch any accumulator.
@@ -279,8 +277,8 @@ class GpxMetricsComputation {
     // totalElevationGainSmoothed/LossSmoothed monotonic (see the INVARIANT
     // note on those fields): a discarded excursion was never published, so
     // no published total ever decreases. Horizontal stillness is checked
-    // only on the discard path, so a monotonic low-horizontal climb (the
-    // CONV-04 case) is never affected.
+    // only on the discard path, so a monotonic low-horizontal climb is
+    // never affected.
     //
     // The pending excursion is not lost when a track ends mid-swing: it is
     // surfaced by the finalElevationGain/finalElevationLoss getters, which
@@ -341,7 +339,7 @@ class GpxMetricsComputation {
 
 /// Immutable snapshot of a GPX track's public metrics. Deliberately narrower
 /// than the TS `GPXFeature` shape — no per-point cumulative-distance array,
-/// no `hash` (D-04, public metrics only; Dart internals may differ from TS).
+/// no `hash` (public metrics only; Dart internals may differ from TS).
 class GpxTrailMetrics {
   final double centroidLat;
   final double centroidLon;
@@ -372,15 +370,14 @@ class GpxTrailMetrics {
 
 /// Line-for-line Dart port of the public-metrics assembly logic at
 /// `gpx.ts:97-167`, minus the per-point cumulative-distance array and
-/// `hash` (D-04).
+/// `hash`.
 ///
 /// One [GpxMetricsComputation] instance is constructed and shared across
 /// EVERY [Trk] and EVERY [Trkseg] in [gpx] — no per-segment anchor reset —
-/// so a multi-leg planner route measures through its anchors (Phase 33
-/// 33-01 decision).
+/// so a multi-leg planner route measures through its anchors.
 ///
-/// The point loop starts at index 0 (CONV-01) and the centroid divides by
-/// the same count it summed, `summedPointCount` (CONV-02) — not by a
+/// The point loop starts at index 0 and the centroid divides by
+/// the same count it summed, `summedPointCount` — not by a
 /// separately-collected point list. With no points, the centroid is
 /// `0 / 0` = `double.nan` and the bounding box keeps its infinite
 /// sentinels, matching the TS zero-point behaviour; this is deliberate, not
@@ -414,7 +411,7 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
         final point = points[i];
         metrics.addAndFilter(point);
 
-        // WR-02: a position-less point contributed 0 to the sums but still
+        // A position-less point contributed 0 to the sums but still
         // incremented the divisor, dragging the centroid toward (0, 0) in
         // proportion to how many such points the file had. Discarded here for
         // the same reason addAndFilter discards it — one rule, one predicate.
@@ -448,33 +445,32 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
 }
 
 /// Line-for-line Dart port of `gpx2trail`'s trail assembly
-/// (`web/src/lib/util/gpx_util.ts:37-89`) — the PORT-01 draft-trail step.
+/// (`web/src/lib/util/gpx_util.ts`) — the draft-trail step.
 /// Builds a complete, unsaved [Trail] from a parsed [gpx] with no network
-/// call (D-14): name, description, waypoints, start coordinates, date,
+/// call: name, description, waypoints, start coordinates, date,
 /// distance, elevation gain/loss, duration and bounding box.
 ///
-/// [movingDuration] is the D-13 override: when a caller (a recording session)
+/// [movingDuration] is an override: when a caller (a recording session)
 /// supplies it, it becomes `Trail.movingDuration` — UNLESS it rounds down to
 /// zero whole seconds, in which case it is treated as absent (`null`).
 ///
-/// That zero-to-null mapping is D-10's "no value" state, and it has to live
+/// That zero-to-null mapping is the "no value" state, and it has to live
 /// here rather than at each call site: `NavigationStats.elapsed` starts at
 /// `Duration.zero` and stays there until the 1-second tick begins, so a
 /// recording saved immediately passed a zero elapsed straight through to
 /// `moving_duration = 0` — precisely the state `util/trail/form_data.dart`'s own
 /// comment says must never be written ("sending an empty string for an
-/// absent value would write 0 into PocketBase and defeat D-10's 'no value'
+/// absent value would write 0 into PocketBase and defeat the 'no value'
 /// state"). Its write guard is `!= null`, not `> 0`, so nothing downstream
 /// catches it, and the display rule's `> 0` fallback then MASKS the bad row
 /// until something else reads the field. Note the truncation is the real
 /// boundary, not `Duration.zero`: a 500 ms elapsed also yields 0 whole
 /// seconds, which a `> Duration.zero` check at the call site would miss
-/// (WR-08).
 ///
 /// `Trail.duration` NEVER
 /// comes from it — `duration` always comes from the GPX's own first/last
 /// trkpt timestamps, so every persisted stat except moving time stays
-/// reproducible by a later recompute over the same GPX (D-11). Omitting the
+/// reproducible by a later recompute over the same GPX. Omitting the
 /// parameter leaves `movingDuration` null.
 ///
 /// [gpxData] is the raw GPX string [gpx] was parsed from. When supplied it
@@ -520,7 +516,7 @@ Trail trailFromGpx(
   // value, matching convertGpxToTrail's convention.
   final now = DateTime.now();
 
-  // WR-03: a <wpt> with no usable position is DROPPED, not planted at (0, 0).
+  // A <wpt> with no usable position is DROPPED, not planted at (0, 0).
   // The old `?? 0` produced a marker in the Gulf of Guinea that the user could
   // neither explain nor remove, and re-serialised as an attribute-less <wpt>
   // that the next reader would reject.
@@ -533,7 +529,7 @@ Trail trailFromGpx(
           lon: wpt.lon!,
           name: wpt.name ?? '',
           description: wpt.desc ?? '',
-          // Closed-set lookup (Pitfall 6 / T-34-18): an unknown or hostile
+          // Closed-set lookup: an unknown or hostile
           // `sym` resolves to the default circle and can never inject
           // arbitrary content. Never assign wpt.sym directly — Waypoint.icon
           // is FaIconData, not a String.
@@ -545,7 +541,7 @@ Trail trailFromGpx(
 
   final trackPoints = gpx.trks.firstOrNull?.trksegs.firstOrNull?.trkpts;
   final routePoints = gpx.rtes.firstOrNull?.rtepts;
-  // WR-01: the FIRST USABLE point, not merely the first. A leading malformed
+  // The FIRST USABLE point, not merely the first. A leading malformed
   // point otherwise produced a trail with null lat/lon — no map pin, no
   // reverse geocode — even though every other point in the file was fine.
   final startPoint =
@@ -568,7 +564,7 @@ Trail trailFromGpx(
 
   final metrics = computeTrailMetrics(gpx);
 
-  // WR-08 / D-10: zero whole seconds is "no value", never a stored 0.
+  // Zero whole seconds is "no value", never a stored 0.
   final movingDurationSeconds =
       movingDuration != null && movingDuration.inSeconds > 0
       ? movingDuration.inSeconds.toDouble()

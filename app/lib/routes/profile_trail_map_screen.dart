@@ -50,7 +50,7 @@ const double _kWorldZoom = 3.0;
 /// This is a gate-then-build split, not a single widget: [profileProvider]
 /// must resolve before the inner view can exist, because the resolved actor
 /// id is used as a *provider family key* for [mapTrailSearchProvider] and
-/// [mapClusterSearchProvider] (D-02). The gate guarantees that key is a
+/// [mapClusterSearchProvider]. The gate guarantees that key is a
 /// stable, non-null string for the inner widget's entire lifetime, so an
 /// unscoped search can never fire while the actor is still resolving, and
 /// `dispose()` always has an unambiguous key to invalidate.
@@ -115,7 +115,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
   final sheetMediumsize = 0.5;
   final sheetMaxSize = 1.0;
 
-  /// D-04: deliberately the same filter id the profile's trail LIST screen
+  /// Deliberately the same filter id the profile's trail LIST screen
   /// uses, so a filter set in either view applies to both.
   String get _filterId => 'profile_trail_${widget.handle}';
 
@@ -144,7 +144,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
       curve: Curves.elasticOut,
       reverseCurve: Curves.easeOut,
     );
-    // Deliberately no GPS-chase subscription here (D-03) — this screen never
+    // Deliberately no GPS-chase subscription here — this screen never
     // reads or writes `mapCameraProvider`; the initial camera is either the
     // bbox fit below or the world-view/settings-location fallback.
   }
@@ -267,7 +267,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
         );
       }
     } else {
-      // No trails, or every degraded federated path (D-05): skip the fit
+      // No trails, or every degraded federated path: skip the fit
       // entirely and leave the default camera. The search below still runs
       // so the sheet shows its real empty state rather than a spinner.
       cameraFuture = Future<void>.value();
@@ -607,7 +607,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                   return;
                 }
 
-                // Deliberately no MapEventCameraIdle branch here (D-03) —
+                // Deliberately no MapEventCameraIdle branch here —
                 // this screen never reads or writes `mapCameraProvider`.
               },
               layers: _selectedPolyline != null

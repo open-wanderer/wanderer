@@ -15,11 +15,10 @@ T _$identity<T>(T value) => value;
 mixin _$ProfileTrailsState {
 
  List<TrailSummary> get trails; int get page; int get perPage; int get totalPages;/// True when the last network fetch failed and this state is showing
-/// only what's on this device (REC-06). Decided from the fetch outcome
-/// itself, never from `onlineStatusProvider`'s optimistic default
-/// (RESEARCH.md Pitfall 5).
+/// only what's on this device. Decided from the fetch outcome
+/// itself, never from `onlineStatusProvider`'s optimistic default.
  bool get offline;/// True when this state is for the signed-in hiker's own handle --
-/// only then does the local half of the merge run (T-36-07-02).
+/// only then does the local half of the merge run.
  bool get isOwnHandle;
 /// Create a copy of ProfileTrailsState
 /// with the given fields replaced by the non-null parameter values.
@@ -231,12 +230,11 @@ class _ProfileTrailsState extends ProfileTrailsState {
 @override final  int perPage;
 @override final  int totalPages;
 /// True when the last network fetch failed and this state is showing
-/// only what's on this device (REC-06). Decided from the fetch outcome
-/// itself, never from `onlineStatusProvider`'s optimistic default
-/// (RESEARCH.md Pitfall 5).
+/// only what's on this device. Decided from the fetch outcome
+/// itself, never from `onlineStatusProvider`'s optimistic default.
 @override@JsonKey() final  bool offline;
 /// True when this state is for the signed-in hiker's own handle --
-/// only then does the local half of the merge run (T-36-07-02).
+/// only then does the local half of the merge run.
 @override@JsonKey() final  bool isOwnHandle;
 
 /// Create a copy of ProfileTrailsState

@@ -5,9 +5,9 @@ import 'package:wanderer/models/region_status.dart';
 
 /// ObjectBox entity for a single catalog region — the app-wide offline tile
 /// repository's core row. Persists every catalog-owned field from the last
-/// successful `GET /api/v1/regions` fetch (D-01/D-04/D-05) plus local-only
-/// download bookkeeping (D-06/D-08/D-11), and exposes a computed local
-/// download-lifecycle getter (D-12).
+/// successful `GET /api/v1/regions` fetch plus local-only
+/// download bookkeeping, and exposes a computed local
+/// download-lifecycle getter.
 @Entity()
 class RegionEntity {
   @Id()
@@ -27,7 +27,7 @@ class RegionEntity {
   /// from the catalog. Always key on [path] instead.
   String id;
 
-  // --- Catalog-owned fields (D-01: only these are overwritten by
+  // --- Catalog-owned fields (only these are overwritten by
   // applyCatalogEntry) ---
   String name;
 
@@ -60,19 +60,19 @@ class RegionEntity {
   int? demSize;
   String? error;
 
-  // --- Local-only fields (D-01: never touched by applyCatalogEntry) ---
+  // --- Local-only fields (never touched by applyCatalogEntry) ---
 
-  /// Defaults `true` on creation (D-08); flipped `false` when a catalog
+  /// Defaults `true` on creation; flipped `false` when a catalog
   /// fetch completes without this region's id appearing in the response.
   /// Downloaded files/packages are left on disk untouched when this flips.
   bool inCatalog = true;
 
   /// Set to the catalog's `version` value at the moment a vector download
-  /// completes successfully (Phase 23). Compared against a fresh fetch's
-  /// `version` to resolve [status] to [RegionStatus.updateAvailable] (D-06).
+  /// completes successfully. Compared against a fresh fetch's
+  /// `version` to resolve [status] to [RegionStatus.updateAvailable].
   String? lastDownloadedVersion;
 
-  // --- Catalog-owned enum shadows (D-05: explicit .code, never .index) ---
+  // --- Catalog-owned enum shadows (explicit .code, never .index) ---
 
   @Transient()
   CatalogStatus catalogStatus = CatalogStatus.building;
@@ -88,7 +88,7 @@ class RegionEntity {
 
   /// Uses the [CatalogStatus.absent] sentinel (rather than a nullable
   /// column) when the last fetch carried no `dem_status` at all — keeps this
-  /// an explicit-int enum shadow for anti-pattern consistency (D-05), no
+  /// an explicit-int enum shadow for anti-pattern consistency, no
   /// nullable ObjectBox shadow needed.
   @Transient()
   CatalogStatus demStatus = CatalogStatus.absent;
@@ -102,17 +102,17 @@ class RegionEntity {
     );
   }
 
-  // --- Package relations (D-11: two independent nullable ToOnes, no
+  // --- Package relations (two independent nullable ToOnes, no
   // discriminator, no @Backlink) ---
   final vectorPackage = ToOne<DownloadedTilePackageEntity>();
   final demPackage = ToOne<DownloadedTilePackageEntity>();
 
-  /// Computed local download-lifecycle status (D-12) — getter only, no
+  /// Computed local download-lifecycle status — getter only, no
   /// setter and no `@Property`, so ObjectBox excludes it from persistence.
   /// Region and package status can never drift out of sync as a result.
   ///
   /// The staleness branch checks only the VECTOR `version` because the API
-  /// exposes no `dem_version`/DEM-build-date field (D-07) — DEM archives
+  /// exposes no `dem_version`/DEM-build-date field — DEM archives
   /// have no `updateAvailable` concept, only the vector package can go
   /// stale. DEM state is deliberately NOT folded into this getter — the DEM
   /// package lifecycle is independent (matches "[quick-260711-lzb] DEM tile
@@ -165,7 +165,7 @@ class RegionEntity {
   /// insert-half of the upsert). Leaves [lastDownloadedVersion] null and
   /// both `ToOne` targets unset. Throws [FormatException] when
   /// `entry.bbox.length != 4` — defends against a malformed/hostile catalog
-  /// element (T-22-01); Plan 02 catches and skips such an entry.
+  /// element; the caller catches and skips such an entry.
   factory RegionEntity.fromCatalogEntry(RegionCatalogEntry entry) {
     if (entry.bbox.length != 4) {
       throw FormatException(
@@ -194,10 +194,10 @@ class RegionEntity {
     );
   }
 
-  /// Overwrites ONLY the catalog-owned fields (D-01) — never touches
+  /// Overwrites ONLY the catalog-owned fields — never touches
   /// [obxId], [path], [vectorPackage], [demPackage], or
   /// [lastDownloadedVersion]. Throws [FormatException] when
-  /// `entry.bbox.length != 4`, matching [fromCatalogEntry] (T-22-01).
+  /// `entry.bbox.length != 4`, matching [fromCatalogEntry].
   ///
   /// [id] IS overwritten: the caller matched this row by [path], so a differing
   /// `entry.id` means the backend re-minted the record id and this row must

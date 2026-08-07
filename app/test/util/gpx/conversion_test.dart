@@ -17,7 +17,7 @@ void main() {
   // proves the vendored reader is doing work; without it these tests would
   // still pass if the vendoring were reverted.
   group('vendored reader tolerance - <ele> and <time>', () {
-    test('preserves a genuine <ele>0</ele> (real sea level, CONV-03)', () {
+    test('preserves a genuine <ele>0</ele> (real sea level)', () {
       final xml = _gpxXml([
         '<trkpt lat="47.0" lon="11.0"><ele>0</ele></trkpt>',
       ]);
@@ -236,7 +236,7 @@ void main() {
     });
 
     test(
-      'WR-06: a partial-attribute <email> does not splice with the text',
+      'A partial-attribute <email> does not splice with the text',
       () {
         // `<email domain="a.com">u@b.com</email>` used to yield `u@a.com` — an
         // address present in neither the attributes nor the text. A document
@@ -367,7 +367,7 @@ void main() {
   });
 
   group('computeTrailMetrics', () {
-    test('CONV-01: a two-point segment reports the full hop instead of 0', () {
+    test('A two-point segment reports the full hop instead of 0', () {
       // Pre-fix value on this exact fixture: exactly 0 -- the loop started
       // at i = 1, so only the second point was ever fed to addAndFilter().
       final xml = _gpxXml([_trkptXml(47.0, 11.0), _trkptXml(47.001, 11.001)]);
@@ -377,7 +377,7 @@ void main() {
     });
 
     test(
-      'CONV-01/CONV-02: bounding box and centroid include the geographic-extreme first point',
+      'Bounding box and centroid include the geographic-extreme first point',
       () {
         // Pre-fix: minLat 47.0, centroid 31.33/7.33 -- the first point
         // (also the geographic extreme) was skipped by the i = 1 loop
@@ -397,7 +397,7 @@ void main() {
     );
 
     test(
-      'CONV-03: an omitted <ele> is carried forward as "no data", not sea level',
+      'An omitted <ele> is carried forward as "no data", not sea level',
       () {
         // Pre-fix: elevationGain 1015, elevationLoss 1005 -- the missing
         // tag coerced to 0, fabricating a plunge to sea level and back.
@@ -416,10 +416,10 @@ void main() {
     );
 
     test(
-      'CONV-03: an empty <ele></ele> is the parser landmine canary, treated identically to an omitted tag',
+      'An empty <ele></ele> is the parser landmine canary, treated identically to an omitted tag',
       () {
         // Pre-fix: elevationGain 1015, elevationLoss 1005. This is the
-        // exact fixture that crashes the raw parser (34-RESEARCH.md
+        // exact fixture that crashes the raw parser (see
         // Pitfall 1).
         final xml = _gpxXml([
           _trkptXml(47.000, 11.0, ele: '1000'),
@@ -436,7 +436,7 @@ void main() {
     );
 
     test(
-      'CONV-03: a genuine <ele>0</ele> counts as real sea-level data, not missing',
+      'A genuine <ele>0</ele> counts as real sea-level data, not missing',
       () {
         final xml = _gpxXml([
           _trkptXml(47.0, 11.0, ele: '0'),
@@ -450,7 +450,7 @@ void main() {
     );
 
     test(
-      'CONV-04: registers the full climb of an 88 m scramble spread over ~4.4 m of horizontal movement',
+      'Registers the full climb of an 88 m scramble spread over ~4.4 m of horizontal movement',
       () {
         // Pre-fix: elevationGain 0 -- the smoothed elevation diff was
         // gated behind the horizontal threshold, which this stretch never
@@ -463,7 +463,7 @@ void main() {
 
         expect(metrics.elevationGain, 88.0);
         expect(metrics.elevationLoss, 0.0);
-        // The reported distance is now raw (CONV-05 superseded): the same
+        // The reported distance is now raw: the same
         // 12-point stretch's cumulative horizontal movement is ~4.4033 m,
         // still independent of the 88 m climb above it -- the elevation and
         // distance thresholds are gated independently regardless of which
@@ -473,7 +473,7 @@ void main() {
     );
 
     test(
-      'D-04: a completed track reports finalElevationGain (88), not the monotonic totalElevationGainSmoothed (80)',
+      'A completed track reports finalElevationGain (88), not the monotonic totalElevationGainSmoothed (80)',
       () {
         // The single test that catches porting the wrong one of the pair
         // (Pitfall 2): this monotonic climb ends without a confirming
@@ -495,7 +495,7 @@ void main() {
     );
 
     test(
-      'CONV-04: a fully-stationary track whose altitude oscillates +/-7 m and returns to start reports 0/0',
+      'A fully-stationary track whose altitude oscillates +/-7 m and returns to start reports 0/0',
       () {
         // Pre-fix: elevationGain 210, elevationLoss 210 -- the flat
         // threshold commit rule ratchets on every +/-7 m swing even
@@ -513,7 +513,7 @@ void main() {
     );
 
     test(
-      'CONV-04: the same stationary oscillation ending mid-swing reports exactly the one un-cancelled excursion',
+      'The same stationary oscillation ending mid-swing reports exactly the one un-cancelled excursion',
       () {
         // Pre-fix: elevationGain 210, elevationLoss 203.
         final trkpts = [
@@ -528,7 +528,7 @@ void main() {
     );
 
     test(
-      'CONV-04: rejects a stationary out-and-back bump but measures the genuine climb that follows in full',
+      'Rejects a stationary out-and-back bump but measures the genuine climb that follows in full',
       () {
         // Pre-fix: elevationGain 32, elevationLoss 8.
         final trkpts = [
@@ -547,7 +547,7 @@ void main() {
     );
 
     test(
-      'CONV-04 rolling-terrain guard: noise rejection never eats real terrain',
+      'rolling-terrain guard: noise rejection never eats real terrain',
       () {
         const elevations = [1000, 1008, 1000, 1008, 1000, 1008];
         final trkpts = [
@@ -562,9 +562,9 @@ void main() {
     );
 
     test(
-      'CONV-05 (superseded): totalDistanceSmoothed still suppresses GPS jitter; totalDistance stays raw and is what gets reported',
+      'TotalDistanceSmoothed still suppresses GPS jitter; totalDistance stays raw and is what gets reported',
       () {
-        // Pre-33-01 (i = 1 loop bug): 90.068 m -- a different defect
+        // With the old (i = 1) loop bug: 90.068 m -- a different defect
         // entirely. The now-unreported totalDistanceSmoothed still holds
         // the real forward travel, ~100.075 m, with jitter suppressed; the
         // raw haversine sum over every consecutive pair, ~110.083 m, is
@@ -734,7 +734,7 @@ void main() {
     });
 
     test(
-      'D-13: the movingDuration override populates movingDuration, never duration',
+      'The movingDuration override populates movingDuration, never duration',
       () {
         final xml = _gpxXml([
           '<trkpt lat="47.0" lon="11.0"><time>2024-01-01T00:00:00Z</time></trkpt>',
@@ -755,12 +755,12 @@ void main() {
       expect(trail.movingDuration, isNull);
     });
 
-    // WR-08 / D-10: `moving_duration = 0` is the exact state D-10 forbids —
+    // `moving_duration = 0` is the exact state the display rule forbids —
     // `util/trail/form_data.dart`'s write guard is `!= null`, not `> 0`, so a zero
     // override used to be persisted and then masked by the display rule's own
     // `> 0` fallback.
     test(
-      'D-10: a zero-length override is "no value" (null), never a stored 0',
+      'A zero-length override is "no value" (null), never a stored 0',
       () {
         final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
         final trail = trailFromGpx(
@@ -771,7 +771,7 @@ void main() {
       },
     );
 
-    test('D-10: a sub-second override, which truncates to 0 whole seconds, '
+    test('A sub-second override, which truncates to 0 whole seconds, '
         'is also "no value"', () {
       final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
       final trail = trailFromGpx(
@@ -954,7 +954,7 @@ void main() {
     // and the bounding box. Three different answers used to coexist, which is
     // how one malformed point could zero a distance, fabricate climb, AND
     // leave a marker off the coast of Africa.
-    test('WR-01: the start coordinate skips a leading malformed point', () {
+    test('The start coordinate skips a leading malformed point', () {
       final pts = <Wpt>[
         Wpt(lat: null, lon: null, ele: 1000),
         Wpt(lat: 47.5, lon: 11.5, ele: 1000),
@@ -971,7 +971,7 @@ void main() {
       expect(trail.lon, 11.5);
     });
 
-    test('WR-02: the centroid ignores position-less points entirely', () {
+    test('The centroid ignores position-less points entirely', () {
       Gpx build({int padding = 0}) {
         final pts = <Wpt>[
           for (var i = 0; i < padding; i++) Wpt(lat: null, lon: null),
@@ -994,7 +994,7 @@ void main() {
       expect(padded.centroidLat, closeTo(47.1, 1e-9));
     });
 
-    test('WR-02: the bounding box is unaffected by them too', () {
+    test('The bounding box is unaffected by them too', () {
       final pts = <Wpt>[
         Wpt(lat: null, lon: null),
         Wpt(lat: 47.0, lon: 11.0),
@@ -1013,7 +1013,7 @@ void main() {
       expect(m.maxLon, closeTo(11.2, 1e-9));
     });
 
-    test('WR-03: a coordinate-less <wpt> is dropped, not placed at (0, 0)', () {
+    test('A coordinate-less <wpt> is dropped, not placed at (0, 0)', () {
       final gpx = Gpx()
         ..wpts = [
           Wpt(lat: null, lon: null, name: 'ghost'),
@@ -1099,7 +1099,7 @@ void main() {
       );
     });
 
-    // WR-07: counting constructions is not enough. The construction site could
+    // Counting constructions is not enough. The construction site could
     // stay put while its IMPORT silently flips to the published package's
     // reader — the throwing one — and every tolerance test above would keep
     // passing, because they exercise parseGpxSafely, whose import is exactly

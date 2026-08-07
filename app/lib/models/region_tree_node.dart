@@ -1,6 +1,6 @@
 import 'package:wanderer/models/region_hierarchy_row.dart';
 
-/// Ephemeral, in-memory tree node assembled by `buildRegionTree` (D-03) from
+/// Ephemeral, in-memory tree node assembled by `buildRegionTree` from
 /// a flat `List<RegionHierarchyRow>`.
 ///
 /// Deliberate exception to this codebase's Freezed-everything model

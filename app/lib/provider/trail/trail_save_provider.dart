@@ -23,10 +23,10 @@ class TrailSaveResult {
   /// wired straight to `applyServerTrailToLibraryRow`'s
   /// `waypointsAreAuthoritative:` (negated) in `trail_create_screen.dart`,
   /// where a false negative makes the store prune a still-live waypoint out
-  /// of the offline copy (38.1 CR-02).
+  /// of the offline copy.
   ///
   /// So EVERY path that omits a waypoint from the returned set must set
-  /// this, not just the ones that caught an exception (38.1 WR-04). The name
+  /// this, not just the ones that caught an exception. The name
   /// says "failures" for history; the property callers depend on is
   /// completeness.
   final bool hadWaypointFailures;
@@ -47,7 +47,7 @@ class TrailSave extends _$TrailSave {
   /// created) with real ids.
   ///
   /// Public so the deferred-upload drain (`trail_sync_provider.dart`) can
-  /// reuse the exact same tag-reuse-vs-create rule (D-06) it applies at
+  /// reuse the exact same tag-reuse-vs-create rule it applies at
   /// interactive save time.
   Future<List<Tag>> resolveTags(List<Tag> tags) async {
     final resolved = <Tag>[];
@@ -184,12 +184,12 @@ class TrailSave extends _$TrailSave {
           .where((o) => o.id == wp.id)
           .firstOrNull;
       if (old == null) {
-        // 38.1 WR-04: dropping `wp` here without marking makes
+        // Dropping `wp` here without marking makes
         // `finalWaypoints` incomplete while `hadWaypointFailures` stays
         // false, and the caller passes `waypointsAreAuthoritative:
         // !hadWaypointFailures` -- so `applyServerTrailToLibraryRow` prunes
         // a still-live waypoint out of the offline copy. That is exactly
-        // the CR-02 failure `waypointsAreAuthoritative` was added to close.
+        // the failure `waypointsAreAuthoritative` was added to close.
         // Reachable because `diff` is keyed on `listKey` (`id` when
         // non-empty, else `localKey`) while this re-lookup is on `id`: an
         // old waypoint with id `X` and no localKey against a new one with
@@ -229,7 +229,7 @@ class TrailSave extends _$TrailSave {
   }
 
   Future<void> deleteTrail(Trail trail) async {
-    // WR-17: trail.id arrives from the server (or is echoed back through a
+    // Trail.id arrives from the server (or is echoed back through a
     // model built from a server response) and is validated before it
     // reaches the Dio path, matching trail_sync_provider.dart's deleteUnsynced.
     await ref

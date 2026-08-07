@@ -17,7 +17,7 @@ const String kLocalIdPrefix = 'local-';
 
 /// Monotonically incrementing counter used to disambiguate two [mintLocalId]
 /// calls that land in the same microsecond. Removes the same-microsecond
-/// collision risk flagged in RESEARCH.md assumption A1, without pulling in a
+/// collision risk, without pulling in a
 /// `uuid` dependency for something this narrow.
 int _seq = 0;
 
@@ -39,7 +39,7 @@ bool isLocalId(String id) => id.startsWith(kLocalIdPrefix);
 /// returns it unchanged.
 ///
 /// This is the ONLY sanctioned way a local id may become a filesystem path
-/// segment (ASVS V5 / T-36-01-02) — mirrors `map_cache_path.dart`'s
+/// segment — mirrors `map_cache_path.dart`'s
 /// whitelist-and-reject discipline. Throws [ArgumentError] for anything that
 /// does not match `^local-\d+-\d+$`, which rejects path traversal attempts
 /// (`../escape`), embedded separators (`local-/etc`), and the empty string.

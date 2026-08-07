@@ -1,4 +1,4 @@
-// RENDER-03 on-device spike harness for Phase 25 (map-rendering
+// On-device spike harness for region map rendering (map-rendering
 // region-based-viewport-pipeline).
 //
 // This is NOT a `flutter test` unit test and NOT part of the production app
@@ -13,15 +13,15 @@
 // per-cell layer duplication -- and let a human measure both the
 // full-style-reload (`MapController.setStyle`) and incremental
 // (`StyleController.addSource`/`removeSource`) region-swap paths. Settles
-// RENDER-03 (composition strategy) via this plan's `checkpoint:decision`.
+// the composition strategy.
 //
 // It reuses the REAL production composition helper, `rewriteStyleForOffline`
 // (`lib/util/region/offline_style_rewriter.dart`): feeding it N identical real
 // on-disk cell paths materializes exactly N duplicated `__cellK`-suffixed
 // native source+layer sets, which is the actual multi-cell composition the
-// rest of Phase 25 will ship.
+// rest of the region work will ship.
 //
-// This file is throwaway -- deleted or ignored once RENDER-03 is settled by
+// This file is throwaway -- delete or ignore it once the strategy is settled by
 // the checkpoint decision. It is intentionally kept out of
 // `router_provider.dart` / production navigation (its location under
 // `app/test/` keeps it off the shipped app), mirroring the 23-06
@@ -80,7 +80,7 @@ class RegionRenderSpikeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RENDER-03 region-render spike',
+      title: 'Region-render spike',
       home: const RegionRenderSpikeScreen(),
     );
   }
@@ -353,7 +353,7 @@ class _RegionRenderSpikeScreenState
     final baseAsync = ref.watch(mapStyleJsonProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('RENDER-03 region-render spike')),
+      appBar: AppBar(title: const Text('Region-render spike')),
       body: Column(
         children: [
           Padding(

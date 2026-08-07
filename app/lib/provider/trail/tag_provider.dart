@@ -38,7 +38,7 @@ class TagNotifier extends _$TagNotifier {
     final api = ref.read(apiProvider);
     state = const AsyncLoading();
 
-    // OFFUI-02: autocomplete degrades to "no suggestions" rather than
+    // Autocomplete degrades to "no suggestions" rather than
     // surfacing anything, because there is deliberately no tag cache — offline
     // the user types a free-form tag and `_resolveTags`
     // (`trail_save_provider.dart`) creates it at save/upload time.
@@ -48,9 +48,8 @@ class TagNotifier extends _$TagNotifier {
     // mode indistinguishable — all silently empty, nothing to find in the
     // field. So the two are split: a connection failure is an expected,
     // uninteresting outcome and publishes as empty data; anything else keeps
-    // the error in `state` and logs it (the WR-12 reasoning in
-    // `import_trail_file.dart` — an error nobody can see is an error nobody
-    // can fix). Both still return `[]`, so the widget behaves identically.
+    // the error in `state` and logs it (as in `import_trail_file.dart` —
+    // an error nobody can see is an error nobody can fix). Both still return `[]`, so the widget behaves identically.
     List<Tag> items = const [];
     try {
       // `name` is raw user keystrokes. Escaped and passed as a query

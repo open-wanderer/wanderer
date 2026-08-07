@@ -61,14 +61,14 @@ class _FakeOnlineStatus extends OnlineStatus {
   bool build() => _initial;
 
   /// Deterministic stand-in for the real `isBackendReachable` probe, plus the
-  /// counter that pins OFFUI-04's fix.
+  /// counter that pins the fix.
   ///
   /// `OnlineStatus` is optimistic (`build() => true`) and only settles from
   /// ordinary traffic, so in airplane mode with no request yet attempted it
   /// still reads online. `importTrailFile` therefore refreshes BEFORE its
   /// non-GPX guard; without that, the guard silently misses and the user gets
   /// the generic import error instead of the offline-specific one — exactly
-  /// what OFFUI-04 exists to prevent.
+  /// what this exists to prevent.
   @override
   Future<bool> refresh() async {
     refreshCalls++;
@@ -152,7 +152,7 @@ void main() {
     });
 
     testWidgets('online: fills location from the reverse-geocode response '
-        "(D-07's fullLabel/includeRoad:false convention)", (tester) async {
+        "(the fullLabel/includeRoad:false convention)", (tester) async {
       final gpx = _buildSampleGpx();
       final ref = await _pumpRef(
         tester,
@@ -363,7 +363,7 @@ void main() {
 
     testWidgets(
       'offline: importing a .gpx performs zero HTTP requests end to end '
-      'and still produces a trail (D-15\'s most important branch)',
+      'and still produces a trail (the most important branch)',
       (tester) async {
         final path = writeTempGpx();
         final pumped = await pumpRouterRef(
@@ -390,7 +390,7 @@ void main() {
       },
     );
 
-    // WR-12: the try/catch used to span the navigation push as well, so a
+    // The try/catch used to span the navigation push as well, so a
     // failure could leave a stale non-null `pendingImportedTrail` behind. The
     // catch now ends at `buildLocalTrail`, and a genuine parse failure must
     // toast AND leave the handoff global untouched.
@@ -429,7 +429,7 @@ void main() {
       expect(pendingImportedTrail, isNull);
     });
 
-    // OFFUI-04. The message has to name the actual constraint ("only GPX can
+    // The message has to name the actual constraint ("only GPX can
     // be imported offline"), not the generic "could not import file" — the
     // whole point of the requirement is that a hiker in airplane mode learns
     // WHY their .kml was refused and what would have worked.
@@ -533,8 +533,8 @@ void main() {
     );
   });
 
-  group('PORT-03 gate', () {
-    test('PORT-03: exactly one "trail/convert" occurrence exists in app/lib/, '
+  group('convert-endpoint call-site gate', () {
+    test('Exactly one "trail/convert" occurrence exists in app/lib/, '
         'inside actions/import_trail_file.dart', () {
       final libDir = Directory('lib');
       expect(
@@ -560,14 +560,14 @@ void main() {
         matches,
         hasLength(1),
         reason:
-            'PORT-03 requires the app to call the convert endpoint from '
+            'The app must call the convert endpoint from '
             'exactly one place. Found matches: $matches',
       );
       expect(
         matches.single.replaceAll('\\', '/'),
         endsWith('actions/import_trail_file.dart'),
         reason:
-            'PORT-03: the sole call site must live in '
+            'The sole call site must live in '
             'actions/import_trail_file.dart',
       );
     });

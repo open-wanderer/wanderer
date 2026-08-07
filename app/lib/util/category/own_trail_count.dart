@@ -3,12 +3,12 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 
 /// Lazily counts the current user's own trails that use a given category or
-/// subcategory (SETCAT-11). There is no dedicated count endpoint, so this
+/// subcategory. There is no dedicated count endpoint, so this
 /// reuses the author-scoped `POST /profile/{handle}/trails` search (author is
-/// enforced server-side, V4/T-12-03) with a Meilisearch filter on the single
+/// enforced server-side) with a Meilisearch filter on the single
 /// id, reading the total from the raw `SearchResponse`.
 ///
-/// Fetched only on an OFF-toggle attempt (D-12); never preloaded. Returns 0
+/// Fetched only on an OFF-toggle attempt; never preloaded. Returns 0
 /// for an anonymous user.
 Future<int> ownTrailCount(
   WidgetRef ref, {
@@ -20,7 +20,7 @@ Future<int> ownTrailCount(
 
   final handle = '@${user.preferredUsername}';
   // Same field names the vetted TrailFilter.toFilterText interpolates (A2);
-  // `id` is a server-fetched 15-char PB id, never free-text (T-12-02).
+  // `id` is a server-fetched 15-char PB id, never free-text.
   final field = isSubcategory ? 'subcategory_id' : 'category_id';
   final filter = "$field IN ['$id']";
 
@@ -41,7 +41,7 @@ Future<int> ownTrailCount(
 
   // Meilisearch returns totalHits (finite) or estimatedTotalHits depending on
   // config; prefer totalHits, then fall back to the returned hits length (A1).
-  // Coerce defensively (WR-03) rather than blind-casting — these fields are
+  // Coerce defensively rather than blind-casting — these fields are
   // dynamic JSON values and may arrive as a double depending on the JSON
   // serializer / proxy layer between the Go backend and the client.
   final raw =

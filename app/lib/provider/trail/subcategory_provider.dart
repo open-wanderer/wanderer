@@ -13,7 +13,7 @@ class SubcategoryNotifier extends _$SubcategoryNotifier {
   @override
   List<Subcategory> build() {
     // Cache-first: return cached subcategories immediately so they are
-    // available at app start without waiting for an API call (D-03, CAT-03).
+    // available at app start without waiting for an API call.
     final box = ref.watch(objectBoxProvider).box<SubcategoryEntity>();
     final cached = box.getAll().map((e) => e.toModel()).toList();
 
@@ -25,7 +25,7 @@ class SubcategoryNotifier extends _$SubcategoryNotifier {
 
   /// Fetches `/subcategory` in the background, overwrites the ObjectBox cache,
   /// and updates provider state with the fresh list. Failures are swallowed so
-  /// a missing network at startup leaves the cached rows and state intact (T-10-09).
+  /// a missing network at startup leaves the cached rows and state intact.
   Future<void> _refresh() async {
     try {
       final response = await ref.read(apiProvider).get('/subcategory');

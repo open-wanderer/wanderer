@@ -1,19 +1,16 @@
-// Widget test, deliberately not a source-grep test (36-21, closing the round
-// 2 UAT gap: an unsynced trail's DETAIL screen showed the generic
-// cache-provenance-gated "Offline" badge instead of its upload state). That
-// badge no longer exists at all -- 38-04/D-10 deleted it and re-gated the
-// surviving green pill onto library membership; Cases D/D2 below now pin
-// that membership-derived behaviour.
+// Widget test, deliberately not a source-grep test. An unsynced trail's
+// DETAIL screen once showed the generic cache-provenance-gated "Offline"
+// badge instead of its upload state. That badge no longer exists at all --
+// it was deleted and the surviving green pill re-gated onto library
+// membership; Cases D/D2 below pin that membership-derived behaviour.
 //
 // This suite's fixtures deliberately cover the membership axis (Cases
 // D/D2/E vary `availableOffline` and library membership while holding
 // `syncState: synced`) -- they do NOT construct the overlap state
 // (`availableOffline: true` paired with a non-synced `syncState`, the shape
 // `TrailDownloadService.downloadTrail`'s carry-forward produces). Unsynced-
-// ness and library membership are independent axes, and a row can be both
-// (38.1 D-01); the overlap fixture lives in `trail_dropdown_menu_test.dart`,
-// added by 38.1 plan 05. See
-// .planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md.
+// ness and library membership are independent axes, and a row can be both;
+// the overlap fixture lives in `trail_dropdown_menu_test.dart`.
 //
 // Why `TrailPanel` IS mountable here, with a `Trail.empty().copyWith(...)`
 // fixture that carries `expand: null`:
@@ -28,7 +25,7 @@
 // - `description: ''` => the `no_description_for_now` `Text` branch, not
 //   `flutter_html`.
 // - `category: null` => no `TrailCategoryLabel`.
-// - For the unsynced fixtures `showsServerTabs` is `false` (WR-11's
+// - For the unsynced fixtures `showsServerTabs` is `false` (the
 //   `!isUnsyncedState(...)`), so there is no `TabBar` and `_TabContent` holds
 //   only the About tab. For the synced fixtures it is `true`, so
 //   `SummitLogList` and `CommentList` are CONSTRUCTED (both are `const`-
@@ -260,7 +257,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // D-10 (38-04): the badge follows library membership, not the
+      // The badge follows library membership, not the
       // cache-provenance flag -- the grey "Offline" pill no longer exists
       // at all.
       expect(find.text('Available offline'), findsOneWidget);
@@ -268,7 +265,7 @@ void main() {
       // Load-bearing: the fix gates the chip's construction on
       // isUnsyncedState, so for a synced trail the widget is never built --
       // not merely built-and-self-suppressed. findsNothing proves the
-      // stronger guarantee the round-2 UAT constraint demands.
+      // stronger guarantee this suite demands.
       expect(find.byType(SyncStatusChip), findsNothing);
       expect(find.text('Waiting to upload'), findsNothing);
       expect(find.text('Uploading…'), findsNothing);

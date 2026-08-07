@@ -14,7 +14,7 @@ enum RegionNodeKind {
 }
 
 /// An always-succeeding parse of a single `GET /api/v1/regions` row's
-/// hierarchy fields (D-05) — deliberately distinct from
+/// hierarchy fields — deliberately distinct from
 /// [RegionCatalogEntry], which requires `bbox`/`status` and therefore
 /// silently drops every `kind: 'group'` row (by design, see that parser's
 /// doc comment). [RegionHierarchyRow.fromJson] never throws for a group row

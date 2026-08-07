@@ -1,6 +1,6 @@
 import 'package:wanderer/models/trail_summary.dart';
 
-/// D-10's single app-side display rule: show `movingDuration` when it is
+/// The single app-side display rule: show `movingDuration` when it is
 /// present and positive, otherwise fall back to `duration`. A zero moving
 /// time is not treated as a value (matches
 /// `web/src/lib/util/format_util.ts`'s `trailDisplayDuration`, so the two
@@ -91,7 +91,7 @@ const int _gb = _mb * 1024;
 /// Formats [bytes] as a human-readable string using 1024-based unit steps.
 ///
 /// Human-readable byte formatting for the region tile repository's disk
-/// usage displays (SETUI-05).
+/// usage displays.
 ///
 /// Convention per `24-UI-SPEC.md`: one decimal place, unit steps at
 /// KB/MB/GB (e.g. "45 MB", "2.4 GB"); a bare `'$bytes B'` below 1 KB (no

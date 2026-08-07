@@ -195,7 +195,7 @@ class TrailDownloadService {
       // (owner/localId/syncState/syncAttempts/syncNextAttemptAt/localPhotos):
       // a hiker who captures a trail here, lets it upload, and later
       // downloads it would otherwise lose `owner` -- silently vanishing from
-      // the offline own-trails list (REC-06) with no error anywhere -- or, if
+      // the offline own-trails list with no error anywhere -- or, if
       // caught mid-drain, lose the resume state a failed upload needs to
       // retry correctly. Carry all six forward from the existing row for the
       // same reason `savedByUserIds` is carried forward above.

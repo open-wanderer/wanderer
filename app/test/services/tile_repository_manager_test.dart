@@ -14,7 +14,7 @@ import 'package:wanderer/services/tile_repository_manager.dart';
 // precedent that upsertCatalog has no unit test. splitRegionTilePaths (the
 // pure per-region body localTilePathsForBounds delegates to) takes an
 // Iterable<RegionEntity> instead of a Store, so its vector/DEM-split
-// contract IS unit-testable in memory (RENDER-01).
+// contract IS unit-testable in memory.
 // ---------------------------------------------------------------------------
 
 void main() {
@@ -216,7 +216,7 @@ void main() {
       maxLat: maxLat,
     );
 
-    test('smallest-bbox-area overlapping region wins (D-02)', () {
+    test('smallest-bbox-area overlapping region wins', () {
       final big = region(id: 'big', minLon: -50, minLat: -50, maxLon: 50, maxLat: 50)
         ..vectorPackage.target = DownloadedTilePackageEntity(
           localFilePath: '/abs/big.pmtiles',
@@ -245,7 +245,7 @@ void main() {
       expect(winner?.path, 'with-package');
     });
 
-    test('equal-area overlapping candidates: most-recent downloadedAtUtc wins (D-03)', () {
+    test('equal-area overlapping candidates: most-recent downloadedAtUtc wins', () {
       final older = region(id: 'older')
         ..vectorPackage.target = DownloadedTilePackageEntity(
           localFilePath: '/abs/older.pmtiles',

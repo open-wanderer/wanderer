@@ -8,13 +8,13 @@ export 'package:wanderer/components/navigation/track_save_options_sheet.dart'
     show TrackSaveOptionsSource;
 
 /// The single post-capture gate shared by all three capture sources —
-/// recording, route planner and file import (D-15).
+/// recording, route planner and file import.
 ///
 /// Reads the app's connectivity status (see `online_status_provider.dart`).
 /// When offline, returns `(false, false)`
 /// immediately WITHOUT touching [context] or showing anything — both
 /// toggles off, which is behaviourally identical to the user declining both
-/// (D-15's "one code path, not two": offline and "declined both" are the
+/// (the "one code path, not two": offline and "declined both" are the
 /// same outcome and callers must not distinguish them). When online, shows
 /// the bottom sheet defined in `track_save_options_sheet.dart` and returns
 /// its result verbatim.

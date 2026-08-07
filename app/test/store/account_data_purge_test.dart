@@ -7,7 +7,7 @@ import 'package:wanderer/store/account_data_purge.dart';
 // ---------------------------------------------------------------------------
 // Tests for account_data_purge_util's pure switch predicate and the on-disk
 // purge, which must delete ONLY the `avatars` cache and leave `library`,
-// `objectbox`, `regions`, `map_cache` and `.cookies` fully intact (T-h2p-04).
+// `objectbox`, `regions`, `map_cache` and `.cookies` fully intact.
 //
 // `library` is the load-bearing one: it used to be purged, which meant
 // signing out of an account and back in destroyed every trail it had

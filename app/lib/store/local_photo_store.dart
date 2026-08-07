@@ -5,7 +5,7 @@
 /// cache -- the OS is free to reclaim that space at any time, and an
 /// unsynced trail can sit on-device for days on a multi-day hike. Without a
 /// copy into app-owned storage here, a picked photo can be gone by the time
-/// the sync drain (36-05/36-06) runs (D-01).
+/// the sync drain runs.
 ///
 /// Root: `<app-docs>/unsynced/<accountId>/<localId>/`, deliberately named
 /// distinctly from `library/` (downloaded trails, see
@@ -13,21 +13,19 @@
 /// [sweepOrphanedUnsyncedPhotos] can target it without ever touching a
 /// downloaded trail's files -- `account_data_purge.dart`'s
 /// `accountScopedDirNames` doc comment reasons about
-/// `library`/`regions`/`map_cache` the same way (T-36-02-03).
+/// `library`/`regions`/`map_cache` the same way.
 ///
-/// The `<accountId>` segment (38.1 D-05) exists because a destructive action
-/// must be scoped by the identity it actually destroys (38.1 D-02): before
-/// D-05 this root had no account component at all, so
-/// `<appDocs>/unsynced/<localId>/` was literally the same directory for
-/// every account, and one account's Delete could recursively remove another
-/// account's un-uploaded photos (CR-01). There is deliberately NO migration
-/// and NO first-launch cleanup for the pre-D-05 one-level layout (38.1
-/// D-06) -- the app is not yet in real-world use, and any `unsynced/<localId>/`
-/// directory left over from before this change is simply never read again.
+/// The `<accountId>` segment exists because a destructive action must be
+/// scoped by the identity it actually destroys. An earlier layout had no
+/// account component at all, so `<appDocs>/unsynced/<localId>/` was
+/// literally the same directory for every account, and one account's Delete
+/// could recursively remove another account's un-uploaded photos. There is
+/// deliberately NO migration and no first-launch cleanup for that old
+/// one-level layout -- any leftover `unsynced/<localId>/` directory is
+/// simply never read again.
 ///
 /// Every path below is built with `p.join` -- never string interpolation.
-/// RESEARCH.md's Security Domain names `p.join` as the required pattern
-/// here; `trail_download_service.dart`'s `'${appDir.path}/library/$trailId'`
+/// `trail_download_service.dart`'s `'${appDir.path}/library/$trailId'`
 /// interpolation style is deliberately NOT reused.
 import 'dart:io';
 
@@ -46,7 +44,7 @@ String unsyncedPhotoRoot(String appDocsPath) {
 /// [recordIdDirSegment] (not [localIdDirSegment], which is reserved for
 /// device-minted ids) before any path is built, so a tampered or malformed
 /// account id throws [ArgumentError] before any filesystem call happens --
-/// the same T-36-02-01 discipline extended one level up (38.1 D-05).
+/// the same discipline extended one level up.
 String unsyncedAccountPhotoDir(String appDocsPath, String accountId) {
   return p.join(unsyncedPhotoRoot(appDocsPath), recordIdDirSegment(accountId));
 }
@@ -56,7 +54,7 @@ String unsyncedAccountPhotoDir(String appDocsPath, String accountId) {
 ///
 /// [localId] is routed through [localIdDirSegment] before any path is
 /// built, so a tampered or malformed id throws [ArgumentError] before any
-/// filesystem call happens (T-36-02-01). Parameter order is always
+/// filesystem call happens. Parameter order is always
 /// `appDocsPath, accountId, localId` across every builder and every caller
 /// in this file, so a two-string call site cannot silently transpose them.
 String unsyncedTrailPhotoDir(
@@ -74,7 +72,7 @@ String unsyncedTrailPhotoDir(
 /// [accountId]'s and [localId]'s trail directory.
 ///
 /// [accountId], [localId] and [waypointLocalKey] are all routed through
-/// their respective validators before any path is built (T-36-02-01).
+/// their respective validators before any path is built.
 String unsyncedWaypointPhotoDir(
   String appDocsPath,
   String accountId,
@@ -105,7 +103,7 @@ class LocalPhotoCopyResult {
 /// A path already inside [dir] (tested with `p.isWithin`) is kept verbatim,
 /// never re-copied. A destination filename for a new copy is derived from
 /// `p.basename` of the source, joined into [dir] with `p.join` -- so a
-/// crafted source basename can never climb out of [dir] (T-36-02-02) -- and
+/// crafted source basename can never climb out of [dir] -- and
 /// prefixed with an incrementing index when a file of that name already
 /// exists, so two photos that happen to share an OS-picker basename never
 /// collide.
@@ -118,10 +116,10 @@ class LocalPhotoCopyResult {
 /// abort-and-delete-everything polarity on purpose: a trail's recorded
 /// track is irreplaceable, a photo is not, and disk pressure -- the most
 /// likely cause of a copy failure -- is exactly when the OS cache purge
-/// that motivated this whole util (D-01) is most likely to have already
-/// happened (D-03).
+/// that motivated this whole util is most likely to have already
+/// happened.
 ///
-/// The directory operations obey the same contract (38.1 WR-10): a failure
+/// The directory operations obey the same contract: a failure
 /// to create [dir] is reported as `failedCount == desiredPaths.length` with
 /// no kept paths, and either directory listing degrades to empty. This
 /// function raises nothing at all -- the only way its caller learns of a
@@ -132,7 +130,7 @@ Future<LocalPhotoCopyResult> reconcileLocalPhotos({
 }) async {
   final directory = Directory(dir);
 
-  // 38.1 WR-10: the directory calls are inside the contract, not outside
+  // The directory calls are inside the contract, not outside
   // it. `create`/`listSync` used to sit outside any try, so a permission or
   // I/O error on one of them threw straight past `_copyPhotosForLocalSave`
   // into `_onSave`'s generic catch -- the hiker saw `error_saving_trail`
@@ -182,7 +180,7 @@ Future<LocalPhotoCopyResult> reconcileLocalPhotos({
       keptPaths.add(destPath);
     } catch (_) {
       // Never raise this failure back to the caller, never fall back to
-      // the picker path -- see doc comment above (D-03).
+      // the picker path -- see doc comment above.
       failedCount++;
     }
   }
@@ -213,7 +211,6 @@ Future<LocalPhotoCopyResult> reconcileLocalPhotos({
 }
 
 /// [Directory.listSync], degrading to an empty listing instead of throwing
-/// (38.1 WR-10).
 ///
 /// Both of [reconcileLocalPhotos]'s listings are advisory, and both must
 /// obey its "never raise back to the caller" contract:
@@ -251,7 +248,7 @@ String _collisionFreeName(Set<String> reservedNames, String basename) {
 /// Returns every entry of [pickedPaths] that is NOT already inside
 /// [unsyncedDir], preserving input order.
 ///
-/// WR-13: a picked path that lives under `unsynced/<localId>/` (tested with
+/// A picked path that lives under `unsynced/<localId>/` (tested with
 /// `p.isWithin`, so a non-canonical spelling like `<unsyncedDir>/./a.jpg`
 /// still counts) is an app-owned copy the drain's step 2 has already sent as
 /// part of `PUT /trail/form` -- re-sending it doubles the server-side photo
@@ -278,7 +275,7 @@ List<String> photosNotYetOnServer({
 
 /// Deletes [accountId]'s [localId] unsynced photo directory (and its
 /// `waypoints/` subtree) recursively, if present. Used both on a successful
-/// drain and on an unsynced-trail delete (D-02/D-14).
+/// drain and on an unsynced-trail delete.
 ///
 /// Best-effort: a failure to delete is swallowed, matching
 /// `account_data_purge.dart`'s discipline for this kind of best-effort
@@ -287,13 +284,13 @@ List<String> photosNotYetOnServer({
 /// is a caller bug that surfaces as an [ArgumentError], not a silently
 /// swallowed no-op.
 ///
-/// Before 38.1 D-05, this resolved `<appDocs>/unsynced/<localId>/` with no
+/// An earlier layout resolved `<appDocs>/unsynced/<localId>/` with no
 /// account component at all -- so when account B's Delete button routed
-/// here carrying a `localId` still owned by account A (the CR-01 overlap:
-/// `savedByUserIds` scoping let a shared row hand B a `localId`/`failed`
-/// `syncState` that were actually A's), this function recursively deleted
-/// account A's un-uploaded photos and reported success. The account segment
-/// makes that directory structurally unreachable across accounts.
+/// here carrying a `localId` still owned by account A (`savedByUserIds`
+/// scoping let a shared row hand B a `localId`/`failed` `syncState` that
+/// were actually A's), this function recursively deleted account A's
+/// un-uploaded photos and reported success. The account segment makes that
+/// directory structurally unreachable across accounts.
 Future<void> deleteUnsyncedPhotoDir(String accountId, String localId) async {
   final appDir = await getApplicationDocumentsDirectory();
   final dir = Directory(
@@ -316,9 +313,9 @@ Future<void> deleteUnsyncedPhotoDir(String accountId, String localId) async {
 /// ALL accounts (`local_trail_store.dart`'s `unsyncedLocalIds` is
 /// deliberately not account-scoped, so a signed-out account's pending
 /// photos are never swept), so a row still in the `uploading` state after a
-/// crash keeps its photos for the resume (D-05), while a directory leaked
+/// crash keeps its photos for the resume, while a directory leaked
 /// by a crash between "server accepted" and "local files deleted" is
-/// reclaimed (D-02).
+/// reclaimed.
 ///
 /// Two levels are enumerated, never more and never fewer: the immediate
 /// children of the unsynced root are always treated as ACCOUNT directories
@@ -326,19 +323,17 @@ Future<void> deleteUnsyncedPhotoDir(String accountId, String localId) async {
 /// where `isLocalId(basename)` is true -- are candidates for deletion. An
 /// account directory left EMPTY once its candidates are gone is reclaimed
 /// (non-recursively, so a file that landed in the meantime is never
-/// destroyed) and is not counted in the return value -- see 38.1 WR-11 at
-/// the call site. That is a reclamation of an empty inode, not a widening
-/// of what this sweep considers deletable. The
-/// `isLocalId` term is load-bearing: it is what keeps this sweep off a
-/// `waypoints/` directory sitting at the second level, and off the contents
-/// of any pre-existing one-level `unsynced/<localId>/` directory from
-/// before 38.1 D-05. Per 38.1 D-06 there is deliberately NO migration and NO
-/// first-launch cleanup for that old layout -- the app is not yet in
-/// real-world use, so a legacy first-level directory is simply left alone
-/// forever, not "helpfully" reclaimed by widening this sweep to look at it.
+/// destroyed) and is not counted in the return value -- that is a
+/// reclamation of an empty inode, not a widening of what this sweep
+/// considers deletable. The `isLocalId` term is load-bearing: it is what
+/// keeps this sweep off a `waypoints/` directory sitting at the second
+/// level, and off the contents of any pre-existing one-level
+/// `unsynced/<localId>/` directory. Such a legacy directory is deliberately
+/// left alone forever, not "helpfully" reclaimed by widening this sweep to
+/// look at it.
 ///
 /// This can never reach `library/`, `regions/`, `map_cache/` or
-/// `objectbox/` (T-36-02-03). Best-effort throughout: a failure to list the
+/// `objectbox/`. Best-effort throughout: a failure to list the
 /// root, an account directory, or to delete any one local-id directory, is
 /// swallowed so it can never abort the sweep or throw.
 Future<int> sweepOrphanedUnsyncedPhotos({
@@ -366,7 +361,7 @@ Future<int> sweepOrphanedUnsyncedPhotos({
           }
         }
 
-        // 38.1 WR-11: an account directory is never a deletion CANDIDATE
+        // An account directory is never a deletion CANDIDATE
         // (the two-level rule above is what keeps this sweep off the legacy
         // one-level layout), but an EMPTY one has nothing left to protect.
         // Without this, every account that ever saved an unsynced photo

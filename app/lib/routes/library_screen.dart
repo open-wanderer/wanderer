@@ -141,18 +141,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final l18n = AppLocalizations.of(context)!;
     final location = trailDetailLocation(trail);
 
-    // D-12/D-13/D-14 (38.1): resolved once, up front -- this is an event
+    // Resolved once, up front -- this is an event
     // handler (the sheet is about to open), so `ref.read`, not `ref.watch`.
     // Every row this screen renders comes from `trailLibraryProvider`,
     // which filters only on `savedByUserIds`, so this sheet fires
     // unconditionally for a row that could still be the hiker's own
     // pending recording -- while `_confirmRemoveDownload`'s copy
     // (`remove_download_confirm_body`) promises "the trail itself is not
-    // deleted". With plan 04's store guard that promise is now true; with
-    // this guard the action is not offered where it is meaningless in the
-    // first place. `ownLiveCaptureProvider` is the exact same predicate
-    // `trail_dropdown.dart` reads (D-12: one predicate, two surfaces), so
-    // both surfaces behave identically (D-14).
+    // deleted". The store guard makes that promise true; this guard keeps
+    // the action from being offered where it is meaningless in the first
+    // place. `ownLiveCaptureProvider` is the exact same predicate
+    // `trail_dropdown.dart` reads -- one predicate, two surfaces -- so both
+    // behave identically.
     final isOwnLiveCapture = ref.read(ownLiveCaptureProvider(trail.localId));
 
     showModalBottomSheet(
@@ -175,17 +175,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       router.push(location);
                     },
             ),
-            // D-13: hidden entirely (not disabled) when this account owns
+            // Hidden entirely (not disabled) when this account owns
             // the row as a live, not-yet-uploaded capture -- there is
             // nothing meaningful to un-download, and unlike Edit, waiting
             // for connectivity never makes it available.
             if (!isOwnLiveCapture)
               ListTile(
                 // Not a delete -- this only drops this account's library
-                // membership (D-01, T-38-04-01). No red colour: removing a
-                // download is not destructive the way a server delete is.
-                // The dropdown menu uses the same icon for the same action
-                // (38-05), so the two surfaces stay consistent.
+                // membership. No red colour: removing a download is not
+                // destructive the way a server delete is. The dropdown menu
+                // uses the same icon for the same action, so the two
+                // surfaces stay consistent.
                 leading: const FaIcon(FontAwesomeIcons.circleMinus, size: 18),
                 title: Text(l18n.remove),
                 onTap: () {
@@ -199,11 +199,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  /// D-04/D-05 (38-04): mirrors `settings_offline_regions_screen.dart`'s
+  /// Mirrors `settings_offline_regions_screen.dart`'s
   /// `_onDeleteRegion` -- one dialog, no connectivity branching. The body
   /// (`remove_download_confirm_body`) states the trail itself is not
   /// deleted -- unlike the server-delete confirm's false "cannot be
-  /// undone" claim, which this action must never reuse (T-38-04-02).
+  /// undone" claim, which this action must never reuse.
   Future<void> _confirmRemoveDownload(BuildContext context, Trail trail) async {
     final l18n = AppLocalizations.of(context)!;
 
@@ -228,12 +228,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (confirmed != true) return;
     if (!context.mounted) return;
 
-    // Scopes membership only -- never a server delete (T-38-04-01,
-    // T-38-04-03). `deleteTrail` drops this account's `savedByUserIds`
+    // Scopes membership only -- never a server delete. `deleteTrail`
+    // drops this account's `savedByUserIds`
     // entry and removes on-device files only once the last account
     // sharing the row gives it up.
     //
-    // Awaited (38.1 WR-02): discarding this future dropped any error into
+    // Awaited: discarding this future dropped any error into
     // the zone as an unhandled async error instead of surfacing it, and
     // skipped `deleteTrail`'s own `state` update.
     await ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);

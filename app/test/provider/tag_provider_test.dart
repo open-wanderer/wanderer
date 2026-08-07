@@ -90,7 +90,7 @@ ProviderContainer _container(_Outcome outcome) =>
     _containerWithApi(outcome).container;
 
 void main() {
-  // OFFUI-02. The observable contract is the same in every failure mode —
+  // The observable contract is the same in every failure mode —
   // the autocomplete shows nothing, because there is deliberately no tag
   // cache and a hiker offline types a free-form tag instead. What differs is
   // what the provider records: a connection failure is an ordinary empty

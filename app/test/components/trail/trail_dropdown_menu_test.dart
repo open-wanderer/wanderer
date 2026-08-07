@@ -1,11 +1,10 @@
-// UAT found that the existing delete gate test (`trail_dropdown_delete_gate_
-// test.dart`) greps the SOURCE TEXT of `trail_dropdown.dart`, so it stayed
-// green for the entire phase while the menu it described could not be opened
-// at all in the running app: `TrailDropdown` is instantiated in exactly one
-// place, `trail_detail_screen.dart:98`, which the own-trails list diverted
-// away from for every unsynced trail (36-11/36-12 fixed the divert). All of
-// D-14's delete gating and D-17's download hiding shipped with no automated
-// signal that it was live.
+// The delete gate test (`trail_dropdown_delete_gate_test.dart`) greps the
+// SOURCE TEXT of `trail_dropdown.dart`, so it once stayed green while the
+// menu it described could not be opened at all in the running app:
+// `TrailDropdown` is instantiated in exactly one place,
+// `trail_detail_screen.dart`, which the own-trails list diverted away from
+// for every unsynced trail. The delete gating and the download hiding
+// shipped with no automated signal that they were live.
 //
 // This file is the missing signal: it mounts a real `TrailDropdown` inside an
 // `AppBar` (matching its only real call site), opens the real
@@ -91,7 +90,7 @@ class _StubApi extends Api {
 }
 
 /// Always throws a connection error -- used to make `fetchServerTrail` fail
-/// deterministically for the D-15/D-17 edit-refusal test, without a real
+/// deterministically for the edit-refusal test, without a real
 /// network dependency.
 class _FailingAdapter implements HttpClientAdapter {
   @override
@@ -114,13 +113,13 @@ Widget _harness(
   Trail trail, {
   Set<String> inFlight = const {},
   Set<String> downloading = const {},
-  // D-08/D-01/D-02: a plain constructor bool -- both menu branches are
+  // A plain constructor bool -- both menu branches are
   // reachable through this harness with zero ObjectBox `Store` involvement.
   bool availableOffline = false,
-  // D-15/D-17: when supplied, overrides `apiProvider` so `fetchServerTrail`
+  // When supplied, overrides `apiProvider` so `fetchServerTrail`
   // fails deterministically -- only the refusal test needs this.
   Dio? api,
-  // D-12/38.1-05: whether THIS account owns `trail.localId` as a live,
+  // Whether THIS account owns `trail.localId` as a live,
   // not-yet-uploaded capture. Defaults to false (the common case: a plain
   // downloaded/server trail owns nothing local).
   bool ownLiveCapture = false,
@@ -133,8 +132,8 @@ Widget _harness(
         () => _StubDownloadingTrailIds(downloading),
       ),
       if (api != null) apiProvider.overrideWith(() => _StubApi(api)),
-      // D-12: this override is MANDATORY on every harness mount, not merely
-      // available. After 38.1 plan 05's Task 2, `TrailDropdown` reads
+      // This override is MANDATORY on every harness mount, not merely
+      // available. `TrailDropdown` reads
       // `ownLiveCaptureProvider(trail.localId)` unconditionally in build();
       // without an override here that watch would reach `objectBoxProvider`,
       // whose `build()` throws `UnimplementedError` -- there is no ObjectBox
@@ -214,7 +213,7 @@ void main() {
     lat: 1,
     lon: 1,
   );
-  // WR-08: an unsynced trail with no local handle at all -- the shape
+  // An unsynced trail with no local handle at all -- the shape
   // `retireUploadedLocalTrail`'s demote branch and `TrailDownloadService`'s
   // carry-forward can both produce for a row that already has a real
   // server id. The confirm dialog and the executor must agree it is a
@@ -228,7 +227,7 @@ void main() {
     lat: 1,
     lon: 1,
   );
-  // D-01: a synced fixture NOT authored by the stub user (`actor-id`) --
+  // A synced fixture NOT authored by the stub user (`actor-id`) --
   // pins the phase's thesis that destructive availability follows
   // authorship, not provenance, so a cached model can no longer arm a
   // server delete.
@@ -240,7 +239,7 @@ void main() {
     lat: 1,
     lon: 1,
   );
-  // WR-12/D-17: the overlap row Phase 36's retracted D-10 claimed could not
+  // The overlap row once claimed to be impossible: it could not
   // exist -- `TrailDownloadService`'s carry-forward (`trail_download_
   // service.dart:210-215`) writes a re-download into an existing capture
   // row, which `TrailEntity.id`'s `@Unique(onConflict: replace)` guarantees
@@ -258,7 +257,7 @@ void main() {
   );
 
   testWidgets(
-    'D-17: an unsynced trail hides Download and "Available offline", but '
+    'An unsynced trail hides Download and "Available offline", but '
     'shows Show on map, Edit and Delete',
     (tester) async {
       await tester.pumpWidget(_harness(unsynced, ownLiveCapture: true));
@@ -273,7 +272,7 @@ void main() {
   );
 
   testWidgets(
-    'D-17 control: a synced trail DOES show Download -- proves the previous '
+    'Control: a synced trail DOES show Download -- proves the previous '
     'assertion is about sync state, not a harness that renders nothing',
     (tester) async {
       await tester.pumpWidget(_harness(synced));
@@ -284,7 +283,7 @@ void main() {
   );
 
   testWidgets(
-    'D-14: deleting an unsynced trail shows the unrecoverable confirm copy',
+    'Deleting an unsynced trail shows the unrecoverable confirm copy',
     (tester) async {
       await tester.pumpWidget(_harness(unsynced, ownLiveCapture: true));
       await _openMenu(tester);
@@ -310,7 +309,7 @@ void main() {
   );
 
   testWidgets(
-    'D-14 control: deleting a synced trail shows the reversible confirm copy',
+    'Control: deleting a synced trail shows the reversible confirm copy',
     (tester) async {
       await tester.pumpWidget(_harness(synced));
       await _openMenu(tester);
@@ -330,7 +329,7 @@ void main() {
   );
 
   testWidgets(
-    'D-14: Delete is disabled while the unsynced trail is mid-drain',
+    'Delete is disabled while the unsynced trail is mid-drain',
     (tester) async {
       await tester.pumpWidget(
         _harness(unsynced, inFlight: {'local-1-0'}, ownLiveCapture: true),
@@ -346,7 +345,7 @@ void main() {
 
   testWidgets(
     'Show on map is enabled for an unsynced trail -- trailMapLocation '
-    'resolves it to /trail/local/local-1-0/map, a real route as of 36-12',
+    'resolves it to /trail/local/local-1-0/map, a real route',
     (tester) async {
       await tester.pumpWidget(_harness(unsynced, ownLiveCapture: true));
       await _openMenu(tester);
@@ -359,7 +358,7 @@ void main() {
   );
 
   testWidgets(
-    'WR-08: an unsynced trail with localId: null and a real server id shows '
+    'An unsynced trail with localId: null and a real server id shows '
     'the reversible delete_trail_confirm copy -- the confirm dialog and the '
     'now-server-routed executor agree',
     (tester) async {
@@ -387,7 +386,7 @@ void main() {
   );
 
   testWidgets(
-    'A synced trail\'s menu is unchanged -- control case for the WR-08 fix',
+    'A synced trail\'s menu is unchanged -- control case for the fix',
     (tester) async {
       await tester.pumpWidget(_harness(synced));
       await _openMenu(tester);
@@ -400,7 +399,7 @@ void main() {
   );
 
   testWidgets(
-    'D-08: a downloaded trail shows Update and Remove, not Download',
+    'A downloaded trail shows Update and Remove, not Download',
     (tester) async {
       await tester.pumpWidget(_harness(synced, availableOffline: true));
       await _openMenu(tester);
@@ -412,7 +411,7 @@ void main() {
   );
 
   testWidgets(
-    'D-07: the downloaded Update item carries the translated "Available '
+    'The downloaded Update item carries the translated "Available '
     'offline" status -- proving the status did not simply vanish with the '
     'old inert item',
     (tester) async {
@@ -424,7 +423,7 @@ void main() {
   );
 
   testWidgets(
-    'D-08 control: a not-downloaded trail shows Download, not Update or '
+    'Control: a not-downloaded trail shows Download, not Update or '
     'Remove',
     (tester) async {
       await tester.pumpWidget(_harness(synced, availableOffline: false));
@@ -437,7 +436,7 @@ void main() {
   );
 
   testWidgets(
-    'D-02: a trail the hiker authored AND downloaded shows BOTH Remove and '
+    'A trail the hiker authored AND downloaded shows BOTH Remove and '
     'Delete -- independent axes; there is today no way to delete your own '
     'trail from the server once it is in your library',
     (tester) async {
@@ -450,7 +449,7 @@ void main() {
   );
 
   testWidgets(
-    'D-01: a downloaded trail authored by someone else shows Remove but '
+    'A downloaded trail authored by someone else shows Remove but '
     'not Delete -- destructive availability follows authorship, not '
     'provenance, so a cached model can no longer arm a server delete',
     (tester) async {
@@ -465,7 +464,7 @@ void main() {
   );
 
   testWidgets(
-    'D-04: tapping Remove on a downloaded trail shows the un-download '
+    'Tapping Remove on a downloaded trail shows the un-download '
     'confirm copy, never the delete confirm copy -- the two flows must '
     'never share copy',
     (tester) async {
@@ -495,7 +494,7 @@ void main() {
   );
 
   testWidgets(
-    'D-15/D-17: Edit refuses with a toast when the server copy cannot be '
+    'Edit refuses with a toast when the server copy cannot be '
     'fetched, and never navigates',
     (tester) async {
       final failingDio =
@@ -535,9 +534,9 @@ void main() {
   );
 
   testWidgets(
-    'CR-01/CR-03: account B, looking at the overlap row, is offered Remove '
+    'Account B, looking at the overlap row, is offered Remove '
     'and Update but never Delete or Download -- this is the state Phase '
-    "36's retracted D-10 claimed was impossible",
+    'was once claimed to be impossible',
     (tester) async {
       await tester.pumpWidget(
         _harness(
@@ -556,7 +555,7 @@ void main() {
   );
 
   testWidgets(
-    'CR-01/CR-03 control: account A, the owner of the same overlap row\'s '
+    'Control: account A, the owner of the same overlap row\'s '
     'local capture, is offered Delete but never Remove',
     (tester) async {
       await tester.pumpWidget(

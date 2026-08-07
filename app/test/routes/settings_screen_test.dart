@@ -16,7 +16,7 @@ class _StubAuth extends Auth {
 
 void main() {
   testWidgets(
-    'settings screen lists all 7 rows including Offline Maps/Regions (SETNAV-01, SETUI-01)',
+    'settings screen lists all 7 rows including Offline Maps/Regions',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -39,7 +39,7 @@ void main() {
       // Exactly seven settings rows render (24-02 adds Offline Maps/Regions).
       expect(find.byType(ListTile), findsNWidgets(7));
 
-      // The seven English labels are present (SETNAV-01, SETUI-01).
+      // The seven English labels are present.
       expect(find.text('My Account'), findsOneWidget);
       expect(find.text('Privacy'), findsOneWidget);
       expect(find.text('Language & Units'), findsOneWidget);

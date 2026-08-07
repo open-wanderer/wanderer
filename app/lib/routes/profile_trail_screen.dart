@@ -53,9 +53,9 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
 
   void _onTrailSelect(BuildContext context, TrailSummary trail) {
     // An unsynced trail is now addressed through `/trail/local/<localId>`
-    // (36-11), so it opens the ordinary detail screen like every other
-    // trail and the hiker chooses Edit from there -- the divert to
-    // `/trail/create/edit` was a workaround for D-06 blanking the model id,
+    // so it opens the ordinary detail screen like every other trail and the
+    // hiker chooses Edit from there -- the old divert to
+    // `/trail/create/edit` was a workaround for the model id being blanked,
     // and the model id is still blank; the local id is what carries
     // identity now.
     final location = trailDetailLocation(trail);
@@ -115,15 +115,15 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
               skipLoadingOnReload: true,
               data: (state) {
                 // Standing condition, not a one-off event -- a persistent
-                // banner, not a toast (REC-06).
+                // banner, not a toast.
                 final showOfflineBanner = state.offline && state.isOwnHandle;
 
                 return Column(
                   children: [
                     // Because a reload is now invisible (skipLoadingOnReload
                     // above), this thin indicator keeps it perceptible. Only
-                    // rendered here (the "isLoading && hasValue" half of the
-                    // UAT's remedy) -- with skipLoadingOnReload: true, this
+                    // rendered here (the "isLoading && hasValue" half) --
+                    // with skipLoadingOnReload: true, this
                     // `data:` branch only runs when a value exists, so the
                     // hasValue half is implied.
                     if (trailsAsync.isLoading)

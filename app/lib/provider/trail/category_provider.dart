@@ -28,8 +28,8 @@ class CategoryNotifier extends _$CategoryNotifier {
 
       final items = categoryListResult.items;
 
-      // Overwrite all cached category rows on every successful fetch (D-02 —
-      // no staleness tracking). Kept inside the try block so a failed fetch
+      // Overwrite all cached category rows on every successful fetch (no
+      // staleness tracking). Kept inside the try block so a failed fetch
       // leaves the prior cache intact. Both operations run in a single write
       // transaction so a mid-operation crash cannot leave the cache empty.
       final store = ref.read(objectBoxProvider);
@@ -42,7 +42,7 @@ class CategoryNotifier extends _$CategoryNotifier {
       return items;
     } catch (e) {
       // Fall back to the ObjectBox cache so offline cold-starts can still
-      // serve categories from a previous successful fetch (WR-01 fix).
+      // serve categories from a previous successful fetch.
       final box = ref.read(objectBoxProvider).box<CategoryEntity>();
       final cached = box.getAll();
       if (cached.isNotEmpty) return cached.map((e) => e.toModel()).toList();

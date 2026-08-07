@@ -29,7 +29,7 @@ extension TrailFormData on Trail {
       // moving_duration is only ever written by the capture paths (from a
       // live session's elapsed time), never recomputed from a GPX -- the
       // null guard is required because sending an empty string for an
-      // absent value would write 0 into PocketBase and defeat D-10's "no
+      // absent value would write 0 into PocketBase and defeat the "no
       // value" state.
       if (movingDuration != null)
         MapEntry('moving_duration', movingDuration!.toString()),

@@ -1,6 +1,6 @@
 // Widget test, deliberately not a source-grep test.
 //
-// UAT recorded that `trail_dropdown_delete_gate_test.dart` greps the source
+// Note that `trail_dropdown_delete_gate_test.dart` greps the source
 // of `trail_dropdown.dart` and therefore passed green for the entire phase
 // while the menu it described was unreachable in the running app. Nothing
 // caught the divert. This test pumps the real `ProfileTrailScreen` inside a
@@ -68,7 +68,7 @@ class _StubProfileTrails extends ProfileTrailsNotifier {
 }
 
 /// Fixed [TrailFilterNotifier] returning the offline-fallback default
-/// filter, per 36-09's `buildDefaultTrailFilter`/`kOfflineTrailFilterValues`.
+/// filter, per `buildDefaultTrailFilter`/`kOfflineTrailFilterValues`.
 class _StubFilter extends TrailFilterNotifier {
   @override
   Future<TrailFilter> build(String filterId) async =>

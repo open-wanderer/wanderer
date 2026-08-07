@@ -33,7 +33,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
     if (state.contains(trail.id)) return;
     state = {...state, trail.id};
 
-    // CR-01: hoisted above the outer try/finally below so the post-try
+    // Hoisted above the outer try/finally below so the post-try
     // region-futures wait, aggregate-subscription close, and glyph-cache
     // await (all of which must run AFTER the trail download settles, exactly
     // as before) can still reference them. Populated inside the try; the
@@ -43,15 +43,15 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
     final regionFutures = <Future<void>>[];
     ProviderSubscription? aggregateSub;
     Future<void>? glyphCacheWarm;
-    // Gap 1 (26-05, Part B): set once the trail's own download resolves so
+    // Set once the trail's own download resolves so
     // the deferred aggregate success below (fired after all region futures
     // settle) knows whether the trail side actually succeeded.
     var trailSucceeded = false;
 
     try {
-      // Coverage guard (GUARD-01/02/03/04): a local-only, synchronous check
+      // Coverage guard: a local-only, synchronous check
       // against the region catalog snapshot, run BEFORE any download starts.
-      // D-11: read the already-persisted local snapshot only -- never trigger
+      // Read the already-persisted local snapshot only -- never trigger
       // a network catalog fetch on the download tap.
       final regions = ref.read(regionListNotifierProvider);
       // Usable coverage = overlapping regions that either already cover offline
@@ -67,7 +67,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       MissingCoverageSelection? selection;
 
       if (usable.isEmpty) {
-        // D-04: the trail's bbox falls inside no usable catalog region at all
+        // The trail's bbox falls inside no usable catalog region at all
         // -- a genuine no-region gap. Non-blocking warning; the download still
         // proceeds below, unchanged, no sheet.
         ref
@@ -81,23 +81,23 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
             );
       } else if (missing.isNotEmpty) {
         // One or more overlapping regions aren't downloaded/updateAvailable --
-        // surface the missing-coverage sheet (GUARD-02/GUARD-03).
+        // surface the missing-coverage sheet.
         final ctx = navigatorKey.currentContext;
         if (ctx != null) {
           selection = await showMissingCoverageSheet(ctx, trail, missing);
           if (selection == null) {
             // Dismissed (swipe/tap-outside) -- abort the whole download.
-            // Nothing starts at all, matching the RESEARCH architecture
+            // Nothing starts at all, matching the architecture
             // diagram's "dismiss -> download() ABORTS". The outer `finally`
-            // below clears trail.id from state (CR-01).
+            // below clears trail.id from state.
             return;
           }
         }
         // ctx == null: never strand the user -- fall through to a trail-only
         // download exactly as the fully-covered path below.
       }
-      // else: overlapping.isNotEmpty && missing.isEmpty -- fully covered
-      // (GUARD-01): fall straight through to the existing download body below,
+      // else: overlapping.isNotEmpty && missing.isEmpty -- fully covered:
+      // fall straight through to the existing download body below,
       // no sheet, no extra toast, byte-for-byte unchanged from today.
 
       final trailDownloadService = ref.read(trailDownloadServiceProvider);
@@ -119,7 +119,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
         ),
       );
 
-      // D-08/D-09: start every checked region package alongside the trail, all
+      // Start every checked region package alongside the trail, all
       // fire-and-forget -- never awaited before the trail download starts.
       // downloadVector/downloadDem are already idempotent/re-entry-guarded, so
       // no second guard is added here.
@@ -129,14 +129,14 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
           vectorRegions.isNotEmpty || demRegions.isNotEmpty;
       final tileRepoNotifier = ref.read(tileRepositoryStatusProvider.notifier);
 
-      // D-10: unified id-42 notification aggregating the trail's onProgress
+      // Unified id-42 notification aggregating the trail's onProgress
       // callback with every selected package's live progress -- only when at
       // least one package was selected. The 0-region path below keeps calling
-      // showProgress(trail.name, ...) completely unchanged (GUARD-01).
+      // showProgress(trail.name, ...) completely unchanged.
       var lastTrailFraction = 0.0;
       final itemCount = 1 + vectorRegions.length + demRegions.length;
 
-      // Gap 1 (26-05, Part A): per-package monotonic completion latches.
+      // Per-package monotonic completion latches.
       // tileRepositoryStatusProvider's vectorProgress/demProgress fields are
       // an EPHEMERAL "currently downloading" signal that
       // tile_repository_provider.dart deliberately clears back to null the
@@ -242,7 +242,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
             }
           },
         );
-        // Gap 1 (26-05, Part B): the trail's own contribution is driven to a
+        // The trail's own contribution is driven to a
         // full 1.0 the instant downloadTrail() resolves -- guarantees its
         // term reaches full in the aggregate even if the final onProgress
         // tick never fired (e.g. the download ended in the generating
@@ -251,7 +251,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
         // futures below settle.
         lastTrailFraction = 1.0;
         trailSucceeded = true;
-        // Gap 1 (26-05, Part B): only fire the immediate id-42 success on
+        // Only fire the immediate id-42 success on
         // the trail-only path (no packages selected). When packages ARE
         // selected, the id-42 notification must keep advancing until they
         // settle too -- see the deferred success call below, after
@@ -278,7 +278,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
         );
       }
     } finally {
-      // CR-01: the single, sole cleanup of trail.id -- always runs, whether
+      // The single, sole cleanup of trail.id -- always runs, whether
       // the method above completed normally, dismissed via the missing-
       // coverage sheet, or threw anywhere in between. The download button is
       // never permanently stranded/disabled. Unlock timing is unchanged: this
@@ -296,7 +296,7 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
       } catch (_) {
         // Isolated from the trail download above; nothing to do here.
       } finally {
-        // CR-02/GUARD-04: once the guard's own region packages settle (success
+        // Once the guard's own region packages settle (success
         // or failure), invalidate regionListNotifierProvider so a still-alive
         // RegionListNotifier (e.g. Settings/Offline Regions mounted) re-reads
         // the now-current status from ObjectBox instead of a stale cached
@@ -308,10 +308,10 @@ class DownloadingTrailIds extends _$DownloadingTrailIds {
     }
     aggregateSub?.close();
 
-    // Gap 1 (26-05, Part B): the deferred id-42 success. By the time
+    // The deferred id-42 success. By the time
     // Future.wait(regionFutures) above has returned, every selected
     // package's whenComplete has already latched its contribution to 1.0
-    // (Part A), so the final updateAggregate() call shows 100% -- only THEN
+    // above, so the final updateAggregate() call shows 100% -- only THEN
     // does this call replace it with the success state, instead of firing
     // the instant the trail alone resolved. Only fires when packages were
     // selected AND the trail side actually succeeded (trailSucceeded) --

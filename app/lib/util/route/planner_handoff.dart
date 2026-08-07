@@ -38,7 +38,7 @@ import 'package:wanderer/util/route/valhalla.dart';
 /// `number`/`type`/`links`/`extensions` — is carried onto the rebuilt
 /// document, so only the track GEOMETRY is replaced.
 ///
-/// This is mandatory for the file-import path (CR-01): `trailFromGpx` reads
+/// This is mandatory for the file-import path: `trailFromGpx` reads
 /// `metadata.name`, `metadata.desc`, `trks.first.name`, `rtes.first.name`
 /// and `wpts` to build the draft trail, and the caller re-serialises the
 /// result as the track file it uploads — so returning a bare document here
@@ -64,7 +64,7 @@ Gpx mergeHeightsIntoGpx(
     gpx.version = source.version;
     gpx.creator = source.creator;
     gpx.metadata = source.metadata;
-    // WR-04: COPIES, not the source's own list objects. These were assigned by
+    // COPIES, not the source's own list objects. These were assigned by
     // reference, so the merged document and the document it was derived from
     // shared one growable list — `identical(merged.wpts, source.wpts)` was
     // true, and appending a waypoint to the merged trail silently appended it
@@ -83,7 +83,7 @@ Gpx mergeHeightsIntoGpx(
     time: i == 0 ? startTime : (i == lastIndex ? endTime : null),
   );
 
-  // WR-05: preserve the source's <trkseg> boundaries when the transform was
+  // Preserve the source's <trkseg> boundaries when the transform was
   // point-for-point.
   //
   // The shape arrives flattened across every segment, and this used to always
@@ -125,7 +125,7 @@ Gpx mergeHeightsIntoGpx(
     );
   }
 
-  // WR-04: carry every source track's metadata, not just the first. The
+  // Carry every source track's metadata, not just the first. The
   // geometry is necessarily consolidated into one track (the shape arrives
   // flattened), but silently discarding the name/desc/type of tracks 2..n was
   // avoidable data loss on a multi-track file.
@@ -218,7 +218,7 @@ bool snapResultAcceptable(
 /// fallback path silently replaced a 5000-point recorded track with a
 /// 500-point decimation because a network call failed, which is exactly the
 /// invariant `navigation_screen.dart`'s "the cap applies only to this
-/// outbound hint" comment states (WR-02). It defaults to [shape] only so a
+/// outbound hint" comment states. It defaults to [shape] only so a
 /// caller whose request hint IS its full geometry needs no extra argument.
 ///
 /// On any error/timeout, or when [snapResultAcceptable] rejects the result
@@ -249,7 +249,6 @@ Future<List<Map<String, double>>> snapShapeToRoads(
 /// Callers that invalidate derived per-point data (elevation indices, for
 /// instance) MUST gate that invalidation on this flag: doing it
 /// unconditionally destroys good data whenever the network merely hiccuped
-/// (WR-03).
 Future<({List<Map<String, double>> shape, bool snapped})>
 snapShapeToRoadsResult(
   WidgetRef ref,
@@ -320,16 +319,16 @@ Future<List<num>> fetchHeightsForShape(
 }
 
 /// Builds a draft [Trail] from a planner/recording session's [finalGpx]
-/// entirely on-device (PORT-03) — no convert-endpoint request. [category]/
+/// entirely on-device — no convert-endpoint request. [category]/
 /// [subcategory] pre-fill the trail's operator classification;
 /// [durationSeconds] is the planner's Valhalla-estimated fallback (see
-/// below); [movingDuration] is the D-11 recording hand-off.
+/// below); [movingDuration] is the recording hand-off.
 ///
 /// [movingDuration] is the ONLY value a recording takes from its own
 /// session — distance, elevation gain/loss and `duration` all come from the
 /// ported computation (`trailFromGpx`, reached via the local trail builder
 /// below) over the recorded GPX, so every persisted stat besides moving time
-/// stays reproducible by a later recompute over the same GPX (D-11).
+/// stays reproducible by a later recompute over the same GPX.
 Future<Trail> buildDraftTrail(
   WidgetRef ref,
   Gpx finalGpx, {
@@ -432,8 +431,8 @@ Future<Trail> buildDraftTrail(
 ///
 /// The height step is gated on connectivity (`onlineStatusProvider`), which
 /// is what makes this function genuinely safe to call with no network access
-/// at all (D-15's offline path): offline it issues ZERO requests, rather than
-/// issuing one per un-elevated leg and merely tolerating the failures (WR-07).
+/// at all (the offline path): offline it issues ZERO requests, rather than
+/// issuing one per un-elevated leg and merely tolerating the failures.
 Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
   final legs = ref.read(routeAnchorsProvider).orderedSegments;
   if (legs.isEmpty) return Gpx();
@@ -443,11 +442,11 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
   final legPoints = [for (final s in legs) s.elevationProfile ?? s.polyline];
   final legElevations = [for (final s in legs) s.elevations];
 
-  // WR-07: the connectivity gate is what makes this function's "safe to call
+  // The connectivity gate is what makes this function's "safe to call
   // with no network access at all" claim TRUE. The `pending` list below is
   // built from every leg whose elevations are unresolved, so a session with
   // any un-elevated leg would otherwise issue a `/valhalla/height` request on
-  // exactly D-15's offline path. The behaviour was safe (fetchHeightsForShape
+  // exactly the offline path. The behaviour was safe (fetchHeightsForShape
   // swallows the failure) but the stated invariant was wrong and nothing
   // tested the real case.
   final online = ref.read(onlineStatusProvider);
@@ -478,7 +477,7 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
   gpx.trks = [
     Trk(
       trksegs: [
-        // WR-11: a 0-point leg is skipped rather than emitted as an empty
+        // A 0-point leg is skipped rather than emitted as an empty
         // `Trkseg`. `anchorsFromTrack` filters empty segments out, so an
         // emitted empty one silently deletes that anchor on re-edit — the
         // exact failure the 1-point special case below already guards
@@ -540,7 +539,7 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
 /// segment from the same deterministic DEM endpoint, so a refetch returned
 /// identical values, and the geometry is already Valhalla-routed — see
 /// [buildFinalPlannedGpx]. No `movingDuration` is ever passed here: a planned
-/// route was never traversed (unchanged since plan 34-05).
+/// route was never traversed.
 Future<void> finishPlanning({
   required WidgetRef ref,
   required BuildContext navContext,
@@ -656,7 +655,7 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
       // leaving `anchors.length - 2` polylines for `anchors.length - 1`
       // segments; since `seedFromTrack` indexes this list POSITIONALLY, every
       // segment from `i-1` on then received the next pair's polyline and the
-      // last one silently degraded to a straight line (WR-01).
+      // last one silently degraded to a straight line.
       for (var k = i > 0 ? i - 1 : 0; k < anchors.length - 1; k++) {
         polylines.add([anchors[k], anchors[k + 1]]);
       }
@@ -676,7 +675,7 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
 /// every non-track field (title, description, id, visibility, photos,
 /// waypoints, category) carries through untouched.
 ///
-/// The ONE exception is `movingDuration`, which is cleared (WR-10). Moving
+/// The ONE exception is `movingDuration`, which is cleared. Moving
 /// time describes a traversal of a specific track; once the geometry is
 /// replaced it describes nothing, yet the display rule
 /// (`moving_duration > 0 ? moving_duration : duration`) would keep PREFERRING
@@ -704,7 +703,7 @@ Trail mergeRouteIntoTrail(
     // An edited route's Gpx still carries no `time`, so re-derive `duration`
     // from the planner's own estimate rather than the stale pre-edit value.
     duration: estimatedDurationSeconds ?? existing.duration,
-    // WR-10: the geometry just changed, so any recorded moving time no longer
+    // The geometry just changed, so any recorded moving time no longer
     // describes this track. Left alone it would keep winning the display rule
     // over the freshly-recomputed `duration`.
     movingDuration: 0,

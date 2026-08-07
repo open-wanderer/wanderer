@@ -386,7 +386,7 @@ void main() {
 
     test(
       '_resolveSegment failure path marks the segment blocked and leaves '
-      'its prior polyline unchanged (ROUTE-05)',
+      'its prior polyline unchanged',
       () async {
         final container = _buildSeededContainer(
           (options, index) async => const _CannedResponse.failure(),
@@ -498,7 +498,7 @@ void main() {
 
     test(
       'retrySegment on a blocked segment transitions it to routed given a '
-      'subsequent successful response (D-09)',
+      'subsequent successful response',
       () async {
         var shouldFail = true;
         final shape = PolylineUtil.encode([_anchorA, _anchorB], precision: 6);
@@ -911,8 +911,7 @@ void main() {
 
     test(
       'insertAnchorOnSegment splits the segment geometrically, inserts the '
-      'new anchor at the correct list index, and issues zero Dio calls '
-      '(WAYP-03)',
+      'new anchor at the correct list index, and issues zero Dio calls',
       () async {
         var callCount = 0;
         final container = _buildContainer((options, index) async {
@@ -956,7 +955,7 @@ void main() {
 
     test(
       'undo restores the prior snapshot, redo re-applies it, and a fresh '
-      'mutation clears the redo stack (D-11)',
+      'mutation clears the redo stack',
       () async {
         final container = _buildContainer(
           (options, index) async => const _CannedResponse.failure(),

@@ -236,7 +236,7 @@ const int _offlinePmtilesMaxZoom = 14;
 const int _offlineDemMaxZoom = 12;
 
 /// Rewrites the online base [style] into a static-loopback-XYZ offline style
-/// (PROXY-01) backed by the client-local tile proxy (`tile_proxy_server.dart`)
+/// backed by the client-local tile proxy (`tile_proxy_server.dart`)
 /// instead of per-cell `pmtiles://file://` archives.
 ///
 /// Unlike [rewriteStyleForOffline]'s N-cell duplication (see that function's
@@ -246,7 +246,7 @@ const int _offlineDemMaxZoom = 12;
 /// template — the literal `{z}`/`{x}`/`{y}` tokens survive verbatim for
 /// native runtime substitution. No `__cellN` source/layer cloning is
 /// produced, because the proxy resolves per-tile coverage server-side
-/// ([resolveRegionForTile], `PROXY-02`) rather than the style needing to
+/// ([resolveRegionForTile]) rather than the style needing to
 /// enumerate every downloaded region's archive up front.
 ///
 /// `glyphs`/`sprite` are rewritten to `file://<cacheRoot>/...` identically to
@@ -259,8 +259,8 @@ const int _offlineDemMaxZoom = 12;
 /// The input [style] is deep-copied before any mutation, matching
 /// [rewriteStyleForOffline]'s "never mutate the shared base style" invariant.
 ///
-/// This legacy `rewriteStyleForOffline(cellPaths:...)` path is left intact —
-/// its deletion belongs to Phase 27 legacy cleanup, not this plan.
+/// The legacy `rewriteStyleForOffline(cellPaths:...)` path is left intact
+/// pending a separate cleanup.
 Map<String, dynamic> rewriteStyleForProxy(
   Map<String, dynamic> style, {
   required String cacheRoot,

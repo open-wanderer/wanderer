@@ -33,7 +33,7 @@ abstract class Waypoint with _$Waypoint, RecordFunctions {
     List<String> localPhotos,
 
     /// Carries list identity for a waypoint that has no server id yet
-    /// (D-06 / RESEARCH.md Pitfall 1). Device-local only, never serialized.
+    /// yet. Device-local only, never serialized.
     @JsonKey(includeFromJson: false, includeToJson: false) String? localKey,
   }) = _Waypoint;
 

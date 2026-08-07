@@ -5,7 +5,7 @@ import 'package:wanderer/models/region_status.dart';
 /// a region. Standalone row, addressed only via its owning [RegionEntity]'s
 /// `ToOne` (`vectorPackage`/`demPackage`) — no business string id of its own.
 ///
-/// Per D-09, a row only comes into existence once Phase 23's download engine
+/// A row only comes into existence once the download engine
 /// actually begins downloading that specific package; it is never created
 /// speculatively for a `building`/`error`/absent catalog status.
 @Entity()
@@ -18,7 +18,7 @@ class DownloadedTilePackageEntity {
 
   /// Persists [status] via its explicit `.code` value — never `.index` — so
   /// a future non-append enum edit cannot silently reinterpret an on-device
-  /// row (REGN-02/D-10). Decoded by value-lookup, not positional indexing;
+  /// row. Decoded by value-lookup, not positional indexing;
   /// an out-of-range value falls back to [PackageStatus.notDownloaded].
   int get dbStatus => status.code;
 

@@ -1,14 +1,14 @@
-/// Pure, synchronous trail/region coverage logic (GUARD-01/GUARD-04).
+/// Pure, synchronous trail/region coverage logic.
 ///
 /// Decides — from a trail's bbox and a local region catalog snapshot —
 /// which overlapping regions are NOT yet usable offline. `overlappingRegions`
-/// and `missingCoverageRegions` are kept as two distinct functions (D-04) so
+/// and `missingCoverageRegions` are kept as two distinct functions so
 /// a caller can tell "fully covered" (overlapping non-empty, missing empty)
 /// apart from "no region overlaps at all" (both empty).
 ///
 /// No Riverpod, ObjectBox I/O, or network access here — these are pure
 /// functions over already-fetched inputs; the call site (Plan 03) passes a
-/// `regionListNotifierProvider` snapshot in (D-11).
+/// `regionListNotifierProvider` snapshot in.
 library;
 
 import 'package:wanderer/entities/region_entity.dart';
@@ -19,7 +19,7 @@ import 'package:wanderer/models/trail.dart';
 /// `min`/`max` doubles) share any area — edges touching counts as overlap.
 ///
 /// A degenerate box where `minLon > maxLon` or `minLat > maxLat` (e.g. from
-/// a corrupted local row, T-26-01) naturally fails one of the four
+/// a corrupted local row) naturally fails one of the four
 /// comparisons below and returns `false` rather than throwing.
 bool bboxesOverlap({
   required double aMinLon,
@@ -69,7 +69,7 @@ bool isRegionDownloadable(RegionEntity region) =>
 
 /// Whether [region] already satisfies offline coverage: its tiles are on the
 /// device ([RegionStatus.downloaded]) or on the device but merely stale
-/// ([RegionStatus.updateAvailable]) — GUARD-04 treats stale as covered so a
+/// ([RegionStatus.updateAvailable]) — stale counts as covered so a
 /// merely-out-of-date region never re-fires the guard. Coverage here is
 /// independent of the server: a downloaded region still covers even if it was
 /// later removed from the catalog.

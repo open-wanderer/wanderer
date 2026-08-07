@@ -156,8 +156,7 @@ TrailFilterValues computeOfflineTrailFilterValues(LocalTrailMetrics metrics) {
 ///   than the searchable space, so the union -- a superset of the
 ///   own-trails set after its Dart-side refinement -- is the correct side
 ///   to err on.
-/// - It is account-scoped, which is a D-13 obligation and not merely
-///   tidiness. An unfiltered read would let account B's slider top out at
+/// - It is account-scoped, which is an obligation and not merely tidiness. An unfiltered read would let account B's slider top out at
 ///   340 km because account A downloaded a 340 km trail onto this phone --
 ///   a real, if small, disclosure: the slider's maximum reveals that SOME
 ///   trail on this device is that long. `owner` and `savedByUserIds` are the
@@ -174,10 +173,10 @@ TrailFilterValues computeOfflineTrailFilterValues(LocalTrailMetrics metrics) {
 ///
 /// Deliberately uncovered by `flutter test`: this repo has no ObjectBox test
 /// harness (`libobjectbox.dylib` fails to load -- see the header of
-/// `test/util/local_trail_store_test.dart` and UAT Test 4's `why_human`). Do
-/// NOT add a source-grep test that inspects this function's text and reports
-/// itself as coverage -- this phase already shipped one gap behind exactly
-/// that pattern. The account scoping here is instead carried by this plan's
+/// `test/util/local_trail_store_test.dart`). Do NOT add a source-grep test
+/// that inspects this function's text and reports itself as coverage; that
+/// pattern has hidden a real gap here before. The account scoping here is
+/// instead carried by the
 /// `key_links` wiring entry and by the account-switch device check in
 /// `<verification>`.
 LocalTrailMetrics readLocalTrailMetrics(

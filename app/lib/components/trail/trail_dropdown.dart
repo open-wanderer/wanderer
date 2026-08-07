@@ -56,7 +56,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final trail = widget.trail;
     final l18n = AppLocalizations.of(context)!;
 
-    // D-01/D-02 (38.1): destructive-action AVAILABILITY still derives from
+    // Destructive-action AVAILABILITY derives from
     // library membership (`widget.availableOffline`) and authorship, never
     // from a cached-provenance flag on the model -- that flag drifts with
     // network conditions (see `_allowDelete`). Destructive-action SCOPING,
@@ -67,70 +67,68 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // by `savedByUserIds`, so this model can carry another account's
     // `localId` and `syncState`).
     //
-    // Phase 36's D-10 -- which claimed unsynced-ness and downloaded-ness
-    // could never both hold for the same row, by construction -- is
-    // RETRACTED. A row can be both a live capture and a library member
-    // indefinitely: Phase 36's D-07 parks a repeatedly-failing upload in
-    // `failed` state with no scheduled retry, so the overlap window is
-    // unbounded, not a brief race. See
-    // `.planning/notes/unsynced-and-downloaded-are-not-mutually-exclusive.md`.
+    // Unsynced-ness and downloaded-ness are NOT mutually exclusive. A row
+    // can be both a live capture and a library member indefinitely: the
+    // drain parks a repeatedly-failing upload in `failed` state with no
+    // scheduled retry, so the overlap window is unbounded, not a brief
+    // race.
     //
     // The watch below is unconditional: `ownLiveCaptureProvider` accepts a
     // null/absent local id and returns `false` for it, so every build reads
     // it, not just unsynced ones.
     final isOwnLiveCapture = ref.watch(ownLiveCaptureProvider(trail.localId));
 
-    // D-12/D-13/D-17: the download family (Download / Update / Remove
+    // The download family (Download / Update / Remove
     // download) is shown to any library member EXCEPT the account whose own
     // live capture this row is -- for your own not-yet-uploaded capture
     // there is nothing meaningful to download or un-download, and unlike
     // Edit, waiting for connectivity never makes it available. This is what
-    // closes the CR-01 half where the safe action (Remove download) was
-    // hidden from a legitimate library member in the overlap state while
-    // the destructive action (Delete) was offered.
+    // avoids hiding the safe action (Remove download) from a legitimate
+    // library member in the overlap state while still offering the
+    // destructive one (Delete).
     //
-    // `trailHasServerId(trail.id)` preserves D-17's original, still-valid
+    // `trailHasServerId(trail.id)` preserves the original, still-valid
     // reason for hiding the family: offering it for a row with a blank id
-    // (D-06 blanks a local-sentinel id) would fetch from the server with an
+    // (a local-sentinel id is blanked) would fetch from the server with an
     // empty trail id. Without this term, a null `currentAccountId` making
     // `isOwnLiveCapture` resolve to `false` could surface a Download item
     // pointing at nothing, and the `PopupMenuDivider` would otherwise render
     // with no items behind it.
     //
-    // 38.1 WR-07: the term guards the WHOLE family, not just the not-offline
+    // The term guards the WHOLE family, not just the not-offline
     // branch. `Update` (the `availableOffline` branch below) calls the same
     // `downloadingTrailIdsProvider.notifier.download(trail)` the Download
     // item does, so an empty `trail.id` reaching it is the same "fetch with
     // an empty trail id" this term exists to prevent. Today no library
-    // member can have a blank id -- the CR-01/CR-03 overlap only begins
-    // after `writeServerTrailId` has run -- but that premise lives in
+    // member can have a blank id -- the overlap only begins after
+    // `writeServerTrailId` has run -- but that premise lives in
     // another file and nothing asserted it, so the guard was asymmetric
     // with its own stated rationale.
     //
     // Accepted consequence (not worked around): a hiker who downloaded
     // their OWN trail while its upload was still in flight does not see
     // *Remove download* for it, because `isOwnLiveCapture` is true for them.
-    // That follows directly from D-13 and costs nothing -- after 38.1 plan
-    // 04 the store keeps that row on removal anyway, and the trail remains
-    // in their own-trails list.
+    // That follows directly from account scoping and costs nothing -- the
+    // store keeps that row on removal anyway, and the trail remains in
+    // their own-trails list.
     final showDownloadFamily =
         !isOwnLiveCapture && trailHasServerId(trail.id);
 
     final isDownloading = ref
         .watch(downloadingTrailIdsProvider)
         .contains(trail.id);
-    // D-01: this is the single re-entry guard shared by all three download-
+    // This is the single re-entry guard shared by all three download-
     // family actions (Download / Update / Remove download) -- which of the
     // three renders is decided by `widget.availableOffline` below, not by
     // this flag.
     final downloadEnabled = !isDownloading;
-    // D-14: delete is refused (not hidden -- the hiker should see it exists
+    // Delete is refused (not hidden -- the hiker should see it exists
     // and understand why it's momentarily unavailable) while this trail's
     // local id is in the drain provider's in-flight set.
     final isDraining =
         trail.localId != null &&
         ref.watch(trailSyncProvider).contains(trail.localId);
-    // D-06 blanks a local-sentinel id, so '/trail/${trail.id}/map' is
+    // A local-sentinel id is blanked, so '/trail/${trail.id}/map' is
     // '/trail//map' for a not-yet-uploaded trail -- go_router
     // canonicalizes that to '/trail/map', which matches no route.
     final String? mapLocation = trailMapLocation(trail);
@@ -195,7 +193,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
               // so the local model is the only one there is. This is a
               // ROUTING decision (which model to hand the editor), not a
               // destructive-action gate, so it stays read directly off
-              // `trail.syncState` -- D-02's scoping rule governs destructive
+              // `trail.syncState` -- the scoping rule governs destructive
               // actions, not this.
               if (isUnsyncedState(trail.syncState)) {
                 await context.push('/trail/create/edit', extra: trail);
@@ -206,7 +204,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
                 return;
               }
 
-              // D-15/D-18: `TrailDownloadService` overwrites a downloaded
+              // `TrailDownloadService` overwrites a downloaded
               // row's `photos` with LOCAL FILE PATHS, so the editor's photo
               // picker (seeded from `trail.localPhotos`/`trail.photos`) was
               // resending those paths under the append-only `photos+` key on
@@ -239,10 +237,9 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
               }
 
               if (!context.mounted) return;
-              // The edit screen invalidates the LIST providers itself
-              // (36-10); refreshing the single-trail provider stays a caller
-              // responsibility, as it has been since this call site was
-              // written.
+              // The edit screen invalidates the LIST providers itself;
+              // refreshing the single-trail provider stays a caller
+              // responsibility.
               await context.push('/trail/create/edit', extra: fetched);
               ref.invalidate(trailProvider(trail.id));
             },
@@ -253,14 +250,14 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             ),
           ),
         ],
-        // D-12/D-13/D-17: hidden entirely (not disabled) when
+        // Hidden entirely (not disabled) when
         // `showDownloadFamily` is false -- see the comment above where it is
         // computed. This file has no tooltip-on-disabled convention, so a
         // disabled item with no explanation reads as broken.
         if (showDownloadFamily) ...[
           const PopupMenuDivider(),
           if (widget.availableOffline) ...[
-            // D-08: the old single inert "Available offline" item becomes
+            // The old single inert "Available offline" item becomes
             // two flat items -- flat `PopupMenuItem` + `ListTile`, no
             // sub-sheet; this app has no menu-item-opens-a-sub-sheet pattern
             // anywhere and a sheet would bury both actions two taps deep.
@@ -280,13 +277,13 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const FaIcon(FontAwesomeIcons.arrowsRotate, size: 18),
-                // D-06: reuses the already-translated `regions_update_action`
+                // Reuses the already-translated `regions_update_action`
                 // key ("Update") rather than minting a trail-scoped
                 // duplicate -- it is translated in all 14 locales, including
                 // a real German "Aktualisieren". Do not "fix" this into a
                 // new key.
                 title: Text(l18n.regions_update_action),
-                // D-07: the status the old inert item carried survives here,
+                // The status the old inert item carried survives here,
                 // now translated -- it was previously a hardcoded English
                 // literal.
                 subtitle: Text(
@@ -366,7 +363,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     );
   }
 
-  /// D-04: mirrors `settings_offline_regions_screen.dart`'s `_onDeleteRegion`
+  /// Mirrors `settings_offline_regions_screen.dart`'s `_onDeleteRegion`
   /// -- the awaited `showDialog<bool>` + `if (confirmed != true) return;`
   /// form, not this file's own fire-and-forget `_confirmDelete`.
   Future<void> _confirmRemoveDownload(BuildContext context, Trail trail) async {
@@ -380,7 +377,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(trail.name),
-        // D-05: one dialog, no connectivity branching, no extra offline-only
+        // One dialog, no connectivity branching, no extra offline-only
         // warning line. The body already states re-downloading is needed,
         // which is the honest cost either way, and refusing removal while
         // offline would be paternalistic -- freeing space is legitimate
@@ -407,7 +404,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // NOT pop the route -- the screen stays, this provider's state updates,
     // `availableOffline` flips to false and the menu offers Download again.
     //
-    // Awaited (38.1 WR-02): discarding this future dropped any error into
+    // Awaited: discarding this future dropped any error into
     // the zone as an unhandled async error instead of surfacing it, and
     // skipped `deleteTrail`'s own `state` update.
     await ref.read(trailLibraryProvider.notifier).deleteTrail(trail.id);
@@ -427,25 +424,24 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             false);
   }
 
-  /// D-04 (38.1): the escape hatch is now gated on THIS account owning the
+  /// The escape hatch is gated on THIS account owning the
   /// local row, resolved through `ownLiveCaptureProvider` -> `build()`'s
   /// `isOwnLiveCapture` -> an owner-scoped ObjectBox query
   /// (`isOwnLiveCapture` in `local_trail_store.dart`) that consults the
   /// row's own `owner` and `syncState` and never calls `toModel()`.
   ///
-  /// This closes CR-01: `TrailNotifier._readCached` is scoped only by
-  /// `savedByUserIds`, so account B could be handed a model carrying
-  /// account A's `localId` and `failed` `syncState`, and the old bare
-  /// `isUnsyncedState` branch armed Delete for them with no authorship
-  /// check at all.
+  /// Without that gate, `TrailNotifier._readCached` -- scoped only by
+  /// `savedByUserIds` -- could hand account B a model carrying account A's
+  /// `localId` and `failed` `syncState`, and a bare `isUnsyncedState` branch
+  /// would arm Delete for them with no authorship check at all.
   bool _allowDelete(WidgetRef ref, {required bool isOwnLiveCapture}) {
     // Load-bearing escape hatch, checked first: an unsynced capture is the
     // only copy on earth, and its `author` can be the `Trail.author`
     // placeholder rather than a real actor id, so an authorship-only gate
     // would silently strip the hiker's ability to delete their own
-    // recording. D-04 keeps this hatch rather than dropping it, but scopes
-    // it to THIS account's own row via `isOwnLiveCapture` -- it can no
-    // longer fire for a row this account merely downloaded.
+    // recording. The hatch is kept, but scoped to THIS account's own row
+    // via `isOwnLiveCapture` -- it can never fire for a row this account
+    // merely downloaded.
     if (isOwnLiveCapture) {
       return true;
     }
@@ -453,7 +449,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     final user = ref.watch(authProvider).value;
     if (user == null) return false;
 
-    // D-02: independent of `widget.availableOffline` -- a trail the hiker
+    // Independent of `widget.availableOffline` -- a trail the hiker
     // authored AND downloaded now shows both Remove download and Delete
     // trail. Someone else's downloaded trail shows Remove download only,
     // which is correct: it was never theirs to delete.
@@ -463,25 +459,25 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   void _confirmDelete(BuildContext context, Trail trail) {
     final l18n = AppLocalizations.of(context)!;
 
-    // D-14: an unsynced trail's own copy is the only copy on earth, so it
+    // An unsynced trail's own copy is the only copy on earth, so it
     // needs its own l10n key stating the deletion can't be undone.
     //
-    // `delete_trail_confirm` is the SERVER-delete confirm only (38.1 WR-12).
+    // `delete_trail_confirm` is the SERVER-delete confirm only.
     // The un-download confirm is `remove_download_confirm_body` -- used by
     // `_confirmRemoveDownload` here and by `library_screen.dart` -- and the
     // two must never be merged: un-downloading is genuinely undoable, a
     // server delete is not. `library_screen_remove_guard_test.dart` asserts
     // `delete_trail_confirm` is ABSENT from `library_screen.dart` for
-    // exactly this reason (T-38-04-02).
+    // exactly this reason.
     //
-    // Decided on `trail.id`, NOT `trail.syncState` (CR-04): `writeServerTrailId`
+    // Decided on `trail.id`, NOT `trail.syncState`: `writeServerTrailId`
     // stamps a real server id the instant `PUT /trail/form` is accepted, well
     // before the drain's waypoint loop finishes or the row is retired. A
     // `failed` row -- syncState-wise indistinguishable from a trail that
     // never left the device -- can already be live on the server. Claiming
     // "it hasn't been uploaded yet, so this can't be undone" is false for
     // that row, and it must not get the copy that implies a purely local
-    // delete. `trailHasServerId` is exactly the D-06-aware signal: empty
+    // delete. `trailHasServerId` is exactly the right signal: empty
     // means genuinely device-only, non-empty means the server already has
     // (at least) a partial copy.
     final confirmCopy = trailHasServerId(trail.id)
@@ -516,7 +512,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   // must return, before the fall-through -- an unsynced trail's copy is
   // device-only, and reaching `_deleteOnServer` for it would be meaningless.
   //
-  // D-01: a third branch used to live here -- un-downloading, gated on a
+  // A third branch used to live here -- un-downloading, gated on a
   // provenance flag that `TrailEntity.toModel()` hardcodes `true` for every
   // cached row and that `TrailNotifier.build()`'s any-exception cache
   // fallback could attach to a server-authored trail after nothing more than
@@ -533,7 +529,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     if (isUnsyncedState(trail.syncState)) {
       final localId = trail.localId;
 
-      // (WR-08) A null localId is NOT a device-only copy -- it is the shape
+      // A null localId is NOT a device-only copy -- it is the shape
       // `retireUploadedLocalTrail`'s demote branch and `TrailDownloadService`'s
       // carry-forward can both produce for a row that already has a server
       // id. It must be routed to a real server delete when one exists,
@@ -570,11 +566,11 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
       final l18n = AppLocalizations.of(context)!;
 
       // `TrailSync.deleteUnsynced` now issues a real `DELETE /trail/{id}`
-      // first when the row already carries a real server id (CR-04) -- a
+      // first when the row already carries a real server id -- a
       // `failed`/`pending`/`uploading` row can, since `writeServerTrailId`
       // stamps that id well before the row is retired. It no longer throws:
       // every outcome (including a failed or refused server DELETE) is
-      // classified via `UnsyncedDeleteResult` instead (WR-15), so the local
+      // classified via `UnsyncedDeleteResult` instead, so the local
       // row and photos are left untouched unless the outcome is `deleted`.
       final result = await ref
           .read(trailSyncProvider.notifier)
@@ -585,7 +581,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
         case UnsyncedDeleteResult.deleted:
           // No-ops for a device-only row (`announce` ignores an empty id),
           // but `deleteUnsynced` issues a real server DELETE first when the
-          // row already carries a server id (CR-04) — and such a row can be
+          // row already carries a server id — and such a row can be
           // indexed, so it can be sitting in the map's results.
           ref.read(trailDeletionsProvider.notifier).announce(trail.id);
           if (context.mounted && Navigator.of(context).canPop()) {
@@ -616,7 +612,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
           return;
         case UnsyncedDeleteResult.failed:
           {
-            // WR-05 (38.1): the drain can retire this row between the
+            // The drain can retire this row between the
             // screen's last read and this tap, leaving `trail.id` on the
             // blank local sentinel while the trail is alive on the server.
             // `deleteUnsynced` then finds no row, issues no DELETE (the
@@ -626,11 +622,10 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
             // never happened.
             //
             // `trail_create_screen.dart`'s `resolveNetworkSaveTarget`
-            // already handles exactly this shape on the save path (CR-01,
-            // phase 36). Mirror it here rather than inventing a second
-            // recovery route.
+            // already handles exactly this shape on the save path. Mirror it
+            // here rather than inventing a second recovery route.
             //
-            // Safe with respect to CR-01: `serverIdForRetired` is itself
+            // Safe across accounts: `serverIdForRetired` is itself
             // account-guarded -- a memo minted under another account is
             // refused and returns null -- so this can only ever recover a
             // trail this account actually retired. When it yields nothing
@@ -661,7 +656,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
   }
 
   /// The real `DELETE /trail/{id}` path, extracted so the unsynced branch's
-  /// null-`localId` fall-through (WR-08) can route here directly instead of
+  /// null-`localId` fall-through can route here directly instead of
   /// falling through the rest of `_deleteTrail`.
   Future<void> _deleteOnServer(BuildContext context, Trail trail) async {
     // Resolved before any await, matching the unsynced branch's own

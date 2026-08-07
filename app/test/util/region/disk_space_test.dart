@@ -117,7 +117,7 @@ void main() {
 
     test(
       'path query throws AND device query throws -> returns null '
-      '(fail closed, TILE-03 preserved)',
+      '(fail closed)',
       () async {
         final result = await resolveFreeDiskSpaceBytes(
           forPath: '/app/regions/munich',

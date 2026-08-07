@@ -6,17 +6,17 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/theme/icons.dart';
 
-/// D-01: the corpus is a single, on-disk, language-neutral fixture set at
+/// The corpus is a single, on-disk, language-neutral fixture set at
 /// the repo root, sibling to app/, web/, db/ — not duplicated per language.
 /// See fixtures/gpx-corpus/README.md for the full contract this file
 /// implements, and web/src/lib/models/gpx/gpx-corpus.test.ts for the TS
 /// counterpart this suite must stay field-for-field comparable with.
 ///
-/// 34-RESEARCH.md verified `flutter test` runs with CWD == the package root
+/// `flutter test` runs with CWD == the package root
 /// (`app/`), so this relative path needs no pubspec `assets:` entry.
 final Directory _corpusRoot = Directory('../fixtures/gpx-corpus');
 
-/// D-03: absolute tolerances, declared once here and never inline in a test
+/// Absolute tolerances, declared once here and never inline in a test
 /// body. Empirically justified in fixtures/gpx-corpus/README.md: a
 /// 5000-point haversine accumulation was bit-identical between Node/V8 and
 /// the Dart VM to 17 significant digits, so any failure at these
@@ -45,7 +45,7 @@ class _CorpusFixture {
 }
 
 /// Reads every fixture directory under fixtures/gpx-corpus/ from disk.
-/// T-34-20: asserts at least 12 fixtures are discovered so a corpus that
+/// Asserts at least 12 fixtures are discovered so a corpus that
 /// silently shrinks (a fixture accidentally deleted or excluded) fails this
 /// suite rather than passing vacuously.
 List<_CorpusFixture> _loadFixtures() {
@@ -90,7 +90,7 @@ void _expectClose(double actual, num expected, double tol, String label) {
 }
 
 void main() {
-  // T-34-20: a wrong CWD must fail loudly (zero fixtures discovered), not
+  // A wrong CWD must fail loudly (zero fixtures discovered), not
   // silently pass a vacuous suite. `flutter test` must be run from `app/`.
   if (!_corpusRoot.existsSync()) {
     throw StateError(
@@ -172,12 +172,12 @@ void main() {
           reason: '${fixture.dir}: metrics.pointCount',
         );
 
-        // Deliberately not asserted anywhere in this file (D-04): the raw
+        // Deliberately not asserted anywhere in this file: the raw
         // index-aligned per-point distance array, or the track-shape hash.
         // Both exist on the TS class but are outside the corpus's
         // public-metrics-only contract. Fixture 03 (the empty-ele canary)
         // reaching this assertion without GpxReader throwing is the proof
-        // that plan 34-01's sanitize pass (parseGpxSafely) is wired into
+        // that the sanitize pass (parseGpxSafely) is wired into
         // the read path.
       });
     }
@@ -218,7 +218,7 @@ void main() {
         // date to a non-deterministic "now" value when trailFromGpx finds
         // no start/end trkpt time to derive it from — that default is a
         // Trail model implementation detail, not part of the GPX-derived
-        // contract this corpus pins (see 34-03-SUMMARY.md).
+        // contract this corpus pins.
         final expectedDate = fixture.trail['date'] as String?;
         if (expectedDate != null) {
           final actualDate = trail.date;
@@ -284,13 +284,13 @@ void main() {
           reason: '${fixture.dir}: trail.maxLon',
         );
 
-        // D-12: the corpus is a pure function of a GPX and can never pin
+        // The corpus is a pure function of a GPX and can never pin
         // moving time — trailFromGpx is called with no movingDuration
         // override, so this must always be null.
         expect(
           trail.movingDuration,
           isNull,
-          reason: '${fixture.dir}: trail.movingDuration must be null (D-12)',
+          reason: '${fixture.dir}: trail.movingDuration must be null',
         );
 
         final actualWaypoints = trail.expand?.waypointsViaTrail ?? [];
@@ -327,7 +327,7 @@ void main() {
             reason: '${fixture.dir}: waypoint[$i].description',
           );
 
-          // WR-05: assert the map lookup SUCCEEDED before comparing.
+          // Assert the map lookup SUCCEEDED before comparing.
           // Computing the expected value with the same
           // `fontAwesomeIconsMap[...] ?? circle` expression the production
           // code uses made this assertion tautological — if the map lost the

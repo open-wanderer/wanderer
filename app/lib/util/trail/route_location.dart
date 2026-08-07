@@ -1,6 +1,6 @@
 // The single sanctioned way to build a trail detail/map route path.
 //
-// `TrailEntity.toModel()` blanks a local-sentinel id (D-06): a not-yet-
+// `TrailEntity.toModel()` blanks a local-sentinel id: a not-yet-
 // uploaded trail's `Trail.id` is `''`, so `'/trail/${trail.id}'` becomes
 // `'/trail/'`. go_router 17.3.0's `canonicalUri` normalizes that to `'/trail'`
 // -- a path with no GoRoute, which go_router renders as a no-route error page

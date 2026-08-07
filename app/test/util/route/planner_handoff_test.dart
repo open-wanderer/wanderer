@@ -14,10 +14,10 @@ import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
 
 // Tests for the pure handoff helpers (no network/navigation), plus
-// buildDraftTrail, which since 34-05 builds its draft trail entirely
+// buildDraftTrail, which builds its draft trail entirely
 // on-device via the ported `trailFromGpx` (see buildLocalTrail in
 // import_trail_file.dart) and so needs a WidgetRef only for its optional,
-// online-only reverse-geocode fill (D-07). finishPlanning's own
+// online-only reverse-geocode fill. finishPlanning's own
 // orchestration is still not unit-tested here — it has no seam beyond
 // buildDraftTrail worth re-testing.
 
@@ -171,7 +171,7 @@ Future<WidgetRef> _pumpHeightRefWith(
 }
 
 /// Fakes both `/valhalla/trace-route` and `/valhalla/height` so
-/// [buildFinalPlannedGpx]'s snap-then-heights pipeline (Task 2, D-14/T-34-28)
+/// [buildFinalPlannedGpx]'s snap-then-heights pipeline
 /// can be exercised without a real server. [snapShape] answers any
 /// trace-route request unconditionally — one fixed shape is enough to prove
 /// the boundary re-pin, since it is deliberately built to differ from every
@@ -527,13 +527,13 @@ void main() {
       },
     );
 
-    // D-12: the session-to-trail moving-time hand-off, pinned by its own
+    // The session-to-trail moving-time hand-off, pinned by its own
     // test rather than the shared corpus (moving time is not a function of
     // a GPX — the same GPX legitimately yields different values by
     // provenance).
     testWidgets(
       'movingDuration flows to trail.movingDuration while duration stays '
-      'GPX-derived (D-11)',
+      'GPX-derived',
       (tester) async {
         final gpx = buildSampleGpx();
         final ref = await _pumpRef(tester);
@@ -552,7 +552,7 @@ void main() {
 
     testWidgets(
       'movingDuration is null when the parameter is omitted (import/planner '
-      'paths keep reporting elapsed time, CONV-06)',
+      'paths keep reporting elapsed time)',
       (tester) async {
         final gpx = buildSampleGpx();
         final ref = await _pumpRef(tester);
@@ -729,7 +729,7 @@ void main() {
       expect(gpx.trks.single.trksegs.first.trkpts.first.ele, isNull);
     });
 
-    // WR-11 regression. A 0-point leg fell through to `legPoints[i].length`
+    // Regression: a 0-point leg fell through to `legPoints[i].length`
     // = 0 and emitted `Trkseg(trkpts: [])` — a meaningless empty segment in
     // the persisted file that `anchorsFromTrack` then has to filter out. The
     // sibling 1-point case was already special-cased for exactly this
@@ -773,7 +773,7 @@ void main() {
       }
     });
 
-    // WR-07. The doc comment claimed "both underlying network steps are
+    // The doc comment claimed "both underlying network steps are
     // skipped entirely when their flag is off", but the height backfill's
     // `pending` list was built from any leg with unresolved elevations,
     // independently of both flags — so the real offline case (a session with
@@ -930,7 +930,7 @@ void main() {
     });
 
     test(
-      'a trk with an empty trksegs list yields an empty list (CR-01/WR-01 regression)',
+      'a trk with an empty trksegs list yields an empty list (regression)',
       () {
         final gpx = Gpx();
         gpx.trks = [Trk(trksegs: const [])];
@@ -940,7 +940,7 @@ void main() {
     );
 
     test('a trailing empty trkseg does not drop the true final point '
-        '(WR-02 regression)', () {
+        '(regression)', () {
       final gpx = Gpx();
       gpx.trks = [
         Trk(
@@ -966,7 +966,7 @@ void main() {
     });
 
     test('a trkpt with a null lat/lon is dropped rather than force-unwrapped '
-        '(CR-01 regression)', () {
+        '(regression)', () {
       final gpx = Gpx();
       gpx.trks = [
         Trk(
@@ -1063,7 +1063,7 @@ void main() {
       expect(segmentPolylinesFromTrack(Gpx(), const []), isEmpty);
     });
 
-    // WR-01 regression. The not-found fallback used to resume at `k = i`,
+    // Regression: the not-found fallback used to resume at `k = i`,
     // dropping the still-outstanding (i-1, i) pair — so the list came back
     // one short AND mis-ordered relative to the anchor pairs. Its consumer
     // (`RouteAnchorsNotifier.seedFromTrack`) indexes positionally.
@@ -1197,7 +1197,7 @@ void main() {
       );
     });
 
-    // WR-10 regression. `movingDuration` was carried through untouched, so a
+    // Regression: `movingDuration` was carried through untouched, so a
     // recorded trail whose route was re-drawn in the planner kept the OLD
     // route's moving time — and `trailDisplayDuration`'s
     // `moving_duration > 0 ? moving_duration : duration` rule then preferred
@@ -1296,7 +1296,7 @@ void main() {
       expect(gpx.trks, isEmpty);
     });
 
-    // CR-01 regression. Before the `source:` parameter existed this helper
+    // Regression: before the `source:` parameter existed this helper
     // returned a bare `Gpx()` carrying only `trks`, so a file import with
     // either post-capture toggle enabled permanently discarded the imported
     // document's waypoints, name and description — the stripped document was
@@ -1409,7 +1409,7 @@ void main() {
     });
   });
 
-  // WR-02/WR-03 regression. Every caller passes buildNavShape's ≤500-point
+  // Regression: every caller passes buildNavShape's ≤500-point
   // request hint, so returning `shape` on the fallback path silently
   // persisted a decimation of a full-resolution track whenever the network
   // hiccuped — and gave callers no way to tell a real snap from a fallback.
@@ -1603,7 +1603,7 @@ void main() {
     });
 
     testWidgets('a shape over 500 points is batched into multiple chunks and '
-        'concatenated 1:1 — the CR-01 fix (no longer downsampled/truncated)', (
+        'concatenated 1:1 — the fix (no longer downsampled/truncated)', (
       tester,
     ) async {
       final calls = <int>[];
@@ -1691,7 +1691,7 @@ void main() {
     ];
 
     test(
-      'WR-04: the merged document does not alias the source collections',
+      'The merged document does not alias the source collections',
       () {
         final source = sourceWithSegments([3]);
         final merged = mergeHeightsIntoGpx(
@@ -1712,7 +1712,7 @@ void main() {
       },
     );
 
-    test('WR-05: segment boundaries survive a point-for-point transform', () {
+    test('Segment boundaries survive a point-for-point transform', () {
       // 3 planner legs. anchorsFromTrack recovers anchors from these
       // boundaries, so collapsing them turns a 3-anchor route into a pair.
       final source = sourceWithSegments([4, 4, 4]);
@@ -1727,7 +1727,7 @@ void main() {
     });
 
     test(
-      'WR-05: a count-changing transform honestly collapses to one segment',
+      'A count-changing transform honestly collapses to one segment',
       () {
         // A road-snap returns its own map-matched geometry; there is no honest
         // mapping back onto the original legs, so one segment is correct.
@@ -1752,7 +1752,7 @@ void main() {
       expect(merged.trks.single.trksegs, hasLength(1));
     });
 
-    test('WR-04: descriptions of every source track are preserved', () {
+    test('Descriptions of every source track are preserved', () {
       final source = Gpx()
         ..trks = [
           Trk(

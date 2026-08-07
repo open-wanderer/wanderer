@@ -1,5 +1,5 @@
 /// Pure Web-Mercator ("slippy map") tile z/x/y &lt;-&gt; lon/lat bbox math for the
-/// local tile proxy (PROXY-01/02).
+/// local tile proxy.
 ///
 /// This is standard, widely-documented tile math (OSM wiki "Slippy map
 /// tilenames") — no project-specific logic, no I/O, no dependency beyond

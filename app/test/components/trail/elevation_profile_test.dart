@@ -82,7 +82,7 @@ void main() {
 
     test('the axis is raw, and now coincides with the trail distance', () {
       // These two agree today because the REPORTED distance became raw
-      // (quick-260801-opr superseded CONV-05's 5 m gate, which measured
+      // (quick-260801-opr superseded the 5 m gate, which measured
       // -3.29% against FIT ground truth while raw measured +0.54%). They
       // agree by coincidence of source, not because they mean the same
       // thing: the axis is a plotting COORDINATE saying where each sample

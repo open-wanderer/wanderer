@@ -2,19 +2,19 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// UAT note (36-13): the reachability half of what this file appears to
+/// Note: the reachability half of what this file appears to
 /// assert -- that the delete/download gating below is actually live in the
 /// running app -- is now covered BEHAVIOURALLY by
 /// `trail_dropdown_menu_test.dart`, which opens the real `PopupMenuButton`
 /// and reads the real rendered items. This file's remaining scope is branch
 /// ORDER only: the source-text assertions below pin an invariant no widget
 /// test can observe (that `_deleteTrail`'s unsynced branch runs, and
-/// returns, before anything else), which stayed green for the whole phase
+/// returns, before anything else), which once stayed green
 /// even while `TrailDropdown` itself was unreachable for an unsynced trail.
 ///
 /// Source-level guard for a data-loss regression.
 ///
-/// 38-05 (D-01): `_deleteTrail` used to handle THREE different actions
+/// `_deleteTrail` used to handle THREE different actions
 /// behind one menu item, ordered unsynced -> downloaded -> server, with the
 /// "downloaded" (un-download) branch gated on `trail.isLocal` -- a
 /// provenance flag `TrailEntity.toModel()` hardcodes `true` for every cached
@@ -40,7 +40,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// `TrailDropdown` needs auth, router, download-state, search, profile-trails
 /// AND a live ObjectBox store behind `trailLibraryProvider`, which is a lot of
 /// fragile scaffolding to protect a one-token invariant. This mirrors the
-/// PORT-03 gate in `test/util/trail_import_util_test.dart`.
+/// convert-endpoint gate in `test/util/trail_import_util_test.dart`.
 void main() {
   test('trail_dropdown._deleteTrail falls straight through to '
       '_deleteOnServer after the unsynced branch -- no un-download branch '
@@ -68,7 +68,7 @@ void main() {
     );
     final deleteTrailBody = source.substring(methodStart, deleteTrailBodyEnd);
 
-    // D-01: nothing in _deleteTrail may branch on a cached-provenance flag
+    // Nothing in _deleteTrail may branch on a cached-provenance flag
     // any more, and nothing in it may reach the library-membership provider
     // -- un-downloading is a separate menu item with a separate handler now.
     expect(
@@ -77,7 +77,7 @@ void main() {
       reason:
           'A cached-provenance branch reappeared in _deleteTrail. '
           'Destructive-action availability must derive from library '
-          'membership and authorship only (D-01).',
+          'membership and authorship only.',
     );
     expect(
       deleteTrailBody.contains('trailLibraryProvider'),
@@ -89,7 +89,7 @@ void main() {
     );
 
     // The server DELETE (`trailSaveProvider.notifier).deleteTrail(trail)`)
-    // was extracted into `_deleteOnServer` (36-15), so it no longer lives
+    // was extracted into `_deleteOnServer`, so it no longer lives
     // inside `_deleteTrail` at all -- a plain forward-index-and-compare
     // check would either fail outright or silently degenerate into a
     // whole-file-order check once the call moved to a different method.
@@ -105,7 +105,7 @@ void main() {
       reason:
           'The server DELETE must not live inside _deleteTrail any more '
           '-- it was extracted into _deleteOnServer so the unsynced '
-          "branch's null-localId fall-through (WR-08) can route to it "
+          "branch's null-localId fall-through can route to it "
           'directly. Its reappearance here means the extraction was '
           'reverted.',
     );
@@ -197,8 +197,8 @@ void main() {
           'The download family is no longer gated behind '
           'if (showDownloadFamily) -- a destructive/safe-action gate in '
           'this file must never be decided by syncState read off the '
-          'shared cache row (D-02/D-12). Offering Download for an unsynced '
-          'trail also issues a server fetch with an empty trail id (D-17).',
+          'shared cache row. Offering Download for an unsynced '
+          'trail also issues a server fetch with an empty trail id.',
     );
 
     final downloadIdx = source.indexOf('value: TrailAction.download', guardIdx);
@@ -213,7 +213,7 @@ void main() {
       isTrue,
       reason:
           'showDownloadFamily and the delete gate must both derive from '
-          'ownLiveCaptureProvider (D-12: exactly one predicate serving '
+          'ownLiveCaptureProvider (exactly one predicate serving '
           'both surfaces), not a re-derived local.',
     );
 
@@ -240,7 +240,7 @@ void main() {
       isFalse,
       reason:
           '_allowDelete must never re-derive its escape hatch from '
-          'isUnsyncedState(trail.syncState) -- that is exactly the CR-01 '
+          'isUnsyncedState(trail.syncState) -- that is exactly the '
           'bug (a destructive gate decided by a field read off the shared '
           'cache row, with no ownership check at all).',
     );
@@ -264,7 +264,7 @@ void main() {
   });
 
   test(
-    '38.1 WR-05: the unsynced branch consults serverIdForRetired before '
+    'The unsynced branch consults serverIdForRetired before '
     'toasting error_deleting_trail',
     () {
       final source = File(
@@ -290,7 +290,7 @@ void main() {
             'a drain that retires the row between this screen\'s last read '
             'and the confirm tap leaves the hiker unable to delete the '
             'trail at all, under a toast blaming a failure that never '
-            'happened (WR-05).',
+            'happened.',
       );
       expect(
         retiredIdx,

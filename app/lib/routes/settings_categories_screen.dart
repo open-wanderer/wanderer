@@ -22,7 +22,7 @@ import 'package:wanderer/util/category/preference_sort.dart';
 import 'package:wanderer/actions/guard_online.dart';
 import 'package:wanderer/util/category/own_trail_count.dart';
 
-/// SETCAT-06/07/09/11 (category half): the category list with priority sort,
+/// The category list with priority sort,
 /// per-row visibility toggle (auto-save, error-toast-only), drag-handle
 /// reorder, and the own-trail confirm-before-disable dialog whose "View trails"
 /// action opens the user's own profile trail list pre-filtered to the category.
@@ -55,12 +55,12 @@ class _SettingsCategoriesScreenState
   ///      the next `build()` reseed `_orderedIds` from still-stale provider
   ///      data before the server responded, snapping the dropped row back to
   ///      its original slot until the provider re-emitted.
-  ///   2. WR-02 mid-drag protection — an unrelated `ref.watch` dependency
+  ///   2. Mid-drag protection — an unrelated `ref.watch` dependency
   ///      change mid-drag (e.g. a background provider refresh) must not
   ///      silently reset the optimistic working copy.
   bool _reordering = false;
 
-  /// Persists [op] and surfaces only an error toast on failure (D-08 — no
+  /// Persists [op] and surfaces only an error toast on failure (no
   /// success toast; the watched provider drives optimistic UI via
   /// `invalidateSelf`).
   Future<void> _save(Future<void> Function() op) async {
@@ -132,7 +132,7 @@ class _SettingsCategoriesScreenState
         ? colorScheme.onSurface
         : colorScheme.primary;
 
-    // Combine the two async values into a single record so AsyncLoader (D-14)
+    // Combine the two async values into a single record so AsyncLoader
     // renders one skeleton over the list rather than a bespoke spinner.
     // Prefer whichever data each sub-provider still carries (Riverpod keeps
     // `.value` populated through a seamless refresh after `invalidateSelf()`)
@@ -308,9 +308,9 @@ class _SettingsCategoriesScreenState
     );
   }
 
-  /// Optimistically reorders `_orderedIds`, POSTs the full ordered id list
-  /// (D-02/SETCAT-09), and reverts to the pre-drag snapshot + error toast on
-  /// failure (D-04/D-09).
+  /// Optimistically reorders `_orderedIds`, POSTs the full ordered id list,
+  /// and reverts to the pre-drag snapshot + error toast on
+  /// failure.
   Future<void> _onReorder(
     int oldIndex,
     int newIndex,
@@ -469,7 +469,7 @@ class _SettingsCategoriesScreenState
     );
   }
 
-  /// ON (D-11) saves immediately with no check; OFF routes to the own-trail
+  /// ON saves immediately with no check; OFF routes to the own-trail
   /// guarded flow (implemented in Task 2).
   void _onToggle(Category category, bool value) {
     if (value) {
@@ -483,8 +483,8 @@ class _SettingsCategoriesScreenState
     }
   }
 
-  /// OFF path — own-trail confirm-before-disable (SETCAT-11, D-10). Lazily
-  /// counts the user's own trails in [category] (D-12, never preloaded); if
+  /// OFF path — own-trail confirm-before-disable. Lazily
+  /// counts the user's own trails in [category] (never preloaded); if
   /// none, saves directly, otherwise shows a confirm dialog whose "View trails"
   /// action navigates to the user's own profile trail list pre-filtered to the
   /// category. Confirm saves; cancel is a no-op (the switch reverts because

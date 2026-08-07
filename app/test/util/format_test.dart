@@ -3,7 +3,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/format.dart';
 
 // ---------------------------------------------------------------------------
-// Tests for formatSpeed and formatElapsed (Phase 3 stats formatters).
+// Tests for formatSpeed and formatElapsed (stats formatters).
 //
 // Mirrors the import/group/test structure of
 // test/provider/navigation_provider_test.dart.

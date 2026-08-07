@@ -7,14 +7,14 @@ import 'package:wanderer/store/local_photo_store.dart';
 
 // ---------------------------------------------------------------------------
 // Tests for the app-owned unsynced-photo store. This is the load-bearing
-// path-safety and copy-failure-tolerance control (D-01/D-02/D-03): every
+// path-safety and copy-failure-tolerance control: every
 // directory segment must be validated before any dart:io call, and a
 // per-photo copy failure must never abort a save or fall back to an
 // OS-purgeable picker path.
 //
-// 38.1 D-05 adds an account segment (`unsynced/<accountId>/<localId>/`) so
+// The account segment (`unsynced/<accountId>/<localId>/`) exists so
 // one account's unsynced photos are structurally unreachable from another
-// account's delete path -- the CR-01 defect this file also proves closed.
+// account's delete path -- the defect this file also proves closed.
 // ---------------------------------------------------------------------------
 
 /// Fakes the app-docs directory as a temp dir for [sweepOrphanedUnsyncedPhotos]
@@ -226,11 +226,11 @@ void main() {
 
   group('reconcileLocalPhotos', () {
     test(
-      '38.1 WR-10: an undirectory-able dir is reported as failedCount, not '
+      'An undirectory-able dir is reported as failedCount, not '
       'raised -- the batch contract covers the batch\'s own setup',
       () async {
         // `dir`'s parent is a FILE, so `create(recursive: true)` throws.
-        // Before WR-10 that exception escaped `_copyPhotosForLocalSave` into
+        // That exception used to escape `_copyPhotosForLocalSave` into
         // `_onSave`'s generic catch, and the hiker saw `error_saving_trail`
         // (the whole save failed) instead of `photo_copy_failed_toast(n)`.
         final blocker = File(p.join(tempRoot.path, 'not-a-dir'))
@@ -339,7 +339,7 @@ void main() {
       },
     );
 
-    // WR-13. The keep decision uses `p.isWithin`, which normalizes; the
+    // The keep decision uses `p.isWithin`, which normalizes; the
     // delete pass used to compare `listSync().path` by raw string equality,
     // which does not. So a non-canonical spelling of an in-dir path was
     // reported as KEPT and deleted from disk in the same call -- the entity
@@ -475,12 +475,12 @@ void main() {
     });
   });
 
-  group('deleteUnsyncedPhotoDir -- CR-01 cross-account isolation', () {
+  group('deleteUnsyncedPhotoDir -- cross-account isolation', () {
     setUp(() {
       PathProviderPlatform.instance = _FakePathProviderPlatform(tempRoot.path);
     });
 
-    // CR-01: before 38.1 D-05, `unsyncedTrailPhotoDir` resolved
+    // Before the account segment, `unsyncedTrailPhotoDir` resolved
     // `<appDocs>/unsynced/<localId>/` with no account component at all --
     // so two accounts that happened to share the same `localId` (the
     // overlap `TrailDownloadService`'s carry-forward produces) resolved to
@@ -489,7 +489,7 @@ void main() {
     // A's un-uploaded photos and reported success. This test proves the
     // account segment makes that directory structurally unreachable.
     test(
-      'CR-01: deleting account B\'s photo dir for a localId also held by '
+      'Deleting account B\'s photo dir for a localId also held by '
       'account A leaves account A\'s identically-named directory intact',
       () async {
         const accountA = 'acctA0000000001';
@@ -512,7 +512,7 @@ void main() {
           isTrue,
           reason:
               'account B\'s delete must never reach account A\'s directory, '
-              'even though both share the same localId (CR-01).',
+              'even though both share the same localId.',
         );
         expect(Directory(dirA).existsSync(), isTrue);
         expect(Directory(dirB).existsSync(), isFalse);
@@ -599,8 +599,8 @@ void main() {
     );
 
     test(
-      'a legacy first-level unsynced/<localId>/ directory (the pre-D-05 '
-      'layout) and its contents survive the sweep untouched (D-06: no '
+      'a legacy first-level unsynced/<localId>/ directory (the pre-account '
+      'layout) and its contents survive the sweep untouched (no '
       'migration, no cleanup)',
       () async {
         final root = unsyncedPhotoRoot(tempRoot.path);
@@ -622,7 +622,7 @@ void main() {
     );
 
     test(
-      '38.1 WR-11: an account directory left empty by the sweep is '
+      'An account directory left empty by the sweep is '
       'reclaimed, while one that still holds a kept localId dir survives',
       () async {
         final root = unsyncedPhotoRoot(tempRoot.path);
@@ -663,7 +663,7 @@ void main() {
     );
 
     test(
-      '38.1 WR-11: an account directory holding a non-localId entry is left '
+      'An account directory holding a non-localId entry is left '
       'alone -- the empty-dir reclamation never widens what is deletable',
       () async {
         final root = unsyncedPhotoRoot(tempRoot.path);

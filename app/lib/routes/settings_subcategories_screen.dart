@@ -21,7 +21,7 @@ import 'package:wanderer/util/category/preference_sort.dart';
 import 'package:wanderer/actions/guard_online.dart';
 import 'package:wanderer/util/category/own_trail_count.dart';
 
-/// SETCAT-08/10/11 (subcategory half): the leaf screen reached by tapping a
+/// The leaf screen reached by tapping a
 /// category row. It shows a parent category's subcategories with priority sort,
 /// per-row visibility toggle (auto-save, error-toast-only), drag-handle reorder
 /// scoped to the parent category, an empty state for categories with no
@@ -29,7 +29,7 @@ import 'package:wanderer/util/category/own_trail_count.dart';
 /// trails" action opens the user's own profile trail list pre-filtered to the
 /// subcategory.
 ///
-/// Mirrors [SettingsCategoriesScreen] (D-06) but takes a required parent
+/// Mirrors [SettingsCategoriesScreen] but takes a required parent
 /// [Category] (passed via go_router `extra` in Plan 04) and scopes its list +
 /// reorder to that category. A `ConsumerStatefulWidget` because it holds the
 /// local `_orderedIds` drag working copy (never rendered from the re-sorting
@@ -45,7 +45,7 @@ class SettingsSubcategoriesScreen extends ConsumerStatefulWidget {
   const SettingsSubcategoriesScreen({super.key, required this.category});
 
   /// The parent category whose subcategories this screen configures. Its
-  /// locale-resolved name is the AppBar title (D-06).
+  /// locale-resolved name is the AppBar title.
   final Category category;
 
   @override
@@ -70,12 +70,12 @@ class _SettingsSubcategoriesScreenState
   ///      the next `build()` reseed `_orderedIds` from still-stale provider
   ///      data before the server responded, snapping the dropped row back to
   ///      its original slot until the provider re-emitted.
-  ///   2. WR-02 mid-drag protection — an unrelated `ref.watch` dependency
+  ///   2. Mid-drag protection — an unrelated `ref.watch` dependency
   ///      change mid-drag (e.g. a background provider refresh) must not
   ///      silently reset the optimistic working copy.
   bool _reordering = false;
 
-  /// Persists [op] and surfaces only an error toast on failure (D-08 — no
+  /// Persists [op] and surfaces only an error toast on failure (no
   /// success toast; the watched provider drives optimistic UI via
   /// `invalidateSelf`).
   Future<void> _save(Future<void> Function() op) async {
@@ -134,7 +134,7 @@ class _SettingsSubcategoriesScreenState
     }
 
     // subcategoryProvider is a synchronous List; only the preference providers
-    // are async, so AsyncLoader (D-14) wraps just the prefs loads.
+    // are async, so AsyncLoader wraps just the prefs loads.
     final subcategories = ref.watch(subcategoryProvider);
     final prefsAsync = ref.watch(subcategoryPreferenceProvider);
     // Parent-category preferences drive the visibility cascade (read-only here).
@@ -144,7 +144,7 @@ class _SettingsSubcategoriesScreenState
         ? colorScheme.onSurface
         : colorScheme.primary;
 
-    // Filter to this parent category's subcategories (SETCAT-08 scoping).
+    // Filter to this parent category's subcategories.
     final filtered = subcategories
         .where((s) => s.category == widget.category.id)
         .toList();
@@ -195,7 +195,7 @@ class _SettingsSubcategoriesScreenState
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        // Parent category's localized name (D-06).
+        // Parent category's localized name.
         title: Text(widget.category.displayName(locale)),
       ),
       body: Column(
@@ -212,7 +212,7 @@ class _SettingsSubcategoriesScreenState
                   mockData: const (prefs: [], categoryPrefs: []),
                   builder: (data) {
                     // Empty state — the screen stays reachable even with no
-                    // subcategories (D-07).
+                    // subcategories.
                     if (filtered.isEmpty) {
                       return _buildEmptyState(l10n);
                     }
@@ -259,7 +259,7 @@ class _SettingsSubcategoriesScreenState
     );
   }
 
-  /// Empty-state copy for a category with no subcategories (D-07). Reuses the
+  /// Empty-state copy for a category with no subcategories. Reuses the
   /// shared `settings_categories_empty_*` keys.
   Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
@@ -326,8 +326,8 @@ class _SettingsSubcategoriesScreenState
   }
 
   /// Optimistically reorders `_orderedIds`, POSTs the parent category id + the
-  /// full ordered subcategory id list (D-02/SETCAT-10), and reverts to the
-  /// pre-drag snapshot + error toast on failure (D-04/D-09).
+  /// full ordered subcategory id list, and reverts to the
+  /// pre-drag snapshot + error toast on failure.
   Future<void> _onReorder(int oldIndex, int newIndex) async {
     // Flutter's ReorderableListView passes a newIndex that assumes the dragged
     // item is still present; adjust for the removal (Pitfall 1).
@@ -352,7 +352,7 @@ class _SettingsSubcategoriesScreenState
       return;
     }
     try {
-      // Parent category id FIRST (SETCAT-10 scoping — payload
+      // Parent category id FIRST (payload
       // {category, subcategories}).
       await ref
           .read(subcategoryPreferenceProvider.notifier)
@@ -392,12 +392,12 @@ class _SettingsSubcategoriesScreenState
   }
 
   /// A single subcategory row: leading avatar + name + trailing visibility
-  /// Switch, styled identically to the sibling category screen's row (D-06) —
+  /// Switch, styled identically to the sibling category screen's row —
   /// same padding/spacing/bold-name treatment, minus the subcategory chips
   /// (this screen has no nested children to show). Reordering starts on a
   /// long-press anywhere on the row (see `_buildList`'s
   /// `buildDefaultDragHandles`), so there is no explicit drag-handle widget
-  /// here. Rows are LEAF — no body-tap navigation (D-06).
+  /// here. Rows are LEAF — no body-tap navigation.
   ///
   /// [categoryOn] is the parent-category visibility (quick-260702-ere
   /// cascade, mirroring web `disabled={... || !categoryVisible}` /
@@ -446,7 +446,7 @@ class _SettingsSubcategoriesScreenState
     );
   }
 
-  /// ON (D-11) saves immediately with no check; OFF routes to the own-trail
+  /// ON saves immediately with no check; OFF routes to the own-trail
   /// guarded flow (implemented in Task 2).
   void _onToggle(Subcategory sub, bool value) {
     if (value) {
@@ -460,9 +460,8 @@ class _SettingsSubcategoriesScreenState
     }
   }
 
-  /// OFF path — own-trail confirm-before-disable (SETCAT-11 subcategory half,
-  /// D-10). Lazily counts the user's own trails in [sub] (D-12, never
-  /// preloaded); if none, saves directly, otherwise shows a confirm dialog whose
+  /// OFF path — own-trail confirm-before-disable. Lazily counts the user's
+  /// own trails in [sub] (never preloaded); if none, saves directly, otherwise shows a confirm dialog whose
   /// "View trails" action navigates to the user's own profile trail list
   /// pre-filtered to the subcategory. Confirm saves; cancel is a no-op (the
   /// switch reverts because provider state was never changed).

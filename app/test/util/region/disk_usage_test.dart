@@ -8,7 +8,7 @@ import 'package:wanderer/util/region/file_path.dart';
 // ---------------------------------------------------------------------------
 // Tests for region_disk_usage_util's regionDiskUsageBytes, which must read
 // REAL on-disk byte counts (final files AND partial .part files) rather than
-// trust the persisted sizeBytesOnDisk field (D-06, Pitfall 1 -- a
+// trust the persisted sizeBytesOnDisk field (Pitfall 1 -- a
 // downloading/paused package never has sizeBytesOnDisk populated).
 // ---------------------------------------------------------------------------
 

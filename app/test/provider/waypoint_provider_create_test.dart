@@ -117,7 +117,7 @@ void main() {
     );
   }
 
-  group('WaypointSave.create photo-upload partial failure (CR-02)', () {
+  group('WaypointSave.create photo-upload partial failure', () {
     test('a waypoint with no photos creates and returns the record', () async {
       final pumped = harness(photoUploadSucceeds: true);
 
@@ -157,7 +157,7 @@ void main() {
         // created record's id was lost. The drain then re-entered step 3 with
         // the waypoint still holding a `local-…` sentinel id and ran
         // `PUT /waypoint` again -- a duplicate waypoint on the server, with no
-        // idempotency key to reconcile it (RESEARCH.md Pitfall 3).
+        // idempotency key to reconcile it.
         await expectLater(
           pumped.container.read(waypointSaveProvider.notifier).create(
             buildWaypoint(localPhotos: [photoPath]),

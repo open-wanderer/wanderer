@@ -37,7 +37,7 @@ abstract class Category with _$Category {
 
 /// Resolves the locale-aware display name for a [Category].
 ///
-/// Fallback chain (CAT-01): active locale → English (`'en'`) → raw [name].
+/// Fallback chain: active locale → English (`'en'`) → raw [name].
 extension CategoryDisplay on Category {
   String displayName(Locale? locale) =>
       translations?[locale?.languageCode]?.name ??

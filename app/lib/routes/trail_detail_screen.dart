@@ -21,7 +21,7 @@ class TrailDetailScreen extends ConsumerStatefulWidget {
   final String id;
 
   /// The local identity of a not-yet-uploaded trail. When set, [id] is empty
-  /// (D-06 blanks a local-sentinel id at the model boundary) and the screen
+  /// (a local-sentinel id is blanked at the model boundary) and the screen
   /// reads its data from [localTrailProvider] instead of [trailProvider].
   final String? localId;
 
@@ -74,10 +74,10 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
     if (localId != null) {
       final trail = ref.watch(localTrailProvider(localId));
       if (trail == null) {
-        // WR-01's second half: the row is gone because the upload
+        // The second half: the row is gone because the upload
         // succeeded, and the trail now lives at its server route --
         // `serverIdForRetired` is the memo `_drainOne` populated the instant
-        // it retired this row (CR-01). Redirect there instead of showing a
+        // it retired this row. Redirect there instead of showing a
         // dead end when it recorded one.
         final retiredServerId = ref
             .read(trailSyncProvider.notifier)

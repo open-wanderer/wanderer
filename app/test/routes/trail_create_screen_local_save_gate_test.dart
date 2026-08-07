@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source-level guard for three structural invariants introduced by
-/// local-first recording (36-06, 36-10):
+/// Source-level guard for three structural invariants of local-first
+/// recording:
 ///
 /// 1. Every not-yet-uploaded waypoint must carry an empty server id (plus a
 ///    local key) rather than a timestamp-derived synthetic id.
@@ -11,37 +11,28 @@ import 'package:flutter_test/flutter_test.dart';
 ///    two local-first branches must never touch `trailSaveProvider`.
 /// 3. Both save tails (`_finishLocalSave`, `_saveViaNetwork`) must call
 ///    `_invalidateOwnTrailsList()`, and that method must invalidate the same
-///    pair `trail_sync_provider.dart` invalidates after a successful drain
-///    (36-10, gap 3).
+///    pair `trail_sync_provider.dart` invalidates after a successful drain.
 ///
 /// `trail_create_screen.dart` needs auth, a router, a live ObjectBox store,
 /// an image picker and a map controller to drive behaviourally, so these
 /// invariants are guarded at source level instead -- the same rationale and
 /// form as `test/components/trail/trail_dropdown_delete_gate_test.dart`'s
-/// delete-branch gate and the PORT-03 gate in
+/// delete-branch gate and the gate in
 /// `test/util/trail_import_util_test.dart`.
 ///
 /// Scope note on invariant 3 specifically: this gate asserts call-site
 /// PLACEMENT only, not that the invalidation propagates to a rendered list --
 /// `flutter test` cannot mount this screen (no ObjectBox store, no router, no
 /// image picker, no map controller), so the propagation itself is verified on
-/// a physical device (see 36-10-PLAN.md's `<verification>`). This differs
-/// from the failure mode `trail_dropdown_delete_gate_test.dart` guards
-/// against: that gate described the shape of UI nothing could reach, whereas
-/// this one pins placement on a code path whose reachability is already
-/// proven by UAT Test 1 and Test 2 both passing.
+/// a physical device.
 ///
-/// WR-05 (36-REVIEW.md, re-derived 2026-08-03): the three gates the prior
-/// fix pass added asserted only token PRESENCE and ORDERING -- e.g. the
-/// original CR-01 gate would still pass verbatim against
-/// `if (!trailHasServerId(updatedTrail.id)) { /* TODO */ }`, an empty guard
-/// body that lets the blank-id POST straight through. Every gate rewritten
-/// or added by 36-20 below asserts an EFFECT of the guard (a `return;`
+/// Every gate below asserts an EFFECT of the guard it covers -- a `return;`
 /// actually present, a specific message actually chosen, a value actually
-/// threaded into the call it protects) rather than only a substring's
-/// position. Each such gate's `reason:` names the exact falsifying rewrite
-/// it defends against, and 36-20-SUMMARY.md records the rewrite being
-/// applied to a scratch copy and observed to fail before being reverted.
+/// threaded into the call it protects -- rather than only a substring's
+/// presence or position. A presence-only gate would pass verbatim against
+/// `if (!trailHasServerId(updatedTrail.id)) { /* TODO */ }`, an empty guard
+/// body that lets the blank-id POST straight through. Each gate's `reason:`
+/// names the exact falsifying rewrite it defends against.
 void main() {
   final libDir = Directory('lib');
   final source = File('lib/routes/trail_create_screen.dart').readAsStringSync();
@@ -83,7 +74,7 @@ void main() {
         reason:
             'A waypoint minted with a synthetic id looks already-uploaded '
             'to the drain\'s id.isEmpty resume check and silently never '
-            'reaches the server (RESEARCH.md Pitfall 1).',
+            'reaches the server.',
       );
     },
   );
@@ -104,7 +95,6 @@ void main() {
           'added, extend this gate rather than deleting it; a waypoint '
           'minted with a synthetic id looks already-uploaded to the drain\'s '
           'id.isEmpty resume check and silently never reaches the server '
-          '(RESEARCH.md Pitfall 1).',
     );
 
     for (final match in matches) {
@@ -116,7 +106,7 @@ void main() {
         reason:
             'A waypoint constructed without id: \'\' mints a synthetic id '
             'that looks already-uploaded to the drain\'s id.isEmpty resume '
-            'check and silently never reaches the server (RESEARCH.md '
+            'check and silently never reaches the server.'
             'Pitfall 1).',
       );
     }
@@ -143,7 +133,7 @@ void main() {
         isTrue,
         reason:
             'Routing on trail.id.isEmpty alone creates a second server '
-            'trail when a hiker re-saves an unsynced draft (RESEARCH.md '
+            'trail when a hiker re-saves an unsynced draft.'
             'Pitfall 2).',
       );
 
@@ -158,7 +148,7 @@ void main() {
           reason:
               '_onSave no longer references $mode. Routing on '
               'trail.id.isEmpty alone creates a second server trail when a '
-              'hiker re-saves an unsynced draft (RESEARCH.md Pitfall 2).',
+              'hiker re-saves an unsynced draft.',
         );
       }
     },
@@ -201,16 +191,16 @@ void main() {
         isFalse,
         reason:
             'A local save that touches the network reintroduces the '
-            'offline save failure REC-01 removes.',
+            'offline save failure local-first recording removes.',
       );
     },
   );
 
   test(
     'the updateLocal branch reaches the network on alreadySynced, missing OR '
-    'alreadyUploaded -- and via ONLY that three-outcome guard (WR-05)',
+    'alreadyUploaded -- and via ONLY that three-outcome guard',
     () {
-      // WR-05: this test previously asserted only that the literal
+      // This test previously asserted only that the literal
       // `LocalUpdateOutcome.alreadySynced` preceded the single
       // `_saveViaNetwork(` call, under the name "...ONLY on the
       // alreadySynced escape hatch". That was factually wrong the moment the
@@ -241,7 +231,7 @@ void main() {
         reason:
             'Expected exactly one _saveViaNetwork call across the '
             'createLocal/updateLocal branches of _onSave. Any other network '
-            'reach from a local save reintroduces REC-01. (This count '
+            'reach from a local save reintroduces it. (This count '
             'deliberately excludes _onSave\'s networkUpdate branch, which '
             'sits before this slice starts.)',
       );
@@ -323,7 +313,7 @@ void main() {
           'Without this call an offline edit commits to ObjectBox but '
           'never notifies the own-trails list, which stays mounted '
           'beneath this pushed route and holds its pre-edit snapshot '
-          'until a manual pull-to-refresh (UAT gap 3, 36-10).',
+          'until a manual pull-to-refresh.',
     );
   });
 
@@ -346,7 +336,7 @@ void main() {
           'Without this call an already-uploaded trail\'s edit never '
           'notifies the own-trails list, which stays mounted beneath '
           'this pushed route and holds its pre-edit snapshot until a '
-          'manual pull-to-refresh (UAT gap 3, 36-10).',
+          'manual pull-to-refresh.',
     );
   });
 
@@ -449,7 +439,7 @@ void main() {
         reason:
             'A `missing` outcome falling through to _finishLocalSave shows '
             'trail_saved_successfully for a write ObjectBox declined to '
-            'make, which is exactly the failure mode the CR-04 routing fix '
+            'make, which is exactly the failure mode the routing fix '
             'exists to prevent.',
       );
       expect(
@@ -475,7 +465,7 @@ void main() {
 
   test(
     'the createLocal branch publishes _localId only after saveNewLocalTrail '
-    'succeeds (CR-02)',
+    'succeeds',
     () {
       final saveStart = source.indexOf(
         'Future<void> _onSave(BuildContext context) async {',
@@ -518,17 +508,17 @@ void main() {
             'either succeeds leaves it pointing at an id with no row -- '
             'the next save then sees `persistedLocalId != null && '
             'persisted == null`, indistinguishable from a row a completed '
-            'upload retired, and routes into CR-01\'s dead POST, bricking '
-            'the screen for the rest of its life (CR-02).',
+            'upload retired, and routes into the dead POST, bricking '
+            'the screen for the rest of its life.',
       );
     },
   );
 
   test(
     '_saveViaNetwork refuses to run with a blank trail id, and the refusal '
-    'actually returns and names the recoverable state (CR-01, WR-05)',
+    'actually returns and names the recoverable state',
     () {
-      // WR-05's falsifying rewrite for the ORIGINAL version of this gate:
+      // The falsifying rewrite for the ORIGINAL version of this gate:
       // `if (!trailHasServerId(updatedTrail.id)) { /* TODO */ }` -- an empty
       // guard body that falls through to the POST below it. The original
       // gate only checked that the substring `trailHasServerId(` appeared
@@ -538,7 +528,6 @@ void main() {
       // named recoverable-state message, and to NOT surface the generic
       // `error_saving_trail` -- none of which the empty-body rewrite can
       // satisfy. Demonstrated against a scratch copy; see
-      // 36-20-SUMMARY.md for the observed failure.
       final start = source.indexOf('Future<void> _saveViaNetwork(');
       expect(
         start,
@@ -557,7 +546,7 @@ void main() {
         reason:
             '_saveViaNetwork must refuse to run (rather than POST '
             '`/trail/form/` with an empty id) when its `updatedTrail` '
-            'snapshot is stale -- D-06 blanks a local-sentinel id, and a '
+            'snapshot is stale -- a local-sentinel id is blanked, and a '
             'screen that never re-read across a completed upload can '
             'still hold one. An empty-id POST can never be routed '
             '(SvelteKit normalizes the empty [id] segment away) and also '
@@ -588,14 +577,14 @@ void main() {
             'through to the POST below it. A guard with an empty body (e.g. '
             '`if (!trailHasServerId(updatedTrail.id)) { /* TODO */ }`) '
             'restores the un-routable blank-id POST while this substring '
-            'check alone would previously still have passed (WR-05).',
+            'check alone would previously still have passed.',
       );
       expect(
         guardedSlice.contains('l10n.error_saving_trail'),
         isFalse,
         reason:
             'The refusal must not reuse the generic error_saving_trail '
-            'string -- that is the exact regression CR-01 was raised '
+            'string -- that is the exact regression this gate was raised '
             'against: a 100%-reproducible primary-flow failure showing the '
             'same message as a 500, a timeout or a malformed payload, with '
             'no indication the trail is actually fine and simply needs '
@@ -615,10 +604,9 @@ void main() {
 
   test(
     'the updateLocal branch also treats LocalUpdateOutcome.alreadyUploaded '
-    'as a network case, checked inside the guard condition itself (CR-03, '
-    'WR-05)',
+    'as a network case, checked inside the guard condition itself',
     () {
-      // WR-05's falsifying rewrite for the ORIGINAL version of this gate:
+      // The falsifying rewrite for the ORIGINAL version of this gate:
       // moving `LocalUpdateOutcome.alreadyUploaded` out of the `if (...)`
       // condition and into an unrelated `debugPrint(...)` call placed
       // before `_finishLocalSave(`. The original gate only checked that the
@@ -626,7 +614,6 @@ void main() {
       // still satisfies verbatim. This version additionally requires the
       // token to sit strictly between an `if (` and its matching `) {`,
       // which a debugPrint placement cannot satisfy. Demonstrated against a
-      // scratch copy; see 36-20-SUMMARY.md for the observed failure.
       final saveStart = source.indexOf(
         'Future<void> _onSave(BuildContext context) async {',
       );
@@ -650,7 +637,7 @@ void main() {
             'long as a later step keeps failing. Without this outcome, an '
             'edit saved while the row is in that window is written '
             'locally and later destroyed by retirement with no trace '
-            '(CR-03) -- `updateLocalTrail` returns `alreadyUploaded` for '
+            ' -- `updateLocalTrail` returns `alreadyUploaded` for '
             'exactly this row shape, and this branch must route it to the '
             'network save alongside `missing` and `alreadySynced`.',
       );
@@ -673,7 +660,7 @@ void main() {
             'to the success toast.',
       );
 
-      // WR-05's specific strengthening: the token must sit INSIDE an `if (`
+      // The specific strengthening: the token must sit INSIDE an `if (`
       // condition (i.e. between the nearest preceding `if (` and its
       // following `) {`), not merely somewhere before _finishLocalSave(.
       // Moving it into `debugPrint('...alreadyUploaded...')` placed earlier
@@ -711,11 +698,11 @@ void main() {
   test(
     'the networkUpdate branch resolves a real server id before calling '
     '_saveViaNetwork, and never hands it the stale local-sentinel id '
-    '(WR-05 -- what is passed to _saveViaNetwork)',
+    '(what is passed to _saveViaNetwork)',
     () {
-      // WR-05's central finding: none of the pre-36-20 gates in this file
-      // constrained what is PASSED to _saveViaNetwork, which is where CR-01,
-      // CR-03 and WR-13 all actually live. This gate targets the
+      // The central finding: none of the earlier gates in this file
+      // constrained what is PASSED to _saveViaNetwork, which is where the
+      // real defects live. This gate targets the
       // networkUpdate branch specifically -- the one branch that resolves an
       // id BEFORE the network call, as opposed to the updateLocal branch's
       // already-uploaded escape hatch, which passes `updatedTrail` (whose id
@@ -782,10 +769,10 @@ void main() {
             'Every _saveViaNetwork( call in the networkUpdate branch must '
             'be handed `updatedTrail.copyWith(id: targetId, ...)`, not the '
             'raw `updatedTrail` -- `updatedTrail.id` can still be the blank '
-            'local-sentinel value here (D-06), and resolveNetworkSaveTarget '
+            'local-sentinel value here, and resolveNetworkSaveTarget '
             'resolved the REAL id into `targetId` specifically so it could '
             'be substituted in. Passing `updatedTrail` unchanged would hand '
-            'a blank id straight to the network path (CR-01).',
+            'a blank id straight to the network path.',
       );
 
       final callIdx = networkUpdateSlice.indexOf('_saveViaNetwork(');
@@ -825,7 +812,7 @@ void main() {
 
   test(
     '_saveViaNetwork reconciles the local row AFTER adopting the network '
-    'result and BEFORE invalidating the own-trails list (CR-03)',
+    'result and BEFORE invalidating the own-trails list',
     () {
       final start = source.indexOf('Future<void> _saveViaNetwork(');
       expect(start, isNot(-1));
@@ -841,8 +828,7 @@ void main() {
             'server-accepted edit -- without it, a save in the '
             'alreadyUploaded window reaches the server but leaves the local '
             'row (and therefore the own-trails list, which dedupes against '
-            'that row\'s id) showing the pre-edit values indefinitely '
-            '(CR-03).',
+            'that row\'s id) showing the pre-edit values indefinitely.',
       );
 
       final resultAdoptIdx = body.indexOf('trail = result.trail');
@@ -866,14 +852,14 @@ void main() {
             'before the network result is adopted would write stale data; '
             'invalidating before reconciling would let the own-trails list '
             're-read the row\'s pre-edit values one more time -- the exact '
-            'CR-03 window under a green success toast.',
+            'stale-row window under a green success toast.',
       );
     },
   );
 
   test(
     'photosNotYetOnServer filters the network photo payload only -- the '
-    'createLocal branch never calls it (WR-13)',
+    'createLocal branch never calls it',
     () {
       final saveStart = source.indexOf(
         'Future<void> _onSave(BuildContext context) async {',
@@ -889,8 +875,7 @@ void main() {
             'photosNotYetOnServer before handing them to a network save -- '
             'without it, a save in the alreadyUploaded window re-sends '
             'every photo the drain already uploaded under the append-only '
-            '`photos+` key, doubling the server-side set on every save '
-            '(WR-13).',
+            '`photos+` key, doubling the server-side set on every save.',
       );
 
       final createStart = source.indexOf(

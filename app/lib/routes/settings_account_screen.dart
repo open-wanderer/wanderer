@@ -112,7 +112,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
       if (!context.mounted) return;
 
       // Deliberately NOT routed through the shared unsynced-trails sign-out
-      // warning gate (D-12, see confirm_signout.dart): this sign-out
+      // warning gate (see confirm_signout.dart): this sign-out
       // is not a choice the hiker made -- the account was just destroyed
       // server-side via DELETE /user/{id}, so any still-pending trails can
       // never upload regardless of what the hiker does here. Warning them
@@ -166,7 +166,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
         children: [
           const SettingsOfflineBanner(),
 
-          // --- Avatar row (ACCT-01) ---
+          // --- Avatar row ---
           Padding(
             padding: const EdgeInsets.all(16),
             child: GestureDetector(
@@ -201,7 +201,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
             ),
           ),
 
-          // --- Bio section (ACCT-02) ---
+          // --- Bio section ---
           _sectionHeader(
             context,
             "${l10n.about} ${user?.username}",
@@ -209,7 +209,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           ),
           _BioSection(settings: settings, l10n: l10n),
 
-          // --- Change email (ACCT-03) ---
+          // --- Change email ---
           ListTile(
             leading: const Icon(Icons.email_outlined),
             title: Text(l10n.change_email),
@@ -224,7 +224,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
                   },
           ),
 
-          // --- Change password (ACCT-04) ---
+          // --- Change password ---
           ListTile(
             leading: const Icon(Icons.lock_outline),
             title: Text(l10n.change_password),
@@ -240,7 +240,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
           ),
           Divider(),
           _sectionHeader(context, l10n.danger_zone, Colors.redAccent),
-          // --- Delete account (ACCT-05) ---
+          // --- Delete account ---
           ListTile(
             leading: Icon(Icons.delete_outline, color: Colors.redAccent),
             title: Text(

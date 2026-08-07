@@ -14,7 +14,7 @@ import 'package:wanderer/util/region/disk_space.dart';
 import 'package:wanderer/util/region/file_path.dart';
 
 /// Pure axis-aligned rectangle-overlap test between a region's bbox and a
-/// query [LngLatBounds] (TILE-05). There is no `intersects()` helper on this
+/// query [LngLatBounds]. There is no `intersects()` helper on this
 /// package's `LngLatBounds`, so this is hand-rolled against `RegionEntity`'s
 /// four bbox doubles as the negated-disjoint form: two rectangles overlap
 /// unless one is entirely to one side of the other. Uses strict `</`/`>`
@@ -34,7 +34,7 @@ bool bboxOverlaps({
 }
 
 /// Pure per-region split of local vector/DEM archive paths for every
-/// [regions] entry whose bbox overlaps [query] (RENDER-01) — the fix for
+/// [regions] entry whose bbox overlaps [query] — the fix for
 /// `localTilePathsForBounds` previously returning ONE flat, untyped
 /// `List<String>` with vector and DEM paths interleaved and no
 /// discriminator. Returning two SEPARATE lists makes it structurally
@@ -77,7 +77,7 @@ bool bboxOverlaps({
 }
 
 /// Pure per-tile winner resolution among overlapping downloaded regions
-/// (PROXY-02, D-02/D-03) — sibling to [bboxOverlaps]/[splitRegionTilePaths],
+/// — sibling to [bboxOverlaps]/[splitRegionTilePaths],
 /// called once per incoming tile-proxy HTTP request (`tile_proxy_server.dart`)
 /// rather than per viewport, so it must stay cheap.
 ///
@@ -90,13 +90,13 @@ bool bboxOverlaps({
 ///
 /// Among overlapping candidates, the winner is the SMALLEST planar bbox area
 /// (`(maxLon-minLon)*(maxLat-minLat)`) — the most specific/local region wins
-/// over a broader one that happens to also cover the same spot (D-02). Plain
+/// over a broader one that happens to also cover the same spot. Plain
 /// planar degree² area is deliberate, not a great-circle/projected area:
 /// regions are hand-curated, admin-defined bboxes, not user-drawn shapes, so
 /// latitude-dependent distortion is irrelevant to the "which region feels
-/// more local" UX intent (RESEARCH.md Assumption A1). Ties in area are broken
+/// more local" UX intent. Ties in area are broken
 /// by the requested package's `downloadedAtUtc` descending — most-recently-
-/// downloaded wins (D-03); a candidate whose package `downloadedAtUtc` is
+/// downloaded wins; a candidate whose package `downloadedAtUtc` is
 /// null sorts as epoch-zero (loses to any dated one).
 @visibleForTesting
 RegionEntity? resolveRegionForTile(
@@ -124,7 +124,7 @@ RegionEntity? resolveRegionForTile(
     final areaCompare = areaA.compareTo(areaB);
     if (areaCompare != 0) return areaCompare;
 
-    // Tie-break: most-recently-downloaded wins (D-03).
+    // Tie-break: most-recently-downloaded wins.
     final aTarget = dem ? a.demPackage.target : a.vectorPackage.target;
     final bTarget = dem ? b.demPackage.target : b.vectorPackage.target;
     final aTime =
@@ -137,8 +137,8 @@ RegionEntity? resolveRegionForTile(
   return candidates.first;
 }
 
-/// Owns the region tile-repository download lifecycle (TILE-01..05,
-/// DEM-01/02): a fresh (never resumed) `.part` download for a region's
+/// Owns the region tile-repository download lifecycle: a fresh (never
+/// resumed) `.part` download for a region's
 /// vector and (independently) DEM archives, a disk-space pre-check before
 /// every file write, `PmTilesArchive` validation before a `.part` is
 /// promoted to its final path, a bbox-overlap viewport query
@@ -172,7 +172,7 @@ class TileRepositoryManager {
 
   /// Starts a fresh vector archive download for [regionPath]. Refuses to
   /// write any bytes — marking the vector package `error` instead — when
-  /// disk space is tight (TILE-03).
+  /// disk space is tight.
   Future<void> startVectorDownload(
     String regionPath, {
     void Function(int received, int total)? onProgress,
@@ -234,7 +234,7 @@ class TileRepositoryManager {
         downloadedAtUtc: DateTime.now().toUtc(),
       );
 
-      // Gap 2 (26-05): re-fetch the current row inside the write
+      // Re-fetch the current row inside the write
       // transaction instead of writing this function's stale entry-time
       // `region` snapshot. `startDemDownload` may have concurrently linked
       // `demPackage` on the real row since this function's own snapshot was
@@ -364,7 +364,7 @@ class TileRepositoryManager {
   }
 
   /// Returns the local vector/DEM archive file paths for every downloaded
-  /// region whose bbox overlaps [query] (TILE-05, RENDER-01) — feeds Phase
+  /// region whose bbox overlaps [query] — feeds Phase
   /// 25's viewport-based tile-reading pipeline. Vector and DEM paths are
   /// returned as two SEPARATE lists (never merged into one), so they can
   /// never be conflated when fed to `rewriteStyleForOffline`'s
@@ -381,8 +381,8 @@ class TileRepositoryManager {
   /// Cancels any in-flight vector/DEM download for [regionPath], then removes
   /// both `DownloadedTilePackageEntity` rows and their on-disk files
   /// (vector, DEM, and any `.part` siblings) as one logical unit — ObjectBox
-  /// does not cascade a `ToOne` target's deletion (RESEARCH.md Pitfall 5 /
-  /// T-23-07). Deleting an unknown/never-downloaded region is a no-op.
+  /// does not cascade a `ToOne` target's deletion. Deleting an
+  /// unknown/never-downloaded region is a no-op.
   Future<void> deleteRegion(String regionPath) async {
     final path = assertValidRegionPath(regionPath);
 
@@ -427,7 +427,7 @@ class TileRepositoryManager {
     }
   }
 
-  /// DEM-only cascade delete (D-01, T-24-02): removes ONLY [regionPath]'s DEM
+  /// DEM-only cascade delete: removes ONLY [regionPath]'s DEM
   /// package row and its on-disk file(s) — the sibling (non-DEM) package
   /// row, its file, and [RegionEntity.lastDownloadedVersion] are provably
   /// untouched, unlike [deleteRegion], which removes both packages together.
@@ -495,7 +495,7 @@ class TileRepositoryManager {
   /// `vector_url`/`demUrl` carry that prefix and are used only as an
   /// "archive is ready" availability gate, never as the request URL. The
   /// `path` is validated via [assertValidRegionPath] before it reaches the
-  /// URL (defense in depth, T-23-01).
+  /// URL (defense in depth).
   String _requestPathFor(String path, {required bool dem}) {
     final validated = assertValidRegionPath(path);
     return dem
@@ -546,7 +546,7 @@ class TileRepositoryManager {
   /// or DEM ([dem] true) relation if present, otherwise creates one and
   /// persists it.
   ///
-  /// Gap 2 (26-05): `startVectorDownload` and `startDemDownload` each hold
+  /// `startVectorDownload` and `startDemDownload` each hold
   /// their own independent `RegionEntity` snapshot, so when both run
   /// concurrently for the same region, one's stale snapshot can silently
   /// clobber the OTHER's already-linked package relation the moment either
@@ -577,7 +577,7 @@ class TileRepositoryManager {
   }
 
   /// Batches every status/byte-counter field write inside one
-  /// `runInTransaction` (RESEARCH.md Pitfall 5 — never write per-byte).
+  /// `runInTransaction` — never write per-byte.
   void _updatePackageStatus(
     DownloadedTilePackageEntity package, {
     required PackageStatus status,

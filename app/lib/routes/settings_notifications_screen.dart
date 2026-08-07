@@ -51,9 +51,9 @@ class SettingsNotificationsScreen extends ConsumerWidget {
     );
   }
 
-  /// Builds the updated notifications map touching only [key]'s changed field
-  /// (D-09), then persists. When [settings] is null we cannot build a payload,
-  /// so surface the same generic error toast the Privacy screen uses (D-08).
+  /// Builds the updated notifications map touching only [key]'s changed field,
+  /// then persists. When [settings] is null we cannot build a payload,
+  /// so surface the same generic error toast the Privacy screen uses.
   void _onToggle(
     WidgetRef ref,
     AppLocalizations l10n,
@@ -95,7 +95,7 @@ class SettingsNotificationsScreen extends ConsumerWidget {
         ? colorScheme.onSurface
         : colorScheme.primary;
 
-    // D-05 order: snake_case @JsonValue keys paired with their human-readable
+    // Order: snake_case @JsonValue keys paired with their human-readable
     // settings_notification_* description. The enum's camelCase identifier is
     // never used as a key — it would never match the server's snake_case keys.
     final types = <({String key, String label})>[

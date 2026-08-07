@@ -23,10 +23,10 @@ import 'package:wanderer/util/region/tree.dart';
 /// by `flattenVisible` and consumed by the region ListView.
 typedef _RegionRow = ({RegionTreeNode node, int depth});
 
-/// SETUI-01..06: the "Offline Maps/Regions" Settings screen — a flat,
+/// The "Offline Maps/Regions" Settings screen — a flat,
 /// name-searchable, A-Z region list backed by `regionListNotifierProvider`,
 /// with a live disk-usage summary and correctly-disabled `building`/`error`
-/// catalog rows (D-09). Each ready region renders as two independent
+/// catalog rows. Each ready region renders as two independent
 /// list tiles — Vector and Elevation data (DEM) — each with its own
 /// download/cancel/delete action; see `_buildActiveRow`.
 ///
@@ -48,18 +48,18 @@ class _SettingsOfflineRegionsScreenState
   List<RegionEntity>? _diskUsageRegions;
   Future<int>? _diskUsageFuture;
 
-  /// Set only for the genuine fresh-install edge case (RESEARCH.md Pitfall
-  /// 4): zero cached regions AND the initial catalog fetch failed. Every
+  /// Set only for the genuine fresh-install edge case: zero cached regions
+  /// AND the initial catalog fetch failed. Every
   /// other failure (a non-empty cached snapshot) surfaces a toast instead —
   /// see `_refreshCatalog`.
   Object? _freshInstallError;
   StackTrace? _freshInstallStackTrace;
 
   /// Tree shape, built once per genuine hierarchy fetch inside
-  /// `_refreshCatalog` — NEVER rebuilt inside `build()` (Pitfall 1). `null`
+  /// `_refreshCatalog` — NEVER rebuilt inside `build()`. `null`
   /// means no successful hierarchy fetch has completed this session. Combined
   /// with `_hierarchyLoadInFlight` it distinguishes "still loading" (skeleton)
-  /// from "fetch resolved with no tree" (the D-04 offline empty state).
+  /// from "fetch resolved with no tree" (the offline empty state).
   List<RegionTreeNode>? _treeRoots;
 
   /// True while the initial `_refreshCatalog` round-trip is in flight. Seeded
@@ -94,7 +94,7 @@ class _SettingsOfflineRegionsScreenState
       return;
     }
 
-    // Fire-and-forget (RESEARCH.md Pitfall 4) — never blocks the list on a
+    // Fire-and-forget — never blocks the list on a
     // network round-trip; the list renders the synchronous provider
     // snapshot unconditionally below.
     _refreshCatalog();
@@ -160,7 +160,7 @@ class _SettingsOfflineRegionsScreenState
       _diskUsageFuture = totalRegionDiskUsageBytes(regions);
     }
 
-    // Render-time join (RESEARCH.md Pitfall 1) — cheap on every build; the
+    // Render-time join — cheap on every build; the
     // tree shape itself (`_treeRoots`) is NEVER rebuilt here, only in
     // `_refreshCatalog` after a genuine fetch.
     //
@@ -252,7 +252,7 @@ class _SettingsOfflineRegionsScreenState
   /// The scrollable area below the disk-usage summary. Resolves, in order, the
   /// three non-list states before falling through to the region list:
   ///   1. No hierarchy fetched yet (`_treeRoots == null`) — still loading
-  ///      (skeleton) vs. resolved with no tree (D-04 offline empty state).
+  ///      (skeleton) vs. resolved with no tree (offline empty state).
   ///   2. Tree fetched but nothing visible — empty catalog vs. no search match.
   ///   3. Otherwise, the region list itself.
   Widget _buildRegionArea(
@@ -327,7 +327,7 @@ class _SettingsOfflineRegionsScreenState
   /// leave no room for the row label on a narrow phone.
   double _indentFor(int depth) => 16.0 + (depth.clamp(0, 4) * 16.0);
 
-  /// A group row (D-01/D-02): the entire row width toggles expand/collapse
+  /// A group row: the entire row width toggles expand/collapse
   /// on tap (UI-SPEC Interaction Contract), with a chevron that swaps
   /// instantly (no rotation animation) and a `Semantics` label for screen
   /// readers. Unlike a leaf's bordered card, a group row has NO card/border —
@@ -388,7 +388,7 @@ class _SettingsOfflineRegionsScreenState
     );
   }
 
-  /// Disk-usage summary card (SETUI-05, D-06): a Display-role headline byte
+  /// Disk-usage summary card: a Display-role headline byte
   /// figure over a Label-role sub-text stating how many regions contribute
   /// to it. `totalRegionDiskUsageBytes` reads real on-disk bytes (including
   /// `.part` partial files) — see `util/region/disk_usage.dart`.
@@ -435,7 +435,7 @@ class _SettingsOfflineRegionsScreenState
   /// A region contributes to the disk-usage region COUNT (distinct from the
   /// byte sum itself) when it has at least one package that is downloaded
   /// or mid-flight (downloading) — a partial `.part` file still occupies
-  /// real disk space, D-06.
+  /// real disk space.
   bool _hasAnyDiskUsage(RegionEntity region) {
     bool packageOccupiesDisk(PackageStatus? status) =>
         status == PackageStatus.downloaded ||
@@ -573,7 +573,7 @@ class _SettingsOfflineRegionsScreenState
     );
   }
 
-  /// CATALOG-STATUS PRECEDENCE GATE (RESEARCH.md Pattern 2, D-09) — must run
+  /// CATALOG-STATUS PRECEDENCE GATE — must run
   /// BEFORE any RegionStatus/download-action rendering. A `building`/`error`
   /// catalog region always renders disabled with a caption and NO download
   /// action, regardless of what the local `status` getter would otherwise
@@ -626,8 +626,8 @@ class _SettingsOfflineRegionsScreenState
   /// Reached only when `catalogStatus == CatalogStatus.ready`. Renders the
   /// region name, then a Vector tile and (when `region.demUrl != null`) an
   /// Elevation data tile — each independently downloadable/cancellable/
-  /// deletable (SETUI-04). Deleting the Vector tile cascades to delete DEM
-  /// too (D-02); deleting the DEM tile removes only the DEM package (D-01).
+  /// deletable. Deleting the Vector tile cascades to delete DEM
+  /// too; deleting the DEM tile removes only the DEM package.
   Widget _buildActiveRow(RegionEntity region) {
     final l10n = AppLocalizations.of(context)!;
     final downloadState = ref.watch(tileRepositoryStatusProvider)[region.path];
@@ -915,7 +915,7 @@ class _SettingsOfflineRegionsScreenState
   }
 
   /// Shared subtitle for both tiles: a progress bar while that specific
-  /// package is downloading (D-07 — now per-tile, not a combined average,
+  /// package is downloading (per-tile, not a combined average,
   /// since vector/DEM downloads are fully independent), otherwise [text]
   /// (byte size, "Update available", or "Download failed").
   Widget _tileSubtitle({
@@ -946,8 +946,8 @@ class _SettingsOfflineRegionsScreenState
   /// `settings_categories_screen.dart`'s `_save` wrapper.
   ///
   /// Deliberately does NOT invalidate `regionListNotifierProvider` itself.
-  /// That refresh is mandatory after every mutation (RESEARCH.md Pitfall 2 —
-  /// ObjectBox `ToOne.target` caches per-instance after first read), but a
+  /// That refresh is mandatory after every mutation (ObjectBox
+  /// `ToOne.target` caches per-instance after first read), but a
   /// `mounted`-guarded invalidate here silently skipped it whenever the user
   /// left the screen mid-download, so a finished download came back rendering
   /// as `notDownloaded`. `TileRepositoryStatus` (keepAlive) now owns the
@@ -1001,7 +1001,7 @@ class _SettingsOfflineRegionsScreenState
     ref.read(tileRepositoryStatusProvider.notifier).cancelDem(region.path);
   }
 
-  /// SETUI-04/D-01: the DEM tile's own delete action — removes ONLY the DEM
+  /// The DEM tile's own delete action — removes ONLY the DEM
   /// package, IMMEDIATELY — deliberately no confirm dialog, asymmetric with
   /// the Vector tile's cascading [_onDeleteRegion].
   void _onDeleteDemPackage(RegionEntity region) {
@@ -1012,7 +1012,7 @@ class _SettingsOfflineRegionsScreenState
     );
   }
 
-  /// D-02: the Vector tile's delete action cascades to remove the DEM
+  /// The Vector tile's delete action cascades to remove the DEM
   /// package too (one on-device region has one storage directory), so it
   /// requires a confirm dialog first — mirrors
   /// `settings_categories_screen.dart`'s confirm-before-disable dialog shape

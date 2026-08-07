@@ -224,7 +224,7 @@ class TileRepositoryStatus extends _$TileRepositoryStatus {
     }
   }
 
-  /// Removes [regionPath]'s DEM package only (D-01) -- the vector package and
+  /// Removes [regionPath]'s DEM package only -- the vector package and
   /// its lifecycle are untouched. Mirrors [delete]'s ephemeral-state
   /// clearing but performs no progress tracking (pure removal, not a status
   /// transition).

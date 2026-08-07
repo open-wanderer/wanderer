@@ -21,7 +21,7 @@ part 'profile_local_trail_count_provider.g.dart';
 /// The own-handle
 /// test and the actor id are both re-derived here from fresh
 /// `authProvider`/`currentAccountId` reads rather than passed in, which is
-/// D-13's "never from a cached value" — a stale actor id would pair this
+/// The "never from a cached value" — a stale actor id would pair this
 /// account with the previous one's trails.
 @riverpod
 int? profileLocalTrailCount(Ref ref, String handle) {

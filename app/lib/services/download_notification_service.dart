@@ -82,8 +82,8 @@ class DownloadNotificationService {
   /// caller-supplied [title]/[body] instead of the hardcoded trail-name
   /// title and "Downloading trail... {pct}%" body — lets `DownloadingTrailIds`
   /// show one aggregate notification across the trail download plus any
-  /// selected region packages (D-10). Deliberately a sibling method, not a
-  /// signature change to [showProgress]: the 0-region GUARD-01 path must
+  /// selected region packages. Deliberately a sibling method, not a
+  /// signature change to [showProgress]: the 0-region path must
   /// keep calling the untouched [showProgress] so today's single-source
   /// copy stays byte-for-byte identical.
   // dart format off

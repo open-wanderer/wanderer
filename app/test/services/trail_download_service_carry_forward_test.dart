@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// would wipe six local-bookkeeping fields the moment a trail that was
 /// captured on this device (and possibly already uploaded, or still
 /// mid-drain) is later re-downloaded: `owner` (silently vanishing from the
-/// offline own-trails list, REC-06, with no error anywhere), `localId` (the
+/// offline own-trails list, with no error anywhere), `localId` (the
 /// permanent local identity the drain and its photo directory key off),
 /// `syncState`/`syncAttempts`/`syncNextAttemptAt` (a failed row's resume
 /// state), and `localPhotos` (app-owned unsynced photo copies).
@@ -55,7 +55,7 @@ void main() {
       'existing?.owner':
           'MISSING owner carry-forward. A re-download of a trail captured '
           'on this device would wipe its owner, and the trail would '
-          'silently vanish from the offline own-trails list (REC-06) with '
+          'silently vanish from the offline own-trails list with '
           'no error anywhere.',
       'existing?.localId':
           'MISSING localId carry-forward. A re-download would strip the '
@@ -67,7 +67,7 @@ void main() {
           'in-progress upload marker.',
       'existing?.syncAttempts':
           'MISSING syncAttempts carry-forward. A re-download mid-drain '
-          'would reset the retry-attempt counter, undermining the D-07 '
+          'would reset the retry-attempt counter, undermining the '
           'backoff budget.',
       'existing?.syncNextAttemptAt':
           'MISSING syncNextAttemptAt carry-forward. A re-download '
@@ -132,7 +132,7 @@ void main() {
             'its local sentinel), orphaning it from the drain.',
         'existing.owner':
             'MISSING owner carry-forward. The trail would silently vanish '
-            'from the offline own-trails list (REC-06).',
+            'from the offline own-trails list.',
         'existing.localId':
             'MISSING localId carry-forward. The permanent local identity the '
             'drain and its photo directory key off would be stripped.',
@@ -141,7 +141,7 @@ void main() {
             'upload lifecycle, losing a parked failure or in-progress marker.',
         'existing.syncAttempts':
             'MISSING syncAttempts carry-forward. A re-save would reset the '
-            'retry-attempt counter, undermining the D-07 backoff budget.',
+            'retry-attempt counter, undermining the backoff budget.',
         'existing.syncNextAttemptAt':
             'MISSING syncNextAttemptAt carry-forward. A re-save would clear a '
             'scheduled backoff retry time.',

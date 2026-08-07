@@ -15,11 +15,11 @@ part 'trail_provider.g.dart';
 
 /// Fetches trail [id] from the server, network-only.
 ///
-/// Extracted out of `TrailNotifier.build` so plan 38-06's edit flow (D-15)
-/// has a seam that CANNOT serve a cached model: this function never reads
+/// Extracted out of `TrailNotifier.build` so the edit flow has a seam that
+/// CANNOT serve a cached model: this function never reads
 /// ObjectBox and never falls back to the stored copy, unlike `build`, which
 /// wraps this call in its own `try`/`catch` and falls back to the offline
-/// cache on failure (D-22). Throws on any failure -- the caller decides what
+/// cache on failure. Throws on any failure -- the caller decides what
 /// "no server trail" means for its own flow.
 Future<Trail> fetchServerTrail(Dio api, String id) async {
   final response = await api.get(
@@ -66,9 +66,9 @@ Future<Trail> fetchServerTrail(Dio api, String id) async {
 
 @riverpod
 class TrailNotifier extends _$TrailNotifier {
-  /// D-22: online always fetches; the ObjectBox row is the offline fallback
+  /// Online always fetches; the ObjectBox row is the offline fallback
   /// only (see the `catch` block below). Do not reintroduce a family-key flag
-  /// for display source -- see D-21 for why that broke every consumer.
+  /// for display source; that broke every consumer.
   @override
   FutureOr<Trail> build(String id) async {
     final api = ref.watch(apiProvider);
@@ -76,7 +76,7 @@ class TrailNotifier extends _$TrailNotifier {
     try {
       final trail = await fetchServerTrail(api, id);
 
-      // D-14/D-23: the record and the GPX are both already in hand at this
+      // The record and the GPX are both already in hand at this
       // point, so writing them into a downloaded row costs zero additional
       // network traffic. Photos are deliberately not refreshed here (D-14a)
       // -- that stays the explicit *Update* action's job (D-12a).
@@ -90,7 +90,7 @@ class TrailNotifier extends _$TrailNotifier {
     }
   }
 
-  /// D-14's trigger: opportunistically refreshes [trail]'s downloaded
+  /// The trigger: opportunistically refreshes [trail]'s downloaded
   /// library row, if this account has one.
   ///
   /// Its own `try`/`catch` is not optional defensiveness -- this call sits

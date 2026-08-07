@@ -10,7 +10,7 @@ import 'package:wanderer/provider/objectbox_store_provider.dart';
 part 'region_provider.g.dart';
 
 /// Typed error thrown by [RegionRepository.refreshCatalogAndFetchHierarchy]
-/// on any network or parse failure (D-03). Callers must not silently swallow
+/// on any network or parse failure. Callers must not silently swallow
 /// a catalog fetch failure the way `subcategory_provider.dart` does — Phase
 /// 24's Settings/Regions screen decides how to surface this to the user.
 class RegionCatalogException implements Exception {
@@ -30,7 +30,7 @@ class RegionCatalogException implements Exception {
 ///
 /// A non-`List` payload throws [RegionCatalogException] (unexpected shape).
 /// Individual malformed elements are caught and skipped rather than aborting
-/// the whole parse (T-22-05) -- one bad/hostile array element cannot corrupt
+/// the whole parse -- one bad/hostile array element cannot corrupt
 /// or block the rest of the catalog.
 List<RegionCatalogEntry> parseRegionCatalog(dynamic data) {
   if (data is! List) {
@@ -49,7 +49,7 @@ List<RegionCatalogEntry> parseRegionCatalog(dynamic data) {
 }
 
 /// Parses a bare `GET /api/v1/regions` JSON array into
-/// [RegionHierarchyRow] values (D-05) — a separate path from
+/// [RegionHierarchyRow] values — a separate path from
 /// [parseRegionCatalog], not a replacement for it (Pitfall 2): the existing
 /// group-row-drop behavior of [parseRegionCatalog] is by design and stays
 /// untouched, since `RegionCatalogEntry`'s ObjectBox-backed pipeline has no
@@ -57,8 +57,8 @@ List<RegionCatalogEntry> parseRegionCatalog(dynamic data) {
 ///
 /// A non-`List` payload throws [RegionCatalogException] (unexpected
 /// shape). Individual malformed elements are caught and skipped rather than
-/// aborting the whole parse (T-31-01, extending the [parseRegionCatalog]/
-/// T-22-05 per-element posture) -- one hostile array element cannot corrupt
+/// aborting the whole parse (the same per-element posture as
+/// [parseRegionCatalog]) -- one hostile array element cannot corrupt
 /// or block the rest of the hierarchy.
 List<RegionHierarchyRow> parseRegionHierarchyRows(dynamic data) {
   if (data is! List) {
@@ -77,7 +77,7 @@ List<RegionHierarchyRow> parseRegionHierarchyRows(dynamic data) {
 }
 
 /// The persisted [existing] region paths that are absent from [fetchedPaths]
-/// -- i.e. regions dropped from the latest catalog fetch (D-08).
+/// -- i.e. regions dropped from the latest catalog fetch.
 ///
 /// Compares `path`, never the server record id: the backend re-mints that id
 /// on every rebuild (see `RegionEntity.id`), which made every persisted region
@@ -94,7 +94,7 @@ Set<String> orphanedRegionPaths(
 }
 
 /// Fetches and upserts the region catalog into ObjectBox, preserving local
-/// download status and `ToOne` package links across refreshes (D-01) --
+/// download status and `ToOne` package links across refreshes --
 /// never the destructive `removeAll()`+`putMany()` merge used by
 /// `subcategory_provider.dart`/`category_provider.dart`.
 class RegionRepository {
@@ -109,7 +109,7 @@ class RegionRepository {
   /// targets, and `lastDownloadedVersion`); a new row is inserted via
   /// [RegionEntity.fromCatalogEntry]. After upserting, any persisted region
   /// whose path is absent from [entries] is flipped `inCatalog = false` --
-  /// its row and any on-disk files are left untouched (D-08).
+  /// its row and any on-disk files are left untouched.
   ///
   /// Matching on `path` rather than the server record id is what makes a
   /// backend rebuild non-destructive. `ReconcileArchives` deletes and
@@ -168,7 +168,7 @@ class RegionRepository {
   /// A network failure is wrapped as [RegionCatalogException]; a malformed
   /// (non-`List`) shape throws it out of [parseRegionCatalog] BEFORE any
   /// store write, so a bad response always leaves every persisted row
-  /// untouched (D-03).
+  /// untouched.
   Future<List<RegionHierarchyRow>> refreshCatalogAndFetchHierarchy() async {
     final dynamic data;
     try {
@@ -187,7 +187,7 @@ class RegionRepository {
   }
 }
 
-/// Construction-only provider seam (D-02) -- builds a [RegionRepository]
+/// Construction-only provider seam -- builds a [RegionRepository]
 /// from the existing [apiProvider]/[objectBoxProvider] without performing
 /// any fetch on build; the Settings/Regions screen drives
 /// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
@@ -197,13 +197,13 @@ RegionRepository regionRepository(Ref ref) {
 }
 
 /// Synchronous ObjectBox snapshot of every persisted [RegionEntity], sorted
-/// alphabetically by [RegionEntity.name] (D-09) -- mirrors
+/// alphabetically by [RegionEntity.name] -- mirrors
 /// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
 /// precedent verbatim. No mutation methods live here; all region mutations
 /// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
 /// which invalidates this provider itself at every terminal point of a
-/// download/cancel/delete (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target`
-/// caches per-instance after first read). That invalidation deliberately
+/// download/cancel/delete (ObjectBox `ToOne.target` caches per-instance
+/// after first read). That invalidation deliberately
 /// lives in the keepAlive notifier, NOT in the calling widget: a widget-side
 /// `mounted` guard skipped it whenever the user left the Settings/Regions
 /// screen mid-download.
