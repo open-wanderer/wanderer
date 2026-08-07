@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/base/platform_view_pop_guard.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 
@@ -48,7 +49,8 @@ class TrailCollectionMap extends ConsumerStatefulWidget {
   ConsumerState<TrailCollectionMap> createState() => _TrailCollectionMapState();
 }
 
-class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap> {
+class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
+    with PlatformViewPopGuard<TrailCollectionMap> {
   ml.MapController? _controller;
 
   /// Buffers a style-loaded event that arrives before [_controller] is set.
@@ -97,6 +99,12 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap> {
   }
 
   Widget _buildMap(BuildContext context, String styleJson) {
+    // See [PlatformViewPopGuard] — drop the native surface as the pop begins
+    // so it cannot outlive the transition.
+    if (platformViewPopping) {
+      return ColoredBox(color: Theme.of(context).colorScheme.surface);
+    }
+
     return ml.MapLibreMap(
       options: ml.MapOptions(
         initStyle: styleJson,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/base/platform_view_pop_guard.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart';
@@ -64,7 +65,8 @@ class TrailMap extends ConsumerStatefulWidget {
   ConsumerState<TrailMap> createState() => _TrailMapState();
 }
 
-class _TrailMapState extends ConsumerState<TrailMap> {
+class _TrailMapState extends ConsumerState<TrailMap>
+    with PlatformViewPopGuard<TrailMap> {
   static const _trailLayer = TrailLayer();
 
   ml.MapController? _controller;
@@ -182,6 +184,14 @@ class _TrailMapState extends ConsumerState<TrailMap> {
   }
 
   Widget _buildMap(BuildContext context, String styleJson) {
+    // Drop the native surface as the pop begins so it cannot outlive the
+    // transition — see [PlatformViewPopGuard]. Same colour as the map's
+    // androidForegroundLoadColor, so the swap reads as the map simply being
+    // covered rather than as a flash.
+    if (platformViewPopping) {
+      return ColoredBox(color: Theme.of(context).colorScheme.surface);
+    }
+
     final center = ml.Geographic(
       lat: widget.trail.lat ?? 0,
       lon: widget.trail.lon ?? 0,
