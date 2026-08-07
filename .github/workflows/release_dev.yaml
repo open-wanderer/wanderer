@@ -3,7 +3,7 @@ name: Publish dev Release
 on:
   push:
     branches:
-      - main
+      - dev
 
 jobs:
   docker-build:
