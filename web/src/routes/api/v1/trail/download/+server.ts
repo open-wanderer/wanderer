@@ -1,5 +1,6 @@
 import { handleError } from "$lib/util/api_util";
-import { type RequestEvent } from "@sveltejs/kit";
+import { DownloadError, fetchExternalFile } from "$lib/util/secure_fetch_util";
+import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -31,24 +32,30 @@ import { type RequestEvent } from "@sveltejs/kit";
  *               format: binary
  *       400:
  *         description: Bad Request
+ *       401:
+ *         description: Unauthorized
  *       500:
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    const data = await event.request.json();
+    if (!event.locals.user) {
+        return json({ message: "Unauthorized" }, { status: 401 });
+    }
 
     try {
-        const response = await event.fetch(data.url);
-        const blob = await response.blob();
+        const data = await event.request.json();
 
-        const contentType = 'determine the content type here';
+        const { contentType, body } = await fetchExternalFile(data.url);
 
-        return new Response(blob, {
+        return new Response(new Uint8Array(body), {
             headers: {
-                'Content-Type': contentType,
+                "Content-Type": contentType ?? "application/octet-stream",
             },
         });
     } catch (e) {
-        return handleError(e)
+        if (e instanceof DownloadError) {
+            return json({ message: e.message }, { status: e.status });
+        }
+        return handleError(e);
     }
 }

@@ -40,10 +40,11 @@ export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestI
 
     summitLog.author = user.actor
 
-    const formData = objectToFormData(summitLog, ["expand"])
+    const formData = objectToFormData(summitLog, ["expand", "photos", "_photos", "_gpx", "_duplicatePhotoSource"])
 
-    if (summitLog._gpx && summitLog._gpx instanceof File) {
-        formData.append("gpx", summitLog._gpx)
+    const gpx = summitLogGPXFile(summitLog);
+    if (gpx) {
+        formData.append("gpx", gpx)
     }
 
 
@@ -71,6 +72,15 @@ export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestI
     return model;
 }
 
+function summitLogGPXFile(summitLog: SummitLog): File | Blob | undefined {
+    if (summitLog._gpx) {
+        return summitLog._gpx;
+    }
+    if (summitLog.expand?.gpx_data) {
+        return new Blob([summitLog.expand.gpx_data], { type: "text/xml" });
+    }
+}
+
 export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: SummitLog) {
     const user = get(currentUser)
     if (!user) {
@@ -79,7 +89,7 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
 
     newSummitLog.author = user.actor
 
-    const formData = objectToFormData(newSummitLog, ["expand", "gpx", "_gpx"])
+    const formData = objectToFormData(newSummitLog, ["expand", "gpx", "_gpx", "_duplicatePhotoSource"])
 
     for (const photo of newSummitLog._photos ?? []) {
         formData.append("photos", photo)

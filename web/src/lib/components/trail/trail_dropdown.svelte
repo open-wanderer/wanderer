@@ -2,7 +2,7 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import type { List } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
+    import type { Trail, TrailDuplicateOptions } from "$lib/models/trail";
     import {
         lists_add_trail,
         lists_index,
@@ -31,6 +31,7 @@
     } from "./trail_bulk_edit_modal.svelte";
     import TrailSendModal from "./trail_send_modal.svelte";
     import TrailShareModal from "./trail_share_modal.svelte";
+    import TrailDuplicateModal from "./trail_duplicate_modal.svelte";
     import {
         mergeStore,
         processMergeQueue,
@@ -67,6 +68,7 @@
     let trailShareModal: TrailShareModal;
     let trailMergeModal: TrailMergeModal;
     let trailBulkEditModal: TrailBulkEditModal;
+    let trailDuplicateModal: TrailDuplicateModal;
 
     let lists: List[] = $state([]);
 
@@ -163,7 +165,7 @@
     function allowCopy(): boolean {
         if ((trails?.size ?? 0) > 1) return false;
 
-        return !isMultiselectMode();
+        return hasTrail() && !isMultiselectMode();
     }
 
     function allowSend(): boolean {
@@ -587,7 +589,8 @@
             }
         } else if (ddVal == "copy") {
             if (hasTrail()) {
-                goto("/trail/edit/new?orig=" + trail()?.id);
+                const sourceTrail = trail()!;
+                trailDuplicateModal.openModal(sourceTrail, isFromCurrentUser(sourceTrail));
             }
         } else if (ddVal == "publish") {
             updateTrailsVisibility();
@@ -867,6 +870,22 @@
         onShare?.();
     }
 
+    function duplicateTrail(settings: TrailDuplicateOptions) {
+        const sourceTrail = trail();
+        if (!sourceTrail?.id) {
+            return;
+        }
+
+        goto(`/trail/edit/new?${new URLSearchParams({
+            orig: sourceTrail.id,
+            copyWaypoints: String(settings.waypoints),
+            copySummitLogs: String(settings.summitLogs),
+            copyTrailPhotos: String(settings.trailPhotos),
+            copyWaypointPhotos: String(settings.waypointPhotos),
+            copySummitLogPhotos: String(settings.summitLogPhotos),
+        })}`);
+    }
+
     async function handleListSelection(list: List) {
         try {
             let deleted = false;
@@ -994,6 +1013,10 @@
     onsave={handleShareUpdate}
     bind:this={trailShareModal}
 ></TrailShareModal>
+<TrailDuplicateModal
+    bind:this={trailDuplicateModal}
+    onduplicate={(settings) => duplicateTrail(settings)}
+></TrailDuplicateModal>
 <TrailSendModal
     trail={trail()}
     share={page.url.searchParams.get("share") ?? undefined}

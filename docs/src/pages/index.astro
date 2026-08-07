@@ -90,12 +90,17 @@ import "@fontsource/ibm-plex-mono/600.css";
         <div class="hero-screenshot-frame">
           <video
             class="hero-img"
-            src="/trailer.mp4"
             poster="/favicon.svg"
             autoplay
             muted
             loop
-            playsinline></video>
+            playsinline
+          >
+            <source src="/wanderer_trailer.webm" type="video/webm" />
+            <source src="/wanderer_trailer.mp4" type="video/mp4" />
+
+            Your browser does not support the video tag.
+          </video>
         </div>
       </div>
     </section>
