@@ -6,6 +6,7 @@
         formatDistance,
         formatElevation,
         formatHTMLAsText,
+        formatHTMLAsTextPreview,
         formatTimeHHMM,
     } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
@@ -17,6 +18,15 @@
     let { activity, actor }: Props = $props();
 
     let fullDescription: boolean = $state(false);
+
+    const DESCRIPTION_PREVIEW_LENGTH = 100;
+
+    let descriptionPreview = $derived(
+        formatHTMLAsTextPreview(
+            activity.description,
+            DESCRIPTION_PREVIEW_LENGTH,
+        ),
+    );
 </script>
 
 <div class="activity-card p-6 ounded-xl border border-input-border">
@@ -105,12 +115,10 @@
     {/if}
     {#if activity.description.length}
         <p class="text-sm whitespace-pre-wrap mt-6">
-            {formatHTMLAsText(
-                !fullDescription
-                    ? activity.description?.substring(0, 100)
-                    : activity.description,
-            )}
-            {#if (activity.description?.length ?? 0) > 100 && !fullDescription}
+            {!fullDescription
+                ? descriptionPreview.text
+                : formatHTMLAsText(activity.description)}
+            {#if descriptionPreview.truncated && !fullDescription}
                 <button
                     onclick={(e) => {
                         e.stopPropagation();

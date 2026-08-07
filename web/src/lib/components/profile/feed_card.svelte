@@ -7,6 +7,7 @@
         formatDistance,
         formatElevation,
         formatHTMLAsText,
+        formatHTMLAsTextPreview,
         formatTimeHHMM,
         formatTimeSince,
     } from "$lib/util/format_util";
@@ -25,6 +26,15 @@
     let { feedItem }: Props = $props();
 
     let fullDescription = $state(false);
+
+    const DESCRIPTION_PREVIEW_LENGTH = 100;
+
+    const descriptionPreview = $derived(
+        formatHTMLAsTextPreview(
+            feedItem.expand.item.description,
+            DESCRIPTION_PREVIEW_LENGTH,
+        ),
+    );
 
     const timeSince = $derived(
         formatTimeSince(new Date(feedItem.created ?? "")),
@@ -192,15 +202,10 @@
             {/if}
             {#if feedItem.expand.item.description?.length}
                 <p class="text-sm whitespace-pre-wrap mt-6">
-                    {formatHTMLAsText(
-                        !fullDescription
-                            ? feedItem.expand.item.description?.substring(
-                                  0,
-                                  100,
-                              )
-                            : feedItem.expand.item.description,
-                    )}
-                    {#if (feedItem.expand.item.description?.length ?? 0) > 100 && !fullDescription}
+                    {!fullDescription
+                        ? descriptionPreview.text
+                        : formatHTMLAsText(feedItem.expand.item.description)}
+                    {#if descriptionPreview.truncated && !fullDescription}
                         <button
                             onclick={(e) => {
                                 e.stopPropagation();
