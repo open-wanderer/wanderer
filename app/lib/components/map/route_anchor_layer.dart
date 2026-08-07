@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/map_marker_gestures.dart';
+import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 
 /// Interactive route-anchor markers rendered as Flutter widgets over the
@@ -33,10 +34,32 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
   String? _draggingAnchorId;
   Offset? _dragOffset;
 
+  /// Memoized markers, and the inputs they were built from.
+  ///
+  /// This widget is rebuilt on every camera frame and cannot avoid it:
+  /// `MapController.maybeOf` and `MapCamera.maybeOf` both resolve to
+  /// `InheritedModel.inheritFrom<MapLibreInheritedModel>` with no aspect,
+  /// and that model's `updateShouldNotify`/`updateShouldNotifyDependent`
+  /// both return `true` unconditionally — so reading the controller at all
+  /// subscribes to every camera update.
+  ///
+  /// Rebuilding N marker subtrees per frame (gesture detectors,
+  /// AnimatedScales, blurred-shadow containers) is the expensive part, and
+  /// that *is* avoidable: [ml.WidgetLayer] repositions markers itself via
+  /// `toScreenLocations`, so as long as it receives the same `Widget`
+  /// instances, element diffing skips their subtrees entirely.
+  List<ml.Marker>? _cachedMarkers;
+  List<RouteAnchor>? _cachedAnchors;
+  String? _cachedSelectedId;
+  Brightness? _cachedBrightness;
+
+  void _invalidateMarkers() => _cachedMarkers = null;
+
   void _clearDrag() {
     setState(() {
       _draggingAnchorId = null;
       _dragOffset = null;
+      _invalidateMarkers();
     });
   }
 
@@ -44,9 +67,18 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
   Widget build(BuildContext context) {
     final anchors = ref.watch(routeAnchorsProvider).anchors;
     final controller = ml.MapController.maybeOf(context);
-    // Subscribe to camera changes so a drag-in-progress marker recomputes as
-    // the user pans/zooms.
-    ml.MapCamera.maybeOf(context);
+    final brightness = Theme.of(context).brightness;
+
+    // A drag re-projects a fixed screen offset through the live camera, so
+    // its marker must be rebuilt every frame. Only the static case caches.
+    final cached = _cachedMarkers;
+    if (_draggingAnchorId == null &&
+        cached != null &&
+        identical(anchors, _cachedAnchors) &&
+        _cachedSelectedId == widget.selectedAnchorId &&
+        _cachedBrightness == brightness) {
+      return ml.WidgetLayer(allowInteraction: true, markers: cached);
+    }
 
     final markers = <ml.Marker>[];
 
@@ -73,6 +105,7 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
               setState(() {
                 _draggingAnchorId = anchor.id;
                 _dragOffset = c.toScreenLocation(anchor.point);
+                _invalidateMarkers();
               });
             },
             onPanUpdate: (details) {
@@ -110,6 +143,17 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
           ),
         ),
       );
+    }
+
+    // Only the static case is reusable — a drag's marker position is derived
+    // from the live camera, so caching it would freeze it mid-gesture.
+    if (_draggingAnchorId == null) {
+      _cachedMarkers = markers;
+      _cachedAnchors = anchors;
+      _cachedSelectedId = widget.selectedAnchorId;
+      _cachedBrightness = brightness;
+    } else {
+      _invalidateMarkers();
     }
 
     return ml.WidgetLayer(allowInteraction: true, markers: markers);
