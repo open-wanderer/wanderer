@@ -66,6 +66,9 @@
   "open": "Öffnen",
   "delete_account": "Konto löschen",
   "delete_trail_confirm": "Möchtest Du diese Route wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
+  "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
   "description": "Beschreibung",
   "difficult": "Schwer",
   "difficulty": "Schwierigkeit",
@@ -76,6 +79,7 @@
   "duration": "Dauer",
   "easy": "Einfach",
   "edit": "Bearbeiten",
+  "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
   "edit_waypoint": "Wegpunkt bearbeiten",
   "edited": "bearbeitet",
   "elevation_gain": "Höhenunterschied (aufw.)",
@@ -84,6 +88,7 @@
   "email": "E-Mail",
   "email_not_unique": "Diese Email_Adresse wird bereits verwendet",
   "email_updated": "E_Mail aktualisiert",
+  "error_deleting_trail": "Error deleting trail",
   "error_reading_file": "Fehler beim Lesen der Datei",
   "error_saving_settings": "Fehler beim Speichern der Einstellungen",
   "error_saving_trail": "Fehler beim Speichern der Route",
@@ -163,6 +168,9 @@
   "trail_source_import_description": "Lade GPX-, KML-, KMZ-, TCX- oder FIT-Dateien direkt von deinem Gerät hoch.",
   "trail_source_import_error": "Datei konnte nicht importiert werden",
   "trail_source_offline_import_error": "Offline können nur GPX-Dateien importiert werden",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
   "no_comments_so_far": "Bisher keine Kommentare",
   "no_data": "Keine Daten",
   "no_description_for_now": "Noch keine Beschreibung",
@@ -174,11 +182,27 @@
   "only_me": "Nur ich",
   "or": "oder",
   "orientation": "Ausrichtung",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Offline — showing only trails on this device.",
+  "trails_on_device": "Trails (on device)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
   "paragraph": "Abschnitt",
   "pause": "Pausieren",
   "password": "Passwort",
   "password_confirm": "Passwort bestätigen",
   "passwords_must_match": "Passwörter müssen übereinstimmen",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Fotos",
   "photos_skipped_no_gps": "{count, plural, =1 {1 Foto übersprungen — keine GPS-Daten} other {{count} Fotos übersprungen — keine GPS-Daten}}",
   "@photos_skipped_no_gps": {
@@ -252,6 +276,15 @@
   "shared": "Geteilt",
   "show_on_map": "Auf der Karte anzeigen",
   "shower": "Dusche",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Deine Routen. Deine Daten. Dein Server.",
   "sort": "Sortieren",
   "speed": "Geschwindigkeit",
@@ -261,6 +294,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Gipfelbuch",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Tabelle",
   "tags": "Tags",
   "text": "Text",
@@ -279,6 +315,8 @@
     }
   },
   "trail_saved_successfully": "Route gespeichert",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
+  "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
   "some_waypoints_failed_to_save": "Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden",
   "units": "Einheiten",
   "users": "Benutzer",
@@ -322,6 +360,7 @@
   "url": "URL",
   "open_in_new_tab": "In neuem Tab öffnen",
   "remove": "Entfernen",
+  "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
   "apply": "Anwenden",
   "add_at_least_2_anchors_hint": "Fügen Sie mindestens 2 Ankerpunkte hinzu, um das Höhenprofil zu sehen.",
   "reverse_direction": "Richtung umkehren",

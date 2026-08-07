@@ -66,6 +66,9 @@
   "open": "Open",
   "delete_account": "Ezabako kontua",
   "delete_trail_confirm": "Ibilbide hau ezabatu nahi duzu? Akzio hau ezin da atzera bota.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
+  "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
   "description": "Deskribapena",
   "difficult": "Zaila",
   "difficulty": "Zailtasuna",
@@ -76,6 +79,7 @@
   "duration": "Iraupena",
   "easy": "Erraza",
   "edit": "Editatu",
+  "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
   "edit_waypoint": "Editatu bidepuntua",
   "edited": "editatuta",
   "elevation_gain": "Irabazitako altitudea",
@@ -84,6 +88,7 @@
   "email": "Eposta",
   "email_not_unique": "This email address is already in use.",
   "email_updated": "Eposta eguneratuta",
+  "error_deleting_trail": "Error deleting trail",
   "error_reading_file": "Errorea fitxategia irakurtzean",
   "error_saving_settings": "Error saving settings",
   "error_saving_trail": "Errorea ibilbidea gordetzean",
@@ -156,9 +161,16 @@
   "new_password_success": "Pasahitz berria ezarri da",
   "new_trail": "Ibilaldi berria",
   "trail_source_planner": "Open trail planner",
+  "trail_source_planner_description": "Draw a new route on the map, waypoint by waypoint.",
   "trail_source_record": "Record trail",
+  "trail_source_record_description": "Track your live coordinates and log your journey in real-time.",
   "trail_source_import": "Import file",
+  "trail_source_import_description": "Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.",
   "trail_source_import_error": "Could not import file",
+  "trail_source_offline_import_error": "Only GPX files can be imported offline",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
   "no_comments_so_far": "Ez dago iruzkinik",
   "no_data": "Ez dago daturik",
   "no_description_for_now": "Ez dago deskribapenik",
@@ -170,11 +182,27 @@
   "only_me": "Ni bakarrik",
   "or": "edo",
   "orientation": "Orientazioa",
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Offline — showing only trails on this device.",
+  "trails_on_device": "Trails (on device)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
   "paragraph": "Paragrafoa",
   "pause": "Pause",
   "password": "Pasahitza",
   "password_confirm": "Berretsi pasahitza",
   "passwords_must_match": "Pasahitzek bat etorri behar dute",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
   "photos": "Argazkiak eta bideoak",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
   "@photos_skipped_no_gps": {
@@ -248,6 +276,15 @@
   "shared": "Partekatuta",
   "show_on_map": "Erakutsi mapan",
   "shower": "Dutxa",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
   "slogan": "Zure ibilbideak. Zure datuak. Zure zerbitzaria.",
   "sort": "Ordenatu",
   "speed": "Abiadura",
@@ -257,6 +294,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Igoeren liburua",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_uploading": "Uploading…",
   "table": "Taula",
   "tags": "Etiketak",
   "text": "Testua",
@@ -275,6 +315,8 @@
     }
   },
   "trail_saved_successfully": "Ibilbidea ondo gorde da",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
+  "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Unitateak",
   "users": "Users",
@@ -318,6 +360,7 @@
   "url": "URL",
   "open_in_new_tab": "Ireki fitxa berrian",
   "remove": "Remove",
+  "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
   "apply": "Apply",
   "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
   "reverse_direction": "Alderantzikatu norabidea",
@@ -354,6 +397,9 @@
   "no_bio_yet": "No bio yet.",
   "feed": "Feed",
   "no_trails_yet": "No trails yet.",
+  "library_empty_title": "No downloaded trails",
+  "library_empty_body": "Trails you download are kept here so you can open them offline.",
+  "library_empty_search_body": "Try a different search term or clear your filters.",
   "search_location": "Search location",
   "no_servers_match_query": "No servers match \"{query}\"",
   "@no_servers_match_query": {
