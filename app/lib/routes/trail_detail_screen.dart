@@ -35,7 +35,16 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
   bool _isLaunching = false;
   late final ScrollController _scrollController = ScrollController();
 
-  double _appBarOpacity = 0.0;
+  /// AppBar fade driven by scroll. A [ValueNotifier] consumed by a scoped
+  /// builder around the AppBar alone — the old per-scroll-frame `setState`
+  /// rebuilt the whole screen including `TrailPanel` (a full stats/photo
+  /// subtree) on every scrolled pixel of the first 128.
+  final ValueNotifier<double> _appBarOpacity = ValueNotifier<double>(0.0);
+
+  /// Guards the retired-row redirect below: `addPostFrameCallback` inside
+  /// `build()` re-schedules per rebuild, so without this the redirect was
+  /// pushed once per frame until the route actually changed.
+  bool _redirectScheduled = false;
 
   @override
   void initState() {
@@ -47,6 +56,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _appBarOpacity.dispose();
     super.dispose();
   }
 
@@ -60,11 +70,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         1.0,
       );
 
-      if (newOpacity != _appBarOpacity) {
-        setState(() {
-          _appBarOpacity = newOpacity;
-        });
-      }
+      _appBarOpacity.value = newOpacity;
     }
   }
 
@@ -82,7 +88,8 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         final retiredServerId = ref
             .read(trailSyncProvider.notifier)
             .serverIdForRetired(localId);
-        if (retiredServerId != null) {
+        if (retiredServerId != null && !_redirectScheduled) {
+          _redirectScheduled = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) context.pushReplacement('/trail/$retiredServerId');
           });
@@ -170,35 +177,43 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         ref.watch(downloadingTrailIdsProvider).contains(trail.id);
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
-          onPressed: () => context.pop(),
-          style: IconButton.styleFrom(
-            backgroundColor: theme.colorScheme.surface.withValues(
-              alpha: 1.0 - _appBarOpacity,
+      // Scoped to the notifier: only the AppBar rebuilds as the scroll fade
+      // progresses — see [_appBarOpacity].
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ValueListenableBuilder<double>(
+          valueListenable: _appBarOpacity,
+          builder: (context, opacity, _) => AppBar(
+            leading: IconButton(
+              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              onPressed: () => context.pop(),
+              style: IconButton.styleFrom(
+                backgroundColor: theme.colorScheme.surface.withValues(
+                  alpha: 1.0 - opacity,
+                ),
+              ),
             ),
+
+            backgroundColor: theme.colorScheme.surface.withValues(
+              alpha: opacity,
+            ),
+
+            shadowColor: Colors.black.withValues(alpha: opacity * 0.15),
+            elevation: opacity > 0 ? 2 : 0,
+
+            scrolledUnderElevation: 0,
+
+            actions: [
+              if (trail != null) ...[
+                if (!isUnsynced) ...[
+                  LikeButton(trail: trail),
+                  const SizedBox(width: 8),
+                ],
+                TrailDropdown(trail: trail, availableOffline: availableOffline),
+              ],
+            ],
           ),
         ),
-
-        backgroundColor: theme.colorScheme.surface.withValues(
-          alpha: _appBarOpacity,
-        ),
-
-        shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
-        elevation: _appBarOpacity > 0 ? 2 : 0,
-
-        scrolledUnderElevation: 0,
-
-        actions: [
-          if (trail != null) ...[
-            if (!isUnsynced) ...[
-              LikeButton(trail: trail),
-              const SizedBox(width: 8),
-            ],
-            TrailDropdown(trail: trail, availableOffline: availableOffline),
-          ],
-        ],
       ),
       body: Stack(
         children: [

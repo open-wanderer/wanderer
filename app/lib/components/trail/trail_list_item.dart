@@ -123,7 +123,7 @@ class TrailListItem extends ConsumerWidget {
                           children: [
                             if (trail.summaryDate != null) ...[
                               Text(
-                                DateFormat.yMMMd(
+                                dateFormatYMMMd(
                                   locale,
                                 ).format(trail.summaryDate!),
                                 style: TextStyle(

@@ -179,7 +179,7 @@ class TrailCard extends ConsumerWidget {
                       const SizedBox(height: 4),
                       if (trail.summaryDate != null)
                         Text(
-                          DateFormat.yMMMMd(locale).format(trail.summaryDate!),
+                          dateFormatYMMMMd(locale).format(trail.summaryDate!),
                           style: TextStyle(
                             color: Theme.of(
                               context,

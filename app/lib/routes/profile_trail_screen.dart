@@ -197,6 +197,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                                   }
                                   final trail = state.trails[index];
                                   return TrailListItem(
+                                    key: ValueKey(trail.localId ?? trail.id),
                                     trail: trail,
                                     onTrailSelect: () =>
                                         _onTrailSelect(context, trail),

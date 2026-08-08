@@ -150,7 +150,7 @@ class SummitLogCard extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               parsedDate != null
-                                  ? DateFormat.yMMMMd(locale).format(parsedDate)
+                                  ? dateFormatYMMMMd(locale).format(parsedDate)
                                   : summitLog.date,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,

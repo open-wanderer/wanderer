@@ -4,6 +4,7 @@ import 'package:flutter_html/flutter_html.dart' as html;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gpx/gpx.dart' show Gpx;
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
@@ -25,6 +26,17 @@ import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/trail/route_location.dart';
+
+/// Identity-keyed memo for [computeTrailMetrics] — a full pass over every
+/// trackpoint that used to re-run on each `TrailPanel` rebuild (the parent
+/// screen rebuilds on provider changes; before the AppBar-fade fix it
+/// rebuilt per scrolled pixel). [Expando] keys weakly on the parsed [Gpx]
+/// object, so entries vanish with the trail model — no manual invalidation,
+/// no leak.
+final Expando<GpxTrailMetrics> _metricsMemo = Expando<GpxTrailMetrics>();
+
+GpxTrailMetrics _memoizedTrailMetrics(Gpx gpx) =>
+    _metricsMemo[gpx] ??= computeTrailMetrics(gpx);
 
 class TrailPanel extends ConsumerWidget {
   const TrailPanel({
@@ -55,7 +67,7 @@ class TrailPanel extends ConsumerWidget {
 
     final metrics = trail.expand?.gpx == null
         ? null
-        : computeTrailMetrics(trail.expand!.gpx!);
+        : _memoizedTrailMetrics(trail.expand!.gpx!);
 
     final displayDuration = trailDisplayDuration(trail);
 

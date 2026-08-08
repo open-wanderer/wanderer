@@ -55,7 +55,6 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
         title: Text(AppLocalizations.of(context)!.list(2)),
       ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -66,7 +65,12 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
                   .search(q),
             ),
           ),
-          ListQuickFilterBar(filterId: 'profile_list_${widget.handle}'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ListQuickFilterBar(
+              filterId: 'profile_list_${widget.handle}',
+            ),
+          ),
           Expanded(
             child: listsAsync.when(
               data: (state) => RefreshIndicator(
@@ -88,6 +92,7 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
                           }
                           final list = state.lists[index];
                           return ListListItem(
+                            key: ValueKey(list.id),
                             list: list,
                             onListSelect: () =>
                                 context.push('/list/${list.id}'),

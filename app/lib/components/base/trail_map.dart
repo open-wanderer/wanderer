@@ -80,6 +80,11 @@ class _TrailMapState extends ConsumerState<TrailMap>
   /// swaps in place via [ml.MapController.setStyle] instead of remounting.
   String? _lastStyleJson;
 
+  /// Cached [ml.MapOptions] + the `disabled` value it was built for --
+  /// see the build-site comment.
+  ml.MapOptions? _mapOptions;
+  bool? _mapOptionsDisabled;
+
   bool _cacheWarmed = false;
 
   @override
@@ -197,8 +202,15 @@ class _TrailMapState extends ConsumerState<TrailMap>
       lon: widget.trail.lon ?? 0,
     );
 
-    return ml.MapLibreMap(
-      options: ml.MapOptions(
+    // Rebuilt only when `disabled` flips: `MapOptions` has no value
+    // equality, so a fresh instance per build defeats the plugin's
+    // `didUpdateWidget` early-out and re-issues its zoom/pitch JNI setters
+    // on every rebuild of this host (sheet drags, elevation scrubs, theme
+    // reads). Every other field is init-only; the gestures flip is the one
+    // post-creation option change that must still propagate.
+    if (_mapOptions == null || _mapOptionsDisabled != widget.disabled) {
+      _mapOptionsDisabled = widget.disabled;
+      _mapOptions = ml.MapOptions(
         initStyle: styleJson,
         initCenter: center,
         initZoom: 18,
@@ -215,7 +227,11 @@ class _TrailMapState extends ConsumerState<TrailMap>
         // the Flutter marker layers drawn over the map.
         androidTextureMode: false,
         androidMode: ml.AndroidPlatformViewMode.hc,
-      ),
+      );
+    }
+
+    return ml.MapLibreMap(
+      options: _mapOptions!,
       onMapCreated: (controller) {
         _controller = controller;
         widget.onMapCreated?.call(controller);

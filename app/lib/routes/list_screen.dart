@@ -143,6 +143,7 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                                 );
                               }
                               return ListCard(
+                                key: ValueKey(state.lists[i].id),
                                 list: state.lists[i],
                                 mini: false,
                                 onListSelect: () =>

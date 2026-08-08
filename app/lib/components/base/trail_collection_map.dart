@@ -67,6 +67,11 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
   /// instead (mirrors `TrailMap`'s approach).
   String? _lastStyleJson;
 
+  /// Cached [ml.MapOptions] + the `disabled` value it was built for --
+  /// see the build-site comment.
+  ml.MapOptions? _mapOptions;
+  bool? _mapOptionsDisabled;
+
   @override
   Widget build(BuildContext context) {
     // Live style swap: when the style JSON changes (theme toggle), swap the
@@ -106,8 +111,12 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
       return ColoredBox(color: Theme.of(context).colorScheme.surface);
     }
 
-    return ml.MapLibreMap(
-      options: ml.MapOptions(
+    // Cached on the `disabled` flip — see TrailMap's identical cache for why
+    // (MapOptions has no value equality; a fresh instance per build
+    // re-issues the plugin's option JNI setters on every rebuild).
+    if (_mapOptions == null || _mapOptionsDisabled != widget.disabled) {
+      _mapOptionsDisabled = widget.disabled;
+      _mapOptions = ml.MapOptions(
         initStyle: styleJson,
         initCenter: widget.initCenter ?? const ml.Geographic(lat: 0, lon: 0),
         initZoom: widget.initZoom ?? 3,
@@ -118,7 +127,11 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
         // See TrailMap for why texture mode is off and `hc` is pinned.
         androidTextureMode: false,
         androidMode: ml.AndroidPlatformViewMode.hc,
-      ),
+      );
+    }
+
+    return ml.MapLibreMap(
+      options: _mapOptions!,
       onMapCreated: (controller) {
         _controller = controller;
         widget.onMapCreated?.call(controller);

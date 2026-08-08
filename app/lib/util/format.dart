@@ -1,4 +1,18 @@
+import 'package:intl/intl.dart';
 import 'package:wanderer/models/trail_summary.dart';
+
+/// Memoized [DateFormat]s keyed by locale. Constructing a `DateFormat`
+/// resolves the locale's full pattern data — doing that inside every list
+/// item's `build()` (per card, per rebuild, during scroll) was pure waste;
+/// the set of live locales is one, or two around a locale switch.
+final Map<String, DateFormat> _yMMMMdCache = {};
+final Map<String, DateFormat> _yMMMdCache = {};
+
+DateFormat dateFormatYMMMMd(String locale) =>
+    _yMMMMdCache.putIfAbsent(locale, () => DateFormat.yMMMMd(locale));
+
+DateFormat dateFormatYMMMd(String locale) =>
+    _yMMMdCache.putIfAbsent(locale, () => DateFormat.yMMMd(locale));
 
 /// The single app-side display rule: show `movingDuration` when it is
 /// present and positive, otherwise fall back to `duration`. A zero moving
