@@ -335,7 +335,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
                         FlLine(
                           color: Theme.of(
                             context,
-                          ).primaryColor.withValues(alpha: 0.4),
+                          ).colorScheme.onSurface.withValues(alpha: 0.4),
                           strokeWidth: 1,
                         ),
                         FlDotData(
