@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart' show compute, debugPrint;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,7 +94,12 @@ Future<void> importTrailFile({
         ? await File(path).readAsString()
         : await transcodeToGpx(ref, path, name);
 
-    final gpx = parseGpxSafely(gpxXml);
+    // Off the UI thread: a file import is user-initiated with a spinner up,
+    // and a big GPX parse used to jank the whole frame right at the tap.
+    // compute (not a raw Isolate.run closure): a closure captures its
+    // enclosing scope frame — here that includes a BuildContext and the
+    // widget binding, which are unsendable; compute sends only the string.
+    final gpx = await compute(parseGpxSafely, gpxXml);
 
     final hasUsablePoint =
         gpx.allWaypoints.isNotEmpty ||
@@ -179,7 +185,7 @@ Future<void> importTrailFile({
       // Re-serialise so the saved track matches its own computed metrics —
       // passing the untransformed original text here would save a track
       // that disagrees with the trail built from finalGpx below.
-      finalGpxData = GpxWriter().asString(finalGpx);
+      finalGpxData = await compute(serializeGpxToXml, finalGpx);
     }
 
     trail = await buildLocalTrail(
@@ -262,12 +268,19 @@ Future<Trail> buildLocalTrail(
   Duration? movingDuration,
   String? gpxData,
 }) async {
-  final trail = trailFromGpx(
-    gpx,
+  // compute(): trailFromGpx runs the full ported metrics computation over
+  // every trackpoint (distance/elevation accumulation) — pure CPU that
+  // otherwise lands on the UI thread at exactly the moments that must stay
+  // responsive (recording Stop tap, planner finish, file import). The
+  // computation itself is byte-identical — only the thread changes. compute
+  // with an explicit args record, never a capturing closure: the enclosing
+  // scope holds a WidgetRef, which is unsendable.
+  final trail = await compute(trailFromGpxIsolate, (
+    gpx: gpx,
     fallbackName: fallbackName,
     movingDuration: movingDuration,
     gpxData: gpxData,
-  );
+  ));
 
   final lat = trail.lat;
   final lon = trail.lon;

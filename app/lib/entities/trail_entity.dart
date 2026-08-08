@@ -310,7 +310,14 @@ List<Tag> decodeTrailTags(String? tagsJson) {
 }
 
 extension TrailEntityMapping on TrailEntity {
-  Trail toModel() {
+  /// [includeGpx] gates the expensive part: parsing `gpxData` into a full
+  /// `Gpx` object graph (and carrying the raw XML string alongside it).
+  /// List surfaces (library, own-trails) render only the scalar columns
+  /// stored on this row, yet used to pay a synchronous UI-thread XML parse
+  /// per trail — and then hold every parsed trackpoint plus the raw XML in
+  /// memory for as long as the list was alive. Pass `false` for list rows;
+  /// detail/save/upload paths keep the default and read a fresh full model.
+  Trail toModel({bool includeGpx = true}) {
     final tags = decodeTrailTags(tagsJson);
 
     return Trail(
@@ -368,13 +375,13 @@ extension TrailEntityMapping on TrailEntity {
         tags: tags,
         author: author.target?.toModel(),
         category: category.target?.toModel(),
-        gpxData: gpxData,
+        gpxData: includeGpx ? gpxData : null,
         // parseGpxSafely, not a bare GpxReader: this is third-party GPX read
         // back out of the offline cache and needs the full sanitize chain.
         // toModel() is called outside any try/catch, so a FormatException from
         // an unsanitized tag escaped the notifier entirely and made the trail
         // permanently un-openable offline once cached.
-        gpx: gpxData != null ? parseGpxSafely(gpxData!) : null,
+        gpx: includeGpx && gpxData != null ? parseGpxSafely(gpxData!) : null,
         waypointsViaTrail: waypoints.map((w) => w.toModel()).toList(),
       ),
     );

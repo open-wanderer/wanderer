@@ -31,15 +31,21 @@ class TrailLibraryNotifier extends _$TrailLibraryNotifier {
     final query = box
         .query(TrailEntity_.savedByUserIds.containsElement(userId))
         .build();
-    // Per-entity guard, not a bulk `.map()`: toModel() parses the cached GPX,
-    // and a parse failure there used to propagate out of build() and fail the
+    // Per-entity guard, not a bulk `.map()`: toModel() can throw on a corrupt
+    // row, and a failure there used to propagate out of build() and fail the
     // ENTIRE offline library — one unopenable trail hid every other downloaded
     // trail, with no way for the user to fix or even identify it. Losing the
     // one bad row is the correct blast radius.
+    //
+    // includeGpx: false — the library list renders scalar columns only, and
+    // parsing every downloaded trail's full GPX here was a synchronous
+    // UI-thread XML pass over the entire library on every open, then held
+    // every trackpoint + raw XML in memory for the list's lifetime. Detail
+    // screens re-read their own full model on open.
     final trails = <Trail>[];
     for (final entity in query.find()) {
       try {
-        trails.add(entity.toModel());
+        trails.add(entity.toModel(includeGpx: false));
       } catch (e, st) {
         debugPrint(
           'TrailLibrary: skipping cached trail "${entity.id}" — '

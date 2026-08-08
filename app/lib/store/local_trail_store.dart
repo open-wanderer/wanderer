@@ -1148,7 +1148,11 @@ List<Trail> readOwnLocalTrails(
     if (!isOwn && !isAuthoredByThisAccount) continue;
 
     try {
-      trails.add(entity.toModel());
+      // includeGpx: false — same list-surface rationale as
+      // trailLibraryProvider: these rows feed the profile own-trails cards,
+      // which render scalar columns only; a tap re-reads the full model via
+      // readOwnLocalTrail/trailProvider.
+      trails.add(entity.toModel(includeGpx: false));
     } catch (e, st) {
       debugPrint(
         'local_trail_store: readOwnLocalTrails skipping "${entity.id}" -- '
