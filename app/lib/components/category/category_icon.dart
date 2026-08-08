@@ -78,8 +78,8 @@ Widget trailCategoryIcon(
 Widget categoryFilterAvatar(Category c, {double size = 16, Color? color}) {
   final iconData = _categoryIconData(c);
   return iconData != null
-      ? FaIcon(iconData, size: size)
-      : Icon(Icons.category, size: size);
+      ? FaIcon(iconData, size: size, color: color)
+      : Icon(Icons.category, size: size, color: color);
 }
 
 Widget? subcategoryBadgeAvatar(Subcategory c, {Color? color, double size = 8}) {
