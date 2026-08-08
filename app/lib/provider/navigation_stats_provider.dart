@@ -128,7 +128,10 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   Geographic? _lastPoint;
 
   @override
-  NavigationStats build(NavigateResponse response, {NavigationStatsSeed? resume}) {
+  NavigationStats build(
+    NavigateResponse response, {
+    NavigationStatsSeed? resume,
+  }) {
     // Cancel the timer when the family entry is disposed.
     ref.onDispose(() => _ticker?.cancel());
 
@@ -142,7 +145,13 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     // Subtracting only `elapsed` while separately restoring `_pausedAccum`
     // would double-count paused time — this formula avoids that.
     _start = DateTime.now().subtract(resume.elapsed + resume.pausedAccum);
-    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    // A session resumed in the paused state starts with no ticker — the
+    // frozen↔unfrozen transitions own the timer's lifecycle (see
+    // [_applyFrozen]); a 1 Hz wakeup whose tick is a guaranteed no-op is
+    // pure battery waste over an hours-long pause.
+    if (!resume.isPaused) {
+      _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
     // Stationary state is NOT persisted/resumed here — it is re-derived
     // within seconds of session resume via tracelet's engine re-emitting a
     // SpeedMotionEvent once tracking restarts. Any stationary interval that
@@ -290,6 +299,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     if (nowFrozen) {
       _frozenSince = DateTime.now();
       state = state.copyWith(currentSpeedKmh: 0);
+      // Frozen ticks are guaranteed no-ops (see [_tick]) — stop the 1 Hz
+      // timer entirely instead of waking up to do nothing for the whole
+      // paused/stationary interval.
+      _ticker?.cancel();
+      _ticker = null;
     } else {
       if (_start != null) {
         _pausedAccum += DateTime.now().difference(_frozenSince!);
@@ -298,6 +312,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
       // Re-anchor so the frozen interval contributes no distance/elevation.
       _lastPoint = null;
       _lastAltitude = null;
+      // Restart the clock only for a session that has actually started —
+      // before the first fix, [onPosition] owns ticker creation.
+      if (_start != null) {
+        _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+      }
     }
   }
 }

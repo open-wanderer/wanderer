@@ -26,6 +26,7 @@ import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
+import 'package:wanderer/services/tracelet_position_source.dart';
 
 import 'i18n/app_localizations.dart';
 import 'objectbox.g.dart';
@@ -356,7 +357,14 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   void _maybeResume() {
     final store = ref.read(objectBoxProvider);
     final row = active_nav.read(store);
-    if (row == null) return;
+    if (row == null) {
+      // No session to resume, but `stopOnTerminate: false` means a native
+      // tracking service can outlive the process that started it (e.g. a
+      // prior launch's declined resume) — reconcile so it never tracks
+      // ownerless. No-op when nothing is running.
+      unawaited(TraceletPositionSource.stopOrphanedTracking());
+      return;
+    }
 
     if (row.sessionType == ActiveSessionType.rec) {
       _maybeResumeRecording(store, row);
@@ -364,9 +372,11 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     }
 
     // Only nav-type rows are resumable below — an unresolvable/non-nav row
-    // is dropped silently.
+    // is dropped silently (and any surviving native tracking session with
+    // it, see above).
     if (row.sessionType != ActiveSessionType.nav || row.trailId == null) {
       active_nav.clear(store);
+      unawaited(TraceletPositionSource.stopOrphanedTracking());
       return;
     }
 
@@ -376,6 +386,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
         response.shape.isEmpty) {
       // Trail not downloaded / corrupt cache — silently drop, no dialog.
       active_nav.clear(store);
+      unawaited(TraceletPositionSource.stopOrphanedTracking());
       return;
     }
 
@@ -426,7 +437,10 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
           extra: (response, isOffline, row, null),
         );
       } else {
+        // Declined: drop the row AND the native tracking session that
+        // survived termination for it (stopOnTerminate: false).
         active_nav.clear(store);
+        unawaited(TraceletPositionSource.stopOrphanedTracking());
       }
     });
   }
@@ -468,7 +482,10 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
             .refresh();
         navigatorKey.currentContext?.push('/record', extra: row);
       } else {
+        // Declined: drop the row AND the native tracking session that
+        // survived termination for it (stopOnTerminate: false).
         active_nav.clear(store);
+        unawaited(TraceletPositionSource.stopOrphanedTracking());
       }
     });
   }

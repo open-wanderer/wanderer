@@ -182,4 +182,21 @@ class TraceletPositionSource {
     await _controller.close();
     await _movingController.close();
   }
+
+  /// Best-effort stop of a native tracking session left running by a killed
+  /// app process. `stopOnTerminate: false` (see [_foregroundConfig]) is what
+  /// lets an in-progress recording survive termination — but it also means
+  /// that when the persisted session row is dropped instead of resumed
+  /// (user declines the resume prompt, or the row is unresolvable), nothing
+  /// ever told the native service to stop, and it kept tracking — GPS,
+  /// foreground notification and all — until the next recording session
+  /// reconfigured it. Called from the startup resume-reconciliation paths in
+  /// `main.dart`; a no-op (or swallowed error) when nothing is running.
+  static Future<void> stopOrphanedTracking() async {
+    try {
+      await tl.Tracelet.stop();
+    } catch (_) {
+      // Not running / plugin unavailable — nothing to stop.
+    }
+  }
 }
