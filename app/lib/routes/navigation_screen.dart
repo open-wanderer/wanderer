@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show exp, pi;
@@ -1347,7 +1348,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                           top: widget.isRecording ? 8 : 128,
                           left: 8,
                           child: SafeArea(
-                            child: const ml.MapScalebar(
+                            child: const WandererMapScalebar(
                               alignment: Alignment.topLeft,
                             ),
                           ),
@@ -1368,7 +1369,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                ml.MapCompass(
+                                WandererMapCompass(
                                   hideIfRotatedNorth: false,
                                   rotateNorthOnPressed: false,
                                   onPressed: () {

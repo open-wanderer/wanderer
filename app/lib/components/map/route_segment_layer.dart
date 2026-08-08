@@ -31,7 +31,10 @@ class RouteSegmentLayer {
   /// order: routed casing under routed, so 2px of white shows as an
   /// outline). On subsequent calls, updates the existing source's data in
   /// place via [ml.StyleController.updateGeoJsonSource] to avoid flicker.
-  Future<void> update(ml.StyleController style, List<RouteSegment> segments) async {
+  Future<void> update(
+    ml.StyleController style,
+    List<RouteSegment> segments,
+  ) async {
     final data = buildSegmentsGeoJson(segments);
 
     if (!_added) {
@@ -50,7 +53,10 @@ class RouteSegmentLayer {
             'line-cap': 'round',
             'line-join': 'round',
           },
-          paint: const <String, Object>{'line-color': '#ffffff', 'line-width': 9},
+          paint: const <String, Object>{
+            'line-color': '#ffffff',
+            'line-width': 9,
+          },
         ),
       );
       await style.addLayer(
@@ -66,7 +72,10 @@ class RouteSegmentLayer {
             'line-cap': 'round',
             'line-join': 'round',
           },
-          paint: const <String, Object>{'line-color': '#3549bb', 'line-width': 5},
+          paint: const <String, Object>{
+            'line-color': '#3549bb',
+            'line-width': 5,
+          },
         ),
       );
       await style.addLayer(
@@ -122,7 +131,11 @@ class RouteSegmentLayer {
         ml.LineStyleLayer(
           id: hitLayerId,
           sourceId: sourceId,
-          paint: const <String, Object>{'line-color': '#000000', 'line-width': 24, 'line-opacity': 0.01},
+          paint: const <String, Object>{
+            'line-color': '#000000',
+            'line-width': 24,
+            'line-opacity': 0.01,
+          },
         ),
       );
 

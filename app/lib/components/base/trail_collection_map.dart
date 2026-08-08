@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -137,7 +138,8 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
       onEvent: (event) => widget.onMapEvent?.call(event),
       layers: widget.layers ?? const [],
       children:
-          widget.children ?? const [ml.MapScalebar(), WandererAttribution()],
+          widget.children ??
+          const [WandererMapScalebar(), WandererAttribution()],
     );
   }
 }

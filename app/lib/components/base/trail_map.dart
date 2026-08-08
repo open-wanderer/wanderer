@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -252,7 +253,7 @@ class _TrailMapState extends ConsumerState<TrailMap>
 
         if (widget.showLocation) const LocationMarkerLayer(),
 
-        const ml.MapScalebar(alignment: Alignment.topLeft),
+        const WandererMapScalebar(alignment: Alignment.topLeft),
         const WandererAttribution(
           alignment: Alignment.topLeft,
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 44),

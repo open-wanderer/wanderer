@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -635,10 +636,12 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                   right: 8,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    children: const [ml.MapCompass(hideIfRotatedNorth: true)],
+                    children: const [
+                      WandererMapCompass(hideIfRotatedNorth: true),
+                    ],
                   ),
                 ),
-                ml.MapScalebar(
+                WandererMapScalebar(
                   alignment: Alignment.topLeft,
                   padding: EdgeInsets.only(left: 24, top: kToolbarHeight + 24),
                 ),

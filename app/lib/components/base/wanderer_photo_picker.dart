@@ -123,7 +123,8 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
             for (var i = 0; i < _webPhotos.length; i++)
               _Thumbnail(
                 image: Image.network(
-                  widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ?? _webPhotos[i],
+                  widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ??
+                      _webPhotos[i],
                   fit: BoxFit.cover,
                 ),
                 onRemove: widget.onWebPhotosChanged == null

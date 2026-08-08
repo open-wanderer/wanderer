@@ -219,7 +219,8 @@ class _DropdownPanel extends StatelessWidget {
                   leading: CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.grey.shade300,
-                    backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
+                    backgroundImage:
+                        actor.icon != null && actor.icon!.isNotEmpty
                         ? NetworkImage(actor.icon!)
                         : NetworkImage(
                             'https://api.dicebear.com/7.x/initials/png?seed=$displayName',

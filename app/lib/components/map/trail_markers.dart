@@ -7,8 +7,18 @@ import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/subcategory.dart';
 
+/// Saturation cap on rendered widget markers. Every marker in a
+/// [ml.WidgetLayer] costs one JNI screen-projection per native camera frame
+/// during a pan, so up to the search page size (100) of them made panning
+/// measurably expensive. Beyond this many pins the map is visually saturated
+/// anyway; denser areas are already folded into the native cluster circles
+/// server-side, dropped trails remain in the result sheet, and zooming in
+/// re-clusters. Approved trade-off (2026-08-08).
+const _kMaxUnclusteredMarkers = 60;
+
 /// Builds the category-icon markers for every unclustered (`point_count ==
-/// 1`) feature in a cluster-endpoint `FeatureCollection`.
+/// 1`) feature in a cluster-endpoint `FeatureCollection`, capped at
+/// [_kMaxUnclusteredMarkers].
 ///
 /// Shared by `map_screen.dart` and `profile_trail_map_screen.dart` so the two
 /// screens' marker rendering cannot silently drift apart.
@@ -23,6 +33,7 @@ List<ml.Marker> buildUnclusteredTrailMarkers({
   final markers = <ml.Marker>[];
 
   for (final feature in features) {
+    if (markers.length >= _kMaxUnclusteredMarkers) break;
     if (feature is! Map) continue;
     final properties = feature['properties'];
     if (properties is! Map) continue;

@@ -63,87 +63,118 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
     });
   }
 
+  ml.Marker _buildAnchorMarker(
+    RouteAnchor anchor,
+    int number, {
+    required bool isSelected,
+    required bool isDragging,
+    required ml.Geographic point,
+  }) {
+    return ml.Marker(
+      point: point,
+      size: const Size(32, 32),
+      // Anchors keep their single-finger drag; MapMarkerGestures only
+      // hands two-finger gestures back to the map.
+      child: MapMarkerGestures(
+        onTap: () => widget.onAnchorTap?.call(anchor.id),
+        onPanStart: (details) {
+          final c = ml.MapController.maybeOf(context);
+          if (c == null) return;
+          setState(() {
+            _draggingAnchorId = anchor.id;
+            _dragOffset = c.toScreenLocation(anchor.point);
+          });
+        },
+        onPanUpdate: (details) {
+          if (_draggingAnchorId != anchor.id || _dragOffset == null) {
+            return;
+          }
+          setState(() => _dragOffset = _dragOffset! + details.delta);
+        },
+        onPanEnd: (details) {
+          if (_draggingAnchorId != anchor.id) return;
+          final c = ml.MapController.maybeOf(context);
+          final offset = _dragOffset;
+          _clearDrag();
+          if (c != null && offset != null) {
+            // Called only at gesture end, never onPanUpdate — re-resolves
+            // the anchor's adjacent segments to the current routing mode.
+            ref
+                .read(routeAnchorsProvider.notifier)
+                .dragAnchor(anchor.id, c.toLngLat(offset));
+          }
+        },
+        onPanCancel: () {
+          if (_draggingAnchorId == anchor.id) _clearDrag();
+        },
+        child: AnimatedScale(
+          scale: (isSelected || isDragging) ? 1.0 : 0.875,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
+          child: _buildNumberedMarker(
+            context,
+            number,
+            selected: isSelected || isDragging,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final anchors = ref.watch(routeAnchorsProvider).anchors;
     final controller = ml.MapController.maybeOf(context);
     final brightness = Theme.of(context).brightness;
 
-    // A drag re-projects a fixed screen offset through the live camera, so
-    // its marker must be rebuilt every frame. Only the static case caches.
     final cached = _cachedMarkers;
-    if (_draggingAnchorId == null &&
+    final cacheValid =
         cached != null &&
         identical(anchors, _cachedAnchors) &&
         _cachedSelectedId == widget.selectedAnchorId &&
-        _cachedBrightness == brightness) {
+        _cachedBrightness == brightness;
+
+    if (cacheValid && _draggingAnchorId == null) {
       return ml.WidgetLayer(allowInteraction: true, markers: cached);
     }
 
-    final markers = <ml.Marker>[];
-
-    for (var i = 0; i < anchors.length; i++) {
-      final anchor = anchors[i];
-      final number = i + 1; // derived from list order, never stored.
-      final isSelected = widget.selectedAnchorId == anchor.id;
-      final isDragging = _draggingAnchorId == anchor.id;
-      final point = (isDragging && controller != null && _dragOffset != null)
-          ? controller.toLngLat(_dragOffset!)
-          : anchor.point;
-
-      markers.add(
-        ml.Marker(
-          point: point,
-          size: const Size(32, 32),
-          // Anchors keep their single-finger drag; MapMarkerGestures only
-          // hands two-finger gestures back to the map.
-          child: MapMarkerGestures(
-            onTap: () => widget.onAnchorTap?.call(anchor.id),
-            onPanStart: (details) {
-              final c = ml.MapController.maybeOf(context);
-              if (c == null) return;
-              setState(() {
-                _draggingAnchorId = anchor.id;
-                _dragOffset = c.toScreenLocation(anchor.point);
-                _invalidateMarkers();
-              });
-            },
-            onPanUpdate: (details) {
-              if (_draggingAnchorId != anchor.id || _dragOffset == null) {
-                return;
-              }
-              setState(() => _dragOffset = _dragOffset! + details.delta);
-            },
-            onPanEnd: (details) {
-              if (_draggingAnchorId != anchor.id) return;
-              final c = ml.MapController.maybeOf(context);
-              final offset = _dragOffset;
-              _clearDrag();
-              if (c != null && offset != null) {
-                // Called only at gesture end, never onPanUpdate — re-resolves
-                // the anchor's adjacent segments to the current routing mode.
-                ref
-                    .read(routeAnchorsProvider.notifier)
-                    .dragAnchor(anchor.id, c.toLngLat(offset));
-              }
-            },
-            onPanCancel: () {
-              if (_draggingAnchorId == anchor.id) _clearDrag();
-            },
-            child: AnimatedScale(
-              scale: (isSelected || isDragging) ? 1.0 : 0.875,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutBack,
-              child: _buildNumberedMarker(
-                context,
-                number,
-                selected: isSelected || isDragging,
-              ),
-            ),
-          ),
-        ),
-      );
+    // A drag re-projects a fixed screen offset through the live camera, so
+    // the DRAGGED marker must rebuild every frame — but only that one. The
+    // other N-1 markers come from the pre-drag cache untouched (drag start
+    // no longer invalidates it), so a drag costs one subtree per frame
+    // instead of all of them. Anchors can't change identity mid-gesture:
+    // `dragAnchor` only fires at pan end.
+    final draggingId = _draggingAnchorId;
+    if (cacheValid && draggingId != null) {
+      final idx = anchors.indexWhere((a) => a.id == draggingId);
+      if (idx >= 0 && controller != null && _dragOffset != null) {
+        final markers = [...cached];
+        markers[idx] = _buildAnchorMarker(
+          anchors[idx],
+          idx + 1,
+          isSelected: widget.selectedAnchorId == anchors[idx].id,
+          isDragging: true,
+          point: controller.toLngLat(_dragOffset!),
+        );
+        return ml.WidgetLayer(allowInteraction: true, markers: markers);
+      }
     }
+
+    final markers = <ml.Marker>[
+      for (var i = 0; i < anchors.length; i++)
+        _buildAnchorMarker(
+          anchors[i],
+          i + 1, // derived from list order, never stored.
+          isSelected: widget.selectedAnchorId == anchors[i].id,
+          isDragging: _draggingAnchorId == anchors[i].id,
+          point:
+              (_draggingAnchorId == anchors[i].id &&
+                  controller != null &&
+                  _dragOffset != null)
+              ? controller.toLngLat(_dragOffset!)
+              : anchors[i].point,
+        ),
+    ];
 
     // Only the static case is reusable — a drag's marker position is derived
     // from the live camera, so caching it would freeze it mid-gesture.

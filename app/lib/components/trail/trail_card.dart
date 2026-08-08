@@ -400,4 +400,3 @@ class _StatsGrid extends StatelessWidget {
     );
   }
 }
-

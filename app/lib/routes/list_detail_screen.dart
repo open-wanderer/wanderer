@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart' as html;
@@ -413,7 +414,7 @@ class _ListMapState extends ConsumerState<_ListMap> {
           : null,
       children: [
         if (markers.isNotEmpty) ml.WidgetLayer(markers: markers),
-        const ml.MapScalebar(alignment: Alignment.topLeft),
+        const WandererMapScalebar(alignment: Alignment.topLeft),
         const WandererAttribution(
           alignment: Alignment.topLeft,
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 44),

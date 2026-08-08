@@ -111,8 +111,7 @@ class _TrailDropdownState extends ConsumerState<TrailDropdown> {
     // That follows directly from account scoping and costs nothing -- the
     // store keeps that row on removal anyway, and the trail remains in
     // their own-trails list.
-    final showDownloadFamily =
-        !isOwnLiveCapture && trailHasServerId(trail.id);
+    final showDownloadFamily = !isOwnLiveCapture && trailHasServerId(trail.id);
 
     final isDownloading = ref
         .watch(downloadingTrailIdsProvider)

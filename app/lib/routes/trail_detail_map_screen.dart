@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -126,7 +127,7 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
             ),
             controls: [
               _buildMapControls(context, trail),
-              const ml.MapCompass(hideIfRotatedNorth: true),
+              const WandererMapCompass(hideIfRotatedNorth: true),
             ],
             onMapCreated: (controller) => _mapController = controller,
           ),

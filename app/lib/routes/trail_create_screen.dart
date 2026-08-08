@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -1236,7 +1237,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                     top: 40,
                   ),
                   controls: [
-                    const ml.MapCompass(
+                    const WandererMapCompass(
                       hideIfRotatedNorth: true,
 
                       padding: EdgeInsets.only(top: 112, right: 4),
