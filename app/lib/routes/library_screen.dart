@@ -49,7 +49,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     super.dispose();
   }
 
-  List<Trail> _filtered(List<Trail> trails, TrailFilter? filter) {
+  List<Trail> _filtered(
+    List<Trail> trails,
+    TrailFilter? filter,
+    Set<String> downloadedIds,
+  ) {
     final q = _query.trim().toLowerCase();
     List<Trail> result = q.isEmpty
         ? trails
@@ -59,7 +63,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           }).toList();
 
     if (filter != null) {
-      result = applyTrailFilter(result, filter);
+      // downloadedIds is tautological here -- every row on this screen
+      // already comes from trailLibraryProvider, so offlineOnly can never
+      // drop anything. Threaded through anyway so there is exactly one
+      // filtering path; do not "clean up" this apparently-dead argument.
+      result = applyTrailFilter(result, filter, downloadedIds: downloadedIds);
     }
 
     return result;
@@ -70,7 +78,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final trailLibrary = ref.watch(trailLibraryProvider);
     final router = ref.watch(routerProvider);
     final filterAsync = ref.watch(trailFilterProvider('library'));
-    final visible = _filtered(trailLibrary, filterAsync.value);
+    final downloadedIds = ref.watch(downloadedTrailIdsProvider);
+    final visible = _filtered(trailLibrary, filterAsync.value, downloadedIds);
     final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
@@ -116,7 +125,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
             ),
-            const TrailQuickFilterBar(filterId: 'library'),
+            // showOfflineChip: false -- every row on this screen is already
+            // downloaded by definition, so the chip would be a
+            // visible-but-inert control (toggling it never changes the
+            // list), which reads as a bug rather than a feature.
+            const TrailQuickFilterBar(
+              filterId: 'library',
+              showOfflineChip: false,
+            ),
             Expanded(
               child: visible.isEmpty
                   // An empty library and an over-narrow search/filter are

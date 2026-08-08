@@ -8,6 +8,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
 part 'map_trail_search_provider.g.dart';
 
@@ -79,6 +80,11 @@ class MapTrailSearch extends _$MapTrailSearch {
       final filterText = filter.toFilterText(
         actor: user?.actorId ?? "",
         includeGeo: false,
+        offlineTrailIds: offlineTrailIdsForMapSearch(
+          ref,
+          offlineOnly: filter.offlineOnly,
+          authorId: authorId,
+        ),
       );
 
       // Wrap coordinate longitudes to [-180, 180]

@@ -687,6 +687,11 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
               top: MediaQuery.paddingOf(context).top + kToolbarHeight,
               left: 0,
               right: 0,
+              // The offline chip works here because the clause is an
+              // `id IN [...]` whitelist evaluated server-side, so clusters are
+              // aggregated over the already-filtered set. A client-side
+              // intersection could not have done this -- a cluster is a count,
+              // not a trail -- and would have made filtering depend on zoom.
               child: TrailQuickFilterBar(filterId: _filterId),
             ),
 

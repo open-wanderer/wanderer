@@ -32,6 +32,7 @@ TrailFilter _baseFilter({
   double elevationLossLimit = 10000,
   DateTime? startDate,
   DateTime? endDate,
+  bool offlineOnly = false,
   TrailFilterSort sort = TrailFilterSort.created,
   SortOrder sortOrder = SortOrder.desc,
 }) {
@@ -53,12 +54,14 @@ TrailFilter _baseFilter({
     elevationLossLimit: elevationLossLimit,
     startDate: startDate,
     endDate: endDate,
+    offlineOnly: offlineOnly,
     sort: sort,
     sortOrder: sortOrder,
   );
 }
 
 Trail _trail({
+  String id = '',
   String name = 'Trail',
   TrailDifficulty difficulty = TrailDifficulty.easy,
   double distance = 0,
@@ -70,8 +73,10 @@ Trail _trail({
   String? subcategory,
   DateTime? date,
   DateTime? created,
+  bool isLocal = false,
 }) {
   return Trail.empty().copyWith(
+    id: id,
     name: name,
     difficulty: difficulty,
     distance: distance,
@@ -83,6 +88,7 @@ Trail _trail({
     subcategory: subcategory,
     date: date,
     created: created ?? DateTime(2024, 1, 1),
+    isLocal: isLocal,
   );
 }
 
@@ -279,6 +285,76 @@ void main() {
       );
 
       expect(result.map((t) => t.name), ['Undated']);
+    });
+  });
+
+  group('offlineOnly', () {
+    test('flag off changes nothing, even for a non-downloaded, non-local trail', () {
+      final trails = [_trail(name: 'A', id: 'a', isLocal: false)];
+
+      final result = applyTrailFilter(
+        trails,
+        _baseFilter(offlineOnly: false),
+        downloadedIds: const {},
+      );
+
+      expect(result.map((t) => t.name), ['A']);
+    });
+
+    test('drops a non-downloaded, non-local trail when the flag is on', () {
+      final trails = [_trail(name: 'A', id: 'a', isLocal: false)];
+
+      final result = applyTrailFilter(
+        trails,
+        _baseFilter(offlineOnly: true),
+        downloadedIds: const {},
+      );
+
+      expect(result, isEmpty);
+    });
+
+    test('keeps a trail whose id is in downloadedIds', () {
+      final trails = [_trail(name: 'A', id: 'a', isLocal: false)];
+
+      final result = applyTrailFilter(
+        trails,
+        _baseFilter(offlineOnly: true),
+        downloadedIds: {'a'},
+      );
+
+      expect(result.map((t) => t.name), ['A']);
+    });
+
+    test('keeps a local trail even when downloadedIds is empty', () {
+      final trails = [_trail(name: 'A', id: 'a', isLocal: true)];
+
+      final result = applyTrailFilter(
+        trails,
+        _baseFilter(offlineOnly: true),
+        downloadedIds: const {},
+      );
+
+      expect(result.map((t) => t.name), ['A']);
+    });
+
+    test('composes with an existing clause: a downloaded trail excluded by '
+        'difficulty is still dropped', () {
+      final trails = [
+        _trail(
+          name: 'A',
+          id: 'a',
+          isLocal: false,
+          difficulty: TrailDifficulty.difficult,
+        ),
+      ];
+
+      final result = applyTrailFilter(
+        trails,
+        _baseFilter(offlineOnly: true, difficulty: const [0, 1]),
+        downloadedIds: {'a'},
+      );
+
+      expect(result, isEmpty);
     });
   });
 

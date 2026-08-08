@@ -7,6 +7,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
 part 'map_cluster_search_provider.g.dart';
 
@@ -106,6 +107,11 @@ class MapClusterSearch extends _$MapClusterSearch {
       final baseFilterText = filter.toFilterText(
         actor: user?.actorId ?? "",
         includeGeo: false,
+        offlineTrailIds: offlineTrailIdsForMapSearch(
+          ref,
+          offlineOnly: filter.offlineOnly,
+          authorId: authorId,
+        ),
       );
 
       // The cluster endpoint takes `filterText` as a single string (unlike

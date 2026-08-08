@@ -15,6 +15,75 @@ import 'dart:io';
 
 part 'trail_library_provider.g.dart';
 
+/// The set of trail ids currently in the signed-in account's downloaded
+/// library -- the single named id-set view other providers/utils inject into
+/// `applyTrailFilter`'s `downloadedIds` parameter for the `offlineOnly` chip.
+///
+/// Account scoping is INHERITED from [trailLibraryProvider] and must never
+/// be re-implemented here: that provider already returns `const []` for a
+/// signed-out account, which is what keeps one account's downloads from
+/// leaking into another's filter through this view.
+///
+/// Empty ids are dropped -- an unsynced local capture has a blanked server
+/// id, and is covered instead by `applyTrailFilter`'s separate `isLocal`
+/// branch.
+@riverpod
+Set<String> downloadedTrailIds(Ref ref) {
+  final library = ref.watch(trailLibraryProvider);
+  return library.map((t) => t.id).where((id) => id.isNotEmpty).toSet();
+}
+
+/// [downloadedTrailIds] narrowed to the trails authored by [authorActorId] --
+/// the set a profile search sends to the server as its `id IN [...]` clause.
+///
+/// The parameter is non-nullable on purpose. A caller that has not resolved
+/// the actor id must NOT fall through to the unnarrowed set on a profile:
+/// that would send the whole library, including trails from other instances
+/// and other authors, to whichever server is serving that profile — and for
+/// a federated actor that server is a third party, since
+/// `/profile/{handle}/trails` proxies the request body verbatim to the origin
+/// instance. Passing a sentinel like `''` yields an empty set, which fails
+/// closed.
+///
+/// Narrowing is a privacy and payload measure, not a correctness one:
+/// `/profile/{handle}/trails` already ANDs `author = <actor>` server-side, so
+/// an unnarrowed set would still return the right trails. That is what makes
+/// the whole-library fallback safe on the map, where the request goes only to
+/// the user's own instance.
+/// The id set a MAP search sends as its `id IN [...]` clause.
+///
+/// Unlike the profile path this may fall back to the whole library when no
+/// author is in scope (the global map). That is deliberate and safe: both map
+/// endpoints (`/search/trails`, `/search/trails/cluster`) are served by the
+/// user's OWN instance against its local Meilisearch index and are never
+/// proxied elsewhere, so there is no third party to disclose the library to.
+/// The federated-proxy hazard is specific to `/profile/{handle}/trails`.
+///
+/// Returns an empty set when the chip is off, so the clause is omitted
+/// entirely rather than emitted as a never-matching one.
+Set<String> offlineTrailIdsForMapSearch(
+  Ref ref, {
+  required bool offlineOnly,
+  String? authorId,
+}) {
+  if (!offlineOnly) return const {};
+  if (authorId != null && authorId.isNotEmpty) {
+    return ref.read(downloadedTrailIdsForAuthorProvider(authorId));
+  }
+  return ref.read(downloadedTrailIdsProvider);
+}
+
+@riverpod
+Set<String> downloadedTrailIdsForAuthor(Ref ref, String authorActorId) {
+  if (authorActorId.isEmpty) return const {};
+  return ref
+      .watch(trailLibraryProvider)
+      .where((t) => t.author == authorActorId)
+      .map((t) => t.id)
+      .where((id) => id.isNotEmpty)
+      .toSet();
+}
+
 @riverpod
 class TrailLibraryNotifier extends _$TrailLibraryNotifier {
   @override

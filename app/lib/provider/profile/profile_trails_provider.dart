@@ -10,7 +10,9 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_constants.dart';
+import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/trail/own_trails_merge.dart';
@@ -217,7 +219,10 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
     // A null filter means `GET /trail/filter` has not settled yet (or failed
     // outright) -- there is nothing to narrow by, and dropping rows on a
     // filter nobody chose would be worse than showing them.
-    return filter == null ? local : applyTrailFilter(local, filter);
+    if (filter == null) return local;
+
+    final downloadedIds = ref.read(downloadedTrailIdsProvider);
+    return applyTrailFilter(local, filter, downloadedIds: downloadedIds);
   }
 
   /// Fetches network page 1, merges it with [local], and reports whether the
@@ -250,12 +255,15 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
     int totalPages = 1;
     bool offline = false;
 
+    final offlineTrailIds = await _resolveOfflineTrailIds(filter);
+
     try {
       final fetched = await _fetchPage(
         handle: _handle,
         page: page,
         q: q,
         filter: filter,
+        offlineTrailIds: offlineTrailIds,
       );
       networkTrails = fetched.trails;
       resultPage = fetched.page;
@@ -279,16 +287,53 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
     );
   }
 
+  /// The server ids this profile's search should be restricted to when the
+  /// offline chip is on, or an empty set when it is off.
+  ///
+  /// Narrowed to the profile's own author so the request carries only the
+  /// trails that could possibly match it. That matters beyond payload size:
+  /// for a federated actor, `/profile/{handle}/trails` proxies the request
+  /// body verbatim to the origin instance, so an unnarrowed set would hand a
+  /// third-party server this device's entire library.
+  ///
+  /// Fails CLOSED. An unresolvable actor id yields an empty set, which
+  /// `toFilterText` turns into a never-matching clause, so the list renders
+  /// empty rather than unfiltered. Failing open would be the disclosure this
+  /// narrowing exists to prevent, and the cost is near-zero in practice: for
+  /// the own handle the id comes from `authProvider`, and for another handle
+  /// `profileProvider` is already resolved by the screen rendering that
+  /// profile. If it genuinely cannot resolve, the page fetch below is about
+  /// to fail anyway.
+  Future<Set<String>> _resolveOfflineTrailIds(TrailFilter? filter) async {
+    if (filter?.offlineOnly != true) return const {};
+
+    String? authorActorId;
+    if (_isOwnHandle) {
+      authorActorId = ref.read(authProvider).value?.actorId;
+    } else {
+      try {
+        authorActorId = (await ref.read(profileProvider(_handle).future)).id;
+      } on Exception catch (_) {
+        authorActorId = null;
+      }
+    }
+
+    if (authorActorId == null || authorActorId.isEmpty) return const {};
+    return ref.read(downloadedTrailIdsForAuthorProvider(authorActorId));
+  }
+
   Future<_NetworkPage> _fetchPage({
     required String handle,
     required int page,
     required String q,
     TrailFilter? filter,
+    Set<String> offlineTrailIds = const {},
   }) async {
     final api = ref.read(apiProvider);
     const int perPage = kProfileSearchPerPage;
 
-    final filterText = filter?.toFilterText() ?? '';
+    final filterText =
+        filter?.toFilterText(offlineTrailIds: offlineTrailIds) ?? '';
     final sortParam = filter != null
         ? '${filter.sort.name}:${filter.sortOrder.name}'
         : 'created:desc';
