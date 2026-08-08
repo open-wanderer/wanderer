@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:duration/duration.dart';
@@ -49,7 +50,7 @@ class TrailListItem extends ConsumerWidget {
         thumb: "600x0",
       );
       if (networkUrl != null) {
-        imageProvider = NetworkImage(networkUrl);
+        imageProvider = CachedNetworkImageProvider(networkUrl);
       }
     }
 

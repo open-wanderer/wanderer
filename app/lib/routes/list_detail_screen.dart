@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
@@ -131,8 +132,8 @@ class _ListHeader extends ConsumerWidget {
         if (avatarUrl != null)
           AspectRatio(
             aspectRatio: 16 / 9,
-            child: Image.network(
-              avatarUrl,
+            child: Image(
+              image: CachedNetworkImageProvider(avatarUrl),
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),

@@ -103,6 +103,8 @@ List<RegionEntity> missingCoverageRegions(
   List<RegionEntity> catalog,
 ) {
   return overlappingRegions(trail, catalog)
-      .where((region) => isRegionDownloadable(region) && !_coversOffline(region))
+      .where(
+        (region) => isRegionDownloadable(region) && !_coversOffline(region),
+      )
       .toList();
 }

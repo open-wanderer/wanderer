@@ -119,7 +119,9 @@ void _rewriteSourcesAndLayers(
     final source = sources[key] as Map;
     return source['type'] == 'raster-dem';
   }).toList();
-  final tiledKeys = allTiledKeys.where((key) => !demKeys.contains(key)).toList();
+  final tiledKeys = allTiledKeys
+      .where((key) => !demKeys.contains(key))
+      .toList();
 
   final layers = style['layers'];
   final layerList = layers is List ? layers : const <dynamic>[];

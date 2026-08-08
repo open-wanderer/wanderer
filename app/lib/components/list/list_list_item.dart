@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,7 +29,7 @@ class ListListItem extends ConsumerWidget {
     );
 
     final ImageProvider? imageProvider = avatarUrl != null
-        ? NetworkImage(avatarUrl)
+        ? CachedNetworkImageProvider(avatarUrl)
         : null;
 
     return Container(

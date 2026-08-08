@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -178,7 +179,9 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
                 children: [
                   CircleAvatar(
                     radius: 64,
-                    backgroundImage: NetworkImage(avatarUrl ?? fallbackUrl),
+                    backgroundImage: CachedNetworkImageProvider(
+                      avatarUrl ?? fallbackUrl,
+                    ),
                     onBackgroundImageError: (e, _) {},
                   ),
                   Positioned.fill(

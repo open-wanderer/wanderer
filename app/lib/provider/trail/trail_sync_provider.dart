@@ -143,11 +143,12 @@ class TrailSync extends _$TrailSync {
 
   /// The single entry point every trigger calls.
   ///
-  /// Always refreshes [onlineStatusProvider] first and bails out
-  /// immediately when it reports offline -- mandatory, not defensive:
-  /// `OnlineStatus.build()` is optimistic (`true`), settles only from
-  /// ordinary request/response traffic, and trusting it at a cold moment
-  /// already shipped a bug once.
+  /// When (and only when) there are due candidates, refreshes
+  /// [onlineStatusProvider] and bails out when it reports offline --
+  /// mandatory, not defensive: `OnlineStatus.build()` is optimistic
+  /// (`true`), settles only from ordinary request/response traffic, and
+  /// trusting it at a cold moment already shipped a bug once. With an empty
+  /// queue no probe fires at all (this runs on every app resume).
   /// A call arriving while a pass is already running is REMEMBERED, not
   /// dropped: it sets [_rerunRequested] so the running pass loops once more
   /// and picks up whatever changed. Returning immediately was what made
@@ -176,11 +177,6 @@ class TrailSync extends _$TrailSync {
   /// status and the account id, so a pass that runs because of a rerun
   /// request is as fresh as the first one.
   Future<void> _drainPass() async {
-    // dart format off
-    final isOnline = await ref.read(onlineStatusProvider.notifier).refresh();
-    // dart format on
-    if (!isOnline) return;
-
     final store = ref.read(objectBoxProvider);
     // Read fresh every run, never a cached field -- a stale id here
     // is exactly the leak account-scoping exists to prevent.
@@ -192,6 +188,16 @@ class TrailSync extends _$TrailSync {
       accountId: accountId,
       now: DateTime.now(),
     );
+
+    // Candidates BEFORE the connectivity probe: this drain runs on every app
+    // resume, and probing first meant a `/health` network round-trip per
+    // foreground for an almost-always-empty queue. With nothing to upload
+    // there is nothing to be online FOR — the dio interceptor keeps
+    // onlineStatusProvider fresh from ordinary traffic anyway.
+    if (candidates.isEmpty) return;
+
+    final isOnline = await ref.read(onlineStatusProvider.notifier).refresh();
+    if (!isOnline) return;
 
     // Sequential, one trail at a time, on purpose: a flaky connection
     // cannot fan out into N concurrent partially-applied uploads, and the
@@ -255,9 +261,7 @@ class TrailSync extends _$TrailSync {
     // failure) park an otherwise-healthy trail as `failed`, after which
     // isDrainDue never picks it up again.
     if (hasKeylessPendingWaypoint(
-      entity.waypoints
-          .map((w) => (id: w.id, localKey: w.localKey))
-          .toList(),
+      entity.waypoints.map((w) => (id: w.id, localKey: w.localKey)).toList(),
     )) {
       debugPrint(
         'trail_sync_provider: "$localId" has a keyless pending waypoint '

@@ -142,9 +142,7 @@ class TrailNotifier extends _$TrailNotifier {
     try {
       return entity.toModel();
     } catch (e, st) {
-      debugPrint(
-        'TrailNotifier: cached trail "$id" failed to parse: $e\n$st',
-      );
+      debugPrint('TrailNotifier: cached trail "$id" failed to parse: $e\n$st');
       return null;
     }
   }

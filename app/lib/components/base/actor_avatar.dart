@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -26,6 +27,18 @@ import 'package:wanderer/store/avatar_cache.dart';
 //     not-yet-synced trail: both the server URL and the DiceBear fallback are
 //     network fetches that cannot succeed there.
 // ---------------------------------------------------------------------------
+
+/// Test seam for the avatar image provider. `CachedNetworkImageProvider`'s
+/// cache manager does real file/network I/O that never completes inside a
+/// widget test's FakeAsync zone, so the load-failure regression tests inject
+/// `NetworkImage.new` here to route the failure through the test HTTP client.
+/// Null (always, in production) means [CachedNetworkImageProvider].
+@visibleForTesting
+ImageProvider Function(String url)? debugAvatarImageProviderFactory;
+
+ImageProvider _avatarImage(String url) =>
+    debugAvatarImageProviderFactory?.call(url) ??
+    CachedNetworkImageProvider(url);
 
 /// Dispatches to the disk-cached avatar chain when the author is the
 /// signed-in user (so the avatar survives offline), and to the plain network
@@ -146,7 +159,7 @@ class _NetworkAvatarState extends State<_NetworkAvatar> {
     return CircleAvatar(
       radius: widget.radius,
       backgroundColor: Colors.grey.shade300,
-      backgroundImage: NetworkImage(widget.url),
+      backgroundImage: _avatarImage(widget.url),
       onBackgroundImageError: (_, _) {
         if (mounted) setState(() => _failed = true);
       },
@@ -215,7 +228,7 @@ class _CachedAvatarState extends State<_CachedAvatar> {
           return CircleAvatar(
             radius: widget.radius,
             backgroundColor: Colors.grey.shade300,
-            backgroundImage: NetworkImage(
+            backgroundImage: _avatarImage(
               user.getFileUrl(user.serverUrl, user.avatar) ??
                   "https://api.dicebear.com/7.x/initials/png?seed=${user.preferredUsername}&backgroundType=gradientLinear",
             ),

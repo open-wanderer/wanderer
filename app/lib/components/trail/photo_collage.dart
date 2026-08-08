@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
@@ -193,8 +194,8 @@ class PhotoSource {
 
   Widget buildImage({required BoxFit fit}) {
     if (url != null) {
-      return Image.network(
-        url!,
+      return Image(
+        image: CachedNetworkImageProvider(url!),
         fit: fit,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;

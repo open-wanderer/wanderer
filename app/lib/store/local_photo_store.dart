@@ -268,9 +268,7 @@ List<String> photosNotYetOnServer({
   required String unsyncedDir,
   required List<String> pickedPaths,
 }) {
-  return pickedPaths
-      .where((path) => !p.isWithin(unsyncedDir, path))
-      .toList();
+  return pickedPaths.where((path) => !p.isWithin(unsyncedDir, path)).toList();
 }
 
 /// Deletes [accountId]'s [localId] unsynced photo directory (and its
@@ -293,9 +291,7 @@ List<String> photosNotYetOnServer({
 /// directory structurally unreachable across accounts.
 Future<void> deleteUnsyncedPhotoDir(String accountId, String localId) async {
   final appDir = await getApplicationDocumentsDirectory();
-  final dir = Directory(
-    unsyncedTrailPhotoDir(appDir.path, accountId, localId),
-  );
+  final dir = Directory(unsyncedTrailPhotoDir(appDir.path, accountId, localId));
   try {
     if (await dir.exists()) {
       await dir.delete(recursive: true);

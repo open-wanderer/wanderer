@@ -28,7 +28,9 @@ Gpx plannedGpx(Ref ref) {
 
   final first = state.anchors.first;
   final trackSegments = <Trkseg>[
-    Trkseg(trkpts: [Wpt(lat: first.lat, lon: first.lon)]),
+    Trkseg(
+      trkpts: [Wpt(lat: first.lat, lon: first.lon)],
+    ),
   ];
 
   for (final seg in state.orderedSegments) {
@@ -67,7 +69,9 @@ Gpx plannedElevationGpx(Ref ref) {
   // Heights live on segments, not anchors, so the seed anchor's elevation
   // is always unknown; `ele: null` degrades the same as any unfetched point.
   final trackSegments = <Trkseg>[
-    Trkseg(trkpts: [Wpt(lat: first.lat, lon: first.lon)]),
+    Trkseg(
+      trkpts: [Wpt(lat: first.lat, lon: first.lon)],
+    ),
   ];
 
   for (final seg in state.orderedSegments) {

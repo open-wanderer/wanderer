@@ -24,17 +24,15 @@ Future<int> ownTrailCount(
   final field = isSubcategory ? 'subcategory_id' : 'category_id';
   final filter = "$field IN ['$id']";
 
-  final response = await ref.read(apiProvider).post(
-    '/profile/$handle/trails',
-    data: {
-      'q': '',
-      'options': {
-        'filter': filter,
-        'hitsPerPage': 1,
-        'page': 1,
-      },
-    },
-  );
+  final response = await ref
+      .read(apiProvider)
+      .post(
+        '/profile/$handle/trails',
+        data: {
+          'q': '',
+          'options': {'filter': filter, 'hitsPerPage': 1, 'page': 1},
+        },
+      );
 
   final data = response.data;
   if (data is! Map<String, dynamic>) return 0;

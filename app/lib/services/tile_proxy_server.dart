@@ -35,6 +35,31 @@ class TileProxyServer {
   final Store _store;
   final _ArchiveCache _archiveCache = _ArchiveCache();
 
+  /// Short-TTL memo of the region table. Every tile request used to run a
+  /// full `RegionEntity` `getAll()` — during a pan that's an ObjectBox table
+  /// scan per tile. Regions change on the order of user actions (download /
+  /// delete), so a few seconds of staleness is imperceptible: a deleted
+  /// region's file-vanished path already 404s via [_ArchiveCache.forPath],
+  /// and a fresh download's tiles appear within the TTL.
+  List<RegionEntity>? _regionCache;
+  DateTime? _regionCacheAt;
+  static const _regionCacheTtl = Duration(seconds: 5);
+
+  List<RegionEntity> _regions() {
+    final now = DateTime.now();
+    final cachedAt = _regionCacheAt;
+    final cached = _regionCache;
+    if (cached != null &&
+        cachedAt != null &&
+        now.difference(cachedAt) < _regionCacheTtl) {
+      return cached;
+    }
+    final fresh = _store.box<RegionEntity>().getAll();
+    _regionCache = fresh;
+    _regionCacheAt = now;
+    return fresh;
+  }
+
   TileProxyServer._(this._server, this._store);
 
   /// The resolved loopback base URL, e.g. `http://127.0.0.1:54321` — exposed
@@ -120,7 +145,7 @@ class TileProxyServer {
     // (pmtiles-1.2.0/lib/src/archive.dart).
     // ignore: invalid_use_of_visible_for_testing_member
     final region = resolveRegionForTile(
-      _store.box<RegionEntity>().getAll(),
+      _regions(),
       LngLatBounds(
         longitudeWest: tileBounds.west,
         longitudeEast: tileBounds.east,
@@ -169,6 +194,15 @@ class TileProxyServer {
     // default than serving compressed bytes + Content-Encoding: gzip).
     request.response.headers.contentType = ContentType.parse(
       tile.type.mimeType(),
+    );
+    // Without a Cache-Control header MapLibre treats every offline tile as
+    // immediately expired and re-runs the whole HTTP → region-resolve →
+    // pmtiles read per pan revisit; with one, its ambient cache serves
+    // revisits directly. One day balances that against a re-downloaded
+    // region's updated tiles (same URLs) becoming visible.
+    request.response.headers.set(
+      HttpHeaders.cacheControlHeader,
+      'public, max-age=86400',
     );
     request.response.add(bytes);
     return request.response.close();

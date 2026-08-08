@@ -28,7 +28,8 @@ class CategoryPreferenceNotifier extends _$CategoryPreferenceNotifier {
       final data = response.data;
       if (data == null || data is! List) {
         throw Exception(
-            'Unexpected response shape from /user-category-preference: $data');
+          'Unexpected response shape from /user-category-preference: $data',
+        );
       }
       return data
           .map((e) => CategoryPreference.fromJson(e as Map<String, dynamic>))
@@ -41,10 +42,12 @@ class CategoryPreferenceNotifier extends _$CategoryPreferenceNotifier {
   /// Creates or updates a single category preference. The server injects the
   /// owning `user` from the session — never send it.
   Future<void> upsert(String categoryId, bool visible) async {
-    await ref.read(apiProvider).put(
-      '/user-category-preference',
-      data: {'category': categoryId, 'visible': visible},
-    );
+    await ref
+        .read(apiProvider)
+        .put(
+          '/user-category-preference',
+          data: {'category': categoryId, 'visible': visible},
+        );
     ref.invalidateSelf();
   }
 
@@ -52,10 +55,12 @@ class CategoryPreferenceNotifier extends _$CategoryPreferenceNotifier {
   /// owning `user` from the session — never send it.
   /// Callers wrap this in try/catch + toast; no error handling here.
   Future<void> reorder(List<String> orderedCategoryIds) async {
-    await ref.read(apiProvider).post(
-      '/user-category-preference/reorder',
-      data: {'categories': orderedCategoryIds},
-    );
+    await ref
+        .read(apiProvider)
+        .post(
+          '/user-category-preference/reorder',
+          data: {'categories': orderedCategoryIds},
+        );
     ref.invalidateSelf();
   }
 }

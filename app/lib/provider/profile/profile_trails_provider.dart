@@ -145,7 +145,9 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
     ProfileTrailsState current,
     int nextPage,
   ) async {
-    final filter = ref.read(trailFilterProvider('profile_trail_$_handle')).value;
+    final filter = ref
+        .read(trailFilterProvider('profile_trail_$_handle'))
+        .value;
     final fetched = await _fetchPage(
       handle: _handle,
       page: nextPage,
@@ -163,7 +165,10 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
     // merge deliberately excluded) suppress its own network hit on the
     // next page, silently dropping the trail from the list entirely.
     final local = ownTrailsLocalHalf(_readOwnLocal(_q, filter), offline: false);
-    final localIds = local.map((t) => t.id).where((id) => id.isNotEmpty).toSet();
+    final localIds = local
+        .map((t) => t.id)
+        .where((id) => id.isNotEmpty)
+        .toSet();
     final dedupedNetwork = fetched.trails.where(
       (t) => !localIds.contains(t.id),
     );

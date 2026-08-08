@@ -42,11 +42,7 @@ String glyphCacheFilePath(String root, String fontstack, String range) {
     );
   }
   if (!_rangePattern.hasMatch(range)) {
-    throw ArgumentError.value(
-      range,
-      'range',
-      r'range must match ^\d+-\d+$',
-    );
+    throw ArgumentError.value(range, 'range', r'range must match ^\d+-\d+$');
   }
   return p.join(root, 'glyphs', fontstack, '$range.pbf');
 }

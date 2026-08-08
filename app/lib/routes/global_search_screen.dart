@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
@@ -276,7 +277,7 @@ class _TrailTile extends ConsumerWidget {
           ? CircleAvatar(
               radius: 14,
               backgroundColor: Colors.grey.shade300,
-              backgroundImage: NetworkImage(
+              backgroundImage: CachedNetworkImageProvider(
                 trail.authorAvatar.isNotEmpty
                     ? trail.authorAvatar
                     : 'https://api.dicebear.com/7.x/initials/png?seed=${trail.authorName}',
@@ -371,8 +372,8 @@ class _ActorTile extends StatelessWidget {
         radius: 20,
         backgroundColor: Colors.grey.shade300,
         backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
-            ? NetworkImage(actor.icon!)
-            : NetworkImage(
+            ? CachedNetworkImageProvider(actor.icon!)
+            : CachedNetworkImageProvider(
                 'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
               ),
       ),

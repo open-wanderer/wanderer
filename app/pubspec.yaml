@@ -59,6 +59,7 @@ dependencies:
   tracelet: ^3.5.0
   url_launcher: ^6.3.2
   xml: ^6.3.0
+  cached_network_image: ^3.4.1
 
 dependency_overrides:
   meta: ^1.18.0

@@ -50,8 +50,7 @@ class FollowNotifier extends _$FollowNotifier {
           '/follow',
           data: {'followee': profileActorId},
         );
-        final newId =
-            (response.data as Map<String, dynamic>)['id'] as String;
+        final newId = (response.data as Map<String, dynamic>)['id'] as String;
         state = AsyncData(
           FollowState(isFollowing: true, followRecordId: newId),
         );
@@ -63,13 +62,15 @@ class FollowNotifier extends _$FollowNotifier {
     } catch (_) {
       // Roll back optimistic update and show error toast
       state = AsyncData(current.copyWith(isLoading: false));
-      ref.read(toastProvider.notifier).add(
-        ToastMessage(
-          type: ToastType.error,
-          icon: FontAwesomeIcons.circleExclamation,
-          text: wasFollowing ? 'Failed to unfollow.' : 'Failed to follow.',
-        ),
-      );
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.error,
+              icon: FontAwesomeIcons.circleExclamation,
+              text: wasFollowing ? 'Failed to unfollow.' : 'Failed to follow.',
+            ),
+          );
     }
   }
 }

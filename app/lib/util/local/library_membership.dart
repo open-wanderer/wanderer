@@ -15,10 +15,7 @@ library;
 /// duplicate its id, or the delete-time reference count would never reach
 /// zero and the files would leak forever. A null [userId] (no signed-in
 /// account) adds nothing rather than granting everyone access.
-List<String> libraryMembersAfterSave(
-  Iterable<String> current,
-  String? userId,
-) {
+List<String> libraryMembersAfterSave(Iterable<String> current, String? userId) {
   final members = {...current};
   if (userId != null) members.add(userId);
   return members.toList();
@@ -30,6 +27,9 @@ List<String> libraryMembersAfterSave(
 /// and the `library/<id>/` directory can finally be deleted. A non-empty
 /// result means another account still has a working offline copy and nothing
 /// on disk may be touched.
-List<String> libraryMembersAfterDelete(Iterable<String> current, String userId) {
+List<String> libraryMembersAfterDelete(
+  Iterable<String> current,
+  String userId,
+) {
   return current.where((candidate) => candidate != userId).toList();
 }

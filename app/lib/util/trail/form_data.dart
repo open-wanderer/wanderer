@@ -47,7 +47,10 @@ extension TrailFormData on Trail {
       for (final photo in newPhotos)
         MapEntry(
           isCreate ? 'photos' : 'photos+',
-          await MultipartFile.fromFile(photo.path, filename: photo.uri.pathSegments.last),
+          await MultipartFile.fromFile(
+            photo.path,
+            filename: photo.uri.pathSegments.last,
+          ),
         ),
     ];
 
@@ -57,7 +60,10 @@ extension TrailFormData on Trail {
     final gpxData = expand?.gpxData;
     if (gpxData != null) {
       files.add(
-        MapEntry('gpx', MultipartFile.fromString(gpxData, filename: 'track.gpx')),
+        MapEntry(
+          'gpx',
+          MultipartFile.fromString(gpxData, filename: 'track.gpx'),
+        ),
       );
     }
 

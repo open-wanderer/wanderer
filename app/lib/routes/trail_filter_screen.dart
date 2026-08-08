@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -532,8 +533,8 @@ class _AuthorChip extends StatelessWidget {
         '@${actor.preferredUsername}${actor.isLocal ? "" : "@${actor.domain}"}';
     final ImageProvider avatarImage =
         actor.icon != null && actor.icon!.isNotEmpty
-        ? NetworkImage(actor.icon!)
-        : NetworkImage(
+        ? CachedNetworkImageProvider(actor.icon!)
+        : CachedNetworkImageProvider(
             'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
           );
 

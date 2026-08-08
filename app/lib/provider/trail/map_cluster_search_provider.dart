@@ -45,7 +45,10 @@ class MapClusterSearch extends _$MapClusterSearch {
       if (next != null) _removeTrail(next.id);
     });
 
-    return <String, dynamic>{'type': 'FeatureCollection', 'features': <Object>[]};
+    return <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': <Object>[],
+    };
   }
 
   /// Drops the deleted trail's marker from the feature collection so its
@@ -111,8 +114,8 @@ class MapClusterSearch extends _$MapClusterSearch {
       final filterText = authorId == null
           ? baseFilterText
           : (baseFilterText.isEmpty
-              ? 'author = $authorId'
-              : '$baseFilterText AND author = $authorId');
+                ? 'author = $authorId'
+                : '$baseFilterText AND author = $authorId');
 
       final response = await api.post(
         '/search/trails/cluster',

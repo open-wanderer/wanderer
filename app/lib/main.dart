@@ -61,6 +61,7 @@ void main() async {
 
   runApp(
     ProviderScope(
+      retry: _providerRetry,
       overrides: [
         objectBoxProvider.overrideWithValue(store),
         tileProxyBaseUrlProvider.overrideWithValue(proxyServer.baseUrl),
@@ -69,6 +70,17 @@ void main() async {
       child: MainApp(),
     ),
   );
+}
+
+/// Global provider retry policy, replacing Riverpod's default of 10 attempts
+/// over ~45 s. Every keepAlive provider inherited that default, so a single
+/// offline window — routine on a trail — fired a burst of up to 10 radio
+/// wakeups per failing provider. At most 2 retries (400 ms, then 800 ms),
+/// matching the tuning `trailFilterRetry` already established; individual
+/// providers can still override via `@Riverpod(retry: ...)`.
+Duration? _providerRetry(int retryCount, Object error) {
+  if (retryCount >= 2) return null;
+  return Duration(milliseconds: 400 * (1 << retryCount));
 }
 
 /// Raises MapLibre's ambient tile cache above its 50 MB default.

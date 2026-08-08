@@ -271,9 +271,7 @@ bool isDrainDue(TrailEntity entity, DateTime now) {
 bool hasKeylessPendingWaypoint(
   List<({String id, String? localKey})> waypoints,
 ) {
-  return waypoints.any(
-    (w) => isLocalId(w.id) && w.localKey == null,
-  );
+  return waypoints.any((w) => isLocalId(w.id) && w.localKey == null);
 }
 
 /// Pure decision core of [recordDrainFailure], extracted so its

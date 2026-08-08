@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -84,14 +85,16 @@ class SummitLogCard extends ConsumerWidget {
                         child: SizedBox(
                           width: 80,
                           height: 80,
-                          child: Image.network(
-                            summitLog.photos.isNotEmpty
-                                ? summitLog.getFileUrl(
-                                        user.serverUrl,
-                                        summitLog.photos.first,
-                                      ) ??
-                                      ''
-                                : '',
+                          child: Image(
+                            image: CachedNetworkImageProvider(
+                              summitLog.photos.isNotEmpty
+                                  ? summitLog.getFileUrl(
+                                          user.serverUrl,
+                                          summitLog.photos.first,
+                                        ) ??
+                                        ''
+                                  : '',
+                            ),
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
                                 _buildPlaceholder(context),
