@@ -55,7 +55,10 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
   @override
   void didUpdateWidget(ElevationProfile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.gpx != widget.gpx ||
+    // identical() first: gpx 2.3.0's == has no identity short-circuit — it
+    // deep-walks every trackpoint even when comparing an object to itself,
+    // which made this check O(track) on every parent rebuild.
+    if (!identical(oldWidget.gpx, widget.gpx) && oldWidget.gpx != widget.gpx ||
         oldWidget.smoothingWindowSize != widget.smoothingWindowSize) {
       _points = _parseGpx(widget.gpx, widget.smoothingWindowSize);
       _selectedIndex = null;

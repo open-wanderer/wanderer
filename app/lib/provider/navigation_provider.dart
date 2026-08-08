@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -11,6 +12,7 @@ class NavigationState {
     required this.response,
     required this.currentManeuverIndex,
     required this.breadcrumb,
+    required this.breadcrumbLength,
   });
 
   final NavigateResponse response;
@@ -19,17 +21,29 @@ class NavigationState {
   final int currentManeuverIndex;
 
   /// Session-only; discarded on screen exit (never persisted to disk or GPX).
+  ///
+  /// A stable unmodifiable VIEW over the notifier's internal grow-in-place
+  /// list — the same object across every state emission, so appends are O(1)
+  /// instead of an O(n) copy per GPS fix (a multi-hour hike made the old
+  /// spread-copy quadratic). Consumers must key change detection on
+  /// [breadcrumbLength], never on this list's identity.
   final List<Wpt> breadcrumb;
+
+  /// Change signal for [breadcrumb] — compare this across emissions to detect
+  /// appends (the list itself keeps a stable identity by design).
+  final int breadcrumbLength;
 
   NavigationState copyWith({
     NavigateResponse? response,
     int? currentManeuverIndex,
     List<Wpt>? breadcrumb,
+    int? breadcrumbLength,
   }) {
     return NavigationState(
       response: response ?? this.response,
       currentManeuverIndex: currentManeuverIndex ?? this.currentManeuverIndex,
       breadcrumb: breadcrumb ?? this.breadcrumb,
+      breadcrumbLength: breadcrumbLength ?? this.breadcrumbLength,
     );
   }
 }
@@ -49,6 +63,16 @@ class Navigation extends _$Navigation {
   /// `_maneuverCumulativeMeters[m]` = `_shapeCumulativeMeters[clampedBeginShapeIndex(m)]`.
   late final List<double> _maneuverCumulativeMeters;
 
+  /// Whether the route has any shape at all — precomputed in [build] so
+  /// [onPosition] never re-materializes `shapeAsGeographic` (an O(n) list
+  /// allocation) per GPS fix just for an emptiness check.
+  bool _hasShape = false;
+
+  /// Internal grow-in-place backing list for [NavigationState.breadcrumb] —
+  /// appends mutate this list directly; the state only ever exposes one
+  /// stable [UnmodifiableListView] over it (see [NavigationState.breadcrumb]).
+  List<Wpt> _breadcrumb = [];
+
   @override
   NavigationState build(
     NavigateResponse response, {
@@ -56,6 +80,7 @@ class Navigation extends _$Navigation {
     List<Wpt>? resumeBreadcrumb,
   }) {
     final shape = response.shapeAsGeographic;
+    _hasShape = shape.isNotEmpty;
 
     if (shape.isEmpty) {
       _shapeCumulativeMeters = const [];
@@ -100,10 +125,12 @@ class Navigation extends _$Navigation {
       initialAlongTrackMeters: seedAlongTrackMeters,
     );
 
+    _breadcrumb = [...?resumeBreadcrumb];
     return NavigationState(
       response: response,
       currentManeuverIndex: initialManeuverIndex,
-      breadcrumb: resumeBreadcrumb ?? const [],
+      breadcrumb: UnmodifiableListView(_breadcrumb),
+      breadcrumbLength: _breadcrumb.length,
     );
   }
 
@@ -119,7 +146,12 @@ class Navigation extends _$Navigation {
   /// below is unrelated bookkeeping and always runs regardless of this flag,
   /// so pausing during turn-by-turn navigation does not stop progress
   /// tracking.
-  void onPosition(
+  ///
+  /// Returns whether [NavigationState.currentManeuverIndex] advanced — so the
+  /// caller (holding a cached notifier reference) never needs a before/after
+  /// pair of provider reads, each of which deep-hashes the family argument's
+  /// full route shape.
+  bool onPosition(
     Geographic pos, {
     double? heading,
     double? headingAccuracy,
@@ -129,16 +161,16 @@ class Navigation extends _$Navigation {
     bool recordBreadcrumb = true,
   }) {
     if (recordBreadcrumb) {
-      state = state.copyWith(
-        breadcrumb: [
-          ...state.breadcrumb,
-          Wpt(lat: pos.lat, lon: pos.lon, ele: altitude, time: DateTime.now()),
-        ],
+      // In-place append + length-only state bump: the view object in
+      // `state.breadcrumb` stays identity-stable, listeners key off
+      // `breadcrumbLength` (see NavigationState docs).
+      _breadcrumb.add(
+        Wpt(lat: pos.lat, lon: pos.lon, ele: altitude, time: DateTime.now()),
       );
+      state = state.copyWith(breadcrumbLength: _breadcrumb.length);
     }
 
-    final shape = state.response.shapeAsGeographic;
-    if (shape.isEmpty || _maneuverCumulativeMeters.isEmpty) return;
+    if (!_hasShape || _maneuverCumulativeMeters.isEmpty) return false;
 
     final result = _matcher.update(
       pos: pos,
@@ -167,6 +199,8 @@ class Navigation extends _$Navigation {
 
     if (newIndex > current) {
       state = state.copyWith(currentManeuverIndex: newIndex);
+      return true;
     }
+    return false;
   }
 }
