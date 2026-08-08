@@ -79,6 +79,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
         _isOfflineActive(filter) ||
         _isCategoryActive(filter) ||
         _isDifficultyActive(filter) ||
+        _isDistanceActive(filter) ||
         _isElevationActive(filter) ||
         _isDateActive(filter) ||
         _isCompletionActive(filter);
