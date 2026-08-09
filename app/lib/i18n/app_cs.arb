@@ -1,6 +1,9 @@
 {
   "@@locale": "cs",
   "about": "O aplikaci",
+  "@about": {
+    "description": "Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both."
+  },
   "appearance": "Appearance",
   "account": "Account",
   "account_delete_confirm": "Chystáte se odstranit svůj účet. Všechny vaše záznamy budou odstraněny též. Chcete pokračovat?",
@@ -9,19 +12,31 @@
   "add_waypoint": "Přidat bod trasy",
   "adjust_track": "Adjust track",
   "after": "Po",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
   "all": "All",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
   "altitude": "Nadmořská výška",
   "author": "Autor",
-  "avatar": "Avatar",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
   "average_speed": "Průměrná rychlost",
   "basic_info": "Základní informace",
   "before": "Před",
-  "behavior": "Chování",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
   "by": "od",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
   "cancel": "Zrušit",
   "discard": "Discard",
   "discard_trail_confirm": "Discard this trail and its changes?",
-  "car": "Auto",
   "card": "{n, plural, =1 {Karta} few {Karty} other {Karet}}",
   "@card": {
     "placeholders": {
@@ -57,13 +72,17 @@
   "copy_link": "Kopírovat odkaz",
   "create_waypoint": "Vytvořit bod trasy",
   "creation_date": "Datum vytvoření",
-  "crop": "Oříznout",
-  "cross": "Křížek",
   "current_password": "Současné heslo",
   "danger_zone": "Nebezpečná zóna",
   "date": "Datum",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
   "delete": "Vymazat",
   "open": "Open",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
   "delete_account": "Odstranit účet",
   "delete_trail_confirm": "Doopravdy chcete tuto trasu smazat? Tuto akci nelze vrátit zpět.",
   "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
@@ -73,7 +92,6 @@
   "difficult": "Náročné",
   "difficulty": "Obtížnost",
   "directions": "Navigovat",
-  "display": "Zobrazit",
   "distance": "Vzdálenost",
   "download": "Stáhnout",
   "duration": "Doba trvání",
@@ -82,6 +100,9 @@
   "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
   "edit_waypoint": "Upravit bod trasy",
   "edited": "upraveno",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
   "elevation_gain": "Stoupání",
   "elevation_loss": "Klesání",
   "elevation_profile": "Elevation Profile",
@@ -99,28 +120,33 @@
   "stop_recording": "Zastavit nahrávání",
   "stop_recording_confirm": "Zastavit nahrávání?",
   "search_this_area": "Search this area",
-  "ferry": "Přívoz",
   "filter_tags": "Filtrovat podle štítků",
   "filter_trails": "Filter trails",
   "finish": "Konec",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
   "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
   "follow": "Sledovat",
   "followers": "Sledující",
   "following": "Sleduji",
   "from_photos": "Z fotografií",
-  "heading": "Nadpis",
-  "height": "Výška",
   "help": "Nápověda",
   "hiking": "Turistika",
   "home": "Hlavní stránka",
-  "hotel": "Hotel",
   "icon": "Ikonka",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
   "imperial": "Imperiální jednotky",
   "joined": "Připojeno",
   "language": "Jazyk",
   "latitude": "Zeměpisná šířka",
   "like_status": "Status „Líbí se mi“",
   "liked": "Líbilo se",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
   "likes": "Líbí se",
   "list": "{n, plural, =1 {Seznam} few {Seznamy} other {Seznamů}}",
   "@list": {
@@ -134,17 +160,22 @@
   "location": "Poloha",
   "locations": "Locations",
   "center_on_my_location": "Center on my location",
-  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_title": "wanderer",
   "location_tracking_notification_text": "Recording your trail",
+  "location_tracking_notification_text_navigating": "Navigating {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
   "login": "Přihlásit se",
   "logout": "Odhlásit se",
   "longitude": "Zeměpisná délka",
-  "loop": "Opakování",
   "map": "Mapa",
   "metric": "Metrický",
   "moderate": "Středně náročné",
-  "more": "Více",
-  "mountain": "Hora",
   "my_account": "Můj účet",
   "in_distance": "in {distance}",
   "@in_distance": {
@@ -155,8 +186,10 @@
     }
   },
   "name": "Název",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
   "navigate": "Navigate",
-  "near": "Poblíž",
   "new_password": "Nové heslo",
   "new_password_success": "Nové heslo bylo nastaveno",
   "new_trail": "Nová trasa",
@@ -181,7 +214,9 @@
   "notifications": "Oznámení",
   "only_me": "Jen já",
   "or": "nebo",
-  "orientation": "Orientace",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
   "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
   "own_trails_empty_title": "Nothing saved yet",
   "own_trails_offline_banner": "Offline — showing only trails on this device.",
@@ -189,7 +224,6 @@
   "@trails_on_device": {
     "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
   },
-  "paragraph": "Odstavec",
   "pause": "Pause",
   "password": "Heslo",
   "password_confirm": "Potvrďte heslo",
@@ -213,17 +247,17 @@
       }
     }
   },
-  "print": "Vytisknout",
   "privacy": "Soukromí",
   "private": "Soukromé",
   "profile": "Profil",
   "public": "Veřejné",
-  "radius": "Poloměr",
   "reached_end_of_trail": "You've reached the end of the trail.",
   "register": "Registrace",
-  "required": "Vyžadováno",
   "reorder_photos_hint": "Long-press and drag to reorder photos.",
   "reset": "Obnovit",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
   "resume": "Resume",
   "resume_navigation_prompt": "Resume navigation on {trail}?",
   "@resume_navigation_prompt": {
@@ -234,7 +268,6 @@
     }
   },
   "resume_recording_prompt": "Obnovit nahrávání?",
-  "road": "Silnice",
   "route": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
   "@route": {
     "placeholders": {
@@ -254,7 +287,6 @@
   "search": "Search",
   "search_for_trails_places": "Vyhledat trasy, seznamy, místa",
   "select_date": "Select date",
-  "selected": "vybráno",
   "settings": "Nastavení",
   "settings_notification_comment_mention": "Někdo vás zmínil v komentáři",
   "settings_notification_list_share": "Někdo s vámi sdílel seznam",
@@ -274,8 +306,10 @@
   "share": "Sdílet",
   "share_profile": "Sdílet profil",
   "shared": "Sdíleno",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
   "show_on_map": "Zobrazit na mapě",
-  "shower": "Sprcha",
   "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
   "@signout_unsynced_warning": {
     "placeholders": {
@@ -287,8 +321,17 @@
   },
   "slogan": "Vaše trasy. Vaše data. Váš server.",
   "sort": "Seřadit",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
   "speed": "Rychlost",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
   "start": "Start",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
   "subcategories": "Podkategorie",
   "@subcategories": {
     "description": "Label for the subcategories filter section"
@@ -297,13 +340,10 @@
   "sync_failed": "Upload failed · Tap to retry",
   "sync_pending": "Waiting to upload",
   "sync_uploading": "Uploading…",
-  "table": "Stůl",
   "tags": "Štítky",
-  "text": "Text",
   "theme_dark": "Dark",
   "theme_light": "Light",
   "theme_system": "Follow system",
-  "time": "Time",
   "time_in_motion": "Time in Motion",
   "trail": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
   "@trail": {
@@ -322,10 +362,11 @@
   "users": "Users",
   "username": "Uživatelské jméno",
   "username_not_unique": "Toto uživatelské jméno je již obsazeno. Zkuste prosím jiné.",
-  "view": "Zobrazit",
   "visibilty_status": "Stav viditelnosti",
-  "water": "Voda",
   "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
   "waypoints": "{n, plural, =1 {Bod trasy} few {Body trasy} other {Bodů trasy}}",
   "@waypoints": {
     "placeholders": {
@@ -336,7 +377,9 @@
     }
   },
   "welcome_to": "Welcome to",
-  "width": "Šířka",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
   "wrong_username_or_password": "Nesprávné uživatelské jméno nebo heslo",
   "you_have_arrived": "You've arrived",
   "settings_categories_confirm_disable_title": "Hide this category?",
@@ -362,6 +405,9 @@
   "remove": "Remove",
   "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
   "apply": "Apply",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
   "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
   "reverse_direction": "Obrátit směr",
   "delete_all": "Delete all",
@@ -369,7 +415,6 @@
   "auto_routing_hint": "Automatically follow roads and paths between anchors.",
   "travel_profile": "Travel profile",
   "no_track_data": "No track data",
-  "offline": "Offline",
   "available_offline": "Available offline",
   "no_lists_found": "No lists found",
   "search_lists": "Search lists…",
@@ -384,6 +429,9 @@
     }
   },
   "filter": "Filter",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
   "no_label_yet": "No {label} yet.",
   "@no_label_yet": {
     "placeholders": {
@@ -477,6 +525,8 @@
   "regions_dem_locked_subtitle": "Download map data first",
   "regions_offline_unavailable_title": "Can't load regions",
   "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_map_geometry_failed": "Could not load region outline",
+  "regions_map_back_label": "Back to regions",
   "regions_group_expand_label": "Expand {name}",
   "@regions_group_expand_label": {
     "placeholders": {
