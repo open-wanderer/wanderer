@@ -85,9 +85,9 @@
   },
   "delete_account": "Konto löschen",
   "delete_trail_confirm": "Möchtest Du diese Route wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
-  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
-  "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
+  "delete_blocked_while_uploading": "Diese Route wird gerade hochgeladen. Warten Sie, bis der Upload beendet ist, und versuchen Sie es erneut.",
+  "delete_unsynced_trail_confirm": "Diese Route löschen? Sie wurde noch nicht hochgeladen und kann daher nicht rückgängig gemacht werden.",
+  "delete_needs_connection": "Diese Route ist bereits auf dem Server. Verbinden Sie sich mit dem Internet, um sie zu löschen.",
   "description": "Beschreibung",
   "difficult": "Schwer",
   "difficulty": "Schwierigkeit",
@@ -97,7 +97,7 @@
   "duration": "Dauer",
   "easy": "Einfach",
   "edit": "Bearbeiten",
-  "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
+  "edit_needs_connection": "Bearbeiten funktioniert auf der Server-Kopie dieser Route. Verbinde dich mit dem Internet, um sie zu bearbeiten.",
   "edit_waypoint": "Wegpunkt bearbeiten",
   "edited": "bearbeitet",
   "@edited": {
@@ -109,7 +109,7 @@
   "email": "E-Mail",
   "email_not_unique": "Diese Email_Adresse wird bereits verwendet",
   "email_updated": "E_Mail aktualisiert",
-  "error_deleting_trail": "Error deleting trail",
+  "error_deleting_trail": "Fehler beim Löschen der Route",
   "error_reading_file": "Fehler beim Lesen der Datei",
   "error_saving_settings": "Fehler beim Speichern der Einstellungen",
   "error_saving_trail": "Fehler beim Speichern der Route",
@@ -217,10 +217,10 @@
   "@or": {
     "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
   },
-  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
-  "own_trails_empty_title": "Nothing saved yet",
-  "own_trails_offline_banner": "Offline — showing only trails on this device.",
-  "trails_on_device": "Trails (on device)",
+  "own_trails_empty_body": "Routen, die du offline aufnimmst oder speicherst, erscheinen hier und werden automatisch hochgeladen, sobald du wieder online bist.",
+  "own_trails_empty_title": "Noch nichts gespeichert",
+  "own_trails_offline_banner": "Offline — zeigt nur Routen auf diesem Gerät an.",
+  "trails_on_device": "Routen (auf Gerät)",
   "@trails_on_device": {
     "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
   },
@@ -228,7 +228,7 @@
   "password": "Passwort",
   "password_confirm": "Passwort bestätigen",
   "passwords_must_match": "Passwörter müssen übereinstimmen",
-  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "photo_copy_failed_toast": "{count, plural, one {}=1 {Route gespeichert, aber 1 Foto konnte nicht gespeichert werden.} other {Route gespeichert, aber {count} Fotos konnten nicht gespeichert werden.}}",
   "@photo_copy_failed_toast": {
     "placeholders": {
       "count": {
@@ -310,7 +310,7 @@
     "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
   },
   "show_on_map": "Auf der Karte anzeigen",
-  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "signout_unsynced_warning": "{count, plural, one {}=1 {Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.} other {Du hast {count} Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.}}",
   "@signout_unsynced_warning": {
     "placeholders": {
       "count": {
@@ -337,9 +337,9 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Gipfelbuch",
-  "sync_failed": "Upload failed · Tap to retry",
-  "sync_pending": "Waiting to upload",
-  "sync_uploading": "Uploading…",
+  "sync_failed": "Upload fehlgeschlagen · Zum Wiederholen tippen",
+  "sync_pending": "Warten auf Upload",
+  "sync_uploading": "Wird hochgeladen…",
   "tags": "Tags",
   "theme_dark": "Dunkel",
   "theme_light": "Hell",
@@ -355,8 +355,8 @@
     }
   },
   "trail_saved_successfully": "Route gespeichert",
-  "trail_not_on_this_device": "This trail is no longer on this device.",
-  "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
+  "trail_not_on_this_device": "Dieser Route ist nicht mehr auf diesem Gerät.",
+  "trail_uploaded_reopen_to_edit": "Diese Route wurde hochgeladen. Öffne sie erneut von deinen Routen, um sie weiter zu bearbeiten.",
   "some_waypoints_failed_to_save": "Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden",
   "units": "Einheiten",
   "users": "Benutzer",
@@ -403,7 +403,7 @@
   "url": "URL",
   "open_in_new_tab": "In neuem Tab öffnen",
   "remove": "Entfernen",
-  "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
+  "remove_download_confirm_body": "Dies entfernt die heruntergeladene Kopie von diesem Gerät. Die Route selbst wird nicht gelöscht — Sie müssen sie erneut herunterladen, um sie offline nutzen zu können.",
   "apply": "Anwenden",
   "@apply": {
     "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
@@ -525,8 +525,8 @@
   "regions_dem_locked_subtitle": "Zuerst Kartendaten herunterladen",
   "regions_offline_unavailable_title": "Regionen können nicht geladen werden",
   "regions_offline_unavailable_body": "Verbinden Sie sich mit dem Internet, um herunterladbare Regionen zu durchsuchen und zu verwalten.",
-  "regions_map_geometry_failed": "Could not load region outline",
-  "regions_map_back_label": "Back to regions",
+  "regions_map_geometry_failed": "Konnte die Regionsumrandung nicht laden",
+  "regions_map_back_label": "Zurück zu den Regionen",
   "regions_group_expand_label": "{name} ausklappen",
   "@regions_group_expand_label": {
     "placeholders": {
