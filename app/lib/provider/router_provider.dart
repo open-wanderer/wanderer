@@ -36,6 +36,7 @@ import 'package:wanderer/routes/settings_appearance_screen.dart';
 import 'package:wanderer/routes/settings_categories_screen.dart';
 import 'package:wanderer/routes/settings_language_screen.dart';
 import 'package:wanderer/routes/settings_notifications_screen.dart';
+import 'package:wanderer/routes/settings_offline_regions_map_screen.dart';
 import 'package:wanderer/routes/settings_offline_regions_screen.dart';
 import 'package:wanderer/routes/settings_privacy_screen.dart';
 import 'package:wanderer/routes/settings_screen.dart';
@@ -277,6 +278,13 @@ class Router extends _$Router {
               builder: (context, state) => const SettingsOfflineRegionsScreen(),
             ),
           ],
+        ),
+        GoRoute(
+          path: '/settings/region/map',
+          builder: (context, state) {
+            final path = state.uri.queryParameters['path'] ?? '';
+            return SettingsOfflineRegionsMapScreen(path: path);
+          },
         ),
         GoRoute(
           path: '/search',

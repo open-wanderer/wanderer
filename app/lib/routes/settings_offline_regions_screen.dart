@@ -652,12 +652,30 @@ class _SettingsOfflineRegionsScreenState
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Text(
-              region.name,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  region.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge!.copyWith(fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                  ),
+                  icon: FaIcon(
+                    FontAwesomeIcons.mapLocationDot,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  onPressed: () => context.push(
+                    '/settings/region/map?path=${Uri.encodeComponent(region.path)}',
+                  ),
+                ),
+              ],
             ),
           ),
           _buildVectorTile(
