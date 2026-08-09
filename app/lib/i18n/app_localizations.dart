@@ -1886,6 +1886,18 @@ abstract class AppLocalizations {
   /// **'Connect to the internet to browse and manage downloadable regions.'**
   String get regions_offline_unavailable_body;
 
+  /// No description provided for @regions_map_geometry_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load region outline'**
+  String get regions_map_geometry_failed;
+
+  /// No description provided for @regions_map_back_label.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to regions'**
+  String get regions_map_back_label;
+
   /// No description provided for @regions_group_expand_label.
   ///
   /// In en, this message translates to:

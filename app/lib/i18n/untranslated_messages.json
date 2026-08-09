@@ -1,1 +1,66 @@
-{}
+{
+  "cs": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "de": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "es": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "eu": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "fr": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "hu": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "it": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "nl": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "no": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "pl": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "pt": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "ru": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ],
+
+  "zh": [
+    "regions_map_geometry_failed",
+    "regions_map_back_label"
+  ]
+}

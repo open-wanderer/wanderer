@@ -525,6 +525,8 @@
   "regions_dem_locked_subtitle": "Download map data first",
   "regions_offline_unavailable_title": "Can't load regions",
   "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_map_geometry_failed": "Could not load region outline",
+  "regions_map_back_label": "Back to regions",
   "regions_group_expand_label": "Expand {name}",
   "@regions_group_expand_label": {
     "placeholders": {

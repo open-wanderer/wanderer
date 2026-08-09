@@ -1046,6 +1046,12 @@ class AppLocalizationsDe extends AppLocalizations {
       'Verbinden Sie sich mit dem Internet, um herunterladbare Regionen zu durchsuchen und zu verwalten.';
 
   @override
+  String get regions_map_geometry_failed => 'Could not load region outline';
+
+  @override
+  String get regions_map_back_label => 'Back to regions';
+
+  @override
   String regions_group_expand_label(String name) {
     return '$name ausklappen';
   }

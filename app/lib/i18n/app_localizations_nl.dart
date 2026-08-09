@@ -1037,6 +1037,12 @@ class AppLocalizationsNl extends AppLocalizations {
       'Connect to the internet to browse and manage downloadable regions.';
 
   @override
+  String get regions_map_geometry_failed => 'Could not load region outline';
+
+  @override
+  String get regions_map_back_label => 'Back to regions';
+
+  @override
   String regions_group_expand_label(String name) {
     return 'Expand $name';
   }
