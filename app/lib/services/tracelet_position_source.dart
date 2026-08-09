@@ -25,6 +25,29 @@ geo.Position seedPositionFrom(LocationMarkerPosition pos) => geo.Position(
   timestamp: DateTime.now(),
 );
 
+/// Whether [pos] carries a REAL altitude reading, as opposed to the
+/// "no altitude available" placeholder that both [seedPositionFrom] above and
+/// geolocator itself express as `altitude == 0` together with
+/// `altitudeAccuracy == 0`.
+///
+/// This is the ONE answer to "does this fix have usable elevation?", the
+/// position-stream counterpart to `parseGpxElevation`'s answer for waypoints.
+/// Every consumer that anchors or diffs elevation must ask it, because
+/// anchoring on a fabricated 0 makes the next genuine reading register as a
+/// single-step climb of the device's full absolute altitude (~500 m in
+/// Munich) — see the `recording-elevation-gain-jump` debug session.
+///
+/// Deliberately NOT `altitudeAccuracy > 0` alone: Android only reports
+/// vertical accuracy on API 26+ (`Location.hasVerticalAccuracy`), and this app
+/// supports API 21+, so a real fix on an older device carries a genuine
+/// altitude with `altitudeAccuracy == 0`. Requiring accuracy would silently
+/// disable elevation tracking outright on those devices — a worse bug than
+/// the one being prevented. A genuine reading of exactly 0 m with no accuracy
+/// (true sea level, no vertical accuracy) is the only false negative, and it
+/// is harmless: the reference simply anchors on the next fix instead.
+bool hasUsableAltitude(geo.Position pos) =>
+    pos.altitude.isFinite && (pos.altitudeAccuracy > 0 || pos.altitude != 0);
+
 /// Bridges tracelet's location engine into a [geo.Position] stream so the
 /// navigation screen's existing consumers (maneuver provider, stats
 /// provider, live marker/camera) remain type-compatible.

@@ -465,7 +465,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         // so it's not gated here — only the breadcrumb append is.
         final advanced = _navNotifier.onPosition(
           ml.Geographic(lat: pos.latitude, lon: pos.longitude),
-          altitude: pos.altitude,
+          // `null`, never a fabricated 0, when the fix carries no real
+          // altitude (see [hasUsableAltitude]). The breadcrumb IS the saved
+          // trail's GPX, and computeTrailMetrics deliberately skips waypoints
+          // with no usable `ele` so the first point that does carry elevation
+          // becomes the anchor. Passing 0 here instead would bake a
+          // ~absolute-altitude phantom climb into every saved recording that
+          // started from an already-resolved map-marker position.
+          altitude: hasUsableAltitude(pos) ? pos.altitude : null,
           heading: pos.heading,
           headingAccuracy: pos.headingAccuracy,
           speed: pos.speed,

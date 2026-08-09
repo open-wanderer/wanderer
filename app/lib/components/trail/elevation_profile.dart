@@ -694,6 +694,16 @@ List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
     for (final segment in track.trksegs) {
       for (final wpt in segment.trkpts) {
         if (wpt.lat == null || wpt.lon == null) continue;
+        // A point with no usable elevation is skipped rather than plotted at
+        // 0. `wpt.ele ?? 0` was the third of the three disagreeing answers to
+        // "is this elevation usable?" that conversion.dart's hasUsablePosition
+        // doc comment warns about, and it is visible: a live recording's first
+        // breadcrumb point carries no altitude when the session seeded from an
+        // already-resolved map marker, so plotting it at 0 drew a cliff from
+        // sea level to the device's real altitude at the start of the chart.
+        // computeTrailMetrics already skips these; the chart now agrees.
+        final elevation = parseGpxElevation(wpt.ele);
+        if (elevation == null) continue;
 
         if (prevPoint != null) {
           final hop = haversineMeters(prevPoint, wpt);
@@ -711,7 +721,7 @@ List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
         result.add(
           TrackPoint(
             distanceM: cumDist,
-            elevationM: wpt.ele ?? 0,
+            elevationM: elevation,
             lonlat: Geographic(lat: wpt.lat!, lon: wpt.lon!),
             duration: cumDuration,
             gradient: 0,

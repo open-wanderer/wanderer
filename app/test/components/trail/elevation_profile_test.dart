@@ -134,6 +134,42 @@ void main() {
     test('an empty GPX yields no points', () {
       expect(buildElevationTrackPoints(Gpx(), 1), isEmpty);
     });
+
+    test('a point with no usable elevation is skipped, not plotted at 0', () {
+      // REGRESSION GUARD. This was `wpt.ele ?? 0`, which drew a cliff from sea
+      // level to the device's real altitude at the start of every live
+      // recording that seeded from an already-resolved map marker: that first
+      // breadcrumb point carries no altitude reading at all.
+      final gpx = _constantGradeTrack(points: 20);
+      gpx.trks.single.trksegs.single.trkpts.insert(
+        0,
+        Wpt(lat: 47.0, lon: 11.0, ele: null, time: DateTime.utc(2024, 1, 1, 9)),
+      );
+
+      final points = buildElevationTrackPoints(gpx, 1);
+
+      expect(points, hasLength(20));
+      expect(points.every((p) => p.elevationM >= 1000), isTrue);
+    });
+
+    test('a GPX with no elevation at all yields no points', () {
+      // Better an empty state than a fake flat line at sea level.
+      final gpx = Gpx()
+        ..trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  Wpt(lat: 47.0, lon: 11.0),
+                  Wpt(lat: 47.0, lon: 11.00002),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+      expect(buildElevationTrackPoints(gpx, 1), isEmpty);
+    });
   });
 
   // REGRESSION GUARD for the live elevation profile shown while RECORDING

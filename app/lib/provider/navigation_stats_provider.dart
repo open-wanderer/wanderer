@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
+import 'package:wanderer/services/tracelet_position_source.dart'
+    show hasUsableAltitude;
 
 part 'navigation_stats_provider.freezed.dart';
 part 'navigation_stats_provider.g.dart';
@@ -207,20 +209,32 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     // Elevation gain/loss with a noise-floor threshold. The
     // reference altitude is only updated when the threshold is crossed, so
     // small drifts never accumulate.
+    //
+    // A fix with no real altitude reading must never anchor the reference or
+    // be diffed against it — see [hasUsableAltitude], which owns that
+    // judgement (and explains why it is not simply an accuracy check).
+    // Anchoring on the fabricated 0 that TraceletPositionSource's seed fix
+    // carries would make the next genuine reading register as a single-step
+    // "gain" of the device's full absolute altitude. Skip such fixes for
+    // elevation purposes; the reference anchors on the first subsequent fix
+    // that does carry a real reading — the same rule computeTrailMetrics
+    // already applies to waypoints with no usable `ele`.
     var gain = state.elevationGainMeters;
     var loss = state.elevationLossMeters;
-    if (_lastAltitude != null) {
-      final delta = pos.altitude - _lastAltitude!;
-      if (delta.abs() >= _kAltitudeNoiseFloorMeters) {
-        if (delta > 0) {
-          gain += delta;
-        } else {
-          loss += -delta;
+    if (hasUsableAltitude(pos)) {
+      if (_lastAltitude != null) {
+        final delta = pos.altitude - _lastAltitude!;
+        if (delta.abs() >= _kAltitudeNoiseFloorMeters) {
+          if (delta > 0) {
+            gain += delta;
+          } else {
+            loss += -delta;
+          }
+          _lastAltitude = pos.altitude;
         }
+      } else {
         _lastAltitude = pos.altitude;
       }
-    } else {
-      _lastAltitude = pos.altitude;
     }
 
     // Current speed: m/s → km/h, guarding NaN/negative.
