@@ -181,7 +181,9 @@ class WaypointSheet extends ConsumerWidget {
                       waypoint.description!,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         height: 1.5,
-                        color: Colors.grey[800],
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.8),
                       ),
                     ),
                   ),
