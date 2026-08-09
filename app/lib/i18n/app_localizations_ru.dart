@@ -46,9 +46,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get author => 'Автор';
 
   @override
-  String get avatar => 'Аватар';
-
-  @override
   String get average_speed => 'Ср. скорость';
 
   @override
@@ -56,9 +53,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get before => 'До';
-
-  @override
-  String get behavior => 'Поведение';
 
   @override
   String get by => 'От';
@@ -71,9 +65,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => 'Автомобиль:';
 
   @override
   String card(num n) {
@@ -154,12 +145,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get creation_date => 'Дата создания';
 
   @override
-  String get crop => 'Crop';
-
-  @override
-  String get cross => 'Циклокросс';
-
-  @override
   String get current_password => 'Текущий пароль';
 
   @override
@@ -203,9 +188,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get directions => 'Как добраться';
-
-  @override
-  String get display => 'Отображение';
 
   @override
   String get distance => 'Расстояние';
@@ -286,9 +268,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => 'Паром';
-
-  @override
   String get filter_tags => 'Фильтр меток';
 
   @override
@@ -314,12 +293,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get from_photos => 'Из фотографии';
 
   @override
-  String get heading => 'Heading';
-
-  @override
-  String get height => 'Высота';
-
-  @override
   String get help => 'Помощь';
 
   @override
@@ -327,9 +300,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get home => 'Главная';
-
-  @override
-  String get hotel => 'Гостиница';
 
   @override
   String get icon => 'Иконка';
@@ -396,9 +366,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get longitude => 'Долгота';
 
   @override
-  String get loop => 'Круг';
-
-  @override
   String get map => 'Карта';
 
   @override
@@ -406,12 +373,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get moderate => 'Средний';
-
-  @override
-  String get more => 'More';
-
-  @override
-  String get mountain => 'Горный';
 
   @override
   String get my_account => 'Мой аккаунт';
@@ -426,9 +387,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => 'Рядом';
 
   @override
   String get new_password => 'Новый пароль';
@@ -498,9 +456,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get or => 'или';
 
   @override
-  String get orientation => 'Ориентация';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -513,9 +468,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => 'Paragraph';
 
   @override
   String get pause => 'Pause';
@@ -555,9 +507,6 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
-  String get print => 'Печать';
-
-  @override
   String get privacy => 'Приватность';
 
   @override
@@ -570,16 +519,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get public => 'Открытый';
 
   @override
-  String get radius => 'Радиус';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => 'Регистрация';
-
-  @override
-  String get required => 'Обязательно';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -597,9 +540,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Возобновить запись?';
-
-  @override
-  String get road => 'Шоссе';
 
   @override
   String route(num n) {
@@ -643,9 +583,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => 'selected';
 
   @override
   String get settings => 'Настройки';
@@ -721,9 +658,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get show_on_map => 'Показать на карте';
 
   @override
-  String get shower => 'Душ';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -764,13 +698,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => 'Таблица';
-
-  @override
   String get tags => 'Метки';
-
-  @override
-  String get text => 'Текст';
 
   @override
   String get theme_dark => 'Dark';
@@ -780,9 +708,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -827,13 +752,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'Этот никнейм уже занят. Пожалуйста, попробуйте другой.';
 
   @override
-  String get view => 'Просмотр';
-
-  @override
   String get visibilty_status => 'Статус видимости';
-
-  @override
-  String get water => 'Вода';
 
   @override
   String get web => 'Web';
@@ -851,9 +770,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => 'Ширина';
 
   @override
   String get wrong_username_or_password => 'Неверный логин или пароль';
@@ -937,9 +853,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get no_track_data => 'No track data';
-
-  @override
-  String get offline => 'Offline';
 
   @override
   String get available_offline => 'Available offline';

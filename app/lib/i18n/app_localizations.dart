@@ -122,7 +122,7 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// No description provided for @about.
+  /// Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both.
   ///
   /// In en, this message translates to:
   /// **'About'**
@@ -170,13 +170,13 @@ abstract class AppLocalizations {
   /// **'Adjust track'**
   String get adjust_track;
 
-  /// No description provided for @after.
+  /// Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance.
   ///
   /// In en, this message translates to:
   /// **'After'**
   String get after;
 
-  /// No description provided for @all.
+  /// Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category.
   ///
   /// In en, this message translates to:
   /// **'All'**
@@ -188,17 +188,11 @@ abstract class AppLocalizations {
   /// **'Altitude'**
   String get altitude;
 
-  /// No description provided for @author.
+  /// Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username.
   ///
   /// In en, this message translates to:
   /// **'Author'**
   String get author;
-
-  /// No description provided for @avatar.
-  ///
-  /// In en, this message translates to:
-  /// **'Avatar'**
-  String get avatar;
 
   /// No description provided for @average_speed.
   ///
@@ -212,19 +206,13 @@ abstract class AppLocalizations {
   /// **'Basic Info'**
   String get basic_info;
 
-  /// No description provided for @before.
+  /// Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string.
   ///
   /// In en, this message translates to:
   /// **'Before'**
   String get before;
 
-  /// No description provided for @behavior.
-  ///
-  /// In en, this message translates to:
-  /// **'Behavior'**
-  String get behavior;
-
-  /// No description provided for @by.
+  /// Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense.
   ///
   /// In en, this message translates to:
   /// **'by'**
@@ -247,12 +235,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Discard this trail and its changes?'**
   String get discard_trail_confirm;
-
-  /// No description provided for @car.
-  ///
-  /// In en, this message translates to:
-  /// **'Car'**
-  String get car;
 
   /// No description provided for @card.
   ///
@@ -368,18 +350,6 @@ abstract class AppLocalizations {
   /// **'Creation date'**
   String get creation_date;
 
-  /// No description provided for @crop.
-  ///
-  /// In en, this message translates to:
-  /// **'Crop'**
-  String get crop;
-
-  /// No description provided for @cross.
-  ///
-  /// In en, this message translates to:
-  /// **'Cross'**
-  String get cross;
-
   /// No description provided for @current_password.
   ///
   /// In en, this message translates to:
@@ -392,7 +362,7 @@ abstract class AppLocalizations {
   /// **'Danger zone'**
   String get danger_zone;
 
-  /// No description provided for @date.
+  /// Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three.
   ///
   /// In en, this message translates to:
   /// **'Date'**
@@ -404,7 +374,7 @@ abstract class AppLocalizations {
   /// **'Delete'**
   String get delete;
 
-  /// No description provided for @open.
+  /// Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'.
   ///
   /// In en, this message translates to:
   /// **'Open'**
@@ -464,12 +434,6 @@ abstract class AppLocalizations {
   /// **'Directions'**
   String get directions;
 
-  /// No description provided for @display.
-  ///
-  /// In en, this message translates to:
-  /// **'Display'**
-  String get display;
-
   /// No description provided for @distance.
   ///
   /// In en, this message translates to:
@@ -512,7 +476,7 @@ abstract class AppLocalizations {
   /// **'Edit Waypoint'**
   String get edit_waypoint;
 
-  /// No description provided for @edited.
+  /// Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase.
   ///
   /// In en, this message translates to:
   /// **'edited'**
@@ -620,12 +584,6 @@ abstract class AppLocalizations {
   /// **'Search this area'**
   String get search_this_area;
 
-  /// No description provided for @ferry.
-  ///
-  /// In en, this message translates to:
-  /// **'Ferry'**
-  String get ferry;
-
   /// No description provided for @filter_tags.
   ///
   /// In en, this message translates to:
@@ -638,7 +596,7 @@ abstract class AppLocalizations {
   /// **'Filter trails'**
   String get filter_trails;
 
-  /// No description provided for @finish.
+  /// Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one.
   ///
   /// In en, this message translates to:
   /// **'Finish'**
@@ -674,18 +632,6 @@ abstract class AppLocalizations {
   /// **'From Photos'**
   String get from_photos;
 
-  /// No description provided for @heading.
-  ///
-  /// In en, this message translates to:
-  /// **'Heading'**
-  String get heading;
-
-  /// No description provided for @height.
-  ///
-  /// In en, this message translates to:
-  /// **'Height'**
-  String get height;
-
   /// No description provided for @help.
   ///
   /// In en, this message translates to:
@@ -704,13 +650,7 @@ abstract class AppLocalizations {
   /// **'Home'**
   String get home;
 
-  /// No description provided for @hotel.
-  ///
-  /// In en, this message translates to:
-  /// **'Hotel'**
-  String get hotel;
-
-  /// No description provided for @icon.
+  /// Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map.
   ///
   /// In en, this message translates to:
   /// **'Icon'**
@@ -746,7 +686,7 @@ abstract class AppLocalizations {
   /// **'Like Status'**
   String get like_status;
 
-  /// No description provided for @liked.
+  /// Adjective. Filter toggle that narrows the list to trails you have liked.
   ///
   /// In en, this message translates to:
   /// **'Liked'**
@@ -818,12 +758,6 @@ abstract class AppLocalizations {
   /// **'Longitude'**
   String get longitude;
 
-  /// No description provided for @loop.
-  ///
-  /// In en, this message translates to:
-  /// **'Loop'**
-  String get loop;
-
   /// No description provided for @map.
   ///
   /// In en, this message translates to:
@@ -842,18 +776,6 @@ abstract class AppLocalizations {
   /// **'Moderate'**
   String get moderate;
 
-  /// No description provided for @more.
-  ///
-  /// In en, this message translates to:
-  /// **'More'**
-  String get more;
-
-  /// No description provided for @mountain.
-  ///
-  /// In en, this message translates to:
-  /// **'Mountain'**
-  String get mountain;
-
   /// No description provided for @my_account.
   ///
   /// In en, this message translates to:
@@ -866,7 +788,7 @@ abstract class AppLocalizations {
   /// **'in {distance}'**
   String in_distance(String distance);
 
-  /// No description provided for @name.
+  /// Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form.
   ///
   /// In en, this message translates to:
   /// **'Name'**
@@ -877,12 +799,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Navigate'**
   String get navigate;
-
-  /// No description provided for @near.
-  ///
-  /// In en, this message translates to:
-  /// **'Near'**
-  String get near;
 
   /// No description provided for @new_password.
   ///
@@ -1004,17 +920,11 @@ abstract class AppLocalizations {
   /// **'Only me'**
   String get only_me;
 
-  /// No description provided for @or.
+  /// Divider word between the email login form and the OAuth provider buttons on the login screen.
   ///
   /// In en, this message translates to:
   /// **'or'**
   String get or;
-
-  /// No description provided for @orientation.
-  ///
-  /// In en, this message translates to:
-  /// **'Orientation'**
-  String get orientation;
 
   /// No description provided for @own_trails_empty_body.
   ///
@@ -1039,12 +949,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Trails (on device)'**
   String get trails_on_device;
-
-  /// No description provided for @paragraph.
-  ///
-  /// In en, this message translates to:
-  /// **'Paragraph'**
-  String get paragraph;
 
   /// No description provided for @pause.
   ///
@@ -1088,12 +992,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}'**
   String photos_skipped_no_gps(num count);
 
-  /// No description provided for @print.
-  ///
-  /// In en, this message translates to:
-  /// **'Print'**
-  String get print;
-
   /// No description provided for @privacy.
   ///
   /// In en, this message translates to:
@@ -1118,12 +1016,6 @@ abstract class AppLocalizations {
   /// **'Public'**
   String get public;
 
-  /// No description provided for @radius.
-  ///
-  /// In en, this message translates to:
-  /// **'Radius'**
-  String get radius;
-
   /// No description provided for @reached_end_of_trail.
   ///
   /// In en, this message translates to:
@@ -1136,19 +1028,13 @@ abstract class AppLocalizations {
   /// **'Register'**
   String get register;
 
-  /// No description provided for @required.
-  ///
-  /// In en, this message translates to:
-  /// **'Required'**
-  String get required;
-
   /// No description provided for @reorder_photos_hint.
   ///
   /// In en, this message translates to:
   /// **'Long-press and drag to reorder photos.'**
   String get reorder_photos_hint;
 
-  /// No description provided for @reset.
+  /// Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'.
   ///
   /// In en, this message translates to:
   /// **'Reset'**
@@ -1171,12 +1057,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume recording?'**
   String get resume_recording_prompt;
-
-  /// No description provided for @road.
-  ///
-  /// In en, this message translates to:
-  /// **'Road'**
-  String get road;
 
   /// No description provided for @route.
   ///
@@ -1243,12 +1123,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select date'**
   String get select_date;
-
-  /// No description provided for @selected.
-  ///
-  /// In en, this message translates to:
-  /// **'selected'**
-  String get selected;
 
   /// No description provided for @settings.
   ///
@@ -1358,7 +1232,7 @@ abstract class AppLocalizations {
   /// **'Share profile'**
   String get share_profile;
 
-  /// No description provided for @shared.
+  /// Adjective. Filter toggle that narrows the list to trails other users have shared with you.
   ///
   /// In en, this message translates to:
   /// **'Shared'**
@@ -1369,12 +1243,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show on map'**
   String get show_on_map;
-
-  /// No description provided for @shower.
-  ///
-  /// In en, this message translates to:
-  /// **'Shower'**
-  String get shower;
 
   /// No description provided for @signout_unsynced_warning.
   ///
@@ -1388,19 +1256,19 @@ abstract class AppLocalizations {
   /// **'Your trails. Your data. Your server.'**
   String get slogan;
 
-  /// No description provided for @sort.
+  /// Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button.
   ///
   /// In en, this message translates to:
   /// **'Sort'**
   String get sort;
 
-  /// No description provided for @speed.
+  /// Noun. Label of the current-speed readout on the live navigation screen.
   ///
   /// In en, this message translates to:
   /// **'Speed'**
   String get speed;
 
-  /// No description provided for @start.
+  /// Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'.
   ///
   /// In en, this message translates to:
   /// **'Start'**
@@ -1436,23 +1304,11 @@ abstract class AppLocalizations {
   /// **'Uploading…'**
   String get sync_uploading;
 
-  /// No description provided for @table.
-  ///
-  /// In en, this message translates to:
-  /// **'Table'**
-  String get table;
-
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:
   /// **'Tags'**
   String get tags;
-
-  /// No description provided for @text.
-  ///
-  /// In en, this message translates to:
-  /// **'Text'**
-  String get text;
 
   /// No description provided for @theme_dark.
   ///
@@ -1471,12 +1327,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Follow system'**
   String get theme_system;
-
-  /// No description provided for @time.
-  ///
-  /// In en, this message translates to:
-  /// **'Time'**
-  String get time;
 
   /// No description provided for @time_in_motion.
   ///
@@ -1538,25 +1388,13 @@ abstract class AppLocalizations {
   /// **'This username is already taken. Please try another.'**
   String get username_not_unique;
 
-  /// No description provided for @view.
-  ///
-  /// In en, this message translates to:
-  /// **'View'**
-  String get view;
-
   /// No description provided for @visibilty_status.
   ///
   /// In en, this message translates to:
   /// **'Visibility status'**
   String get visibilty_status;
 
-  /// No description provided for @water.
-  ///
-  /// In en, this message translates to:
-  /// **'Water'**
-  String get water;
-
-  /// No description provided for @web.
+  /// Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type.
   ///
   /// In en, this message translates to:
   /// **'Web'**
@@ -1568,17 +1406,11 @@ abstract class AppLocalizations {
   /// **'{n, plural, =1 {Waypoint} other {Waypoints}}'**
   String waypoints(num n);
 
-  /// No description provided for @welcome_to.
+  /// Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation.
   ///
   /// In en, this message translates to:
   /// **'Welcome to'**
   String get welcome_to;
-
-  /// No description provided for @width.
-  ///
-  /// In en, this message translates to:
-  /// **'Width'**
-  String get width;
 
   /// No description provided for @wrong_username_or_password.
   ///
@@ -1682,7 +1514,7 @@ abstract class AppLocalizations {
   /// **'This removes the downloaded copy from this device. The trail itself is not deleted — you\'ll need to download it again to use it offline.'**
   String get remove_download_confirm_body;
 
-  /// No description provided for @apply.
+  /// Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text.
   ///
   /// In en, this message translates to:
   /// **'Apply'**
@@ -1730,12 +1562,6 @@ abstract class AppLocalizations {
   /// **'No track data'**
   String get no_track_data;
 
-  /// No description provided for @offline.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline'**
-  String get offline;
-
   /// No description provided for @available_offline.
   ///
   /// In en, this message translates to:
@@ -1766,7 +1592,7 @@ abstract class AppLocalizations {
   /// **'No results for \"{query}\"'**
   String no_results_for_query(String query);
 
-  /// No description provided for @filter.
+  /// Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button.
   ///
   /// In en, this message translates to:
   /// **'Filter'**

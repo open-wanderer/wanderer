@@ -46,9 +46,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get author => 'Egilea';
 
   @override
-  String get avatar => 'Iruditxoa';
-
-  @override
   String get average_speed => 'Batazbesteko abiadura';
 
   @override
@@ -56,9 +53,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get before => 'Aurretik';
-
-  @override
-  String get behavior => 'Behavior';
 
   @override
   String get by => '-';
@@ -71,9 +65,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => 'Kotxea';
 
   @override
   String card(num n) {
@@ -154,12 +145,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get creation_date => 'Sorrera-data';
 
   @override
-  String get crop => 'Moztu';
-
-  @override
-  String get cross => 'Krossa';
-
-  @override
   String get current_password => 'Oraingo pasahitza';
 
   @override
@@ -204,9 +189,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get directions => 'Norabideak';
-
-  @override
-  String get display => 'Erakutsi';
 
   @override
   String get distance => 'Distantzia';
@@ -286,9 +268,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => 'Ferria';
-
-  @override
   String get filter_tags => 'Iragazi etiketak';
 
   @override
@@ -314,12 +293,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get from_photos => 'Argazkietatik';
 
   @override
-  String get heading => 'Goiburukoa';
-
-  @override
-  String get height => 'Altuera';
-
-  @override
   String get help => 'Laguntza';
 
   @override
@@ -327,9 +300,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get home => 'Hasiera';
-
-  @override
-  String get hotel => 'Hotela';
 
   @override
   String get icon => 'Ikonoa';
@@ -396,9 +366,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get longitude => 'Longitudea';
 
   @override
-  String get loop => 'Begizta';
-
-  @override
   String get map => 'Mapa';
 
   @override
@@ -406,12 +373,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get moderate => 'Erdi-bidekoa';
-
-  @override
-  String get more => 'Gehiago';
-
-  @override
-  String get mountain => 'Mendia';
 
   @override
   String get my_account => 'Nire kontua';
@@ -426,9 +387,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => 'Gertu';
 
   @override
   String get new_password => 'Pasahitz berria';
@@ -498,9 +456,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get or => 'edo';
 
   @override
-  String get orientation => 'Orientazioa';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -513,9 +468,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => 'Paragrafoa';
 
   @override
   String get pause => 'Pause';
@@ -555,9 +507,6 @@ class AppLocalizationsEu extends AppLocalizations {
   }
 
   @override
-  String get print => 'Inprimatu';
-
-  @override
   String get privacy => 'Pribatutasuna';
 
   @override
@@ -570,16 +519,10 @@ class AppLocalizationsEu extends AppLocalizations {
   String get public => 'Publikoa';
 
   @override
-  String get radius => 'Erradioa';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => 'Izena eman';
-
-  @override
-  String get required => 'Beharrezkoa';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -597,9 +540,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Resume recording?';
-
-  @override
-  String get road => 'Errepidea';
 
   @override
   String route(num n) {
@@ -643,9 +583,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => 'aukeratuta';
 
   @override
   String get settings => 'Ezarpenak';
@@ -722,9 +659,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get show_on_map => 'Erakutsi mapan';
 
   @override
-  String get shower => 'Dutxa';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -765,13 +699,7 @@ class AppLocalizationsEu extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => 'Taula';
-
-  @override
   String get tags => 'Etiketak';
-
-  @override
-  String get text => 'Testua';
 
   @override
   String get theme_dark => 'Dark';
@@ -781,9 +709,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -828,13 +753,7 @@ class AppLocalizationsEu extends AppLocalizations {
       'This username is already taken. Please try another.';
 
   @override
-  String get view => 'Ikusi';
-
-  @override
   String get visibilty_status => 'Ikuspen-egoera';
-
-  @override
-  String get water => 'Ura';
 
   @override
   String get web => 'Web';
@@ -852,9 +771,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => 'Zabalera';
 
   @override
   String get wrong_username_or_password =>
@@ -939,9 +855,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get no_track_data => 'No track data';
-
-  @override
-  String get offline => 'Offline';
 
   @override
   String get available_offline => 'Available offline';

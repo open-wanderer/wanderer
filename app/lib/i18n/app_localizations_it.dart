@@ -46,9 +46,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get author => 'Autore';
 
   @override
-  String get avatar => 'Avatar';
-
-  @override
   String get average_speed => 'Vel. Media';
 
   @override
@@ -56,9 +53,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get before => 'Prima';
-
-  @override
-  String get behavior => 'Behavior';
 
   @override
   String get by => 'di';
@@ -71,9 +65,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => 'Car';
 
   @override
   String card(num n) {
@@ -154,12 +145,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get creation_date => 'Data di creazione';
 
   @override
-  String get crop => 'Crop';
-
-  @override
-  String get cross => 'Cross';
-
-  @override
   String get current_password => 'Password attuale';
 
   @override
@@ -204,9 +189,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get directions => 'Indicazioni';
-
-  @override
-  String get display => 'Visualizza';
 
   @override
   String get distance => 'Distanza';
@@ -287,9 +269,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => 'Ferry';
-
-  @override
   String get filter_tags => 'Filter tags';
 
   @override
@@ -315,12 +294,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get from_photos => 'From Photos';
 
   @override
-  String get heading => 'Heading';
-
-  @override
-  String get height => 'Height';
-
-  @override
   String get help => 'Aiuto';
 
   @override
@@ -328,9 +301,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get home => 'Home';
-
-  @override
-  String get hotel => 'Hotel';
 
   @override
   String get icon => 'Icona';
@@ -397,9 +367,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get longitude => 'Longitudine';
 
   @override
-  String get loop => 'Loop';
-
-  @override
   String get map => 'Mappa';
 
   @override
@@ -407,12 +374,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get moderate => 'Moderato';
-
-  @override
-  String get more => 'More';
-
-  @override
-  String get mountain => 'Mountain';
 
   @override
   String get my_account => 'Il mio account';
@@ -427,9 +388,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => 'Vicino';
 
   @override
   String get new_password => 'Nuova password';
@@ -499,9 +457,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get or => 'o';
 
   @override
-  String get orientation => 'Orientamento';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -514,9 +469,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => 'Paragraph';
 
   @override
   String get pause => 'Pause';
@@ -556,9 +508,6 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
-  String get print => 'Stampa';
-
-  @override
   String get privacy => 'Privacy';
 
   @override
@@ -571,16 +520,10 @@ class AppLocalizationsIt extends AppLocalizations {
   String get public => 'Pubblico';
 
   @override
-  String get radius => 'Raggio';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => 'Registrati';
-
-  @override
-  String get required => 'Obbligatorio';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -598,9 +541,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Riprendere la registrazione?';
-
-  @override
-  String get road => 'Road';
 
   @override
   String route(num n) {
@@ -644,9 +584,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => 'selected';
 
   @override
   String get settings => 'Impostazioni';
@@ -722,9 +659,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get show_on_map => 'Mostra sulla mappa';
 
   @override
-  String get shower => 'Shower';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -765,13 +699,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => 'Tavolo';
-
-  @override
   String get tags => 'Tags';
-
-  @override
-  String get text => 'Testo';
 
   @override
   String get theme_dark => 'Dark';
@@ -781,9 +709,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -828,13 +753,7 @@ class AppLocalizationsIt extends AppLocalizations {
       'This username is already taken. Please try another.';
 
   @override
-  String get view => 'Visualizza';
-
-  @override
   String get visibilty_status => 'Visibility status';
-
-  @override
-  String get water => 'Water';
 
   @override
   String get web => 'Web';
@@ -852,9 +771,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => 'Width';
 
   @override
   String get wrong_username_or_password => 'Nome utente o password errati';
@@ -938,9 +854,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get no_track_data => 'No track data';
-
-  @override
-  String get offline => 'Offline';
 
   @override
   String get available_offline => 'Available offline';

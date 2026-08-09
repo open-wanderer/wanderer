@@ -46,9 +46,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get author => 'Auteur';
 
   @override
-  String get avatar => 'Avatar';
-
-  @override
   String get average_speed => 'Vitesse Moy.';
 
   @override
@@ -56,9 +53,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get before => 'Avant le';
-
-  @override
-  String get behavior => 'Behavior';
 
   @override
   String get by => 'par';
@@ -71,9 +65,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => 'Voiture';
 
   @override
   String card(num n) {
@@ -154,12 +145,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get creation_date => 'Date de création';
 
   @override
-  String get crop => 'Recadrer';
-
-  @override
-  String get cross => 'Cross';
-
-  @override
   String get current_password => 'Mot de passe actuel';
 
   @override
@@ -204,9 +189,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get directions => 'Directions';
-
-  @override
-  String get display => 'Visualiser';
 
   @override
   String get distance => 'Distance';
@@ -288,9 +270,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => 'Ferry';
-
-  @override
   String get filter_tags => 'Filtrer par étiquettes';
 
   @override
@@ -316,12 +295,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get from_photos => 'Depuis les photos';
 
   @override
-  String get heading => 'Titre';
-
-  @override
-  String get height => 'Hauteur';
-
-  @override
   String get help => 'Aide';
 
   @override
@@ -329,9 +302,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get home => 'Accueil';
-
-  @override
-  String get hotel => 'Hôtel';
 
   @override
   String get icon => 'Icône';
@@ -398,9 +368,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get longitude => 'Longitude';
 
   @override
-  String get loop => 'Boucle';
-
-  @override
   String get map => 'Carte';
 
   @override
@@ -408,12 +375,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get moderate => 'Moyenne';
-
-  @override
-  String get more => 'Plus';
-
-  @override
-  String get mountain => 'Montagne';
 
   @override
   String get my_account => 'Mon profil';
@@ -428,9 +389,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => 'À proximité de';
 
   @override
   String get new_password => 'Nouveau mot de passe';
@@ -500,9 +458,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get or => 'ou';
 
   @override
-  String get orientation => 'Orientation';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -515,9 +470,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => 'Paragraphe';
 
   @override
   String get pause => 'Pause';
@@ -558,9 +510,6 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get print => 'Imprimer';
-
-  @override
   String get privacy => 'Confidentialité';
 
   @override
@@ -573,16 +522,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get public => 'Publique';
 
   @override
-  String get radius => 'Rayon';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => 'Créer un compte';
-
-  @override
-  String get required => 'Requis';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -600,9 +543,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Reprendre l\'enregistrement ?';
-
-  @override
-  String get road => 'Route';
 
   @override
   String route(num n) {
@@ -646,9 +586,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => 'sélectionné(s)';
 
   @override
   String get settings => 'Paramètres';
@@ -724,9 +661,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get show_on_map => 'Voir sur la carte';
 
   @override
-  String get shower => 'Douche';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -767,13 +701,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => 'Tableau';
-
-  @override
   String get tags => 'Étiquettes';
-
-  @override
-  String get text => 'Texte';
 
   @override
   String get theme_dark => 'Dark';
@@ -783,9 +711,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -830,13 +755,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'This username is already taken. Please try another.';
 
   @override
-  String get view => 'Afficher';
-
-  @override
   String get visibilty_status => 'État de visibilité';
-
-  @override
-  String get water => 'Eau';
 
   @override
   String get web => 'Web';
@@ -854,9 +773,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => 'Largeur';
 
   @override
   String get wrong_username_or_password =>
@@ -941,9 +857,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get no_track_data => 'No track data';
-
-  @override
-  String get offline => 'Offline';
 
   @override
   String get available_offline => 'Available offline';
