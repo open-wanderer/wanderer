@@ -74,7 +74,12 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     // read it via ref.read within the same frame.
     ref.watch(unitProvider);
 
-    if (_points.isEmpty) {
+    // A single point is not a profile: every axis range collapses to zero and
+    // the chart degenerates to one dot with no line. Reachable now that points
+    // lacking elevation are skipped rather than plotted at 0 — a recording
+    // whose first breadcrumb point came from the altitude-less seed fix has
+    // exactly one plottable point until its second real fix lands.
+    if (_points.length < 2) {
       return const _EmptyState();
     }
 

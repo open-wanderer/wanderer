@@ -56,6 +56,33 @@ import 'package:wanderer/util/route/valhalla.dart';
 /// premature-exit dialog.
 enum _NavExitChoice { cancel, exit, saveTrack }
 
+/// Breadcrumb length below which the live elevation chart still refreshes on
+/// every single GPS fix. Redrawing is cheap while the track is short, and a
+/// just-started recording is exactly when the user is most likely watching the
+/// profile appear.
+const _kLiveChartFullFidelityPoints = 300;
+
+/// One chart refresh per this many fixes once past
+/// [_kLiveChartFullFidelityPoints]. At 1 Hz that is a redraw roughly every
+/// 10 s — invisible on an elevation profile spanning hours, and it cuts the
+/// per-fix cost by 10x exactly when the track is long enough for that cost to
+/// matter.
+const _kLiveChartStride = 10;
+
+/// Change signal for the live (recording) elevation chart, derived from
+/// `NavigationState.breadcrumbLength`.
+///
+/// Monotonically non-decreasing, so it can never make the chart go backwards,
+/// but it deliberately holds steady across consecutive fixes once the track is
+/// long — see the two constants above and the cost note in
+/// `_buildElevationPage`. Full fidelity below the threshold, then one step per
+/// [_kLiveChartStride] fixes.
+@visibleForTesting
+int liveElevationChartRevision(int breadcrumbLength) =>
+    breadcrumbLength <= _kLiveChartFullFidelityPoints
+    ? breadcrumbLength
+    : _kLiveChartFullFidelityPoints + breadcrumbLength ~/ _kLiveChartStride;
+
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
   final NavigateResponse response;
@@ -1897,7 +1924,38 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     if (widget.isRecording) {
       return Consumer(
         builder: (context, ref, _) {
-          ref.watch(_navProviderInstance.select((s) => s.breadcrumbLength));
+          // Both watches are deliberately COARSE. Every rebuild of this
+          // subtree costs two full O(n) passes over the whole recording so
+          // far — buildElevationTrackPoints (via didUpdateWidget) and
+          // computeTrailMetrics (in ElevationProfile.build, since trail is
+          // null here) — each with a haversine per point. Measured at 1 Hz
+          // recording: ~11 ms per rebuild at 4 h of track on a desktop, so
+          // several times that on a phone, on the UI thread, growing with
+          // recording length. Rebuilding per GPS fix (and, worse, per
+          // stats-clock tick) made the chart page the most expensive thing
+          // on screen late in a hike, for pixels that did not change.
+          ref.watch(
+            _navProviderInstance.select(
+              (s) => liveElevationChartRevision(s.breadcrumbLength),
+            ),
+          );
+          // The header renders this at DurationTersity.minute, so watching
+          // whole minutes produces byte-identical output while dropping 59
+          // of every 60 rebuilds. Watching `elapsed` itself would rebuild
+          // once a second regardless of the stride above, since the stats
+          // clock ticks independently of GPS.
+          final elapsedMinutes = ref.watch(
+            _statsProviderInstance.select((s) => s.elapsed.inMinutes),
+          );
+
+          final live = ref.read(_navProviderInstance).breadcrumb;
+          // Length-checked BEFORE copying, so the not-enough-points case
+          // costs nothing. (This used to read `gpx.allPoints.length`, which
+          // allocated a fresh Geographic per recorded point just to compare
+          // a count.)
+          if (live.length < 2) {
+            return const SizedBox.shrink();
+          }
           // SNAPSHOT, not the live view. `breadcrumb` is an identity-stable
           // UnmodifiableListView over a grow-in-place list, so feeding it
           // straight in makes every rebuild's Gpx wrap the SAME list instance
@@ -1908,25 +1966,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           // chart would freeze at its first two points. Copying gives each
           // rebuild a distinct list whose differing length fails that
           // equality check cheaply (length is compared before any element).
-          final breadcrumb = List<Wpt>.of(
-            ref.read(_navProviderInstance).breadcrumb,
-          );
-          final gpx = buildGpxFromPoints(breadcrumb);
-          // Matches elevation_tab.dart's own empty-state gate for the same
-          // "not enough points yet" case (route planner's live GPX).
-          if (gpx.allPoints.length < 2) {
-            return const SizedBox.shrink();
-          }
-          final elapsed = ref.watch(
-            _statsProviderInstance.select((s) => s.elapsed),
-          );
+          final gpx = buildGpxFromPoints(List<Wpt>.of(live));
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevationProfile(
               trail: null,
               gpx: gpx,
               enableLineTouch: false,
-              durationOverride: elapsed,
+              durationOverride: Duration(minutes: elapsedMinutes),
             ),
           );
         },
