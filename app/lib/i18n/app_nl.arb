@@ -1,6 +1,9 @@
 {
   "@@locale": "nl",
   "about": "Over",
+  "@about": {
+    "description": "Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both."
+  },
   "appearance": "Appearance",
   "account": "Account",
   "account_delete_confirm": "Je staat op het punt je account te verwijderen. Al je routes worden hierdoor eveneens verwijderd. Wil je doorgaan?",
@@ -9,19 +12,31 @@
   "add_waypoint": "Routepunt toevoegen",
   "adjust_track": "Adjust track",
   "after": "Na",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
   "all": "All",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
   "altitude": "Hoogte",
   "author": "Auteur",
-  "avatar": "Profielfoto",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
   "average_speed": "Gem. Snelheid",
   "basic_info": "Algemene informatie",
   "before": "Voor",
-  "behavior": "Gedrag",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
   "by": "door",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
   "cancel": "Annuleren",
   "discard": "Discard",
   "discard_trail_confirm": "Discard this trail and its changes?",
-  "car": "Wagen",
   "card": "{n, plural, =1 {Kaart} other {Kaarten}}",
   "@card": {
     "placeholders": {
@@ -57,13 +72,17 @@
   "copy_link": "Kopieer Link",
   "create_waypoint": "Nieuw routepunt",
   "creation_date": "Aanmaakdatum",
-  "crop": "Bijsnijden",
-  "cross": "Oversteken",
   "current_password": "Huidig wachtwoord",
   "danger_zone": "Gevarenzone",
   "date": "Datum",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
   "delete": "Verwijderen",
   "open": "Open",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
   "delete_account": "Account verwijderen",
   "delete_trail_confirm": "Weet je zeker dat je deze route wilt verwijderen? Deze actie is onomkeerbaar.",
   "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
@@ -73,7 +92,6 @@
   "difficult": "Moeilijk",
   "difficulty": "Moeilijkheidsgraad",
   "directions": "Routebeschrijving",
-  "display": "Tonen",
   "distance": "Afstand",
   "download": "Download",
   "duration": "Duur",
@@ -82,6 +100,9 @@
   "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
   "edit_waypoint": "Bewerk Routepunt",
   "edited": "bewerkt",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
   "elevation_gain": "Hoogteverschil",
   "elevation_loss": "Hoogteverlies",
   "elevation_profile": "Elevation Profile",
@@ -99,28 +120,33 @@
   "stop_recording": "Opname stoppen",
   "stop_recording_confirm": "Opname stoppen?",
   "search_this_area": "Search this area",
-  "ferry": "Veerboot",
   "filter_tags": "Filter tags",
   "filter_trails": "Filter trails",
   "finish": "Finish",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
   "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
   "follow": "Volg",
   "followers": "Volgers",
   "following": "Volgend",
   "from_photos": "Van Foto's",
-  "heading": "Titel",
-  "height": "Hoogte",
   "help": "Help",
   "hiking": "Hiking",
   "home": "Home",
-  "hotel": "Hotel",
   "icon": "Pictogram",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
   "imperial": "Imperiaal",
   "joined": "Aangesloten",
   "language": "Taal",
   "latitude": "Breedtegraad",
   "like_status": "Like status",
   "liked": "Leuk gevonden",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
   "likes": "Vind-ik-leuks",
   "list": "{n, plural, =1 {Lijst} other {Lijsten}}",
   "@list": {
@@ -134,17 +160,22 @@
   "location": "Locatie",
   "locations": "Locations",
   "center_on_my_location": "Center on my location",
-  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_title": "wanderer",
   "location_tracking_notification_text": "Recording your trail",
+  "location_tracking_notification_text_navigating": "Navigating {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
   "login": "Inloggen",
   "logout": "Uitloggen",
   "longitude": "Lengtegraad",
-  "loop": "Lus",
   "map": "Kaart",
   "metric": "Metrisch",
   "moderate": "Gemiddeld",
-  "more": "Meer",
-  "mountain": "Berg",
   "my_account": "Mijn Account",
   "in_distance": "in {distance}",
   "@in_distance": {
@@ -155,8 +186,10 @@
     }
   },
   "name": "Naam",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
   "navigate": "Navigate",
-  "near": "Nabij",
   "new_password": "Nieuw wachtwoord",
   "new_password_success": "Het nieuwe wachtwoord is ingesteld.",
   "new_trail": "Nieuwe Route",
@@ -181,7 +214,9 @@
   "notifications": "Meldingen",
   "only_me": "Alleen ik",
   "or": "of",
-  "orientation": "Oriëntatie",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
   "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
   "own_trails_empty_title": "Nothing saved yet",
   "own_trails_offline_banner": "Offline — showing only trails on this device.",
@@ -189,7 +224,6 @@
   "@trails_on_device": {
     "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
   },
-  "paragraph": "Alinea",
   "pause": "Pause",
   "password": "Wachtwoord",
   "password_confirm": "Bevestig wachtwoord",
@@ -213,17 +247,17 @@
       }
     }
   },
-  "print": "Afdrukken",
   "privacy": "Privacy",
   "private": "Privaat",
   "profile": "Profiel",
   "public": "Openbaar",
-  "radius": "Straal",
   "reached_end_of_trail": "You've reached the end of the trail.",
   "register": "Registreren",
-  "required": "Verplicht",
   "reorder_photos_hint": "Long-press and drag to reorder photos.",
   "reset": "Herstellen",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
   "resume": "Resume",
   "resume_navigation_prompt": "Resume navigation on {trail}?",
   "@resume_navigation_prompt": {
@@ -234,7 +268,6 @@
     }
   },
   "resume_recording_prompt": "Opname hervatten?",
-  "road": "Weg",
   "route": "{n, plural,=1 {Tocht} other {Tochten}}",
   "@route": {
     "placeholders": {
@@ -254,7 +287,6 @@
   "search": "Search",
   "search_for_trails_places": "Zoek naar routes, lijsten en locaties",
   "select_date": "Select date",
-  "selected": "geselecteerd",
   "settings": "Instellingen",
   "settings_notification_comment_mention": "Iemand vermeldt je in een reactie",
   "settings_notification_list_share": "Iemand heeft een lijst met je gedeeld",
@@ -274,8 +306,10 @@
   "share": "Deel",
   "share_profile": "Deel profiel",
   "shared": "Gedeeld",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
   "show_on_map": "Tonen op kaart",
-  "shower": "Douche",
   "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
   "@signout_unsynced_warning": {
     "placeholders": {
@@ -287,8 +321,17 @@
   },
   "slogan": "Jouw routes. Jouw data. Jouw server.",
   "sort": "Sorteren",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
   "speed": "Snelheid",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
   "start": "Start",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
   "subcategories": "Subcategorieën",
   "@subcategories": {
     "description": "Label for the subcategories filter section"
@@ -297,13 +340,10 @@
   "sync_failed": "Upload failed · Tap to retry",
   "sync_pending": "Waiting to upload",
   "sync_uploading": "Uploading…",
-  "table": "Tabel",
   "tags": "Labels",
-  "text": "Tekst",
   "theme_dark": "Dark",
   "theme_light": "Light",
   "theme_system": "Follow system",
-  "time": "Time",
   "time_in_motion": "Time in Motion",
   "trail": "{n, plural, =1 {Route} other {Routes}}",
   "@trail": {
@@ -322,10 +362,11 @@
   "users": "Users",
   "username": "Gebruikersnaam",
   "username_not_unique": "Deze gebruikersnaam is al in gebruik. Probeer een andere naam.",
-  "view": "Weergave",
   "visibilty_status": "Zichtbaarheid status",
-  "water": "Water",
   "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
   "waypoints": "{n, plural,=1 {Routepunt} other {Routepunten}}",
   "@waypoints": {
     "placeholders": {
@@ -336,7 +377,9 @@
     }
   },
   "welcome_to": "Welcome to",
-  "width": "Breedte",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
   "wrong_username_or_password": "Onjuiste gebruikersnaam of wachtwoord",
   "you_have_arrived": "You've arrived",
   "settings_categories_confirm_disable_title": "Hide this category?",
@@ -362,6 +405,9 @@
   "remove": "Remove",
   "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
   "apply": "Toepassen",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
   "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
   "reverse_direction": "Omgekeerde richting",
   "delete_all": "Delete all",
@@ -369,7 +415,6 @@
   "auto_routing_hint": "Automatically follow roads and paths between anchors.",
   "travel_profile": "Travel profile",
   "no_track_data": "No track data",
-  "offline": "Offline",
   "available_offline": "Available offline",
   "no_lists_found": "No lists found",
   "search_lists": "Search lists…",
@@ -384,6 +429,9 @@
     }
   },
   "filter": "Filter",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
   "no_label_yet": "No {label} yet.",
   "@no_label_yet": {
     "placeholders": {
@@ -477,6 +525,8 @@
   "regions_dem_locked_subtitle": "Download map data first",
   "regions_offline_unavailable_title": "Can't load regions",
   "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_map_geometry_failed": "Could not load region outline",
+  "regions_map_back_label": "Back to regions",
   "regions_group_expand_label": "Expand {name}",
   "@regions_group_expand_label": {
     "placeholders": {
