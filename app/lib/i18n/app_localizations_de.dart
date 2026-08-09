@@ -378,7 +378,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get center_on_my_location => 'Auf meinen Standort zentrieren';
 
   @override
-  String get location_tracking_notification_title => 'Wanderer';
+  String get location_tracking_notification_title => 'wanderer';
 
   @override
   String get location_tracking_notification_text => 'Route wird aufgezeichnet';

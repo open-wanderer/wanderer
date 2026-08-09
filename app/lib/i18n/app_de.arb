@@ -134,7 +134,7 @@
   "location": "Standort",
   "locations": "Orte",
   "center_on_my_location": "Auf meinen Standort zentrieren",
-  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_title": "wanderer",
   "location_tracking_notification_text": "Route wird aufgezeichnet",
   "login": "Login",
   "logout": "Logout",

@@ -134,7 +134,7 @@
   "location": "地点",
   "locations": "Locations",
   "center_on_my_location": "Center on my location",
-  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_title": "wanderer",
   "location_tracking_notification_text": "Recording your trail",
   "login": "登录",
   "logout": "登出",
