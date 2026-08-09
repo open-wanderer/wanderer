@@ -1872,13 +1872,59 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
   /// Page 1: the reused [ElevationProfile] chart with a top-left back control
   /// returning to the stats page. The map behind the sheet stays interactive.
+  ///
+  /// Recording mode has no saved trail/GPX to profile (`trailProvider('')`
+  /// would resolve to AsyncError) — it builds a LIVE `Gpx` from the
+  /// in-progress `navState.breadcrumb` instead, via the same
+  /// [buildGpxFromPoints] helper `_saveRecordedTrack` uses for the identical
+  /// breadcrumb. Scoped in its own [Consumer] selecting `breadcrumbLength`
+  /// (never `breadcrumb` itself — see [NavigationState.breadcrumb]'s
+  /// stable-identity doc comment, a `select` on the list would never fire)
+  /// so only this page rebuilds per GPS fix, not the whole screen — mirrors
+  /// every other scoped watch in this file (see the build() comment on
+  /// whole-state watches).
   Widget _buildElevationPage(
     BuildContext context,
     AsyncValue<Trail> trailAsync,
   ) {
-    // Recording mode has no trail GPX to profile — trailProvider('') resolves
-    // to AsyncError, which would otherwise render error_reading_file.
-    if (widget.isRecording) return const SizedBox.shrink();
+    if (widget.isRecording) {
+      return Consumer(
+        builder: (context, ref, _) {
+          ref.watch(_navProviderInstance.select((s) => s.breadcrumbLength));
+          // SNAPSHOT, not the live view. `breadcrumb` is an identity-stable
+          // UnmodifiableListView over a grow-in-place list, so feeding it
+          // straight in makes every rebuild's Gpx wrap the SAME list instance
+          // as the previous one — and gpx 2.3.0's Gpx/Trkseg `==` delegates to
+          // ListEquality, which short-circuits on `identical`. The two Gpx
+          // objects would compare EQUAL no matter how many fixes arrived, so
+          // ElevationProfile.didUpdateWidget would never re-parse and the
+          // chart would freeze at its first two points. Copying gives each
+          // rebuild a distinct list whose differing length fails that
+          // equality check cheaply (length is compared before any element).
+          final breadcrumb = List<Wpt>.of(
+            ref.read(_navProviderInstance).breadcrumb,
+          );
+          final gpx = buildGpxFromPoints(breadcrumb);
+          // Matches elevation_tab.dart's own empty-state gate for the same
+          // "not enough points yet" case (route planner's live GPX).
+          if (gpx.allPoints.length < 2) {
+            return const SizedBox.shrink();
+          }
+          final elapsed = ref.watch(
+            _statsProviderInstance.select((s) => s.elapsed),
+          );
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevationProfile(
+              trail: null,
+              gpx: gpx,
+              enableLineTouch: false,
+              durationOverride: elapsed,
+            ),
+          );
+        },
+      );
+    }
     return trailAsync.when(
       data: (trail) {
         final gpx = trail.expand?.gpx;
