@@ -136,6 +136,14 @@
   "center_on_my_location": "Center on my location",
   "location_tracking_notification_title": "wanderer",
   "location_tracking_notification_text": "Recording your trail",
+  "location_tracking_notification_text_navigating": "Navigating {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
   "login": "Inloggen",
   "logout": "Uitloggen",
   "longitude": "Lengtegraad",

@@ -384,6 +384,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get location_tracking_notification_text => 'Route wird aufgezeichnet';
 
   @override
+  String location_tracking_notification_text_navigating(String trail) {
+    return 'Navigation: $trail';
+  }
+
+  @override
   String get login => 'Login';
 
   @override

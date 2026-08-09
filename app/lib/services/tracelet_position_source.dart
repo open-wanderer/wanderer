@@ -75,6 +75,12 @@ class TraceletPositionSource {
   String? _notificationTitle;
   String? _notificationText;
 
+  /// Mirrors the profile last applied via [setForeground] (the session starts
+  /// on the foreground config, see [start]), so [setNotificationText] can
+  /// re-apply the *current* profile rather than silently demoting a
+  /// backgrounded session back to continuous tracking.
+  bool _foreground = true;
+
   Stream<geo.Position> get stream => _controller.stream;
 
   /// Emits `true` while tracelet's native speed-motion state machine
@@ -163,8 +169,26 @@ class TraceletPositionSource {
   /// background (battery-conscious) profiles without stopping/restarting
   /// the underlying tracking session.
   Future<void> setForeground(bool foreground) async {
+    _foreground = foreground;
     await tl.Tracelet.setConfig(
       foreground ? _foregroundConfig() : _backgroundConfig(),
+    );
+  }
+
+  /// Rewrites the foreground-service notification body of the running
+  /// session, leaving the tracking profile itself untouched.
+  ///
+  /// Exists because the navigating notification names the trail (see
+  /// `NavigationScreen._notificationText`), and the trail model can still be
+  /// resolving when [start] fires — a resumed session pushed straight to the
+  /// navigation route at launch has nothing cached to read. A no-op before
+  /// [start] has configured the service — [start]'s own argument is the
+  /// initial text either way.
+  Future<void> setNotificationText(String text) async {
+    if (_locationSub == null || _notificationText == text) return;
+    _notificationText = text;
+    await tl.Tracelet.setConfig(
+      _foreground ? _foregroundConfig() : _backgroundConfig(),
     );
   }
 

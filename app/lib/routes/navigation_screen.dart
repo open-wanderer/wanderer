@@ -462,15 +462,32 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // inherited-widget dependencies aren't established until after the first
     // frame — so the notification-text lookup (and thus `start()`) is
     // deferred by one frame.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final localizations = AppLocalizations.of(context)!;
-      unawaited(
-        _positionSource.start(
-          notificationTitle: localizations.location_tracking_notification_title,
-          notificationText: localizations.location_tracking_notification_text,
-          seed: widget.initialPosition,
-        ),
+      // Awaited (not fire-and-forget) purely so the rewrite below can never
+      // reconfigure the service before it has been configured.
+      await _positionSource.start(
+        notificationTitle: localizations.location_tracking_notification_title,
+        notificationText: _notificationText(localizations),
+        seed: widget.initialPosition,
+      );
+      // The navigating notification names the trail, and the trail model can
+      // still be loading right here — a session resumed at launch pushes
+      // straight to this route with nothing warm to read, so `start()` above
+      // had to fall back to the generic wording. Resolve it ONCE and rewrite
+      // the body; the trail is fixed for the session (switching trails means
+      // leaving this screen), so there is nothing further to watch. A no-op
+      // in the common case where the name was already known at `start()`.
+      if (widget.isRecording) return;
+      // Failure (offline with nothing cached) leaves the generic wording
+      // rather than naming a trail we don't have.
+      final name = await ref
+          .read(trailProvider(widget.id).future)
+          .then<String?>((trail) => trail.name, onError: (_) => null);
+      if (!mounted || name == null || name.isEmpty) return;
+      await _positionSource.setNotificationText(
+        localizations.location_tracking_notification_text_navigating(name),
       );
     });
     // Single stream drives both recording/stats and the live marker/camera —
@@ -518,6 +535,23 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
 
     _startHeadingSub();
+  }
+
+  /// Body of the Android foreground-service notification for this session.
+  ///
+  /// Recording says what it is doing; navigating names the trail being
+  /// followed, which is the only thing that distinguishes the two sessions
+  /// from the notification shade. Falls back to the recording wording while
+  /// the trail model is still loading (or failed to load) — the listener in
+  /// [initState] rewrites the text if the name lands later.
+  String _notificationText(AppLocalizations localizations) {
+    if (widget.isRecording) {
+      return localizations.location_tracking_notification_text;
+    }
+    final name = ref.read(trailProvider(widget.id)).value?.name;
+    return name == null || name.isEmpty
+        ? localizations.location_tracking_notification_text
+        : localizations.location_tracking_notification_text_navigating(name);
   }
 
   /// Subscribes to the device orientation sensor for heading — decoupled from

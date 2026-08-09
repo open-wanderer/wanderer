@@ -785,7 +785,7 @@ abstract class AppLocalizations {
   /// No description provided for @location_tracking_notification_title.
   ///
   /// In en, this message translates to:
-  /// **'Wanderer'**
+  /// **'wanderer'**
   String get location_tracking_notification_title;
 
   /// No description provided for @location_tracking_notification_text.
@@ -793,6 +793,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recording your trail'**
   String get location_tracking_notification_text;
+
+  /// No description provided for @location_tracking_notification_text_navigating.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigating {trail}'**
+  String location_tracking_notification_text_navigating(String trail);
 
   /// No description provided for @login.
   ///

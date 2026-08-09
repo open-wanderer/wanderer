@@ -382,6 +382,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get location_tracking_notification_text => 'Recording your trail';
 
   @override
+  String location_tracking_notification_text_navigating(String trail) {
+    return 'Navigating $trail';
+  }
+
+  @override
   String get login => 'Zaloguj się';
 
   @override

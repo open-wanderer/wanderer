@@ -380,6 +380,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get location_tracking_notification_text => 'Recording your trail';
 
   @override
+  String location_tracking_notification_text_navigating(String trail) {
+    return 'Navigating $trail';
+  }
+
+  @override
   String get login => '登录';
 
   @override
