@@ -1,6 +1,6 @@
 import { proxyJsonResponse } from '$lib/server/http';
 import { getValhallaUrl } from '$lib/server/valhalla';
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { error, json, type RequestEvent } from "@sveltejs/kit";
 
 
 /**
