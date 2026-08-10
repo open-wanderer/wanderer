@@ -1,4 +1,3 @@
-import { browser } from "$app/environment";
 import { page } from "$app/state";
 
 export function formatTimeHHMM(seconds?: number) {
@@ -122,60 +121,111 @@ export function formatTimeSince(date: Date) {
     return { unit: "seconds", value: seconds };
 }
 
+const blockTags = [
+    "address",
+    "article",
+    "aside",
+    "blockquote",
+    "div",
+    "figure",
+    "footer",
+    "h[1-6]",
+    "header",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "td",
+    "th",
+    "tr",
+    "ul",
+].join("|");
+
+const blockTagRegex = new RegExp(`</?(?:${blockTags})(?:\\s[^>]*)?/?>`, "gi");
+
+const namedEntities: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    nbsp: " ",
+    quot: '"',
+};
+
+function decodeEntities(text: string) {
+    // Single pass, so a decoded "&amp;lt;" stays as the literal text "&lt;"
+    return text.replace(
+        /&(#\d+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g,
+        (entity, body: string) => {
+            if (body.startsWith("#")) {
+                const codePoint =
+                    body[1] === "x" || body[1] === "X"
+                        ? parseInt(body.slice(2), 16)
+                        : parseInt(body.slice(1), 10);
+                if (
+                    !Number.isFinite(codePoint) ||
+                    codePoint < 0 ||
+                    codePoint > 0x10ffff ||
+                    (codePoint >= 0xd800 && codePoint <= 0xdfff)
+                ) {
+                    return entity;
+                }
+                return String.fromCodePoint(codePoint);
+            }
+            return namedEntities[body.toLowerCase()] ?? entity;
+        },
+    );
+}
+
+/**
+ * Converts rich text to plain text.
+ *
+ * Deliberately string-based rather than DOM-based: it has to produce identical
+ * output during SSR and in the browser, otherwise the two renders disagree and
+ * hydration re-renders the subtree.
+ */
 export function formatHTMLAsText(html?: string) {
-    if(!html || !browser) {
-        return ""
-    }
-    // Create a temporary DOM element
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = html;
-
-    // Replace <br> with newlines to preserve line breaks
-    tempDiv.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
-
-    // Replace block-level elements with newlines before and after
-    const blockTags = new Set([
-        "DIV",
-        "P",
-        "LI",
-        "SECTION",
-        "ARTICLE",
-        "HEADER",
-        "FOOTER",
-        "ASIDE",
-        "MAIN",
-        "NAV",
-        "FIGURE",
-        "TABLE",
-        "TR",
-        "TD",
-        "TH",
-        "UL",
-        "OL",
-        "PRE",
-    ]);
-    tempDiv.querySelectorAll("*").forEach((el) => {
-        if (blockTags.has(el.tagName)) {
-            el.insertAdjacentText("beforebegin", "\n");
-            el.insertAdjacentText("afterend", "\n");
-        }
-    });
-
-    // Extract the text content
-    let text = tempDiv.textContent;
-
-    if (!text) {
+    if (!html) {
         return "";
     }
 
-    // Replace multiple spaces and newlines with a single one if needed
-    // Optional: collapse excessive blank lines to max two
-    text = text
+    return decodeEntities(
+        html
+            .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+            .replace(/<br\s*\/?>/gi, "\n")
+            .replace(blockTagRegex, "\n")
+            // Attribute values may contain ">", so match quoted runs explicitly
+            .replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, ""),
+    )
+        .replace(/\r\n?/g, "\n")
         .replace(/[ \t]+\n/g, "\n") // trailing spaces
         .replace(/\n[ \t]+/g, "\n") // leading spaces
         .replace(/\n{3,}/g, "\n\n") // collapse 3+ newlines
-        .replace(/[ \t]{2,}/g, "  "); // collapse multiple spaces to two
+        .replace(/[ \t]{2,}/g, "  ") // collapse multiple spaces to two
+        .trim();
+}
 
-    // Trim the result
-    return text.trim();
+/**
+ * Plain-text preview of rich text, truncated to `maxLength` characters.
+ *
+ * Truncating the HTML itself would tear tags in half, which is what broke
+ * shared list rendering (#1128). Counts code points so the cutoff never splits
+ * an astral character such as an emoji.
+ */
+export function formatHTMLAsTextPreview(
+    html: string | undefined,
+    maxLength: number,
+): { text: string; truncated: boolean } {
+    const text = formatHTMLAsText(html);
+    const characters = Array.from(text);
+
+    if (characters.length <= maxLength) {
+        return { text, truncated: false };
+    }
+
+    return { text: characters.slice(0, maxLength).join(""), truncated: true };
 }

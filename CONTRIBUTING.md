@@ -18,9 +18,13 @@ Please follow our [local development guide](https://wanderer.to/develop/local-de
 
 ## Pull Request Target Branch
 
-Please open pull requests only against the `main` branch.
+Please open pull requests only against the `dev` branch.
 
-Pull requests targeting release branches, development branches, or unrelated branches may be closed without review.
+Pull requests targeting `main`, release branches, or unrelated branches may be closed without review. `main` only accepts merges from `release/vX.Y.Z` branches as part of the release process (see below); it does not take pull requests directly.
+
+## Release Process
+
+Maintainers cut a release by dispatching the `Release Request` workflow **from the `dev` branch**. This bumps the version and opens a `release/vX.Y.Z` pull request against `main`. Merging that PR tags the release, publishes Docker images, and cuts a GitHub Release; the version bump and tag are then synced back into `dev` automatically via an auto-merging pull request.
 
 ## Keep pull requests atomic
 
