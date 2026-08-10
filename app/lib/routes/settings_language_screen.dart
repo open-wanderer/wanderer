@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/base/wanderer_select.dart';
 import 'package:wanderer/components/settings/settings_offline_banner.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
@@ -85,33 +86,23 @@ class SettingsLanguageScreen extends ConsumerWidget {
               ),
             ),
           ),
-          RadioGroup<Language>(
-            groupValue: settings?.language,
-            onChanged: (value) {
-              if (value == null) return;
-              if (settings == null) {
-                ref
-                    .read(toastProvider.notifier)
-                    .add(
-                      ToastMessage(
-                        type: ToastType.error,
-                        icon: FontAwesomeIcons.circleExclamation,
-                        text: l10n.error_saving_settings,
-                      ),
-                    );
-                return;
-              }
-              _save(ref, l10n, settings.copyWith(language: value));
-            },
-            child: Column(
-              children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: WandererSelect<Language>(
+              name: 'language',
+              icon: FontAwesomeIcons.language,
+              // Until settings load there is nothing to copyWith, so the field
+              // stays disabled rather than dropping the user's pick.
+              disabled: settings == null,
+              initialValue: settings?.language,
+              items: [
                 for (final language in Language.values)
-                  RadioListTile<Language>(
-                    title: Text(_languageNames[language]!),
-                    value: language,
-                    activeColor: activeColor,
-                  ),
+                  SelectItem(value: language, label: _languageNames[language]!),
               ],
+              onChanged: (value) {
+                if (value == null || settings == null) return;
+                _save(ref, l10n, settings.copyWith(language: value));
+              },
             ),
           ),
           Padding(
