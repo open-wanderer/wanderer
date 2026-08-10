@@ -1478,7 +1478,7 @@
 
         const flatRoute = valhallaStore.route.flatten();
 
-        // After CONV-05, features.distance is the smoothed total while
+        // features.distance is the smoothed total while
         // cumulativeRoute accumulates raw per-point hops. getCoordinateAtDistance()
         // interpolates between adjacent entries of the raw array, so its
         // percentage basis must be that array's own total (rawRouteTotal) or the
@@ -1612,7 +1612,7 @@
             duration: totals.duration / 1000,
             elevation_gain: totals.elevationGain,
             elevation_loss: totals.elevationLoss,
-            // WR-10: this function is the single choke point for every route
+            // This function is the single choke point for every route
             // mutation (nudge/undo/redo/crop/reverse/reset), so it is also the
             // one place that can guarantee a replaced track does not keep a
             // recording's `moving_duration`. Moving time describes a traversal

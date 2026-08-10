@@ -1,6 +1,6 @@
 {
   "id": "03-missing-vs-empty-ele",
-  "covers": ["CONV-03"],
+  "covers": ["missing-vs-empty-elevation"],
   "derivation": "hand",
   "notes": "The third trkpt carries a literal empty <ele></ele> element pair -- the parser landmine that crashes an unsanitised Dart GpxReader on load (FormatException: Invalid double) rather than disagreeing on the value. parseElevation() must treat this identically to a wholly-omitted <ele>, i.e. undefined, so the elevation anchor carries forward across it rather than treating it as a plunge to 0m sea level.",
   "metrics": {

@@ -5,7 +5,7 @@ import TrackSegment from "./track-segment";
 import Waypoint from "./waypoint";
 import { haversineDistance } from "./utils";
 
-describe("GPX.getTotals — CONV-01 first point of a segment", () => {
+describe("GPX.getTotals — first point of a segment", () => {
   it("reports the full hop length of a 2-point segment instead of 0", () => {
     const a = waypointAt(47.0, 11.0);
     const b = waypointAt(47.001, 11.001);
@@ -20,7 +20,7 @@ describe("GPX.getTotals — CONV-01 first point of a segment", () => {
   });
 });
 
-describe("GPX.getTotals — CONV-01/CONV-02 centroid and bounding box", () => {
+describe("GPX.getTotals — centroid and bounding box", () => {
   it("includes every point, including the geographic-extreme first point, in the bounding box", () => {
     const first = waypointAt(40.0, 10.0);
     const second = waypointAt(47.0, 11.0);
@@ -39,7 +39,7 @@ describe("GPX.getTotals — CONV-01/CONV-02 centroid and bounding box", () => {
     expect(gpx.features.centroid.lon).toBeCloseTo(11.0, 6);
   });
 
-  it("divides the centroid by exactly the number of points it summed (CONV-02 invariant)", () => {
+  it("divides the centroid by exactly the number of points it summed", () => {
     const points = [
       waypointAt(40.0, 10.0),
       waypointAt(47.0, 11.0),
@@ -55,7 +55,7 @@ describe("GPX.getTotals — CONV-01/CONV-02 centroid and bounding box", () => {
   });
 });
 
-describe("GPX.getTotals — CONV-01 multi-leg planner route", () => {
+describe("GPX.getTotals — multi-leg planner route", () => {
   it("reports the full polyline across both legs instead of dropping the opening hop", () => {
     // Shaped like valhalla_store.svelte.ts's insertIntoRoute() output: each
     // planner leg is its own TrackSegment, and the shared anchor point is
@@ -114,13 +114,13 @@ describe("GPX.getTotals — zero-point regression guard", () => {
   });
 });
 
-describe("GPX.getTotals — CONV-05 superseded: reports the raw accumulator", () => {
+describe("GPX.getTotals — reports the raw accumulator", () => {
   it("reports the raw jitter-inflated sum, not the smoothed forward travel, for a jittery track", () => {
     // Single segment: forward hop (~20 m) then a jitter out-and-back
     // (~1 m each way) that never clears the 5 m threshold, repeated 5
     // times. The raw haversine sum over every consecutive pair (what
     // cumulativeDistance's last entry holds) is ~110.083 m — this is what
-    // getTotals() reports as `distance` since CONV-05 was superseded
+    // getTotals() reports as `distance`
     // (2026-08-01). The now-unreported smoothed accumulator, which held the
     // real forward travel with jitter suppressed, is ~100.075 m. Pre-33-01
     // (i = 1 loop bug), the reported value was 90.068 m — a different
@@ -140,7 +140,7 @@ describe("GPX.getTotals — CONV-05 superseded: reports the raw accumulator", ()
     expect(gpx.features.distance).toBeCloseTo(110.083, 0);
   });
 
-  it("equals the last cumulativeDistance entry — same accumulator, by construction (D-01)", () => {
+  it("equals the last cumulativeDistance entry — same accumulator, by construction", () => {
     const points = [waypointAt(47.0, 11.0)];
     let lat = 47.0;
     for (let i = 0; i < 5; i++) {
@@ -156,7 +156,7 @@ describe("GPX.getTotals — CONV-05 superseded: reports the raw accumulator", ()
     const rawTotal =
       gpx.features.cumulativeDistance[gpx.features.cumulativeDistance.length - 1];
 
-    // Executable invariant, inverted (not deleted) now that CONV-05 is
+    // Executable invariant, inverted (not deleted) now that smoothing is
     // superseded: addAndFilter pushes this.totalDistance onto
     // cumulativeDistance immediately after every totalDistance += call, so
     // the reported distance and the raw cumulative array's last entry are
@@ -166,7 +166,7 @@ describe("GPX.getTotals — CONV-05 superseded: reports the raw accumulator", ()
   });
 });
 
-describe("GPX.getTotals — D-01 cumulativeDistance index alignment", () => {
+describe("GPX.getTotals — cumulativeDistance index alignment", () => {
   it("index-aligns a 2-point segment with a leading 0 entry", () => {
     const a = waypointAt(47.0, 11.0);
     const b = waypointAt(47.001, 11.001);
@@ -210,10 +210,10 @@ describe("GPX.getTotals — D-01 cumulativeDistance index alignment", () => {
   });
 });
 
-describe("GPX.getTotals — CONV-05 (superseded) does not regress the planner route", () => {
+describe("GPX.getTotals — smoothing does not regress the planner route", () => {
   it("still reports the full polyline distance when every hop clears the smoothing threshold", () => {
     // Every hop in this fixture exceeds the 5 m threshold, so raw and
-    // smoothed totals coincide — this value is unaffected by CONV-05's
+    // smoothed totals coincide — this value is unaffected by the
     // supersession (the reported distance is now raw, but raw and smoothed
     // agree here) and stays at 33-01's baseline.
     const leg1 = [
@@ -232,12 +232,12 @@ describe("GPX.getTotals — CONV-05 (superseded) does not regress the planner ro
   });
 });
 
-// WR-06: an unparseable-but-non-empty <time> body used to become an
+// An unparseable-but-non-empty <time> body used to become an
 // `Invalid Date`, which is a truthy object — so getTotals()'s
 // `startTime && endTime` guard passed and produced a NaN duration, while the
 // Dart port reported 0 for the same document. Times are now parsed with the
 // grammar Dart's DateTime.parse accepts.
-describe("Waypoint.time — WR-06 Dart-aligned <time> parsing", () => {
+describe("Waypoint.time — Dart-aligned <time> parsing", () => {
   const rejected: Array<[string, string]> = [
     ["a non-numeric body", "N/A"],
     ["a whitespace-only body", "   "],

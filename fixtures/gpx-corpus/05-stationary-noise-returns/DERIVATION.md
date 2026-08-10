@@ -8,7 +8,7 @@
 
 ## Defect pinned
 
-CONV-04: a fully-stationary altimeter/GPS noise oscillation that returns to its starting
+A fully-stationary altimeter/GPS noise oscillation that returns to its starting
 elevation must not fabricate gain/loss. Pre-fix, the flat threshold-commit rule ratcheted on
 every +/-7 m swing even though the device never moved and the track's net elevation change is
 exactly 0.

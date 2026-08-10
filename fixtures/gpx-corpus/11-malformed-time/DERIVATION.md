@@ -8,7 +8,7 @@ third a genuine ISO-8601 instant.
 
 ## Defect pinned
 
-WR-06: the two implementations disagreed on a **non-empty** unparseable `<time>` body.
+The two implementations disagreed on a **non-empty** unparseable `<time>` body.
 
 - **TypeScript (pre-fix):** `Waypoint`'s constructor did `if (object.time) this.time = new
   Date(object.time)`. A garbage string is truthy, so `this.time` became an `Invalid Date` —

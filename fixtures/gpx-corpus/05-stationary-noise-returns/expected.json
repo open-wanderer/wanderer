@@ -1,6 +1,6 @@
 {
   "id": "05-stationary-noise-returns",
-  "covers": ["CONV-04"],
+  "covers": ["elevation-noise-filter"],
   "derivation": "hand",
   "notes": "61 samples at a single fixed coordinate, altitude alternating 1000/1007, ending back at 1000 (i even => 1000, i odd => 1007, i = 0..60). Every +/-7 m swing returns to the pre-excursion elevation without any horizontal movement (returnDistance is always 0, well under the 5 m threshold), so the defer-then-publish filter discards each excursion as noise. Nothing is ever published or left pending at the end, so both gain and loss are 0.",
   "metrics": {

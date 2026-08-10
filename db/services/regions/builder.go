@@ -17,7 +17,7 @@ import (
 const (
 	// regionVectorMaxZoom mirrors the per-cell tile generator's vector
 	// maxzoom (14) — kept in lockstep intentionally, but declared as a local,
-	// parallel-path constant per D-01 rather than a shared import.
+	// parallel-path constant rather than a shared import.
 	regionVectorMaxZoom = 14
 
 	// regionDemMaxZoom mirrors the per-cell tile generator's DEM maxzoom
@@ -27,14 +27,14 @@ const (
 
 	// mapterhornSource is Mapterhorn's downloadable global DEM pmtiles
 	// archive. Mirrors the per-cell tile generator's own constant — a local,
-	// parallel-path copy (D-01/D-02), not a shared import.
+	// parallel-path copy, not a shared import.
 	mapterhornSource = "https://download.mapterhorn.com/planet.pmtiles"
 )
 
 var (
 	// inFlightMu / inFlight dedupe concurrent builds of the same region,
 	// keyed by region id (regions.path) — mirrors the per-cell generator's
-	// in-flight guard (Pitfall 5), re-keyed for region-scale builds.
+	// in-flight guard, re-keyed for region-scale builds.
 	inFlightMu sync.Mutex
 	inFlight   = map[string]*sync.WaitGroup{}
 
@@ -108,7 +108,7 @@ func BuildAll(app core.App) {
 }
 
 // BuildAllLocked queries the seeded `regions` table for every enabled leaf
-// (EXTRACT-02) and pre-builds each region's vector + DEM archives, one
+// and pre-builds each region's vector + DEM archives, one
 // region fully completing before the next starts (bounds subprocess
 // concurrency to 1). A query error or a single region's build failure is
 // logged and never aborts the whole pass.
@@ -149,7 +149,7 @@ func buildRegionSafely(app core.App, record *core.Record) {
 
 // buildRegion pre-builds one region's vector and, best-effort, DEM archive.
 // Concurrent builds of the same region id are deduped via the package-level
-// in-flight guard (Pitfall 5). regionID is the leaf's materialized `path`
+// in-flight guard. regionID is the leaf's materialized `path`
 // (A2 — the provably-unique key across the seeded catalog, unlike
 // comaps_id).
 func buildRegion(app core.App, record *core.Record) {
@@ -179,8 +179,8 @@ func buildRegion(app core.App, record *core.Record) {
 		return
 	}
 
-	// Geometry MUST resolve before the archive record is created. Since D-12
-	// moved bbox out of the regions record and into region_geometry,
+	// Geometry MUST resolve before the archive record is created. Since bbox
+	// lives in region_geometry rather than on the regions record,
 	// ResolveGeometry is the only source of the four bounds, and
 	// region_archives requires all of them — creating the record first fails
 	// validation with "min_lat: cannot be blank" for any region that has no
@@ -189,19 +189,19 @@ func buildRegion(app core.App, record *core.Record) {
 	// Resolving up front also runs ahead of the !needsVector && !needsDem
 	// early return below, which is what makes a deleted or corrupted
 	// region_geometry row heal on the very next cron run even when nothing
-	// else needed rebuilding (D-14). The accepted cost: a region whose
+	// else needed rebuilding. The accepted cost: a region whose
 	// geometry row was destroyed costs one upstream request on the next run.
 	// The preserved property: a well-formed cached row still costs zero
 	// network (ResolveGeometry returns it with no fetch).
 	//
-	// Only a failed refetch reaches setError (D-01) — this is the last
+	// Only a failed refetch reaches setError — this is the last
 	// resort, after ResolveGeometry has already attempted the self-heal.
 	geometry, bbox, err := ResolveGeometry(app, record)
 	if err != nil {
 		// A region that has never built has no archive row to carry the
 		// error, and one cannot be created without the bbox that just failed
 		// to resolve — so there is nothing to mark. Log instead. Either way
-		// buildRegionSafely's per-region isolation keeps the run going (D-02).
+		// buildRegionSafely's per-region isolation keeps the run going.
 		if archive, findErr := findRegionArchiveRecord(app, regionID); findErr == nil && archive != nil {
 			_ = setError(app, archive, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
 		} else {
@@ -217,7 +217,7 @@ func buildRegion(app core.App, record *core.Record) {
 	}
 
 	// A seed-catalog-refresh bbox change invalidates both the cached vector
-	// staleness comparison and the DEM's "build once" guarantee (D-11) —
+	// staleness comparison and the DEM's "build once" guarantee —
 	// detect it once up front and persist the new bbox before building.
 	// Re-keyed to the seeded catalog's bbox per A4 (keep the check, do not
 	// delete it).
@@ -240,7 +240,7 @@ func buildRegion(app core.App, record *core.Record) {
 	needsVector := configChanged || needsVectorRebuild(archive.GetString("vector_built_date"), date)
 
 	// DEM builds once and never auto-rebuilds unless the catalog bbox
-	// changed (D-11) — Mapterhorn's source has no date-stamped URL to
+	// changed — Mapterhorn's source has no date-stamped URL to
 	// compare against.
 	needsDem := archive.GetString("dem_status") != "ready" || configChanged
 
@@ -284,10 +284,10 @@ func findRegionArchiveRecord(app core.App, regionID string) (*core.Record, error
 // findOrCreateRegionRecord finds the region_archives record for regionID,
 // creating one (status/dem_status "building") if none exists yet. Mirrors
 // the per-cell generator's findOrCreateRecord shape. regionID is a
-// regions.path value (A2), stored in the region_archives.path field.
+// regions.path value, stored in the region_archives.path field.
 //
 // bbox must be supplied by the caller, resolved from region_geometry via
-// ResolveGeometry (D-12 moved it off the regions record). It is NOT
+// ResolveGeometry (it does not live on the regions record). It is NOT
 // optional: region_archives declares all four bounds as required number
 // fields, and PocketBase treats a required number as "non-zero", so a
 // record saved with zeroed bounds is rejected outright with
@@ -328,10 +328,10 @@ func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float
 
 // buildVector extracts region regionID's vector archive at
 // regionVectorMaxZoom from url (a Protomaps daily-build URL) to a temp path,
-// then atomically renames it into place on success (D-08: an already-ready
+// then atomically renames it into place on success (an already-ready
 // region keeps serving its current file for the entire rebuild — status
 // only ever flips to "building" here when there is no existing ready file to
-// protect). Clips to the region's canonical polygon (polyPath, EXTRACT-01)
+// protect). Clips to the region's canonical polygon (polyPath)
 // rather than its bounding box.
 func buildVector(app core.App, archive *core.Record, regionID, polyPath, url, date string) {
 	final := RegionArchivePath(regionID)
@@ -389,10 +389,10 @@ func buildVector(app core.App, archive *core.Record, regionID, polyPath, url, da
 
 // buildDem extracts region regionID's DEM archive at regionDemMaxZoom from
 // mapterhornSource, same temp-path + atomic-rename discipline as
-// buildVector (D-08). DEM is best-effort: it never returns an error and
+// buildVector. DEM is best-effort: it never returns an error and
 // never blocks or affects the vector build's result — mirrors the per-cell
 // generator's generateDemCell. Clips to the region's canonical polygon
-// (polyPath, EXTRACT-01) rather than its bounding box.
+// (polyPath) rather than its bounding box.
 func buildDem(app core.App, archive *core.Record, regionID, polyPath string) {
 	final := RegionDemPath(regionID)
 	tmp := final + ".building"

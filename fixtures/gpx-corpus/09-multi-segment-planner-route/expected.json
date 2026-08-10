@@ -1,8 +1,8 @@
 {
   "id": "09-multi-segment-planner-route",
-  "covers": ["CONV-01"],
+  "covers": ["segment-first-point"],
   "derivation": "hand",
-  "notes": "Two <trkseg> elements inside one <trk>, laid out the way buildFinalPlannedGpx emits legs: segment 2 opens on segment 1's closing coordinate. This fixture exists to prove no per-segment metrics-anchor reset was introduced when CONV-01 fixed the i = 0 loop bound -- the shared GpxMetricsComputation instance must carry its distance anchor across the segment boundary, measuring through it rather than restarting. Pre-fix value was 333.585 (each segment's own first point dropped, losing one real hop's worth of distance per segment).",
+  "notes": "Two <trkseg> elements inside one <trk>, laid out the way buildFinalPlannedGpx emits legs: segment 2 opens on segment 1's closing coordinate. This fixture exists to prove no per-segment metrics-anchor reset was introduced when the i = 0 loop bound was fixed -- the shared GpxMetricsComputation instance must carry its distance anchor across the segment boundary, measuring through it rather than restarting. Pre-fix value was 333.585 (each segment's own first point dropped, losing one real hop's worth of distance per segment).",
   "metrics": {
     "distance": 444.77970657798846,
     "elevationGain": 0,

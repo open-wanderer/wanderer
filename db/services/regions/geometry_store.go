@@ -14,14 +14,14 @@ import (
 //
 // Persistence is derived internally from the region record's own enabled
 // flag — there is deliberately no `persist` parameter, no opt-in query
-// flag, and no caller-supplied override anywhere in this phase (D-10). A
+// flag, and no caller-supplied override anywhere in this phase. A
 // caller cannot induce a write for a region that is not enabled.
 //
 // Build-path callers (buildRegion, via BuildAllLocked) always satisfy the
 // persist condition because BuildAllLocked only ever iterates enabled
-// leaves — so the D-14 refetch below always writes on that path. The HTTP
+// leaves — so the refetch below always writes on that path. The HTTP
 // route's disabled-region hover flow deliberately does not: hovering a
-// disabled region is a pass-through with no write (D-11).
+// disabled region is a pass-through with no write.
 func ResolveGeometry(app core.App, region *core.Record) (map[string]any, [4]float64, error) {
 	path := region.GetString("path")
 	if !IsValidRegionID(path) {
@@ -40,7 +40,7 @@ func ResolveGeometry(app core.App, region *core.Record) (map[string]any, [4]floa
 
 	persist := region.GetBool("enabled")
 
-	// D-14 resolution order: read the cached row, then decide whether it is
+	// Resolution order: read the cached row, then decide whether it is
 	// usable. An absent row and a malformed row are treated identically —
 	// both fall through to the refetch below. This is the trap the phase
 	// exists to close: a literal "fetch on cache miss" implementation would
@@ -64,7 +64,7 @@ func ResolveGeometry(app core.App, region *core.Record) (map[string]any, [4]floa
 
 	// Absent row (lookupErr != nil) or malformed row (fell through above):
 	// refetch from CoMaps. Only if this fails does the caller's setError
-	// last-resort apply (D-01).
+	// last-resort apply.
 	geometry, bbox, err := FetchGeometry(commitSHA, comapsID)
 	if err != nil {
 		return nil, [4]float64{}, fmt.Errorf("geometry_store: resolve geometry for region %s: %w", path, err)

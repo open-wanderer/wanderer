@@ -15,13 +15,10 @@ import (
 // into a GeoJSON Polygon or MultiPolygon geometry, plus a derived bounding
 // box.
 //
-// Relocated here from package commands (phase 32, SLIM-01): the runtime
-// on-demand geometry fetch inside package regions now consumes this
-// verbatim, not the maintainer seed-regions CLI — a services/regions ->
-// commands import is the dependency direction the Phase 28 migration
-// explicitly refused (see this package's poly_parser doc-comment lineage
-// and db/migrations/1785000000_create_regions_collection.go).
-//
+// Relocated here from package commands: the runtime on-demand geometry
+// fetch inside package regions now consumes this verbatim, not the
+// maintainer seed-regions CLI — a services/regions -> commands import is a
+// dependency direction this package deliberately refuses.
 // Format:
 //   - line 1: a free-text name (ignored — not necessarily the region id)
 //   - each ring: a header line ("1", "2", ... for an outer ring; a
@@ -31,9 +28,9 @@ import (
 //   - the whole file is terminated by a final "END"
 //
 // A single outer ring produces a GeoJSON Polygon; more than one outer ring
-// (e.g. an antimeridian-split country) produces a MultiPolygon (D-04).
+// (e.g. an antimeridian-split country) produces a MultiPolygon.
 // Every outer ring is re-wound counter-clockwise and every hole clockwise
-// per RFC 7946 (Pitfall 4), and every ring is closed (first coordinate ==
+// per RFC 7946, and every ring is closed (first coordinate ==
 // last) even if the source omitted the closing repeat. bbox is
 // [minLon, minLat, maxLon, maxLat] computed over all outer-ring vertices,
 // matching the element order used by db/services/regions/config.go.
@@ -42,7 +39,7 @@ import (
 // unparseable float, or a ring that reaches EOF before its terminating
 // "END") returns a descriptive error tagged with the offending line
 // content; ParsePoly always returns cleanly, it does not abort the process
-// (Security Domain V5, threat T-28-01).
+// itself.
 func ParsePoly(data []byte) (map[string]any, [4]float64, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)

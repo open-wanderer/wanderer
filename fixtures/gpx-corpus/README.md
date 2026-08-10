@@ -2,25 +2,25 @@
 
 ## Purpose
 
-This directory is the single source of truth for **PORT-02**: it pins the Dart port to the
-Phase 33-corrected TypeScript GPX→trail metrics computation. Two independent test suites read
+This directory is the single source of truth for the cross-language metrics contract: it pins
+the Dart port to the corrected TypeScript GPX→trail metrics computation. Two independent test suites read
 it:
 
 - `web/src/lib/models/gpx/gpx-corpus.test.ts` — Vitest, run with CWD `web/`, reads the corpus at
   a relative path resolved from `process.cwd()`.
-- `app/test/util/gpx_corpus_test.dart` (Phase 34-04) — `flutter test`, run with CWD `app/`, reads
+- `app/test/util/gpx_corpus_test.dart` — `flutter test`, run with CWD `app/`, reads
   the corpus at a relative path via `dart:io`'s `File`.
 
 Neither suite copies, symlinks, or bundles this directory. Both read it directly from disk at
 test time via a relative path. There is no `pubspec.yaml` `assets:` entry — the asset-bundle
 restriction that governs `rootBundle.load()` inside a *running app* does not apply to
 `flutter test`/`dart test`, which run with CWD = the package root and full filesystem access
-(verified empirically, see `.planning/phases/34-dart-conversion-port/34-RESEARCH.md`).
+(verified empirically).
 
 The corpus lives at the repository root — sibling to `app/`, `web/`, `db/`, `docs/` — deliberately
-outside both package roots, so that neither language owns it (D-01). This amends Phase 33's own
+outside both package roots, so that neither language owns it. This amends the web suite's own
 precedent (fixtures inline in the TS test file) for exactly this cross-language case: a single
-on-disk source of truth is the whole point of PORT-02. A duplicated per-language fixture set
+on-disk source of truth is the whole point. A duplicated per-language fixture set
 could drift silently while both suites stayed green — the corpus exists specifically to make
 that impossible.
 
@@ -58,7 +58,7 @@ Every `expected.json` has exactly this top-level shape:
 ```jsonc
 {
   "id": "01-two-point-segment",       // string, equal to the directory name
-  "covers": ["CONV-01"],              // array of defect ids this fixture pins
+  "covers": ["segment-first-point"],  // array of defect slugs this fixture pins
   "derivation": "hand",               // the string "hand" or the string "seeded"
   "notes": "...",                     // free-text explanation
   "metrics": { /* GPX.getTotals()-shaped */ },
@@ -70,7 +70,7 @@ Every `expected.json` has exactly this top-level shape:
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `distance` | number | raw (unsmoothed) total distance, metres — the sum of every consecutive-pair haversine hop (CONV-05 superseded 2026-08-01) |
+| `distance` | number | raw (unsmoothed) total distance, metres — the sum of every consecutive-pair haversine hop |
 | `elevationGain` | number | `finalElevationGain` — **not** `totalElevationGainSmoothed` |
 | `elevationLoss` | number | `finalElevationLoss` — **not** `totalElevationLossSmoothed` |
 | `durationMs` | number | last trkpt time minus first trkpt time, milliseconds |
@@ -97,12 +97,12 @@ the on-disk schema is language-neutral. Each language's own test helper maps the
 keys onto its own model's naming convention (the TS `Trail` model uses snake_case fields like
 `elevation_gain`/`min_lat`; the mapping happens inside the test helper, not in the fixture).
 
-## Explicit exclusions (D-04)
+## Explicit exclusions
 
 The corpus asserts **public metrics only**. It deliberately does **not** include:
 
 - `cumulativeDistance` — the raw, index-aligned per-point distance array. Its only consumer is
-  the web trail-edit crop slider (Phase 33 D-01/D-02), which has no Dart/app equivalent. Porting
+  the web trail-edit crop slider, which has no Dart/app equivalent. Porting
   it would be dead Dart code.
 - `hash` — the MinHash/Geohash track-shape fingerprint. Not part of the port's contract.
 - `totalElevationGainSmoothed` / `totalElevationLossSmoothed` — the **monotonic** running
@@ -115,7 +115,7 @@ The corpus asserts **public metrics only**. It deliberately does **not** include
   corpus (see fixture `04-switchback-scramble`'s `DERIVATION.md` for a worked example: `88` vs
   `80`).
 
-## Tolerances (D-03)
+## Tolerances
 
 One authoritative table, encoded exactly once in each language's own shared assertion helper —
 never per-fixture, never inline in an individual test body:
@@ -130,14 +130,14 @@ never per-fixture, never inline in an individual test body:
 **Empirical justification for 1e-6 m:** `dart:math` and V8's trig functions are IEEE-754
 conformant but are not required to agree bit-for-bit. A 5000-point haversine accumulation loop
 was run independently in Node/V8 and the Dart VM (see
-`.planning/phases/34-dart-conversion-port/34-RESEARCH.md`, "Empirical float-agreement
+the empirical float-agreement measurements ("Empirical float-agreement
 measurement") and produced **bit-identical output to 17 significant digits**
 (`36221.778933403148` in both runtimes). `1e-6` m is therefore not a fudge factor tuned to make
 tests pass — it is a safety margin many orders of magnitude wider than any floating-point drift
 actually observed between these two platforms. Any test failure at this tolerance is an
 algorithmic divergence, not floating-point noise.
 
-## Derivation methods (D-02)
+## Derivation methods
 
 Every `expected.json` records how its values were produced, in its `derivation` field:
 
@@ -161,18 +161,18 @@ Every `expected.json` records how its values were produced, in its `derivation` 
 
 | Fixture | Covers | What it pins |
 |---------|--------|----------------|
-| `01-two-point-segment` | CONV-01 | A 2-point segment reports its real hop distance, not 0 |
-| `02-first-point-extremes` | CONV-01, CONV-02 | Bounding box includes the segment's own first point; centroid divides by the count it summed |
-| `03-missing-vs-empty-ele` | CONV-03 | A literal `<ele></ele>` is treated identically to an omitted tag, never coerced to sea level 0 — the parser landmine canary |
-| `04-switchback-scramble` | CONV-04 | Elevation gain is sampled independently of the horizontal-movement threshold; the corpus asserts `finalElevationGain` (88), not `totalElevationGainSmoothed` (80) |
-| `05-stationary-noise-returns` | CONV-04 | A fully-stationary altitude oscillation returning to its start elevation reports 0/0, not a ratcheted total |
-| `06-stationary-ends-mid-swing` | CONV-04, D-04 | A track ending mid-excursion reports the genuine un-cancelled net displacement |
-| `07-rolling-terrain` | CONV-04 | Noise rejection never eats real terrain when genuine horizontal movement accompanies every swing |
-| `08-jittery-track` | CONV-05 | Reported distance is the raw accumulator (CONV-05 superseded); the smoothed accumulator, ~9% smaller, is recorded as the counterfactual |
-| `09-multi-segment-planner-route` | CONV-01 | No per-segment metrics-anchor reset — a multi-leg planner route measures continuously through its shared anchor points |
-| `10-realistic-track` | PORT-01 | A plausible, realistic multi-point hike with metadata, waypoints, and timestamps exercises the whole pipeline end to end |
-| `11-malformed-time` | WR-06 | A non-empty but unparseable `<time>` body is "no time" in BOTH languages — the TS side used to build an `Invalid Date`, which is truthy, and so reported a `NaN` duration where Dart reported `0` |
-| `12-dense-switchback` | CONV-05 | Real-watch-density guard (~3.852 m mean hop, 41 points): pins the raw ~154 m total against the superseded 5 m gate's ~77 m counterfactual, so re-introducing the gate fails loudly |
+| `01-two-point-segment` | segment-first-point | A 2-point segment reports its real hop distance, not 0 |
+| `02-first-point-extremes` | segment-first-point, centroid-divisor | Bounding box includes the segment's own first point; centroid divides by the count it summed |
+| `03-missing-vs-empty-ele` | missing-vs-empty-elevation | A literal `<ele></ele>` is treated identically to an omitted tag, never coerced to sea level 0 — the parser landmine canary |
+| `04-switchback-scramble` | elevation-noise-filter | Elevation gain is sampled independently of the horizontal-movement threshold; the corpus asserts `finalElevationGain` (88), not `totalElevationGainSmoothed` (80) |
+| `05-stationary-noise-returns` | elevation-noise-filter | A fully-stationary altitude oscillation returning to its start elevation reports 0/0, not a ratcheted total |
+| `06-stationary-ends-mid-swing` | elevation-noise-filter, final-vs-running-elevation | A track ending mid-excursion reports the genuine un-cancelled net displacement |
+| `07-rolling-terrain` | elevation-noise-filter | Noise rejection never eats real terrain when genuine horizontal movement accompanies every swing |
+| `08-jittery-track` | raw-vs-smoothed-distance | Reported distance is the raw accumulator; the smoothed accumulator, ~9% smaller, is recorded as the counterfactual |
+| `09-multi-segment-planner-route` | segment-first-point | No per-segment metrics-anchor reset — a multi-leg planner route measures continuously through its shared anchor points |
+| `10-realistic-track` | end-to-end-pipeline | A plausible, realistic multi-point hike with metadata, waypoints, and timestamps exercises the whole pipeline end to end |
+| `11-malformed-time` | unparseable-time | A non-empty but unparseable `<time>` body is "no time" in BOTH languages — the TS side used to build an `Invalid Date`, which is truthy, and so reported a `NaN` duration where Dart reported `0` |
+| `12-dense-switchback` | raw-vs-smoothed-distance | Real-watch-density guard (~3.852 m mean hop, 41 points): pins the raw ~154 m total against the retired 5 m gate's ~77 m counterfactual, so re-introducing the gate fails loudly |
 
 ## How to add a fixture
 

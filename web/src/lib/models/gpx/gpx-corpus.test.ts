@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import { gpx2trail } from "$lib/util/gpx_util";
 import GPX from "./gpx";
 
-// D-01: the corpus is a single, on-disk, language-neutral fixture set at the repo root,
+// The corpus is a single, on-disk, language-neutral fixture set at the repo root,
 // sibling to web/, app/, db/ — not duplicated per language. See fixtures/gpx-corpus/README.md
 // for the full contract this file implements.
 const corpusRoot = path.resolve(process.cwd(), "..", "fixtures", "gpx-corpus");
 
-// T-34-14: a wrong CWD must fail loudly (zero fixtures discovered), not silently pass an
+// A wrong CWD must fail loudly (zero fixtures discovered), not silently pass an
 // empty/vacuous suite. Vitest's CWD must be web/ for this relative resolution to work.
 if (!existsSync(corpusRoot)) {
   throw new Error(
@@ -19,7 +19,7 @@ if (!existsSync(corpusRoot)) {
   );
 }
 
-// D-03: absolute tolerances, declared once here and never inline in a test body.
+// Absolute tolerances, declared once here and never inline in a test body.
 // See fixtures/gpx-corpus/README.md's tolerance table for the full field-by-field breakdown
 // and the empirical justification (a 5000-point haversine accumulation was bit-identical
 // between Node/V8 and the Dart VM to 17 significant digits).
@@ -73,9 +73,9 @@ type CorpusFixture = {
 };
 
 /**
- * Reads every fixture directory under fixtures/gpx-corpus/ from disk. T-34-11/T-34-14: asserts
- * at least 12 fixtures are discovered so a corpus that silently shrinks (a fixture accidentally
- * deleted or excluded) fails this suite rather than passing vacuously.
+ * Reads every fixture directory under fixtures/gpx-corpus/ from disk. Asserts at least 12
+ * fixtures are discovered so a corpus that silently shrinks (a fixture accidentally deleted
+ * or excluded) fails this suite rather than passing vacuously.
  */
 function loadCorpusFixtures(): CorpusFixture[] {
   const dirs = readdirSync(corpusRoot, { withFileTypes: true })
@@ -152,7 +152,7 @@ describe("GPX corpus - metrics", () => {
         lon: DEGREE_TOLERANCE,
       });
 
-      // Deliberately not asserted anywhere in this file (D-04): the raw index-aligned
+      // Deliberately not asserted anywhere in this file: the raw index-aligned
       // per-point distance array, or the track-shape hash. Both exist on the TS class but
       // are outside the corpus's public-metrics-only contract.
       expect(gpx.flatten().length).toBe(fixture.expected.metrics.pointCount);

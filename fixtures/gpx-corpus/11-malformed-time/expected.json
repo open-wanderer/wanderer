@@ -1,6 +1,6 @@
 {
   "id": "11-malformed-time",
-  "covers": ["WR-06"],
+  "covers": ["unparseable-time"],
   "derivation": "hand",
   "notes": "Pins the two languages to the same answer for a non-empty but unparseable <time> body. The TS side used to do a bare `new Date(object.time)`; an Invalid Date is a truthy object, so getTotals()'s `startTime && endTime` guard passed and `endTime.getTime() - startTime.getTime()` evaluated to NaN, making the whole trail's duration NaN. The Dart side, whose sanitizer rewrites an unparseable <time> to a self-closing tag, reported 0 for the same document. Both now report 0. The last point carries a genuine ISO-8601 time so the fixture proves the guard fails on the START time specifically, not merely on a timeless track.",
   "metrics": {

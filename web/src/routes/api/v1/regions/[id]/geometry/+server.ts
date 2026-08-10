@@ -64,7 +64,7 @@ export async function GET(event: RequestEvent) {
     // helper or the PocketBase client's low-level send call here. The Go
     // /regions/{id}/geometry route (db/routes/regions_geometry_get.go) is
     // deliberately gated behind apis.RequireSuperuserAuth() because it
-    // performs an outbound CoMaps fetch on cache miss (D-13 — open proxy /
+    // performs an outbound CoMaps fetch on cache miss (open proxy and
     // upstream rate-limit abuse). This route must stay a pure PocketBase
     // read: no row means 404, never an upstream fetch. Do not "fix" this
     // into a proxy.

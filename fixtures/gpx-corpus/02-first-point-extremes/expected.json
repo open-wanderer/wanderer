@@ -1,8 +1,8 @@
 {
   "id": "02-first-point-extremes",
-  "covers": ["CONV-01", "CONV-02"],
+  "covers": ["segment-first-point", "centroid-divisor"],
   "derivation": "hand",
-  "notes": "Pre-fix, the i = 1 loop bound skipped the segment's own first point -- which here is deliberately also the geographic extreme -- so the bounding box read 47.0/11.0 (the second point) instead of 40.0/10.0, and the centroid's numerator summed only 2 points while dividing by a divisor that (depending on the exact pre-fix code path) could still reflect all 3, producing 31.3343../7.3343... This fixture pins both the bounding-box loop bound and the CONV-02 divisor/numerator match.",
+  "notes": "Pre-fix, the i = 1 loop bound skipped the segment's own first point -- which here is deliberately also the geographic extreme -- so the bounding box read 47.0/11.0 (the second point) instead of 40.0/10.0, and the centroid's numerator summed only 2 points while dividing by a divisor that (depending on the exact pre-fix code path) could still reflect all 3, producing 31.3343../7.3343... This fixture pins both the bounding-box loop bound and the centroid divisor/numerator match.",
   "metrics": {
     "distance": 916703.0870808499,
     "elevationGain": 0,

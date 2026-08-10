@@ -7,7 +7,7 @@ Three track points where the FIRST point is deliberately the geographic extreme 
 
 ## Defect pinned
 
-CONV-01 (bounding box) and CONV-02 (centroid divisor). Pre-fix, the `i = 1` loop bound skipped
+The bounding box and the centroid divisor. Pre-fix, the `i = 1` loop bound skipped
 the segment's own first point when accumulating `minLat`/`maxLat`/`minLon`/`maxLon` and the
 centroid's `totalLat`/`totalLon`/`summedPointCount`. Since the skipped point here is also the
 geographic extreme, the pre-fix bounding box reported the *second* point's coordinates
@@ -33,14 +33,14 @@ Plain min/max over the fixture's own three coordinates:
 - `minLon = min(10.0, 11.0, 12.0) = 10.0`
 - `maxLon = max(10.0, 11.0, 12.0) = 12.0`
 
-### centroid (CONV-02 invariant: divide by exactly the count summed)
+### centroid (invariant: divide by exactly the count summed)
 
 - `totalLat = 40.0 + 47.0 + 48.0 = 135.0`, `summedPointCount = 3`
 - `centroid.lat = 135.0 / 3 = 45.0`
 - `totalLon = 10.0 + 11.0 + 12.0 = 33.0`
 - `centroid.lon = 33.0 / 3 = 11.0`
 
-This is simply the plain arithmetic mean of all three points — the invariant CONV-02 fixes is
+This is simply the plain arithmetic mean of all three points — the invariant is
 that the divisor must equal the number of points actually summed into the numerator, which for
 a 3-point segment with no dropped points is trivially 3.
 

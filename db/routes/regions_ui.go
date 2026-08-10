@@ -46,9 +46,9 @@ func RegionsDashboard(e *core.RequestEvent) error {
 	// Widened vs. federation_ui.go's CSP — MapLibre needs unpkg.com (its
 	// own script/style host), a blob: worker allowance (its Web Worker pool), and
 	// tiles.openfreemap.org (connect-src for style/tile/glyph/sprite
-	// fetches, img-src for raster assets). See 30-RESEARCH.md Pitfall 3 /
-	// Pattern 1 for why copying federation's CSP verbatim silently breaks
-	// the map (blank pane, no visible error unless devtools are open).
+	// fetches, img-src for raster assets). Copying federation's CSP verbatim
+	// silently breaks the map (blank pane, no visible error unless devtools
+	// are open).
 	e.Response.Header().Set("Content-Security-Policy",
 		"default-src 'none'; "+
 			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; "+

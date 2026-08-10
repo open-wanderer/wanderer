@@ -8,7 +8,7 @@ scramble/via-ferrata-shaped stretch: lots of vertical gain, almost no lateral tr
 
 ## Defect pinned
 
-CONV-04: elevation gain/loss must be sampled independently of the horizontal distance threshold.
+Elevation gain/loss must be sampled independently of the horizontal distance threshold.
 Pre-fix, the smoothed elevation diff was gated behind the same horizontal-movement threshold used
 for distance smoothing — since this stretch's cumulative horizontal movement (~4.4 m) never
 clears the 5 m threshold, the pre-fix code never registered any of the climb.
@@ -21,7 +21,7 @@ horizontal threshold, which this stretch never clears").
 
 ## Derivation of expected values
 
-### elevationGain — the single most important derivation in this corpus (D-04)
+### elevationGain — the single most important derivation in this corpus
 
 Reasoning over the algorithm's stated rules (threshold 5 m on elevation, defer-then-publish,
 discard only on horizontal-stillness — `gpx-metrics-computation.ts:97-235`). Each consecutive
@@ -52,7 +52,7 @@ point 10's publish events — 10 publishes x 8 = 80), and `pendingDelta = +8` is
 asserts.** The value this corpus asserts is `finalElevationGain = totalElevationGainSmoothed +
 max(pendingDelta, 0) = 80 + 8 = 88`, because the track is complete: the last 8 m step is real,
 confirmed climbing, just not yet published into the monotonic total (which only publishes on the
-*next* move, and there is no next move on a finished track). D-04 is explicit that the corpus's
+*next* move, and there is no next move on a finished track). The corpus's
 `elevationGain` field is the `final*` semantics, never `total*Smoothed` — porting the wrong one
 of this pair is called out as "the single most likely way to fail the corpus."
 
@@ -75,7 +75,7 @@ first-to-last direct distance: 4.403319095226456
 ```
 
 The direct first-to-last hop is ~4.4 m, under the 5 m threshold, and each intermediate hop is
-even smaller (~0.4 m). Since CONV-05 was superseded on 2026-08-01, the reported distance is the
+even smaller (~0.4 m). Since distance smoothing was retired, the reported distance is the
 raw accumulator (`totalDistance`), which sums every hop regardless of the 5 m threshold: the
 eleven ~0.4003 m meridian hops sum to `4.403319095226456` m (agreeing with the direct
 first-to-last haversine above to within ~1e-12, as expected along a meridian). **The corpus

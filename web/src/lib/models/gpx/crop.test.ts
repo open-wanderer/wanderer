@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getCoordinateAtDistance, hasCropInterpolationBasis } from "./crop";
 import Waypoint from "./waypoint";
 
-// Regression tests for VERIFICATION gap 2 (CR-01): the shipped crop-panel guard
+// Regression tests for VERIFICATION gap 2: the shipped crop-panel guard
 // (`cumulativeRoute.length < 2 || !Number.isFinite(rawRouteTotal)`) never catches
 // `rawRouteTotal === 0`, and `getCoordinateAtDistance()` itself divides `0 / 0` when
 // two adjacent cumulative entries are equal, returning `[NaN, NaN, 1]`. In the app,

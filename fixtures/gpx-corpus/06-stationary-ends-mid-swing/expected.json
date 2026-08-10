@@ -1,6 +1,6 @@
 {
   "id": "06-stationary-ends-mid-swing",
-  "covers": ["CONV-04", "D-04"],
+  "covers": ["elevation-noise-filter", "final-vs-running-elevation"],
   "derivation": "hand",
   "notes": "Same generator as fixture 05, truncated to 60 points (i = 0..59), so the track ends at 1007 with one +/-7 m swing un-cancelled and still pending when the track completes. That pending excursion is real (the track's genuine net displacement is +7 m) and must surface via finalElevationGain, not the monotonic running-total field (which would read 0 here, since the excursion was never confirmed by another move).",
   "metrics": {

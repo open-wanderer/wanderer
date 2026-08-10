@@ -1,8 +1,8 @@
 {
   "id": "04-switchback-scramble",
-  "covers": ["CONV-04"],
+  "covers": ["elevation-noise-filter"],
   "derivation": "hand",
-  "notes": "finalElevationGain (88), not the monotonic running-total field (80), is the value this corpus asserts (D-04) -- the climb's last 8 m step is still sitting unconfirmed in the noise filter's pending slot when the track ends, and a completed track's reported gain must include it. Distance is 4.403319095226456 m -- the raw haversine sum across all 11 hops, reported since CONV-05 was superseded on 2026-08-01 (the cumulative horizontal movement never clears the 5 m smoothing threshold that gated the now-unreported smoothed accumulator, which would have stayed 0) -- proving the elevation and distance thresholds are still gated independently of each other, regardless of which distance accumulator is reported.",
+  "notes": "finalElevationGain (88), not the monotonic running-total field (80), is the value this corpus asserts -- the climb's last 8 m step is still sitting unconfirmed in the noise filter's pending slot when the track ends, and a completed track's reported gain must include it. Distance is 4.403319095226456 m -- the raw haversine sum across all 11 hops, reported since distance smoothing was dropped (the cumulative horizontal movement never clears the 5 m smoothing threshold that gated the now-unreported smoothed accumulator, which would have stayed 0) -- proving the elevation and distance thresholds are still gated independently of each other, regardless of which distance accumulator is reported.",
   "metrics": {
     "distance": 4.403319095226456,
     "elevationGain": 88,

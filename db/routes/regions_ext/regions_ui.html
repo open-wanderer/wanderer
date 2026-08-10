@@ -537,7 +537,7 @@
       border-color: var(--accent);
     }
 
-    /* Group toggle, some but not all leaves enabled (D-06 branch toggle) */
+    /* Group toggle, some but not all leaves enabled (branch toggle) */
     .toggle-switch[aria-checked="mixed"] {
       background: var(--accent-fade);
       border-color: var(--accent);
@@ -586,7 +586,7 @@
       white-space: nowrap;
     }
 
-    /* ── Live map overlays (loading spinner / empty state, ADMINUI-03) ── */
+    /* ── Live map overlays (loading spinner / empty state) ── */
     .map-overlay {
       position: absolute;
       top: 0;
@@ -628,9 +628,8 @@
   <script>
     // ── Pure tree helpers (module scope, no Alpine `this`) ──────────
     // buildTree/flattenVisible/computeDefaultExpanded/computeFilterMatches
-    // implement D-02/D-07/D-08 per 30-RESEARCH.md Pattern 3. Task 30-01-03
-    // wires these into regionsApp(); left here (not inside the Alpine
-    // factory) so they stay easily unit-testable/pure.
+    // are wired into regionsApp() below; they live here (not inside the
+    // Alpine factory) so they stay easily unit-testable and pure.
 
     function buildTree(rows) {
       var byId = new Map();
@@ -689,9 +688,9 @@
           n.depth = depth;
           out.push(n);
           if (n.kind === 'group') {
-            // D-08: while a filter is active, matched groups are treated as
+            // While a filter is active, matched groups are treated as
             // expanded (non-matching children were already excluded above);
-            // otherwise fall back to the explicit expandedSet (D-07).
+            // otherwise fall back to the explicit expandedSet.
             var shouldDescend = filterMatchSet ? true : expandedSet.has(n.id);
             if (shouldDescend) walk(n.children, depth + 1);
           }
@@ -838,7 +837,7 @@
           }
         },
 
-        // D-02/Pitfall 2: PocketBase v0.38.0 hard-caps perPage at 1000, so
+        // PocketBase v0.38.0 hard-caps perPage at 1000, so
         // the 1,306-row catalog needs a 2-page loop, not a single fetch.
         async loadAllRegions() {
           var page = 1, all = [], totalPages = 1;
@@ -1025,7 +1024,7 @@
         },
 
         // Optimistic leaf toggle with revert-on-failure + inline per-row error
-        // (D-06, ADMINUI-02). Map hooks below are stubbed here (guarded by
+        //. Map hooks below are stubbed here (guarded by
         // `if (!this.map) return;`) so this task is independently testable;
         // 30-02 Task 2 replaces the stub bodies with real MapLibre layer calls.
         // `row` is a node from the `roots` tree (see flattenVisible); `this.regions`
@@ -1058,7 +1057,7 @@
           //    the hover cache paints instantly with no request. A cold
           //    region's outline is deliberately deferred until after the PATCH
           //    below: resolving it now would hit the route while the record is
-          //    still enabled=false server-side, taking D-11's pass-through and
+          //    still enabled=false server-side, taking the pass-through and
           //    burning an upstream fetch that persists nothing.
           if (row.enabled) {
             if (this.map && this._polygonCache[row.path]) {
@@ -1213,13 +1212,13 @@
           }
         },
 
-        // ── Live MapLibre coverage map (ADMINUI-03) ─────────────────────
+        // ── Live MapLibre coverage map ─────────────────────
 
         enabledLeafRows() {
           return this.regions.filter(function (r) { return r.kind === 'leaf' && r.enabled; });
         },
 
-        // Init after auth + tree load (D-04): OpenFreeMap Liberty style, no
+        // Init after auth + tree load: OpenFreeMap Liberty style, no
         // local copy. Shows .spinner-accent over the pane until 'load' fires.
         initMap() {
           var accentRaw = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
@@ -1240,19 +1239,19 @@
                 var item = byPath[row.path];
                 if (item && item.polygon) this.addRegionLayer(this.map, row.path, item.polygon);
               });
-              // D-05: initial-load-only fit; individual toggles never re-fit (D-06).
+              // Initial-load-only fit; individual toggles never re-fit.
               // Bbox now comes from the geometry items `loadEnabledPolygons` already
-              // fetched, not from the regions collection (D-12 moved it out).
+              // fetched, not from the regions collection.
               this.fitToEnabled(this.map, items);
             });
           });
         },
 
-        // D-03/Pattern 5: chunked OR-filter over already-fetched, server-
-        // validated `path` values (never the free-text filter box, T-30-08).
-        // Chunk size derived from the actual max path length so the built
-        // filter string stays comfortably under PocketBase's 3500-char cap
-        // (A2/Pitfall 7), defaulting to ~60 when the set is small/empty.
+        // Chunked OR-filter over already-fetched, server-validated `path`
+        // values (never the free-text filter box). Chunk size derived from
+        // the actual max path length so the built filter string stays
+        // comfortably under PocketBase's 3500-char cap, defaulting to ~60
+        // when the set is small/empty.
         async loadEnabledPolygons(rows) {
           var out = [];
           if (!rows || rows.length === 0) return out;
@@ -1290,7 +1289,7 @@
           return out;
         },
 
-        // Pattern 6: one geojson source + fill(18% accent)/line(2px accent)
+        // One geojson source + fill(18% accent)/line(2px accent)
         // layer pair per region, keyed by `path`.
         addRegionLayer(map, path, geojsonPolygon) {
           var srcId = 'region-' + path;
@@ -1307,9 +1306,9 @@
           if (map.getSource(srcId)) map.removeSource(srcId);
         },
 
-        // D-05: union bbox ([minLon,minLat,maxLon,maxLat], now sourced from
+        // Union bbox ([minLon,minLat,maxLon,maxLat], now sourced from
         // the resolved geometry rows rather than the retired regions.bbox
-        // field, per D-12) + 48px padding; Europe-centered fallback when
+        // field) + 48px padding; Europe-centered fallback when
         // nothing is enabled or usable. Entries whose bbox is missing or not
         // a 4-element array (a half-resolved region) are skipped so they
         // can't poison the union into NaN/Infinity.
@@ -1330,8 +1329,8 @@
           map.fitBounds([[union[0], union[1]], [union[2], union[3]]], { padding: 48 });
         },
 
-        // Draw one region's outline, per D-03 ("again for the single region
-        // whenever a toggle flips").
+        // Draw one region's outline, again for the single region whenever
+        // a toggle flips.
         //
         // Goes through the read-through /regions/{path}/geometry route, NOT a
         // direct region_geometry collection query. Reading the collection here
@@ -1367,10 +1366,10 @@
         // region-line-*), so hovering a disabled region never mutates its
         // actual enabled state or the persistent map layers. A disabled
         // leaf's outline is fetched live from CoMaps through the
-        // superuser-gated /regions/{path}/geometry route (D-10/D-13) rather
+        // superuser-gated /regions/{path}/geometry route rather
         // than read from the collection directly — a disabled, never-built
-        // leaf has no row there. Per D-11 the route resolves this on the
-        // fly and writes nothing back for a disabled region; the existing
+        // leaf has no row there. The route resolves this on the fly and
+        // writes nothing back for a disabled region; the existing
         // client-side cache below is the only cache involved.
         onLeafHoverStart(row) {
           if (row.kind !== 'leaf' || !this.map) return;
@@ -1529,7 +1528,7 @@
           <span class="spinner spinner-accent" style="width:22px;height:22px;border-width:3px" aria-label="Loading"></span>
         </div>
 
-        <!-- Zero-match filter empty state (D-08 / Copywriting Contract) -->
+        <!-- Zero-match filter empty state -->
         <template x-if="!loading && filterQuery && visibleRows.length === 0">
           <div class="tree-empty-state">
             <i class="ri-search-line"></i>
@@ -1538,7 +1537,7 @@
           </div>
         </template>
 
-        <!-- Flattened, non-recursive tree render (D-02/D-07/D-08) -->
+        <!-- Flattened, non-recursive tree render -->
         <template x-for="row in visibleRows" :key="row.id">
           <div>
             <div class="tree-row" role="treeitem"
@@ -1583,7 +1582,7 @@
               <template x-if="row.kind === 'leaf' && !buildingPaths.has(row.path) && formatBytes(archiveSizes[row.path])">
                 <span class="archive-size" x-text="formatBytes(archiveSizes[row.path])"></span>
               </template>
-              <!-- Toggle switch (ADMINUI-02, D-06): role=switch, keyboard-operable.
+              <!-- Toggle switch: role=switch, keyboard-operable.
                    Leaves flip their own `enabled`; groups flip every leaf beneath
                    them and show a tri-state aria-checked="mixed" when only some
                    are enabled. -->
@@ -1600,7 +1599,7 @@
                 <span class="toggle-thumb"></span>
               </button>
             </div>
-            <!-- Inline per-row error on PATCH failure (D-06) — x-text auto-escapes -->
+            <!-- Inline per-row error on PATCH failure — x-text auto-escapes -->
             <template x-if="rowErrors[row.id]">
               <div class="row-error" :style="'padding-left:' + (8 + row.depth * 16 + 24) + 'px'" x-text="rowErrors[row.id]"></div>
             </template>

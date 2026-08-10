@@ -7,14 +7,14 @@ points — `lat += 0.00018` (a real ~20 m forward hop), `lat += 0.000009` (a ~1 
 `lat -= 0.000009` (a ~1 m jitter back to the same spot as the forward hop), `lon = 11.0`
 throughout.
 
-## Defect pinned (CONV-05, superseded 2026-08-01)
+## Defect pinned (distance smoothing, since retired)
 
-CONV-05 originally required the reported distance to be the smoothed accumulator (only advancing
+The corpus originally required the reported distance to be the smoothed accumulator (only advancing
 on a hop that clears the 5 m threshold), not the raw sum of every consecutive-pair haversine
 distance, so GPS jitter that never actually moves the device forward would not inflate the
 reported distance. That rule is superseded: ground truth from a real FIT recording showed the 5 m
 gate chord-shortcuts real switchback sampling density by far more than jitter ever inflates a raw
-sum (see `.planning/quick/260801-opr-report-raw-distance-instead-of-the-5m-ga/`). The reported
+sum. The reported
 distance is now the raw accumulator; this fixture still exists to pin the two figures against
 each other so a regression in either accumulator is caught.
 
@@ -60,10 +60,10 @@ still ~1.001 m (jitter-forward point to jitter-back point).
 
 **Raw sum ≈ 110.08297737671097 m. Smoothed accumulator ≈ 100.07543398026468 m.** The corpus
 asserts the raw value (`distance` in `metrics`/`trail`), because that is what
-`GPX.getTotals()` reports as `distance` since CONV-05 was superseded on 2026-08-01
+`GPX.getTotals()` reports as `distance` since distance smoothing was retired
 (`gpx.ts:148`, `totalDistance = metrics.totalDistance`). The smoothed accumulator is the
 counterfactual the superseded 5 m gate would have produced — it is no longer part of the public
-contract, though `totalDistanceSmoothed` itself survives, unreported, on the class (D-04 also
+contract, though `totalDistanceSmoothed` itself survives, unreported, on the class (the corpus also
 still excludes `cumulativeDistance`'s raw per-point array from the Dart port, since its only
 consumer — the web trail-edit crop slider — has no Dart-side equivalent).
 

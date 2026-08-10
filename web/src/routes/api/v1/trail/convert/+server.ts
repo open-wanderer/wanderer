@@ -14,8 +14,8 @@ import { ClientResponseError } from "pocketbase";
  * top-level navigation whose response body is fully attacker-controlled and
  * served from the victim's origin under an active XML content type. Before
  * the endpoint became transcode-only it got this validation for free from
- * `gpx2trail`, which threw on unparseable content; that call is gone (D-05
- * forbids reintroducing it), so the parse is reused here as a pure
+ * `gpx2trail`, which threw on unparseable content; that call is gone and must
+ * not be reintroduced, so the parse is reused here as a pure
  * VALIDATOR - nothing derived from it is computed, persisted or returned.
  *
  * `GPX.parse` throws for non-XML input and for XML whose root element is not

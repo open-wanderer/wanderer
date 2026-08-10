@@ -17,7 +17,7 @@ func TestPolySourceURLs(t *testing.T) {
 		}
 	})
 
-	t.Run("index 0 is GitHub, index 1 is Codeberg (D-04 fallback order)", func(t *testing.T) {
+	t.Run("index 0 is GitHub, index 1 is Codeberg (fallback order)", func(t *testing.T) {
 		urls, err := PolySourceURLs("2528fbb91977201cf6d16b1b01ebf27eea342e85", "Abkhazia")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

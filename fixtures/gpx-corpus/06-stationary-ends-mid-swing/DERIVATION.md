@@ -8,7 +8,7 @@ odd, the track ends at `1007`, mid-swing, with the final excursion never cancell
 
 ## Defect pinned
 
-CONV-04 / D-04: a track that ends mid-excursion must report the genuine net displacement of its
+A track that ends mid-excursion must report the genuine net displacement of its
 final, un-cancelled swing — not `0` (which would under-report a real, if small, elevation
 change) and not the flat `210`/`203` the pre-fix ratchet produced.
 
@@ -39,7 +39,7 @@ this excursion still pending.
 This is exactly the genuine net displacement of the whole 60-point track: it started at `1000`
 and ends at `1007`, a real `+7` m climb that the monotonic `totalElevationGainSmoothed` field
 alone cannot see (it stays `0` because the excursion was never confirmed by a subsequent point),
-but which `finalElevationGain` correctly surfaces — this is precisely D-04's "track ends
+but which `finalElevationGain` correctly surfaces — this is precisely the "track ends
 mid-swing" case that the corpus must not confuse with the monotonic smoothed pair.
 
 ### distance / boundingBox / centroid

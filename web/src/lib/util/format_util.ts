@@ -13,7 +13,7 @@ export function formatTimeHHMM(seconds?: number) {
 }
 
 /**
- * The single implementation of D-10's display rule: show `moving_duration`
+ * The single implementation of the display rule: show `moving_duration`
  * (moving time, set only by app recordings) when present, otherwise fall
  * back to `duration` (GPX-derived elapsed time, always present when the
  * trail has a route). Nothing may write `moving_duration` from a GPX

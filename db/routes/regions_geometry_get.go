@@ -11,24 +11,24 @@ import (
 
 // RegionGeometryGet returns a single leaf region's boundary geometry (GeoJSON)
 // and bbox, fetched on demand and converted server-side from CoMaps'
-// Osmosis-format `.poly` files (SLIM-05, D-10). The conversion cannot move to
-// the client: `ParsePoly` is the hand-rolled multi-ring hole/exclave parser
-// Phase 28 deliberately built (28-CONTEXT D-03/D-04), so a browser-side
+// Osmosis-format `.poly` files. The conversion cannot move to
+// the client: `ParsePoly` is a hand-rolled multi-ring hole/exclave parser,
+// so a browser-side
 // reimplementation would mean duplicating that parser in JavaScript and
 // widening the admin page's CSP to the two upstream hosts (github/codeberg)
 // it fetches from.
 //
 // This route is bound to apis.RequireSuperuserAuth() rather than the weaker
-// apis.RequireAuth() used by the sibling /regions group (D-13): it triggers
+// apis.RequireAuth() used by the sibling /regions group: it triggers
 // outbound third-party requests on every call, so an authenticated-user-only
 // gate would leave it as both an open proxy and a way to burn CoMaps' rate
 // limit from outside.
 //
 // Persistence is decided entirely inside regions.ResolveGeometry, derived
-// from the looked-up region's own `enabled` field (D-10) — this handler
+// from the looked-up region's own `enabled` field — this handler
 // never reads `enabled` itself and accepts no query parameter that could
 // influence whether a write happens. Hovering a disabled region is therefore
-// a pass-through with no write (D-11); toggling a region on and then
+// a pass-through with no write; toggling a region on and then
 // re-drawing it persists as a side effect of that same call once the record
 // is enabled.
 func RegionGeometryGet(e *core.RequestEvent) error {

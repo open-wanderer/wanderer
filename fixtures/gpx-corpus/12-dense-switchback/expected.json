@@ -1,8 +1,8 @@
 {
   "id": "12-dense-switchback",
-  "covers": ["CONV-05"],
+  "covers": ["raw-vs-smoothed-distance"],
   "derivation": "hand",
-  "notes": "Forty-one track points, no elevation, at real watch sampling density: lat = 47 + 144*i/1e7 for i = 0..40 (a steady meridian climb), lon alternating 11 / 11.0000462 every point (the switchback zig-zag). Every consecutive hop measures ~3.852 m -- ten times denser than 10-realistic-track's 44.8 m mean hop, and close to a real GPS watch's ~4.27 m mean interval -- so every single hop falls under the superseded 5 m distance gate. This pins CONV-05's superseded form: the reported distance is the raw sum of all 40 hops, 154.0841571 m (see DERIVATION.md). The now-unreported smoothed accumulator would have advanced its anchor only every third point, chord-shortcutting to 77.2922075 m -- losing just over half the track's real length. That 77.292 m figure is the counterfactual a silently re-introduced 5 m gate would produce; both suites' discovery floors are raised to 12 so deleting this fixture also fails loudly.",
+  "notes": "Forty-one track points, no elevation, at real watch sampling density: lat = 47 + 144*i/1e7 for i = 0..40 (a steady meridian climb), lon alternating 11 / 11.0000462 every point (the switchback zig-zag). Every consecutive hop measures ~3.852 m -- ten times denser than 10-realistic-track's 44.8 m mean hop, and close to a real GPS watch's ~4.27 m mean interval -- so every single hop falls under the retired 5 m distance gate. The reported distance is the raw sum of all 40 hops, 154.0841571 m (see DERIVATION.md). The now-unreported smoothed accumulator would have advanced its anchor only every third point, chord-shortcutting to 77.2922075 m -- losing just over half the track's real length. That 77.292 m figure is the counterfactual a silently re-introduced 5 m gate would produce; both suites' discovery floors are raised to 12 so deleting this fixture also fails loudly.",
   "metrics": {
     "distance": 154.08415712669284,
     "elevationGain": 0,

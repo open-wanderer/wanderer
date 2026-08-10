@@ -1,12 +1,10 @@
 // Package regions implements the seeded `regions` table's id-validation and
 // the filesystem path builders for pre-built region archives (vector + DEM
 // PMTiles). It is a parallel, independent build path alongside
-// pocketbase/services/tiles' existing per-cell cache — see
-// .planning/phases/21.5-region-catalog-archive-pre-build-backend/21.5-CONTEXT.md
-// (D-01/D-02/D-03) for the design rationale. The old admin-supplied
-// region_config.json / REGION_CATALOG_CONFIG_PATH loader was retired in
-// Phase 29 (EXTRACT-02) — the `regions` PocketBase collection (seeded in
-// Phase 28) is now the sole source of truth for the region catalog.
+// pocketbase/services/tiles' existing per-cell cache. The old
+// admin-supplied region_config.json / REGION_CATALOG_CONFIG_PATH loader has
+// been retired — the seeded `regions` PocketBase collection is now the sole
+// source of truth for the region catalog.
 package regions
 
 import (
@@ -22,7 +20,7 @@ const RegionCacheDir = "./pb_data/region_archives"
 
 // regionIDPattern is the allow-list a region id must satisfy before it is
 // ever used to build a filesystem path. It now guards a seeded materialized
-// `path` value from the `regions` table (per EXTRACT-02), not only an
+// `path` value from the `regions` table, not merely an
 // admin-typed slug — the trailing character class allows `.` (the
 // materialized-path separator, e.g. "algeria.algeria_central") and `'`
 // (e.g. "people's_republic_of_china"). The leading character stays

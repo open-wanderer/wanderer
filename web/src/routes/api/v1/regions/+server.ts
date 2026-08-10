@@ -15,7 +15,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *       bbox/enabled/build-state, while leaf rows additionally carry
  *       bbox/enabled plus the build-state fields below. Proxies to the
  *       internal Go backend's /regions route (not publicly reachable on its
- *       own — see the routing decision in 21.5-03-PLAN.md).
+ *       own).
  *     tags:
  *       - Regions
  *     parameters:

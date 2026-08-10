@@ -1,8 +1,8 @@
 {
   "id": "10-realistic-track",
-  "covers": ["PORT-01"],
+  "covers": ["end-to-end-pipeline"],
   "derivation": "seeded",
-  "notes": "Seeded from the Phase 33-corrected TS implementation (GPX.parse + gpx2trail against this fixture's own input.gpx), then read back and sanity-checked: distance (1971.38 m) is plausible for the ~2.17 km-diagonal coordinate span on a winding 45-point path; durationMs (3432000) equals the last trkpt time (08:57:12Z) minus the first (08:00:00Z) exactly; pointCount (45) equals the trkpt count in input.gpx; boundingBox exactly equals the coordinate extremes, which coincide with the first/last points because the generated path's lat/lon deltas are each strictly positive (monotonically increasing track); both waypoints (sym 'campground' and 'mountain') are present in the trail block with icon populated, confirming both sym strings pass the icons.includes() guard on the TS side and are present in app/lib/util/icon_util.dart's fontAwesomeIconsMap on the Dart side.",
+  "notes": "Seeded from the corrected TS implementation (GPX.parse + gpx2trail against this fixture's own input.gpx), then read back and sanity-checked: distance (1971.38 m) is plausible for the ~2.17 km-diagonal coordinate span on a winding 45-point path; durationMs (3432000) equals the last trkpt time (08:57:12Z) minus the first (08:00:00Z) exactly; pointCount (45) equals the trkpt count in input.gpx; boundingBox exactly equals the coordinate extremes, which coincide with the first/last points because the generated path's lat/lon deltas are each strictly positive (monotonically increasing track); both waypoints (sym 'campground' and 'mountain') are present in the trail block with icon populated, confirming both sym strings pass the icons.includes() guard on the TS side and are present in app/lib/util/icon_util.dart's fontAwesomeIconsMap on the Dart side.",
   "metrics": {
     "distance": 1971.3766232877194,
     "elevationGain": 234,

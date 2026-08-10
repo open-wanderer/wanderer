@@ -1,8 +1,8 @@
 {
   "id": "08-jittery-track",
-  "covers": ["CONV-05"],
+  "covers": ["raw-vs-smoothed-distance"],
   "derivation": "hand",
-  "notes": "Sixteen points, no elevation: a ~20 m forward hop followed by a ~1 m out-and-back jitter (never clearing the 5 m threshold), repeated 5 times. The raw haversine sum over every consecutive pair is 110.08297737671097 m (see DERIVATION.md) -- this is the reported distance since CONV-05 was superseded on 2026-08-01 (gpx.ts:148, `totalDistance = metrics.totalDistance`). The now-unreported smoothed accumulator, ~100.075 m, only advanced its anchor on a hop that cleared the threshold; that value is the counterfactual the superseded 5 m gate would have produced, not what this corpus asserts. `covers: [\"CONV-05\"]` is retained because this fixture still pins CONV-05's (superseded) form.",
+  "notes": "Sixteen points, no elevation: a ~20 m forward hop followed by a ~1 m out-and-back jitter (never clearing the 5 m threshold), repeated 5 times. The raw haversine sum over every consecutive pair is 110.08297737671097 m (see DERIVATION.md) -- this is the reported distance since distance smoothing was dropped (gpx.ts, `totalDistance = metrics.totalDistance`). The now-unreported smoothed accumulator, ~100.075 m, only advanced its anchor on a hop that cleared the threshold; that value is the counterfactual the retired 5 m gate would have produced, not what this corpus asserts.",
   "metrics": {
     "distance": 110.08297737671097,
     "elevationGain": 0,

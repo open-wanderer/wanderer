@@ -1,8 +1,8 @@
 {
   "id": "07-rolling-terrain",
-  "covers": ["CONV-04"],
+  "covers": ["elevation-noise-filter"],
   "derivation": "hand",
-  "notes": "Six points spaced ~100 m apart (well over the 5 m horizontal threshold), elevations 1000/1008/1000/1008/1000/1008. Every swing here is confirmed by genuine horizontal movement, so noise rejection must never eat it: the full 24 m of climbing (4 x 8m up-legs, minus the one still-pending un-doubled final leg accounted for by finalElevationGain) and 16 m of descent are both reported. This is the guard that proves CONV-04's noise filter only ever discards a horizontally-stationary round-trip, never real terrain.",
+  "notes": "Six points spaced ~100 m apart (well over the 5 m horizontal threshold), elevations 1000/1008/1000/1008/1000/1008. Every swing here is confirmed by genuine horizontal movement, so noise rejection must never eat it: the full 24 m of climbing (4 x 8m up-legs, minus the one still-pending un-doubled final leg accounted for by finalElevationGain) and 16 m of descent are both reported. This is the guard that proves the noise filter only ever discards a horizontally-stationary round-trip, never real terrain.",
   "metrics": {
     "distance": 500.37716990053326,
     "elevationGain": 24,

@@ -53,9 +53,7 @@ class GpxMetricsComputation {
   totalElevationLossSmoothed = 0;
   totalDistance = 0;
   // NOT REPORTED as of 2026-08-01: no consumer reads this for a trail's
-  // distance anymore — getTotals() reports the raw totalDistance instead
-  // (CONV-05 superseded, see
-  // .planning/quick/260801-opr-report-raw-distance-instead-of-the-5m-ga/).
+  // distance anymore — getTotals() reports the raw totalDistance instead.
   // Kept, and thresholdXY_m/GpxMetricsComputation(5, 5) untouched, because
   // lastFilteredPointXY sits in a class whose other anchors are
   // elevation-critical, and a future speed-aware filter would build on it.
@@ -115,7 +113,7 @@ class GpxMetricsComputation {
         this.lastFilteredZPointXY = point;
         this.lastZ = initialElevation;
       }
-      // D-01: push once per call, including this first call, so
+      // Push once per call, including this first call, so
       // cumulativeDistance stays index-aligned with the point count —
       // entry 0 is always the route-start distance, 0.
       this.cumulativeDistance.push(this.totalDistance);
@@ -139,9 +137,9 @@ class GpxMetricsComputation {
     if (Number.isFinite(distance)) {
       this.totalDistance += distance;
     }
-    // D-01: unconditional push keeps cumulativeDistance's entry count equal
+    // Unconditional push keeps cumulativeDistance's entry count equal
     // to the call count even when a hostile coordinate yields a non-finite
-    // haversine distance (T-33-11).
+    // haversine distance.
     this.cumulativeDistance.push(this.totalDistance)
 
     this.lastPointXY = point;
@@ -176,8 +174,8 @@ class GpxMetricsComputation {
     // totalElevationGainSmoothed/LossSmoothed monotonic (see the INVARIANT
     // note on those fields): a discarded excursion was never published, so
     // no published total ever decreases. Horizontal stillness is checked
-    // only on the discard path, so a monotonic low-horizontal climb (the
-    // CONV-04 case) is never affected.
+    // only on the discard path, so a monotonic low-horizontal climb is
+    // never affected.
     //
     // The pending excursion is not lost when a track ends mid-swing: it is
     // surfaced by the finalElevationGain/finalElevationLoss getters, which

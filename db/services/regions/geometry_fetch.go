@@ -12,7 +12,7 @@ import (
 
 // comapsGitHubRawBase and comapsCodebergRawBase are the two hardcoded
 // upstream hosts a leaf's .poly is fetched from, in fallback order
-// (D-04 — no env var, no injectable seam). GitHub's mirror is primary:
+// (no env var, no injectable seam). GitHub's mirror is primary:
 // it observably imposes no rate-limit window for a single on-demand
 // fetch, whereas Codeberg's Forgejo raw endpoint enforces a roughly
 // 250-requests/600s quota (see db/commands/seed_regions.go's doc comment
@@ -27,13 +27,12 @@ const (
 )
 
 // maxPolyBytes bounds a single .poly response read, preserved verbatim
-// from the seed-regions generator's own bound (Threat T-28-04 precedent,
-// carried forward as T-32-11) so removing the committed seed does not
-// also remove the response-size guard.
+// from the seed-regions generator's own bound, so removing the committed
+// seed does not also remove the response-size guard.
 const maxPolyBytes = 32 << 20
 
 // polyFetchAttempts and polyFetchRetryCap define this package's own,
-// tighter retry budget (D-03) for the on-demand build/route path, as
+// tighter retry budget for the on-demand build/route path, as
 // opposed to seed_regions.go's patient maxFetchRetries = 10 with 30s
 // Retry-After sleeps. This fetch runs synchronously inside a per-region
 // cron build across roughly 100 enabled regions, and inline in an HTTP
@@ -56,15 +55,15 @@ const (
 var polyHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
 // catalogCommitPattern is the allow-list a commit SHA must satisfy before
-// it is interpolated into a fetch URL (Threat T-32-10), mirroring
-// db/commands/seed_regions.go's commitHashPattern precedent set for
-// Threat T-28-03. Declared locally rather than imported from package
+// it is interpolated into a fetch URL, mirroring
+// db/commands/seed_regions.go's commitHashPattern precedent. Declared
+// locally rather than imported from package
 // commands so this package incurs no services/regions -> commands
 // dependency.
 var catalogCommitPattern = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
 // comapsIDPattern is the allow-list a CoMaps leaf id must satisfy before
-// it is interpolated into a fetch URL (Threat T-32-09). It is grounded in
+// it is interpolated into a fetch URL. It is grounded in
 // the verified character set of the live 1306-row catalog: every real
 // leaf id is drawn from letters, digits, underscore, hyphen and space,
 // with a single apostrophe-bearing exception ("People's Republic of
@@ -76,9 +75,9 @@ var comapsIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 _'-]*$`)
 
 // PolySourceURLs validates commitSHA and comapsID against their allow-lists
 // and returns the two .poly URLs to try, in fallback order: the GitHub
-// mirror first, then CoMaps' canonical Codeberg repository (D-04). Kept
+// mirror first, then CoMaps' canonical Codeberg repository. Kept
 // pure and exported so the fallback ordering is unit-testable with no
-// network access (D-06).
+// network access.
 func PolySourceURLs(commitSHA, comapsID string) ([]string, error) {
 	if !catalogCommitPattern.MatchString(commitSHA) {
 		return nil, fmt.Errorf("geometry_fetch: invalid commit hash %q (expected 7-40 hex characters)", commitSHA)
@@ -155,7 +154,7 @@ func doFetchPoly(rawURL string) ([]byte, time.Duration, error) {
 // parsePolyRetryAfter interprets a Retry-After header value (seconds, per
 // RFC 9110), falling back to polyFetchRetryCap when the header is missing
 // or unparseable — deliberately shorter than seed_regions.go's 30-second
-// fallback, matching this path's tighter D-03 budget.
+// fallback, matching this path's tighter budget.
 func parsePolyRetryAfter(v string) time.Duration {
 	if v == "" {
 		return polyFetchRetryCap
@@ -176,13 +175,13 @@ func describePolyFetchFailure(urls []string, lastErr error) error {
 
 // FetchGeometry fetches a CoMaps leaf's .poly at commitSHA, trying the
 // GitHub mirror first and CoMaps' canonical Codeberg repository second
-// (D-04), and converts the first successfully-fetched response into a
+//, and converts the first successfully-fetched response into a
 // GeoJSON geometry plus bbox via ParsePoly — the single canonical parser
-// also used by the retired seed generator (D-07's equivalence bar).
+// also used by the retired seed generator (the equivalence bar).
 //
 // A validation error from PolySourceURLs is returned unchanged. If every
 // URL fails to fetch, the returned error names every upstream that was
-// tried (D-01/ROADMAP requirement). If ParsePoly itself fails on bytes
+// tried. If ParsePoly itself fails on bytes
 // that were successfully fetched, that parse error is returned wrapped
 // with comapsID and the process does not fall through to the other
 // host — a parse failure means the fetched content is malformed, not that

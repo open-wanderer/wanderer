@@ -7,7 +7,7 @@ import Link from './link';
  * `new Date(...)` is far more permissive than this — it happily parses
  * `"Jan 1 2024"` and other locale/legacy formats — so gating on this pattern
  * is what keeps the web's `<time>` semantics aligned with the Dart port's
- * (WR-06). GPX 1.1 mandates ISO 8601 for `<time>` anyway, so nothing a
+ *. GPX 1.1 mandates ISO 8601 for `<time>` anyway, so nothing a
  * conforming exporter emits is excluded by it.
  */
 const DART_DATETIME_GRAMMAR =
