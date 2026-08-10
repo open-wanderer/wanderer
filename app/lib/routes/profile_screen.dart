@@ -353,7 +353,11 @@ class _BioSectionState extends State<_BioSection> {
           if (summary.length > bioMaxLength)
             TextButton(
               onPressed: () => setState(() => _expanded = !_expanded),
-              child: Text(_expanded ? 'Show less' : 'Show more'),
+              child: Text(
+                _expanded
+                    ? AppLocalizations.of(context)!.show_less
+                    : AppLocalizations.of(context)!.show_more,
+              ),
             ),
         ],
       ),

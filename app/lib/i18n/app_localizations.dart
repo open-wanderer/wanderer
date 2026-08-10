@@ -1616,6 +1616,18 @@ abstract class AppLocalizations {
   /// **'No bio yet.'**
   String get no_bio_yet;
 
+  /// Button label that expands a truncated profile bio to its full text
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get show_more;
+
+  /// Button label that collapses an expanded profile bio back to its truncated form
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get show_less;
+
   /// No description provided for @feed.
   ///
   /// In en, this message translates to:

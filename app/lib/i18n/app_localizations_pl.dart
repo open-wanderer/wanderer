@@ -888,6 +888,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get no_bio_yet => 'No bio yet.';
 
   @override
+  String get show_more => 'Show more';
+
+  @override
+  String get show_less => 'Show less';
+
+  @override
   String get feed => 'Feed';
 
   @override

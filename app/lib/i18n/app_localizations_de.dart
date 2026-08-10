@@ -895,6 +895,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get no_bio_yet => 'Noch keine Biografie.';
 
   @override
+  String get show_more => 'Mehr anzeigen';
+
+  @override
+  String get show_less => 'Weniger anzeigen';
+
+  @override
   String get feed => 'Feed';
 
   @override

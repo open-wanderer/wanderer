@@ -1,5 +1,7 @@
 {
   "cs": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
@@ -10,56 +12,78 @@
   ],
 
   "es": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "eu": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "fr": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "hu": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "it": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "nl": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "no": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "pl": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "pt": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "ru": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ],
 
   "zh": [
+    "show_more",
+    "show_less",
     "regions_map_geometry_failed",
     "regions_map_back_label"
   ]
