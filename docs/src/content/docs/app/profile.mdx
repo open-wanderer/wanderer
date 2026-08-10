@@ -1,0 +1,38 @@
+---
+title: Profile
+description: Your profile, followers, and profile sharing in the <span class="-tracking-[0.075em]">wanderer</span> app
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import profileShot from '../../../assets/guides/wanderer_app_profile.png';
+import shareShot from '../../../assets/guides/wanderer_app_share_profile.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+<PhoneGrid src={profileShot} alt="Your profile">
+
+The **Profile** tab shows your own profile: avatar, handle, join date, and bio, followed by counters for followers, following, trails, and lists. Below that come your lists and a feed of your recent activity. Other users' profiles look the same — open them from search results or from a trail's author.
+
+### Trails & lists
+
+Tapping the **Trails** counter opens the profile's trails, which can be browsed as a list or all together on a map. The **Lists** counter does the same for its lists. On your own profile you'll also find the trails currently stored on this device.
+
+### Following
+
+The **Followers** and **Following** counters open the respective lists. Follow other users to stay up to date with their newest public trails — including users on other instances if your instance federates.
+
+</PhoneGrid>
+
+## Share your profile
+
+<PhoneGrid src={shareShot} alt="Sharing your profile via QR code" side="left">
+
+The share icon at the top opens a **QR code** that leads to your profile when scanned, along with the profile link itself. **Copy Link** puts it on your clipboard, and **Share** hands it to any app on your device. Great for exchanging profiles on the trail.
+
+</PhoneGrid>
+
+## Settings
+
+The gear icon opens the [app settings](/app/settings).

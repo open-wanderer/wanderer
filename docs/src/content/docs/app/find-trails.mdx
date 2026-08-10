@@ -1,0 +1,54 @@
+---
+title: Find trails
+description: Browse, search, filter, and sort trails in the <span class="-tracking-[0.075em]">wanderer</span> app
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import mapShot from '../../../assets/guides/wanderer_app_map.png';
+import searchShot from '../../../assets/guides/wanderer_app_search.png';
+import filterShot from '../../../assets/guides/wanderer_app_filter.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+## The map
+
+<PhoneGrid src={mapShot} alt="The trails map with a selected trail">
+
+The **Trails** tab shows an interactive map of your surroundings. Trails are displayed as markers, automatically clustered when many trails are close together — tap a cluster to zoom in, tap a marker to select the trail. The selected trail's route is drawn on the map and a preview panel shows its key stats; tap the panel to open the full [trail details](/app/trail-details).
+
+Pan or zoom to a new area and tap **Search this area** to load the trails there. You can also switch between the map and a list view of the current results.
+
+</PhoneGrid>
+
+## Search
+
+<PhoneGrid src={searchShot} alt="Searching across trails, locations and users" side="left">
+
+The search screen searches your instance for trails, locations, lists, and users — including users on other instances your instance federates with. Use the chips at the top to narrow the search to one result type, and tap a location result to jump the map to that place.
+
+</PhoneGrid>
+
+## Filters
+
+<PhoneGrid src={filterShot} alt="The trail filter screen">
+
+The **Filter** button opens a full filter screen. You can restrict results by:
+
+- **Category & subcategory** (e.g. hiking, cycling)
+- **Difficulty** — easy, moderate, difficult
+- **Distance, elevation gain & loss** — range sliders
+- **Completion status** — whether you have completed the trail
+- **Like status** — trails you liked
+- **Visibility status** — public, private, or shared trails
+- **Date range** and **tags**
+- **Author**
+
+Active filters are shown as a badge on the **Filter** button; the icon in the top right of the filter screen clears them all at once. A quick-filter bar above the map gives one-tap access to the most common filters, including **Available offline** to show only trails stored on your device.
+
+</PhoneGrid>
+
+## Sorting
+
+The **Sort** button orders results by criteria such as creation date, distance, elevation gain, or difficulty — ascending or descending.
