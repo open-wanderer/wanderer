@@ -25,7 +25,11 @@ In the tab `OAuth2`, add your provider and fill in the Client ID and Client Secr
 
 <span class="-tracking-[0.075em]">wanderer</span> requests the scopes `openid`, `profile` and `email` from every OIDC provider. Some providers reject an authorization request that contains scopes they do not know, instead of ignoring them, and the login then fails before the consent screen appears.
 
-For those providers set `OIDC_SCOPES` on the `db` service to the list they expect. OpenStreetMap is one example — it accepts neither `profile` nor `email`:
+For those providers set `OIDC_SCOPES` on the `db` service to the list they expect. The list applies to the `oidc`, `oidc2` and `oidc3` providers.
+
+#### OpenStreetMap
+
+OSM accepts neither `profile` nor `email`, so it needs:
 
 ```yaml
 services:
@@ -33,8 +37,6 @@ services:
     environment:
       OIDC_SCOPES: "openid,read_prefs"
 ```
-
-The list applies to the `oidc`, `oidc2` and `oidc3` providers.
 
 ### Disable password authentication
 
