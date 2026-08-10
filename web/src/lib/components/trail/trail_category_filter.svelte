@@ -1,11 +1,11 @@
 <script lang="ts">
     import type { Category } from "$lib/models/category";
     import type { Subcategory } from "$lib/models/subcategory";
-    import type { TrailFilter } from "$lib/models/trail";
     import { categoryPreferences } from "$lib/stores/category_preference_store";
     import { subcategoryPreferences } from "$lib/stores/subcategory_preference_store";
     import { subcategories } from "$lib/stores/subcategory_store";
     import {
+        type CategoryFilterSelection,
         noSubcategoryFilterCategory,
         noSubcategoryFilterValue,
     } from "$lib/util/trail_filter_util";
@@ -26,8 +26,8 @@
 
     interface Props {
         categories: Category[];
-        filter: TrailFilter;
-        onupdate?: (filter: TrailFilter) => void;
+        filter: CategoryFilterSelection;
+        onupdate?: (filter: CategoryFilterSelection) => void;
     }
 
     type CategorySelectItem = SelectItem & {
@@ -38,7 +38,7 @@
     const CATEGORY_BUTTON_GAP = 8;
     const FALLBACK_VISIBLE_CATEGORY_LIMIT = 4;
 
-    let { categories, filter = $bindable(), onupdate }: Props = $props();
+    let { categories, filter, onupdate }: Props = $props();
 
     let categorySelectItems = $derived(
         sortedCategoriesByPreference(

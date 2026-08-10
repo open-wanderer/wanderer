@@ -1,22 +1,27 @@
 <script lang="ts">
-	import type { SummitLog } from "$lib/models/summit_log";
+	import type { StatisticActivity } from "$lib/models/statistic_activity";
     import { range } from "$lib/util/array_util";
-	import { displayCategoryName } from "$lib/util/category_util";
-	import { isSameDay, isToday } from "../../util/date_util";
+	import { displayTrailCategoryLabel } from "$lib/util/category_util";
+	import {
+		isSameDay,
+		isToday,
+		monthDateRange,
+		parseDateValue,
+	} from "../../util/date_util";
 	import { _, date, locale } from "svelte-i18n";
 	interface Props {
-		logs?: SummitLog[];
+		activities?: StatisticActivity[];
 		colorMap?: Record<string, string>;
-		onforward?: (data: { start: Date; end: Date }) => void;
-		onbackward?: (data: { start: Date; end: Date }) => void;
+		month?: string;
+		onmonthchange?: (data: { start: string; end: string }) => void;
 		onclick?: (date: Date) => void;
 	}
 
 	let {
-		logs = [],
+		activities = [],
 		colorMap = {},
-		onforward,
-		onbackward,
+		month,
+		onmonthchange,
 		onclick,
 	}: Props = $props();
 
@@ -26,8 +31,17 @@
 	let currentMonthArray: ({
 		date: Date | undefined;
 		today: boolean;
-		log?: SummitLog;
-	} | null)[] = $derived(generateMonthArray(currentYear, currentMonth, logs));
+		activity?: StatisticActivity;
+	} | null)[] = $derived(generateMonthArray(currentYear, currentMonth, activities));
+
+	$effect(() => {
+		if (!month) {
+			return;
+		}
+		const selectedMonth = parseDateValue(month);
+		currentYear = selectedMonth.getFullYear();
+		currentMonth = selectedMonth.getMonth();
+	});
 
 	function calculateFirstDayOfMonthDayOfWeek(year: number, month: number) {
 		const date = new Date(year, month, 1);
@@ -44,9 +58,9 @@
 	function generateMonthArray(
 		year: number,
 		month: number,
-		logs: SummitLog[],
+		activities: StatisticActivity[],
 	) {
-		const a: ({ date: Date; today: boolean; log?: SummitLog } | null)[] =
+		const a: ({ date: Date; today: boolean; activity?: StatisticActivity } | null)[] =
 			[];
 		const firstDay = calculateFirstDayOfMonthDayOfWeek(year, month);
 		const totalDays = daysInMonth(year, month);
@@ -62,11 +76,11 @@
 				);
 				const today = isToday(date);
 
-				const logAtDate = logs.find((l) =>
-					isSameDay(date, new Date(l.date)),
+				const activityAtDate = activities.find((activity) =>
+					isSameDay(date, parseDateValue(activity.date)),
 				);
 
-				a.push({ date: date, today: today, log: logAtDate });
+				a.push({ date: date, today: today, activity: activityAtDate });
 			}
 		}
 
@@ -80,10 +94,7 @@
 		} else {
 			currentMonth++;
 		}
-		onforward?.({
-			start: new Date(currentYear, currentMonth, 1),
-			end: new Date(currentYear, currentMonth + 1, 0),
-		});
+		onmonthchange?.(monthDateRange(new Date(currentYear, currentMonth, 1)));
 	}
 
 	function monthMinus() {
@@ -93,15 +104,12 @@
 		} else {
 			currentMonth--;
 		}
-		onbackward?.({
-			start: new Date(currentYear, currentMonth, 1),
-			end: new Date(currentYear, currentMonth + 1, 0),
-		});
+		onmonthchange?.(monthDateRange(new Date(currentYear, currentMonth, 1)));
 	}
 
 	function colorKey(a: typeof currentMonthArray, i: number) {
-		return displayCategoryName(
-			a[i]?.log?.expand?.trail?.expand?.category,
+		return displayTrailCategoryLabel(
+			a[i]?.activity?.expand?.trail,
 			$locale,
 		);
 	}

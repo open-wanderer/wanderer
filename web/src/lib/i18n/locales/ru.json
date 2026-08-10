@@ -107,6 +107,7 @@
   "collapse-trail-list": "Свернуть список треков",
   "comment": "{n, plural, =1 {Комментарий} other {Комментарии}}",
   "completed": "Завершено",
+  "completed-at": "Дата завершения",
   "completed-a-trail": "завершил(ла) трек",
   "completed-tours": "Пройденные маршруты",
   "completion-status": "Статус прохождения",

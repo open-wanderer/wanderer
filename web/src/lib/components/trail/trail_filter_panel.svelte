@@ -190,7 +190,7 @@
             {/if}
             <TrailCategoryFilter
                 {categories}
-                bind:filter
+                {filter}
                 onupdate={update}
             />
             <hr class="my-4 border-separator" />

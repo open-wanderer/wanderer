@@ -107,6 +107,7 @@
   "collapse-trail-list": "Collapse trail list",
   "comment": "{n, plural, =1 {Komentarz} other {Komentarze}}",
   "completed": "Zakończono",
+  "completed-at": "Data ukończenia",
   "completed-a-trail": "ukończono szlak",
   "completed-tours": "Przebyte trasy",
   "completion-status": "Stan ukończenia",

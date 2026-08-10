@@ -107,6 +107,7 @@
   "collapse-trail-list": "Routelijst inklappen",
   "comment": "{n, plural, =1 {Opmerking} other {Opmerkingen}}",
   "completed": "Voltooid",
+  "completed-at": "Voltooid op",
   "completed-a-trail": "heeft een route voltooid",
   "completed-tours": "Afgeronde tochten",
   "completion-status": "Voltooiingsstatus",

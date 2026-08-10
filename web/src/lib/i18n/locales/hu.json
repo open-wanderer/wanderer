@@ -107,6 +107,7 @@
   "collapse-trail-list": "Collapse trail list",
   "comment": "{n, plural, =1 {Megjegyzés} other {Megjegyzés}}",
   "completed": "Teljesítve",
+  "completed-at": "Teljesítés dátuma",
   "completed-a-trail": "completed a trail",
   "completed-tours": "Completed tours",
   "completion-status": "Befejezés állapota",

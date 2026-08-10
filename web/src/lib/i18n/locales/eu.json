@@ -107,6 +107,7 @@
   "collapse-trail-list": "Collapse trail list",
   "comment": "{n, plural, one {}=1 {iruzkin} other {iruzkin}}",
   "completed": "Osatuta",
+  "completed-at": "Osatze-data",
   "completed-a-trail": "ibilbide bat egin du",
   "completed-tours": "Egindako ibilbideak",
   "completion-status": "Betetze-egoera",

@@ -107,6 +107,7 @@
   "collapse-trail-list": "Sbalit seznam trasy",
   "comment": "{n, plural, =1 {Komentář} few {Komentáře} other {Komentářů}}",
   "completed": "Dokončeno",
+  "completed-at": "Dokončeno dne",
   "completed-a-trail": "dokončil/a trasu",
   "completed-tours": "Dokončené výlety",
   "completion-status": "Stav dokončení",

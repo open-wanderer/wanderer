@@ -107,6 +107,7 @@
   "collapse-trail-list": "Collapse trail list",
   "comment": "{n, plural, =1 {Comment} other {Comments}}",
   "completed": "Completed",
+  "completed-at": "Completed at",
   "completed-a-trail": "completed a trail",
   "completed-tours": "Completed tours",
   "completion-status": "Completion Status",

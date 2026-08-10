@@ -8,7 +8,12 @@
         formatHTMLAsText,
         formatTimeHHMM,
     } from "$lib/util/format_util";
-    import { displayCategoryName } from "$lib/util/category_util";
+    import {
+        displayCategoryName,
+        displaySubcategoryLabel,
+        displayTrailCategoryBadgeIcon,
+        displayTrailCategoryIcon,
+    } from "$lib/util/category_util";
     import { _, locale } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
@@ -160,11 +165,32 @@
     </td>
     {#if showCategory}
         <td>
-            {#if log.expand?.trail?.expand?.category}
-                {displayCategoryName(
-                    log.expand.trail.expand.category,
+            {#if log.expand?.trail?.expand?.category || log.expand?.trail?.category}
+                <span class="relative mr-3 inline-block w-4 text-center">
+                    <i
+                        class="fa {displayTrailCategoryIcon(log.expand.trail)}"
+                    ></i>
+                    {#if displayTrailCategoryBadgeIcon(log.expand.trail)}
+                        <i
+                            class="fa {displayTrailCategoryBadgeIcon(
+                                log.expand.trail,
+                            )} absolute -right-1 -top-1 text-[8px]"
+                        ></i>
+                    {/if}
+                </span>{displayCategoryName(
+                    log.expand.trail.expand?.category ?? {
+                        name: log.expand.trail.category ?? "",
+                    },
                     $locale,
-                )}
+                ) || "-"}
+                {#if log.expand.trail.expand?.subcategory}
+                    <span class="text-gray-500 whitespace-nowrap">
+                        / {displaySubcategoryLabel(
+                            log.expand.trail.expand.subcategory,
+                            $locale,
+                        )}
+                    </span>
+                {/if}
             {:else}
                 -
             {/if}

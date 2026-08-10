@@ -107,6 +107,7 @@
   "collapse-trail-list": "Collapse trail list",
   "comment": "{n, plural, =1 {评论} other {评论}}",
   "completed": "已完成",
+  "completed-at": "完成日期",
   "completed-a-trail": "完成轨迹",
   "completed-tours": "已完成的旅行",
   "completion-status": "完成状态",
