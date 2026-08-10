@@ -87,8 +87,8 @@ class TrailNotifier extends _$TrailNotifier {
 
       // The record and the GPX are both already in hand at this
       // point, so writing them into a downloaded row costs zero additional
-      // network traffic. Photos are deliberately not refreshed here (D-14a)
-      // -- that stays the explicit *Update* action's job (D-12a).
+      // network traffic. Photos are deliberately not refreshed here --
+      // that stays the explicit *Update* action's job.
       _refreshLibraryRow(trail);
 
       return trail;

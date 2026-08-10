@@ -627,8 +627,8 @@ void applyNetworkEditToLocalRow(
 /// would erase every account's claim on the trail, and `photos` on a
 /// downloaded row holds LOCAL FILE PATHS written by `TrailDownloadService`,
 /// not server filenames, so overwriting it would strand the downloaded
-/// images (D-14a: nothing automatic ever spends bytes, and nothing automatic
-/// ever destroys already-spent ones).
+/// images: nothing automatic ever spends bytes, and nothing automatic ever
+/// destroys already-spent ones.
 ///
 /// `gpxData` is guarded: when the incoming `trail.expand?.gpxData` is null or
 /// empty, the existing row's `gpxData` is kept rather than blanking the
@@ -713,7 +713,7 @@ void applyServerTrailToLibraryRow(
 
     if (trail.expand?.waypointsViaTrail != null) {
       // Carry each existing child's downloaded photos onto its refreshed
-      // counterpart by id -- never touched over the network here (D-14a).
+      // counterpart by id -- never touched over the network here.
       final existingLocalPhotosById = {
         for (final w in existing.waypoints) w.id: w.localPhotos,
       };
