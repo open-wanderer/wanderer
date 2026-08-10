@@ -93,6 +93,22 @@ export default defineConfig({
         ]
       },
       {
+        label: 'Using the app',
+        badge: { text: 'Beta', variant: 'caution' },
+        items: [
+          { label: 'Getting started', link: '/app/getting-started/' },
+          { label: 'Find trails', link: '/app/find-trails/' },
+          { label: 'Trail details', link: '/app/trail-details/' },
+          { label: 'Record a trail', link: '/app/record-a-trail/' },
+          { label: 'Plan a route', link: '/app/plan-a-route/' },
+          { label: 'Navigate a trail', link: '/app/navigate-a-trail/' },
+          { label: 'Offline use', link: '/app/offline-use/' },
+          { label: 'Lists', link: '/app/lists/' },
+          { label: 'Profile', link: '/app/profile/' },
+          { label: 'App settings', link: '/app/settings/' },
+        ]
+      },
+      {
         label: 'Running wanderer',
         items: [
           {
@@ -123,6 +139,8 @@ export default defineConfig({
               { label: 'Backing up your server', link: '/run/backend-configuration/backup-server/' },
               { label: 'Custom categories', link: '/run/backend-configuration/custom-categories/' },
               { label: 'Adjust Filesize Limits', link: '/run/backend-configuration/adjust-filesize-limits/' },
+              { label: 'Region catalogue', link: '/run/backend-configuration/region-catalogue/' },
+              { label: 'Custom map tiles & assets', link: '/run/backend-configuration/map-tiles/' },
             ]
           }
         ]
@@ -133,6 +151,10 @@ export default defineConfig({
           {
             label: 'Local development',
             link: '/develop/local-development/'
+          },
+          {
+            label: 'App development',
+            link: '/develop/app-development/'
           },
           {
             label: 'API',

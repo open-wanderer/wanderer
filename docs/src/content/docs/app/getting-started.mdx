@@ -1,0 +1,35 @@
+---
+title: Getting started
+description: Install the <span class="-tracking-[0.075em]">wanderer</span> app and connect it to your instance
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import mapShot from '../../../assets/guides/wanderer_app_map.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app brings your instance to Android and iOS: browse and search trails, record hikes with GPS, plan routes, navigate turn-by-turn, and take entire map regions offline.
+
+## Choose your instance
+
+Unlike most outdoor apps, <span class="-tracking-[0.075em]">wanderer</span> is not tied to one central service. On first launch the app asks which instance to connect to — enter the URL of the server your account lives on (e.g. `wanderer.example.com`). Everything the app shows and stores comes from that instance.
+
+## Log in or register
+
+After selecting an instance, log in with your existing account. If the instance allows signups you can also register a new account directly from the app, or sign in with one of the identity providers the instance has configured.
+
+## Finding your way around
+
+<PhoneGrid src={mapShot} alt="The trails map with a selected trail">
+
+The app is organized into four tabs plus a central action button:
+
+- **Trails** — the map: browse, search, and filter trails ([Find trails](/app/find-trails))
+- **Lists** — your trail collections ([Lists](/app/lists))
+- **➕ (center button)** — create a new trail: plan, record, or import ([Record a trail](/app/record-a-trail))
+- **Library** — trails stored on this device: downloads and recordings ([Offline use](/app/offline-use))
+- **Profile** — your profile, followers, and settings ([Profile](/app/profile))
+
+</PhoneGrid>

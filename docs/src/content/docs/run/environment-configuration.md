@@ -33,6 +33,8 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_PORT           | The port number used to connect to the SMTP server                                                                |                       |
 | POCKETBASE_SMTP_USERNAME       | The username used to authenticate with the SMTP server                                                            |                       |
 | POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
+| REGION_ARCHIVE_CRON_SCHEDULE   | Valid cron expression (UTC). Sets when offline [region archives](/run/backend-configuration/region-catalogue) are rebuilt | 0 3 * * *             |
+| REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
 
 Plugins are not configured through an environment variable. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
@@ -51,6 +53,16 @@ bundles and configuring self-hosted connector trust settings.
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
+
+## Map tiles & assets
+
+These variables configure where the mobile app loads map vector tiles, fonts (glyphs), and sprites from. They are set on the `web` service. See [Custom map tiles & assets](/run/backend-configuration/map-tiles) for details.
+
+| Environment Variable | Description                                                                                          | Default                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| TILE_SERVER_URL      | Vector tile URL template (`{z}/{x}/{y}`) served to the mobile app                                    | Protomaps API (requires PROTOMAPS_API_KEY)     |
+| PROTOMAPS_API_KEY    | API key for the default Protomaps tile service; only used when TILE_SERVER_URL is unset              |                                                |
+| MAP_ASSETS_URL       | Base URL for map fonts (glyphs) and sprites                                                          | https://protomaps.github.io/basemaps-assets    |
 
 ## Geocoding & Routing
 

@@ -1,0 +1,40 @@
+---
+title: Plan a route
+description: Draw new routes on the map with the <span class="-tracking-[0.075em]">wanderer</span> app's trail planner
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import plannerShot from '../../../assets/guides/wanderer_app_planner.png';
+import plannerElevationShot from '../../../assets/guides/wanderer_app_planner_elevation.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+The trail planner lets you draw a new route directly on the map, waypoint by waypoint. Open it via the **➕** button → **Open trail planner**.
+
+## Travel profiles
+
+Before you start, pick a travel profile: **Hiking** or one of the biking profiles (**Hybrid**, **Mountain**, **Cross**, **Road**). The profile determines which paths the router prefers and how it estimates your pace. You can change it later from the planner's **Settings** tab.
+
+## Drawing a route
+
+<PhoneGrid src={plannerShot} alt="The route planner with four anchors">
+
+Tap the map to set anchor points. The planner automatically routes between them along suitable paths for your travel profile, using your instance's routing engine. Use the search field to jump to a location, and the undo/redo buttons to step back and forth through your edits.
+
+The **Route Anchors** tab lists every anchor with its location and the distance, duration, and ascent of the leg leading to it. From here you can delete individual anchors, **Reverse direction**, or **Delete all** and start over.
+
+</PhoneGrid>
+
+## Elevation
+
+<PhoneGrid src={plannerElevationShot} alt="The planner's elevation tab" side="left">
+
+The **Elevation** tab shows the elevation profile of the route as planned, together with its total duration, distance, and elevation gain and loss — so you can judge the effort before you ever set out.
+
+</PhoneGrid>
+
+## Finishing
+
+When you're happy with the route, tap the **checkmark** in the top right. The trail editor opens with your planned route, where you add a name, description, category, and other details before saving it as a trail — ready to be [navigated](/app/navigate-a-trail) or shared.

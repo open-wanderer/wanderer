@@ -1,0 +1,45 @@
+---
+title: Trail details
+description: Everything on a trail's detail page in the <span class="-tracking-[0.075em]">wanderer</span> app
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import detailShot from '../../../assets/guides/wanderer_app_trail_detail.png';
+import elevationShot from '../../../assets/guides/wanderer_app_elevation.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+Tapping a trail anywhere in the app opens its detail page.
+
+## Overview
+
+<PhoneGrid src={detailShot} alt="The top of a trail's detail page">
+
+At the top you'll find the trail's photos as a collage — tap one to open the full-screen gallery. Below that come the trail's name, its author, and its key stats: category, distance, estimated duration, and elevation gain and loss.
+
+The content itself is split into three tabs:
+
+- **About** — the description, the route, and the trail's waypoints
+- **Summit Book** — who completed the trail and when, with their reports
+- **Comments** — the discussion around this trail
+
+</PhoneGrid>
+
+## Route, elevation & waypoints
+
+<PhoneGrid src={elevationShot} alt="Route map, elevation profile and waypoints" side="left">
+
+The **About** tab shows the route on a map (tap the expand icon for a full-screen view), the elevation profile, and a timeline of the trail's waypoints — each with its coordinates, description, and photos.
+
+</PhoneGrid>
+
+## Actions
+
+- **Navigate** starts [turn-by-turn navigation](/app/navigate-a-trail) along the trail.
+- **Download** stores the trail on your device for [offline use](/app/offline-use).
+- The **heart** icon at the top likes the trail.
+- The **⋮ menu** holds the remaining actions: **Show on map**, **Directions** (routes you to the trailhead in another map app on your device), **Edit** and **Delete** for your own trails, and **Download**, **Update**, or **Remove** for the device copy.
+
+If a trail is stored on your device, a sync status chip shows whether it is fully uploaded to your instance, still waiting to upload, or failed to upload (tap to retry).
