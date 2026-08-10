@@ -177,6 +177,16 @@
         $data.elevation_gain = totals.elevationGain;
         $data.elevation_loss = totals.elevationLoss;
         $data.distance = totals.distance;
+        const gpxDate = gpxObject.trk
+            ?.at(0)
+            ?.trkseg?.at(0)
+            ?.trkpt?.at(0)
+            ?.time?.toISOString()
+            ?.substring(0, 10);
+
+        if (gpxDate !== undefined) {
+            $data.date = gpxDate;
+        }
         $data.expand!.gpx_data = trailData;
     }
 
@@ -213,7 +223,11 @@
     {#snippet content()}
         <form id="summit-log-form" class="modal-content space-y-4" use:form>
             <div class="flex">
-                <Datepicker name="date" label={$_("date")} error={$errors.date}
+                <Datepicker
+                    name="date"
+                    label={$_("date")}
+                    error={$errors.date}
+                    bind:value={$data.date}
                 ></Datepicker>
             </div>
             <div>

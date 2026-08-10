@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/doyensec/safeurl v0.2.5
 	github.com/extism/go-sdk v1.7.1
+	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/go-ap/jsonld v0.0.0-20250905102310-8480b0fe24d9
 	github.com/meilisearch/meilisearch-go v0.36.2
 	github.com/pocketbase/dbx v1.12.0
@@ -37,7 +38,6 @@ require (
 	github.com/domodwyer/mailyak/v3 v3.6.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.19.0 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/ganigeorgiev/fexpr v0.5.0 // indirect
 	github.com/go-ap/activitypub v0.0.0-20250905102448-e9df599e4528
 	github.com/go-fed/httpsig v1.1.0

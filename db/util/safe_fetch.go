@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -20,12 +21,12 @@ import (
 )
 
 const (
-	DefaultPluginMediaMaxBytes         int64 = 50 << 20
-	DefaultPluginMaxImportMediaItems         = 20
-	DefaultPluginMaxImportMediaBytes   int64 = 200 << 20
-	DefaultPluginMaxPhotosPerTrail           = 20
-	DefaultPluginMaxPhotosPerWaypoint        = 5
-	DefaultPluginMaxPhotosPerSummitLog       = 20
+	DefaultPluginMediaMaxBytes          int64 = 50 << 20
+	DefaultPluginMaxMediaItemsPerEntity       = 20
+	DefaultPluginMaxImportMediaBytes    int64 = 500 << 20
+	DefaultPluginMaxPhotosPerTrail            = 20
+	DefaultPluginMaxPhotosPerWaypoint         = 5
+	DefaultPluginMaxPhotosPerSummitLog        = 20
 )
 
 type SafeFetchResult struct {
@@ -93,8 +94,8 @@ func FetchPublicURLWithHeaders(ctx context.Context, rawURL string, maxBytes int6
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, HTTPStatusError{StatusCode: resp.StatusCode, Message: fmt.Sprintf("public media request failed: %d", resp.StatusCode)}
+	if err := ValidatePluginMediaStatus(resp.StatusCode); err != nil {
+		return nil, err
 	}
 
 	body, err := ReadBoundedForPlugin(resp.Body, maxBytes)
@@ -117,6 +118,53 @@ func FetchPublicFile(ctx context.Context, rawURL string, fallbackName string, ma
 		fetched.Body,
 		safeFetchedFileName(fallbackName, fetched.FinalURL, fetched.ContentType),
 	)
+}
+
+func ValidatePluginMediaStatus(statusCode int) error {
+	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+		return HTTPStatusError{
+			StatusCode: statusCode,
+			Message:    fmt.Sprintf("plugin media request returned HTTP status %d", statusCode),
+		}
+	}
+	return nil
+}
+
+func IsRetryablePluginMediaError(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return false
+	}
+
+	var statusErr HTTPStatusError
+	if errors.As(err, &statusErr) {
+		switch statusErr.StatusCode {
+		case http.StatusRequestTimeout,
+			http.StatusTooEarly,
+			http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			return true
+		default:
+			return false
+		}
+	}
+
+	// A missing DNS name and explicit request cancellation are permanent for
+	// this import. Other transport-level failures are worth a bounded retry.
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+		return false
+	}
+	var networkErr net.Error
+	if errors.As(err, &networkErr) && (networkErr.Timeout() || networkErr.Temporary()) {
+		return true
+	}
+	var operationErr *net.OpError
+	return errors.As(err, &operationErr) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 func publicMediaRedirectPolicy(req *http.Request, via []*http.Request) error {

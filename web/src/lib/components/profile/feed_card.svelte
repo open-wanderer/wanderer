@@ -8,6 +8,7 @@
         formatDistance,
         formatElevation,
         formatHTMLAsText,
+        formatHTMLAsTextPreview,
         formatTimeHHMM,
         formatTimeSince,
     } from "$lib/util/format_util";
@@ -26,6 +27,8 @@
     let { feedItem }: Props = $props();
 
     let fullDescription = $state(false);
+
+    const DESCRIPTION_PREVIEW_LENGTH = 100;
 
     const timeSince = $derived(
         formatTimeSince(new Date(feedItem.created ?? "")),
@@ -64,6 +67,12 @@
     );
     const itemDescription = $derived(
         trail?.description ?? list?.description ?? summitLog?.text ?? "",
+    );
+    const descriptionPreview = $derived(
+        formatHTMLAsTextPreview(
+            itemDescription,
+            DESCRIPTION_PREVIEW_LENGTH,
+        ),
     );
     const itemHref = $derived(
         feedItem.type === "trail"
@@ -228,12 +237,10 @@
             {/if}
             {#if itemDescription.length}
                 <p class="text-sm whitespace-pre-wrap mt-6">
-                    {formatHTMLAsText(
-                        !fullDescription
-                            ? itemDescription.substring(0, 100)
-                            : itemDescription,
-                    )}
-                    {#if itemDescription.length > 100 && !fullDescription}
+                    {!fullDescription
+                        ? descriptionPreview.text
+                        : formatHTMLAsText(itemDescription)}
+                    {#if descriptionPreview.truncated && !fullDescription}
                         <button
                             onclick={(e) => {
                                 e.stopPropagation();

@@ -3,7 +3,11 @@ package util
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"net"
+	"net/url"
 	"testing"
 )
 
@@ -81,6 +85,77 @@ func TestSafeFetchedFileName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidatePluginMediaStatus(t *testing.T) {
+	for _, statusCode := range []int{200, 204, 299} {
+		if err := ValidatePluginMediaStatus(statusCode); err != nil {
+			t.Fatalf("status %d should be accepted: %v", statusCode, err)
+		}
+	}
+	for _, statusCode := range []int{199, 300, 404, 429, 500} {
+		if err := ValidatePluginMediaStatus(statusCode); err == nil {
+			t.Fatalf("status %d should be rejected", statusCode)
+		}
+	}
+}
+
+func TestIsRetryablePluginMediaError(t *testing.T) {
+	for _, statusCode := range []int{408, 425, 429, 500, 502, 503, 504} {
+		if !IsRetryablePluginMediaError(ValidatePluginMediaStatus(statusCode)) {
+			t.Fatalf("status %d should be retryable", statusCode)
+		}
+	}
+	for _, statusCode := range []int{400, 401, 403, 404, 501} {
+		if IsRetryablePluginMediaError(ValidatePluginMediaStatus(statusCode)) {
+			t.Fatalf("status %d should not be retryable", statusCode)
+		}
+	}
+	if IsRetryablePluginMediaError(fmt.Errorf("network failure")) {
+		t.Fatal("untyped errors should not be retryable")
+	}
+
+	t.Run("client timeout", func(t *testing.T) {
+		err := &url.Error{Op: "Get", URL: "https://example.com/photo.jpg", Err: context.DeadlineExceeded}
+		if !IsRetryablePluginMediaError(err) {
+			t.Fatal("client timeout should be retryable")
+		}
+	})
+
+	t.Run("connection error", func(t *testing.T) {
+		err := &url.Error{
+			Op:  "Get",
+			URL: "https://example.com/photo.jpg",
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection reset")},
+		}
+		if !IsRetryablePluginMediaError(err) {
+			t.Fatal("connection error should be retryable")
+		}
+	})
+
+	t.Run("truncated response", func(t *testing.T) {
+		if !IsRetryablePluginMediaError(fmt.Errorf("read response: %w", io.ErrUnexpectedEOF)) {
+			t.Fatal("truncated response should be retryable")
+		}
+	})
+
+	t.Run("cancelled request", func(t *testing.T) {
+		err := &url.Error{Op: "Get", URL: "https://example.com/photo.jpg", Err: context.Canceled}
+		if IsRetryablePluginMediaError(err) {
+			t.Fatal("cancelled request should not be retryable")
+		}
+	})
+
+	t.Run("missing DNS name", func(t *testing.T) {
+		err := &url.Error{
+			Op:  "Get",
+			URL: "https://missing.example/photo.jpg",
+			Err: &net.DNSError{Name: "missing.example", IsNotFound: true},
+		}
+		if IsRetryablePluginMediaError(err) {
+			t.Fatal("missing DNS name should not be retryable")
+		}
+	})
 }
 
 func TestConnectorTLSConfigRejectsInsecureMode(t *testing.T) {
