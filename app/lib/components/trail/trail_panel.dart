@@ -105,11 +105,17 @@ class TrailPanel extends ConsumerWidget {
           // Replaced rather than boned in place: Skeletonizer merges Html's
           // multi-line rich text into one notched, pill-shaped blob that
           // dominates the loading screen. A plain block reads as a paragraph.
+          //
+          // The dimensions are handed over only while skeletonizing:
+          // `Skeleton.replace` wraps its child in a `SizedBox(width, height)`
+          // whether or not it is replacing anything, so a constant 60 would go
+          // on clipping the real description — an expanded one especially —
+          // long after the load finished.
           if (trail.description.isNotEmpty)
             Skeleton.replace(
-              width: double.infinity,
-              height: 60,
-              child: html.Html(data: trail.description),
+              width: isSkeleton ? double.infinity : null,
+              height: isSkeleton ? 60 : null,
+              child: _TrailDescription(description: trail.description),
             ),
           if (trail.description.isEmpty)
             Text(
@@ -452,6 +458,59 @@ class TrailPanel extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Trail description with a show more / show less toggle.
+///
+/// Stateful purely to own `_expanded`, which keeps [TrailPanel] a
+/// `ConsumerWidget`. Mirrors `_BioSection` in `routes/profile_screen.dart`.
+class _TrailDescription extends StatefulWidget {
+  const _TrailDescription({required this.description});
+
+  final String description;
+
+  @override
+  State<_TrailDescription> createState() => _TrailDescriptionState();
+}
+
+class _TrailDescriptionState extends State<_TrailDescription> {
+  static const _maxLength = 150;
+
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final description = widget.description;
+    // Preview off the plain text, never off the HTML: cutting the markup at a
+    // fixed offset tears tags in half and spends the budget on `<strong>`
+    // rather than on words (web #1128).
+    final preview = formatHtmlAsTextPreview(description, _maxLength);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (preview.truncated && !_expanded)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              '${preview.text}…',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          )
+        else
+          html.Html(data: description),
+        if (preview.truncated)
+          TextButton(
+            onPressed: () => setState(() => _expanded = !_expanded),
+            child: Text(
+              _expanded
+                  ? AppLocalizations.of(context)!.show_less
+                  : AppLocalizations.of(context)!.show_more,
+            ),
+          ),
+      ],
     );
   }
 }
