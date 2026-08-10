@@ -9,6 +9,7 @@
     import {
         formatDistance,
         formatElevation,
+        formatHTMLAsTextPreview,
         formatTimeHHMM,
     } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
@@ -16,6 +17,9 @@
     import ShareInfo from "../share_info.svelte";
     import TrailListItem from "../trail/trail_list_item.svelte";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+
+    const DESCRIPTION_PREVIEW_LENGTH = 100;
+
     interface Props {
         list: List;
         onclick?: (data: { trail: Trail; index: number }) => void;
@@ -74,6 +78,10 @@
     );
 
     let fullDescription: boolean = $state(false);
+
+    let descriptionPreview = $derived(
+        formatHTMLAsTextPreview(list.description, DESCRIPTION_PREVIEW_LENGTH),
+    );
 
     function handleTrailSelect(trail: Trail, index: number) {
         onclick?.({ trail, index });
@@ -178,20 +186,18 @@
     </div>
     <hr class="mb-4" />
     {#if list.description}
-        <p
-            class="text-gray-500 whitespace-pre-wrap {fullDescription
-                ? ''
-                : 'max-h-24 overflow-hidden text-ellipsis'} prose dark:prose-invert"
-        >
-            {@html !fullDescription
-                ? list.description?.substring(0, 100)
-                : list.description}
-            {#if (list.description?.length ?? 0) > 100 && !fullDescription}
-                <button onclick={() => (fullDescription = true)}>
+        <div class="text-gray-500 whitespace-pre-wrap">
+            {#if descriptionPreview.truncated && !fullDescription}
+                <div>{descriptionPreview.text}</div>
+                <button type="button" onclick={() => (fullDescription = true)}>
                     ... <span class="underline">{$_("read-more")}</span></button
                 >
+            {:else}
+                <div class="prose dark:prose-invert">
+                    {@html list.description}
+                </div>
             {/if}
-        </p>
+        </div>
     {/if}
     <h5 class="text-xl font-semibold my-4">
         {list.trails?.length ?? 0}
