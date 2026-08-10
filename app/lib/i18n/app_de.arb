@@ -443,6 +443,14 @@
   },
   "no_lists_yet": "Noch keine Listen vorhanden.",
   "no_bio_yet": "Noch keine Biografie.",
+  "show_more": "Mehr anzeigen",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Weniger anzeigen",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
   "feed": "Feed",
   "no_trails_yet": "Noch keine Routen.",
   "library_empty_title": "Keine heruntergeladenen Routen",
