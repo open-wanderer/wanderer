@@ -38,6 +38,8 @@ services:
       OIDC_SCOPES: "openid,read_prefs"
 ```
 
+Accounts created through OSM currently get a generated username such as `users729068` rather than the OSM display name, because display names may contain characters the `username` field does not allow.
+
 ### Disable password authentication
 
 After enabling the neccessary OAuth2 providers for your application you may want to disable the standard local password authentication.
