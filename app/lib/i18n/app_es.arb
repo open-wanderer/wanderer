@@ -443,6 +443,14 @@
   },
   "no_lists_yet": "No lists yet.",
   "no_bio_yet": "No bio yet.",
+  "show_more": "Show more",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Show less",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
   "feed": "Feed",
   "no_trails_yet": "No trails yet.",
   "library_empty_title": "No downloaded trails",
