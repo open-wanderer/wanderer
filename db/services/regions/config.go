@@ -1,10 +1,9 @@
 // Package regions implements the seeded `regions` table's id-validation and
 // the filesystem path builders for pre-built region archives (vector + DEM
 // PMTiles). It is a parallel, independent build path alongside
-// pocketbase/services/tiles' existing per-cell cache. The old
-// admin-supplied region_config.json / REGION_CATALOG_CONFIG_PATH loader has
-// been retired — the seeded `regions` PocketBase collection is now the sole
-// source of truth for the region catalog.
+// pocketbase/services/tiles' existing per-cell cache. The seeded `regions`
+// PocketBase collection is the sole source of truth for the region
+// catalog.
 package regions
 
 import (

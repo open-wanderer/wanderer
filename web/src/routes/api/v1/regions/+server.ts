@@ -8,8 +8,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *     summary: Get this instance's offline region catalog
  *     description: >
  *       Returns the full seeded group+leaf region catalog (sourced from the
- *       `regions` table, not the old admin-supplied region_config.json)
- *       merged with each leaf's build state. Every entry carries the
+ *       `regions` table) merged with each leaf's build state. Every entry carries the
  *       hierarchy fields kind/parent/path/depth so a client can reconstruct
  *       the region tree; group rows are hierarchy-only and omit
  *       bbox/enabled/build-state, while leaf rows additionally carry

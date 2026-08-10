@@ -14,11 +14,9 @@ import (
 )
 
 // RegionsList returns the full group+leaf region catalog from the seeded
-// `regions` table, joined with each leaf's
-// build state from `region_archives`. The `regions` table (not an
-// admin-supplied config file) is the source of truth for which regions
-// exist — the old region_config.json / REGION_CATALOG_CONFIG_PATH loader is
-// fully retired.
+// `regions` table, joined with each leaf's build state from
+// `region_archives`. The `regions` table is the source of truth for which
+// regions exist.
 //
 // Every row (both kind=group and kind=leaf) is returned, regardless of
 // `enabled`, so a client can render group node names/labels for the whole

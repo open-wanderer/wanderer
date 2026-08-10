@@ -26,12 +26,10 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
       POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY:?}
       ORIGIN: ${ORIGIN:?}
-      REGION_CATALOG_CONFIG_PATH: /data/region_catalog.json
       # REGION_ARCHIVE_CRON_SCHEDULE: "0 3 * * *"
     restart: unless-stopped
     volumes:
       - pb_data:/pb_data
-      # - ./data/region-catalog.json:/data/region_catalog.json:ro
     healthcheck:
       test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s
