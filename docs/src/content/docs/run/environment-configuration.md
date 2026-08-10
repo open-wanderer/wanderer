@@ -33,6 +33,7 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_PORT           | The port number used to connect to the SMTP server                                                                |                       |
 | POCKETBASE_SMTP_USERNAME       | The username used to authenticate with the SMTP server                                                            |                       |
 | POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
+| OIDC_SCOPES                    | Comma-separated OIDC scopes for the `oidc`, `oidc2` and `oidc3` providers. Only needed for providers that reject the defaults, such as OpenStreetMap (`openid,read_prefs`). See [Auth providers](/run/backend-configuration/auth-providers) | openid,profile,email |
 
 Plugins are not configured through an environment variable. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
