@@ -11,7 +11,14 @@
     import { categories } from "$lib/stores/category_store.js";
     import { profile_stats_index } from "$lib/stores/profile_store.js";
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
-    import { displayTrailCategoryLabel } from "$lib/util/category_util";
+    import {
+        displayCategoryIcon,
+        displayCategoryName,
+        displaySubcategoryLabel,
+        displayTrailCategoryBadgeIcon,
+        displayTrailCategoryIcon,
+        displayTrailCategoryLabel,
+    } from "$lib/util/category_util";
     import {
         formatDistance,
         formatElevation,
@@ -81,6 +88,7 @@
         "#8ecae6",
         "#ffafcc",
     ];
+    const maxCategoryChartItems = categoryColors.length;
 
     const conversionFactors = {
         distance: 0.621371,
@@ -88,28 +96,130 @@
         elevation_loss: 3.28084,
     };
 
-    let logCategories = $derived(
-        activities.reduce(
-            (acc, log) => {
-                const key =
-                    displayTrailCategoryLabel(log.expand?.trail, $locale) || "-";
-                acc[key] = (acc[key] || 0) + 1;
-                return acc;
-            },
-            {} as Record<string, number>,
-        ),
-    );
+    function groupedCategoryChartItems(includeSubcategories: boolean) {
+        const grouped = new Map<
+            string,
+            {
+                label: string;
+                categoryLabel: string;
+                subcategoryLabel: string;
+                value: number;
+                icon: string;
+                badgeIcon: string;
+                activityLabels: Set<string>;
+            }
+        >();
 
-    let categoryLabels = $derived(Object.keys(logCategories).sort());
-    let categoryValues = $derived(
-        categoryLabels.map((label) => logCategories[label]),
+        for (const activity of activities) {
+            const trail = activity.expand?.trail;
+            const category =
+                trail?.expand?.category ??
+                $categories.find((item) => item.id === trail?.category);
+            const activityLabel =
+                displayTrailCategoryLabel(activity.expand?.trail, $locale) || "-";
+            const categoryLabel = displayCategoryName(category, $locale) || "-";
+            const subcategoryLabel = includeSubcategories
+                ? displaySubcategoryLabel(
+                      trail?.expand?.subcategory,
+                      $locale,
+                  )
+                : "";
+            const label = includeSubcategories
+                ? activityLabel
+                : categoryLabel;
+            const key = includeSubcategories
+                ? `${category?.id ?? trail?.category ?? "-"}:${trail?.expand?.subcategory?.id ?? trail?.subcategory ?? "-"}`
+                : category?.id ?? trail?.category ?? "-";
+            const item = grouped.get(key);
+            if (item) {
+                item.value += 1;
+                item.activityLabels.add(activityLabel);
+            } else {
+                grouped.set(key, {
+                    label,
+                    categoryLabel,
+                    subcategoryLabel,
+                    value: 1,
+                    icon: includeSubcategories
+                        ? displayTrailCategoryIcon(trail)
+                        : displayCategoryIcon(category),
+                    badgeIcon: includeSubcategories
+                        ? displayTrailCategoryBadgeIcon(trail)
+                        : "",
+                    activityLabels: new Set([activityLabel]),
+                });
+            }
+        }
+
+        return [...grouped.values()].sort((a, b) =>
+            a.label.localeCompare(b.label, $locale ?? undefined),
+        );
+    }
+
+    let categoryChartItems = $derived.by(() => {
+        const detailedItems = groupedCategoryChartItems(true);
+        let visibleItems = detailedItems;
+
+        if (detailedItems.length > maxCategoryChartItems) {
+            const categoryItems = groupedCategoryChartItems(false);
+            visibleItems = categoryItems;
+
+            if (categoryItems.length > maxCategoryChartItems) {
+                const rankedItems = [...categoryItems].sort(
+                    (a, b) =>
+                        b.value - a.value ||
+                        a.label.localeCompare(b.label, $locale ?? undefined),
+                );
+                const remainingItems = rankedItems.slice(
+                    maxCategoryChartItems - 1,
+                );
+
+                visibleItems = [
+                    ...rankedItems
+                        .slice(0, maxCategoryChartItems - 1)
+                        .sort((a, b) =>
+                            a.label.localeCompare(
+                                b.label,
+                                $locale ?? undefined,
+                            ),
+                        ),
+                    {
+                        label: $_("Other"),
+                        categoryLabel: $_("Other"),
+                        subcategoryLabel: "",
+                        value: remainingItems.reduce(
+                            (sum, item) => sum + item.value,
+                            0,
+                        ),
+                        icon: "fa-ellipsis",
+                        badgeIcon: "",
+                        activityLabels: new Set(
+                            remainingItems.flatMap((item) => [
+                                ...item.activityLabels,
+                            ]),
+                        ),
+                    },
+                ];
+            }
+        }
+
+        return visibleItems.map((item, index) => ({
+            ...item,
+            activityLabels: [...item.activityLabels],
+            color: categoryColors[index],
+        }));
+    });
+
+    let categoryLabels = $derived(categoryChartItems.map((item) => item.label));
+    let categoryValues = $derived(categoryChartItems.map((item) => item.value));
+    let legendShowsSubcategories = $derived(
+        categoryChartItems.some((item) => item.subcategoryLabel),
     );
-    let categoryColorMap = $derived(
+    let activityCategoryColorMap = $derived(
         Object.fromEntries(
-            categoryLabels.map((label, index) => [
-                label,
-                categoryColors[index % categoryColors.length],
-            ]),
+            categoryChartItems.flatMap((item) =>
+                item.activityLabels.map((label) => [label, item.color]),
+            ),
         ),
     );
 
@@ -118,9 +228,9 @@
         datasets: [
             {
                 data: categoryValues,
-                backgroundColor: categoryLabels.map(
-                    (label) => categoryColorMap[label],
-                ),
+                backgroundColor: categoryChartItems.map((item) => item.color),
+                borderWidth: 0,
+                hoverBorderWidth: 0,
             },
         ],
     });
@@ -253,25 +363,27 @@
     class="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,_1fr)] gap-y-4 max-w-6xl mx-auto"
 >
     <div
-        class="grid grid-cols-1 md:grid-cols-[minmax(0,_1fr)_13rem_13rem] col-span-1 lg:col-span-2 gap-4 items-end"
+        class="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,_1fr)] col-span-1 lg:col-span-2 gap-y-4 items-end"
     >
-        <div class="min-w-0">
+        <div class="min-w-0 lg:mr-4">
             <TrailCategoryFilter
                 categories={$categories}
                 {filter}
                 onupdate={loadActivities}
             />
         </div>
-        <Datepicker
-            onchange={loadActivities}
-            bind:value={filter.startDate}
-            label={$_("after")}
-        ></Datepicker>
-        <Datepicker
-            onchange={loadActivities}
-            bind:value={filter.endDate}
-            label={$_("before")}
-        ></Datepicker>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Datepicker
+                onchange={loadActivities}
+                bind:value={filter.startDate}
+                label={$_("after")}
+            ></Datepicker>
+            <Datepicker
+                onchange={loadActivities}
+                bind:value={filter.endDate}
+                label={$_("before")}
+            ></Datepicker>
+        </div>
     </div>
     <div class="space-y-4 grow-0 lg:mr-4">
         <div class="border border-input-border rounded-xl p-6">
@@ -280,26 +392,60 @@
                 onmonthchange={handleMonthChange}
                 month={filter.startDate}
                 {activities}
-                colorMap={categoryColorMap}
+                colorMap={activityCategoryColorMap}
             ></Calendar>
         </div>
-        <div class="border border-input-border rounded-xl p-6 space-y-4">
-            <span class="text-gray-500 font-semibold text-lg"
-                ><i class="fa fa-person-hiking mr-3"></i>{$_(
-                    "categories",
-                )}</span
-            >
-            <Pie
-                data={categoryChartData}
-                options={{
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: "bottom",
+        <div class="border border-input-border rounded-xl p-6">
+            <span class="text-gray-500 font-semibold text-lg">
+                {$_("categories")}
+            </span>
+            <div class="pt-6">
+                <Pie
+                    data={categoryChartData}
+                    options={{
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false,
+                            },
                         },
-                    },
-                }}
-            />
+                    }}
+                />
+            </div>
+            {#if categoryChartItems.length}
+                <ul
+                    class="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-gray-500"
+                >
+                    {#each categoryChartItems as item}
+                        <li class="flex items-center gap-2">
+                            <span
+                                class="relative inline-flex w-5 shrink-0 justify-center"
+                                style="color: {item.color}"
+                            >
+                                <i class="fa {item.icon}" aria-hidden="true"></i>
+                                {#if item.badgeIcon}
+                                    <i
+                                        class="fa {item.badgeIcon} absolute -right-0.5 -top-1 text-[8px]"
+                                        aria-hidden="true"
+                                    ></i>
+                                {/if}
+                            </span>
+                            {#if legendShowsSubcategories}
+                                <span>
+                                    <span class="text-content">
+                                        {item.categoryLabel}
+                                    </span>
+                                    {#if item.subcategoryLabel}
+                                        / {item.subcategoryLabel}
+                                    {/if}
+                                </span>
+                            {:else}
+                                <span>{item.label}</span>
+                            {/if}
+                        </li>
+                    {/each}
+                </ul>
+            {/if}
         </div>
     </div>
 
@@ -341,7 +487,7 @@
                     "average-speed",
                 )}</span
             >
-            <p class="text-3xl font-bold">{formatSpeed(averageSpeed)}</p>
+            <p class="text-3xl font-bold">{formatSpeed(averageSpeed, 1)}</p>
         </div>
         <div
             class="flex flex-col items-center gap-4 border border-input-border rounded-xl p-6"
@@ -424,6 +570,8 @@
                 showCategory
                 showTrail
                 showRoute
+                compactElevationHeaders
+                categoryColorMap={activityCategoryColorMap}
             ></SummitLogTable>
         </div>
     </div>

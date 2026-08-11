@@ -13,6 +13,7 @@
         displaySubcategoryLabel,
         displayTrailCategoryBadgeIcon,
         displayTrailCategoryIcon,
+        displayTrailCategoryLabel,
     } from "$lib/util/category_util";
     import { _, locale } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
@@ -28,6 +29,7 @@
         showDescription?: boolean;
         showPhotos?: boolean;
         showMenu?: boolean;
+        categoryColorMap?: Record<string, string>;
         ontext?: (summitLog: SummitLog) => void;
         onopen?: (summitLog: SummitLog) => void;
         ondelete?: (summitLog: SummitLog) => void;
@@ -44,6 +46,7 @@
         showDescription = false,
         showPhotos = false,
         showMenu = false,
+        categoryColorMap = {},
         onopen,
         ontext,
         ondelete,
@@ -64,6 +67,11 @@
             value: "delete",
         },
     ];
+    let categoryIconColor = $derived(
+        categoryColorMap[
+            displayTrailCategoryLabel(log.expand?.trail, $locale) || "-"
+        ],
+    );
     $effect(() => {
         if (log.photos?.length) {
             imgSrc = log.photos
@@ -150,23 +158,26 @@
             timeZone: "UTC",
         })}</td
     >
-    <td>
+    <td class="whitespace-nowrap">
         {formatDistance(log.distance)}
     </td>
 
-    <td>
+    <td class="whitespace-nowrap">
         {formatElevation(log.elevation_gain)}
     </td>
-    <td>
+    <td class="whitespace-nowrap">
         {formatElevation(log.elevation_loss)}
     </td>
-    <td>
+    <td class="whitespace-nowrap">
         {formatTimeHHMM(log.duration ? log.duration : undefined)}
     </td>
     {#if showCategory}
         <td>
             {#if log.expand?.trail?.expand?.category || log.expand?.trail?.category}
-                <span class="relative mr-3 inline-block w-4 text-center">
+                <span
+                    class="relative mr-3 inline-block w-4 text-center"
+                    style:color={categoryIconColor}
+                >
                     <i
                         class="fa {displayTrailCategoryIcon(log.expand.trail)}"
                     ></i>
