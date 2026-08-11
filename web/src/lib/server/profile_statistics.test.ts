@@ -5,6 +5,7 @@ import {
     buildCompletedTrailFilter,
     buildSummitLogStatisticsFilter,
     mergeStatisticActivities,
+    ProfileStatisticsFilterSchema,
 } from "./profile_statistics";
 
 describe("profile statistics", () => {
@@ -24,11 +25,8 @@ describe("profile statistics", () => {
         expect(activities[0].expand?.trail).toBe(trail);
     });
 
-    it("ignores completed_at when the trail has a summit log", () => {
+    it("deduplicates against the summit logs loaded for the filter", () => {
         const trail = completedTrail();
-        trail.expand = {
-            summit_logs_via_trail: [summitLog(trail.id!)],
-        };
 
         const activities = mergeStatisticActivities(
             [summitLog(trail.id!)],
@@ -37,6 +35,18 @@ describe("profile statistics", () => {
 
         expect(activities).toHaveLength(1);
         expect(activities[0].source).toBe("summit_log");
+    });
+
+    it("keeps a completed trail when only an unfiltered expanded log exists", () => {
+        const trail = completedTrail();
+        trail.expand = {
+            summit_logs_via_trail: [summitLog(trail.id!)],
+        };
+
+        const activities = mergeStatisticActivities([], [trail]);
+
+        expect(activities).toHaveLength(1);
+        expect(activities[0].source).toBe("completed_trail");
     });
 
     it("builds an inclusive date range for timestamped completions", () => {
@@ -52,15 +62,27 @@ describe("profile statistics", () => {
         expect(filter).toContain("'category0000001'~category");
     });
 
+    it("builds an inclusive date range for summit logs", () => {
+        const filter = buildSummitLogStatisticsFilter({
+            startDate: "2026-08-01",
+            endDate: "2026-08-31",
+            category: [],
+            subcategory: [],
+        });
+
+        expect(filter).toContain("date>='2026-08-01'");
+        expect(filter).toContain("date<'2026-09-01'");
+    });
+
     it("combines broad categories and selected subcategories", () => {
         const filter = buildSummitLogStatisticsFilter(
             {
                 category: ["category0000001", "category0000002"],
-                subcategory: ["subcategory001"],
+                subcategory: ["subcategory0001"],
             },
             [
                 {
-                    id: "subcategory001",
+                    id: "subcategory0001",
                     category: "category0000002",
                     name: "Alpine",
                 },
@@ -68,7 +90,7 @@ describe("profile statistics", () => {
         );
 
         expect(filter).toContain("'category0000001'~trail.category");
-        expect(filter).toContain("'subcategory001'~trail.subcategory");
+        expect(filter).toContain("'subcategory0001'~trail.subcategory");
         expect(filter).not.toContain(
             "'category0000001,category0000002'~trail.category",
         );
@@ -85,6 +107,33 @@ describe("profile statistics", () => {
 
         expect(filter).toContain(
             "category='category0000001'&&subcategory=''",
+        );
+    });
+
+    it("rejects category filter injection", () => {
+        expect(() =>
+            ProfileStatisticsFilterSchema.parse({
+                category: ["aa'))||(('x'='x"],
+                subcategory: [],
+            }),
+        ).toThrow();
+
+        expect(() =>
+            ProfileStatisticsFilterSchema.parse({
+                category: [],
+                subcategory: ["__no_subcategory__:aa'))||(('x'='x"],
+            }),
+        ).toThrow();
+    });
+
+    it("does not interpolate invalid IDs in category filters", () => {
+        const filter = buildCompletedTrailFilter("actor0000000001", {
+            category: ["aa'))||(('x'='x"],
+            subcategory: ["__no_subcategory__:aa'))||(('x'='x"],
+        });
+
+        expect(filter).toBe(
+            "author='actor0000000001'&&completed=true&&completed_at!=''",
         );
     });
 });

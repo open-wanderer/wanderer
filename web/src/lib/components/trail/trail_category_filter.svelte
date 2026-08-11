@@ -608,7 +608,7 @@
 {/snippet}
 
 <div>
-    <p class="text-sm font-medium pb-2">{$_("categories")}</p>
+    <p class="text-sm font-medium pb-1">{$_("categories")}</p>
     <div bind:this={categoryListElement} class="flex gap-2 overflow-visible pb-2">
         {#each visibleCategoryItems as category}
             {@render categoryButton(category)}

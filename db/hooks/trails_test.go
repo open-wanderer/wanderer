@@ -34,10 +34,9 @@ func TestSetTrailCompletedAt(t *testing.T) {
 		}
 	})
 
-	t.Run("clears timestamp when trail is no longer completed", func(t *testing.T) {
-		record := core.NewRecord(core.NewBaseCollection("trails"))
+	t.Run("clears timestamp when trail becomes incomplete", func(t *testing.T) {
+		record := persistedTrail(t, true, now)
 		record.Set("completed", false)
-		record.Set("completed_at", now)
 
 		setTrailCompletedAt(record, now)
 
@@ -45,4 +44,33 @@ func TestSetTrailCompletedAt(t *testing.T) {
 			t.Fatalf("completed_at = %v, want zero value", record.Get("completed_at"))
 		}
 	})
+
+	t.Run("clears timestamp when incomplete state is unchanged", func(t *testing.T) {
+		record := persistedTrail(t, false, now)
+
+		setTrailCompletedAt(record, now.Add(time.Hour))
+
+		if !record.GetDateTime("completed_at").IsZero() {
+			t.Fatalf("completed_at = %v, want zero value", record.Get("completed_at"))
+		}
+	})
+}
+
+func persistedTrail(t *testing.T, completed bool, completedAt time.Time) *core.Record {
+	t.Helper()
+
+	collection := core.NewBaseCollection("trails")
+	collection.Fields.Add(
+		&core.BoolField{Name: "completed"},
+		&core.DateField{Name: "completed_at"},
+	)
+	record := core.NewRecord(collection)
+	record.Id = "trail000000001"
+	record.Set("completed", completed)
+	record.Set("completed_at", completedAt)
+	if err := record.PostScan(); err != nil {
+		t.Fatalf("failed to persist test trail state: %v", err)
+	}
+
+	return record
 }

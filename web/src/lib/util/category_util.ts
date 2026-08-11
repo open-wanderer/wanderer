@@ -246,6 +246,25 @@ type TrailCategoryLabelEntity = {
     } | null;
 };
 
+type TrailCategoryKeyEntity = {
+    category?: string | null;
+    subcategory?: string | null;
+    expand?: {
+        category?: Pick<Category, "id"> | null;
+        subcategory?: Pick<Subcategory, "id"> | null;
+    } | null;
+};
+
+export function trailCategoryKey(
+    trail?: TrailCategoryKeyEntity | null,
+): string {
+    const category = trail?.category || trail?.expand?.category?.id || "-";
+    const subcategory =
+        trail?.subcategory || trail?.expand?.subcategory?.id || "-";
+
+    return `${category}:${subcategory}`;
+}
+
 export function displayTrailCategoryLabel(
     trail?: TrailCategoryLabelEntity | null,
     locale?: string | null,

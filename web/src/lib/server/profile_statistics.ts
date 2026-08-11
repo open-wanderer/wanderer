@@ -3,7 +3,12 @@ import type { Subcategory } from "$lib/models/subcategory";
 import type { SummitLog } from "$lib/models/summit_log";
 import type { Trail } from "$lib/models/trail";
 import { nextDateValue } from "$lib/util/date_util";
-import { buildPocketBaseCategoryFilter } from "$lib/util/trail_filter_util";
+import {
+    buildPocketBaseCategoryFilter,
+    isPocketBaseRecordId,
+    noSubcategoryFilterCategory,
+} from "$lib/util/trail_filter_util";
+import { z } from "zod";
 
 type PocketBaseTrail = Trail & {
     collectionId?: string;
@@ -15,12 +20,27 @@ type PocketBaseSummitLog = SummitLog & {
     collectionName?: string;
 };
 
-export interface ProfileStatisticsFilter {
-    startDate?: string;
-    endDate?: string;
-    category: string[];
-    subcategory: string[];
-}
+export const ProfileStatisticsFilterSchema = z.object({
+    startDate: z.string().date().optional(),
+    endDate: z.string().date().optional(),
+    category: z.array(
+        z.string().refine(isPocketBaseRecordId, "Invalid category filter"),
+    ),
+    subcategory: z.array(
+        z.string().refine((value) => {
+            const noSubcategoryId = noSubcategoryFilterCategory(value);
+            return (
+                isPocketBaseRecordId(value) ||
+                (noSubcategoryId !== undefined &&
+                    isPocketBaseRecordId(noSubcategoryId))
+            );
+        }, "Invalid subcategory filter"),
+    ),
+});
+
+export type ProfileStatisticsFilter = z.infer<
+    typeof ProfileStatisticsFilterSchema
+>;
 
 export function summitLogToStatisticActivity(
     log: PocketBaseSummitLog,
@@ -55,18 +75,23 @@ export function completedTrailToStatisticActivity(
     };
 }
 
-export function hasSummitLog(trail: Trail): boolean {
-    return (trail.expand?.summit_logs_via_trail?.length ?? 0) > 0;
-}
-
 export function mergeStatisticActivities(
     summitLogs: PocketBaseSummitLog[],
     completedTrails: PocketBaseTrail[],
 ): StatisticActivity[] {
+    const trailsWithLoadedSummitLogs = new Set(
+        summitLogs
+            .map((log) => log.trail)
+            .filter((trailId): trailId is string => Boolean(trailId)),
+    );
+
     return [
         ...summitLogs.map(summitLogToStatisticActivity),
         ...completedTrails
-            .filter((trail) => !hasSummitLog(trail))
+            .filter(
+                (trail) =>
+                    !trail.id || !trailsWithLoadedSummitLogs.has(trail.id),
+            )
             .map(completedTrailToStatisticActivity),
     ].sort((a, b) => a.date.localeCompare(b.date));
 }

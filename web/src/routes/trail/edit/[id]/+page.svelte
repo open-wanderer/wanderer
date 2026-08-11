@@ -2065,19 +2065,22 @@
         }
     }
 
+    function oldestSummitLogDate(): string | undefined {
+        return $formData.expand?.summit_logs_via_trail
+            ?.map((log) => log.date)
+            .sort()[0];
+    }
+
     function handleCompletedChange(completed: boolean) {
         setFields("completed", completed);
         if (completed) {
-            ensureCompletedAt();
+            ensureCompletedAt(oldestSummitLogDate());
         }
     }
 
     function markTrailAsCompleted() {
         setFields("completed", true);
-        const oldestSummitLogDate = $formData.expand?.summit_logs_via_trail
-            ?.map((log) => log.date)
-            .sort()[0];
-        ensureCompletedAt(oldestSummitLogDate);
+        ensureCompletedAt(oldestSummitLogDate());
     }
 </script>
 

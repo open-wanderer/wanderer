@@ -6,6 +6,7 @@ import { currentUser } from "./user_store";
 import { isURL, objectToFormData } from "$lib/util/file_util";
 import { subcategories } from "./subcategory_store";
 import { buildPocketBaseCategoryFilter } from "$lib/util/trail_filter_util";
+import { nextDateValue } from "$lib/util/date_util";
 
 export const summitLog: Writable<SummitLog> = writable(new SummitLog(new Date().toISOString().substring(0, 10)));
 export const summitLogs: Writable<SummitLog[]> = writable([]);
@@ -153,7 +154,7 @@ export function buildFilterText(filter: SummitLogFilter,): string {
     }
 
     if (filter.endDate) {
-        clauses.push(`date<='${filter.endDate}'`);
+        clauses.push(`date<'${nextDateValue(filter.endDate)}'`);
     }
 
     if (filter.trail) {

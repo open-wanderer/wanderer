@@ -13,7 +13,7 @@
         displaySubcategoryLabel,
         displayTrailCategoryBadgeIcon,
         displayTrailCategoryIcon,
-        displayTrailCategoryLabel,
+        trailCategoryKey,
     } from "$lib/util/category_util";
     import { _, locale } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
@@ -68,9 +68,7 @@
         },
     ];
     let categoryIconColor = $derived(
-        categoryColorMap[
-            displayTrailCategoryLabel(log.expand?.trail, $locale) || "-"
-        ],
+        categoryColorMap[trailCategoryKey(log.expand?.trail)],
     );
     $effect(() => {
         if (log.photos?.length) {

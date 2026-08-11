@@ -1,4 +1,4 @@
-import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { error, isHttpError, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodSchema } from "zod";
 import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
@@ -159,7 +159,9 @@ export async function remove(event: RequestEvent, collection: Collection) {
 }
 
 export function handleError(e: any) {
-    if (e instanceof ZodError) {
+    if (isHttpError(e)) {
+        throw e;
+    } else if (e instanceof ZodError) {
         return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
         return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })

@@ -7,6 +7,7 @@ import {
     buildCompletedTrailFilter,
     buildSummitLogStatisticsFilter,
     mergeStatisticActivities,
+    ProfileStatisticsFilterSchema,
     summitLogToStatisticActivity,
     type ProfileStatisticsFilter,
 } from '$lib/server/profile_statistics';
@@ -14,21 +15,6 @@ import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
-import { z } from 'zod';
-
-const ProfileStatisticsFilterSchema = z.object({
-    startDate: z.string().date().optional(),
-    endDate: z.string().date().optional(),
-    category: z.array(z.string().length(15)),
-    subcategory: z.array(
-        z.string().refine(
-            (value) =>
-                value.length === 15 ||
-                /^__no_subcategory__:.{15}$/.test(value),
-            "Invalid subcategory filter",
-        ),
-    ),
-});
 
 /**
  * @swagger
@@ -104,12 +90,6 @@ export async function GET(event: RequestEvent) {
                     .filter(Boolean),
             });
 
-        if(safeSearchParams.filter?.length) {
-            safeSearchParams.filter = safeSearchParams.filter + `&&author='${actor.id}'`
-        }else {
-            safeSearchParams.filter = `author='${actor.id}'`
-        }
-
         let activities: StatisticActivity[];
         if (actor.is_local) {
             const availableSubcategories = await event.locals.pb
@@ -119,10 +99,12 @@ export async function GET(event: RequestEvent) {
                 statisticsFilter,
                 availableSubcategories,
             );
-            if (explicitSummitLogFilter) {
-                safeSearchParams.filter =
-                    `${safeSearchParams.filter}&&${explicitSummitLogFilter}`;
-            }
+            safeSearchParams.filter = [
+                `author='${actor.id}'`,
+                explicitSummitLogFilter,
+            ]
+                .filter(Boolean)
+                .join('&&');
             const summitLogs = await event.locals.pb.collection(Collection.summit_logs)
                 .getFullList<SummitLog>({ ...safeSearchParams });
 
@@ -139,8 +121,12 @@ export async function GET(event: RequestEvent) {
 
             activities = mergeStatisticActivities(summitLogs, completedTrails);
         } else {
+            const remoteSearchParams = new URLSearchParams(
+                event.url.searchParams,
+            );
+            remoteSearchParams.delete('filter');
             const origin = new URL(actor.iri).origin
-            const summitLogURL = `${origin}/api/v1/profile/${actor.preferred_username}/stats?` + event.url.searchParams
+            const summitLogURL = `${origin}/api/v1/profile/${actor.preferred_username}/stats?` + remoteSearchParams
             const response = await event.fetch(summitLogURL, { method: 'GET' })
             if (!response.ok) {
                 const errorResponse = await response.json()

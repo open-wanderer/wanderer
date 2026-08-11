@@ -49,6 +49,76 @@ export function monthDateRange(date: Date): { start: string; end: string } {
     };
 }
 
+export type DatePeriodPreset =
+    | "current_month"
+    | "current_quarter"
+    | "current_year"
+    | "last_12_months";
+
+export const datePeriodPresets: DatePeriodPreset[] = [
+    "current_month",
+    "current_quarter",
+    "current_year",
+    "last_12_months",
+];
+
+export function datePeriodRange(
+    preset: DatePeriodPreset,
+    today: Date = new Date(),
+): { start: string; end: string } {
+    const year = today.getFullYear();
+    const month = today.getMonth();
+
+    switch (preset) {
+        case "current_month":
+            return monthDateRange(today);
+        case "current_quarter": {
+            const quarterStartMonth = Math.floor(month / 3) * 3;
+            return {
+                start: dateInputValue(new Date(year, quarterStartMonth, 1)),
+                end: dateInputValue(new Date(year, quarterStartMonth + 3, 0)),
+            };
+        }
+        case "current_year":
+            return {
+                start: dateInputValue(new Date(year, 0, 1)),
+                end: dateInputValue(new Date(year, 11, 31)),
+            };
+        case "last_12_months": {
+            const startYear = year - 1;
+            const lastDayInStartMonth = new Date(
+                startYear,
+                month + 1,
+                0,
+            ).getDate();
+            const start = new Date(
+                startYear,
+                month,
+                Math.min(today.getDate(), lastDayInStartMonth),
+            );
+            return {
+                start: dateInputValue(start),
+                end: dateInputValue(today),
+            };
+        }
+    }
+}
+
+export function datePeriodPresetForRange(
+    start: string | undefined,
+    end: string | undefined,
+    today: Date = new Date(),
+): DatePeriodPreset | undefined {
+    if (!start || !end) {
+        return undefined;
+    }
+
+    return datePeriodPresets.find((preset) => {
+        const range = datePeriodRange(preset, today);
+        return range.start === start && range.end === end;
+    });
+}
+
 export function nextDateValue(value: string): string {
     const date = parseDateValue(value);
     date.setDate(date.getDate() + 1);

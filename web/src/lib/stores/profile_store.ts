@@ -7,7 +7,6 @@ import type { Hits } from "meilisearch";
 import type { ListResult } from "pocketbase";
 import { searchResultToLists } from "./list_store";
 import type { ListSearchResult } from "./search_store";
-import { buildFilterText } from "./summit_log_store";
 import { searchResultToTrailList } from "./trail_store";
 import type { Actor } from "$lib/models/activitypub/actor";
 import type { StatisticActivity } from "$lib/models/statistic_activity";
@@ -115,10 +114,7 @@ export async function profile_trails_index(handle: string, filter: TrailFilter, 
 }
 
 export async function profile_stats_index(handle: string, filter: SummitLogFilter, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
-    const filterText = buildFilterText(filter);
-
     const searchParams = new URLSearchParams({
-        filter: filterText,
         expand: "trail.category,trail.subcategory,trail.subcategory.category,author",
         sort: "+date",
     });

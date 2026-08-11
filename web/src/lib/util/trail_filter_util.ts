@@ -2,6 +2,11 @@ import type { TrailFilter } from "$lib/models/trail";
 import type { Subcategory } from "$lib/models/subcategory";
 
 const NO_SUBCATEGORY_FILTER_PREFIX = "__no_subcategory__:";
+export const POCKETBASE_RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
+
+export function isPocketBaseRecordId(value: string): boolean {
+    return POCKETBASE_RECORD_ID_PATTERN.test(value);
+}
 
 export function noSubcategoryFilterValue(categoryId: string): string {
     return `${NO_SUBCATEGORY_FILTER_PREFIX}${categoryId}`;
@@ -32,9 +37,14 @@ export function buildPocketBaseCategoryFilter(
     const selectedSubcategoryIds = filter.subcategory ?? [];
     const selectedNoSubcategoryCategoryIds = selectedSubcategoryIds
         .map(noSubcategoryFilterCategory)
-        .filter((category): category is string => category !== undefined);
+        .filter(
+            (category): category is string =>
+                category !== undefined && isPocketBaseRecordId(category),
+        );
     const selectedRealSubcategoryIds = selectedSubcategoryIds.filter(
-        (id) => noSubcategoryFilterCategory(id) === undefined,
+        (id) =>
+            noSubcategoryFilterCategory(id) === undefined &&
+            isPocketBaseRecordId(id),
     );
     const categoriesWithSubcategoryFilter = new Set(
         availableSubcategories
@@ -48,7 +58,9 @@ export function buildPocketBaseCategoryFilter(
     }
 
     const broadCategoryIds = filter.category.filter(
-        (categoryId) => !categoriesWithSubcategoryFilter.has(categoryId),
+        (categoryId) =>
+            isPocketBaseRecordId(categoryId) &&
+            !categoriesWithSubcategoryFilter.has(categoryId),
     );
     const clauses: string[] = [];
 
