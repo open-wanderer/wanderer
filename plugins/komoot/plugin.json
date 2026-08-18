@@ -93,8 +93,8 @@
       },
       "description": "Ignore tours before this date.",
       "descriptions": {
-        "de": "Touren vor diesem Datum ignorieren.",
-        "en": "Ignore tours before this date."
+        "de": "Lege ein Startdatum fest, um die Importmenge und damit die Zahl der API-Anfragen zu reduzieren. Es werden nur Touren nach diesem Datum synchronisiert.",
+        "en": "Set a start date to reduce the import volume and therefore the number of API requests. Only tours after this date will be synchronized."
       }
     }
   ],
@@ -144,6 +144,10 @@
       "pt": "Syncs your komoot tours with wanderer in regular intervals.",
       "ru": "Синхронизирует ваши данные с Komoot.",
       "zh": "定期与komoot同步您的wanderer。"
+    },
+    "information": {
+      "de": "Dieses Plugin verbindet wanderer mit deinem komoot-Konto. Es importiert geplante und abgeschlossene Touren zusammen mit Fotos und Wegpunkten. Neue und aktualisierte Touren werden bei den regelmäßig ausgeführten Synchronisierungsläufen importiert. Ein Startdatum begrenzt die Importmenge und reduziert das Risiko, dass komoot den Zugriff wegen zu vieler API-Anfragen vorübergehend einschränkt.",
+      "en": "This plugin connects wanderer with your komoot account. It imports planned and completed tours together with photos and waypoints. New and updated tours are imported during the regularly scheduled synchronization runs. A start date limits the import volume and reduces the risk of komoot temporarily restricting access because of too many API requests."
     },
     "icons": {
       "light": "icon.svg"

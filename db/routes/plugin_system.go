@@ -25,12 +25,17 @@ func PluginSystemPluginsList(e *core.RequestEvent) error {
 		return err
 	}
 	if !e.HasSuperuserAuth() {
-		for i := range plugins {
-			plugins[i].Path = ""
-		}
+		redactPluginDiagnostics(plugins)
 	}
 
 	return e.JSON(http.StatusOK, map[string]any{"items": plugins})
+}
+
+func redactPluginDiagnostics(plugins []pluginsystem.PluginInfo) {
+	for i := range plugins {
+		plugins[i].Path = ""
+		plugins[i].Error = ""
+	}
 }
 
 // localPlugin resolves an installed plugin from the cached installed_plugins

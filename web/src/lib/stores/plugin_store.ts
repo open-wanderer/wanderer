@@ -85,6 +85,8 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         displayNames: localizedMetadata(metadata, "displayNames"),
         description: plugin.description,
         descriptions: localizedMetadata(metadata, "descriptions"),
+        information: localizedMetadata(metadata, "information"),
+        donationUrl: externalHttpUrl(metadata.donationUrl),
         icon: plugin.icon,
         iconDark: plugin.iconDark,
         version: plugin.version,
@@ -108,6 +110,21 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         status: plugin.status,
         error: plugin.error,
     };
+}
+
+// Exported so the security boundary for plugin-provided links can be tested directly.
+export function externalHttpUrl(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:" || url.protocol === "http:"
+            ? url.toString()
+            : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 function localizedMetadata(

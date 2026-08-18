@@ -27,6 +27,8 @@ export interface PluginProvider {
     displayNames?: LocalizedTextMap;
     description?: string;
     descriptions?: LocalizedTextMap;
+    information?: LocalizedTextMap;
+    donationUrl?: string;
     icon?: string;
     iconDark?: string;
     version?: string;

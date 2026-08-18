@@ -23,6 +23,18 @@ func TestValidateManifestRejectsUnknownAuthPermission(t *testing.T) {
 	}
 }
 
+func TestValidateManifestIgnoresMalformedOptionalMetadata(t *testing.T) {
+	manifest := hammerheadManifestForTest()
+	manifest.Metadata = map[string]any{
+		"information": 42,
+		"donationUrl": "example.com/donate",
+	}
+
+	if err := ValidateManifest(manifest); err != nil {
+		t.Fatalf("optional UI metadata must not prevent plugin loading: %v", err)
+	}
+}
+
 func TestLoadLocalPluginRequiresRelativeEntrypoint(t *testing.T) {
 	dir := t.TempDir()
 	manifest := hammerheadManifestForTest()

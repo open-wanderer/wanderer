@@ -214,6 +214,10 @@
       "ru": "Синхронизирует ваши данные со Strava.",
       "zh": "定期与strava同步您的wanderer路线和活动。"
     },
+    "information": {
+      "de": "Dieses Plugin verbindet wanderer über die offizielle API mit deinem Strava-Konto. Es importiert gespeicherte Routen, Aktivitäten und zugehörige Fotos. Für die Verbindung hinterlegst du die Zugangsdaten einer Strava-API-Anwendung und autorisierst den Zugriff. Ein Startdatum hilft dabei, große bestehende Aktivitätssammlungen schrittweise zu synchronisieren und API-Limits einzuhalten.",
+      "en": "This plugin connects wanderer to your Strava account through the official API. It imports saved routes, activities and their photos. To connect, provide credentials for a Strava API application and authorize access. A start date helps synchronize large existing activity collections gradually and stay within API limits."
+    },
     "icons": {
       "light": "icon.svg"
     },

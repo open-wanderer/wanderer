@@ -35,6 +35,19 @@ export function pluginDescription(plugin: PluginProvider, currentLocale: string 
     return localizedText(plugin.descriptions, currentLocale, plugin.description ?? "");
 }
 
+export function pluginInformation(plugin: PluginProvider, currentLocale: string | null | undefined): string {
+    const locale = normalizeLocale(currentLocale);
+    const language = locale.split("-")[0];
+    for (const candidate of [locale, language]) {
+        const value = plugin.information?.[candidate]?.trim();
+        if (value) {
+            return value;
+        }
+    }
+
+    return pluginDescription(plugin, currentLocale) || localizedText(plugin.information, "en");
+}
+
 export function configFieldLabel(
     field: ConfigField,
     currentLocale: string | null | undefined,
