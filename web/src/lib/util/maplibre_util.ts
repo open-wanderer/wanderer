@@ -11,6 +11,11 @@ import { handleFromRecordWithIRI } from "./activitypub_util";
 import { getFileURL } from "./file_util";
 import { formatDistance, formatElevation, formatTimeHHMM } from "./format_util";
 import { icons } from "./icon_util";
+import {
+    focusWaypoint,
+    getWaypointPopupMedia,
+    highlightElevationWaypoint,
+} from "./waypoint_map_util";
 
 export class FontawesomeMarker extends M.Marker {
     constructor(options: { icon: string, fontSize?: string, width?: number, backgroundColor?: string, fontColor?: string, style?: string, id?: string }, markerOptions?: M.MarkerOptions) {
@@ -40,21 +45,52 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
     })
 
     const content = document.createElement("div");
-    content.className = "p-2"
+    content.className = "p-2 waypoint-popup"
 
-    const spanElement = document.createElement("span");
-    const iconElement = document.createElement("i");
-    const iconName = waypoint.icon && icons.includes(waypoint.icon) ? waypoint.icon : "circle";
-    iconElement.classList.add("fa", `fa-${iconName}`)
-    spanElement.appendChild(iconElement);
+    const media = getWaypointPopupMedia(waypoint);
+    if (media.length) {
+        const photosContainer = document.createElement("div");
+        photosContainer.className = `waypoint-popup-photos${media.length > 1 ? " multiple" : ""}`;
 
-    const nameElement = document.createElement("b");
-    nameElement.textContent = waypoint.name ?? "-";
-    if (waypoint.name?.length) {
-        nameElement.classList.add("ml-2")
+        media.forEach((item) => {
+            const mediaElement = item.video
+                ? document.createElement("video")
+                : document.createElement("img");
+            mediaElement.className = "waypoint-popup-media";
+            mediaElement.src = item.url;
+            if (mediaElement instanceof HTMLImageElement) {
+                mediaElement.alt = waypoint.name || "";
+            } else {
+                mediaElement.muted = true;
+                mediaElement.loop = true;
+                mediaElement.playsInline = true;
+                mediaElement.addEventListener("mouseenter", () => mediaElement.play());
+                mediaElement.addEventListener("mouseleave", () => mediaElement.pause());
+            }
+            photosContainer.appendChild(mediaElement);
+        });
+
+        content.appendChild(photosContainer);
     }
-    spanElement.appendChild(nameElement);
-    content.appendChild(spanElement);
+
+    if (waypoint.name?.length) {
+        const nameElement = document.createElement("b");
+        nameElement.className = "block";
+        nameElement.textContent = waypoint.name;
+        content.appendChild(nameElement);
+    }
+
+    if (typeof waypoint.distance_from_start === "number") {
+        const distanceElement = document.createElement("p");
+        distanceElement.className = "text-sm text-gray-500";
+        const distanceIcon = document.createElement("i");
+        distanceIcon.classList.add("fa", "fa-left-right", "mr-1");
+        distanceElement.appendChild(distanceIcon);
+        distanceElement.appendChild(
+            document.createTextNode(formatDistance(waypoint.distance_from_start)),
+        );
+        content.appendChild(distanceElement);
+    }
 
     if (waypoint.description && waypoint.description.length > 0) {
         const descriptionElement = document.createElement("p");
@@ -62,10 +98,15 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
         content.appendChild(descriptionElement);
     }
 
+    content.addEventListener("click", (e) => {
+        e.stopPropagation();
+        focusWaypoint(waypoint, "map");
+    });
 
-    const popup = new M.Popup({ offset: 25 }).setDOMContent(
+    const popup = new M.Popup({ offset: 25, maxWidth: "280px" }).setDOMContent(
         content
     );
+    bindExclusivePopup(popup, waypoint);
     marker
         .setLngLat([waypoint.lon, waypoint.lat])
         .setPopup(popup)
@@ -80,6 +121,24 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
     });
 
     return marker;
+}
+
+let exclusiveWaypointPopup: M.Popup | undefined;
+
+function bindExclusivePopup(popup: M.Popup, waypoint: Waypoint) {
+    popup.on("open", () => {
+        if (exclusiveWaypointPopup && exclusiveWaypointPopup !== popup) {
+            exclusiveWaypointPopup.remove();
+        }
+        exclusiveWaypointPopup = popup;
+        highlightElevationWaypoint(waypoint.id);
+    });
+    popup.on("close", () => {
+        if (exclusiveWaypointPopup === popup) {
+            exclusiveWaypointPopup = undefined;
+            highlightElevationWaypoint(undefined);
+        }
+    });
 }
 
 export function createAnchorMarker(lat: number, lon: number,

@@ -84,6 +84,39 @@
     transform: translate3d(0, 0, 0);
 }
 
+.wp-marker {
+    pointer-events: auto;
+}
+
+.wp-marker-thumb {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 50%;
+    z-index: 30;
+    width: 14rem;
+    height: 9rem;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 0.5rem;
+    transform: translateX(-50%);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2);
+    pointer-events: auto;
+    background: var(--tooltip-background);
+}
+
+.wp-marker:hover .wp-marker-thumb,
+.wp-marker-active .wp-marker-thumb {
+    display: block;
+}
+
+.wp-marker-active {
+    box-shadow: 0 0 0 3px #fff;
+    z-index: 25;
+}
+
 .spinner {
     display: inline-block;
     width: 32px;

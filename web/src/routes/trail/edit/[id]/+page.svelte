@@ -26,6 +26,7 @@
     import type { RoutingOptions, ValhallaAnchor } from "$lib/models/valhalla";
     import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { type OverpassPopupAction } from "$lib/util/maplibre_util";
+    import { waypointAnchorId } from "$lib/util/waypoint_map_util";
     import { Waypoint } from "$lib/models/waypoint";
     import {
         lists_add_trail,
@@ -2306,6 +2307,7 @@
         <ul>
             {#each $formData.expand?.waypoints_via_trail ?? [] as waypoint, i}
                 <li
+                    id={waypointAnchorId(waypoint.id)}
                     onmouseenter={() => openMarkerPopup(waypoint)}
                     onmouseleave={() => openMarkerPopup(waypoint)}
                 >
