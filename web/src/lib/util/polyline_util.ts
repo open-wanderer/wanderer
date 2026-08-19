@@ -83,17 +83,43 @@ export function encodePolyline(coordinates: number[][], precision: number = 6) {
     return output;
 };
 
-function flipped(coords: number[][]) {
-    var flipped = [];
-    for (var i = 0; i < coords.length; i++) {
-        var coord = coords[i].slice();
-        flipped.push([coord[1], coord[0]]);
-    }
-    return flipped;
+function distanceToExpected(
+    coord: number[],
+    expected: { lat: number; lon: number },
+) {
+    return Math.hypot(coord[0] - expected.lon, coord[1] - expected.lat);
 }
 
-export function polylineToGeoJSON(str: string, precision: number = 6) {
-    var coords = decodePolyline(str, precision);
+function decodePolylineVariants(str: string) {
+    return [5, 6].flatMap((precision) => {
+        const coords = decodePolyline(str, precision);
+        return [coords, coords.map((coord) => [coord[1], coord[0]])];
+    });
+}
+
+export function polylineToGeoJSON(
+    str: string,
+    precision: number = 5,
+    expected?: { lat: number; lon: number },
+) {
+    let coords = decodePolyline(str, precision);
+
+    if (expected && coords.length) {
+        let best = coords;
+        let bestDistance = distanceToExpected(coords[0], expected);
+        for (const variant of decodePolylineVariants(str)) {
+            if (!variant.length) {
+                continue;
+            }
+            const distance = distanceToExpected(variant[0], expected);
+            if (distance < bestDistance) {
+                best = variant;
+                bestDistance = distance;
+            }
+        }
+        coords = best;
+    }
+
     const geojson = {
         type: "FeatureCollection",
         features: [
@@ -102,7 +128,7 @@ export function polylineToGeoJSON(str: string, precision: number = 6) {
                 type: "Feature",
                 geometry: {
                     type: "LineString",
-                    coordinates: flipped(coords),
+                    coordinates: coords,
                 },
             }
         ]

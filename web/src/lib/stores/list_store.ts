@@ -5,7 +5,6 @@ import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import type { ListSearchResult } from "./search_store";
-import { fetchGPX } from "./trail_store";
 import { currentUser } from "./user_store";
 import { objectToFormData } from "$lib/util/file_util";
 
@@ -91,11 +90,6 @@ export async function lists_show(id: string, handle?: string, f: (url: RequestIn
     }
 
     const response = await r.json()
-
-    for (const trail of response.expand?.trails ?? []) {
-        const gpxData: string = await fetchGPX(trail, f);
-        trail.expand.gpx_data = gpxData;
-    }
 
     list.set(response);
 
@@ -272,6 +266,13 @@ export async function searchResultToLists(hits: Hits<ListSearchResult>): Promise
             distance: h.distance,
             duration: h.duration,
             iri: h.iri,
+            lat: h.lat,
+            lon: h.lon,
+            min_lat: h.min_lat,
+            max_lat: h.max_lat,
+            min_lon: h.min_lon,
+            max_lon: h.max_lon,
+            trail_polylines: h.trail_polylines,
             expand: {
                 author: {
                     icon: h.author_avatar,

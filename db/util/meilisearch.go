@@ -169,6 +169,81 @@ func getStoredBounds(r *core.Record) [4]float64 {
 	return [4]float64{minLat, maxLat, minLon, maxLon}
 }
 
+const maxListPreviewPolylines = 30
+
+func listAggregateBounds(trails []*core.Record) (minLat, maxLat, minLon, maxLon float64, ok bool) {
+	minLat, minLon = 90.0, 180.0
+	maxLat, maxLon = -90.0, -180.0
+
+	for _, t := range trails {
+		bounds := getStoredBounds(t)
+		if bounds[0] == 0 && bounds[1] == 0 && bounds[2] == 0 && bounds[3] == 0 {
+			continue
+		}
+		if bounds[0] < minLat {
+			minLat = bounds[0]
+		}
+		if bounds[1] > maxLat {
+			maxLat = bounds[1]
+		}
+		if bounds[2] < minLon {
+			minLon = bounds[2]
+		}
+		if bounds[3] > maxLon {
+			maxLon = bounds[3]
+		}
+		ok = true
+	}
+
+	return minLat, maxLat, minLon, maxLon, ok
+}
+
+func listTrailPolylines(trails []*core.Record) []string {
+	polylines := make([]string, 0, len(trails))
+	for _, t := range trails {
+		if p := t.GetString("polyline"); p != "" {
+			polylines = append(polylines, p)
+			if len(polylines) >= maxListPreviewPolylines {
+				break
+			}
+		}
+	}
+	return polylines
+}
+
+func listCentroid(trails []*core.Record) (lat, lon float64, ok bool) {
+	n := 0
+	for _, t := range trails {
+		tLat := t.GetFloat("lat")
+		tLon := t.GetFloat("lon")
+		if tLat == 0 && tLon == 0 {
+			continue
+		}
+		lat += tLat
+		lon += tLon
+		n++
+	}
+	if n == 0 {
+		return 0, 0, false
+	}
+	return lat / float64(n), lon / float64(n), true
+}
+
+func floatFromAny(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	default:
+		return 0, false
+	}
+}
+
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
 
 	totalElevationGain := 0.0
@@ -176,10 +251,12 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalDistance := 0.0
 	totalDuration := 0.0
 	trails := len(r.GetStringSlice("trails"))
+	var remoteDoc map[string]any
 
 	if r.GetString("iri") != "" && !author.GetBool("is_local") {
 		doc, err := documentFromRemoteRecord(r, "lists")
 		if err == nil {
+			remoteDoc = doc
 			totalElevationGain = doc["elevation_gain"].(float64)
 			totalElevationLoss = doc["elevation_loss"].(float64)
 			totalDistance = doc["distance"].(float64)
@@ -222,6 +299,56 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 		"created":        r.GetDateTime("created").Time().Unix(),
 		"trails":         trails,
 		"iri":            r.GetString("iri"),
+	}
+
+	expandedTrails := r.ExpandedAll("trails")
+
+	if lat, lon, ok := listCentroid(expandedTrails); ok {
+		document["lat"] = lat
+		document["lon"] = lon
+	} else if remoteDoc != nil {
+		if lat, ok := floatFromAny(remoteDoc["lat"]); ok {
+			document["lat"] = lat
+		}
+		if lon, ok := floatFromAny(remoteDoc["lon"]); ok {
+			document["lon"] = lon
+		}
+	}
+
+	if minLat, maxLat, minLon, maxLon, ok := listAggregateBounds(expandedTrails); ok {
+		document["min_lat"] = minLat
+		document["max_lat"] = maxLat
+		document["min_lon"] = minLon
+		document["max_lon"] = maxLon
+	} else if remoteDoc != nil {
+		if v, ok := floatFromAny(remoteDoc["min_lat"]); ok {
+			document["min_lat"] = v
+		}
+		if v, ok := floatFromAny(remoteDoc["max_lat"]); ok {
+			document["max_lat"] = v
+		}
+		if v, ok := floatFromAny(remoteDoc["min_lon"]); ok {
+			document["min_lon"] = v
+		}
+		if v, ok := floatFromAny(remoteDoc["max_lon"]); ok {
+			document["max_lon"] = v
+		}
+	}
+
+	if polylines := listTrailPolylines(expandedTrails); len(polylines) > 0 {
+		document["trail_polylines"] = polylines
+	} else if remoteDoc != nil {
+		if raw, ok := remoteDoc["trail_polylines"].([]any); ok && len(raw) > 0 {
+			polylines := make([]string, 0, len(raw))
+			for _, item := range raw {
+				if p, ok := item.(string); ok && p != "" {
+					polylines = append(polylines, p)
+				}
+			}
+			if len(polylines) > 0 {
+				document["trail_polylines"] = polylines
+			}
+		}
 	}
 
 	if includeShares {

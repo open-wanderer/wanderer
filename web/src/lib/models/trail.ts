@@ -32,6 +32,10 @@ class Trail {
     difficulty?: "easy" | "moderate" | "difficult"
     lat?: number;
     lon?: number;
+    min_lat?: number;
+    max_lat?: number;
+    min_lon?: number;
+    max_lon?: number;
     thumbnail?: number;
     photos: string[];
     gpx?: string;

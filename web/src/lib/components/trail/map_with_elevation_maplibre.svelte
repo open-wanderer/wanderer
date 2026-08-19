@@ -11,7 +11,7 @@
         createPopupFromTrail,
         FontawesomeMarker,
     } from "$lib/util/maplibre_util";
-    import { decodePolyline } from "$lib/util/polyline_util";
+    import { polylineToGeoJSON } from "$lib/util/polyline_util";
     import type { ElevationProfileControl } from "$lib/vendor/maplibre-elevation-profile/elevationprofile-control";
     import { FullscreenControl } from "$lib/vendor/maplibre-fullscreen/fullscreen-control";
     import MaplibreGraticule from "$lib/vendor/maplibre-graticule/maplibre-graticule";
@@ -24,7 +24,7 @@
     import { TerrainLayer } from "$lib/vendor/maplibre-layer-manager/terrain-layer";
     import { TrailLayer } from "$lib/vendor/maplibre-layer-manager/trail-layer";
     import { StyleSwitcherControl } from "$lib/vendor/maplibre-style-switcher/style-switcher-control";
-    import type { Feature, FeatureCollection, GeoJSON } from "geojson";
+    import type { BBox, Feature, FeatureCollection, GeoJSON } from "geojson";
     import * as M from "maplibre-gl";
     import "maplibre-gl/dist/maplibre-gl.css";
     import { onDestroy, onMount, untrack } from "svelte";
@@ -227,6 +227,14 @@
                     fc = t.expand.gpx.toGeoJSON();
                 } else if (t.expand?.gpx_data) {
                     fc = GPX.parse(t.expand.gpx_data).toGeoJSON();
+                } else if (t.polyline && !clusterTrails) {
+                    fc = polylineToGeoJSON(
+                        t.polyline,
+                        5,
+                        t.lat !== undefined && t.lon !== undefined
+                            ? { lat: t.lat, lon: t.lon }
+                            : undefined,
+                    ) as FeatureCollection;
                 }
 
                 if (fc) {
@@ -241,13 +249,21 @@
             }
 
             if (clusterTrails) {
-                if (!serverClusters && t.lat !== undefined && t.lon !== undefined) {
+                if (
+                    !serverClusters &&
+                    t.lat !== undefined &&
+                    t.lon !== undefined &&
+                    !t.polyline
+                ) {
                     clusterData.features.push({
                         id: t.id,
                         type: "Feature",
                         properties: {
+                            id: t.id,
                             trail: t.id,
                             bounding_box_diagonal: t.bounding_box_diagonal,
+                            point_count: 1,
+                            point_count_abbreviated: "1",
                         },
                         geometry: {
                             type: "Point",
@@ -257,6 +273,14 @@
                 }
 
                 if (t.polyline) {
+                    const previewGeojson = polylineToGeoJSON(
+                        t.polyline,
+                        5,
+                        t.lat !== undefined && t.lon !== undefined
+                            ? { lat: t.lat, lon: t.lon }
+                            : undefined,
+                    );
+                    const groupId = t.id?.split("#")[0] ?? t.id ?? "";
                     previewData.features.push({
                         id: t.id,
                         type: "Feature",
@@ -265,15 +289,12 @@
                             bounding_box_diagonal: t.bounding_box_diagonal,
                             color: trailColors[
                                 hashStringToIndex(
-                                    t.id ?? "",
+                                    groupId,
                                     trailColors.length,
                                 )
                             ],
                         },
-                        geometry: {
-                            type: "LineString",
-                            coordinates: decodePolyline(t.polyline, 5),
-                        },
+                        geometry: previewGeojson.features[0].geometry,
                     });
                 }
             }
@@ -309,12 +330,32 @@
         if (clusterTrails) {
             addPreviewLayer(previewData);
             addClusterLayer(clusterData);
+        } else {
+            layerManager.removeLayer("clusters");
+            layerManager.removeLayer("preview");
         }
 
         if (!drawing && fitBounds !== "off") {
             const currentBboxes = Object.values(gpxDataMap)
                 .map((d) => d.bbox)
                 .filter((b) => b !== undefined);
+            const hasClusterPoints =
+                clusterTrails &&
+                trails.some(
+                    (t) =>
+                        t.lat !== undefined &&
+                        t.lon !== undefined &&
+                        !t.polyline,
+                );
+            const hasPreviewPolylines =
+                clusterTrails && trails.some((t) => t.polyline);
+            const hasRecordBounds = trails.some(
+                (t) =>
+                    t.min_lat !== undefined &&
+                    t.max_lat !== undefined &&
+                    t.min_lon !== undefined &&
+                    t.max_lon !== undefined,
+            );
 
             if (
                 activeTrail !== null &&
@@ -323,7 +364,12 @@
                 gpxDataMap[trails[activeTrail].id!]
             ) {
                 focusTrail(trails[activeTrail]);
-            } else if (currentBboxes.length > 0) {
+            } else if (
+                currentBboxes.length > 0 ||
+                hasClusterPoints ||
+                hasPreviewPolylines ||
+                hasRecordBounds
+            ) {
                 flyToBounds();
             }
         } else if (drawing && activeTrail !== null && mapLoaded) {
@@ -373,40 +419,157 @@
         }
     }
 
-    function getBounds() {
+    function lngLatBoundsFromCorners(
+        west: number,
+        south: number,
+        east: number,
+        north: number,
+    ) {
+        if (west === east || south === north) {
+            const padX = west === east ? 0.2 : 0;
+            const padY = south === north ? 0.2 : 0;
+            return new M.LngLatBounds(
+                [west - padX, south - padY],
+                [east + padX, north + padY],
+            );
+        }
+        return new M.LngLatBounds([west, south], [east, north]);
+    }
+
+    function extendBounds(
+        minX: number,
+        minY: number,
+        maxX: number,
+        maxY: number,
+        west: number,
+        south: number,
+        east: number,
+        north: number,
+    ) {
+        return [
+            Math.min(minX, west),
+            Math.min(minY, south),
+            Math.max(maxX, east),
+            Math.max(maxY, north),
+        ] as const;
+    }
+
+    function getTrailRecordBounds() {
         let minX = Infinity,
             minY = Infinity,
             maxX = -Infinity,
             maxY = -Infinity;
 
-        for (const [xMin, yMin, xMax, yMax] of Object.values(gpxDataMap)
-            .filter((d) => d.bbox !== undefined)
-            .map((d) => d.bbox!)) {
-            minX = Math.min(minX, xMin);
-            minY = Math.min(minY, yMin);
-            maxX = Math.max(maxX, xMax);
-            maxY = Math.max(maxY, yMax);
+        for (const t of trails) {
+            const west = t.min_lon ?? t.lon;
+            const east = t.max_lon ?? t.lon;
+            const south = t.min_lat ?? t.lat;
+            const north = t.max_lat ?? t.lat;
+            if (
+                west === undefined ||
+                east === undefined ||
+                south === undefined ||
+                north === undefined ||
+                (west === 0 && east === 0 && south === 0 && north === 0)
+            ) {
+                continue;
+            }
+            [minX, minY, maxX, maxY] = extendBounds(
+                minX,
+                minY,
+                maxX,
+                maxY,
+                west,
+                south,
+                east,
+                north,
+            );
+        }
+
+        if (minX >= Infinity) {
+            return undefined;
+        }
+        return lngLatBoundsFromCorners(minX, minY, maxX, maxY);
+    }
+
+    function getBounds() {
+        const fromTrails = getTrailRecordBounds();
+        if (fromTrails) {
+            return fromTrails;
+        }
+
+        let minX = Infinity,
+            minY = Infinity,
+            maxX = -Infinity,
+            maxY = -Infinity;
+
+        for (const box of Object.values(gpxDataMap)
+            .map((d) => d.bbox)
+            .filter((b): b is BBox => b !== undefined)) {
+            [minX, minY, maxX, maxY] = extendBounds(
+                minX,
+                minY,
+                maxX,
+                maxY,
+                box[0],
+                box[1],
+                box[2],
+                box[3],
+            );
+        }
+
+        if (clusterTrails) {
+            for (const t of trails) {
+                if (t.lat === undefined || t.lon === undefined) {
+                    continue;
+                }
+                [minX, minY, maxX, maxY] = extendBounds(
+                    minX,
+                    minY,
+                    maxX,
+                    maxY,
+                    t.lon,
+                    t.lat,
+                    t.lon,
+                    t.lat,
+                );
+            }
         }
 
         if (
-            minX < Infinity &&
-            minY < Infinity &&
-            maxX > -Infinity &&
-            maxY > -Infinity
+            minX >= Infinity ||
+            (minX === 0 && minY === 0 && maxX === 0 && maxY === 0)
         ) {
-            return new M.LngLatBounds([minX, minY, maxX, maxY]);
-        } else {
-            return new M.LngLatBounds([0, 0, 0, 0]);
+            return undefined;
         }
+
+        return lngLatBoundsFromCorners(minX, minY, maxX, maxY);
     }
 
     export function fitToBounds(bounds?: M.LngLatBoundsLike) {
-        const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
-        const boundsToFit =
-            bounds ??
-            (activeId && gpxDataMap[activeId]
-                ? (gpxDataMap[activeId].bbox as M.LngLatBoundsLike)
-                : getBounds());
+        const activeTrailRecord =
+            activeTrail !== null ? trails[activeTrail] : undefined;
+        let boundsToFit = bounds;
+
+        if (!boundsToFit && activeTrailRecord) {
+            const west = activeTrailRecord.min_lon ?? activeTrailRecord.lon;
+            const east = activeTrailRecord.max_lon ?? activeTrailRecord.lon;
+            const south = activeTrailRecord.min_lat ?? activeTrailRecord.lat;
+            const north = activeTrailRecord.max_lat ?? activeTrailRecord.lat;
+            if (
+                west !== undefined &&
+                east !== undefined &&
+                south !== undefined &&
+                north !== undefined
+            ) {
+                boundsToFit = lngLatBoundsFromCorners(west, south, east, north);
+            } else if (activeTrailRecord.id && gpxDataMap[activeTrailRecord.id]?.bbox) {
+                const box = gpxDataMap[activeTrailRecord.id].bbox!;
+                boundsToFit = lngLatBoundsFromCorners(box[0], box[1], box[2], box[3]);
+            }
+        }
+
+        boundsToFit ??= getBounds();
 
         if (!boundsToFit || !map) {
             return;
@@ -414,16 +577,24 @@
 
         map!.fitBounds(boundsToFit, {
             animate: fitBounds == "animate",
-            padding: {
-                top: 16,
-                left: 16,
-                right: 16,
-                bottom:
-                    16 +
-                    (epc?.isProfileShown && !elevationProfileContainer
-                        ? map!.getContainer().clientHeight * 0.3
-                        : 0),
-            },
+            padding: clusterTrails
+                ? {
+                      top: 64,
+                      left: 64,
+                      right: 64,
+                      bottom: 64,
+                  }
+                : {
+                      top: 16,
+                      left: 16,
+                      right: 16,
+                      bottom:
+                          16 +
+                          (epc?.isProfileShown && !elevationProfileContainer
+                              ? map!.getContainer().clientHeight * 0.3
+                              : 0),
+                  },
+            maxZoom: clusterTrails ? 12 : 18,
         });
     }
 
@@ -484,11 +655,26 @@
                 "unclustered-point": {
                     onEnter: (e) => {
                         if (map) map.getCanvas().style.cursor = "pointer";
-                        const id = (e as any).features[0].properties.id;
+                        const properties = (e as any).features?.[0]?.properties;
+                        const id = properties?.id ?? properties?.trail;
                         const trail = trails.find((t) => t.id === id);
-                        if (!hasTrailDetails(trail)) return;
+                        if (!hasTrailDetails(trail) || onUnclusteredClick) return;
                         highlightCluster(trail, e.lngLat);
                     },
+                    ...(onUnclusteredClick
+                        ? {
+                              onMouseUp: (e: M.MapMouseEvent) => {
+                                  const properties = (e as any).features?.[0]
+                                      ?.properties;
+                                  const id =
+                                      properties?.id ?? properties?.trail;
+                                  const trail = trails.find((t) => t.id === id);
+                                  if (trail) {
+                                      onUnclusteredClick(e, trail);
+                                  }
+                              },
+                          }
+                        : {}),
                 },
             }),
         );
@@ -501,7 +687,9 @@
         layerManager.addLayer(
             "preview",
             new PreviewLayer(map, geojson, {
-                showStartMarker: page.data.settings?.behavior?.showTrailStartMarker ?? false,
+                showStartMarker: onUnclusteredClick
+                    ? false
+                    : (page.data.settings?.behavior?.showTrailStartMarker ?? false),
                 listeners: {
                     preview: {
                         onEnter: (e) => {
@@ -511,9 +699,24 @@
                                     t.id ===
                                     (e as any).features[0].properties.trail,
                             );
-                            if (!hasTrailDetails(trail)) return;
+                            if (!hasTrailDetails(trail) || onUnclusteredClick)
+                                return;
                             highlightCluster(trail, e.lngLat);
                         },
+                        ...(onUnclusteredClick
+                            ? {
+                                  onMouseUp: (e: M.MapMouseEvent) => {
+                                      const trailId = (e as any).features?.[0]
+                                          ?.properties?.trail;
+                                      const trail = trails.find(
+                                          (t) => t.id === trailId,
+                                      );
+                                      if (trail) {
+                                          onUnclusteredClick(e, trail);
+                                      }
+                                  },
+                              }
+                            : {}),
                     },
                 },
             }),
