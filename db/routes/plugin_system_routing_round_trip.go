@@ -178,13 +178,10 @@ func callRoutingRoundTripPlugin(ctx context.Context, plugin pluginsystem.LocalPl
 }
 
 func callPreparedRoutingRoundTripPlugin(ctx context.Context, runtime routingEngineRuntime, request pluginRoutingRoundTripRequest) (pluginRoutingRouteOutput, error) {
-	output, err := routingRoundTripPluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
-	if request.Profile.PreparedKey == "" || !routingPreparedProfileRetryable(output, err) {
-		return output, err
-	}
-	refresh := refreshPreparedRoutingProfile(ctx, runtime, request.Profile.PreparedKey, runtime.Request)
-	request.Profile.PreparedKey = refresh.key
-	return routingRoundTripPluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
+	return callPreparedRoutingPlugin(ctx, runtime, request.Profile.PreparedKey, runtime.Request, func(ctx context.Context, preparedKey string) (pluginRoutingRouteOutput, error) {
+		request.Profile.PreparedKey = preparedKey
+		return routingRoundTripPluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
+	})
 }
 
 func materializeRoutingRoundTripCandidate(candidate pluginRoutingCandidate, request pluginRoutingRoundTripRequest, resolved pluginRoutingRouteRequest, client pluginRoutingRouteRequest, plugin pluginsystem.LocalPlugin, instance *core.Record, requestID string, index int) (pluginRoutingCandidate, error) {

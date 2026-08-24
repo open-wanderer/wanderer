@@ -23,37 +23,10 @@ var valhallaJSONTypes = []string{"application/json"}
 
 func handleRoute(input routingRouteInput) (routeOutput, error) {
 	req := input.Request
-	if len(req.Anchors) < 2 {
-		return routeOutput{}, fmt.Errorf("at least two anchors are required")
+	valhallaReq, costing, candidateCount, err := valhallacore.BuildRouteRequest(req)
+	if err != nil {
+		return routeOutput{}, err
 	}
-	costing := req.Profile.Key
-	if costing == "" {
-		costing = costingForMode(req.Mode)
-	}
-	if costing == "" {
-		return routeOutput{}, fmt.Errorf("routing profile key is required")
-	}
-	nativeConfig := valhallaCostingOptions(costing, req.Preferences)
-	mergeValhallaNativeCostingOptions(nativeConfig, costing, req.Profile.NativeConfig)
-	costingOptions := map[string]any{costing: nativeConfig}
-
-	valhallaReq := valhallaRouteRequest{
-		DirectionsType: "none",
-		Locations:      req.Anchors,
-		Costing:        costing,
-	}
-	candidateCount := req.Options.Alternatives
-	if candidateCount < 1 {
-		candidateCount = 1
-	}
-	if candidateCount > valhallaMaxCandidates {
-		candidateCount = valhallaMaxCandidates
-	}
-	// Valhalla does not provide alternatives for multipoint routes.
-	if len(req.Anchors) == 2 {
-		valhallaReq.Alternates = candidateCount - 1
-	}
-	valhallaReq.CostingOptions = costingOptions
 	var valhallaResp valhallaRouteResponse
 	if err := postJSON("/route", valhallaReq, &valhallaResp); err != nil {
 		return routeOutput{}, err
@@ -75,24 +48,6 @@ func handleRoute(input routingRouteInput) (routeOutput, error) {
 		candidates = append(candidates, candidate)
 	}
 	return routeOutput{Candidates: candidates}, nil
-}
-
-func mergeValhallaNativeCostingOptions(options map[string]any, costing string, nativeConfig map[string]any) {
-	for key, value := range nativeConfig {
-		if key == costing {
-			if nested, ok := value.(map[string]any); ok {
-				for nestedKey, nestedValue := range nested {
-					options[nestedKey] = nestedValue
-				}
-			}
-			continue
-		}
-		// Flat values are retained for declared profile-wide Valhalla options
-		// such as bicycle_type. Other costing namespaces are never forwarded.
-		if _, nested := value.(map[string]any); !nested {
-			options[key] = value
-		}
-	}
 }
 
 func candidateFromValhallaTrip(req routeRequest, costing string, id string, trip valhallaTrip) (routeCandidate, error) {
@@ -205,56 +160,6 @@ func postJSON(path string, body any, out any) error {
 		return fmt.Errorf("valhalla request failed (%d): %s", response.Status, string(responseBody))
 	}
 	return json.Unmarshal(responseBody, out)
-}
-
-func costingForMode(mode string) string {
-	switch mode {
-	case "foot":
-		return "pedestrian"
-	case "bike":
-		return "bicycle"
-	case "motor":
-		return "auto"
-	default:
-		return ""
-	}
-}
-
-func valhallaCostingOptions(costing string, preferences map[string]any) map[string]any {
-	options := map[string]any{}
-	switch costing {
-	case "pedestrian":
-		setNumberOption(options, "walking_speed", preferences, "speedPreference")
-		setNumberOption(options, "use_hills", preferences, "hillPreference")
-		setNumberOption(options, "max_hiking_difficulty", preferences, "maxHikingDifficulty")
-	case "bicycle":
-		setNumberOption(options, "cycling_speed", preferences, "speedPreference")
-		setNumberOption(options, "use_hills", preferences, "hillPreference")
-		setNumberOption(options, "use_roads", preferences, "roadPreference")
-		setNumberOption(options, "avoid_bad_surfaces", preferences, "avoidBadSurfaces")
-	case "auto":
-		setNumberOption(options, "top_speed", preferences, "speedPreference")
-		setNumberOption(options, "width", preferences, "vehicleWidth")
-		setNumberOption(options, "height", preferences, "vehicleHeight")
-	}
-	return options
-}
-
-func setNumberOption(options map[string]any, optionKey string, preferences map[string]any, preferenceKey string) {
-	value, ok := preferences[preferenceKey]
-	if !ok {
-		return
-	}
-	switch typed := value.(type) {
-	case float64:
-		options[optionKey] = typed
-	case float32:
-		options[optionKey] = typed
-	case int:
-		options[optionKey] = typed
-	case int64:
-		options[optionKey] = typed
-	}
 }
 
 func summaryFromValhalla(s valhallaSummary) summary {

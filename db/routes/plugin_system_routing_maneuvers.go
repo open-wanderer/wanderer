@@ -42,6 +42,10 @@ type pluginRoutingManeuverHTTPInput struct {
 	Share    string `json:"share,omitempty"`
 }
 
+// The plugin-boundary maneuver DTOs mirror plugins/sdk/types.go because the
+// backend and plugin SDK are separate Go modules and Docker build contexts.
+// Each module tests its own copy of the v1 wire-contract fixture so it remains
+// independently buildable; a full repository checkout also verifies parity.
 type pluginRoutingManeuverPoint struct {
 	Lat float64 `json:"lat"`
 	Lon float64 `json:"lon"`
@@ -451,28 +455,10 @@ func callRoutingManeuverPlugin(ctx context.Context, plugin pluginsystem.LocalPlu
 }
 
 func callPreparedRoutingManeuverPlugin(ctx context.Context, runtime routingEngineRuntime, request pluginRoutingManeuverRequest) (pluginRoutingManeuverOutput, error) {
-	output, err := routingManeuverPluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
-	if request.Profile.PreparedKey == "" || !routingManeuverPreparedProfileRetryable(output, err) {
-		return output, err
-	}
-	refresh := refreshPreparedRoutingProfile(ctx, runtime, request.Profile.PreparedKey, runtime.Request)
-	request.Profile.PreparedKey = refresh.key
-	return routingManeuverPluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
-}
-
-func routingManeuverPreparedProfileRetryable(output pluginRoutingManeuverOutput, err error) bool {
-	if output.Error != nil {
-		return output.Error.Code == "unsupported_profile"
-	}
-	if err == nil {
-		return false
-	}
-	var callErr pluginsystem.PluginCallError
-	if errors.As(err, &callErr) {
-		return callErr.PluginError.Code == "unsupported_profile"
-	}
-	var routingErr *routingError
-	return errors.As(err, &routingErr) && routingErr.Code == "unsupported_profile"
+	return callPreparedRoutingPlugin(ctx, runtime, request.Profile.PreparedKey, runtime.Request, func(ctx context.Context, preparedKey string) (pluginRoutingManeuverOutput, error) {
+		request.Profile.PreparedKey = preparedKey
+		return routingManeuverPluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
+	})
 }
 
 var maneuverTypes = map[string]struct{}{

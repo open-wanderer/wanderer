@@ -2,6 +2,21 @@ package core
 
 import "testing"
 
+func TestProfileNumericValueKeepsPreferenceNumbersStrict(t *testing.T) {
+	if value, ok := ProfileNumericValue("12.5"); !ok || value != 12.5 {
+		t.Fatalf("profile numeric string = %v, %v", value, ok)
+	}
+	if _, ok := ProfileNumericValue("not-a-number"); ok {
+		t.Fatal("invalid profile numeric string was accepted")
+	}
+	if value, ok := ProfileNumericValue(12.5); !ok || value != 12.5 {
+		t.Fatalf("profile JSON number = %v, %v", value, ok)
+	}
+	if _, ok := NumericValue("12.5"); ok {
+		t.Fatal("standard preference numeric conversion accepted a string")
+	}
+}
+
 func TestDetectProfileMode(t *testing.T) {
 	tests := []struct {
 		name    string

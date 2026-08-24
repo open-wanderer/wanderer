@@ -851,8 +851,8 @@ func validateRoutingElevationRequest(request pluginRoutingElevationRequest) erro
 	return nil
 }
 
-// Routing contracts are defined in openspec/design/routing-plugin.md and
-// hardened by openspec/changes/routing-phase-2-host-contracts.
+// The routing contract and its normalization invariants are documented in
+// docs/design/routing-plugins.md. Plugin output remains untrusted here.
 func normalizeRoutingRouteOutput(request pluginRoutingRouteRequest, output pluginRoutingRouteOutput, plugin pluginsystem.LocalPlugin, instance *core.Record) (pluginRoutingRouteOutput, error) {
 	normalized := pluginRoutingRouteOutput{
 		Candidates:   make([]pluginRoutingCandidate, 0, len(output.Candidates)),

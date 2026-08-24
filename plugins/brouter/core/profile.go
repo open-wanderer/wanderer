@@ -26,6 +26,17 @@ var profileModeAssignments = []profileModeAssignment{
 	},
 }
 
+// ProfileNumericValue accepts both JSON numbers and numeric strings read from
+// BRouter profile annotations. Standard routing preferences intentionally use
+// NumericValue instead, so string values cannot bypass their type validation.
+func ProfileNumericValue(value any) (float64, bool) {
+	if value, ok := value.(string); ok {
+		parsed, err := strconv.ParseFloat(value, 64)
+		return parsed, err == nil
+	}
+	return NumericValue(value)
+}
+
 // DetectProfileMode returns a mode only when the BRouter profile enables
 // exactly one of its standard validFor flags.
 func DetectProfileMode(content string) string {
@@ -166,7 +177,7 @@ func SupportedStandardPreferences(parameters map[string]string, mode string) []s
 		low, high := standardPreferenceProbeValues(preference)
 		lowConfig := NativeConfigWithPreferences(templateKey, nil, map[string]any{preference: low}, mode)
 		highConfig := NativeConfigWithPreferences(templateKey, nil, map[string]any{preference: high}, mode)
-		if exposedParameterChanges(parameters, mapValue(lowConfig["parameters"]), mapValue(highConfig["parameters"])) {
+		if exposedParameterChanges(parameters, MapValue(lowConfig["parameters"]), MapValue(highConfig["parameters"])) {
 			supported = append(supported, preference)
 		}
 	}

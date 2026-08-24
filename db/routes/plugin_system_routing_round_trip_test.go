@@ -6,11 +6,74 @@ import (
 	"math"
 	"net/http"
 	"testing"
+	"time"
 
 	"pocketbase/pluginsystem"
 
 	"github.com/pocketbase/pocketbase/core"
 )
+
+func TestPreparedRoundTripCallRefreshesRejectedProfile(t *testing.T) {
+	previousCache := routingPreparedProfiles
+	previousPrepareCaller := routingProfilePreparePluginCaller
+	previousRoundTripCaller := routingRoundTripPluginCaller
+	routingPreparedProfiles = newRoutingPreparedProfileCache(time.Minute, 8)
+	t.Cleanup(func() {
+		routingPreparedProfiles = previousCache
+		routingProfilePreparePluginCaller = previousPrepareCaller
+		routingRoundTripPluginCaller = previousRoundTripCaller
+	})
+
+	runtime := routingEngineRuntime{
+		Plugin: pluginsystem.LocalPlugin{Manifest: pluginsystem.Manifest{
+			ID: "round-trip-test", Version: "1",
+			Capabilities: []pluginsystem.CapabilityManifest{{Name: "profile_prepare", Version: "v1", Export: "profile_prepare_v1"}},
+		}},
+		Capability: pluginsystem.CapabilityManifest{Name: "round_trip", Version: "v1", Export: "round_trip_v1"},
+		Request: pluginRoutingRouteRequest{
+			Mode: "foot", Profile: pluginRoutingProfile{Key: "pedestrian", PreparedKey: "stale-profile"},
+		},
+	}
+	fingerprint, err := routingPreparedProfileFingerprint(runtime)
+	if err != nil {
+		t.Fatalf("prepared profile fingerprint: %v", err)
+	}
+	runtime.PreparedProfileFingerprint = fingerprint
+	routingPreparedProfiles.entries[fingerprint] = routingPreparedProfileEntry{
+		PreparedKey: "stale-profile", ExpiresAt: time.Now().Add(time.Minute),
+	}
+
+	type observedPreparation struct {
+		capability string
+		request    pluginRoutingProfilePrepareRequest
+	}
+	prepareCalls := make(chan observedPreparation, 2)
+	routingProfilePreparePluginCaller = func(_ context.Context, _ pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, _ *core.Record, _ map[string]any, _ map[string]any, request pluginRoutingProfilePrepareRequest) (pluginRoutingProfilePrepareOutput, error) {
+		prepareCalls <- observedPreparation{capability: capability.Name, request: request}
+		return pluginRoutingProfilePrepareOutput{PreparedKey: "fresh-profile"}, nil
+	}
+	calledKeys := []string{}
+	routingRoundTripPluginCaller = func(_ context.Context, _ pluginsystem.LocalPlugin, _ pluginsystem.CapabilityManifest, _ *core.Record, _ map[string]any, _ map[string]any, request pluginRoutingRoundTripRequest) (pluginRoutingRouteOutput, error) {
+		calledKeys = append(calledKeys, request.Profile.PreparedKey)
+		if request.Profile.PreparedKey == "stale-profile" {
+			return pluginRoutingRouteOutput{Error: &pluginsystem.PluginError{Code: "unsupported_profile", Message: "expired"}}, nil
+		}
+		return pluginRoutingRouteOutput{}, nil
+	}
+
+	request := pluginRoutingRoundTripRequest{Profile: runtime.Request.Profile}
+	output, err := callPreparedRoutingRoundTripPlugin(context.Background(), runtime, request)
+	if err != nil || output.Error != nil {
+		t.Fatalf("round-trip call after refresh = %#v, %v", output, err)
+	}
+	if len(prepareCalls) != 1 || len(calledKeys) != 2 || calledKeys[0] != "stale-profile" || calledKeys[1] != "fresh-profile" {
+		t.Fatalf("round-trip refresh used preparations=%d keys=%v", len(prepareCalls), calledKeys)
+	}
+	preparation := <-prepareCalls
+	if preparation.capability != "profile_prepare" || preparation.request.Profile.PreparedKey != "" {
+		t.Fatalf("profile refresh request = %s %#v", preparation.capability, preparation.request)
+	}
+}
 
 func TestRoundTripRequestBounds(t *testing.T) {
 	valid := pluginRoutingRoundTripRequest{

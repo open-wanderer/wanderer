@@ -1,0 +1,141 @@
+{
+  "request": {
+    "trackParts": [
+      {
+        "points": [
+          { "lat": 47.1, "lon": 8.2 },
+          { "lat": 47.2, "lon": 8.3 }
+        ]
+      }
+    ],
+    "mode": "foot",
+    "category": "Hiking",
+    "subcategory": "Alpine",
+    "profile": {
+      "id": "profile-id",
+      "pluginId": "valhalla",
+      "key": "pedestrian",
+      "kind": "builtin",
+      "mode": "foot",
+      "contentBase64": "cHJvZmlsZQ==",
+      "contentType": "text/plain",
+      "metadata": { "revision": "one" },
+      "nativeConfig": { "pedestrian": { "shortest": true } },
+      "preparedKey": "prepared-profile"
+    },
+    "preferences": { "hillPreference": 0.75 },
+    "requiredPreferences": ["hillPreference"],
+    "language": "de",
+    "limits": {
+      "maxGeometryPoints": 20000,
+      "maxManeuvers": 1000,
+      "maxProviderInstructionCharacters": 500,
+      "maxStreetNames": 4,
+      "maxStreetNameCharacters": 120,
+      "maxResponseBytes": 4194304
+    }
+  },
+  "result": {
+    "geometry": {
+      "format": "encoded_polyline",
+      "precision": 6,
+      "coordinates": "encoded"
+    },
+    "maneuvers": [
+      {
+        "type": "roundabout_exit",
+        "providerInstruction": "Take the second exit",
+        "distanceMeters": 123.5,
+        "durationSeconds": 45.5,
+        "beginShapeIndex": 1,
+        "endShapeIndex": 2,
+        "bearingBefore": 90.5,
+        "bearingAfter": 180.5,
+        "roundaboutExit": 2,
+        "streetNames": ["Example Street"],
+        "warnings": ["maneuver_type_unknown"]
+      }
+    ],
+    "warnings": ["input_simplified"]
+  },
+  "sparseRequest": {
+    "trackParts": [],
+    "profile": {
+      "key": ""
+    },
+    "limits": {
+      "maxGeometryPoints": 0,
+      "maxManeuvers": 0,
+      "maxProviderInstructionCharacters": 0,
+      "maxStreetNames": 0,
+      "maxStreetNameCharacters": 0,
+      "maxResponseBytes": 0
+    }
+  },
+  "sparseResult": {
+    "geometry": {
+      "format": "",
+      "precision": 0,
+      "coordinates": ""
+    },
+    "maneuvers": [
+      {
+        "type": "unknown",
+        "distanceMeters": 0,
+        "beginShapeIndex": 0,
+        "endShapeIndex": 0
+      }
+    ]
+  },
+  "pluginError": ["code", "message,omitempty", "retryAfterSeconds,omitempty"],
+  "fields": {
+    "point": ["lat", "lon"],
+    "trackPart": ["points"],
+    "profile": [
+      "id,omitempty",
+      "pluginId,omitempty",
+      "key",
+      "kind,omitempty",
+      "mode,omitempty",
+      "contentBase64,omitempty",
+      "contentType,omitempty",
+      "metadata,omitempty",
+      "nativeConfig,omitempty",
+      "preparedKey,omitempty"
+    ],
+    "limits": [
+      "maxGeometryPoints",
+      "maxManeuvers",
+      "maxProviderInstructionCharacters",
+      "maxStreetNames",
+      "maxStreetNameCharacters",
+      "maxResponseBytes"
+    ],
+    "request": [
+      "trackParts",
+      "mode,omitempty",
+      "category,omitempty",
+      "subcategory,omitempty",
+      "profile",
+      "preferences,omitempty",
+      "requiredPreferences,omitempty",
+      "language,omitempty",
+      "limits"
+    ],
+    "geometry": ["format", "precision", "coordinates"],
+    "maneuver": [
+      "type",
+      "providerInstruction,omitempty",
+      "distanceMeters",
+      "durationSeconds,omitempty",
+      "beginShapeIndex",
+      "endShapeIndex",
+      "bearingBefore,omitempty",
+      "bearingAfter,omitempty",
+      "roundaboutExit,omitempty",
+      "streetNames,omitempty",
+      "warnings,omitempty"
+    ],
+    "result": ["geometry", "maneuvers,omitempty", "warnings,omitempty", "error,omitempty"]
+  }
+}

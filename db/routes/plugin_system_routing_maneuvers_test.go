@@ -14,6 +14,68 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+func TestPreparedManeuverCallRefreshesRejectedProfile(t *testing.T) {
+	previousCache := routingPreparedProfiles
+	previousPrepareCaller := routingProfilePreparePluginCaller
+	previousManeuverCaller := routingManeuverPluginCaller
+	routingPreparedProfiles = newRoutingPreparedProfileCache(time.Minute, 8)
+	t.Cleanup(func() {
+		routingPreparedProfiles = previousCache
+		routingProfilePreparePluginCaller = previousPrepareCaller
+		routingManeuverPluginCaller = previousManeuverCaller
+	})
+
+	runtime := routingEngineRuntime{
+		Plugin: pluginsystem.LocalPlugin{Manifest: pluginsystem.Manifest{
+			ID: "maneuver-test", Version: "1",
+			Capabilities: []pluginsystem.CapabilityManifest{{Name: "profile_prepare", Version: "v1", Export: "profile_prepare_v1"}},
+		}},
+		Capability: pluginsystem.CapabilityManifest{Name: "maneuvers", Version: "v1", Export: "maneuvers_v1"},
+		Request: pluginRoutingRouteRequest{
+			Mode: "foot", Profile: pluginRoutingProfile{Key: "pedestrian", PreparedKey: "stale-profile"},
+		},
+	}
+	fingerprint, err := routingPreparedProfileFingerprint(runtime)
+	if err != nil {
+		t.Fatalf("prepared profile fingerprint: %v", err)
+	}
+	runtime.PreparedProfileFingerprint = fingerprint
+	routingPreparedProfiles.entries[fingerprint] = routingPreparedProfileEntry{
+		PreparedKey: "stale-profile", ExpiresAt: time.Now().Add(time.Minute),
+	}
+
+	type observedPreparation struct {
+		capability string
+		request    pluginRoutingProfilePrepareRequest
+	}
+	prepareCalls := make(chan observedPreparation, 2)
+	routingProfilePreparePluginCaller = func(_ context.Context, _ pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, _ *core.Record, _ map[string]any, _ map[string]any, request pluginRoutingProfilePrepareRequest) (pluginRoutingProfilePrepareOutput, error) {
+		prepareCalls <- observedPreparation{capability: capability.Name, request: request}
+		return pluginRoutingProfilePrepareOutput{PreparedKey: "fresh-profile"}, nil
+	}
+	calledKeys := []string{}
+	routingManeuverPluginCaller = func(_ context.Context, _ pluginsystem.LocalPlugin, _ pluginsystem.CapabilityManifest, _ *core.Record, _ map[string]any, _ map[string]any, request pluginRoutingManeuverRequest) (pluginRoutingManeuverOutput, error) {
+		calledKeys = append(calledKeys, request.Profile.PreparedKey)
+		if request.Profile.PreparedKey == "stale-profile" {
+			return pluginRoutingManeuverOutput{Error: &pluginsystem.PluginError{Code: "unsupported_profile", Message: "expired"}}, nil
+		}
+		return pluginRoutingManeuverOutput{}, nil
+	}
+
+	request := pluginRoutingManeuverRequest{Profile: runtime.Request.Profile}
+	output, err := callPreparedRoutingManeuverPlugin(context.Background(), runtime, request)
+	if err != nil || output.Error != nil {
+		t.Fatalf("maneuver call after refresh = %#v, %v", output, err)
+	}
+	if len(prepareCalls) != 1 || len(calledKeys) != 2 || calledKeys[0] != "stale-profile" || calledKeys[1] != "fresh-profile" {
+		t.Fatalf("maneuver refresh used preparations=%d keys=%v", len(prepareCalls), calledKeys)
+	}
+	preparation := <-prepareCalls
+	if preparation.capability != "profile_prepare" || preparation.request.Profile.PreparedKey != "" {
+		t.Fatalf("profile refresh request = %s %#v", preparation.capability, preparation.request)
+	}
+}
+
 func TestRoutingManeuverHandlerUsesIndependentNavigationFeatureAndPluginContract(t *testing.T) {
 	app, auth := newRoutingHandlerTestApp(t, map[string]bool{"navigation-a": true}, "segment")
 	installed, err := app.FindFirstRecordByData("installed_plugins", "plugin_id", "navigation-a")

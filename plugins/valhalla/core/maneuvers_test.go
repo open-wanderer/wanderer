@@ -2,26 +2,12 @@ package core
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/open-wanderer/wanderer/plugins/sdk"
 	"github.com/open-wanderer/wanderer/plugins/sdk/polyline"
 )
-
-func TestMergeNativeCostingOptionsUsesSelectedNamespace(t *testing.T) {
-	options := map[string]any{"use_hills": 0.5}
-	mergeNativeCostingOptions(options, "bicycle", map[string]any{
-		"bicycle":      map[string]any{"shortest": true},
-		"pedestrian":   map[string]any{"shortest": false},
-		"bicycle_type": "Road",
-	})
-	if options["shortest"] != true || options["bicycle_type"] != "Road" {
-		t.Fatalf("selected native options missing: %#v", options)
-	}
-	if _, found := options["pedestrian"]; found {
-		t.Fatalf("unselected costing namespace leaked: %#v", options)
-	}
-}
 
 func TestGenerateManeuversBatchesByPointLimitAndStitchesIntervals(t *testing.T) {
 	request := testManeuverRequest(8)
@@ -46,6 +32,44 @@ func TestGenerateManeuversBatchesByPointLimitAndStitchesIntervals(t *testing.T) 
 			t.Fatalf("artificial boundary maneuver at %d: %#v", index+1, maneuver)
 		}
 	}
+}
+
+func TestGenerateManeuversUsesSharedCostingOptions(t *testing.T) {
+	request := testManeuverRequest(3)
+	request.Mode = "bike"
+	request.Profile = sdk.ManeuverProfile{
+		Key: " ",
+		NativeConfig: map[string]any{
+			"bicycle":      map[string]any{"use_hills": 0.8},
+			"pedestrian":   map[string]any{"use_hills": 0.1},
+			"bicycle_type": "Road",
+		},
+	}
+	request.Preferences = map[string]any{
+		"speedPreference": 22.0,
+		"hillPreference":  0.2,
+	}
+	wantOptions := map[string]any{
+		"cycling_speed": 22.0,
+		"use_hills":     0.8,
+		"bicycle_type":  "Road",
+	}
+	result, err := GenerateManeuvers(request, ManeuverOptions{}, func(traceRequest TraceRequest) (TraceResponse, error) {
+		if traceRequest.Costing != "bicycle" {
+			t.Fatalf("trace costing = %q, want bicycle", traceRequest.Costing)
+		}
+		if len(traceRequest.CostingOptions) != 1 {
+			t.Fatalf("trace costing namespaces = %#v", traceRequest.CostingOptions)
+		}
+		if got := traceRequest.CostingOptions["bicycle"]; !reflect.DeepEqual(got, wantOptions) {
+			t.Fatalf("trace costing options = %#v, want %#v", got, wantOptions)
+		}
+		return traceResponseFor(traceRequest.Shape, 8), nil
+	})
+	if err != nil {
+		t.Fatalf("generate maneuvers: %v", err)
+	}
+	assertCompleteManeuverIntervals(t, result)
 }
 
 func TestGenerateManeuversStitchesPastDiscardedStartInterval(t *testing.T) {

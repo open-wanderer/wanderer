@@ -21,8 +21,9 @@ const (
 var brouterProfilePresets embed.FS
 
 type codedError struct {
-	code    string
-	message string
+	code              string
+	message           string
+	retryAfterSeconds *int
 }
 
 func (e codedError) Error() string {
@@ -158,11 +159,11 @@ func brouterTemplateValuesEqual(left any, right any) bool {
 		if rightBool, ok := right.(bool); ok {
 			return leftBool == rightBool
 		}
-		rightNumber, ok := numericValue(right)
+		rightNumber, ok := core.ProfileNumericValue(right)
 		return ok && leftBool == (rightNumber != 0)
 	}
-	leftNumber, leftOK := numericValue(left)
-	rightNumber, rightOK := numericValue(right)
+	leftNumber, leftOK := core.ProfileNumericValue(left)
+	rightNumber, rightOK := core.ProfileNumericValue(right)
 	if leftOK && rightOK {
 		return leftNumber == rightNumber
 	}
@@ -178,7 +179,7 @@ func renderBRouterGeneratedProfile(metadata map[string]any, nativeConfig map[str
 	if !ok {
 		return "", codedError{code: errUnsupportedProfile, message: "unknown BRouter profile template"}
 	}
-	values := mapValue(nativeConfig["parameters"])
+	values := core.MapValue(nativeConfig["parameters"])
 	contentBytes, err := brouterProfilePresets.ReadFile("profiles/" + template.Base)
 	if err != nil {
 		return "", err
@@ -205,7 +206,7 @@ func renderBRouterGeneratedProfile(metadata map[string]any, nativeConfig map[str
 }
 
 func renderBRouterCustomProfile(content string, nativeConfig map[string]any) (string, error) {
-	values := mapValue(nativeConfig["parameters"])
+	values := core.MapValue(nativeConfig["parameters"])
 	for _, parameter := range parseBRouterProfileParameters(content) {
 		value, ok := values[parameter.Key]
 		if !ok {
@@ -230,12 +231,12 @@ func renderBRouterProfileParameterValue(parameter brouterProfileParameter, raw a
 		}
 		// A knob one base exposes as a scale is a flag in another, so a scale
 		// value crossing the midpoint counts as enabling the flag.
-		if value, ok := numericValue(raw); ok {
+		if value, ok := core.ProfileNumericValue(raw); ok {
 			return formatBRouterValue(value >= 0.5), nil
 		}
 		return "", codedError{code: "invalid_request", message: "BRouter profile parameter must be boolean"}
 	}
-	value, ok := numericValue(raw)
+	value, ok := core.ProfileNumericValue(raw)
 	if !ok {
 		// A base may expose a knob as a number that another exposes as a flag.
 		if flag, isBool := raw.(bool); isBool {
@@ -268,7 +269,7 @@ func renderBRouterTemplateParameterValue(templateKey string, parameter brouterTe
 		}
 		return formatBRouterValue(value), nil
 	}
-	value, ok := numericValue(raw)
+	value, ok := core.ProfileNumericValue(raw)
 	if !ok {
 		return "", codedError{code: "invalid_request", message: "BRouter template parameter must be numeric"}
 	}
@@ -433,20 +434,6 @@ func parseFloat(value string) float64 {
 	return parsed
 }
 
-func mapValue(value any) map[string]any {
-	if value, ok := value.(map[string]any); ok && value != nil {
-		return value
-	}
-	if value, ok := value.(map[string]interface{}); ok && value != nil {
-		result := map[string]any{}
-		for key, item := range value {
-			result[key] = item
-		}
-		return result
-	}
-	return map[string]any{}
-}
-
 func stringValue(value any) string {
 	if value, ok := value.(string); ok {
 		return value
@@ -459,22 +446,4 @@ func fallbackString(value string, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func numericValue(value any) (float64, bool) {
-	switch value := value.(type) {
-	case int:
-		return float64(value), true
-	case int64:
-		return float64(value), true
-	case float64:
-		return value, true
-	case float32:
-		return float64(value), true
-	case string:
-		parsed, err := strconv.ParseFloat(value, 64)
-		return parsed, err == nil
-	default:
-		return 0, false
-	}
 }

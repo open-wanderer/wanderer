@@ -15,20 +15,11 @@ import (
 )
 
 const (
-	brouterConnector       = "api"
-	brouterJSONBytes       = 4 * 1024 * 1024
-	errProviderUnavailable = "provider_unavailable"
-	errNoRoute             = "no_route"
+	brouterConnector = "api"
+	brouterJSONBytes = 4 * 1024 * 1024
 )
 
 var brouterJSONTypes = []string{"application/json", "application/geo+json", "application/vnd.geo+json", "text/plain"}
-
-func errorCode(err error) string {
-	if coded, ok := err.(codedError); ok {
-		return coded.code
-	}
-	return errProviderUnavailable
-}
 
 func handleRoute(input routingRouteInput) (routeOutput, error) {
 	req := input.Request
@@ -140,20 +131,8 @@ func requestBRouterRoundTrip(start anchor, profileKey string, radius float64, di
 	if direction >= 0 {
 		query = append(query, sdk.QueryParam{Name: "direction", Value: strconv.Itoa(direction)})
 	}
-	response, body, err := sdk.Get(brouterConnector, "/brouter", query, map[string]string{
-		"Accept": "application/json",
-	}, sdk.ResponseExpect{ContentTypes: brouterJSONTypes, MaxBytes: brouterJSONBytes})
-	if err != nil {
-		return brouterRoundTripFeatureCollection{}, err
-	}
-	if response.Status == 404 {
-		return brouterRoundTripFeatureCollection{}, codedError{code: errNoRoute, message: strings.TrimSpace(string(body))}
-	}
-	if response.Status < 200 || response.Status >= 300 {
-		return brouterRoundTripFeatureCollection{}, brouterProviderError(response.Status, body, errProviderUnavailable)
-	}
 	var parsed brouterRoundTripFeatureCollection
-	if err := json.Unmarshal(body, &parsed); err != nil {
+	if err := requestBRouterJSON(query, errProviderUnavailable, &parsed); err != nil {
 		return brouterRoundTripFeatureCollection{}, err
 	}
 	return parsed, nil
@@ -292,7 +271,7 @@ func uploadBRouterProfile(contentBase64 string) (string, error) {
 		return "", err
 	}
 	if response.Status < 200 || response.Status >= 300 {
-		return "", brouterProviderError(response.Status, body, errUnsupportedProfile)
+		return "", brouterProviderError(response, body, errUnsupportedProfile)
 	}
 	var parsed brouterProfileUploadResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
@@ -311,7 +290,7 @@ func brouterControlsFromProfileMetadata(parameters []brouterProfileParameter, na
 	if len(parameters) == 0 {
 		return nil
 	}
-	values := mapValue(nativeConfig["parameters"])
+	values := core.MapValue(nativeConfig["parameters"])
 	controls := make([]nativeControl, 0, len(parameters))
 	for _, parameter := range parameters {
 		current := values[parameter.Key]
@@ -361,28 +340,27 @@ func requestBRouterRoute(req routeRequest, profileKey string, alternativeIndex i
 		{Name: "alternativeidx", Value: strconv.Itoa(alternativeIndex)},
 		{Name: "format", Value: "geojson"},
 	}
-	response, body, err := sdk.Get(brouterConnector, "/brouter", query, map[string]string{
-		"Accept": "application/json",
-	}, sdk.ResponseExpect{ContentTypes: brouterJSONTypes, MaxBytes: brouterJSONBytes})
-	if err != nil {
-		return brouterFeatureCollection{}, err
-	}
-	if response.Status == 404 {
-		return brouterFeatureCollection{}, codedError{code: errNoRoute, message: strings.TrimSpace(string(body))}
-	}
-	if response.Status < 200 || response.Status >= 300 {
-		return brouterFeatureCollection{}, brouterProviderError(response.Status, body, profileErrorCode)
-	}
 	var parsed brouterFeatureCollection
-	if err := json.Unmarshal(body, &parsed); err != nil {
+	if err := requestBRouterJSON(query, profileErrorCode, &parsed); err != nil {
 		return brouterFeatureCollection{}, err
 	}
 	return parsed, nil
 }
 
-func brouterProviderError(status int, body []byte, clientCode string) error {
-	code := brouterProviderErrorCode(status, body, clientCode)
-	return codedError{code: code, message: fmt.Sprintf("BRouter request failed (%d): %s", status, brouterProviderMessage(body))}
+func requestBRouterJSON(query []sdk.QueryParam, profileErrorCode string, output any) error {
+	response, body, err := sdk.Get(brouterConnector, "/brouter", query, map[string]string{
+		"Accept": "application/json",
+	}, sdk.ResponseExpect{ContentTypes: brouterJSONTypes, MaxBytes: brouterJSONBytes})
+	if err != nil {
+		return err
+	}
+	if response.Status == 404 {
+		return codedError{code: errNoRoute, message: strings.TrimSpace(string(body))}
+	}
+	if response.Status < 200 || response.Status >= 300 {
+		return brouterProviderError(response, body, profileErrorCode)
+	}
+	return json.Unmarshal(body, output)
 }
 
 func brouterUploadErrorMessage(errorValue any, body []byte) string {
@@ -400,39 +378,6 @@ func brouterUploadErrorMessage(errorValue any, body []byte) string {
 		}
 	}
 	return brouterProviderMessage(body)
-}
-
-func brouterProviderMessage(body []byte) string {
-	message := strings.TrimSpace(string(body))
-	if message == "" {
-		return "empty provider response"
-	}
-	var parsed map[string]any
-	if json.Unmarshal(body, &parsed) != nil {
-		return message
-	}
-	if msg := stringValue(parsed["message"]); msg != "" {
-		return msg
-	}
-	if errValue, ok := parsed["error"]; ok {
-		switch errValue := errValue.(type) {
-		case string:
-			if errValue != "" {
-				return errValue
-			}
-		case map[string]any:
-			if msg := stringValue(errValue["message"]); msg != "" {
-				return msg
-			}
-			if code := stringValue(errValue["code"]); code != "" {
-				return code
-			}
-		}
-	}
-	if code := stringValue(parsed["code"]); code != "" {
-		return code
-	}
-	return message
 }
 
 func candidateFromBRouter(req routeRequest, profileKey string, feature brouterFeature) (routeCandidate, error) {

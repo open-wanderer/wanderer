@@ -8,7 +8,45 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"pocketbase/pluginsystem"
 )
+
+func TestRoutingPreparedProfileRejected(t *testing.T) {
+	unsupportedPluginError := &pluginsystem.PluginError{Code: "unsupported_profile"}
+	invalidPluginError := &pluginsystem.PluginError{Code: "invalid_request"}
+	tests := []struct {
+		name      string
+		pluginErr *pluginsystem.PluginError
+		err       error
+		want      bool
+	}{
+		{name: "no error"},
+		{name: "plugin output", pluginErr: unsupportedPluginError, want: true},
+		{name: "other plugin output", pluginErr: invalidPluginError},
+		{
+			name:      "plugin output takes precedence over call error",
+			pluginErr: invalidPluginError,
+			err:       pluginsystem.PluginCallError{PluginError: *unsupportedPluginError},
+		},
+		{
+			name: "plugin call error",
+			err:  pluginsystem.PluginCallError{PluginError: *unsupportedPluginError},
+			want: true,
+		},
+		{name: "routing error", err: routingErrorFromCode("unsupported_profile", "expired"), want: true},
+		{name: "other routing error", err: routingErrorFromCode("invalid_request", "invalid")},
+		{name: "other error", err: context.DeadlineExceeded},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := routingPreparedProfileRejected(test.pluginErr, test.err); got != test.want {
+				t.Fatalf("routingPreparedProfileRejected() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
 
 func TestRoutingPreparedProfileCacheDeduplicatesConcurrentPreparation(t *testing.T) {
 	cache := newRoutingPreparedProfileCache(time.Minute, 8)

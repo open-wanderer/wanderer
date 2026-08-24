@@ -2,7 +2,10 @@
 
 package main
 
-import "github.com/open-wanderer/wanderer/plugins/sdk"
+import (
+	"github.com/open-wanderer/wanderer/plugins/sdk"
+	valhallacore "github.com/open-wanderer/wanderer/plugins/valhalla/core"
+)
 
 type pluginError = sdk.PluginError
 
@@ -27,38 +30,14 @@ type routingManeuverInput struct {
 	Request  sdk.ManeuverRequest `json:"request"`
 }
 
-type routeRequest struct {
-	RoutingMode         string         `json:"routingMode"`
-	Anchors             []anchor       `json:"anchors"`
-	Mode                string         `json:"mode,omitempty"`
-	Profile             routingProfile `json:"profile"`
-	Preferences         map[string]any `json:"preferences,omitempty"`
-	RequiredPreferences []string       `json:"requiredPreferences,omitempty"`
-	Options             routeOptions   `json:"options,omitempty"`
-}
+type routeRequest = valhallacore.RoutingRequest
 
 type elevationRequest struct {
 	EncodedPolyline string   `json:"encodedPolyline,omitempty"`
 	Coordinates     []anchor `json:"coordinates,omitempty"`
 }
 
-type anchor struct {
-	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
-}
-
-type routingProfile struct {
-	ID           string         `json:"id,omitempty"`
-	PluginID     string         `json:"pluginId,omitempty"`
-	Key          string         `json:"key"`
-	Kind         string         `json:"kind,omitempty"`
-	NativeConfig map[string]any `json:"nativeConfig,omitempty"`
-}
-
-type routeOptions struct {
-	Alternatives     int  `json:"alternatives,omitempty"`
-	IncludeElevation bool `json:"includeElevation,omitempty"`
-}
+type anchor = valhallacore.Anchor
 
 type routeOutput struct {
 	Candidates []routeCandidate `json:"candidates,omitempty"`
@@ -99,14 +78,6 @@ type segment struct {
 	Geometry   geometry `json:"geometry"`
 	Distance   float64  `json:"distance"`
 	Duration   float64  `json:"duration"`
-}
-
-type valhallaRouteRequest struct {
-	DirectionsType string         `json:"directions_type"`
-	Locations      []anchor       `json:"locations"`
-	Costing        string         `json:"costing"`
-	CostingOptions map[string]any `json:"costing_options,omitempty"`
-	Alternates     int            `json:"alternates,omitempty"`
 }
 
 type valhallaRouteResponse struct {

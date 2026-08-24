@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+
+	valhallacore "github.com/open-wanderer/wanderer/plugins/valhalla/core"
 )
 
 func TestManifestAlternativeLimitMatchesAdapter(t *testing.T) {
@@ -21,8 +23,8 @@ func TestManifestAlternativeLimitMatchesAdapter(t *testing.T) {
 	if err := json.Unmarshal(payload, &manifest); err != nil {
 		t.Fatalf("decode plugin manifest: %v", err)
 	}
-	if manifest.Metadata.Routing.MaxAlternatives != valhallaMaxCandidates {
-		t.Fatalf("manifest maxAlternatives = %d, adapter limit = %d", manifest.Metadata.Routing.MaxAlternatives, valhallaMaxCandidates)
+	if manifest.Metadata.Routing.MaxAlternatives != valhallacore.MaxRouteCandidates {
+		t.Fatalf("manifest maxAlternatives = %d, adapter limit = %d", manifest.Metadata.Routing.MaxAlternatives, valhallacore.MaxRouteCandidates)
 	}
 }
 

@@ -296,16 +296,41 @@ func prepareRoutingRuntimeProfile(ctx context.Context, runtime routingEngineRunt
 }
 
 func callPreparedRoutingRoutePlugin(ctx context.Context, runtime routingEngineRuntime, request pluginRoutingRouteRequest) (pluginRoutingRouteOutput, error) {
-	output, err := routingRoutePluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
-	if request.Profile.PreparedKey == "" || !routingPreparedProfileRetryable(output, err) {
+	return callPreparedRoutingPlugin(ctx, runtime, request.Profile.PreparedKey, request, func(ctx context.Context, preparedKey string) (pluginRoutingRouteOutput, error) {
+		request.Profile.PreparedKey = preparedKey
+		return routingRoutePluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
+	})
+}
+
+type routingPreparedProfileOutput interface {
+	routingPreparedProfileError() *pluginsystem.PluginError
+}
+
+func (output pluginRoutingRouteOutput) routingPreparedProfileError() *pluginsystem.PluginError {
+	return output.Error
+}
+
+func (output pluginRoutingManeuverOutput) routingPreparedProfileError() *pluginsystem.PluginError {
+	return output.Error
+}
+
+// callPreparedRoutingPlugin retries one plugin invocation after refreshing a
+// rejected prepared profile. A failed refresh intentionally retries with an
+// empty key so the plugin can use its canonical inline-profile fallback.
+func callPreparedRoutingPlugin[Output routingPreparedProfileOutput](
+	ctx context.Context,
+	runtime routingEngineRuntime,
+	preparedKey string,
+	preparationRequest pluginRoutingRouteRequest,
+	call func(context.Context, string) (Output, error),
+) (Output, error) {
+	output, err := call(ctx, preparedKey)
+	if preparedKey == "" || !routingPreparedProfileRejected(output.routingPreparedProfileError(), err) {
 		return output, err
 	}
 
-	refresh := refreshPreparedRoutingProfile(ctx, runtime, request.Profile.PreparedKey, request)
-	// All segment callers wait for the same refresh. An empty key deliberately
-	// selects the adapter's canonical inline-profile fallback.
-	request.Profile.PreparedKey = refresh.key
-	return routingRoutePluginCaller(ctx, runtime.Plugin, runtime.Capability, runtime.Instance, runtime.Auth, runtime.Config, request)
+	refresh := refreshPreparedRoutingProfile(ctx, runtime, preparedKey, preparationRequest)
+	return call(ctx, refresh.key)
 }
 
 func refreshPreparedRoutingProfile(ctx context.Context, runtime routingEngineRuntime, rejectedKey string, request pluginRoutingRouteRequest) *routingPreparedProfileRefresh {
@@ -332,9 +357,9 @@ func refreshPreparedRoutingProfile(ctx context.Context, runtime routingEngineRun
 	return refresh
 }
 
-func routingPreparedProfileRetryable(output pluginRoutingRouteOutput, err error) bool {
-	if output.Error != nil {
-		return output.Error.Code == "unsupported_profile"
+func routingPreparedProfileRejected(pluginErr *pluginsystem.PluginError, err error) bool {
+	if pluginErr != nil {
+		return pluginErr.Code == "unsupported_profile"
 	}
 	if err == nil {
 		return false

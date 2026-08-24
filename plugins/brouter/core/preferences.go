@@ -43,7 +43,7 @@ const (
 
 func NativeConfigWithPreferences(templateKey string, nativeConfig map[string]any, preferences map[string]any, mode string) map[string]any {
 	output := cloneMap(nativeConfig)
-	parameters := cloneMap(mapValue(output["parameters"]))
+	parameters := cloneMap(MapValue(output["parameters"]))
 
 	switch templateKey {
 	case TemplateHike:
@@ -322,16 +322,12 @@ type jsonNumber interface {
 	Float64() (float64, error)
 }
 
-func mapValue(value any) map[string]any {
+// MapValue returns a JSON object or an empty object for any other value.
+// Keeping this conversion in core lets the preference translator and profile
+// renderer interpret decoded configuration identically.
+func MapValue(value any) map[string]any {
 	if value, ok := value.(map[string]any); ok && value != nil {
 		return value
-	}
-	if value, ok := value.(map[string]interface{}); ok && value != nil {
-		result := map[string]any{}
-		for key, item := range value {
-			result[key] = item
-		}
-		return result
 	}
 	return map[string]any{}
 }

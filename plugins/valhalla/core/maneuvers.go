@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"math"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/open-wanderer/wanderer/plugins/sdk"
@@ -86,15 +85,11 @@ func GenerateManeuvers(request sdk.ManeuverRequest, options ManeuverOptions, tra
 	if len(chunks) == 0 {
 		return sdk.ManeuverResult{}, &AdapterError{Code: "invalid_request", Message: "maneuver input has no usable track"}
 	}
-	costing := strings.TrimSpace(request.Profile.Key)
-	if costing == "" {
-		costing = costingForMode(request.Mode)
-	}
+	costing := ResolveCosting(request.Profile.Key, request.Mode)
 	if costing == "" {
 		return sdk.ManeuverResult{}, &AdapterError{Code: "unsupported_profile", Message: "maneuver routing profile is unavailable"}
 	}
-	costingOptions := valhallaCostingOptions(costing, request.Preferences)
-	mergeNativeCostingOptions(costingOptions, costing, request.Profile.NativeConfig)
+	costingOptions := BuildCostingOptions(costing, request.Preferences, request.Profile.NativeConfig)
 
 	var resultGeometry [][2]float64
 	resultManeuvers := make([]sdk.Maneuver, 0)
@@ -104,7 +99,7 @@ func GenerateManeuvers(request sdk.ManeuverRequest, options ManeuverOptions, tra
 			ShapeMatch:     "map_snap",
 			DirectionsType: "instructions",
 			Costing:        costing,
-			CostingOptions: map[string]any{costing: costingOptions},
+			CostingOptions: costingOptions,
 			Language:       request.Language,
 			Units:          "kilometers",
 		})
@@ -156,22 +151,6 @@ func GenerateManeuvers(request sdk.ManeuverRequest, options ManeuverOptions, tra
 		Maneuvers: resultManeuvers,
 		Warnings:  warnings,
 	}, nil
-}
-
-func mergeNativeCostingOptions(options map[string]any, costing string, nativeConfig map[string]any) {
-	for key, value := range nativeConfig {
-		if key == costing {
-			if nested, ok := value.(map[string]any); ok {
-				for nestedKey, nestedValue := range nested {
-					options[nestedKey] = nestedValue
-				}
-			}
-			continue
-		}
-		if _, nested := value.(map[string]any); !nested {
-			options[key] = value
-		}
-	}
 }
 
 func normalizedManeuverOptions(options ManeuverOptions) ManeuverOptions {
@@ -557,56 +536,6 @@ func boundedString(value string, maximum int) string {
 	}
 	runes := []rune(value)
 	return string(runes[:maximum])
-}
-
-func costingForMode(mode string) string {
-	switch mode {
-	case "foot":
-		return "pedestrian"
-	case "bike":
-		return "bicycle"
-	case "motor":
-		return "auto"
-	default:
-		return ""
-	}
-}
-
-func valhallaCostingOptions(costing string, preferences map[string]any) map[string]any {
-	options := map[string]any{}
-	switch costing {
-	case "pedestrian":
-		setNumberOption(options, "walking_speed", preferences, "speedPreference")
-		setNumberOption(options, "use_hills", preferences, "hillPreference")
-		setNumberOption(options, "max_hiking_difficulty", preferences, "maxHikingDifficulty")
-	case "bicycle":
-		setNumberOption(options, "cycling_speed", preferences, "speedPreference")
-		setNumberOption(options, "use_hills", preferences, "hillPreference")
-		setNumberOption(options, "use_roads", preferences, "roadPreference")
-		setNumberOption(options, "avoid_bad_surfaces", preferences, "avoidBadSurfaces")
-	case "auto":
-		setNumberOption(options, "top_speed", preferences, "speedPreference")
-		setNumberOption(options, "width", preferences, "vehicleWidth")
-		setNumberOption(options, "height", preferences, "vehicleHeight")
-	}
-	return options
-}
-
-func setNumberOption(options map[string]any, optionKey string, preferences map[string]any, preferenceKey string) {
-	value, ok := preferences[preferenceKey]
-	if !ok {
-		return
-	}
-	switch value := value.(type) {
-	case float64:
-		options[optionKey] = value
-	case float32:
-		options[optionKey] = value
-	case int:
-		options[optionKey] = value
-	case int64:
-		options[optionKey] = value
-	}
 }
 
 func DebugChunks(points []sdk.ManeuverPoint, options ManeuverOptions) ([][]sdk.ManeuverPoint, error) {

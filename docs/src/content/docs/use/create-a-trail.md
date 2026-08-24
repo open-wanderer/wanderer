@@ -33,16 +33,23 @@ Click the **Draw a route** button to manually define a route on the map. While i
 - Click on the map to place route anchors
 - <span class="-tracking-[0.075em]">wanderer</span> will automatically route between anchors using the configured routing plugin
 - You can drag anchors to reposition them
-- Use the top-left menu to change routing mode (e.g. walking, cycling)
+- Choose the trail category and optional subcategory to select the kind of route, such as Hiking or Biking / Gravel
+- Use the route settings to switch between routing each segment separately and routing through all anchors as via points, when the selected engine supports it
 - Use the waypoint button (location marker icon) in the route editing toolbar to show or hide existing waypoint markers on the map. Hiding them also disables right-clicking to create new waypoints.
 - To remove an anchor, click on it and then click the red trash icon
 
 If you disable automatic routing, straight lines will be used between anchors instead.
 
+See [Route planning](/use/routing/) for engine selection, category profiles,
+route variants, round trips, and advanced routing options.
+
 To finish drawing, click **Stop drawing**.
 
 :::tip
-Official Wanderer images do not include routing provider plugins. After an administrator installs the separate [Valhalla provider plugin bundle](/run/installation/plugins), Wanderer enables it automatically for existing users who do not already have an instance and for users created later. Routing and elevation selections are resolved automatically from enabled plugin capabilities unless an administrator or user explicitly chooses an engine. Valhalla's default connector uses a public, donation-financed service; if you use it, please consider [supporting FOSSGIS](https://www.fossgis.de/verein/spenden/).
+Official Wanderer images do not include routing plugin bundles. An administrator
+must install at least one compatible plugin before automatic routing is
+available. See [Routing plugins](/use/plugins/routing/) and
+[Plugin installation](/run/installation/plugins/).
 :::
 
 #### Trail anchor list
