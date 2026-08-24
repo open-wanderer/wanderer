@@ -16,18 +16,20 @@ data/plugins/
     plugin.wasm
     icon.svg
 ```
-
 wanderer discovers plugins from direct child directories of `data/plugins`.
-Plugin configuration, credentials, sync state, and status are stored per user in
-`plugin_instances`.
+Plugin configuration, credentials, sync timestamps, and status are stored per
+user in `plugin_instances`.
 
 ## Quickstart
 
 Use an existing first-party plugin as a starting point:
 
 - [Hammerhead plugin source](https://github.com/open-wanderer/wanderer/tree/main/plugins/hammerhead)
+- [Immich plugin source](https://github.com/open-wanderer/wanderer/tree/main/plugins/immich)
 - [komoot plugin source](https://github.com/open-wanderer/wanderer/tree/main/plugins/komoot)
 - [Strava plugin source](https://github.com/open-wanderer/wanderer/tree/main/plugins/strava)
+- [Valhalla routing plugin source](https://github.com/open-wanderer/wanderer/tree/main/plugins/valhalla)
+- [BRouter routing plugin source](https://github.com/open-wanderer/wanderer/tree/main/plugins/brouter)
 
 For local development:
 
@@ -50,13 +52,16 @@ First-party plugin source lives in the repository under `plugins/`:
 
 ```text
 plugins/
+  brouter/
   hammerhead/
+  immich/
   komoot/
   strava/
+  valhalla/
   sdk/
 ```
 
-Build all bundled plugins:
+Build all first-party plugin bundles from source:
 
 ```sh
 make plugins-build
@@ -74,8 +79,9 @@ Package release archives:
 make plugins-package
 ```
 
-Release archives are published as separate GitHub release assets. The database
-Docker image does not contain provider plugins.
+Release archives are published as separate GitHub release assets. Official
+Wanderer images do not contain provider plugins; first-party ownership does not
+imply that a runtime bundle is packaged into an image.
 
 ## Plugin layout
 
@@ -198,7 +204,7 @@ Minimal shape:
 
 Important rules:
 
-- `type` is the functional plugin category. Currently only `trails` is supported.
+- `type` is the functional plugin category. Currently `trails` and `assets` are supported.
 - `runtime.entrypoint` must be relative to the plugin directory.
 - `id` must match the installed directory name by convention.
 - `capabilities[].export` names the WASM export the runtime calls.
@@ -237,6 +243,12 @@ Connector types:
 `configured` connectors must declare `configKey`; the host supplies the concrete
 base URL and trust settings:
 
+Asset plugins may derive a connector base URL from a user-owned plugin URL when
+the administrator leaves the connector `baseURL` empty. Such derived targets
+are always public-network only and do not inherit custom TLS trust or storage
+redirect origins. Private-network access, custom CAs, and storage redirects
+therefore require a fixed administrator-configured connector `baseURL`.
+
 ```json
 {
   "name": "media",
@@ -267,7 +279,11 @@ Connector fields:
 The host validates scheme, host, effective port, base path, path prefixes,
 redirect targets, TLS policy, and IP policy. `allowPrivate`, custom CA bundles,
 and storage origins are host-owned settings; plugin output can never enable
-private-network access.
+private-network access. When a configured connector has no administrative
+`baseURL` and the target is therefore derived from the user-editable
+`plugin.url`, `allowPrivate`, custom TLS, and storage origins fall back to their
+defaults: trust granted for a fixed administrative origin is never inherited by
+a target a normal user picked.
 
 ## Capabilities
 
@@ -280,6 +296,21 @@ Implemented sync/send capabilities:
 | `list_activities.v1` | `list_activities_v1` | List completed activity IDs |
 | `get_activity_detail.v1` | `get_activity_detail_v1` | Return one completed activity import |
 | `prepare_trail_send.v1` | `prepare_trail_send_v1` | Prepare sending a trail |
+| `asset_library.v1` | `asset_library_v1` | Find and import external media assets |
+
+Routing plugins use a separate provider-neutral capability family:
+
+| Capability | Export Example | Purpose |
+| --- | --- | --- |
+| `route.v1` | `route_v1` | Return normalized route candidates for resolved profile inputs |
+| `elevation.v1` | `elevation_v1` | Return point-aligned elevation independently of route calculation |
+| `profile_introspect.v1` | `profile_introspect_v1` | Detect mode, supported standard preferences, and native controls for a host-owned profile |
+| `profile_prepare.v1` | `profile_prepare_v1` | Optionally upload or compile an effective profile without route anchors and return an opaque prepared key |
+
+`profile_introspect.v1` and `profile_prepare.v1` are optional. Prepared keys are
+host-owned, have a bounded in-memory lifetime, and are never accepted from a
+browser request. The full routing DTOs, resolution rules, variants, limits, and
+provider behavior are maintained in `docs/design/routing-plugins.md`.
 
 Import sync is a two-step protocol. A plugin that declares `list_routes.v1`
 must also declare `get_route_detail.v1`; a plugin that declares
@@ -375,9 +406,9 @@ the matching detail capability only for new items.
 }
 ```
 
-State returned by a plugin is first fed back into the next batch of the same
-sync run. Only persistent provider cursors belong in `plugin_instances.state`.
-Transient batch cursors such as `page` are not stored in the database.
+State returned by a plugin is fed back into the next batch of the same sync run.
+It is batch-local and is not persisted in `plugin_instances`; a later sync run
+starts with empty capability state.
 
 ## Detail input
 
@@ -452,7 +483,8 @@ Detail capabilities return the full trail import:
 ```
 
 The host imports the trails, writes PocketBase records, applies visibility
-rules, deduplicates by provider/external ID, and stores the returned state.
+rules, deduplicates by provider/external ID, and passes the returned state to
+the next batch of the current run.
 Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records. Waypoint `distance_from_start` is derived
 by the host from the nearest position on the imported GPX track.
@@ -520,12 +552,141 @@ derived metrics otherwise. Start location comes from the GPX unless
 plausible. Plugins should not map `providerCategory` to local category IDs; the
 host owns that mapping.
 
+## Asset library capability
+
+Asset plugins declare `type: "assets"` and expose `asset_library.v1`. The host
+calls the same export with different `request.action` values:
+
+| Action | Purpose |
+| --- | --- |
+| `check` | Validate current auth/config and optionally return provider account metadata. |
+| `candidates` | Return matching external assets for a trail, coordinate, or waypoint context. |
+| `import` | Return `Photo` descriptors for selected asset IDs so the host can create asset records. |
+| `thumbnail` | Return a preview photo descriptor for one selected asset ID. |
+
+Input shape:
+
+```json
+{
+  "instance": {
+    "id": "abc123",
+    "pluginId": "immich"
+  },
+  "auth": {
+    "apiKey": "..."
+  },
+  "config": {
+    "url": "https://photos.example.com",
+    "timeWindowMinutes": 30
+  },
+  "request": {
+    "action": "candidates",
+    "trailId": "trail123",
+    "lat": 47.3769,
+    "lon": 8.5417,
+    "points": [
+      {
+        "lat": 47.3769,
+        "lon": 8.5417,
+        "distance": 1200,
+        "timestamp": "2026-06-23T10:15:00Z"
+      }
+    ],
+    "startedAt": "2026-06-23T10:00:00Z",
+    "endedAt": "2026-06-23T12:00:00Z",
+    "takenAfter": "2026-06-23T09:30:00Z",
+    "takenBefore": "2026-06-23T12:30:00Z",
+    "doubleRadius": false,
+    "assetIds": ["provider-asset-id"]
+  }
+}
+```
+
+The host supplies the fields that are relevant for the current action. For
+trail-based searches, `points` contains track points with cumulative
+`distance`; timestamps are present only when the imported or uploaded trail has
+time data. `takenAfter` and `takenBefore` are explicit search-window hints when
+the host or user provides them. For waypoint searches, the host may only provide
+`lat` and `lon`.
+
+Runtime failures are reported by the failed export call, application failures
+must use the structured `error` field, and HTTP clients use the response status.
+
+Candidate output:
+
+```json
+{
+  "candidates": [
+    {
+      "assetId": "provider-asset-id",
+      "originalFileName": "IMG_1234.jpg",
+      "takenAt": "2026-06-23T10:18:00Z",
+      "lat": 47.377,
+      "lon": 8.542,
+      "distance": 32.4,
+      "pointLat": 47.3769,
+      "pointLon": 8.5417,
+      "distanceFromStart": 1200,
+      "city": "Zurich",
+      "country": "Switzerland"
+    }
+  ],
+  "hasMore": false,
+  "takenAfter": "2026-06-23T09:30:00Z",
+  "hasTimestamps": true
+}
+```
+
+`import` and `thumbnail` actions return `photos`. Each photo uses the same
+`Photo` and `MediaSource` shape as trail imports:
+
+```json
+{
+  "photos": [
+    {
+      "externalId": "provider-asset-id",
+      "filename": "IMG_1234.jpg",
+      "contentType": "image/jpeg",
+      "takenAt": "2026-06-23T10:18:00Z",
+      "lat": 47.377,
+      "lon": 8.542,
+      "source": {
+        "type": "connector",
+        "mediaRef": {
+          "connector": "api",
+          "auth": "api_key",
+          "path": "/api/assets/provider-asset-id/original",
+          "assetId": "provider-asset-id"
+        }
+      }
+    }
+  ]
+}
+```
+
+The host owns storage behavior. In `copy` mode it downloads selected photos and
+stores PocketBase files. In `link_private` mode it stores remote metadata and
+fetches files on demand for non-public targets, copying them into wanderer when
+the trail becomes public or when a user materializes linked photos. Public trail
+targets are always copied because private provider media cannot be served to
+anonymous viewers. Plugins should return stable `externalId` values so the host
+can deduplicate provider assets.
+
+When imported asset photos create new waypoints, the host merges nearby photos
+using the trail category's waypoint merge settings. It resolves waypoint names
+from nearby OpenStreetMap points of interest through Overpass and falls back to
+Nominatim reverse geocoding, then to the photo coordinate.
+
 ## Host config
 
 Plugin manifests may suggest defaults for host-owned settings with
 `hostConfig`. These values are stored in `installed_plugins.config.host` and can
-be overridden per plugin instance with `plugin_instances.config.host`. Host
-config is never passed to plugin exports.
+be overridden per plugin instance with `plugin_instances.config.host` only for
+the explicitly supported user-level fields listed below. Connector targets and
+trust settings under `host.connectors` remain exclusively in the
+administrator-controlled `installed_plugins.config.host` and are ignored if
+submitted through a plugin instance. Host config is never passed to plugin
+exports.
 
 Supported host fields:
 
@@ -534,10 +695,17 @@ Supported host fields:
 | `planned` | boolean | `list_routes.v1` | Enables planned route sync for the instance. |
 | `completed` | boolean | `list_activities.v1` | Enables completed activity sync for the instance. |
 | `privacy` | string | Trail import | `original` keeps provider visibility; `settings` uses the local user trail privacy setting. |
+| `merge.available` | boolean | Trail import | Controls whether the settings UI offers auto-merge for this plugin. Defaults to `true`. |
 | `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
 | `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
 | `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category or subcategory targets. |
-| `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
+| `connectors` | object | Host request/media policy | Administrator-owned concrete settings for configured connectors; never overridable per plugin instance. |
+| `photoMode` | string | Asset import | `copy` or `link_private`. Defaults to `copy`. |
+| `maxPhotosPerTrail` | integer | Asset import | Maximum number of asset plugin photos imported for one trail during enforced automatic attachment flows. Defaults to `20`. |
+| `maxPhotosPerWaypoint` | integer | Asset import | Maximum number of asset plugin photos imported for one waypoint during enforced automatic attachment flows. Defaults to `5`. |
+| `maxPhotosPerSummitLog` | integer | Asset import | Maximum number of asset plugin photos imported for one summit log during enforced automatic attachment flows. Defaults to `20`. |
+| `autoAttach.trailPlugins` | boolean | Asset import | Automatically attach matching asset photos after completed trail plugin imports with track timestamps. Defaults to `true`. |
+| `autoAttach.upload` | boolean | Asset import | Automatically attach matching asset photos after GPX uploads with track timestamps. Defaults to `true`. |
 
 The settings UI lets users edit `categoryMapping` per plugin instance for trail
 import plugins. A mapping value can be a string for broad category-only
@@ -618,9 +786,24 @@ Configured connector host config shape:
 when the manifest connector declares `supportsCustomTLS`; certificate
 verification is not disabled.
 
+Leaving `baseURL` empty makes the connector target follow the user-editable
+`plugin.url` of each plugin instance. In that case `allowPrivate`, `tls`, and
+`storageOrigins` configured here do not apply, so combining an empty `baseURL`
+with `allowPrivate: true` does not grant users private-network access. Set a
+concrete `baseURL` for connectors that must reach a private or otherwise
+specially trusted origin.
+
+Loopback addresses remain blocked for public and DNS-based connector targets.
+An administrator can deliberately configure a local service by setting a
+literal loopback address such as `http://127.0.0.1:17777` (or `localhost`) as
+the fixed `baseURL` and enabling `allowPrivate`. This exception applies only
+when the configured connector host itself is explicitly a loopback host, so a
+public hostname cannot resolve or rebind to a service on the Wanderer host.
+
 The host defines the semantics of these fields. Plugins only provide defaults
 or hints; custom plugin settings belong in `configSchema` and are passed to the
-plugin under `options`.
+plugin under `options` for sync capabilities and under `config` for asset and
+trail-send capabilities.
 
 Plugin errors should use the structured error format:
 
@@ -872,7 +1055,7 @@ enforces request/response frame limits and timeouts. It is not an OS-level
 sandbox for outbound network access; plugin-controlled provider traffic must
 still go through the host request API.
 
-## Plugin state
+## Plugin instances
 
 User plugin configuration is stored in `plugin_instances`:
 
@@ -883,7 +1066,6 @@ plugin_instances
   enabled
   auth
   config
-  state
   status
   last_error
   last_sync_at
@@ -893,10 +1075,8 @@ plugin_instances
 `auth` is encrypted by PocketBase hooks. `config.plugin` stores settings passed
 to the plugin, such as an `after` date. `config.host` stores host-owned settings
 such as enabled capabilities, privacy handling, merge settings, and category
-mapping. `state` stores per-capability provider cursors. It should only contain
-values that remain valid across separate sync runs, such as provider sync tokens
-or delta cursors. Batch-local cursors such as `page` are discarded before the
-instance is saved.
+mapping. Capability state returned by list calls is transient and only travels
+between batches of the current sync run; it is not stored on the instance.
 
 The host also caches discovered plugin manifests in `installed_plugins`.
 Installed plugins and user plugin instances are intentionally separate:
@@ -910,6 +1090,7 @@ The release workflow builds plugin archives:
 
 ```text
 wanderer-plugin-hammerhead.tar.gz
+wanderer-plugin-immich.tar.gz
 wanderer-plugin-komoot.tar.gz
 wanderer-plugin-strava.tar.gz
 SHA256SUMS

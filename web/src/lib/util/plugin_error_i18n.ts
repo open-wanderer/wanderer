@@ -39,6 +39,9 @@ export function translatePluginError(code?: string, message?: string): string {
     if (normalizedCode && internalErrorCodes.has(normalizedCode)) {
         return get(_)("plugin-error-internal");
     }
+    if (normalizedCode === "plugin_selected_in_routing_settings") {
+        return get(_)("plugin-selected-in-routing-settings");
+    }
 
     return message?.trim() || get(_)("plugin-setup-error");
 }

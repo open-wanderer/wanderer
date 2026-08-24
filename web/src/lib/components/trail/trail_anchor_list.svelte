@@ -3,7 +3,7 @@
     import { _ } from "svelte-i18n";
     import GpxMetricsComputation from "$lib/models/gpx/gpx-metrics-computation";
     import type TrackSegment from "$lib/models/gpx/track-segment";
-    import type { ValhallaAnchor } from "$lib/models/valhalla";
+    import type { RoutingAnchor } from "$lib/models/routing";
     import {
         searchLocationReverseStructured,
         type ReverseLocationResult,
@@ -12,11 +12,16 @@
         formatDistance,
         formatElevation,
     } from "$lib/util/format_util";
-    import { valhallaAnchorDisplay, valhallaAnchorTitle } from "$lib/util/valhalla_anchor_util";
+    import {
+        routingAnchorDisplay,
+        routingAnchorListEntries,
+        routingAnchorTitle,
+    } from "$lib/util/routing_anchor_util";
 
     interface Props {
-        anchors: ValhallaAnchor[];
+        anchors: RoutingAnchor[];
         segments?: TrackSegment[];
+        closedLoop?: boolean;
         disabled?: boolean;
         onMove: (fromIndex: number, toIndex: number) => void | Promise<void>;
         onDelete: (index: number) => void;
@@ -26,17 +31,20 @@
     let {
         anchors,
         segments = [],
+        closedLoop = false,
         disabled = false,
         onMove,
         onDelete,
         onHover,
     }: Props = $props();
 
-    const anchorCoordinates = (anchor: ValhallaAnchor) =>
+    let displayAnchors = $derived(routingAnchorListEntries(anchors, closedLoop));
+
+    const anchorCoordinates = (anchor: RoutingAnchor) =>
         `${anchor.lat.toFixed(4)}, ${anchor.lon.toFixed(4)}`;
 
     function fallbackAnchorTitle(index: number) {
-        return valhallaAnchorTitle(index, anchors.length, $_);
+        return routingAnchorTitle(index, displayAnchors.length, $_);
     }
 
     const locationCache = new Map<string, ReverseLocationResult>();
@@ -57,11 +65,11 @@
         return countries.every((nextCountry) => nextCountry === country) ? country : null;
     });
 
-    function locationCacheKey(anchor: ValhallaAnchor) {
+    function locationCacheKey(anchor: RoutingAnchor) {
         return `${anchor.lat.toFixed(5)},${anchor.lon.toFixed(5)}`;
     }
 
-    async function loadAnchorLocation(anchor: ValhallaAnchor, signal: AbortSignal) {
+    async function loadAnchorLocation(anchor: RoutingAnchor, signal: AbortSignal) {
         const key = locationCacheKey(anchor);
         if (locations[key] || pendingLocationRequests.has(key)) {
             return;
@@ -92,7 +100,7 @@
         }
     }
 
-    async function loadAnchorLocations(nextAnchors: ValhallaAnchor[]) {
+    async function loadAnchorLocations(nextAnchors: RoutingAnchor[]) {
         locationAbortController?.abort();
         const controller = new AbortController();
         locationAbortController = controller;
@@ -108,7 +116,7 @@
         return () => locationAbortController?.abort();
     });
 
-    function anchorTitle(anchor: ValhallaAnchor, index: number) {
+    function anchorTitle(anchor: RoutingAnchor, index: number) {
         const location = locations[locationCacheKey(anchor)];
         if (!location) {
             return fallbackAnchorTitle(index);
@@ -206,10 +214,6 @@
         clearItemHoverState(e);
     }
 
-    function anchorIcon(index: number) {
-        return valhallaAnchorDisplay(index, anchors.length).icon;
-    }
-
     interface SegmentMetrics {
         distance: number;
         elevationGain: number;
@@ -287,6 +291,7 @@
     $effect(() => {
         anchors.length;
         segments.length;
+        closedLoop;
         void tick().then(updateListOverflow);
     });
 
@@ -394,53 +399,59 @@
     class:has-scrollbar={hasVerticalOverflow}
     class:pr-3={hasVerticalOverflow}
 >
-    {#each anchors as anchor, i (anchor.id)}
+    {#each displayAnchors as entry, i (`${entry.anchor.id}:${entry.isFinishCopy ? "finish" : "anchor"}`)}
+        {@const anchor = entry.anchor}
         {@const metrics = segmentMetrics(i)}
         {@const cumulative = cumulativeMetrics(i)}
+        {@const display = routingAnchorDisplay(i, displayAnchors.length)}
         {@const showCumulative = i > 1 && cumulative != null}
         <li
-            data-anchor-index={i}
+            data-anchor-index={entry.isFinishCopy ? undefined : entry.anchorIndex}
             class="rounded-lg border border-input-border transition-colors hover:bg-secondary-hover"
             class:p-3={i !== 0}
             class:px-3={i === 0}
             class:pt-2={i === 0}
             class:pb-2={i === 0}
             class:has-cumulative={showCumulative}
-            class:opacity-50={dragIndex === i}
-            class:drop-above={isValidInsert(i)}
-            class:drop-below={i === anchors.length - 1 && isValidInsert(anchors.length)}
-            onmouseenter={(e) => handleItemMouseEnter(e, i)}
+            class:opacity-50={!entry.isFinishCopy && dragIndex === entry.anchorIndex}
+            class:drop-above={!entry.isFinishCopy && isValidInsert(entry.anchorIndex)}
+            class:drop-below={!entry.isFinishCopy &&
+                entry.anchorIndex === anchors.length - 1 &&
+                isValidInsert(anchors.length)}
+            onmouseenter={(e) => handleItemMouseEnter(e, entry.anchorIndex)}
             onmouseleave={handleItemMouseLeave}
             onfocusin={(e) => {
-                onHover?.(i);
+                onHover?.(entry.anchorIndex);
                 updateOverflowingStats(e.currentTarget as HTMLElement);
             }}
             onfocusout={clearItemHoverState}
         >
             <div class="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2 gap-y-1">
-                <button
-                    class="drag-handle absolute inset-y-0 left-0 w-12 rounded-md p-0 disabled:cursor-not-allowed disabled:opacity-50"
-                    type="button"
-                    disabled={disabled}
-                    aria-label={$_("move-route-point")}
-                    aria-keyshortcuts="ArrowUp ArrowDown"
-                    onkeydown={(e) => handleKeyDown(e, i)}
-                    onpointerdown={(e) => handlePointerDown(e, i)}
-                    onpointermove={handlePointerMove}
-                    onpointerup={handlePointerUp}
-                    onpointercancel={clearDragState}
-                    onlostpointercapture={clearDragState}
-                ></button>
+                {#if !entry.isFinishCopy}
+                    <button
+                        class="drag-handle absolute inset-y-0 left-0 w-12 rounded-md p-0 disabled:cursor-not-allowed disabled:opacity-50"
+                        type="button"
+                        disabled={disabled}
+                        aria-label={$_("move-route-point")}
+                        aria-keyshortcuts="ArrowUp ArrowDown"
+                        onkeydown={(e) => handleKeyDown(e, entry.anchorIndex)}
+                        onpointerdown={(e) => handlePointerDown(e, entry.anchorIndex)}
+                        onpointermove={handlePointerMove}
+                        onpointerup={handlePointerUp}
+                        onpointercancel={clearDragState}
+                        onlostpointercapture={clearDragState}
+                    ></button>
+                {/if}
 
                 <span
                     class="anchor-icon pointer-events-none relative col-start-1 row-start-1 flex h-8 w-8 -translate-x-0.5 items-center justify-center text-xl text-content"
                 >
-                    <i class="fa {anchorIcon(i)}"></i>
-                    {#if i > 0 && i < anchors.length - 1}
+                    <i class="fa {display.icon}"></i>
+                    {#if display.number !== null}
                         <span
                             class="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-background px-1 text-[0.65rem] font-semibold leading-none text-gray-500"
                         >
-                            {i}
+                            {display.number}
                         </span>
                     {/if}
                 </span>
@@ -507,16 +518,18 @@
                 {/if}
             </div>
 
-            <button
-                class="delete-button btn-icon text-xs text-gray-400 hover:text-red-500"
-                type="button"
-                disabled={disabled}
-                title={$_("delete")}
-                aria-label={$_("delete-route-point")}
-                onclick={() => onDelete(i)}
-            >
-                <i class="fa fa-trash"></i>
-            </button>
+            {#if !entry.isFinishCopy}
+                <button
+                    class="delete-button btn-icon text-xs text-gray-400 hover:text-red-500"
+                    type="button"
+                    disabled={disabled}
+                    title={$_("delete")}
+                    aria-label={$_("delete-route-point")}
+                    onclick={() => onDelete(entry.anchorIndex)}
+                >
+                    <i class="fa fa-trash"></i>
+                </button>
+            {/if}
         </li>
     {/each}
 </ol>

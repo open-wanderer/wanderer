@@ -7,13 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/doyensec/safeurl"
+	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
 
 const (
@@ -23,6 +27,9 @@ const (
 	// shared import byte budget.
 	DefaultPluginMaxMediaItemsPerEntity       = 20
 	DefaultPluginMaxImportMediaBytes    int64 = 500 << 20
+	DefaultPluginMaxPhotosPerTrail            = 20
+	DefaultPluginMaxPhotosPerWaypoint         = 5
+	DefaultPluginMaxPhotosPerSummitLog        = 20
 )
 
 type SafeFetchResult struct {
@@ -31,12 +38,16 @@ type SafeFetchResult struct {
 	FinalURL    string
 }
 
-type PluginMediaHTTPStatusError struct {
+type HTTPStatusError struct {
 	StatusCode int
+	Message    string
 }
 
-func (e PluginMediaHTTPStatusError) Error() string {
-	return fmt.Sprintf("plugin media request returned HTTP status %d", e.StatusCode)
+func (e HTTPStatusError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return fmt.Sprintf("unexpected HTTP status: %d", e.StatusCode)
 }
 
 type ConnectorHTTPPolicy struct {
@@ -47,6 +58,10 @@ type ConnectorHTTPPolicy struct {
 }
 
 func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
+	return FetchPublicURLWithHeaders(ctx, rawURL, maxBytes, nil)
+}
+
+func FetchPublicURLWithHeaders(ctx context.Context, rawURL string, maxBytes int64, headers map[string]string) (*SafeFetchResult, error) {
 	if maxBytes <= 0 {
 		maxBytes = DefaultPluginMediaMaxBytes
 	}
@@ -71,6 +86,12 @@ func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFe
 	if err != nil {
 		return nil, err
 	}
+	for key, value := range headers {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		req.Header.Set(key, value)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -91,9 +112,20 @@ func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFe
 	}, nil
 }
 
+func FetchPublicFile(ctx context.Context, rawURL string, fallbackName string, maxBytes int64) (*filesystem.File, error) {
+	fetched, err := FetchPublicURL(ctx, rawURL, maxBytes)
+	if err != nil {
+		return nil, err
+	}
+	return filesystem.NewFileFromBytes(
+		fetched.Body,
+		safeFetchedFileName(fallbackName, fetched.FinalURL, fetched.ContentType),
+	)
+}
+
 func ValidatePluginMediaStatus(statusCode int) error {
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
-		return PluginMediaHTTPStatusError{StatusCode: statusCode}
+		return HTTPStatusError{StatusCode: statusCode, Message: fmt.Sprintf("plugin media request returned HTTP status %d", statusCode)}
 	}
 	return nil
 }
@@ -103,7 +135,7 @@ func IsRetryablePluginMediaError(err error) bool {
 		return false
 	}
 
-	var statusErr PluginMediaHTTPStatusError
+	var statusErr HTTPStatusError
 	if errors.As(err, &statusErr) {
 		switch statusErr.StatusCode {
 		case http.StatusRequestTimeout,
@@ -156,6 +188,12 @@ func ConnectorHTTPClient(policy ConnectorHTTPPolicy, checkRedirect func(req *htt
 	if err != nil || base.Scheme == "" || base.Host == "" {
 		return nil, fmt.Errorf("invalid connector baseURL")
 	}
+	// Loopback stays blocked for public or DNS-based connector targets. It is
+	// allowed only when an administrator both enables private-network access and
+	// explicitly configures localhost or a loopback IP as the connector host.
+	// This permits intentionally local services without opening public connector
+	// hostnames to DNS-rebinding attacks against services on the Wanderer host.
+	allowLoopback := policy.AllowPrivate && connectorHostIsLoopback(base.Hostname())
 	tlsConfig, err := connectorTLSConfig(policy.TLSMode, policy.TLSCABundle)
 	if err != nil {
 		return nil, err
@@ -164,25 +202,34 @@ func ConnectorHTTPClient(policy ConnectorHTTPPolicy, checkRedirect func(req *htt
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		DialContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
+			dialCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
 			host, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, err
 			}
-			ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
+			ips, err := connectorHostResolver.LookupIP(dialCtx, "ip", host)
 			if err != nil || len(ips) == 0 {
 				return nil, fmt.Errorf("failed to resolve connector host: %w", err)
 			}
-			var selected net.IP
+			hostAllowsLoopback := allowLoopback && connectorHostIsLoopback(host)
+			allowed := false
+			var lastDialErr error
 			for _, ip := range ips {
-				if connectorIPAllowed(ip, policy.AllowPrivate) {
-					selected = ip
-					break
+				if !connectorIPAllowed(ip, policy.AllowPrivate, hostAllowsLoopback) {
+					continue
 				}
+				allowed = true
+				connection, dialErr := dialer.DialContext(dialCtx, network, net.JoinHostPort(ip.String(), port))
+				if dialErr == nil {
+					return connection, nil
+				}
+				lastDialErr = dialErr
 			}
-			if selected == nil {
+			if !allowed {
 				return nil, fmt.Errorf("connector host resolved outside allowed IP policy")
 			}
-			return dialer.DialContext(ctx, network, net.JoinHostPort(selected.String(), port))
+			return nil, fmt.Errorf("failed to connect to connector host: %w", lastDialErr)
 		},
 	}
 	return &http.Client{
@@ -190,6 +237,21 @@ func ConnectorHTTPClient(policy ConnectorHTTPPolicy, checkRedirect func(req *htt
 		Transport:     transport,
 		CheckRedirect: checkRedirect,
 	}, nil
+}
+
+type connectorIPResolver interface {
+	LookupIP(ctx context.Context, network string, host string) ([]net.IP, error)
+}
+
+var connectorHostResolver connectorIPResolver = net.DefaultResolver
+
+func connectorHostIsLoopback(host string) bool {
+	host = strings.TrimSpace(host)
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func connectorTLSConfig(mode string, caBundle []byte) (*tls.Config, error) {
@@ -210,7 +272,7 @@ func connectorTLSConfig(mode string, caBundle []byte) (*tls.Config, error) {
 	}
 }
 
-func connectorIPAllowed(ip net.IP, allowPrivate bool) bool {
+func connectorIPAllowed(ip net.IP, allowPrivate bool, allowLoopback bool) bool {
 	addr, ok := netip.AddrFromSlice(ip)
 	if !ok {
 		return false
@@ -218,8 +280,10 @@ func connectorIPAllowed(ip net.IP, allowPrivate bool) bool {
 	if addr.Is4In6() {
 		addr = addr.Unmap()
 	}
-	if addr.IsLoopback() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() ||
-		addr.IsMulticast() || addr.IsUnspecified() {
+	if addr.IsLoopback() {
+		return allowLoopback
+	}
+	if addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() || addr.IsMulticast() || addr.IsUnspecified() {
 		return false
 	}
 	if isSpecialPurposeIP(addr) {
@@ -282,4 +346,67 @@ func ReadBoundedForPlugin(reader io.Reader, maxBytes int64) ([]byte, error) {
 		return nil, fmt.Errorf("response exceeds maximum size")
 	}
 	return body, nil
+}
+
+func safeFetchedFileName(fallbackName string, finalURL string, contentType string) string {
+	candidates := []string{publicURLPathBase(finalURL), fallbackName}
+	firstSafe := ""
+	filename := ""
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" || strings.Contains(candidate, "/") || strings.Contains(candidate, "\\") {
+			continue
+		}
+		base := filepath.Base(candidate)
+		if base == "." || base == ".." {
+			continue
+		}
+		if firstSafe == "" {
+			firstSafe = base
+		}
+		if ext := filepath.Ext(base); ext != "" && ext != "." {
+			filename = base
+			break
+		}
+	}
+	if filename == "" {
+		filename = firstSafe
+	}
+	if filename == "" {
+		filename = filepath.Base(strings.TrimSpace(fallbackName))
+	}
+	if filename == "" || filename == "." || filename == ".." {
+		filename = "download"
+	}
+	filename = strings.Map(func(r rune) rune {
+		switch r {
+		case '/', '\\', ':', '*', '?', '"', '<', '>', '|':
+			return '-'
+		default:
+			return r
+		}
+	}, filename)
+	if ext := filepath.Ext(filename); ext == "" || ext == "." {
+		filename += extensionFromContentType(contentType)
+	}
+	return filename
+}
+
+func publicURLPathBase(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return filepath.Base(parsed.Path)
+}
+
+func extensionFromContentType(contentType string) string {
+	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(contentType))
+	if err != nil {
+		mediaType = strings.TrimSpace(contentType)
+	}
+	if extensions, err := mime.ExtensionsByType(mediaType); err == nil && len(extensions) > 0 {
+		return extensions[0]
+	}
+	return ".bin"
 }

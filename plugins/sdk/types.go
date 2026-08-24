@@ -3,6 +3,7 @@ package sdk
 const (
 	HostRequestBodyTypeJSON      = "json"
 	HostRequestBodyTypeForm      = "form"
+	HostRequestBodyTypeText      = "text"
 	HostRequestBodyTypeMultipart = "multipart"
 	MultipartSourceTrail         = "trail"
 	MultipartSourceTrailGPX      = "trail.gpx"
@@ -37,6 +38,7 @@ type HostRequestBody struct {
 	Type  string          `json:"type"`
 	JSON  any             `json:"json,omitempty"`
 	Form  []FormField     `json:"form,omitempty"`
+	Text  string          `json:"text,omitempty"`
 	Parts []MultipartPart `json:"parts,omitempty"`
 }
 
@@ -102,7 +104,117 @@ type RefreshSessionOutput struct {
 }
 
 type SyncLimits struct {
-	MaxItems int `json:"maxItems,omitempty"`
+	MaxItems              int `json:"maxItems,omitempty"`
+	MaxPhotosPerTrail     int `json:"maxPhotosPerTrail,omitempty"`
+	MaxPhotosPerWaypoint  int `json:"maxPhotosPerWaypoint,omitempty"`
+	MaxPhotosPerSummitLog int `json:"maxPhotosPerSummitLog,omitempty"`
+}
+
+// PhotoImportLimits are host-enforced write limits advertised to an asset
+// capability. Candidate search budgets belong in AssetSearchLimits instead.
+type PhotoImportLimits struct {
+	MaxPhotosPerTrail     int `json:"maxPhotosPerTrail,omitempty"`
+	MaxPhotosPerWaypoint  int `json:"maxPhotosPerWaypoint,omitempty"`
+	MaxPhotosPerSummitLog int `json:"maxPhotosPerSummitLog,omitempty"`
+}
+
+// AssetSearchLimits bounds a single asset-candidate search call. MaxItems
+// limits returned candidates, MaxScannedItems limits inspected provider items,
+// and MaxProviderRequests is the plugin's cooperative outbound-request budget.
+type AssetSearchLimits struct {
+	MaxItems            int `json:"maxItems,omitempty"`
+	MaxScannedItems     int `json:"maxScannedItems,omitempty"`
+	MaxProviderRequests int `json:"maxProviderRequests,omitempty"`
+}
+
+// ManeuverLimits are provider-independent output limits supplied by the host
+// to every maneuvers.v1 invocation. Adapters should use them to avoid doing
+// work whose result the host would reject, but the host still validates every
+// returned result independently.
+type ManeuverLimits struct {
+	MaxGeometryPoints                int   `json:"maxGeometryPoints"`
+	MaxManeuvers                     int   `json:"maxManeuvers"`
+	MaxProviderInstructionCharacters int   `json:"maxProviderInstructionCharacters"`
+	MaxStreetNames                   int   `json:"maxStreetNames"`
+	MaxStreetNameCharacters          int   `json:"maxStreetNameCharacters"`
+	MaxResponseBytes                 int64 `json:"maxResponseBytes"`
+}
+
+type ManeuverPoint struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+
+type ManeuverTrackPart struct {
+	Points []ManeuverPoint `json:"points"`
+}
+
+type ManeuverProfile struct {
+	ID            string         `json:"id,omitempty"`
+	PluginID      string         `json:"pluginId,omitempty"`
+	Key           string         `json:"key"`
+	Kind          string         `json:"kind,omitempty"`
+	Mode          string         `json:"mode,omitempty"`
+	ContentBase64 string         `json:"contentBase64,omitempty"`
+	ContentType   string         `json:"contentType,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	NativeConfig  map[string]any `json:"nativeConfig,omitempty"`
+	PreparedKey   string         `json:"preparedKey,omitempty"`
+}
+
+// ManeuverRequest is the provider-neutral maneuvers.v1 payload. Persisted
+// trail identifiers, sharing tokens, raw GPX and provider-specific limits are
+// intentionally absent from this plugin boundary.
+type ManeuverRequest struct {
+	TrackParts          []ManeuverTrackPart `json:"trackParts"`
+	Mode                string              `json:"mode,omitempty"`
+	Category            string              `json:"category,omitempty"`
+	Subcategory         string              `json:"subcategory,omitempty"`
+	Profile             ManeuverProfile     `json:"profile"`
+	Preferences         map[string]any      `json:"preferences,omitempty"`
+	RequiredPreferences []string            `json:"requiredPreferences,omitempty"`
+	Language            string              `json:"language,omitempty"`
+	Limits              ManeuverLimits      `json:"limits"`
+}
+
+type ManeuverGeometry struct {
+	Format      string `json:"format"`
+	Precision   int    `json:"precision"`
+	Coordinates string `json:"coordinates"`
+}
+
+type Maneuver struct {
+	Type                string   `json:"type"`
+	ProviderInstruction string   `json:"providerInstruction,omitempty"`
+	DistanceMeters      float64  `json:"distanceMeters"`
+	DurationSeconds     *float64 `json:"durationSeconds,omitempty"`
+	BeginShapeIndex     int      `json:"beginShapeIndex"`
+	EndShapeIndex       int      `json:"endShapeIndex"`
+	BearingBefore       *float64 `json:"bearingBefore,omitempty"`
+	BearingAfter        *float64 `json:"bearingAfter,omitempty"`
+	RoundaboutExit      *int     `json:"roundaboutExit,omitempty"`
+	StreetNames         []string `json:"streetNames,omitempty"`
+	Warnings            []string `json:"warnings,omitempty"`
+}
+
+type ManeuverResult struct {
+	Geometry  ManeuverGeometry `json:"geometry"`
+	Maneuvers []Maneuver       `json:"maneuvers,omitempty"`
+	Warnings  []string         `json:"warnings,omitempty"`
+	Error     *PluginError     `json:"error,omitempty"`
+}
+
+// OmittedAsset describes an explicitly requested asset that a plugin could not
+// convert into an importable photo.
+type OmittedAsset struct {
+	AssetID string `json:"assetId"`
+	Reason  string `json:"reason"`
+}
+
+// AssetSearchStats contains plugin-reported observability data. Hosts must not
+// use it to enforce limits because it is not independently trustworthy.
+type AssetSearchStats struct {
+	ScannedItems int `json:"scannedItems,omitempty"`
 }
 
 type ListInput struct {
@@ -124,6 +236,7 @@ type DetailInput struct {
 	Instance InstanceRef    `json:"instance"`
 	Auth     map[string]any `json:"auth,omitempty"`
 	Options  map[string]any `json:"options,omitempty"`
+	Limits   SyncLimits     `json:"limits,omitempty"`
 	Summary  TrailSummary   `json:"summary"`
 }
 
@@ -177,6 +290,7 @@ type Photo struct {
 	ExternalID  string      `json:"externalId,omitempty"`
 	Filename    string      `json:"filename,omitempty"`
 	ContentType string      `json:"contentType,omitempty"`
+	TakenAt     string      `json:"takenAt,omitempty"`
 	Lat         *float64    `json:"lat,omitempty"`
 	Lon         *float64    `json:"lon,omitempty"`
 	Source      MediaSource `json:"source"`

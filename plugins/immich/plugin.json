@@ -1,0 +1,187 @@
+{
+  "manifestVersion": "1.0",
+  "id": "immich",
+  "type": "assets",
+  "name": "Immich",
+  "description": "Suggests geotagged Immich photos that match your trail.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "asset_library",
+      "version": "v1",
+      "export": "asset_library_v1"
+    }
+  ],
+  "auth": {
+    "contexts": {
+      "api_key": {
+        "type": "api_key",
+        "fields": [
+          "apiKey"
+        ],
+        "secretField": "apiKey",
+        "secretFields": [
+          "apiKey"
+        ],
+        "name": "x-api-key"
+      }
+    }
+  },
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "configured",
+          "configKey": "immich",
+          "allowedPathPrefixes": [
+            "/api"
+          ],
+          "auth": [
+            "api_key"
+          ],
+          "supportsMediaAuth": true,
+          "supportsStorageRedirects": true,
+          "supportsCustomTLS": true
+        }
+      ]
+    },
+    "auth": [
+      "api_key"
+    ],
+    "downloads": {
+      "maxBytes": 52428800,
+      "contentTypes": [
+        "application/json",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "application/octet-stream"
+      ]
+    }
+  },
+  "configSchema": [
+    {
+      "key": "url",
+      "type": "url",
+      "label": "Immich server URL",
+      "labels": {
+        "de": "Immich Server-URL",
+        "en": "Immich server URL"
+      },
+      "required": true
+    },
+    {
+      "key": "timeWindowMinutes",
+      "type": "number",
+      "label": "Time window (minutes)",
+      "labels": {
+        "de": "Zeitfenster (Minuten)",
+        "en": "Time window (minutes)"
+      },
+      "default": 30,
+      "min": 0,
+      "step": 1
+    },
+    {
+      "key": "maxDistanceMeters",
+      "type": "number",
+      "label": "Search radius (m)",
+      "labels": {
+        "de": "Suchradius (m)",
+        "en": "Search radius (m)"
+      },
+      "default": 150,
+      "min": 1,
+      "step": 1
+    },
+    {
+      "key": "maxWaypoints",
+      "type": "number",
+      "label": "Maximum waypoints",
+      "labels": {
+        "de": "Maximale Wegpunkte",
+        "en": "Maximum waypoints"
+      },
+      "default": 25,
+      "min": 0,
+      "step": 1
+    },
+    {
+      "key": "importSize",
+      "type": "select",
+      "label": "Import size",
+      "labels": {
+        "de": "Importgrösse",
+        "en": "Import size"
+      },
+      "default": "preview",
+      "options": [
+        {
+          "value": "preview",
+          "label": "Preview",
+          "labels": {
+            "de": "Vorschau",
+            "en": "Preview"
+          }
+        },
+        {
+          "value": "original",
+          "label": "Original",
+          "labels": {
+            "de": "Original",
+            "en": "Original"
+          }
+        }
+      ]
+    },
+    {
+      "key": "ownedOnly",
+      "type": "boolean",
+      "label": "Own photos only",
+      "labels": {
+        "de": "Nur eigene Fotos",
+        "en": "Own photos only"
+      },
+      "default": false
+    },
+    {
+      "key": "userId",
+      "type": "text",
+      "label": "Immich user ID",
+      "hidden": true
+    }
+  ],
+  "hostConfig": {
+    "connectors": {
+      "immich": {
+        "baseURL": "",
+        "basePath": "",
+        "allowPrivate": false
+      }
+    },
+    "photoMode": "copy",
+    "maxPhotosPerWaypoint": 5,
+    "autoAttach": {
+      "trailPlugins": true,
+      "upload": true
+    }
+  },
+  "metadata": {
+    "displayNames": {
+      "de": "Immich",
+      "en": "Immich"
+    },
+    "descriptions": {
+      "de": "Schlägt Immich-Fotos mit Standortdaten vor, die zu deiner Tour passen.",
+      "en": "Suggests geotagged Immich photos that match your trail."
+    },
+    "icons": {
+      "light": "icon.svg"
+    }
+  }
+}

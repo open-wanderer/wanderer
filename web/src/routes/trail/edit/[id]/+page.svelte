@@ -8,13 +8,16 @@
     import SummitLogCard from "$lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "$lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import PhotoPicker from "$lib/components/trail/photo_picker.svelte";
+    import PhotoPicker from "$lib/components/photo/photo_picker.svelte";
+    import PhotoLibraryPickerModal from "$lib/components/photo/photo_library_picker_modal.svelte";
     import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
+    import RoundTripControls from "$lib/components/trail/round_trip_controls.svelte";
     import WaypointCard from "$lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {
         type WaypointMergeOptions,
     } from "$lib/components/waypoint/waypoint_merge_modal.svelte";
     import WaypointModal from "$lib/components/waypoint/waypoint_modal.svelte";
+    import AssetWaypointModal from "$lib/components/trail/asset_waypoint_modal.svelte";
     import { SummitLogCreateSchema } from "$lib/models/api/summit_log_schema.js";
     import { TrailCreateSchema } from "$lib/models/api/trail_schema.js";
     import { WaypointCreateSchema } from "$lib/models/api/waypoint_schema.js";
@@ -22,8 +25,23 @@
     import GPXWaypoint from "$lib/models/gpx/waypoint";
     import type { List } from "$lib/models/list";
     import { SummitLog } from "$lib/models/summit_log";
-    import { Trail, hasDuplicatePhotos } from "$lib/models/trail";
-    import type { RoutingOptions, ValhallaAnchor } from "$lib/models/valhalla";
+    import { Trail } from "$lib/models/trail";
+    import type { Asset } from "$lib/models/asset";
+    import {
+        mergePhotoLibraryPluginLinks,
+        photoLibraryCandidateKey,
+        photoLibraryPluginLinks,
+        type PhotoLibraryCandidate,
+    } from "$lib/models/photo_library";
+    import type {
+        RoutingOptions,
+        RoutingAnchor,
+        RoutingEffectiveControls,
+        RoutingEngine,
+        RoutingSettings,
+        RoutingCandidate,
+        RoutingSegmentProvenance,
+    } from "$lib/models/routing";
     import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { type OverpassPopupAction } from "$lib/util/maplibre_util";
     import { Waypoint } from "$lib/models/waypoint";
@@ -38,9 +56,45 @@
         trails_create,
         trails_update,
     } from "$lib/stores/trail_store.js";
+    import { markGeneratedAssetFile } from "$lib/stores/asset_store";
+    import { APIError } from "$lib/util/api_util";
     import {
-        valhallaStore,
+        ROUTING_MAX_VARIANT_ANCHORS,
+        ROUTING_MAX_VARIANTS,
+    } from "$lib/util/routing_variant_util";
+    import {
+        applyRouteEditorRoutingEngineSelection,
+        applyRoutingEffectiveControlDefaults,
+        routingEngineSupportsVia,
+        routingModeToTransport,
+        selectEnabledRoutingPlugin,
+    } from "$lib/util/routing_engine_util";
+    import {
+        anchorsForClosedLoopEdit,
+        candidateForClosedLoop,
+        closedLoopEditAction,
+        isPersistedClosedLoop,
+        roundTripLoopProvenanceForSegments,
+        selectRoundTripRoutingEngine,
+        shouldShowRoundTripControls,
+    } from "$lib/util/routing_round_trip_util";
+    import {
+        routeCalculationErrorText as formatRouteCalculationError,
+        routingPlanningKey,
+        routingPreparationOptions,
+    } from "$lib/util/trail_editor_routing_util";
+
+    import {
+        routingStore,
         calculateRouteBetween,
+        calculateRouteForAnchors,
+        calculateRoundTrip,
+        calculateRouteVariants,
+        applyRoutingCandidate,
+        routingCandidateToGPX,
+        routingProvenanceMatchesOptions,
+        clearRoutingCandidates,
+        markRoutingCandidatesStale,
         clearAnchors,
         clearRoute,
         deleteFromRoute,
@@ -56,7 +110,11 @@
         redo,
         revertRouteChange,
         clearUndoRedoStack,
-    } from "$lib/stores/valhalla_store.svelte.js";
+        routingSettings as loadRoutingSettings,
+        routingEffectiveControls as loadRoutingEffectiveControls,
+        routingEngines as loadRoutingEngines,
+        prepareRoutingProfile,
+    } from "$lib/stores/routing_store.svelte.js";
     import { waypoint } from "$lib/stores/waypoint_store";
     import { getFileURL } from "$lib/util/file_util";
     import {
@@ -64,6 +122,7 @@
         formatElevation,
         formatTimeHHMM,
     } from "$lib/util/format_util";
+    import { extractGPSCoordinates } from "$lib/util/exif_util";
     import { cropGPX, fromFile, gpx2trail } from "$lib/util/gpx_util";
 
     import { page } from "$app/state";
@@ -72,14 +131,16 @@
     import Combobox, {
         type ComboboxItem,
     } from "$lib/components/base/combobox.svelte";
-    import type { DropdownItem } from "$lib/components/base/dropdown.svelte";
+    import Dropdown, {
+        type DropdownItem,
+    } from "$lib/components/base/dropdown.svelte";
     import Editor from "$lib/components/base/editor.svelte";
     import Search, {
         type SearchItem,
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
+    import RouteVariants from "$lib/components/trail/route_variants.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -94,17 +155,18 @@
         createAnchorMarker,
         createEditTrailMapPopup,
         FontawesomeMarker,
+        markerElement,
+        syncMarkerHighlightClass,
     } from "$lib/util/maplibre_util";
     import {
-        renderValhallaAnchorMarker,
-        valhallaAnchorTitle,
-    } from "$lib/util/valhalla_anchor_util";
-    import EXIF from "$lib/vendor/exif-js/exif.js";
+        renderRoutingAnchorMarker,
+        routingAnchorTitle,
+    } from "$lib/util/routing_anchor_util";
     import { validator } from "@felte/validator-zod";
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, untrack } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly } from "svelte/transition";
@@ -123,13 +185,44 @@
     let lists = $state(untrack(() => data.lists));
 
     let waypointModal: WaypointModal;
+    let assetWaypointModal: AssetWaypointModal;
+    let trailPhotoLibraryModal: PhotoLibraryPickerModal = $state()!;
     let waypointMergeModal: WaypointMergeModal;
     let summitLogModal: SummitLogModal;
     let listSelectModal: ListSearchModal;
     let markTrailAsCompletedModal: ConfirmModal;
     let replaceRouteModal: ConfirmModal;
+    let roundTripReplaceModal: ConfirmModal;
+    let publishConfirmModal: ConfirmModal | undefined = $state();
+    let publishConfirmed = false;
+    let pendingLinkedPhotoCount = $state(0);
 
     let loading = $state(false);
+    let pendingTrailPhotoCandidates: PhotoLibraryCandidate[] = $state([]);
+
+    // Counts photos still stored as remote links (link_private). Publishing copies
+    // them into wanderer, because a remote link cannot be served to public viewers.
+    function countLinkedPrivatePhotos(): number {
+        const expand = $formData.expand;
+        if (!expand) return 0;
+        const isLinked = (a: { storage_mode?: string }) =>
+            a.storage_mode === "link_private";
+        let count = (expand.assets_via_trail ?? []).filter(isLinked).length;
+        for (const w of expand.waypoints_via_trail ?? []) {
+            count += (w.expand?.assets_via_waypoint ?? []).filter(isLinked).length;
+        }
+        for (const s of expand.summit_logs_via_trail ?? []) {
+            count += (s.expand?.assets_via_summit_log ?? []).filter(isLinked).length;
+        }
+        return count;
+    }
+
+    function confirmPublishWithLinkedPhotos() {
+        publishConfirmed = true;
+        (
+            document.getElementById("trail-form") as HTMLFormElement | null
+        )?.requestSubmit();
+    }
 
     let editingBasicInfo: boolean = $state(false);
 
@@ -146,10 +239,7 @@
     );
 
     function routeCalculationErrorText(error: unknown) {
-        if (error instanceof Error && error.message) {
-            return error.message;
-        }
-        return "Error calculating route";
+        return formatRouteCalculationError(error, $_);
     }
     let overwriteGPX = false;
     let draggingMarker = false;
@@ -165,45 +255,56 @@
 
     let croppedGPX: GPX | null = null;
 
-    const PhotoCloneSourceSchema = z.object({
-        id: z.string(),
-        collectionId: z.string().optional(),
-        collectionName: z.string().optional(),
-        photos: z.array(z.string()).default([]),
+    // Assets are not edited by this form; carry them through untouched.
+    const ClientAssetSchema = z.custom<Asset>();
+    const PhotoLibraryPluginLinkSchema = z.object({
+        pluginId: z.string(),
+        assetIds: z.array(z.string()),
     });
 
     const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
         _photos: z.array(z.instanceof(File)).optional(),
         _gpx: z.instanceof(Blob).optional().nullable(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(PhotoLibraryPluginLinkSchema)
+            .optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
+                assets_via_summit_log: z.array(ClientAssetSchema).optional(),
+                summit_log_assets_via_summit_log: z.any().optional(),
             })
             .optional(),
     });
 
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
         _photos: z.array(z.instanceof(File)).optional(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(PhotoLibraryPluginLinkSchema)
+            .optional(),
+        expand: z
+            .object({
+                assets_via_waypoint: z.array(ClientAssetSchema).optional(),
+                waypoint_assets_via_waypoint: z.any().optional(),
+            })
+            .optional(),
     });
 
-    type PhotoCloneSource = z.infer<typeof PhotoCloneSourceSchema>;
-    type PhotoCloneTarget = {
-        _duplicatePhotoSource?: PhotoCloneSource;
-        _photos?: File[];
-    };
-    type PhotoCloneEntry = [string, File[]];
-    type DuplicateLegacyPhotoClones = {
-        trailPhotos: File[];
-        waypointPhotosById: Map<string, File[]>;
-        summitLogPhotosById: Map<string, File[]>;
-    };
-
     const ClientTrailCreateSchema = TrailCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(PhotoLibraryPluginLinkSchema)
+            .optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
+                assets_via_trail: z.array(ClientAssetSchema).optional(),
+                trail_assets_via_trail: z.any().optional(),
                 summit_logs_via_trail: z
                     .array(ClientSummitLogCreateSchema)
                     .optional(),
@@ -223,11 +324,217 @@
         autoRouting: true,
         modeOfTransport: "pedestrian",
     });
+    let hoveredRoutingVariantId: string | null | undefined = $state();
+    function routingVariantMapTrailId(candidate: RoutingCandidate, index: number) {
+        return `routing-variant-${index}-${candidate.id}`;
+    }
+    let routingVariantGPXById = $derived.by(() => {
+        if (routingStore.routeCandidatesStale) return new Map();
+        return new Map(
+            routingStore.routeCandidates.map((candidate) => [
+                candidate.id,
+                routingCandidateToGPX(candidate),
+            ]),
+        );
+    });
+    let routingVariantMapTrails = $derived.by(() => {
+        if (!drawingActive || routingStore.routeCandidatesStale) return [];
+        return routingStore.routeCandidates.map((candidate, index) => {
+            const preview = new Trail(`${$_("routing-variant")} ${index + 1}`);
+            preview.id = routingVariantMapTrailId(candidate, index);
+            preview.expand!.gpx = routingVariantGPXById.get(candidate.id);
+            return preview;
+        });
+    });
+    let routingVariantMapFocusId = $derived.by(() => {
+        if (
+            !drawingActive ||
+            routingStore.routeCandidatesStale ||
+            hoveredRoutingVariantId === undefined
+        ) {
+            return undefined;
+        }
+        if (hoveredRoutingVariantId === null) {
+            return mapTrail[0]?.id;
+        }
+        const index = routingStore.routeCandidates.findIndex(
+            (candidate) => candidate.id === hoveredRoutingVariantId,
+        );
+        const candidate = routingStore.routeCandidates[index];
+        return candidate ? routingVariantMapTrailId(candidate, index) : undefined;
+    });
+    let routingVariantElevationPreview = $derived.by(() => {
+        if (
+            !drawingActive ||
+            routingStore.routeCandidatesStale ||
+            !routingStore.routeCandidateOrigin
+        ) {
+            return undefined;
+        }
+        const previewId =
+            hoveredRoutingVariantId !== undefined
+                ? hoveredRoutingVariantId
+                : routingStore.selectedRouteCandidateId;
+        if (previewId === null) {
+            return routingStore.routeCandidateOrigin.route;
+        }
+        if (previewId === undefined) return undefined;
+        const candidate = routingStore.routeCandidates.find(
+            (routeCandidate) => routeCandidate.id === previewId,
+        );
+        return candidate ? routingVariantGPXById.get(candidate.id) : undefined;
+    });
+    let routeRoutingSettings: RoutingSettings | undefined = $state();
+    let routeRoutingEngines: RoutingEngine[] = $state([]);
+    let routeEffectiveControls: RoutingEffectiveControls | undefined = $state();
+    let routeEffectiveControlsKey = "";
+    let routeEffectiveControlsRequest = 0;
     let routeAnchorListUpdating = $state(false);
+    let routeCalculationPendingCount = $state(0);
+    let roundTripGenerating = $state(false);
+    let pendingRoundTripRequest: { targetDistanceMeters: number; direction?: number } | undefined = $state();
+    let originalRouteCalculating = $derived(
+        routeCalculationPendingCount > 0 || routeAnchorListUpdating,
+    );
     let routeSegments = $state<TrackSegment[]>([]);
+    let dismissedRoutingMismatchKey = $state("");
+    let lastRoutingCandidatePlanningKey = $state("");
+    let routingEnabled = $derived(
+        routeRoutingSettings !== undefined &&
+            routeRoutingSettings.exposedFeatures?.routing !== false,
+    );
+    let routingPluginAvailable = $derived(
+        routingEnabled &&
+            !!routingOptions.routingPluginId &&
+            routeRoutingEngines.some(
+                (engine) =>
+                    engine.pluginId === routingOptions.routingPluginId &&
+                    engine.enabled,
+            ),
+    );
+    let routingVariantsAvailable = $derived(
+        routingEnabled &&
+            routeRoutingSettings?.exposedFeatures?.variants !== false,
+    );
+    let parallelRoutingAvailable = $derived(
+        routingEnabled &&
+            routeRoutingSettings?.exposedFeatures?.parallelRouting !== false,
+    );
+    let viaRoutingAvailable = $derived(selectedRoutingEnginesSupportVia());
+    let roundTripEngine = $derived(selectedRoundTripRoutingEngine());
+    let roundTripAvailable = $derived(routingEnabled && roundTripEngine !== undefined);
+    let roundTripControlsAvailable = $derived.by(() =>
+        shouldShowRoundTripControls({
+            capabilityAvailable: roundTripAvailable,
+            anchorCount: routingStore.anchors.length,
+            hasRoute: routeHasTrackPoints(),
+            provenance: routingStore.segmentProvenance,
+            segmentCount: routingStore.route.trk?.at(0)?.trkseg?.length ?? 0,
+        }),
+    );
+    let routeEditorRoutingEngines = $derived(
+        routeRoutingEngines.filter(
+            (engine) => engine.enabled && engine.roles?.includes("route"),
+        ),
+    );
+    let routingVariantAnchors = $derived.by(() =>
+        routingStore.closedLoop && routingStore.anchors.length > 0
+            ? [...routingStore.anchors, { ...routingStore.anchors[0] }]
+            : routingStore.anchors,
+    );
+    let routingVariantMaxCount = $derived.by(() => {
+        if (routingVariantAnchors.length > ROUTING_MAX_VARIANT_ANCHORS) return 0;
+		return ROUTING_MAX_VARIANTS;
+    });
+    let routingVariantRequestError = $derived.by(() => {
+        if (routingVariantAnchors.length > ROUTING_MAX_VARIANT_ANCHORS) {
+            return $_("routing-error-anchor-limit", {
+                values: { max: ROUTING_MAX_VARIANT_ANCHORS },
+            });
+        }
+        return undefined;
+    });
+    let routingProvenanceMismatchKey = $derived.by(() => {
+        const mismatching = routingStore.segmentProvenance
+            .map((provenance, index) => ({ provenance, index }))
+            .filter(
+                (entry) =>
+                    entry.provenance !== null &&
+                    !routingProvenanceMatchesOptions(entry.provenance, routingOptions),
+            );
+        if (!mismatching.length) return "";
+        return JSON.stringify({
+            category: routingOptions.category ?? "",
+            subcategory: routingOptions.subcategory ?? "",
+            routingMode: routingOptions.routingMode ?? "segment",
+            pluginId: routingOptions.routingPluginId ?? "",
+            instanceId: routingOptions.routingInstanceId ?? "",
+            nativeProfileKey: routingOptions.nativeProfileKey ?? "",
+            profileRevisions: routingOptions.profileRevisions ?? {},
+            preferences: routingOptions.preferences,
+            nativeConfig: routingOptions.nativeConfig,
+            mismatchingSegments: mismatching.map((entry) => entry.index),
+        });
+    });
+    let showRoutingProvenanceMismatch = $derived(
+        Boolean(routingProvenanceMismatchKey) &&
+            routingProvenanceMismatchKey !== dismissedRoutingMismatchKey,
+    );
+
+    $effect(() => {
+        const key = routingPlanningKey(routingOptions);
+        if (lastRoutingCandidatePlanningKey && key !== lastRoutingCandidatePlanningKey) {
+            clearRoutingCandidates();
+        }
+        lastRoutingCandidatePlanningKey = key;
+    });
+
+    $effect(() => {
+        if (
+            !drawingActive ||
+            !routingOptions.autoRouting ||
+            !routingOptions.routingPluginId ||
+            !routingPluginAvailable
+        ) {
+            return;
+        }
+        const preparationOptions = routingPreparationOptions(routingOptions);
+        const timeout = window.setTimeout(() => {
+            // Drawing starts with ordinary auto-routing. Additional engines are
+            // prepared only by an actual variant request.
+            void prepareRoutingProfile(preparationOptions, false).catch(() => undefined);
+        }, 500);
+        return () => window.clearTimeout(timeout);
+    });
+    let drawRouteDisabled = $derived(
+        !drawingActive &&
+            (routeRoutingSettings === undefined ||
+                (routingEnabled && !routingPluginAvailable)),
+    );
+    let drawRouteTooltip = $derived(
+        drawRouteDisabled ? $_("no-routing-plugin-available") : undefined,
+    );
 
     let savedAtLeastOnce = $state(false);
-    let duplicateLegacyPhotosPromise: Promise<DuplicateLegacyPhotoClones> | undefined;
+
+    let assetPluginIds = $derived(data.assetPluginIds);
+    let canImportPhotosFromLibrary = $derived(!isNewTrail || savedAtLeastOnce);
+    let photoImportDropdownItems: DropdownItem[] = $derived([
+        {
+            text: $_("upload-photos-from-device"),
+            value: "device",
+            icon: "image",
+        },
+        {
+            text: $_("choose-photos-from-library"),
+            value: "library",
+            icon: "images",
+            disabled: !canImportPhotosFromLibrary,
+            tooltip: canImportPhotosFromLibrary
+                ? undefined
+                : $_("save-your-trail-first"),
+        },
+    ]);
 
     let tagItems: ComboboxItem[] = $state([]);
 
@@ -267,6 +574,24 @@
             schema: ClientTrailCreateSchema,
         }),
         onSubmit: async (form) => {
+            if (!publishConfirmed) {
+                const publishForm = document.getElementById(
+                    "trail-form",
+                ) as HTMLFormElement | null;
+                const willBePublic = !!(
+                    publishForm && new FormData(publishForm).get("public")
+                );
+                const wasPublic = !!(data.trail.id && data.trail.public);
+                if (!wasPublic && willBePublic) {
+                    const linkedCount = countLinkedPrivatePhotos();
+                    if (linkedCount > 0) {
+                        pendingLinkedPhotoCount = linkedCount;
+                        publishConfirmModal?.openModal();
+                        return;
+                    }
+                }
+            }
+            publishConfirmed = false;
             loading = true;
             try {
                 const htmlForm = document.getElementById(
@@ -279,12 +604,14 @@
                 form.photos = form.photos.filter(
                     (p) => !p.startsWith("data:image/svg+xml;base64"),
                 );
-                Object.assign(
-                    form,
-                    await prepareDuplicateLegacyPhotos(form as Trail),
-                );
+                applyTrailPhotoLibrarySelection(form as Trail);
 
-                if (!form.photos?.length && !photoFiles.length) {
+                if (
+                    !form.photos?.length &&
+                    !photoFiles.length &&
+                    !pendingTrailPhotoCandidates.length &&
+                    !hasPendingAssetLinks(form as Trail)
+                ) {
                     const canvas = document.querySelector(
                         "#map .maplibregl-canvas",
                     ) as HTMLCanvasElement;
@@ -292,10 +619,16 @@
                     const dataURL = canvas.toDataURL("image/webp", 0.3);
                     const response = await fetch(dataURL);
                     const blob = await response.blob();
-                    photoFiles = [new File([blob], "route")];
+                    photoFiles = [
+                        markGeneratedAssetFile(
+                            new File([blob], "wanderer-route-preview.webp", { type: "image/webp" }),
+                            "route-preview",
+                        ),
+                    ];
                 }
 
-                form.expand!.gpx_data = valhallaStore.route.toString();
+                form.expand!.gpx_data = routingStore.route.toString();
+                form.routing_provenance = routingStore.segmentProvenance;
                 if (
                     form.expand!.gpx_data &&
                     (overwriteGPX || (isNewTrail && !savedAtLeastOnce && !gpxFile && routeHasTrackPoints()))
@@ -307,13 +640,13 @@
 
                 if (
                     (!form.lat || !form.lon) &&
-                    valhallaStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.at(0)
+                    routingStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.at(0)
                 ) {
-                    form.lat = valhallaStore.route.trk
+                    form.lat = routingStore.route.trk
                         ?.at(0)
                         ?.trkseg?.at(0)
                         ?.trkpt?.at(0)?.$.lat;
-                    form.lon = valhallaStore.route.trk
+                    form.lon = routingStore.route.trk
                         ?.at(0)
                         ?.trkseg?.at(0)
                         ?.trkpt?.at(0)?.$.lon;
@@ -327,6 +660,7 @@
                     );
                     setFields(createdTrail);
                     trail.set(createdTrail);
+                    savedAtLeastOnce = true;
                 } else {
                     const updatedTrail = await trails_update(
                         $trail,
@@ -335,10 +669,11 @@
                         gpxFile,
                     );
                     setFields(updatedTrail);
+                    savedAtLeastOnce = true;
                 }
                 photoFiles = [];
+                pendingTrailPhotoCandidates = [];
 
-                savedAtLeastOnce = true;
                 show_toast({
                     type: "success",
                     icon: "check",
@@ -378,6 +713,7 @@
         clearAnchors();
         clearRoute();
         clearUndoRedoStack();
+        await initRoutingPhaseThreeState();
 
         const initialGpxData = $formData.expand?.gpx_data;
         if (initialGpxData) {
@@ -397,7 +733,7 @@
                     gpx.rte = undefined;
                 }
 
-                setRoute(gpx);
+                setRoute(gpx, false, $formData.routing_provenance ?? []);
                 initRouteAnchors(gpx);
 
                 updateTrailOnMap();
@@ -407,14 +743,485 @@
                 }
             }
         }
-
-        void prepareDuplicateLegacyPhotos($formData as Trail, {
-            syncFormData: true,
-        });
     });
 
+    $effect(() => {
+        const selection = selectedRoutingCategory();
+        const pluginId = routingOptions.routingPluginId;
+        const instanceId = routingOptions.routingInstanceId;
+        if (!routingEnabled || !selection.category || !pluginId) {
+            return;
+        }
+        if (routingOptions.category !== selection.category) {
+            routingOptions.category = selection.category;
+        }
+        if (routingOptions.subcategory !== selection.subcategory) {
+            routingOptions.subcategory = selection.subcategory;
+        }
+        void refreshRoutingEffectiveControls(
+            selection.category,
+            selection.subcategory,
+            pluginId,
+            instanceId,
+        );
+    });
+
+    async function initRoutingPhaseThreeState() {
+        try {
+            const [settings, engines] = await Promise.all([
+                loadRoutingSettings(),
+                loadRoutingEngines(),
+            ]);
+            routeRoutingSettings = settings;
+            routeRoutingEngines = engines;
+            const enabled = settings.exposedFeatures?.routing !== false;
+            if (!enabled) {
+                routingOptions.autoRouting = false;
+                routeEffectiveControls = undefined;
+                clearRoutingCandidates();
+            }
+
+            routingOptions.routingPluginId = selectEnabledRoutingPlugin(
+                routeRoutingEngines,
+                settings.primaryRoutePluginId,
+                "route",
+            );
+            routingOptions.routingInstanceId = routeRoutingEngines.find(
+                (engine) => engine.pluginId === routingOptions.routingPluginId && engine.enabled,
+            )?.instanceId;
+            routingOptions.routingElevationPluginId = selectEnabledRoutingPlugin(
+                routeRoutingEngines,
+                settings.elevationPluginId,
+                "elevation",
+            );
+			routingOptions.routingElevationInstanceId = routeRoutingEngines.find(
+				(engine) =>
+					engine.pluginId === routingOptions.routingElevationPluginId &&
+					engine.enabled,
+			)?.instanceId;
+            routingOptions.routingMode = settings.defaultRoutingMode ?? "segment";
+            routingOptions.routingModeExplicit = false;
+            const parallelEnabled = settings.exposedFeatures?.parallelRouting !== false;
+            routingOptions.engineMode = parallelEnabled ? "parallel" : "single";
+            routingOptions.desiredVariants = Math.min(
+                ROUTING_MAX_VARIANTS,
+                Math.max(1, settings.defaultVariantCount ?? 3),
+            );
+            if (settings.exposedFeatures?.variants === false) {
+                clearRoutingCandidates();
+            }
+            const selection = selectedRoutingCategory();
+            routingOptions.category = selection.category;
+            routingOptions.subcategory = selection.subcategory;
+            if (enabled && selection.category) {
+                await refreshRoutingEffectiveControls(
+                    selection.category,
+                    selection.subcategory,
+                    routingOptions.routingPluginId,
+                    routingOptions.routingInstanceId,
+                );
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function selectedRoundTripRoutingEngine() {
+        return selectRoundTripRoutingEngine(
+            routeRoutingEngines,
+            routingOptions.routingPluginId,
+            routingOptions.routingInstanceId,
+        );
+    }
+
+    function selectedRoutingEnginesSupportVia() {
+        return selectedRoutingVariantEngines().some(routingEngineSupportsVia);
+    }
+
+    function selectedRoutingVariantEngines() {
+        const engine = routeRoutingEngines.find(
+            (candidate) =>
+                candidate.pluginId === routingOptions.routingPluginId &&
+                candidate.enabled &&
+                candidate.roles?.includes("route"),
+        );
+        return engine ? [engine] : [];
+    }
+
+    async function selectRouteEditorRoutingEngine(pluginId: string) {
+        const engine = applyRouteEditorRoutingEngineSelection(
+            routingOptions,
+            routeEditorRoutingEngines,
+            pluginId,
+        );
+        if (!engine) return;
+        routeEffectiveControls = undefined;
+        clearRoutingCandidates();
+
+        const selection = selectedRoutingCategory();
+        if (selection.category) {
+            await refreshRoutingEffectiveControls(
+                selection.category,
+                selection.subcategory,
+                engine.pluginId,
+                engine.instanceId,
+            );
+        }
+    }
+
+    function selectedRoutingCategory() {
+        const category = data.categories.find((item) => item.id === $formData.category);
+        const subcategory = data.subcategories.find(
+            (item) => item.id === $formData.subcategory && item.category === category?.id,
+        );
+        return {
+            category: category?.name ?? "",
+            subcategory: subcategory?.name ?? "",
+        };
+    }
+
+    async function refreshRoutingEffectiveControls(
+        category: string,
+        subcategory: string,
+        pluginId: string,
+        instanceId?: string,
+    ) {
+		const requestNumber = ++routeEffectiveControlsRequest;
+		const requestKey = [pluginId, instanceId ?? "", category, subcategory].join(":");
+        try {
+            const request = {
+                category,
+                subcategory,
+                routing: {
+                    engines: [{ pluginId, instanceId }],
+                },
+            };
+			const controls = await loadRoutingEffectiveControls({
+                ...request,
+            });
+			if (requestNumber !== routeEffectiveControlsRequest) return;
+			if (routeEffectiveControlsKey && routeEffectiveControlsKey !== requestKey) {
+				routingOptions.preferences = {};
+				routingOptions.nativeConfig = {};
+			}
+			routeEffectiveControlsKey = requestKey;
+			routeEffectiveControls = controls;
+            routingOptions.profileRevisions = routeEffectiveControls.profileRevisions ?? {};
+            const transport = routingModeToTransport(routeEffectiveControls.mode);
+            if (transport) {
+                routingOptions.modeOfTransport = transport;
+            }
+            applyRoutingEffectiveControlDefaults(routingOptions, routeEffectiveControls);
+        } catch (e) {
+			if (requestNumber !== routeEffectiveControlsRequest) return;
+            console.error(e);
+            routeEffectiveControls = undefined;
+        }
+    }
+
+    async function requestRouteVariants(desiredVariants = routingOptions.desiredVariants ?? 1) {
+        if (routingStore.anchors.length < 2 || originalRouteCalculating) return;
+        if (!routingVariantsAvailable) {
+            show_toast({
+                text: $_("routing-variants-disabled"),
+                icon: "close",
+                type: "error",
+            });
+            return;
+        }
+        if (routingVariantRequestError) {
+            show_toast({ text: routingVariantRequestError, icon: "close", type: "error" });
+            return;
+        }
+        const effectiveVariantCount = Math.max(
+            1,
+            Math.min(desiredVariants, routingVariantMaxCount),
+        );
+        try {
+            await calculateRouteVariants(
+                routingVariantAnchors,
+                parallelRoutingAvailable
+                    ? {
+                          ...routingOptions,
+                          desiredVariants: effectiveVariantCount,
+                      }
+                    : {
+                          ...routingOptions,
+                          engineMode: "single",
+                          desiredVariants: effectiveVariantCount,
+                      },
+            );
+            await tick();
+            mapWithElevation?.fitToAllBounds();
+        } catch (error) {
+            console.error(error);
+            show_toast({ text: routeCalculationErrorText(error), icon: "close", type: "error" });
+        }
+    }
+
+    function applyRouteCandidate(candidate: RoutingCandidate) {
+        const wasClosedLoop = routingStore.closedLoop;
+        const previous = wasClosedLoop ? persistedClosedLoopMetadata() : undefined;
+        if (wasClosedLoop && !previous) leaveInvalidClosedLoopState();
+        const candidateToApply = previous
+            ? candidateForClosedLoop(candidate, previous)
+            : candidate;
+        const snappedAnchors = applyRoutingCandidate(candidateToApply);
+        routingStore.closedLoop = Boolean(previous) || candidate.compositionMode === "round_trip";
+        refreshAnchorLabels();
+        applySnappedAnchors(
+            0,
+            routingStore.closedLoop && snappedAnchors?.length === routingStore.anchors.length + 1
+                ? snappedAnchors.slice(0, -1)
+                : snappedAnchors,
+        );
+        normalizeRouteTime();
+        updateTrailWithRouteData();
+        hoveredRoutingVariantId = undefined;
+        clearRoutingCandidates();
+    }
+
+    function selectRouteCandidate(candidate: RoutingCandidate) {
+        routingStore.selectedRouteCandidateId = candidate.id;
+    }
+
+    function selectOriginalRoute() {
+        routingStore.selectedRouteCandidateId = null;
+    }
+
+    function applySelectedRouteCandidate() {
+        const candidate = routingStore.routeCandidates.find(
+            (routeCandidate) =>
+                routeCandidate.id === routingStore.selectedRouteCandidateId,
+        );
+        if (candidate) applyRouteCandidate(candidate);
+    }
+
+    function previewRouteCandidate(
+        candidate: RoutingCandidate | null | undefined,
+    ) {
+        if (routingStore.routeCandidatesStale || candidate === undefined) {
+            hoveredRoutingVariantId = undefined;
+            return;
+        }
+        hoveredRoutingVariantId = candidate === null ? null : candidate.id;
+    }
+
+    async function recalculateEntireRoute() {
+        const closedLoop = routingStore.closedLoop;
+        const loopMetadata = closedLoop ? persistedClosedLoopMetadata() : undefined;
+        const action = closedLoopEditAction({
+            closedLoop,
+            anchorCount: routingStore.anchors.length,
+            hasTopology: Boolean(loopMetadata),
+            autoRouting: routingOptions.autoRouting,
+        });
+        if (action === "clear") {
+            setRoute(new GPX({ trk: [new Track({ trkseg: [] })] }), true);
+            refreshAnchorLabels();
+            updateTrailWithRouteData();
+            return;
+        }
+        const loadingAnchors = [...routingStore.anchors];
+        const useClosedLoop = action === "routed";
+        if (action === "invalid") {
+            leaveInvalidClosedLoopState();
+        }
+        loadingAnchors.forEach(startAnchorLoading);
+        try {
+            if (action === "manual") {
+                await recalculateManualClosedLoop(loopMetadata!);
+                return;
+            }
+            const response = await calculateRouteForAnchors(
+                anchorsForClosedLoopEdit(routingStore.anchors, action),
+                routingOptions,
+                false,
+            );
+            const candidate = response.candidates?.[0];
+            if (!candidate) {
+                throw new APIError(502, "No route candidate returned");
+            }
+            if (response.warnings?.includes("routing_mode_fallback")) {
+                routingOptions.routingMode = "segment";
+                routingOptions.routingModeExplicit = false;
+                show_toast({
+                    text: $_("routing-mode-fallback"),
+                    icon: "triangle-exclamation",
+                    type: "warning",
+                });
+            }
+            const candidateToApply = loopMetadata
+                ? candidateForClosedLoop(candidate, loopMetadata)
+                : candidate;
+            const snappedAnchors = applyRoutingCandidate(candidateToApply);
+            routingStore.closedLoop = useClosedLoop;
+            applySnappedAnchors(
+                0,
+                useClosedLoop && snappedAnchors?.length === routingStore.anchors.length + 1
+                    ? snappedAnchors.slice(0, -1)
+                    : snappedAnchors,
+            );
+            normalizeRouteTime();
+            updateTrailWithRouteData();
+        } finally {
+            loadingAnchors.forEach(stopAnchorLoading);
+        }
+    }
+
+    function persistedClosedLoopMetadata() {
+        const segmentCount = routingStore.route.trk?.at(0)?.trkseg?.length ?? 0;
+        if (!isPersistedClosedLoop(routingStore.segmentProvenance, segmentCount)) {
+            return undefined;
+        }
+        return routingStore.segmentProvenance.find(
+            (entry): entry is RoutingSegmentProvenance =>
+                entry?.routeTopology === "closed_loop",
+        );
+    }
+
+    function leaveInvalidClosedLoopState() {
+        routingStore.closedLoop = false;
+        refreshAnchorLabels();
+        show_toast({
+            text: $_("routing-round-trip-state-lost"),
+            icon: "triangle-exclamation",
+            type: "warning",
+        });
+    }
+
+    async function recalculateManualClosedLoop(previous: RoutingSegmentProvenance) {
+        const anchors = routingStore.anchors;
+        if (anchors.length < 2) {
+            routingStore.closedLoop = false;
+            return;
+        }
+        const results = await Promise.all(
+            anchors.map((start, index) => {
+                const end = anchors[(index + 1) % anchors.length];
+                return calculateRouteBetween(
+                    start.lat,
+                    start.lon,
+                    end.lat,
+                    end.lon,
+                    { ...routingOptions, autoRouting: false },
+                );
+            }),
+        );
+        const segments = results.map(
+            (result) => new TrackSegment({ trkpt: result.waypoints }),
+        );
+        const route = new GPX({ trk: [new Track({ trkseg: segments })] });
+        const actualDistance = route.getTotals().distance;
+        setRoute(
+            route,
+            true,
+            roundTripLoopProvenanceForSegments(
+                previous,
+                Array.from({ length: segments.length }),
+                actualDistance,
+            ),
+        );
+        routingStore.closedLoop = true;
+        normalizeRouteTime();
+        updateTrailWithRouteData();
+    }
+
+    async function generateRoundTrip(targetDistanceMeters: number, direction?: number) {
+        if (routeHasTrackPoints() || routingStore.anchors.length > 1) {
+            pendingRoundTripRequest = { targetDistanceMeters, direction };
+            roundTripReplaceModal.openModal();
+            return;
+        }
+        await performRoundTripGeneration(targetDistanceMeters, direction);
+    }
+
+    async function confirmRoundTripReplacement() {
+        const request = pendingRoundTripRequest;
+        pendingRoundTripRequest = undefined;
+        if (!request) return;
+        await performRoundTripGeneration(request.targetDistanceMeters, request.direction);
+    }
+
+    async function performRoundTripGeneration(targetDistanceMeters: number, direction?: number) {
+        const engine = roundTripEngine;
+        const start = routingStore.anchors[0];
+        if (!engine || !start || roundTripGenerating) return;
+
+        roundTripGenerating = true;
+        startAnchorLoading(start);
+        try {
+            const response = await calculateRoundTrip(
+                start,
+                targetDistanceMeters,
+                {
+                    ...routingOptions,
+                    routingPluginId: engine.pluginId,
+                    routingInstanceId: engine.instanceId,
+                },
+                direction,
+                undefined,
+                engine.pluginId !== routingOptions.routingPluginId ||
+                    engine.instanceId !== routingOptions.routingInstanceId,
+            );
+            const candidate = response.candidates?.[0];
+            if (!candidate) {
+                throw new APIError(502, "No round-trip candidate returned");
+            }
+            const snappedAnchors = candidate.snappedAnchors;
+            if (!snappedAnchors?.length) {
+                throw new APIError(502, "Round-trip candidate has no edit anchors");
+            }
+            applyRoutingCandidate(candidate, true, false);
+            clearAnchors();
+            for (const anchor of snappedAnchors) {
+                addAnchor(anchor.lat, anchor.lon, routingStore.anchors.length);
+            }
+            routingStore.closedLoop = true;
+            normalizeRouteTime();
+            updateTrailWithRouteData();
+            await tick();
+            fitCurrentRoute();
+            const warnings = new Set([
+                ...(candidate.warnings ?? []),
+                ...(response.warnings ?? []),
+            ]);
+            if (warnings.has("round_trip_target_tolerance_not_met")) {
+                show_toast({
+                    text: $_("routing-round-trip-tolerance-warning"),
+                    icon: "triangle-exclamation",
+                    type: "warning",
+                });
+            }
+            if (warnings.has("round_trip_distance_adjustment_incomplete")) {
+                show_toast({
+                    text: $_("routing-round-trip-adjustment-warning"),
+                    icon: "triangle-exclamation",
+                    type: "warning",
+                });
+            }
+            if (warnings.has("round_trip_candidates_truncated")) {
+                show_toast({
+                    text: $_("routing-round-trip-provider-warning"),
+                    icon: "triangle-exclamation",
+                    type: "warning",
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            show_toast({ text: routeCalculationErrorText(error), icon: "close", type: "error" });
+        } finally {
+            stopAnchorLoading(start);
+            roundTripGenerating = false;
+        }
+    }
+
+    function keepExistingRoutingSegments() {
+        dismissedRoutingMismatchKey = routingProvenanceMismatchKey;
+    }
+
     function fitCurrentRoute() {
-        const bounds = valhallaStore.route.toGeoJSON().bbox;
+        const bounds = routingStore.route.toGeoJSON().bbox;
         if (!bounds) {
             return;
         }
@@ -424,7 +1231,7 @@
 
     function handleMapInit(initializedMap: M.Map) {
         if (drawingActive) {
-            for (const anchor of valhallaStore.anchors) {
+            for (const anchor of routingStore.anchors) {
                 anchor.marker?.addTo(initializedMap);
             }
         }
@@ -552,6 +1359,10 @@
 
     function initRouteAnchors(gpx: GPX, addToMap: boolean = false) {
         const segments = gpx.trk?.at(0)?.trkseg ?? [];
+        routingStore.closedLoop = isPersistedClosedLoop(
+            routingStore.segmentProvenance,
+            segments.length,
+        );
 
         for (let i = 0; i < segments.length; i++) {
             const segment = segments[i];
@@ -561,15 +1372,15 @@
                 addAnchor(
                     points[0].$.lat!,
                     points[0].$.lon!,
-                    valhallaStore.anchors.length,
+                    routingStore.anchors.length,
                     addToMap,
                 );
             }
-            if (i == segments.length - 1) {
+            if (i == segments.length - 1 && !routingStore.closedLoop && points.length > 0) {
                 addAnchor(
                     points[points.length - 1].$.lat!,
                     points[points.length - 1].$.lon!,
-                    valhallaStore.anchors.length,
+                    routingStore.anchors.length,
                     addToMap,
                 );
             }
@@ -633,6 +1444,145 @@
 
             // updateTrailOnMap();
         }
+    }
+
+    function onAssetPluginImport(importedWaypoints: Waypoint[]) {
+        if (!importedWaypoints.length) return;
+        const waypoints = importedWaypoints;
+        const nextWaypoints = mergeAssetPluginWaypoints(
+            $formData.expand!.waypoints_via_trail ?? [],
+            waypoints,
+        );
+        $formData.expand!.waypoints_via_trail = nextWaypoints;
+    }
+
+    function onTrailPhotoLibrarySelect(candidates: PhotoLibraryCandidate[]) {
+        pendingTrailPhotoCandidates = [
+            ...pendingTrailPhotoCandidates,
+            ...candidates.filter(
+                (candidate) =>
+                    !pendingTrailPhotoCandidates.some(
+                        (pending) =>
+                            photoLibraryCandidateKey(pending) ===
+                            photoLibraryCandidateKey(candidate),
+                    ),
+            ),
+        ];
+    }
+
+    function removePendingTrailPhotoCandidate(assetId: string) {
+        pendingTrailPhotoCandidates = pendingTrailPhotoCandidates.filter(
+            (candidate) => candidate.assetId !== assetId,
+        );
+    }
+
+    function applyTrailPhotoLibrarySelection(target: Trail) {
+        if (!pendingTrailPhotoCandidates.length) {
+            return;
+        }
+        const pluginCandidates = pendingTrailPhotoCandidates.filter(
+            (candidate) => candidate.source !== "wanderer",
+        );
+        const wandererCandidates = pendingTrailPhotoCandidates.filter(
+            (candidate) => candidate.source === "wanderer",
+        );
+        target._assetLinks = Array.from(new Set([
+            ...(target._assetLinks ?? []),
+            ...wandererCandidates.map((candidate) => candidate.assetId),
+        ]));
+        target._assetPluginLinks = mergePhotoLibraryPluginLinks(
+            target._assetPluginLinks,
+            photoLibraryPluginLinks(pluginCandidates),
+        );
+        target.photos = Array.from(
+            new Set([
+                ...(target.photos ?? []),
+                ...wandererCandidates
+                    .map((candidate) => candidate.thumbnailUrl)
+                    .filter((url): url is string => Boolean(url)),
+            ]),
+        );
+    }
+
+    function hasPendingAssetLinks(target: Trail) {
+        return Boolean(
+            target._assetLinks?.length ||
+            target._assetPluginLinks?.some((link) => link.assetIds.length),
+        );
+    }
+
+    function mergeAssetPluginWaypoints(existing: Waypoint[], imported: Waypoint[]) {
+        const merged = existing.map(normalizeAssetPluginWaypoint);
+        const indexById = new Map<string, number>();
+        for (const [index, waypoint] of merged.entries()) {
+            if (waypoint.id) {
+                indexById.set(waypoint.id, index);
+            }
+        }
+
+        for (const rawWaypoint of imported) {
+            const waypoint = normalizeAssetPluginWaypoint(rawWaypoint);
+            const existingIndex = waypoint.id ? indexById.get(waypoint.id) : undefined;
+            if (existingIndex === undefined) {
+                if (waypoint.id) {
+                    indexById.set(waypoint.id, merged.length);
+                }
+                merged.push(waypoint);
+                continue;
+            }
+            merged[existingIndex] = mergeAssetPluginWaypoint(merged[existingIndex], waypoint);
+        }
+        return sortWaypointsByDistanceFromStart(merged);
+    }
+
+    function normalizeAssetPluginWaypoint(waypoint: Waypoint): Waypoint {
+        return { ...waypoint, photos: waypoint.photos ?? [] };
+    }
+
+    function mergeAssetPluginWaypoint(existing: Waypoint, incoming: Waypoint): Waypoint {
+        const candidates = uniqueAssetCandidates([
+            ...(existing._assetCandidates ?? []),
+            ...(incoming._assetCandidates ?? []),
+        ]);
+        const assetLinks = Array.from(new Set([
+            ...(existing._assetLinks ?? []),
+            ...(incoming._assetLinks ?? []),
+        ]));
+        const assetPluginLinks = mergePhotoLibraryPluginLinks(
+            existing._assetPluginLinks,
+            incoming._assetPluginLinks,
+        );
+        return {
+            ...existing,
+            ...incoming,
+            marker: existing.marker,
+            photos: incoming.photos?.length ? incoming.photos : (existing.photos ?? []),
+            _photos: [
+                ...(existing._photos ?? []),
+                ...(incoming._photos ?? []),
+            ],
+            _assetCandidates: candidates.length ? candidates : undefined,
+            _assetLinks: assetLinks.length ? assetLinks : undefined,
+            _assetPluginLinks: assetPluginLinks,
+        };
+    }
+
+    function uniqueAssetCandidates(candidates: NonNullable<Waypoint["_assetCandidates"]>) {
+        const seen = new Set<string>();
+        return candidates.filter((candidate) => {
+            const key = `${candidate.pluginId ?? ""}:${candidate.assetId}`;
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function sortWaypointsByDistanceFromStart(waypoints: Waypoint[]) {
+        return [...waypoints].sort(
+            (a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0),
+        );
     }
 
     function getExistingWaypointClusterInputs() {
@@ -887,13 +1837,13 @@
 
     function startDrawing() {
         drawingActive = true;
-        routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
+        routeSegments = [...(routingStore.route.trk?.at(0)?.trkseg ?? [])];
 
         if (!map) {
             return;
         }
 
-        for (const anchor of valhallaStore.anchors) {
+        for (const anchor of routingStore.anchors) {
             anchor.marker?.addTo(map);
         }
     }
@@ -905,18 +1855,18 @@
 
     async function stopDrawing() {
         drawingActive = false;
-        for (const anchor of valhallaStore.anchors) {
+        for (const anchor of routingStore.anchors) {
             anchor.marker?.remove();
         }
         toggleCropMarkers(false);
         clearUndoRedoStack();
 
-        if (valhallaStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.at(0)) {
-            $formData.lat = valhallaStore.route.trk
+        if (routingStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.at(0)) {
+            $formData.lat = routingStore.route.trk
                 ?.at(0)
                 ?.trkseg?.at(0)
                 ?.trkpt?.at(0)?.$.lat;
-            $formData.lon = valhallaStore.route.trk
+            $formData.lon = routingStore.route.trk
                 ?.at(0)
                 ?.trkseg?.at(0)
                 ?.trkpt?.at(0)?.$.lon;
@@ -951,12 +1901,12 @@
             }
             openWaypointActionPopup(e.lngLat);
         } else {
-            const anchorCount = valhallaStore.anchors.length;
+            const anchorCount = routingStore.anchors.length;
             if (anchorCount == 0) {
                 addAnchor(
                     e.lngLat.lat,
                     e.lngLat.lng,
-                    valhallaStore.anchors.length,
+                    routingStore.anchors.length,
                 );
             } else {
                 await addAnchorAndRecalculate(e.lngLat.lat, e.lngLat.lng);
@@ -980,23 +1930,36 @@
 
     async function addAnchorAndRecalculate(lat: number, lon: number) {
         const previousAnchor =
-            valhallaStore.anchors[valhallaStore.anchors.length - 1];
+            routingStore.anchors[routingStore.anchors.length - 1];
         if (!previousAnchor) {
             addAnchor(lat, lon, 0);
             return;
         }
 
-        const anchor = addAnchor(lat, lon, valhallaStore.anchors.length);
+        const anchor = addAnchor(lat, lon, routingStore.anchors.length);
+        if (
+            routingStore.closedLoop ||
+            (routingOptions.autoRouting && routingOptions.routingMode === "via")
+        ) {
+            try {
+                await recalculateEntireRoute();
+            } catch (e) {
+                console.error(e);
+                show_toast({ text: routeCalculationErrorText(e), icon: "close", type: "error" });
+            }
+            return;
+        }
         startAnchorLoading(anchor);
         try {
-            const routeWaypoints = await calculateRouteBetween(
+            const routeResult = await calculateRouteBetween(
                 previousAnchor.lat,
                 previousAnchor.lon,
                 lat,
                 lon,
                 routingOptions,
             );
-            await insertIntoRoute(routeWaypoints);
+            applySnappedAnchors(routingStore.anchors.length - 2, routeResult.snappedAnchors);
+            await insertIntoRoute(routeResult.waypoints, undefined, routeResult.provenance);
             normalizeRouteTime();
             updateTrailWithRouteData();
         } catch (e) {
@@ -1017,7 +1980,7 @@
         index: number,
         addtoMap: boolean = true,
     ) {
-        const anchor: ValhallaAnchor = {
+        const anchor: RoutingAnchor = {
             id: cryptoRandomString({ length: 15 }),
             lat: lat,
             lon: lon,
@@ -1027,11 +1990,15 @@
             lon,
             () => {
                 removeAnchor(
-                    valhallaStore.anchors.findIndex((a) => a.id == anchor.id),
+                    routingStore.anchors.findIndex((a) => a.id == anchor.id),
                 );
             },
             () => {
-                const thisAnchor = valhallaStore.anchors.find(
+                if (routingStore.closedLoop) {
+                    marker.togglePopup();
+                    return;
+                }
+                const thisAnchor = routingStore.anchors.find(
                     (a) => a.id == anchor.id,
                 );
                 addAnchorAndRecalculate(
@@ -1047,10 +2014,10 @@
                 if (!drawingActive) {
                     return;
                 }
-                const anchorIndex = valhallaStore.anchors.findIndex(
+                const anchorIndex = routingStore.anchors.findIndex(
                     (a) => a.id == anchor.id,
                 );
-                const thisAnchor = valhallaStore.anchors[anchorIndex];
+                const thisAnchor = routingStore.anchors[anchorIndex];
                 const position = marker.getLngLat();
                 thisAnchor.lat = position.lat;
                 thisAnchor.lon = position.lng;
@@ -1064,13 +2031,18 @@
             marker.addTo(map);
         }
         anchor.marker = marker;
-        valhallaStore.anchors.splice(index, 0, anchor);
+        routingStore.anchors.splice(index, 0, anchor);
         refreshAnchorLabels(Math.max(0, index - 1));
 
         return anchor;
     }
 
-    function startAnchorLoading(anchor: ValhallaAnchor) {
+    function startAnchorLoading(anchor: RoutingAnchor) {
+        if (routeCalculationPendingCount === 0) {
+            hoveredRoutingVariantId = undefined;
+            markRoutingCandidatesStale();
+        }
+        routeCalculationPendingCount += 1;
         const markerIcon = anchor.marker?.getElement();
         if (!markerIcon) {
             return;
@@ -1079,7 +2051,11 @@
         markerIcon.replaceChildren();
     }
 
-    function stopAnchorLoading(anchor: ValhallaAnchor) {
+    function stopAnchorLoading(anchor: RoutingAnchor) {
+        routeCalculationPendingCount = Math.max(
+            0,
+            routeCalculationPendingCount - 1,
+        );
         const markerIcon = anchor.marker?.getElement();
         if (!markerIcon) {
             return;
@@ -1089,7 +2065,7 @@
             "spinner-light",
             "spinner-small",
         );
-        refreshAnchorLabel(valhallaStore.anchors.findIndex((a) => a.id === anchor.id));
+        refreshAnchorLabel(routingStore.anchors.findIndex((a) => a.id === anchor.id));
     }
 
     function refreshAnchorLabel(index: number) {
@@ -1097,54 +2073,92 @@
             return;
         }
 
-        const anchor = valhallaStore.anchors[index];
+        const anchor = routingStore.anchors[index];
         const markerIcon = anchor.marker?.getElement();
         if (markerIcon) {
-            renderValhallaAnchorMarker(
+            const popupContent = anchor.marker!.getPopup()._content;
+            renderRoutingAnchorMarker(
                 markerIcon,
                 index,
-                valhallaStore.anchors.length,
+                routingStore.anchors.length,
+                routingStore.closedLoop,
             );
-            anchor
-                .marker!.getPopup()
-                ._content.getElementsByTagName("h5")[0].textContent =
-                valhallaAnchorTitle(index, valhallaStore.anchors.length, $_);
+            popupContent.getElementsByTagName("h5")[0].textContent =
+                routingAnchorTitle(
+                    index,
+                    routingStore.anchors.length,
+                    $_,
+                    routingStore.closedLoop,
+                );
+            popupContent
+                .querySelector(".route-end-action")
+                ?.classList.toggle("hidden", routingStore.closedLoop);
         }
     }
 
     function refreshAnchorLabels(startIndex: number = 0) {
-        for (let i = startIndex; i < valhallaStore.anchors.length; i++) {
+        for (let i = startIndex; i < routingStore.anchors.length; i++) {
             refreshAnchorLabel(i);
         }
     }
 
-    function highlightAnchorMarker(index: number | null) {
-        for (const anchor of valhallaStore.anchors) {
-            anchor.marker?.getElement().classList.remove("anchor-list-highlight");
-        }
-
-        if (index === null) {
+    function applySnappedAnchors(startIndex: number, snappedAnchors?: { lat: number; lon: number }[]) {
+        if (!snappedAnchors?.length) {
             return;
         }
+        for (let i = 0; i < snappedAnchors.length; i++) {
+            const anchor = routingStore.anchors[startIndex + i];
+            const snapped = snappedAnchors[i];
+            if (!anchor || !Number.isFinite(snapped.lat) || !Number.isFinite(snapped.lon)) {
+                continue;
+            }
+            anchor.lat = snapped.lat;
+            anchor.lon = snapped.lon;
+            anchor.marker?.setLngLat([snapped.lon, snapped.lat]);
+        }
+    }
 
-        valhallaStore.anchors[index]?.marker
-            ?.getElement()
-            .classList.add("anchor-list-highlight");
+    function highlightAnchorMarker(index: number | null) {
+        syncMarkerHighlightClass(
+            routingStore.anchors.map((anchor) => markerElement(anchor.marker)),
+            index === null ? undefined : markerElement(routingStore.anchors[index]?.marker),
+            "anchor-list-highlight",
+        );
     }
 
     async function removeAnchor(anchorIndex: number) {
         if (!drawingActive) {
             return;
         }
-        valhallaStore.anchors[anchorIndex]?.marker?.remove();
-        valhallaStore.anchors.splice(anchorIndex, 1);
+        routingStore.anchors[anchorIndex]?.marker?.remove();
+        routingStore.anchors.splice(anchorIndex, 1);
         refreshAnchorLabels(anchorIndex);
+        if (routingStore.closedLoop) {
+            const action = closedLoopEditAction({
+                closedLoop: true,
+                anchorCount: routingStore.anchors.length,
+                hasTopology: Boolean(persistedClosedLoopMetadata()),
+                autoRouting: routingOptions.autoRouting,
+            });
+            if (action === "clear") {
+                setRoute(new GPX({ trk: [new Track({ trkseg: [] })] }), true);
+                refreshAnchorLabels();
+                updateTrailWithRouteData();
+            } else {
+                await recalculateEntireRoute();
+            }
+            return;
+        }
+        if (routingOptions.autoRouting && routingOptions.routingMode === "via") {
+            await recalculateEntireRoute();
+            return;
+        }
         if (anchorIndex == 0) {
             deleteFromRoute(anchorIndex);
             if ($formData.expand?.gpx_data) {
                 updateTrailWithRouteData();
             }
-        } else if (anchorIndex == valhallaStore.anchors.length) {
+        } else if (anchorIndex == routingStore.anchors.length) {
             deleteFromRoute(anchorIndex - 1);
             updateTrailWithRouteData();
         } else {
@@ -1154,7 +2168,7 @@
     }
 
     async function recalculateRouteFromAnchors(fromIndex: number, toIndex: number) {
-        const anchors = valhallaStore.anchors;
+        const anchors = routingStore.anchors;
         const N = anchors.length;
 
         if (N < 2) {
@@ -1162,23 +2176,51 @@
             updateTrailWithRouteData();
             return;
         }
+        if (routingStore.closedLoop) {
+            await recalculateEntireRoute();
+            return;
+        }
+        if (routingOptions.autoRouting && routingOptions.routingMode === "via") {
+            await recalculateEntireRoute();
+            return;
+        }
 
         // Segments not touching the moved anchor are reused (shifted by ±1); only the 2–3 boundary segments are recalculated.
-        const oldSegments = valhallaStore.route.trk?.at(0)?.trkseg ?? [];
+        const oldSegments = routingStore.route.trk?.at(0)?.trkseg ?? [];
+        const oldProvenance = routingStore.segmentProvenance;
         const newSegments: (TrackSegment | null)[] = new Array(N - 1).fill(null);
+        const newProvenance = new Array(N - 1).fill(null);
         const toRecalc: number[] = [];
 
         if (fromIndex < toIndex) {
-            for (let i = 0; i < fromIndex - 1; i++) newSegments[i] = oldSegments[i] ?? null;
-            for (let i = fromIndex; i <= toIndex - 2; i++) newSegments[i] = oldSegments[i + 1] ?? null;
-            for (let i = toIndex + 1; i < N - 1; i++) newSegments[i] = oldSegments[i] ?? null;
+            for (let i = 0; i < fromIndex - 1; i++) {
+                newSegments[i] = oldSegments[i] ?? null;
+                newProvenance[i] = oldProvenance[i] ?? null;
+            }
+            for (let i = fromIndex; i <= toIndex - 2; i++) {
+                newSegments[i] = oldSegments[i + 1] ?? null;
+                newProvenance[i] = oldProvenance[i + 1] ?? null;
+            }
+            for (let i = toIndex + 1; i < N - 1; i++) {
+                newSegments[i] = oldSegments[i] ?? null;
+                newProvenance[i] = oldProvenance[i] ?? null;
+            }
             if (fromIndex > 0) toRecalc.push(fromIndex - 1);
             toRecalc.push(toIndex - 1);
             if (toIndex < N - 1) toRecalc.push(toIndex);
         } else {
-            for (let i = 0; i < toIndex - 1; i++) newSegments[i] = oldSegments[i] ?? null;
-            for (let i = toIndex + 1; i <= fromIndex - 1; i++) newSegments[i] = oldSegments[i - 1] ?? null;
-            for (let i = fromIndex + 1; i < N - 1; i++) newSegments[i] = oldSegments[i] ?? null;
+            for (let i = 0; i < toIndex - 1; i++) {
+                newSegments[i] = oldSegments[i] ?? null;
+                newProvenance[i] = oldProvenance[i] ?? null;
+            }
+            for (let i = toIndex + 1; i <= fromIndex - 1; i++) {
+                newSegments[i] = oldSegments[i - 1] ?? null;
+                newProvenance[i] = oldProvenance[i - 1] ?? null;
+            }
+            for (let i = fromIndex + 1; i < N - 1; i++) {
+                newSegments[i] = oldSegments[i] ?? null;
+                newProvenance[i] = oldProvenance[i] ?? null;
+            }
             if (toIndex > 0) toRecalc.push(toIndex - 1);
             toRecalc.push(toIndex);
             if (fromIndex < N - 1) toRecalc.push(fromIndex);
@@ -1197,17 +2239,20 @@
                         anchors[i + 1].lat,
                         anchors[i + 1].lon,
                         routingOptions,
-                    ).then((pts) => ({ i, segment: new TrackSegment({ trkpt: pts }) })),
+                    ).then((result) => ({ i, result, segment: new TrackSegment({ trkpt: result.waypoints }) })),
                 ),
             );
 
-            for (const { i, segment } of recalcResults) {
+            for (const { i, result, segment } of recalcResults) {
+                applySnappedAnchors(i, result.snappedAnchors);
                 newSegments[i] = segment;
+                newProvenance[i] = result.provenance ?? null;
             }
 
             setRoute(
                 new GPX({ trk: [new Track({ trkseg: newSegments.filter((s): s is TrackSegment => s !== null) })] }),
                 true,
+                newProvenance,
             );
             normalizeRouteTime();
             updateTrailWithRouteData();
@@ -1225,32 +2270,32 @@
             fromIndex === toIndex ||
             fromIndex < 0 ||
             toIndex < 0 ||
-            fromIndex >= valhallaStore.anchors.length ||
-            toIndex >= valhallaStore.anchors.length
+            fromIndex >= routingStore.anchors.length ||
+            toIndex >= routingStore.anchors.length
         ) {
             return;
         }
 
-        const previousAnchors = [...valhallaStore.anchors];
-        const previousUndoStackLength = valhallaStore.undoStack.length;
-        const [anchor] = valhallaStore.anchors.splice(fromIndex, 1);
-        valhallaStore.anchors.splice(toIndex, 0, anchor);
+        const previousAnchors = [...routingStore.anchors];
+        const previousUndoStackLength = routingStore.undoStack.length;
+        const [anchor] = routingStore.anchors.splice(fromIndex, 1);
+        routingStore.anchors.splice(toIndex, 0, anchor);
         refreshAnchorLabels(Math.min(fromIndex, toIndex));
 
         routeAnchorListUpdating = true;
         try {
             await recalculateRouteFromAnchors(fromIndex, toIndex);
-            const lastEntry = valhallaStore.undoStack.at(-1);
-            if (lastEntry && valhallaStore.undoStack.length > previousUndoStackLength) {
+            const lastEntry = routingStore.undoStack.at(-1);
+            if (lastEntry && routingStore.undoStack.length > previousUndoStackLength) {
                 lastEntry.anchorsBefore = previousAnchors;
-                lastEntry.anchorsAfter = [...valhallaStore.anchors];
+                lastEntry.anchorsAfter = [...routingStore.anchors];
             }
         } catch (e) {
-            while (valhallaStore.undoStack.length > previousUndoStackLength) {
+            while (routingStore.undoStack.length > previousUndoStackLength) {
                 revertRouteChange();
             }
-            routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
-            valhallaStore.anchors = previousAnchors;
+            routeSegments = [...(routingStore.route.trk?.at(0)?.trkseg ?? [])];
+            routingStore.anchors = previousAnchors;
             refreshAnchorLabels(Math.min(fromIndex, toIndex));
             console.error(e);
             show_toast({
@@ -1264,16 +2309,34 @@
     }
 
     async function recalculateRoute(anchorIndex: number, loadingAnchorIndexes = [anchorIndex]) {
-        const anchor = valhallaStore.anchors[anchorIndex];
+        const anchor = routingStore.anchors[anchorIndex];
         if (!anchor) {
             return;
         }
-        const anchors = valhallaStore.anchors;
+        if (routingStore.closedLoop) {
+            try {
+                await recalculateEntireRoute();
+            } catch (e) {
+                console.error(e);
+                show_toast({ text: routeCalculationErrorText(e), icon: "close", type: "error" });
+            }
+            return;
+        }
+        if (routingOptions.autoRouting && routingOptions.routingMode === "via") {
+            try {
+                await recalculateEntireRoute();
+            } catch (e) {
+                console.error(e);
+                show_toast({ text: routeCalculationErrorText(e), icon: "close", type: "error" });
+            }
+            return;
+        }
+        const anchors = routingStore.anchors;
         const loadingAnchors = [
             ...new Set(
                 loadingAnchorIndexes
                     .map((index) => anchors[index])
-                    .filter((anchor): anchor is ValhallaAnchor => Boolean(anchor)),
+                    .filter((anchor): anchor is RoutingAnchor => Boolean(anchor)),
             ),
         ];
         for (const loadingAnchor of loadingAnchors) {
@@ -1305,10 +2368,12 @@
             }
 
             if (nextRouteSegment) {
-                await editRoute(anchorIndex, nextRouteSegment);
+                applySnappedAnchors(anchorIndex, nextRouteSegment.snappedAnchors);
+                await editRoute(anchorIndex, nextRouteSegment.waypoints, nextRouteSegment.provenance);
             }
             if (previousRouteSegment) {
-                await editRoute(anchorIndex - 1, previousRouteSegment);
+                applySnappedAnchors(anchorIndex - 1, previousRouteSegment.snappedAnchors);
+                await editRoute(anchorIndex - 1, previousRouteSegment.waypoints, previousRouteSegment.provenance);
             }
             normalizeRouteTime();
             updateTrailWithRouteData();
@@ -1338,29 +2403,43 @@
             data.event.lngLat.lng,
             data.segment + 1,
         );
+        if (
+            routingStore.closedLoop ||
+            (routingOptions.autoRouting && routingOptions.routingMode === "via")
+        ) {
+            try {
+                await recalculateEntireRoute();
+            } catch (e) {
+                console.error(e);
+                show_toast({ text: routeCalculationErrorText(e), icon: "close", type: "error" });
+            }
+            return;
+        }
         startAnchorLoading(anchor);
 
-        const previousAnchor = valhallaStore.anchors[data.segment];
-        const nextAnchor = valhallaStore.anchors[data.segment + 2];
+        const previousAnchor = routingStore.anchors[data.segment];
+        const nextAnchor = routingStore.anchors[data.segment + 2];
 
         try {
-            const previousRouteSegment = await calculateRouteBetween(
+            const previousRouteResult = await calculateRouteBetween(
                 previousAnchor.lat,
                 previousAnchor.lon,
                 anchor.lat,
                 anchor.lon,
                 routingOptions,
             );
-            const nextRouteSegment = await calculateRouteBetween(
+            applySnappedAnchors(data.segment, previousRouteResult.snappedAnchors);
+            const nextRouteResult = await calculateRouteBetween(
                 anchor.lat,
                 anchor.lon,
                 nextAnchor.lat,
                 nextAnchor.lon,
                 routingOptions,
             );
+            applySnappedAnchors(data.segment + 1, nextRouteResult.snappedAnchors);
 
-            await editRoute(data.segment, previousRouteSegment);
-            await insertIntoRoute(nextRouteSegment, data.segment + 1);
+            await editRoute(data.segment, previousRouteResult.waypoints, previousRouteResult.provenance);
+            await insertIntoRoute(nextRouteResult.waypoints, data.segment + 1, nextRouteResult.provenance);
             normalizeRouteTime();
             updateTrailWithRouteData();
         } catch (e) {
@@ -1389,9 +2468,15 @@
         updateTrailWithRouteData();
     }
 
-    function reverseTrail() {
+    async function reverseTrail() {
         reverseRoute();
-
+        if (routingOptions.autoRouting && routingOptions.routingMode === "via") {
+            try {
+                await recalculateEntireRoute();
+            } catch (error) {
+                show_toast({ text: routeCalculationErrorText(error), icon: "close", type: "error" });
+            }
+        }
         updateTrailWithRouteData();
     }
 
@@ -1431,7 +2516,7 @@
             cropStartMarker?.setOpacity("0");
             cropEndMarker?.setOpacity("0");
 
-            updateTotals(valhallaStore.route);
+            updateTotals(routingStore.route);
         }
     }
 
@@ -1467,21 +2552,21 @@
         }
         const [start, end] = range;
 
-        const flatRoute = valhallaStore.route.flatten();
+        const flatRoute = routingStore.route.flatten();
 
         const targetStartDistance =
-            valhallaStore.route.features.distance * (start / 100);
+            routingStore.route.features.distance * (start / 100);
         const [startLon, startLat, startIndex] = getCoordinateAtDistance(
             flatRoute,
-            valhallaStore.route.features.cumulativeDistance,
+            routingStore.route.features.cumulativeDistance,
             targetStartDistance,
         );
 
         const targetEndDistance =
-            valhallaStore.route.features.distance * (end / 100);
+            routingStore.route.features.distance * (end / 100);
         const [endLon, endLat, endIndex] = getCoordinateAtDistance(
             flatRoute,
-            valhallaStore.route.features.cumulativeDistance,
+            routingStore.route.features.cumulativeDistance,
             targetEndDistance,
         );
 
@@ -1491,7 +2576,7 @@
         croppedGPX = cropGPX(
             flatRoute[startIndex],
             flatRoute[endIndex],
-            valhallaStore.route,
+            routingStore.route,
         );
 
         updateTotals(croppedGPX);
@@ -1538,13 +2623,21 @@
 
     function updateTrailWithRouteData() {
         overwriteGPX = true;
-        routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
-        updateTotals(valhallaStore.route);
+        routeSegments = [...(routingStore.route.trk?.at(0)?.trkseg ?? [])];
+        updateTotals(routingStore.route);
 
         if (!$formData.id) {
             $formData.id = cryptoRandomString({ length: 15 });
         }
         updateTrailOnMap();
+    }
+
+    function routeHasTrackPoints() {
+        return Boolean(
+            routingStore.route.trk?.some((track) =>
+                track.trkseg?.some((segment) => (segment.trkpt?.length ?? 0) > 0),
+            ),
+        );
     }
 
     function updateTotals(gpx: GPX) {
@@ -1560,222 +2653,8 @@
 
     function updateTrailOnMap() {
         const t: Trail = JSON.parse(JSON.stringify($formData));
-        t.expand!.gpx = valhallaStore.route;
+        t.expand!.gpx = routingStore.route;
         mapTrail = [t];
-    }
-
-    function routeHasTrackPoints() {
-        return valhallaStore.route.flatten().length > 0;
-    }
-
-    async function prepareDuplicateLegacyPhotos(
-        target: Trail,
-        options: { syncFormData?: boolean } = {},
-    ) {
-        if (
-            !isNewTrail ||
-            savedAtLeastOnce ||
-            !hasDuplicatePhotos(data.duplicateOptions) ||
-            !data.duplicateSourceTrail
-        ) {
-            return target;
-        }
-        duplicateLegacyPhotosPromise ??= cloneDuplicateLegacyPhotos(target);
-        const clonedPhotos = await duplicateLegacyPhotosPromise;
-        appendDuplicateTrailPhotoFiles(clonedPhotos.trailPhotos);
-
-        if (options.syncFormData) {
-            formData.set(
-                applyDuplicateLegacyPhotoClones(
-                    $formData as Trail,
-                    clonedPhotos,
-                ),
-            );
-        }
-
-        return applyDuplicateLegacyPhotoClones(target, clonedPhotos);
-    }
-
-    async function cloneDuplicateLegacyPhotos(
-        target: Trail,
-    ): Promise<DuplicateLegacyPhotoClones> {
-        const duplicateSourceTrail = data.duplicateSourceTrail;
-        if (!duplicateSourceTrail) {
-            return emptyDuplicateLegacyPhotoClones();
-        }
-
-        const [trailPhotos, waypointEntries, summitLogEntries] =
-            await Promise.all([
-                data.duplicateOptions?.trailPhotos
-                    ? clonePhotoFiles(photoCloneSourceFromRecord(duplicateSourceTrail))
-                    : Promise.resolve([]),
-                data.duplicateOptions?.waypointPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.waypoints_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-                data.duplicateOptions?.summitLogPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.summit_logs_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-            ]);
-
-        return {
-            trailPhotos,
-            waypointPhotosById: new Map(waypointEntries),
-            summitLogPhotosById: new Map(summitLogEntries),
-        };
-    }
-
-    function emptyDuplicateLegacyPhotoClones(): DuplicateLegacyPhotoClones {
-        return {
-            trailPhotos: [],
-            waypointPhotosById: new Map(),
-            summitLogPhotosById: new Map(),
-        };
-    }
-
-    function appendDuplicateTrailPhotoFiles(clonedPhotos: File[]) {
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !photoFiles.includes(photo),
-        );
-        if (missingPhotos.length) {
-            photoFiles = [...photoFiles, ...missingPhotos];
-        }
-    }
-
-    async function clonePhotoFilesByTargetId(
-        targets: ({ id?: string } & PhotoCloneTarget)[],
-    ): Promise<PhotoCloneEntry[]> {
-        const entries = await Promise.all(
-            targets.map(async (target) => {
-                const clonedPhotos = await clonePhotoFiles(
-                    target._duplicatePhotoSource,
-                );
-                if (!target.id || !clonedPhotos.length) {
-                    return undefined;
-                }
-                return [target.id, clonedPhotos] as PhotoCloneEntry;
-            }),
-        );
-
-        return entries.filter((entry): entry is PhotoCloneEntry =>
-            Boolean(entry),
-        );
-    }
-
-    function applyDuplicateLegacyPhotoClones(
-        target: Trail,
-        clonedPhotos: DuplicateLegacyPhotoClones,
-    ): Trail {
-        return {
-            ...target,
-            expand: {
-                ...target.expand,
-                waypoints_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.waypoints_via_trail ?? [],
-                    clonedPhotos.waypointPhotosById,
-                ),
-                summit_logs_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.summit_logs_via_trail ?? [],
-                    clonedPhotos.summitLogPhotosById,
-                ),
-            },
-        };
-    }
-
-    function mergeDuplicatePhotoClones<T extends { id?: string } & PhotoCloneTarget>(
-        targets: T[],
-        clonedPhotosById: Map<string, File[]>,
-    ): T[] {
-        return targets.map((target) =>
-            withMergedDuplicatePhotos(
-                target,
-                target.id ? clonedPhotosById.get(target.id) : undefined,
-            ),
-        );
-    }
-
-    function withMergedDuplicatePhotos<T extends PhotoCloneTarget>(
-        target: T,
-        clonedPhotos?: File[],
-    ): T {
-        if (!clonedPhotos?.length) {
-            return target;
-        }
-        const existingPhotos = target._photos ?? [];
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !existingPhotos.includes(photo),
-        );
-        if (!missingPhotos.length) {
-            return target;
-        }
-
-        return {
-            ...target,
-            _photos: [...existingPhotos, ...missingPhotos],
-        };
-    }
-
-    async function clonePhotoFiles(source?: PhotoCloneSource): Promise<File[]> {
-        if (!source?.photos.length) {
-            return [];
-        }
-
-        const files: File[] = [];
-        for (const photo of source.photos) {
-            try {
-                const response = await fetch(photoCloneURL(source, photo));
-                if (!response.ok) {
-                    console.warn(`Unable to clone photo ${photo}: ${response.status}`);
-                    continue;
-                }
-                const blob = await response.blob();
-                files.push(
-                    new File([blob], photoCloneFileName(photo), {
-                        type: blob.type || "application/octet-stream",
-                    }),
-                );
-            } catch (error) {
-                console.warn(`Unable to clone photo ${photo}`, error);
-            }
-        }
-        return files;
-    }
-
-    function photoCloneSourceFromRecord(record: {
-        id?: string;
-        collectionId?: string;
-        collectionName?: string;
-        photos?: string[];
-    }): PhotoCloneSource | undefined {
-        if (!record.id || !record.photos?.length) {
-            return undefined;
-        }
-        return {
-            id: record.id,
-            collectionId: record.collectionId,
-            collectionName: record.collectionName,
-            photos: record.photos,
-        };
-    }
-
-    function photoCloneURL(source: PhotoCloneSource, photo: string) {
-        if (photo.startsWith("http://") || photo.startsWith("https://")) {
-            return photo;
-        }
-        const collection = source.collectionId ?? source.collectionName;
-        if (!collection) {
-            throw new Error("Unable to clone photo without collection");
-        }
-        return `/api/v1/files/${collection}/${source.id}/${photo}`;
-    }
-
-    function photoCloneFileName(photo: string) {
-        return decodeURIComponent(
-            photo.split("?")[0].split("/").pop() || "photo",
-        );
     }
 
     function handleSearchClick(item: SearchItem) {
@@ -1814,7 +2693,7 @@
             return;
         }
         const { lat, lon } = selectedSearchLocation.value;
-        if (valhallaStore.anchors.length === 0) {
+        if (routingStore.anchors.length === 0) {
             addAnchor(lat, lon, 0);
         } else {
             await addAnchorAndRecalculate(lat, lon);
@@ -1856,6 +2735,14 @@
         document.getElementById("waypoint-photo-input")!.click();
     }
 
+    function handlePhotoImportMenuClick(item: DropdownItem) {
+        if (item.value === "device") {
+            openPhotoBrowser();
+        } else if (item.value === "library") {
+            assetWaypointModal.openModal();
+        }
+    }
+
     interface GPXCoord {
         id: string;
         longitude: number;
@@ -1867,6 +2754,7 @@
         lat: number;
         lon: number;
         waypoint?: string;
+        name?: string;
         photos: string[];
     }
 
@@ -1886,6 +2774,7 @@
         category?: string;
         photos: WaypointClusterPoint[];
         waypoints: WaypointClusterPoint[];
+        resolveNames?: boolean;
     }
 
     async function clusterWaypointPhotos(
@@ -1920,27 +2809,8 @@
         const photoCoords: GPXCoord[] = [];
 
         for (const [index, file] of Array.from(files).entries()) {
-            const coords = await new Promise<GPXCoord | undefined>((resolve) => {
-                EXIF.getData(file, function (p) {
-                    const lat = EXIF.getTag(p, "GPSLatitude");
-                    const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-                    const lon = EXIF.getTag(p, "GPSLongitude");
-                    const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
-
-                    if (lat && lon) {
-                        resolve({
-                            id: index.toString(),
-                            latitude: convertDMSToDD(lat, latDir),
-                            longitude: convertDMSToDD(lon, lonDir),
-                            file,
-                        });
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-            });
-
-            if (!coords) {
+            const coordinates = await extractGPSCoordinates(file);
+            if (!coordinates) {
                 show_toast(
                     {
                         type: "warning",
@@ -1952,13 +2822,19 @@
                 continue;
             }
 
-            photoCoords.push(coords);
+            photoCoords.push({
+                id: index.toString(),
+                latitude: coordinates.lat,
+                longitude: coordinates.lon,
+                file,
+            });
         }
 
         let clusterResponse: WaypointPhotoClusterResponse;
         try {
             clusterResponse = await clusterWaypointPhotos({
                 category: $formData.category,
+                resolveNames: true,
                 photos: photoCoords.map((coords) => ({
                     id: coords.id,
                     lat: coords.latitude,
@@ -2012,6 +2888,7 @@
                 cluster.lat,
                 cluster.lon,
                 {
+                    name: cluster.name,
                     icon: photos.length > 1 ? "images" : "image",
                 },
             );
@@ -2023,11 +2900,11 @@
     function undoRouteEdit() {
         const entry = undo();
         if (entry?.anchorsBefore) {
-            valhallaStore.anchors = entry.anchorsBefore;
+            routingStore.anchors = entry.anchorsBefore;
             refreshAnchorLabels();
         } else {
             clearAnchors();
-            initRouteAnchors(valhallaStore.route, true);
+            initRouteAnchors(routingStore.route, true);
         }
         updateTrailWithRouteData();
     }
@@ -2035,11 +2912,11 @@
     function redoRouteEdit() {
         const entry = redo();
         if (entry?.anchorsAfter) {
-            valhallaStore.anchors = entry.anchorsAfter;
+            routingStore.anchors = entry.anchorsAfter;
             refreshAnchorLabels();
         } else {
             clearAnchors();
-            initRouteAnchors(valhallaStore.route, true);
+            initRouteAnchors(routingStore.route, true);
         }
         updateTrailWithRouteData();
     }
@@ -2109,12 +2986,16 @@
             {#if isNewTrail || replacingRoute}
                 <h3 class="text-xl font-semibold">{$_("pick-a-trail")}</h3>
             {/if}
-            <button
-                class="btn-primary"
+            <Button
+                primary={true}
+                disabled={drawRouteDisabled}
+                tooltip={drawRouteTooltip}
                 type="button"
                 onclick={async () => {
                     if (drawingActive) {
                         await stopDrawing();
+                    } else if (drawRouteDisabled) {
+                        return;
                     } else if (replacingRoute) {
                         startReplacementDrawing();
                     } else {
@@ -2128,13 +3009,38 @@
                         : $_("edit-route")
                     : drawingActive
                         ? $_("stop-drawing")
-                        : $_("draw-a-route")}</button
+                        : $_("draw-a-route")}</Button
             >
         {/if}
-        {#if drawingActive && valhallaStore.anchors.length}
+        {#if drawingActive && roundTripControlsAvailable}
+            <RoundTripControls
+                loading={roundTripGenerating}
+                disabled={originalRouteCalculating}
+                onGenerate={generateRoundTrip}
+            ></RoundTripControls>
+        {/if}
+        {#if drawingActive &&
+            routingOptions.autoRouting &&
+            routingVariantsAvailable &&
+            routingStore.anchors.length >= 2}
+            <RouteVariants
+                bind:options={routingOptions}
+                onFindVariants={requestRouteVariants}
+                onSelectOriginal={selectOriginalRoute}
+                onSelectCandidate={selectRouteCandidate}
+                onApplySelected={applySelectedRouteCandidate}
+                onPreviewCandidate={previewRouteCandidate}
+                disabled={originalRouteCalculating}
+                {parallelRoutingAvailable}
+                variantRequestError={routingVariantRequestError}
+                maxVariants={routingVariantMaxCount}
+            ></RouteVariants>
+        {/if}
+        {#if drawingActive && routingStore.anchors.length}
             <TrailAnchorList
-                anchors={valhallaStore.anchors}
+                anchors={routingStore.anchors}
                 segments={routeSegments}
+                closedLoop={routingStore.closedLoop}
                 disabled={routeAnchorListUpdating}
                 onMove={moveAnchor}
                 onDelete={removeAnchor}
@@ -2324,16 +3230,27 @@
             onclick={() => beforeWaypointModalOpen()}
             ><i class="fa fa-plus mr-2"></i>{$_("add-waypoint")}</button
         >
-        <button
-            class="btn-secondary"
-            type="button"
-            onclick={() => openPhotoBrowser()}
-            ><i class="fa fa-image mr-2"></i>{$_("from-photos")}</button
+        <Dropdown
+            items={photoImportDropdownItems}
+            onchange={handlePhotoImportMenuClick}
+            matchToggleWidth={true}
         >
+            {#snippet children({ toggleMenu: openDropdown })}
+                <Button
+                    secondary={true}
+                    type="button"
+                    extraClasses="w-full"
+                    onclick={openDropdown}
+                    ><i class="fa fa-images mr-2"></i>{$_("from-photos")}<i
+                        class="fa fa-caret-down ml-2 text-xs"
+                    ></i></Button
+                >
+            {/snippet}
+        </Dropdown>
         <input
             type="file"
             id="waypoint-photo-input"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/heic,image/heif,image/heic-sequence,image/heif-sequence,image/webp,image/gif,image/avif,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.avif"
             multiple={true}
             style="display: none;"
             onchange={() => handleWaypointPhotoSelection()}
@@ -2346,6 +3263,17 @@
             bind:photos={$formData.photos}
             bind:thumbnail={$formData.thumbnail}
             bind:photoFiles
+            onassetplugin={canImportPhotosFromLibrary
+                ? () => trailPhotoLibraryModal.openModal()
+                : undefined}
+            assetPluginPreviews={pendingTrailPhotoCandidates.map((candidate) => ({
+                pluginId: candidate.pluginId,
+                assetId: candidate.assetId,
+                filename: candidate.originalFileName,
+                takenAt: candidate.takenAt,
+                thumbnailUrl: candidate.thumbnailUrl,
+            }))}
+            onassetplugindelete={removePendingTrailPhotoCandidate}
         ></PhotoPicker>
         <hr class="border-separator" />
         <h3 class="text-xl font-semibold">{$_("summit-book")}</h3>
@@ -2422,6 +3350,7 @@
             >
                 <RouteEditor
                     bind:options={routingOptions}
+                    effectiveControls={routeEffectiveControls}
                     onReverse={reverseTrail}
                     onReset={isNewTrail ? resetTrail : requestReplaceRoute}
                     resetLabel="reset-route"
@@ -2432,6 +3361,13 @@
                     onRecalculateElevationData={recalculateElevationData}
                     onUndo={undoRouteEdit}
                     onRedo={redoRouteEdit}
+                    provenanceMismatch={showRoutingProvenanceMismatch}
+                    onRerouteExisting={recalculateEntireRoute}
+                    onKeepExisting={keepExistingRoutingSegments}
+                    routingEngines={routeEditorRoutingEngines}
+                    onRoutingEngineChange={selectRouteEditorRoutingEngine}
+                    viaAvailable={viaRoutingAvailable}
+                    {routingEnabled}
                     bind:showWaypoints={showWaypointsWhileDrawing}
                 ></RouteEditor>
             </div>
@@ -2439,6 +3375,9 @@
         <div id="trail-map">
             <MapWithElevationMaplibre
                 trails={mapTrail}
+                previewTrails={routingVariantMapTrails}
+                focusedTrailId={routingVariantMapFocusId}
+                elevationPreviewGpx={routingVariantElevationPreview}
                 waypoints={$formData.expand?.waypoints_via_trail}
                 drawing={drawingActive}
                 displayWaypoints={!drawingActive || showWaypointsWhileDrawing}
@@ -2459,7 +3398,13 @@
         </div>
     </div>
 </main>
-<WaypointModal bind:this={waypointModal} onsave={saveWaypoint}></WaypointModal>
+<WaypointModal
+    bind:this={waypointModal}
+    onsave={saveWaypoint}
+    assetPluginActive={data.assetPluginActive}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+></WaypointModal>
 <WaypointMergeModal
     merge={pendingWaypointMerge}
     bind:this={waypointMergeModal}
@@ -2467,7 +3412,32 @@
     onmerge={addPendingWaypointToExisting}
     oncancel={cancelPendingWaypointMerge}
 ></WaypointMergeModal>
-<SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
+<AssetWaypointModal
+    bind:this={assetWaypointModal}
+    trailId={$formData.id ?? ""}
+    category={$formData.category}
+    trailData={routingStore.route.toString()}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+    existingWaypoints={$formData.expand?.waypoints_via_trail ?? []}
+    onsave={onAssetPluginImport}
+></AssetWaypointModal>
+<PhotoLibraryPickerModal
+    bind:this={trailPhotoLibraryModal}
+    id="trail-photo-library-modal"
+    trailId={$formData.id ?? ""}
+    trailData={routingStore.route.toString()}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+    onselect={onTrailPhotoLibrarySelect}
+/>
+<SummitLogModal
+    bind:this={summitLogModal}
+    onsave={(log) => saveSummitLog(log)}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+    trailId={$formData.id ?? ""}
+    trailData={routingStore.route.toString()}
 ></SummitLogModal>
 <ListSearchModal
     lists={lists.items}
@@ -2491,6 +3461,27 @@
     deny="cancel"
     bind:this={replaceRouteModal}
     onconfirm={replaceRoute}
+></ConfirmModal>
+<ConfirmModal
+    id="round-trip-replace-modal"
+    title={$_("routing-round-trip-replace-title")}
+    text={$_("routing-round-trip-replace-confirm")}
+    action="routing-round-trip-replace-action"
+    deny="cancel"
+    bind:this={roundTripReplaceModal}
+    onconfirm={confirmRoundTripReplacement}
+    oncancel={() => (pendingRoundTripRequest = undefined)}
+></ConfirmModal>
+<ConfirmModal
+    id="publish-linked-photos-modal"
+    title={$_("publish-trail-confirm-title")}
+    text={$_("publish-trail-confirm-text", {
+        values: { count: pendingLinkedPhotoCount },
+    })}
+    action="publish-and-copy"
+    deny="cancel"
+    bind:this={publishConfirmModal}
+    onconfirm={confirmPublishWithLinkedPhotos}
 ></ConfirmModal>
 
 <style>

@@ -4,18 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/security"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 	"pocketbase/util"
 )
 
@@ -70,7 +69,7 @@ func PluginSystemTrailSend(e *core.RequestEvent) error {
 		return apis.NewForbiddenError("not allowed to send this trail", nil)
 	}
 
-	gpx, err := readTrailGPX(e.App, trail)
+	gpx, err := util.ReadTrailGPX(e.App, trail)
 	if err != nil {
 		return err
 	}
@@ -95,9 +94,9 @@ func PluginSystemTrailSend(e *core.RequestEvent) error {
 			ContentBase64: base64.StdEncoding.EncodeToString(gpx),
 		},
 	}
-	config := effectivePluginConfig(e.App, plugin.Manifest.ID, instance)
-	pluginConfig := pluginRuntimeConfig(config)
-	policy := pluginInstancePolicy(plugin, config)
+	config := pluginhost.EffectiveConfig(e.App, plugin.Manifest.ID, instance)
+	pluginConfig := pluginhost.RuntimeConfig(config)
+	policy := pluginhost.InstancePolicy(plugin, config)
 	input.Config = pluginConfig
 	inputBytes, err := json.Marshal(input)
 	if err != nil {
@@ -115,7 +114,7 @@ func PluginSystemTrailSend(e *core.RequestEvent) error {
 	defer func() {
 		_ = session.Close(context.Background())
 	}()
-	output, err := session.Call(e.Request.Context(), capability.Export, inputBytes)
+	output, err := session.Call(e.Request.Context(), capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
 	if err != nil {
 		return err
 	}
@@ -174,50 +173,12 @@ func executeHostRequest(ctx context.Context, manifest pluginsystem.Manifest, pol
 	return nil
 }
 
-// readTrailGPX loads the trail GPX file that can be inserted into a plugin's
-// multipart send plan.
-func readTrailGPX(app core.App, trail *core.Record) ([]byte, error) {
-	gpxPath := trail.GetString("gpx")
-	if gpxPath == "" {
-		return nil, nil
-	}
-
-	fsys, err := app.NewFilesystem()
-	if err != nil {
-		return nil, err
-	}
-	defer fsys.Close()
-
-	reader, err := fsys.GetReader(trail.BaseFilesPath() + "/" + gpxPath)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	return io.ReadAll(reader)
-}
-
 // decryptedInstanceAuth returns auth fields in the shape expected by host-side
 // auth injection and plugin input preparation.
 func decryptedInstanceAuth(instance *core.Record) (map[string]any, error) {
-	auth := pluginsystem.JSONMapFromRecord(instance, "auth")
-	if len(auth) == 0 {
-		return map[string]any{}, nil
-	}
-	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
-	if encryptionKey == "" {
+	auth, err := pluginhost.DecryptedInstanceAuth(instance)
+	if errors.Is(err, pluginhost.ErrMissingEncryptionKey) {
 		return nil, apis.NewBadRequestError("POCKETBASE_ENCRYPTION_KEY not set", nil)
 	}
-	for key, value := range auth {
-		secret, ok := value.(string)
-		if !ok || secret == "" || !util.CanDecryptSecret(secret) {
-			continue
-		}
-		decrypted, err := security.Decrypt(secret, encryptionKey)
-		if err != nil {
-			return nil, fmt.Errorf("decrypt %s: %w", key, err)
-		}
-		auth[key] = string(decrypted)
-	}
-	return auth, nil
+	return auth, err
 }

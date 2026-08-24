@@ -12,6 +12,7 @@ import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
+import { assets_attach_to_target, assets_delete_removed, assets_set_trail_thumbnail, has_asset_attachments } from "./asset_store";
 import { categories } from "./category_store";
 import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
@@ -21,7 +22,7 @@ import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,tags",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -325,7 +326,7 @@ export async function trails_search_bounding_box(
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
         ...(handle ? { handle } : {}),
         ...(share ? { share } : {})
     }), {
@@ -385,18 +386,17 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["expand", "photos", "_duplicatePhotoSource"])
+    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "_assetPluginLinks", "routing_provenance"])
+    if (trail.routing_provenance !== undefined) {
+        formData.set("routing_provenance", JSON.stringify(trail.routing_provenance));
+    }
 
     if (gpx) {
         formData.set("gpx", gpx);
     }
 
-    for (const photo of photos) {
-        formData.append("photos", photo)
-    }
-
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     }), {
         method: 'PUT',
         body: formData,
@@ -408,6 +408,16 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     }
 
     let model: Trail = await r.json();
+
+    await assets_attach_to_target({
+        files: photos,
+        assetIds: trail._assetLinks,
+        pluginLinks: trail._assetPluginLinks,
+        target: {
+            trail: model.id,
+        },
+        f,
+    });
 
     const createdSummitLogs: SummitLog[] = [];
     for (const summitLog of trail.expand?.summit_logs_via_trail ?? []) {
@@ -441,6 +451,15 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
             ...createdWaypoints,
         ];
     }
+
+    const refreshed = await f(`/api/v1/trail/${model.id}?` + new URLSearchParams({
+        expand: "category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
+    }));
+    if (refreshed.ok) {
+        model = await refreshed.json();
+    }
+    await assets_set_trail_thumbnail(model.id!, model.photos?.at(trail.thumbnail ?? 0), f);
+    model = await trails_show(model.id!, undefined, undefined, false, f);
 
     return model;
 
@@ -503,27 +522,17 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
         newTrail.tags = newTrail.tags.filter(t => t != tag.id);
     }
 
-    const formData = objectToFormData(newTrail, ["expand", ...(exclude ?? [])])
+    const formData = objectToFormData(newTrail, ["expand", "photos", "_assetLinks", "_assetPluginLinks", "routing_provenance", ...(exclude ?? [])])
+    if (newTrail.routing_provenance !== undefined && !exclude?.includes("routing_provenance")) {
+        formData.set("routing_provenance", JSON.stringify(newTrail.routing_provenance));
+    }
 
     if (gpx) {
         formData.append("gpx", gpx);
     }
 
-    if (photos) {
-        for (const photo of photos) {
-            formData.append("photos+", photo)
-        }
-    }
-
-    const deletedPhotos = oldTrail.photos.filter(oldPhoto => !newTrail.photos.find(newPhoto => newPhoto === oldPhoto));
-
-    for (const deletedPhoto of deletedPhotos) {
-        formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));
-    }
-
-
     const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     });
 
     let r = await fetch(updateUrl, {
@@ -538,6 +547,35 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     let model: Trail = await r.json();
+
+    const photoSelectionChanged = !stringArraysEqual(oldTrail.photos, newTrail.photos);
+    await assets_delete_removed(oldTrail.photos, newTrail.photos, { trail: newTrail.id! });
+    model.photos = newTrail.photos;
+    const shouldRefreshTrail = has_asset_attachments({
+        files: photos,
+        assetIds: newTrail._assetLinks,
+        pluginLinks: newTrail._assetPluginLinks,
+    });
+    model.photos = await assets_attach_to_target({
+        files: photos,
+        assetIds: newTrail._assetLinks,
+        pluginLinks: newTrail._assetPluginLinks,
+        target: {
+            trail: model.id,
+        },
+        existingPhotos: model.photos,
+    });
+    if (shouldRefreshTrail) {
+        model = await trails_show(model.id!, undefined, undefined, true);
+    }
+    const thumbnailChanged = newTrail.thumbnail !== undefined && oldTrail.thumbnail !== newTrail.thumbnail;
+    const assetSelectionChanged = photoSelectionChanged ||
+        Boolean(photos?.length || newTrail._assetLinks?.length || newTrail._assetPluginLinks?.length);
+    const thumbnailCandidates = model.photos ?? newTrail.photos;
+    if (thumbnailCandidates !== undefined && (thumbnailChanged || assetSelectionChanged)) {
+        await assets_set_trail_thumbnail(model.id!, thumbnailCandidates.at(newTrail.thumbnail ?? 0));
+    }
+    model = await trails_show(model.id!, undefined, undefined, true);
 
     for (const log of model.expand?.summit_logs_via_trail ?? []) {
         if (!log.expand) {
@@ -947,4 +985,14 @@ function compareObjectArrays<T extends { id?: string }>(oldArray: T[], newArray:
         updated: updatedObjects,
         unchanged: unchangedObjects,
     };
+}
+
+function stringArraysEqual(left?: string[], right?: string[]) {
+    if (left === right) {
+        return true;
+    }
+    if (!left || !right || left.length !== right.length) {
+        return false;
+    }
+    return left.every((value, index) => value === right[index]);
 }

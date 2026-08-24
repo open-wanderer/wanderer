@@ -1,7 +1,7 @@
 import { env as privateEnv } from "$env/dynamic/private";
 import { env as publicEnv } from "$env/dynamic/public";
 
-export type ExternalServiceUrlKey = "VALHALLA_URL" | "NOMINATIM_URL" | "OVERPASS_API_URL";
+export type ExternalServiceUrlKey = "NOMINATIM_URL" | "OVERPASS_API_URL";
 
 export function normalizeBaseUrl(url: string): string {
     const trimmedUrl = url.trim();

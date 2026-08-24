@@ -1,0 +1,589 @@
+  # Poutnik's Trekking profile template for Trekking profile variants
+  # Version 2.6.* new max cost system
+  #
+  # *)  = See also https://github.com/poutnikl/Brouter-profiles/wiki
+  # **) = See also https://github.com/poutnikl/Trekking-Poutnik/wiki
+  #
+  # MTB profile, based on MTBiker feedback
+  #
+  # Legend above is the placeholder for generated comments of final profiles
+  # See the HistoryLog.txt file for file history, the wikis above for verbose comments.
+
+  # bstart /global
+  ---context:global
+
+  assign   add_beeline            false  # %add_beeline% | Enable beeline on distant start/end points | boolean
+
+  assign   iswet                  0 # 0 as default, *) flag for weather conditions
+  assign   turnInstructionMode  = 1 # 0=none, 1=auto-choose, 2=locus-style, 3=osmand-style
+  assign   cycleroutes_pref       0.2 # also CRP *)  costfactor penalty for not being cycleroute
+  assign   MTB_factor             0.0 # %MTB_factor% | Preference for rough MTB terrain over small paved roads | number
+  assign   smallpaved_factor      -0.5 # %smallpaved_factor% | Preference for small paved roads | number
+  assign   avoid_unsafe           0 # %avoid_unsafe% | Penalize main roads without bike friendly status | boolean
+  assign   hills                  0 # %hills% | Elevation handling mode | [0=none, 1=penalize climbs above 3%, 2=avoid slopes, 3=ascent/length equivalent, 4=valley mode, 5=no-flats mode]
+                                    # 4=valley mode, 5=No-Flats mode
+  assign   isbike_for_mainroads   true # default=true / if false then bike friendly tag hints for mainroads are ignored, keeping their high penalties. v2.5.20
+  assign   path_preference        20.0 # %path_preference% | Penalizes roads and paved ways in favour of paths | number
+
+  assign use_proposed_cycleroutes = false  # %use_proposed_cycleroutes% | Set to true to consider proposed and regular cycleroutes as equals | boolean
+
+  assign   consider_elevation     1 # 1 as default
+  assign   consider_smoothness    1 # 1 as default
+  assign   allow_steps            0 # 1 as default
+  assign   allow_ferries          1 # 1 as default
+  assign   allow_traffic_penalty  1 # 1 as default
+
+  assign   StrictNOBicycleaccess          0 # 0 allows but penalizes foot only access / 1 forbides foot only access.
+  assign   valley_nonflat_multiplier = 2.0
+
+  assign   allow_default_barrier_restriction  false # If true, default access for barrier=gate is false. see node context
+
+  # with engine defaults, long parts of routing to via points may be removed
+  assign correctMisplacedViaPoints = false # %correctMisplacedViaPoints% | Set to true to remove detours due to via points (going back and forth on the same route) | boolean
+  assign correctMisplacedViaPointsDistance = 400 # %correctMisplacedViaPointsDistance% | Only remove detours shorter than this (one-way) distance (in m) (engine defaults to 0 which removes detours whatever their length) | number
+
+  # Internal parameters - not intended to be tweaked by end users, unless they know what they are doing.
+
+  #new in 2.5.12
+
+  assign   NoFlatMode             equal hills 5
+  assign   ValleyMode             equal hills 4
+  assign   originalisbike         false
+
+  assign   uphillcostvalue        switch equal hills 1 70   switch equal hills 2 80
+                                  switch equal hills 3 60   switch ValleyMode 150 switch NoFlatMode 0     0
+  assign   uphillcutoffvalue      switch equal hills 1 3.0  switch equal hills 2 1.0
+                                  switch equal hills 3 0.5  switch ValleyMode 1.5 switch NoFlatMode 1.5   1.5
+  assign   downhillcutoffvalue    switch equal hills 1 1.5  switch equal hills 2 0.5
+                                  switch equal hills 3 1.5  switch ValleyMode 1.5 switch NoFlatMode 1.5  1.5
+  assign   downhillcostvalue      switch equal hills 1 60   switch equal hills 2 80
+                                  switch equal hills 3 0    switch ValleyMode 150 switch NoFlatMode 0   0
+
+  assign   Flat_Penalty         if NoFlatMode then 1.5 else 0.0
+
+  assign   validForBikes        1
+  assign   processUnusedTags    0 # 1 is old Brouter behaviour, 0 is new Brouter default, more efficient, but ignores tags not used by a profile.
+
+
+  # positive smallpaved factor effect subtracts itself from MTB factor effect
+  # on MTB-like OSM way preference and elevation effect attenuation
+
+  #v2.5.14 assign   MTBminusSP_factor           sub MTB_factor ( max 0 smallpaved_factor )  - pre v2.5.14
+
+  #v2.5.14
+  assign   Hill_factor            min 3 max -3 sub MTB_factor smallpaved_factor
+  assign   Road_factor            min 3 max -3 ( sub ( sub 0.0 MTB_factor ) smallpaved_factor )
+
+  assign   positive_smallpaved_factor  not lesser smallpaved_factor 0.0
+  assign   abs_smallpaved_factor       multiply ( switch positive_smallpaved_factor 1.0 -1.0 ) smallpaved_factor
+
+  assign   MTB_hillcostfactor   multiply 0.3333 Hill_factor
+                    # It changes hillcosts to be 0.0 at Hill_factor = 3.0 and twice at -3.0
+                    # Hill_factor 1..-1 leads hillcost to decrease e.g. from 60 to 40 / increase from 60 to 80
+
+  assign   downhillcost if ( consider_elevation  )  then  ( multiply ( sub 1.0 MTB_hillcostfactor  ) downhillcostvalue ) else 0
+  assign   uphillcost   if ( consider_elevation  )  then  ( multiply ( sub 1.0 MTB_hillcostfactor  ) uphillcostvalue ) else 0
+  assign   uphillcutoff    if ( consider_elevation ) then (  multiply ( max 0.0 min 1.0 add 1.0 MTB_hillcostfactor  ) uphillcutoffvalue )   else 1.5
+  assign   downhillcutoff  if ( consider_elevation ) then (  multiply ( max 0.0 min 1.0 add 1.0 MTB_hillcostfactor  ) downhillcutoffvalue ) else 1.5
+
+  assign   elevationpenaltybuffer if ValleyMode then 10 else 5   # 5 is trekking default
+  assign   elevationmaxbuffer     if ValleyMode then 20 else 10  # 10 is trekking default
+  assign   elevationbufferreduce  if ValleyMode then 0.0 else ( multiply 0.333 max uphillcutoff downhillcutoff ) # 0.0 is trekking default
+
+  assign   uphillCFshift     0.0 # experimental shifting of up/downhillcostfactors as alternative way of
+  assign   downhillCFshift   0.0 # prioritizing/penalizing of up/downhills, based on length, not elevation
+
+  assign    pass1coefficient 1.8
+  assign    pass2coefficient 0
+
+  assign   use_proposed_cn        1 # 0 as default, considers proposed cycle networks as unmarked but valid cycleroutes.
+  assign   considerTurnRestrictions = true  #v2.5.11
+
+  assign   unsafe_penalty_value 1.0 # 1 - was 2 in Trekking, but this may cause U-like safe routes
+  assign   cost_of_unknown      2.0 # 2 as default, cost of highway=
+
+  assign   c_ford_initialcost_node = 500
+  assign   c_ford_initialcost_way  = 1000
+  assign   c_ford_costfactor =  50
+  assign   million = 1000000
+
+  assign   ford_handling_coef
+      switch ( lesser Hill_factor -1.49 ) million switch ( lesser Hill_factor -0.99 ) 20
+      switch ( lesser Hill_factor -0.49 )  5.0 switch ( lesser Hill_factor  0.01 ) 1.0
+      switch ( lesser Hill_factor  0.51 )  0.4 switch ( lesser Hill_factor  1.01 ) 0.1
+      switch ( lesser Hill_factor  1.51 ) 0.05 0.0
+
+  assign   ford_initialcost_way =  if ( equal ford_handling_coef million ) then million else
+                                   if ( equal ford_handling_coef 0.0 ) then 0.0 else
+                                   multiply c_ford_initialcost_way ford_handling_coef
+
+  assign   ford_initialcost_node = if ( equal ford_handling_coef million ) then million else
+                                   if ( equal ford_handling_coef 0.0 ) then 0.0 else
+                                   multiply c_ford_initialcost_node ford_handling_coef
+
+  assign   ford_costfactor =       if ( equal ford_handling_coef million ) then 9999 else
+                                   if ( equal ford_handling_coef 0.0 ) then 0.0 else
+                                   multiply c_ford_costfactor ford_handling_coef
+
+  assign   UDcostON               true
+
+  assign   ncncoef  max 0 min 1 multiply cycleroutes_pref 0.2
+  assign   lcncoef  max 0 min 1 multiply cycleroutes_pref 1.0
+
+  # bend /global
+  # bstart /way
+  ---context:way   # following code refers to way-tags
+  # bstart /wayvariables
+  assign isicn route_bicycle_icn=yes
+  assign isncn or route_bicycle_ncn=yes ncn=yes
+  assign isrcn or route_bicycle_rcn=yes rcn=yes
+  assign islcn or route_bicycle_lcn=yes lcn=yes
+
+assign any_cycleroute
+  switch not use_proposed_cycleroutes
+    or route_bicycle_icn=yes or route_bicycle_ncn=yes or route_bicycle_rcn=yes route_bicycle_lcn=yes
+    or route_bicycle_icn=yes|proposed or route_bicycle_ncn=yes|proposed or route_bicycle_rcn=yes|proposed route_bicycle_lcn=yes|proposed
+
+  assign any_cn_yes or lcn=yes or rcn=yes ncn=yes
+  assign any_cn_proposed or lcn=proposed or rcn=proposed ncn=proposed
+  assign any_cn or any_cn_yes switch use_proposed_cn any_cn_proposed 0
+
+  assign nodeaccessgranted or any_cycleroute any_cn
+
+  assign is_ldcr if (  equal cycleroutes_pref 0.0 )   then false else nodeaccessgranted
+
+  assign istrack  highway=track|road|path|footway
+  assign ismainroad highway=motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified
+  assign isotherroad = not or istrack ismainroad
+
+  assign hascycleway = not
+  and ( or cycleway= cycleway=no|none ) and ( or cycleway:left= cycleway:left=no ) and ( or cycleway:right= cycleway:right=no ) ( or cycleway:both= cycleway:both=no )
+
+  #2.6.* inserted originalisbike option
+  assign isbike_candidate or bicycle=yes|permissive|designated or hascycleway
+          if originalisbike then lcn=yes else nodeaccessgranted
+
+  assign isbike and ( or ( not ismainroad ) isbike_for_mainroads )  isbike_candidate
+
+
+  assign ispaved surface=paved|asphalt|concrete|paving_stones
+  assign isunpaved not or surface= or ispaved or surface=fine_gravel surface=cobblestone
+
+  assign probablyGood or ispaved  and isbike not isunpaved  #probably good surface - weather independent
+
+  assign turncost  if  ismainroad  then 90    else if ispaved then 60   else 30
+  # Turn cost is based solely on estimation of road speediness and eventual time cost of turning, partially promoting tracks )
+
+  assign ismuddy and iswet
+                 and ( not surface=gravel|pebblestone )  # ***)
+                     ( or isunpaved ( and surface= and highway=track|path not tracktype=grade1 )  )
+
+  assign nosurface or surface= surface=unknown
+  assign nosurfacenortracktype and nosurface tracktype=
+  assign ishard or ispaved surface=cobblestone|sett|compacted|fine_gravel|gravel|pebblestone
+  assign issoft not or nosurface ishard
+
+  # bend /wayvariables
+
+
+  # bstart /initialcost
+  assign initialclassifier
+  if route=ferry then 1
+  else if ( ford=yes )                             then 15
+  else if ( highway=motorway|motorway_link )       then 2
+  else if ( highway=trunk|trunk_link )             then 3
+  else if ( highway=primary|primary_link )         then 4
+  else if ( highway=secondary|secondary_link )     then 5
+  else if ( highway=tertiary|tertiary_link )       then 6
+  else if ( highway=unclassified )                 then 7
+  else if ( highway=residential   )                then 8
+  else if ( highway=living_street  )               then 9
+  else if ( highway=service   )                    then 10
+  else if ( highway=footway   )                    then 11
+  else if ( istrack )                              then 12
+  else if    ( highway=cycleway )                  then 13
+                                                   else 14
+
+  assign initialcost
+  if route=ferry then 10000
+  else if  ( ford=yes )                                       then ford_initialcost_way
+  else if ( highway=motorway|motorway_link|trunk|trunk_link ) then 500
+  else if ( highway=primary|primary_link )                    then 120
+  else if ( highway=secondary|secondary_link )                then 80
+  else if ( highway=tertiary|tertiary_link|unclassified )     then 50
+  else 30
+
+  # bend /initialcost
+
+  # bstart /wayaccess
+
+  assign defaultaccess =
+         if access= then not motorroad=yes
+         else if access=private|no then false
+         else true
+
+  assign bikeaccess =
+         if nodeaccessgranted then true
+         else if hascycleway then true
+         else if bicycle= then   (  if vehicle= then defaultaccess  else not vehicle=private|no   )
+                          else  not bicycle=private|no|dismount
+
+  assign footaccess =
+         if bikeaccess then true
+         else if bicycle=dismount then true
+         else if foot= then defaultaccess
+         else not foot=private|no
+
+  assign accesspenalty =
+         if bikeaccess then 0
+         else if footaccess then
+          ( if StrictNOBicycleaccess then 10000 else 4 )
+         else 10000
+
+  # handle one-ways. On primary roads, wrong-oneways should be close to forbidden
+  # while on other ways we just add 4 to the costfactor
+  # making it at least 5, as you are allowed to push your bike.
+
+  assign badoneway =
+         if reversedirection=yes then
+           if oneway:bicycle=yes then true
+           else if oneway= then junction=roundabout
+           else oneway=yes|true|1
+         else oneway=-1
+
+  assign onewaypenalty =
+         if ( badoneway ) then
+           if (
+             and hascycleway
+             or and cycleway:left=lane|track|shared_lane|share_busway
+                    cycleway:left:oneway=no|-1
+             or and cycleway:right=lane|track|shared_lane|share_busway
+                    cycleway:right:oneway=no|-1
+             or and cycleway:both=lane|track|shared_lane|share_busway
+                    #or cycleway:both:oneway=no|-1
+                    or cycleway:left:oneway=no|-1
+                       cycleway:right:oneway=no|-1
+             or cycleway=opposite|opposite_lane|opposite_track
+             or cycleway:left=opposite|opposite_lane|opposite_track
+                cycleway:right=opposite|opposite_lane|opposite_track
+                                                            ) then 0
+           else if oneway:bicycle=no                          then 0
+           else if not footaccess                             then 100
+           else if junction=roundabout|circular               then 60
+           else if highway=primary|primary_link               then 50
+           else if highway=secondary|secondary_link           then 30
+           else if highway=tertiary|tertiary_link             then 20
+           else 4.0
+
+         else 0.0
+
+  # bend /wayaccess
+
+  # bstart /roadmaxpenalties
+
+  # bstart /roughness_penalty
+  assign smoothness_penalty
+  # http://wiki.openstreetmap.org/wiki/Key:smoothness
+
+  if not consider_smoothness                                then 0.0 else
+  if smoothness=                                            then 0.0 else
+  if smoothness=excellent|very_good|good                    then 0.0 else
+  if smoothness=intermediate                                then 0.2 else
+  if smoothness=bad|robust_wheels                           then 0.5 else
+  if smoothness=very_bad|high_clearance                     then 1.2 else
+  if smoothness=horrible|off_road_wheels                    then 2.5 else
+  if smoothness=very_horrible                               then 5.0 else
+  if smoothness=impassable                                  then 10.0 else
+  0.0
+
+  assign mtb_scale_penalty  if not consider_smoothness then 0.0 else
+
+  # Remember this is for trekking bikes, not MTB. There are MTB dedicated profiles.
+  # http://wiki.openstreetmap.org/wiki/Key:mtb:scale
+
+  if mtb:scale=        then 0.0 else   if mtb:scale=0-      then 0.0 else
+  if mtb:scale=0       then 0.0 else   if mtb:scale=0+      then 0.3 else
+  if mtb:scale=1-      then 0.7 else   if mtb:scale=1       then 1.2 else
+  if mtb:scale=1+      then 1.8 else   if mtb:scale=2-      then 2.5 else
+  if mtb:scale=2       then 5.0 else   if mtb:scale=2+      then 10.0 else
+  if mtb:scale=3       then 15.0 else
+  if mtb:scale=4|5|6   then 9000
+                       else 0.0
+
+  assign roughness_penalty max smoothness_penalty max mtb_scale_penalty  ( if ford=yes then ford_costfactor else 0 )
+
+  # bend /roughness_penalty
+
+  # bstart /MTB_SP_tweaks
+
+  assign rough_coef = add 1.0 ( multiply 0.33 roughness_penalty )
+
+  assign univ_factor_coef
+      switch  highway=motorway|motorway_link|trunk|trunk_link 1.0 switch highway=primary|primary_link   0.9
+      switch  highway=secondary|secondary_link                0.7 switch highway=tertiary|tertiary_link 0.4
+      switch  highway=unclassified                            0.25
+      switch  or not istrack highway=footway                  ( switch ispaved 0.25 switch isunpaved -0.25 0.0 )
+      switch  or ispaved tracktype=grade1                     0.1
+      multiply rough_coef
+      add ( switch  highway=path -0.25 0.0 )
+          switch ( nosurfacenortracktype ) ( switch isbike 0.0 -0.25 )
+          switch nosurface  ( switch or isbike tracktype=grade2|grade3 -0.25 -0.5 )
+          switch surface=compacted|fine_gravel -0.25 switch surface=cobblestone|sett  -0.4
+          switch surface=ground|mud|dirt       -0.6  switch surface=grass|sand        -0.6
+          switch surface=gravel|pebblestone    -0.75   -0.6
+
+  assign nonpath_penalty =
+      if    equal path_preference 0.0    then 0.0 # nonpath_penalty inactive
+      else  multiply ( max 0 path_preference )
+          if ismainroad    then 1    else if not or istrack highway=cycleway  then 0.6
+          else if ispaved  then 0.4  else if or not highway=path or not isunpaved  tracktype=grade1|grade2 then 0.25
+          else if or not isunpaved or not highway=path  or not tracktype=grade3|grade4|grade5
+              surface=gravel|cobblestone|pebblestone    then 0.15  else 0.0
+
+  assign MTB_factor_for_road if  ( equal MTB_factor 0.0 ) then 0.0 else multiply MTB_factor  univ_factor_coef
+  assign abs_univ_factor     if lesser univ_factor_coef 0.0 then multiply -1.0 univ_factor_coef   else univ_factor_coef
+  assign smallpaved_factor_for_road if  ( equal smallpaved_factor 0.0 ) then 0.0
+                                    else multiply abs_smallpaved_factor ( if  positive_smallpaved_factor then abs_univ_factor  else  ( sub 1.0 abs_univ_factor )  )
+  # bend /MTB_SP_tweaks
+
+  # bstart /HWclass_bfactor_components
+
+  assign highwayclass_basefactor
+      if ismainroad then
+          switch highway=trunk|trunk_link          1.8  switch highway=primary|primary_link      1.5
+          switch highway=secondary|secondary_link  1.2  switch highway=tertiary|tertiary_link    1.1   1.0
+        else if istrack  then
+          switch highway=track 1.0 switch highway=path 1.1 switch highway=footway  1.2  1.0  # highway=road
+       else
+          switch highway=pedestrian 2.0 switch highway=bridleway 3.0
+          switch highway=cycleway   1.0 switch highway=residential|living_street   1.0
+          switch highway=service    1.1 cost_of_unknown
+
+
+  assign tracktype_penalty
+      if tracktype=  then 0.0 else
+          switch tracktype=grade1 0.0 switch tracktype=grade2 0.4 switch tracktype=grade3 0.7
+          switch tracktype=grade4 0.9 switch tracktype=grade5 1.0                         0.5
+
+  assign surface_penalty
+      if nosurface then 0.0 else
+          switch surface=asphalt|paved   0.0 switch surface=concrete|paving_stones 0.2
+          switch surface=sett|compacted  0.4 switch surface=cobblestone|ground|earth|unpaved|dirt|fine_gravel  0.6
+          switch surface=grass|sand      1.0 switch surface=gravel|pebblestone     1.5        0.6
+
+  assign tracktype_surface_penalty
+      if nosurfacenortracktype then  ( switch ismainroad 0.0 switch isotherroad  0.0 switch highway=path 0.8 0.4  )
+      else if nosurface then tracktype_penalty
+      else if tracktype= then  surface_penalty  else
+      max tracktype_penalty surface_penalty
+
+  assign not_isbike_penalty   if isbike then 0.0
+       else if ismainroad then
+          add switch bicycle=use_sidepath 2.0 0.0
+          switch highway=trunk|trunk_link          8.2  switch highway=primary|primary_link      1.5
+          switch highway=secondary|secondary_link  0.4  0.3 # tertiary|tertiary_link|unclassified
+       else if istrack then
+          switch highway=footway            3.5   switch or ispaved tracktype=grade1 0.0
+          switch and tracktype= not isunpaved  ( switch highway=path 3.5 1.0 )
+          switch tracktype=                 3.0   switch tracktype=grade1           0.2
+          switch tracktype=grade2           0.6   switch tracktype=grade3           1.2
+          switch tracktype=grade4           2.0   switch tracktype=grade5           3.0
+          3.0
+       else
+          switch    highway=pedestrian 2.0   switch    highway=bridleway  2.0
+          switch    highway=cycleway   0.0   switch    highway=residential|living_street 0.0
+          switch    highway=service    0.0   0.0
+
+  assign wet_penalty    if   not iswet    then 0.0 else
+      switch surface=cobblestone|sett     1.0     switch ispaved                      0.0
+      switch surface=compacted            0.6     switch surface=fine_gravel          0.8
+      switch surface=                     switch not istrack 0.5 switch highway=path  2.0 1.0
+      switch surface=grass                switch highway=path  2.5 1.5
+      switch surface=ground|earth|unpaved|sand|dirt|mud   switch highway=path 3.5 2.0
+      2.0
+
+  # bend /HWclass_bfactor_components
+
+  # bend /roadmaxpenalties
+
+  # bstart /trafficpenalties
+  # Penalty for unsafe roads. As wet fallback, it does not so strictly avoid unsafe
+  assign unsafe_penalty
+      if and avoid_unsafe and ismainroad not isbike
+         then multiply unsafe_penalty_value  ( if iswet then  0.5 else 1.0 )
+         else 0.0
+
+
+
+  assign trafficpenalty0 = (
+      if not allow_traffic_penalty then 0.0 else
+      if highway=primary|primary_link then
+      (
+        if      estimated_traffic_class=4 then 0.2
+        else if estimated_traffic_class=5 then 0.4
+        else if estimated_traffic_class=6|7 then 0.6
+        else 0
+      )
+      else if highway=secondary|secondary_link then
+      (
+        if      estimated_traffic_class=3 then 0.2
+        else if estimated_traffic_class=4 then 0.4
+        else if estimated_traffic_class=5 then 0.6
+        else if estimated_traffic_class=6|7 then 1
+        else 0
+      )
+      else if highway=tertiary|tertiary_link then
+      (
+        if      estimated_traffic_class=2 then 0.1
+        else if estimated_traffic_class=3 then 0.3
+        else if estimated_traffic_class=4 then 0.5
+        else if estimated_traffic_class=5|6|7 then 1
+        else 0
+      )
+      else 0
+      )
+
+  assign trafficpenalty =
+    if hascycleway then min 0.3 trafficpenalty0
+    else trafficpenalty0
+
+  # bend /trafficpenalties
+
+  # bstart /costfactors
+
+  assign penaltymax = max roughness_penalty max tracktype_surface_penalty max wet_penalty trafficpenalty
+
+  assign rawcostfactor ( # can be <1, adjusted to >=1 in final step of calculation of costfactor, uphillcostfactor,downhillcostfactor
+    switch and highway= not route=ferry  10000 #only highways unless ferry
+    switch highway=motorway|motorway_link|proposed|abandoned  10000
+
+    # all other exclusions below (access, steps, ferries,..) should not be deleted by the decoder, to be available in voice-hint-processing
+    min 9999
+
+    switch    highway=steps  switch allow_steps     40 10000
+    switch    route=ferry    switch allow_ferries 5.67 10000
+    switch    highway=construction                     10000
+
+    add highwayclass_basefactor   add not_isbike_penalty   add unsafe_penalty   max penaltymax   nonpath_penalty
+   )
+
+    assign isCFgt9997       greater rawcostfactor 9997
+
+    assign LDCRboost  multiply sub 1.0 rawcostfactor    cycleroutes_pref
+    assign cycleroute_tweak
+    #2.6 reworked : non cyclenetwork penalty = + cycleroutes_pref  ( 0..1 , default 0.2)
+    #               ICN boost                = - ( CF - 1 ) * cycleroutes_pref, leading to CF=1.0 for cycleroutes_pref = 1.0
+    #               other CN: weitgted average of above, with weights ncncoef, lcncoef shifting with cycleroutes_pref
+
+           if not greater cycleroutes_pref 0.0 then 0.0
+           else if not is_ldcr then cycleroutes_pref
+           else if isicn then LDCRboost
+           else if isncn then add multiply ncncoef cycleroutes_pref     multiply ( sub  1.0 ncncoef ) LDCRboost
+           else               add multiply lcncoef cycleroutes_pref     multiply ( sub  1.0 lcncoef ) LDCRboost
+
+    # can be <1, adjusted to >=1 in final step of calculation of costfactor, uphillcostfactor,downhillcostfactor
+    assign rawcostfactor2  if isCFgt9997 then rawcostfactor
+      else add rawcostfactor add cycleroute_tweak add MTB_factor_for_road smallpaved_factor_for_road
+
+    assign access-penalty max onewaypenalty accesspenalty
+
+    assign costfactor    if isCFgt9997 then rawcostfactor2   else add access-penalty add Flat_Penalty max 1.0 rawcostfactor2
+
+    assign uphillcostfactor   if or not UDcostON isCFgt9997 then costfactor else
+      add access-penalty max 1.0 if ValleyMode  then ( multiply rawcostfactor2 valley_nonflat_multiplier )
+      else  add uphillCFshift add rawcostfactor2 switch ismainroad ( multiply 0.4 sub univ_factor_coef 0.5 ) ( multiply -0.5 univ_factor_coef )
+
+    assign downhillcostfactor if or not UDcostON isCFgt9997 then costfactor else
+      add access-penalty max 1.0 if ValleyMode  then ( multiply rawcostfactor2 valley_nonflat_multiplier )
+                                         else  add downhillCFshift add rawcostfactor2 multiply -0.2 univ_factor_coef
+
+  # bend /costfactors
+
+  # bstart /priorityclassifiers
+
+  # way priorities used for voice hint generation
+
+  assign priorityclassifier = (
+
+    if      ( highway=motorway                  ) then  30
+    else if ( highway=motorway_link             ) then  29
+    else if ( highway=trunk                     ) then  28
+    else if ( highway=trunk_link                ) then  27
+    else if ( highway=primary                   ) then  26
+    else if ( highway=primary_link              ) then  25
+    else if ( highway=secondary                 ) then  24
+    else if ( highway=secondary_link            ) then  23
+    else if ( highway=tertiary                  ) then  22
+    else if ( highway=tertiary_link             ) then  21
+    else if ( highway=unclassified              ) then  20
+    else if ( highway=residential|living_street ) then  16
+    else if ( highway=service                   ) then  14
+    else if ( tracktype=grade1                  ) then  6
+    else if ( highway=cycleway                  ) then  6
+    else if ( bicycle=designated                ) then  6
+    else if ( highway=bridleway                 ) then  4
+    else if ( highway=track|road|footway        ) then  4
+    else if ( highway=steps|path|pedestrian     ) then  2
+    else 0
+    )
+
+  # some more classifying bits used for voice hint generation...
+
+  assign isbadoneway = not equal onewaypenalty 0
+  assign isgoodoneway = if reversedirection=yes then oneway=-1
+                        else if oneway= then junction=roundabout else oneway=yes|true|1
+  assign isroundabout = junction=roundabout
+  assign islinktype = highway=motorway_link|trunk_link|primary_link|secondary_link|tertiary_link
+  assign isgoodforcars = if greater priorityclassifier 6 then true
+                    else if highway=residential|living_street|service then true
+                    else if ( and highway=track tracktype=grade1 ) then true
+                    else false
+
+  # ... encoded into a bitmask
+
+  assign classifiermask add          isbadoneway
+                        add multiply isgoodoneway   2
+                        add multiply isroundabout   4
+                        add multiply islinktype     8
+                            multiply isgoodforcars 16
+
+  # bend /priorityclassifiers
+
+  # bend /way
+
+  # bstart /node
+  ---context:node  # following code refers to node tags
+
+  assign   initial_cost_node    0     # 0 as default
+
+  assign defaultaccess =
+         if ( access= ) then  if allow_default_barrier_restriction then not barrier=gate # add default barrier restrictions here! - modified v2.5.15, conditioned in 2.6
+                                                                   else true
+         else if ( access=private|no ) then false
+         else true
+
+  assign bikeaccess =
+         if nodeaccessgranted=yes then true
+         else if bicycle= then
+         (
+           if vehicle= then defaultaccess
+           else not vehicle=private|no
+         )
+         else not bicycle=private|no|dismount
+
+  assign footaccess =
+         if bicycle=dismount then true
+         else if foot= then defaultaccess
+         else not foot=private|no
+
+
+  assign initialcost =
+          add ( if highway=traffic_signals then 120
+                else if highway=stop  then 60
+                else if and highway=crossing bicycle=no then 60
+                else if and highway=crossing crossing=no then 300 # workaround affecting road routing
+                else if ( ford=yes ) then ford_initialcost_node
+                else initial_cost_node )
+              if bikeaccess then 0  else ( if footaccess then 100 else 1000000 )
+
+  # bend /node

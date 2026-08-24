@@ -1,6 +1,6 @@
 ---
 title: Create or edit a trail
-description: How to create or edit a trail by uploading or drawing a trail using Valhalla
+description: How to create or edit a trail by uploading a file or drawing with a configured routing plugin
 ---
 
 ## What is a trail?
@@ -31,18 +31,18 @@ After uploading:
 Click the **Draw a route** button to manually define a route on the map. While in drawing mode:
 
 - Click on the map to place route anchors
-- <span class="-tracking-[0.075em]">wanderer</span> will automatically route between anchors using the [Valhalla routing engine](https://github.com/valhalla/valhalla)
+- <span class="-tracking-[0.075em]">wanderer</span> will automatically route between anchors using the configured routing plugin
 - You can drag anchors to reposition them
 - Use the top-left menu to change routing mode (e.g. walking, cycling)
 - Use the waypoint button (location marker icon) in the route editing toolbar to show or hide existing waypoint markers on the map. Hiding them also disables right-clicking to create new waypoints.
 - To remove an anchor, click on it and then click the red trash icon
 
-If you disable Valhalla routing, straight lines will be used between anchors instead.
+If you disable automatic routing, straight lines will be used between anchors instead.
 
 To finish drawing, click **Stop drawing**.
 
 :::tip
-<span class="-tracking-[0.075em]">wanderer</span> uses a public, donation-financed Valhalla server by default. Please consider supporting it at [https://www.fossgis.de/verein/spenden/](https://www.fossgis.de/verein/spenden/).
+Official Wanderer images do not include routing provider plugins. After an administrator installs the separate [Valhalla provider plugin bundle](/run/installation/plugins), Wanderer enables it automatically for existing users who do not already have an instance and for users created later. Routing and elevation selections are resolved automatically from enabled plugin capabilities unless an administrator or user explicitly chooses an engine. Valhalla's default connector uses a public, donation-financed service; if you use it, please consider [supporting FOSSGIS](https://www.fossgis.de/verein/spenden/).
 :::
 
 #### Trail anchor list

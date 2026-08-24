@@ -12,6 +12,7 @@
         FontawesomeMarker,
     } from "$lib/util/maplibre_util";
     import { decodePolyline } from "$lib/util/polyline_util";
+    import { TRAIL_COLORS, trailColor } from "$lib/util/trail_color_util";
     import type { ElevationProfileControl } from "$lib/vendor/maplibre-elevation-profile/elevationprofile-control";
     import { FullscreenControl } from "$lib/vendor/maplibre-fullscreen/fullscreen-control";
     import MaplibreGraticule from "$lib/vendor/maplibre-graticule/maplibre-graticule";
@@ -31,6 +32,9 @@
 
     interface Props {
         trails?: Trail[];
+        previewTrails?: Trail[];
+        focusedTrailId?: string;
+        elevationPreviewGpx?: GPX;
         serverClusters?: GeoJSON.FeatureCollection;
         gpx?: GPX;
         waypoints?: Waypoint[];
@@ -78,6 +82,9 @@
 
     let {
         trails = [],
+        previewTrails = [],
+        focusedTrailId = undefined,
+        elevationPreviewGpx = undefined,
         serverClusters = undefined,
         waypoints = [],
         markers = $bindable([]),
@@ -127,36 +134,40 @@
     let terrainEnabled: boolean | null = null;
     let elevationProfileVisibilityPreference: boolean | null = null;
 
-    const trailColors = [
-        "#3549bb", // blue
-        "#ff7f0e", // orange
-        "#2ca02c", // green
-        "#d62728", // red
-        "#9467bd", // purple
-        "#8c564b", // brown
-        "#e377c2", // pink
-        "#373642", // gray
-        "#fae455", // yellow
-        "#17becf", // teal
-    ];
-
     let clusterPopup: M.Popup | null = null;
 
     let mapData = $derived(getData(trails, serverClusters));
-    let gpxDataMap = $derived(mapData[0]);
+    let previewGpxDataMap = $derived(getGpxData(previewTrails));
+    let gpxDataMap = $derived({ ...mapData[0], ...previewGpxDataMap });
     let clusterData = $derived(mapData[1]);
     let previewData = $derived(mapData[2]);
 
     $effect(() => {
         // Track dependencies for Svelte 5
         mapData;
+        previewGpxDataMap;
+        previewTrails;
 
         if (map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
         }
     });
     $effect(() => {
+        focusedTrailId;
+        trails;
+        previewTrails;
+        if (map && mapLoaded) {
+            untrack(() => adjustTrailLineFocus());
+        }
+    });
+    $effect(() => {
         adjustTrailFocus(activeTrail);
+    });
+    $effect(() => {
+        elevationPreviewGpx;
+        if (map && mapLoaded) {
+            untrack(() => refreshElevationProfile());
+        }
     });
     $effect(() => {
         toggleEpcTheme();
@@ -218,28 +229,9 @@
             type: "FeatureCollection",
             features: [],
         };
-        let gpxDataMap: Record<string, FeatureCollection> = {};
+        const gpxDataMap = getGpxData(trails);
 
         trails.forEach((t) => {
-            if (t.id) {
-                let fc: FeatureCollection | null = null;
-                if (t.expand?.gpx) {
-                    fc = t.expand.gpx.toGeoJSON();
-                } else if (t.expand?.gpx_data) {
-                    fc = GPX.parse(t.expand.gpx_data).toGeoJSON();
-                }
-
-                if (fc) {
-                    fc.features.forEach((f) => {
-                        if (f.properties) {
-                            f.properties.bounding_box_diagonal =
-                                t.bounding_box_diagonal;
-                        }
-                    });
-                    gpxDataMap[t.id] = fc;
-                }
-            }
-
             if (clusterTrails) {
                 if (!serverClusters && t.lat !== undefined && t.lon !== undefined) {
                     clusterData.features.push({
@@ -263,10 +255,10 @@
                         properties: {
                             trail: t.id,
                             bounding_box_diagonal: t.bounding_box_diagonal,
-                            color: trailColors[
+                            color: TRAIL_COLORS[
                                 hashStringToIndex(
                                     t.id ?? "",
-                                    trailColors.length,
+                                    TRAIL_COLORS.length,
                                 )
                             ],
                         },
@@ -282,6 +274,28 @@
         return [gpxDataMap, clusterData, previewData];
     }
 
+    function getGpxData(trails: Trail[]) {
+        const data: Record<string, FeatureCollection> = {};
+        for (const trail of trails) {
+            if (!trail.id) continue;
+            let featureCollection: FeatureCollection | null = null;
+            if (trail.expand?.gpx) {
+                featureCollection = trail.expand.gpx.toGeoJSON();
+            } else if (trail.expand?.gpx_data) {
+                featureCollection = GPX.parse(trail.expand.gpx_data).toGeoJSON();
+            }
+            if (!featureCollection) continue;
+            featureCollection.features.forEach((feature) => {
+                if (feature.properties) {
+                    feature.properties.bounding_box_diagonal =
+                        trail.bounding_box_diagonal;
+                }
+            });
+            data[trail.id] = featureCollection;
+        }
+        return data;
+    }
+
     function initMap(mapLoaded: boolean) {
         if (!map || !layerManager) {
             return;
@@ -290,16 +304,31 @@
         refreshElevationProfile();
         syncElevationProfileVisibility();
 
+        previewTrails.forEach((t, index) => {
+            const layerId = t.id!;
+            addTrailLayer(t, layerId, index + 1, gpxDataMap[layerId], false);
+        });
+
         trails.forEach((t) => {
             const layerId = t.id!;
             addTrailLayer(t, layerId, 0, gpxDataMap[layerId]);
         });
 
+        if (previewTrails.length) {
+            trails.forEach((trail) => {
+                if (trail.id && map?.getLayer(trail.id)) {
+                    map.moveLayer(trail.id);
+                }
+            });
+        }
+
         Object.entries(layerManager.layers).forEach(([id, layer]) => {
             if (!(layer instanceof TrailLayer)) {
                 return;
             }
-            const isStillVisible = trails.some((t) => t.id === id);
+            const isStillVisible = [...trails, ...previewTrails].some(
+                (t) => t.id === id,
+            );
             if (!isStillVisible) {
                 removeCaretLayer();
                 removeTrailLayer(id);
@@ -354,6 +383,10 @@
     }
 
     export function refreshElevationProfile() {
+        if (elevationPreviewGpx) {
+            epc?.setData(elevationPreviewGpx.toGeoJSON(), waypoints);
+            return;
+        }
         const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
         if (activeId && gpxDataMap[activeId]) {
             epc?.setData(gpxDataMap[activeId]!, waypoints);
@@ -363,8 +396,8 @@
     function syncElevationProfileVisibility() {
         if (
             showElevation &&
-            Object.keys(gpxDataMap).length &&
-            activeTrail !== null &&
+            (elevationPreviewGpx || Object.keys(gpxDataMap).length) &&
+            (elevationPreviewGpx || activeTrail !== null) &&
             elevationProfileVisibilityPreference !== false
         ) {
             epc?.showProfile();
@@ -427,6 +460,10 @@
         });
     }
 
+    export function fitToAllBounds() {
+        fitToBounds(getBounds());
+    }
+
     function flyToBounds() {
         fitToBounds();
     }
@@ -440,37 +477,84 @@
         id: string,
         index: number,
         geojson: GeoJSON.FeatureCollection | null | undefined,
+        interactive = true,
     ) {
         if (!geojson || !map) {
             return;
         }
+        const listeners = interactive
+            ? {
+                  onEnter: (e: M.MapMouseEvent) =>
+                      highlightTrail(
+                          id,
+                          trails[activeTrail ?? -1]?.id == id,
+                      ),
+                  onLeave: (e: M.MapMouseEvent) => unHighlightTrail(id),
+                  onMouseUp: (e: M.MapMouseEvent) => {
+                      activeTrail = trails.findIndex(
+                          (t) => t.id == trail.id,
+                      );
+                  },
+                  onMouseMove: moveCrosshairToCursorPosition,
+                  onMouseDown: (e: M.MapMouseEvent) => handleDragStart(e, id),
+              }
+            : undefined;
         const trailLayer = new TrailLayer(
             id,
             geojson,
-            trailColors[
+            trailColor(
                 clusterTrails
-                    ? hashStringToIndex(id ?? "", trailColors.length)
-                    : index % trailColors.length
-            ],
+                    ? hashStringToIndex(id ?? "", TRAIL_COLORS.length)
+                    : index,
+            ),
             {
-                listeners: {
-                    onEnter: (e) =>
-                        highlightTrail(id, trails[activeTrail ?? -1]?.id == id),
-
-                    onLeave: (e) => unHighlightTrail(id),
-                    onMouseUp: (e) => {
-                        activeTrail = trails.findIndex((t) => t.id == trail.id);
-                    },
-                    onMouseMove: moveCrosshairToCursorPosition,
-                    onMouseDown: (e) => handleDragStart(e, id),
-                },
+                listeners,
+                lineWidth: interactive ? 5 : 4,
+                lineOpacity: interactive ? 1 : 0.8,
             },
         );
 
         layerManager.addLayer(id, trailLayer);
 
-        if (!drawing && !clusterTrails) {
+        if (interactive && !drawing && !clusterTrails) {
             addStartEndMarkers(trail, id, geojson);
+        }
+    }
+
+    function adjustTrailLineFocus() {
+        if (!map) return;
+        const allTrails = [...trails, ...previewTrails];
+        const activeFocus = focusedTrailId &&
+            allTrails.some((trail) => trail.id === focusedTrailId)
+                ? focusedTrailId
+                : undefined;
+
+        for (const trail of allTrails) {
+            if (!trail.id || !map.getLayer(trail.id)) continue;
+            const isPreview = previewTrails.some(
+                (preview) => preview.id === trail.id,
+            );
+            const isFocused = trail.id === activeFocus;
+            map.setPaintProperty(
+                trail.id,
+                "line-width",
+                activeFocus ? (isFocused ? 7 : 3) : isPreview ? 4 : 5,
+            );
+            map.setPaintProperty(
+                trail.id,
+                "line-opacity",
+                activeFocus ? (isFocused ? 1 : 0.5) : isPreview ? 0.8 : 1,
+            );
+        }
+
+        if (activeFocus && map.getLayer(activeFocus)) {
+            map.moveLayer(activeFocus);
+        } else if (previewTrails.length) {
+            for (const trail of trails) {
+                if (trail.id && map.getLayer(trail.id)) {
+                    map.moveLayer(trail.id);
+                }
+            }
         }
     }
 
@@ -745,20 +829,18 @@
         id: string | undefined,
         geojson: GeoJSON | null | undefined,
     ) {
-        if (
-            !map ||
-            !trail ||
-            !id ||
-            !(layerManager.layers[id] instanceof TrailLayer)
-        ) {
+        const layer = trailLayer(id);
+        if (!map || !trail || !layer) {
             return;
         }
+
+        removeStartEndMarkers(id);
 
         const startMarker = new FontawesomeMarker(
             { icon: "fa fa-bullseye" },
             {},
         );
-        layerManager.layers[id].markers.start = startMarker;
+        layer.markers.start = startMarker;
 
         if (!geojson) {
             if (trail.lon && trail.lat) {
@@ -777,7 +859,7 @@
             { icon: "fa fa-flag-checkered" },
             {},
         );
-        layerManager.layers[id].markers.end = endMarker;
+        layer.markers.end = endMarker;
 
         startMarker.setLngLat(startEndPoint[0] as M.LngLatLike);
         endMarker.setLngLat(
@@ -797,11 +879,22 @@
     }
 
     function removeStartEndMarkers(id: string | undefined) {
-        if (!id) {
+        const layer = trailLayer(id);
+        if (!layer) {
             return;
         }
-        layerManager.layers[id].markers?.start?.remove();
-        layerManager.layers[id].markers?.end?.remove();
+        layer.markers.start?.remove();
+        layer.markers.end?.remove();
+        delete layer.markers.start;
+        delete layer.markers.end;
+    }
+
+    function trailLayer(id: string | undefined): TrailLayer | undefined {
+        if (!id || !layerManager) {
+            return undefined;
+        }
+        const layer = layerManager.layers[id];
+        return layer instanceof TrailLayer ? layer : undefined;
     }
 
     function showWaypoints() {

@@ -13,7 +13,6 @@ import (
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"golang.org/x/net/html"
 )
@@ -248,20 +247,29 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 		cc.Append(pub.IRI(inbox))
 	}
 
-	photos := summitLog.GetStringSlice("photos")
+	photoAssets, err := util.PhotoAssetsForTarget(app, "summit_log", summitLog.Id, -1)
+	if err != nil {
+		return err
+	}
 
 	gpx := ""
 	if summitLog.GetString("gpx") != "" {
 		gpx = fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, summitLog.GetString("gpx"))
 	}
 
-	attachments := make(pub.ItemCollection, 0, len(photos)+1)
-	for i := range len(photos) {
-		iri := fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, photos[i])
+	attachments := make(pub.ItemCollection, 0, len(photoAssets)+1)
+	for _, asset := range photoAssets {
+		photoURL := util.AssetPublicMediaURL(asset, origin)
+		if photoURL == "" {
+			continue
+		}
 		attachments.Append(pub.Document{
+			// stable identity so receiving instances can reconcile photos
+			// across repeated update activities instead of duplicating them
+			ID:        pub.ID(util.CanonicalFederatedAssetID(asset, origin)),
 			Type:      pub.ImageType,
 			MediaType: "image/jpeg",
-			URL:       pub.IRI(iri),
+			URL:       pub.IRI(photoURL),
 		})
 	}
 	if gpx != "" {
@@ -662,13 +670,13 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	record.Set("trail", trail.Id)
 	record.Set("iri", logObject.ID.String())
 
+	photos := []util.FederatedPhoto{}
 	if logObject.Attachment != nil {
 		attachments, err := pub.ToItemCollection(logObject.Attachment)
 		if err != nil {
 			return err
 		}
 
-		photoURLs := []string{}
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
@@ -678,29 +686,22 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
 				gpxURL = attachment.URL.GetLink().String()
 			} else if attachment.Type == pub.ImageType {
-				photoURLs = append(photoURLs, attachment.URL.GetLink().String())
-			}
-		}
-
-		if len(photoURLs) == 0 {
-			record.Set("photos", []*filesystem.File{})
-		} else {
-			photos := []*filesystem.File{}
-			for _, purl := range photoURLs {
-				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
-				if err != nil {
-					continue
+				photoURL := attachment.URL.GetLink().String()
+				// older instances federate photos without a stable id; the
+				// URL still dedups repeated deliveries of the same asset
+				canonicalID := attachment.ID.String()
+				if canonicalID == "" {
+					canonicalID = photoURL
 				}
-				photos = append(photos, photo)
-			}
-
-			if len(photos) > 0 {
-				record.Set("photos", photos)
+				photos = append(photos, util.FederatedPhoto{
+					CanonicalID: canonicalID,
+					FileURL:     photoURL,
+				})
 			}
 		}
 
 		if gpxURL != "" {
-			gpx, err := filesystem.NewFileFromURL(context.Background(), gpxURL)
+			gpx, err := util.FetchPublicFile(context.Background(), gpxURL, "activitypub-summit-log.gpx", util.DefaultPluginMediaMaxBytes)
 			if err != nil {
 				return err
 			}
@@ -711,6 +712,10 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 
 	err = app.Save(record)
 	if err != nil {
+		return err
+	}
+
+	if err := util.ReconcileFederatedPhotoAssets(app, context.Background(), "summit_log", record.Id, actor.Id, photos); err != nil {
 		return err
 	}
 

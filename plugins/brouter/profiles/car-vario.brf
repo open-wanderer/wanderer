@@ -1,0 +1,319 @@
+#
+# Car-Routing based on a kinematic model
+#
+# Depending on the vmax-parameter (target-speed)
+# and can handle the costfactor
+# this can be anything from least-time routing to eco-routing
+#
+#
+---model:btools.router.KinematicModel
+
+---context:global
+
+# Car profile
+assign validForCars        = true
+
+# Use the following switches to change behaviour
+assign avoid_toll          = false  # %avoid_toll% | Avoid paid roads | boolean
+assign avoid_unpaved       = false  # %avoid_unpaved% | Avoid unpaved roads, if possible | boolean
+assign avoid_motorways     = false  # %avoid_motorways% | Avoid motorways | boolean
+
+assign add_beeline         = false  # %add_beeline% | Enable beeline on distant start/end points | boolean
+assign use_offroad         = false  # %use_offroad% | Enable additional roads | boolean
+
+assign consider_river      = false  # %consider_river% | Activate to prefer a route along rivers, lakes, etc. | boolean
+assign consider_forest     = false  # %consider_forest% | Activate to prefer a route in forest or parks | boolean
+assign consider_town       = false  # %consider_town% | Activate to bypass cities / big towns as far as possible | boolean
+
+# Kinematic model parameters
+assign vmax             = 90     # %vmax% | Target speed (in km/h) | number
+assign recup_efficiency = 0.7    # %recup_efficiency% | (ratio) | number
+assign totalweight      = 1640   # %totalweight% | Total weight of the car (in kg) | number
+assign f_roll           = 232    # %f_roll% | Rolling friction (in Newton) | number
+assign f_air            = 0.4    # %f_air% | Drag force (in Newton / (m/s)^2), 0.5*cw*A*rho | number
+assign f_recup          = 400    # %f_recup% | Newton | number
+assign p_standby        = 250    # %p_standby% | Watt | number
+
+# Turn instructions settings
+assign turnInstructionMode          = 1     # %turnInstructionMode% | Mode for the generated turn instructions | [0=none, 1=auto-choose, 2=locus-style, 3=osmand-style, 4=comment-style, 5=gpsies-style, 6=orux-style, 7=locus-old-style]
+
+# Technical parameters
+assign pass1coefficient    = 1.3
+
+
+---context:way   # following code refers to way-tags
+
+# classifier constants
+assign classifier_none        = 1
+assign classifier_ferry       = 2
+
+assign is_avoided_toll_road and  avoid_toll toll=yes
+assign is_avoided_motorway and avoid_motorways highway=motorway|motorway_link
+
+
+#
+# calculate logical car access
+#
+assign isresidentialorliving = or highway=residential|living_street living_street=yes
+
+assign caraccess
+       switch motorcar=
+              switch motor_vehicle=
+                     switch vehicle=
+                            switch access=
+                                   switch highway=motorway|motorway_link       1
+                                   switch highway=trunk|trunk_link             1
+                                   switch highway=primary|primary_link         1
+                                   switch highway=secondary|secondary_link     1
+                                   switch highway=tertiary|tertiary_link       1
+                                   switch highway=unclassified                 1
+                                   switch and highway=track use_offroad        1
+                                   switch and highway=road use_offroad         1
+                                   switch route=ferry                          1
+                                   switch isresidentialorliving                1
+                                   switch highway=service                      1
+                                   0
+                                   access=yes|permissive|designated|destination
+                            vehicle=yes|designated|destination
+                     motor_vehicle=yes|permissive|designated|destination
+              motorcar=yes|permissive|designated|destination
+
+assign caraccess_destination
+       switch motorcar=
+              switch motor_vehicle=
+                     switch vehicle=
+                            access=destination
+                            vehicle=destination
+                     motor_vehicle=destination
+              motorcar=destination
+
+#
+# for any change in initialclassifier, initialcost is added once
+#
+assign initialclassifier =
+     if route=ferry then classifier_ferry
+     else classifier_none
+
+
+#
+# calculate the initial cost
+# this is added to the total cost each time the costfactor
+# changed
+#
+assign initialcost =
+     if      ( and highway= not route=ferry ) then 10000
+     else if ( equal initialclassifier classifier_ferry ) then 10000
+     else 0
+
+assign accessspeedlimit = if caraccess then 999 else 0
+
+assign isbadoneway = if reversedirection=yes then ( if oneway= then junction=roundabout else oneway=yes|true|1 ) else oneway=-1
+assign onewayspeedlimit = if isbadoneway then 0 else 999
+
+assign islinktype = highway=motorway_link|trunk_link|primary_link|secondary_link|tertiary_link
+
+assign maxspeed_surface =
+  switch or surface= surface=paved|asphalt|concrete 999
+  switch surface=paving_stones|cobblestone|sett 30
+  switch surface=fine_gravel ( switch avoid_unpaved 3 10 )
+  switch avoid_unpaved 1 2
+
+assign maxspeed_tracktype =
+  switch tracktype= 999
+  switch tracktype=grade1 40
+  switch tracktype=grade2 ( switch avoid_unpaved 2 5 )
+  1
+
+assign maxspeed_implicit =
+  switch highway=motorway                  999
+  switch highway=motorway_link             130
+  switch highway=trunk                     250
+  switch highway=trunk_link                100
+  switch highway=primary|primary_link      100
+  switch highway=secondary|secondary_link   90
+  switch highway=tertiary|tertiary_link     80
+  switch highway=unclassified               50
+  switch route=ferry                        10
+  switch highway=bridleway                  10
+  switch isresidentialorliving              30
+  switch highway=service                    30
+  switch highway=track|road|path switch tracktype=grade1 30 5
+  0
+
+assign maxspeed_forward =
+  switch maxspeed:forward=50 50
+  switch maxspeed:forward=30 30
+  switch maxspeed:forward=10 10
+  switch maxspeed:forward=20 20
+  switch maxspeed:forward=40 40
+  switch maxspeed:forward=60 60
+  switch maxspeed:forward=70 70
+  switch maxspeed:forward=80 80
+  switch maxspeed:forward=90 90
+  switch maxspeed:forward=100 100
+  switch maxspeed:forward=110 110
+  switch maxspeed:forward=120 120
+  switch maxspeed:forward=130 130
+  switch maxspeed:forward=urban 50
+  switch maxspeed:forward=rural 100
+  999
+
+assign maxspeed_backward =
+  switch maxspeed:backward=50 50
+  switch maxspeed:backward=30 30
+  switch maxspeed:backward=10 10
+  switch maxspeed:backward=20 20
+  switch maxspeed:backward=40 40
+  switch maxspeed:backward=60 60
+  switch maxspeed:backward=70 70
+  switch maxspeed:backward=80 80
+  switch maxspeed:backward=90 90
+  switch maxspeed:backward=100 100
+  switch maxspeed:backward=110 110
+  switch maxspeed:backward=120 120
+  switch maxspeed:backward=130 130
+  switch maxspeed:backward=urban 50
+  switch maxspeed:backward=rural 100
+  999
+
+assign maxspeed_explicit =
+  switch maxspeed=50 50
+  switch maxspeed=30 30
+  switch maxspeed=10 10
+  switch maxspeed=20 20
+  switch maxspeed=40 40
+  switch maxspeed=60 60
+  switch maxspeed=70 70
+  switch maxspeed=80 80
+  switch maxspeed=90 90
+  switch maxspeed=100 100
+  switch maxspeed=110 110
+  switch maxspeed=120 120
+  switch maxspeed=130 130
+  switch maxspeed=urban 50
+  switch maxspeed=rural 100
+  if reversedirection=yes then maxspeed_backward else maxspeed_forward
+
+assign maxspeed =
+  min onewayspeedlimit
+  min accessspeedlimit
+  min maxspeed_explicit
+  min maxspeed_implicit
+  min maxspeed_surface maxspeed_tracktype
+
+assign no_river_penalty
+   switch consider_river
+     switch estimated_river_class=  10
+     switch estimated_river_class=1  1.3
+     switch estimated_river_class=2  1
+     switch estimated_river_class=3  0.7
+     switch estimated_river_class=4  0.4
+     switch estimated_river_class=5  0.1
+     switch estimated_river_class=6  0 99 0
+
+assign no_forest_penalty
+   switch consider_forest
+     switch estimated_forest_class=  10
+     switch estimated_forest_class=1  0.5
+     switch estimated_forest_class=2  0.4
+     switch estimated_forest_class=3  0.25
+     switch estimated_forest_class=4  0.15
+     switch estimated_forest_class=5  0.1
+     switch estimated_forest_class=6  0 99 0
+
+assign town_penalty
+   switch consider_town
+     switch estimated_town_class=  0
+     switch estimated_town_class=1  5
+     switch estimated_town_class=2  9
+     switch estimated_town_class=3  12
+     switch estimated_town_class=4  13
+     switch estimated_town_class=5  14
+     switch estimated_town_class=6  16 99 0
+
+assign costfactor =
+  if ( equal maxspeed 0 ) then 10000
+  else if is_avoided_toll_road then 10000
+  else if is_avoided_motorway then 10
+  else min 9999
+  add town_penalty
+  add no_forest_penalty
+  add no_river_penalty
+  0
+
+assign minspeed =
+    switch highway=motorway|motorway_link|trunk  75 0
+
+# way priorities used for voice hint generation
+
+assign priorityclassifier =
+
+  if      ( highway=motorway                  ) then  30
+  else if ( highway=motorway_link             ) then  29
+  else if ( highway=trunk                     ) then  28
+  else if ( highway=trunk_link                ) then  27
+  else if ( highway=primary                   ) then  26
+  else if ( highway=primary_link              ) then  25
+  else if ( highway=secondary                 ) then  24
+  else if ( highway=secondary_link            ) then  23
+  else if ( highway=tertiary                  ) then  22
+  else if ( highway=tertiary_link             ) then  21
+  else if ( highway=unclassified              ) then  20
+  else if ( isresidentialorliving             ) then  6
+  else if ( highway=service                   ) then  6
+  else if ( highway=track                     ) then if tracktype=grade1 then 4 else 2
+  else if ( highway=bridleway|road            ) then  2
+  else 0
+
+# some more classifying bits used for voice hint generation...
+
+assign isgoodoneway = if reversedirection=yes then oneway=-1
+                      else if oneway= then junction=roundabout else oneway=yes|true|1
+assign isroundabout = junction=roundabout
+assign isgoodforcars = if greater priorityclassifier 6 then true
+                  else if or isresidentialorliving highway=service then true
+                  else if ( and highway=track tracktype=grade1 ) then true
+                  else false
+
+# ... encoded into a bitmask
+
+assign classifiermask add          isbadoneway
+                      add multiply isgoodoneway   2
+                      add multiply isroundabout   4
+                      add multiply islinktype     8
+                      add multiply isgoodforcars 16
+                      add multiply isresidentialorliving 32
+                          multiply caraccess_destination 64
+
+---context:node  # following code refers to node tags
+
+#
+# calculate logical car access to nodes
+#
+assign caraccess
+       switch motorcar=
+              switch motor_vehicle=
+                     switch vehicle=
+                            switch access=
+                                   not barrier=gate|bollard|lift_gate|cycle_barrier
+                                   access=yes|permissive|designated|destination
+                            vehicle=yes|permissive|designated|destination
+                     motor_vehicle=yes|permissive|designated|destination
+              motorcar=yes|permissive|designated|destination
+
+assign initialcost =
+       switch and avoid_toll barrier=toll_booth 1000000
+       switch caraccess
+              0
+              1000000
+
+assign maxspeed =
+
+       if or crossing=traffic_signals highway=traffic_signals
+       then
+         switch greater way:priorityclassifier 24 5
+         switch greater way:priorityclassifier 22 3
+         switch greater way:priorityclassifier 20 1
+         0
+       else if railway=level_crossing then 0
+       else 999

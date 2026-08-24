@@ -1,4 +1,6 @@
 import type { Actor } from "./activitypub/actor";
+import type { Asset, AssetLink } from "./asset";
+import type { PhotoLibraryPluginLink } from "./photo_library";
 import type { Trail } from "./trail";
 
 class SummitLog {
@@ -9,6 +11,8 @@ class SummitLog {
   _gpx?: File | Blob | null;
   photos: string[];
   _photos?: File[];
+  _assetLinks?: string[];
+  _assetPluginLinks?: PhotoLibraryPluginLink[];
   distance?: number
   elevation_gain?: number
   elevation_loss?: number
@@ -22,6 +26,8 @@ class SummitLog {
     gpx_data?: string;
     trail?: Trail;
     author?: Actor
+    assets_via_summit_log?: Asset[];
+    summit_log_assets_via_summit_log?: AssetLink[];
   }
 
   constructor(date: string, params?: { id?: string, text?: string, distance?: number, elevation_loss?: number, elevation_gain?: number, duration?: number, photos?: string[] }) {

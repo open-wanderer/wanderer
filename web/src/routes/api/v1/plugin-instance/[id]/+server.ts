@@ -46,7 +46,7 @@ export async function GET(event: RequestEvent) {
  * /api/v1/plugin-instance/{id}:
  *   post:
  *     summary: Update plugin instance
- *     description: Updates plugin instance settings, auth, state, or status.
+ *     description: Updates plugin instance settings, auth, or status.
  *     tags:
  *       - Plugins
  *     parameters:
@@ -70,9 +70,6 @@ export async function GET(event: RequestEvent) {
  *                 additionalProperties:
  *                   type: string
  *               config:
- *                 type: object
- *                 additionalProperties: true
- *               state:
  *                 type: object
  *                 additionalProperties: true
  *               status:

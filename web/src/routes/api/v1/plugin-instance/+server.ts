@@ -81,9 +81,6 @@ export async function GET(event: RequestEvent) {
  *               config:
  *                 type: object
  *                 additionalProperties: true
- *               state:
- *                 type: object
- *                 additionalProperties: true
  *               status:
  *                 type: string
  *                 enum: [configured, needs_auth, needs_reauth, syncing, rate_limited, unavailable, unsupported_protocol, error, disabled]

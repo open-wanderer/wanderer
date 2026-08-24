@@ -22,6 +22,14 @@ type Manager struct {
 	Dir string
 }
 
+// pluginIssuePreviousSuccessMarker lives only in invalid installed-plugin
+// cache snapshots. It preserves the last successfully discovered plugin
+// identity while keeping the placeholder manifest itself invalid so request
+// paths cannot execute stale metadata.
+const pluginIssuePreviousSuccessMarker = "_wandererPreviousSuccessfulDiscovery"
+
+const missingDefaultPluginBundleError = "plugin bundle is not installed"
+
 // PluginInfo is the UI-facing view of an installed plugin. It combines the
 // static manifest with runtime availability and embedded icon data.
 type PluginInfo struct {
@@ -198,6 +206,8 @@ func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		defaultEnabled := defaultEnabledFirstPartyPlugin(plugin.Manifest.ID, plugin.Manifest.Type)
+		isFirstSuccessfulDiscovery := !pluginRecordHadSuccessfulDiscovery(record, plugin.Manifest)
 		record.Set("plugin_id", plugin.Manifest.ID)
 		record.Set("name", plugin.Manifest.Name)
 		record.Set("type", plugin.Manifest.Type)
@@ -211,9 +221,24 @@ func (m *Manager) SyncInstalledPlugins(ctx context.Context) error {
 			return fmt.Errorf("encode installed plugin %s manifest: %w", plugin.Manifest.ID, err)
 		}
 		record.Set("manifest", manifestJSON)
-		record.Set("config", mergeDefaultConfig(defaultConfig(plugin.Manifest), JSONMapFromRecord(record, "config")))
+		config := mergeDefaultConfig(defaultConfig(plugin.Manifest), JSONMapFromRecord(record, "config"))
+		if isFirstSuccessfulDiscovery {
+			applyFirstPartyPluginFirstInstallConfig(plugin.Manifest, config)
+		}
+		record.Set("config", config)
+		if record.GetString("status") == "" {
+			record.Set("status", "available")
+		}
 		if err := m.App.Save(record); err != nil {
 			return fmt.Errorf("save installed plugin %s: %w", plugin.Manifest.ID, err)
+		}
+		// Reconcile on every successful discovery. Provisioning first performs a
+		// single missing-user query, so routine list-triggered syncs stay cheap,
+		// while a partial earlier failure is healed by the next sync.
+		if defaultEnabled {
+			if err := ProvisionDefaultPluginForAllUsers(m.App, plugin.Manifest.ID); err != nil {
+				return fmt.Errorf("provision default plugin %s: %w", plugin.Manifest.ID, err)
+			}
 		}
 	}
 	return nil
@@ -247,6 +272,13 @@ func (m *Manager) deleteStaleInstalledPlugins(ctx context.Context, activePaths m
 		if path != "" && activePaths[filepath.Clean(path)] {
 			continue
 		}
+		retained, err := m.retainMissingDefaultPluginRecord(record)
+		if err != nil {
+			return err
+		}
+		if retained {
+			continue
+		}
 		if err := m.App.Delete(record); err != nil {
 			return fmt.Errorf("delete stale installed plugin %s: %w", record.GetString("plugin_id"), err)
 		}
@@ -268,6 +300,15 @@ func (m *Manager) findPluginRecord(collection *core.Collection, plugin LocalPlug
 			dbx.Params{"path": plugin.Dir},
 		)
 	}
+	if recordByPath != nil && recordByPath.GetString("plugin_id") != plugin.Manifest.ID {
+		retained, err := m.retainMissingDefaultPluginRecord(recordByPath)
+		if err != nil {
+			return nil, err
+		}
+		if retained {
+			recordByPath = nil
+		}
+	}
 	if recordByID != nil && recordByPath != nil && recordByID.Id != recordByPath.Id {
 		if err := m.App.Delete(recordByPath); err != nil {
 			return nil, fmt.Errorf("delete superseded installed plugin %s: %w", recordByPath.GetString("plugin_id"), err)
@@ -280,6 +321,41 @@ func (m *Manager) findPluginRecord(collection *core.Collection, plugin LocalPlug
 		return recordByPath, nil
 	}
 	return core.NewRecord(collection), nil
+}
+
+// retainMissingDefaultPluginRecord keeps the one-time compatibility boundary
+// and administrator-owned config across a temporary bundle removal. Its
+// manifest is deliberately invalidated and its path cleared, so cached request
+// paths cannot execute stale code. Non-default plugins retain the existing
+// remove-on-uninstall behavior.
+func (m *Manager) retainMissingDefaultPluginRecord(record *core.Record) (bool, error) {
+	pluginID, pluginType, ok := pluginRecordSuccessfulDiscoveryIdentity(record)
+	if !ok || !defaultEnabledFirstPartyPlugin(pluginID, pluginType) {
+		return false, nil
+	}
+	manifest := JSONMapFromRecord(record, "manifest")
+	_, alreadyRetained := manifest[pluginIssuePreviousSuccessMarker].(map[string]any)
+	if alreadyRetained && record.GetString("status") == "error" && record.GetString("path") == "" {
+		return true, nil
+	}
+	record.Set("plugin_id", pluginID)
+	record.Set("type", pluginType)
+	record.Set("path", "")
+	record.Set("manifest", map[string]any{
+		"id":   pluginID,
+		"type": pluginType,
+		"name": record.GetString("name"),
+		pluginIssuePreviousSuccessMarker: map[string]any{
+			"pluginId": pluginID,
+			"type":     pluginType,
+		},
+	})
+	record.Set("status", "error")
+	record.Set("error", missingDefaultPluginBundleError)
+	if err := m.App.Save(record); err != nil {
+		return false, fmt.Errorf("retain missing default plugin %s: %w", pluginID, err)
+	}
+	return true, nil
 }
 
 func (m *Manager) savePluginIssue(collection *core.Collection, issue LocalPluginIssue) error {
@@ -300,22 +376,64 @@ func (m *Manager) savePluginIssue(collection *core.Collection, issue LocalPlugin
 		record = core.NewRecord(collection)
 		record.Set("plugin_id", recordID)
 	}
+	previousPluginID, previousPluginType, hadSuccessfulDiscovery := pluginRecordSuccessfulDiscoveryIdentity(record)
+	placeholderType := PluginTypeTrails
+	if hadSuccessfulDiscovery {
+		// Preserve the last validated identity even though the replacement
+		// manifest is deliberately non-executable. This also lets type-specific
+		// rollback migrations find unavailable plugin records reliably.
+		record.Set("plugin_id", previousPluginID)
+		placeholderType = previousPluginType
+	}
 	record.Set("name", issue.Name)
-	record.Set("type", PluginTypeTrails)
+	record.Set("type", placeholderType)
 	record.Set("version", "unknown")
 	record.Set("runtime", RuntimeWASM)
 	record.Set("path", issue.Dir)
-	record.Set("manifest", map[string]any{
+	manifest := map[string]any{
 		"id":   record.GetString("plugin_id"),
-		"type": PluginTypeTrails,
+		"type": placeholderType,
 		"name": issue.Name,
-	})
+	}
+	if hadSuccessfulDiscovery {
+		manifest[pluginIssuePreviousSuccessMarker] = map[string]any{
+			"pluginId": previousPluginID,
+			"type":     previousPluginType,
+		}
+	}
+	record.Set("manifest", manifest)
 	record.Set("status", "error")
 	record.Set("error", issue.Error)
 	if err := m.App.Save(record); err != nil {
 		return fmt.Errorf("save plugin setup error %s: %w", issue.ID, err)
 	}
 	return nil
+}
+
+func pluginRecordHadSuccessfulDiscovery(record *core.Record, manifest Manifest) bool {
+	pluginID, pluginType, ok := pluginRecordSuccessfulDiscoveryIdentity(record)
+	return ok && pluginID == manifest.ID && pluginType == manifest.Type
+}
+
+func pluginRecordSuccessfulDiscoveryIdentity(record *core.Record) (string, string, bool) {
+	if record == nil || record.Id == "" {
+		return "", "", false
+	}
+	manifest := JSONMapFromRecord(record, "manifest")
+	if marker, ok := manifest[pluginIssuePreviousSuccessMarker].(map[string]any); ok {
+		pluginID, _ := marker["pluginId"].(string)
+		pluginType, _ := marker["type"].(string)
+		if pluginID != "" && pluginType != "" {
+			return pluginID, pluginType, true
+		}
+	}
+	manifestVersion, _ := manifest["manifestVersion"].(string)
+	pluginID, _ := manifest["id"].(string)
+	pluginType, _ := manifest["type"].(string)
+	if strings.TrimSpace(manifestVersion) == "" || pluginID == "" || pluginType == "" {
+		return "", "", false
+	}
+	return pluginID, pluginType, true
 }
 
 func pluginIssueRecordID(issue LocalPluginIssue) string {

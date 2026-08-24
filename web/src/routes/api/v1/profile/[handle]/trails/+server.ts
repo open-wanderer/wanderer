@@ -77,7 +77,7 @@ export async function POST(event: RequestEvent) {
             r = await response.json()
 
             r.hits.forEach(h => {
-                h.thumbnail = `${origin}/api/v1/files/trails/${h.id}/${h.thumbnail}`;
+                h.thumbnail = remoteTrailThumbnailURL(origin, h.id, h.thumbnail);
                 h.domain = actor.domain
                 if(h.iri == '') {
                     h.iri = `${origin}/api/v1/trails/${h.id}`
@@ -90,4 +90,17 @@ export async function POST(event: RequestEvent) {
     } catch (e) {
         return handleError(e)
     }
+}
+
+function remoteTrailThumbnailURL(origin: string, trailId: string, thumbnail?: string) {
+    if (!thumbnail) {
+        return thumbnail ?? "";
+    }
+    if (/^https?:\/\//i.test(thumbnail)) {
+        return thumbnail;
+    }
+    if (thumbnail.startsWith("/")) {
+        return `${origin}${thumbnail}`;
+    }
+    return `${origin}/api/v1/files/trails/${trailId}/${thumbnail}`;
 }

@@ -1,4 +1,5 @@
 import type { Trail } from "$lib/models/trail";
+import { enrichTrailResponse, withTrailAssetExpands } from "$lib/server/trail_response_util";
 import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
@@ -37,8 +38,18 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    try {        
-        const r = await uploadUpdate<Trail>(event, Collection.trails)
+    try {
+        const formData = await event.request.clone().formData();
+        if (formData.has("photos")) {
+            return json({ message: "trail_photos_form_field_removed" }, { status: 400 });
+        }
+
+        let r = await uploadUpdate<Trail>(event, Collection.trails)
+        r = await event.locals.pb.collection(Collection.trails).getOne<Trail>(r.id!, {
+            expand: withTrailAssetExpands({
+                expand: event.url.searchParams.get("expand") ?? undefined,
+            }).expand,
+        });
         enrichRecord(r);
         return json(r);
     } catch (e) {
@@ -48,8 +59,5 @@ export async function POST(event: RequestEvent) {
 
 
 function enrichRecord(r: Trail) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
+    enrichTrailResponse(r);
 }

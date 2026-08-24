@@ -1,5 +1,6 @@
 import { ListUpdateSchema } from "$lib/models/api/list_schema";
 import type { List } from "$lib/models/list";
+import { enrichListTrailResponse, withListTrailAssetExpandParams } from "$lib/server/trail_response_util";
 import { Collection, handleError, remove, update } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
@@ -77,15 +78,21 @@ export async function GET(event: RequestEvent) {
     const { url, params } = event;
 
     try {
-        let list: List = await event.locals.pb.send(`/remote/list/${params.id}?` + url.searchParams, {
+        const searchParams = withListTrailAssetExpandParams(url.searchParams);
+        let list: List = await event.locals.pb.send(`/remote/list/${params.id}?` + searchParams, {
             method: "GET",
             fetch: event.fetch,
         })
 
+        enrichRecord(list);
         return json(list)
     } catch (e: any) {
         return handleError(e);
     }
+}
+
+function enrichRecord(list: List) {
+    enrichListTrailResponse(list);
 }
 
 export async function POST(event: RequestEvent) {
@@ -105,4 +112,3 @@ export async function DELETE(event: RequestEvent) {
         return handleError(e)
     }
 }
-

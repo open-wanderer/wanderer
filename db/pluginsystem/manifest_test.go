@@ -14,12 +14,58 @@ func TestValidateManifestAcceptsHammerheadShape(t *testing.T) {
 	}
 }
 
+func TestValidateManifestAcceptsAssetPlugins(t *testing.T) {
+	manifest := hammerheadManifestForTest()
+	manifest.ID = "immich"
+	manifest.Name = "Immich"
+	manifest.Type = PluginTypeAssets
+	if err := ValidateManifest(manifest); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestValidateManifestRejectsUnknownAuthPermission(t *testing.T) {
 	manifest := hammerheadManifestForTest()
 	manifest.Permissions.Auth = []string{"missing"}
 
 	if err := ValidateManifest(manifest); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestValidateManifestAcceptsNumberConfigFields(t *testing.T) {
+	manifest := hammerheadManifestForTest()
+	min := 0.0
+	max := 100.0
+	step := 1.0
+	manifest.ConfigSchema = []ConfigField{{
+		Key:     "limit",
+		Type:    "number",
+		Default: 10,
+		Min:     &min,
+		Max:     &max,
+		Step:    &step,
+	}}
+
+	if err := ValidateManifest(manifest); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateManifestRejectsStringNumberDefault(t *testing.T) {
+	manifest := hammerheadManifestForTest()
+	manifest.ConfigSchema = []ConfigField{{
+		Key:     "limit",
+		Type:    "number",
+		Default: "10",
+	}}
+
+	err := ValidateManifest(manifest)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "default must be a number") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -102,16 +148,16 @@ func TestLoadLocalPluginsSkipsUnsupportedPluginTypes(t *testing.T) {
 	root := t.TempDir()
 	writePluginDir(t, root, "hammerhead")
 
-	assetsDir := filepath.Join(root, "immich")
-	if err := os.MkdirAll(assetsDir, 0o700); err != nil {
+	mapsDir := filepath.Join(root, "mapbox")
+	if err := os.MkdirAll(mapsDir, 0o700); err != nil {
 		t.Fatalf("mkdir plugin dir: %v", err)
 	}
 	manifest := hammerheadManifestForTest()
-	manifest.ID = "immich"
-	manifest.Name = "Immich"
-	manifest.Type = "assets"
-	writeManifest(t, assetsDir, manifest)
-	if err := os.WriteFile(filepath.Join(assetsDir, "plugin.wasm"), []byte("wasm"), 0o600); err != nil {
+	manifest.ID = "mapbox"
+	manifest.Name = "Mapbox"
+	manifest.Type = "maps"
+	writeManifest(t, mapsDir, manifest)
+	if err := os.WriteFile(filepath.Join(mapsDir, "plugin.wasm"), []byte("wasm"), 0o600); err != nil {
 		t.Fatalf("write wasm: %v", err)
 	}
 

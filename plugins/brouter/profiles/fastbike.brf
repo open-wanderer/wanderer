@@ -1,0 +1,357 @@
+#
+# A fastbike could be a racing bike or a speed pedelec.
+# But also at night or in rainy weather you might want
+# to fallback to this one.
+#
+# Structure is similar to trekking.brf, see this for documentation.
+#
+# With default configuration (tested for Europe), trunks are
+# strongly avoided even if there's no bike restriction
+# (assuming implicit bicycle=no), and motorways are not allowed
+# even with bicycle=yes). This is not the expected behavior for some countries
+# such as Japan or Australia.
+# Then, you should switch allow_motorways variable to true for these regions.
+#
+
+---context:global   # following code refers to global config
+
+# Bike profile
+assign validForBikes = true
+
+# Use the following switches to change behaviour
+assign allow_steps           = true   # %allow_steps% | Set to false to disallow steps | boolean
+assign allow_ferries         = true   # %allow_ferries% | set to false to disallow ferries | boolean
+assign allow_motorways       = false  # %allow_motorways% | Set to true to allow motorways (useful in Asia / Oceania for example) | boolean
+
+assign use_proposed_cycleroutes = false  # %use_proposed_cycleroutes% | Set to true to consider proposed and regular cycleroutes as equals | boolean
+
+assign consider_traffic      = 0.1      # %consider_traffic% | avoiding roads that usually have traffic is? | [1=very important, 0.5=pretty important, 0.3=important, 0.1=slightly preferred, 0.0=do not consider traffic]
+assign consider_noise        = false  # %consider_noise% | Activate to prefer a low-noise route | boolean
+assign consider_river        = false  # %consider_river% | Activate to prefer a route along rivers, lakes, etc. | boolean
+assign consider_forest       = false  # %consider_forest% | Activate to prefer a route in forest or parks | boolean
+assign consider_town         = false  # %consider_town% | Activate to bypass cities / big towns as far as possible | boolean
+
+
+# Change elevation parameters
+assign consider_elevation = true  # %consider_elevation% | Set to false to ignore elevation in routing | boolean
+assign downhillcost       = 60    # %downhillcost% | Cost for going downhill | number
+assign downhillcutoff     = 1.5   # %downhillcutoff% | Gradients below this value in percents are not counted. | number
+assign uphillcost         = 0     # %uphillcost% | Cost for going uphill | number
+assign uphillcutoff       = 1.5   # %uphillcutoff% | Gradients below this value in percents are not counted.  | number
+
+assign downhillcost       = if consider_elevation then downhillcost else 0
+assign uphillcost         = if consider_elevation then uphillcost else 0
+
+# Kinematic model parameters (travel time computation)
+assign totalMass  = 90     # %totalMass% | Mass (in kg) of the bike + biker, for travel time computation | number
+assign maxSpeed   = 45     # %maxSpeed% | Absolute maximum speed (in km/h), for travel time computation | number
+assign S_C_x      = 0.225  # %S_C_x% | Drag coefficient times the reference area (in m^2), for travel time computation | number
+assign C_r        = 0.01   # %C_r% | Rolling resistance coefficient (dimensionless), for travel time computation | number
+assign bikerPower = 100    # %bikerPower% | Average power (in W) provided by the biker, for travel time computation | number
+
+# Turn instructions settings
+assign turnInstructionMode          = 1     # %turnInstructionMode% | Mode for the generated turn instructions | [0=none, 1=auto-choose, 2=locus-style, 3=osmand-style, 4=comment-style, 5=gpsies-style, 6=orux-style, 7=locus-old-style]
+assign turnInstructionCatchingRange = 40    # %turnInstructionCatchingRange% | Within this distance (in m) several turning instructions are combined into one and the turning angles are better approximated to the general direction | number
+assign turnInstructionRoundabouts   = true  # %turnInstructionRoundabouts% | Set to "false" to avoid generating special turning instructions for roundabouts | boolean
+assign considerTurnRestrictions     = true  # %considerTurnRestrictions% | Set to true to take turn restrictions into account | boolean
+
+# with engine defaults, long parts of routing to via points may be removed
+assign correctMisplacedViaPoints = false # %correctMisplacedViaPoints% | Set to true to remove detours due to via points (going back and forth on the same route) | boolean
+assign correctMisplacedViaPointsDistance = 400 # %correctMisplacedViaPointsDistance% | Only remove detours shorter than this (one-way) distance (in m) (engine defaults to 0 which removes detours whatever their length) | number
+
+assign processUnusedTags            = false # %processUnusedTags% | Set to true to output unused tags in data tab | boolean
+
+
+assign unpavedPenalty = 1.0 # %unpavedPenalty% | Extra penalty multiplier applied to the unpaved cost of roads, tracks and paths | number
+
+---context:way   # following code refers to way-tags
+
+assign any_cycleroute
+  switch not use_proposed_cycleroutes
+    or route_bicycle_icn=yes or route_bicycle_ncn=yes or route_bicycle_rcn=yes route_bicycle_lcn=yes
+    or route_bicycle_icn=yes|proposed or route_bicycle_ncn=yes|proposed or route_bicycle_rcn=yes|proposed route_bicycle_lcn=yes|proposed
+
+assign nodeaccessgranted or any_cycleroute lcn=yes
+
+assign ispaved or surface=paved or surface=asphalt or surface=concrete or surface=paving_stones or surface=sett or smoothness=excellent smoothness=good
+assign isunpaved not or ispaved or ( and surface= smoothness= ) or surface=fine_gravel or surface=cobblestone smoothness=intermediate
+
+assign turncost = if junction=roundabout then 0
+                  else 90
+assign initialclassifier =
+     if route=ferry then 1
+     else 0
+
+assign initialcost switch route=ferry 10000 0
+
+#
+# implicit access here just from the motorroad tag
+# (implicit access rules from highway tag handled elsewhere)
+#
+assign defaultaccess
+       switch access=
+              (
+                    if motorroad=yes then false
+                    else if highway=motorway|motorway_link then false
+                    else true
+              )
+              switch or access=private access=no
+                     false
+                     true
+
+#
+# calculate logical bike access
+#
+assign bikeaccess =
+       switch bicycle=
+              switch bicycle_road=yes
+                 true
+                 switch vehicle=
+                        ( if highway=footway then false else defaultaccess )
+                        not vehicle=private|no
+              not or bicycle=private or bicycle=no or bicycle=dismount bicycle=use_sidepath
+
+#
+# calculate logical foot access
+#
+assign footaccess =
+       or bicycle=dismount
+          switch foot=
+                 defaultaccess
+                 not or foot=private or foot=no foot=use_sidepath
+
+#
+# if not bike-, but foot-acess, just a moderate penalty,
+# otherwise access is forbidden
+#
+assign accesspenalty
+       switch bikeaccess
+              0
+              switch footaccess
+                     5
+                     switch any_cycleroute
+                            15
+                            switch bicycle=use_sidepath
+                                   25
+                                   10000
+
+#
+# handle one-ways. On primary roads, wrong-oneways should
+# be close to forbidden, while on other ways we just add
+# 6 to the costfactor (making it at least 7 - you are allowed
+# to push your bike)
+#
+assign badoneway =
+       if reversedirection=yes then
+         if oneway:bicycle=yes then true
+         else if oneway= then junction=roundabout
+         else oneway=yes|true|1
+       else oneway=-1
+
+assign hascycleway = not
+  and ( or cycleway= cycleway=no|none ) and ( or cycleway:left= cycleway:left=no ) and ( or cycleway:right= cycleway:right=no ) ( or cycleway:both= cycleway:both=no )
+
+assign onewaypenalty =
+       if ( badoneway ) then
+       (
+         if (
+           and hascycleway
+           or and cycleway:left=lane|track|shared_lane|share_busway
+                  cycleway:left:oneway=no|-1
+           or and cycleway:right=lane|track|shared_lane|share_busway
+                  cycleway:right:oneway=no|-1
+           or and cycleway:both=lane|track|shared_lane|share_busway
+                  #or cycleway:both:oneway=no|-1
+                  or cycleway:left:oneway=no|-1
+                     cycleway:right:oneway=no|-1
+           or cycleway=opposite|opposite_lane|opposite_track
+           or cycleway:left=opposite|opposite_lane|opposite_track
+              cycleway:right=opposite|opposite_lane|opposite_track
+                                                             ) then 0
+         else if ( oneway:bicycle=no                         ) then 0
+         else if ( not footaccess                            ) then 100
+         else if ( junction=roundabout|circular              ) then 60
+         else if ( highway=primary|primary_link              ) then 50
+         else if ( highway=secondary|secondary_link          ) then 30
+         else if ( highway=tertiary|tertiary_link            ) then 20
+         else 6.0
+       )
+       else 0.0
+
+# Eventually compute traffic penalty
+assign trafficpenalty =
+      if not consider_traffic then 0
+      else
+      min switch hascycleway 0.3 100   # trafficpenalty not above 0.3 if a cycleway is present
+      if   estimated_traffic_class=|1|2  then 0
+      else if estimated_traffic_class=3 then multiply   0.3   consider_traffic
+      else if estimated_traffic_class=4 then multiply   0.6   consider_traffic
+      else if estimated_traffic_class=5 then multiply   0.9   consider_traffic
+      else if estimated_traffic_class=6|7 then multiply 1.5   consider_traffic
+      else 0
+
+assign isresidentialorliving = or highway=residential|living_street living_street=yes
+
+# add estimate tags
+assign noise_penalty
+   switch consider_noise
+     switch estimated_noise_class=  0
+     switch estimated_noise_class=1  0.3
+     switch estimated_noise_class=2  0.5
+     switch estimated_noise_class=3  0.7
+     switch estimated_noise_class=4  1
+     switch estimated_noise_class=5  1.2
+     switch estimated_noise_class=6  1.5 0 0
+
+assign no_river_penalty
+   switch consider_river
+     switch estimated_river_class=  3
+     switch estimated_river_class=1  2
+     switch estimated_river_class=2  1.5
+     switch estimated_river_class=3  1
+     switch estimated_river_class=4  0.5
+     switch estimated_river_class=5  0.2
+     switch estimated_river_class=6  0 99 0
+
+assign no_forest_penalty
+   switch consider_forest
+     switch estimated_forest_class=  1
+     switch estimated_forest_class=1  0.5
+     switch estimated_forest_class=2  0.4
+     switch estimated_forest_class=3  0.25
+     switch estimated_forest_class=4  0.15
+     switch estimated_forest_class=5  0.1
+     switch estimated_forest_class=6  0 99 0
+
+assign town_penalty
+   switch consider_town
+     switch estimated_town_class=  0
+     switch estimated_town_class=1  0.2
+     switch estimated_town_class=2  0.4
+     switch estimated_town_class=3  0.6
+     switch estimated_town_class=4  0.7
+     switch estimated_town_class=5  0.8
+     switch estimated_town_class=6  1 99 0
+
+assign costfactor
+  switch and highway= not route=ferry  10000
+  switch or highway=proposed highway=abandoned 10000
+
+  min 9999
+  add max onewaypenalty accesspenalty
+  add trafficpenalty
+  add town_penalty
+  add no_forest_penalty
+  add no_river_penalty
+  add noise_penalty
+
+
+  switch or highway=motorway highway=motorway_link    switch allow_motorways 1.5 10000
+  switch or highway=trunk highway=trunk_link          switch allow_motorways 1.5 10
+  switch or highway=primary highway=primary_link      1.2
+  switch or highway=secondary highway=secondary_link  1.1
+  switch or highway=tertiary highway=tertiary_link    1.0
+  switch    highway=unclassified                      switch isunpaved ( add 1.1 multiply 8.9 unpavedPenalty ) 1.1
+  switch    highway=pedestrian                        switch hascycleway 1.3 5
+  switch    highway=steps                             switch allow_steps 120 10000
+  switch    route=ferry                               switch allow_ferries 5.67 10000
+  switch    highway=bridleway                         5
+  switch    highway=cycleway                          1.3
+  switch    isresidentialorliving                     switch isunpaved ( add 1.2 multiply 8.8 unpavedPenalty ) 1.2
+  switch    highway=service                           switch isunpaved ( add 1.2 multiply 8.8 unpavedPenalty ) 1.2
+  switch or highway=track or highway=road or highway=path highway=footway
+   switch tracktype=grade1 switch isunpaved ( add 1.2 multiply 1.8 unpavedPenalty ) 1.2
+   switch tracktype=grade2 switch isunpaved ( add 3.0 multiply 7.0 unpavedPenalty ) 3
+   switch tracktype=grade3 ( add 1.2 multiply 8.8 unpavedPenalty )
+   switch tracktype=grade4 ( add 1.2 multiply 18.8 unpavedPenalty )
+   switch tracktype=grade5 ( add 1.2 multiply 28.8 unpavedPenalty )
+   switch or bicycle=designated bicycle_road=yes switch isunpaved ( add 1.2 multiply 1.8 unpavedPenalty ) 1.2
+   switch ispaved 2.0 switch isunpaved ( add 2.0 multiply 13.0 unpavedPenalty ) 5.0
+  10.0
+
+# way priorities used for voice hint generation
+
+assign priorityclassifier =
+
+  if      ( highway=motorway                         ) then  30
+  else if ( highway=motorway_link                    ) then  29
+  else if ( highway=trunk                            ) then  28
+  else if ( highway=trunk_link                       ) then  27
+  else if ( highway=primary                          ) then  26
+  else if ( highway=primary_link                     ) then  25
+  else if ( highway=secondary                        ) then  24
+  else if ( highway=secondary_link                   ) then  23
+  else if ( highway=tertiary                         ) then  22
+  else if ( highway=tertiary_link                    ) then  21
+  else if ( highway=unclassified                     ) then  20
+  else if ( isresidentialorliving                    ) then  6
+  else if ( highway=service                          ) then  6
+  else if ( highway=cycleway                         ) then  6
+  else if ( or bicycle=designated bicycle_road=yes   ) then  6
+  else if ( highway=track                            ) then if tracktype=grade1 then 6 else 4
+  else if ( highway=bridleway|road|path|footway      ) then  4
+  else if ( highway=steps                            ) then  2
+  else if ( highway=pedestrian                       ) then  2
+  else 0
+
+
+# some more classifying bits used for voice hint generation...
+
+assign isbadoneway = not equal onewaypenalty 0
+assign isgoodoneway = if reversedirection=yes then oneway=-1
+                      else if oneway= then junction=roundabout else oneway=yes|true|1
+assign isroundabout = junction=roundabout
+assign islinktype = highway=motorway_link|trunk_link|primary_link|secondary_link|tertiary_link
+assign isgoodforcars = if greater priorityclassifier 6 then true
+                  else if ( or isresidentialorliving highway=service ) then true
+                  else if ( and highway=track tracktype=grade1 ) then true
+                  else false
+
+# ... encoded into a bitmask
+
+assign classifiermask add          isbadoneway
+                      add multiply isgoodoneway   2
+                      add multiply isroundabout   4
+                      add multiply islinktype     8
+                          multiply isgoodforcars 16
+
+# include `smoothness=` tags in the response's WayTags for track analysis
+assign dummyUsage = smoothness=
+
+
+---context:node  # following code refers to node tags
+
+assign defaultaccess
+       switch access=
+              1 # add default barrier restrictions here!
+              switch or access=private access=no
+                     0
+                     1
+
+assign bikeaccess
+       or nodeaccessgranted=yes
+          switch bicycle=
+                 switch vehicle=
+                        defaultaccess
+                        switch or vehicle=private vehicle=no
+                               0
+                               1
+                 switch or bicycle=private or bicycle=no bicycle=dismount
+                        0
+                        1
+
+assign footaccess
+       or bicycle=dismount
+          switch foot=
+                 defaultaccess
+                 switch or foot=private foot=no
+                        0
+                        1
+
+assign initialcost
+    switch or highway=traffic_signals and highway=crossing crossing=traffic_signals 20
+       switch bikeaccess
+              0
+              switch footaccess
+                     300
+                     1000000

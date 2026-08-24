@@ -87,8 +87,16 @@ func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 
 func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
-		err := e.Next()
+		assetIDs, err := util.AssetIDsForLinkTarget(e.App, "summit_log_assets", "summit_log", e.Record.Id)
 		if err != nil {
+			return err
+		}
+
+		if err = e.Next(); err != nil {
+			return err
+		}
+
+		if err := util.DeleteAssetsIfOrphanedByAuthor(e.App, assetIDs, e.Record.GetString("author")); err != nil {
 			return err
 		}
 

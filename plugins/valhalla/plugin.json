@@ -1,0 +1,562 @@
+{
+  "manifestVersion": "1.0",
+  "id": "valhalla",
+  "type": "routing",
+  "name": "Valhalla",
+  "description": "Routes and enriches elevation using a Valhalla service.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "route",
+      "version": "v1",
+      "export": "route_v1"
+    },
+    {
+      "name": "elevation",
+      "version": "v1",
+      "export": "elevation_v1"
+    },
+    {
+      "name": "maneuvers",
+      "version": "v1",
+      "export": "maneuvers_v1"
+    }
+  ],
+  "configSchema": [
+    {
+      "key": "traceMaxShape",
+      "type": "number",
+      "label": "Trace point limit",
+      "default": 16000,
+      "min": 2,
+      "max": 200000,
+      "hidden": true
+    },
+    {
+      "key": "traceMaxDistanceMeters",
+      "type": "number",
+      "label": "Trace distance limit (meters)",
+      "default": 200000,
+      "min": 1000,
+      "hidden": true
+    },
+    {
+      "key": "traceOverlap",
+      "type": "number",
+      "label": "Trace batch overlap",
+      "default": 10,
+      "min": 1,
+      "hidden": true
+    }
+  ],
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "configured",
+          "configKey": "valhalla",
+          "allowedPathPrefixes": [
+            "/route",
+            "/height",
+            "/trace_route"
+          ]
+        }
+      ]
+    },
+    "downloads": {
+      "maxBytes": 4194304,
+      "contentTypes": [
+        "application/json"
+      ]
+    }
+  },
+  "hostConfig": {
+    "connectors": {
+      "valhalla": {
+        "baseURL": "https://valhalla1.openstreetmap.de",
+        "basePath": "",
+        "allowPrivate": false
+      }
+    },
+    "routing": {
+      "roles": [
+        "route",
+        "elevation",
+        "maneuvers"
+      ],
+      "defaultProfiles": [
+        "pedestrian",
+        "bicycle",
+        "auto"
+      ]
+    }
+  },
+  "metadata": {
+    "displayNames": {
+      "de": "Valhalla",
+      "en": "Valhalla"
+    },
+    "descriptions": {
+      "de": "Berechnet Routen und Höhenprofile über einen Valhalla-Dienst.",
+      "en": "Routes and enriches elevation using a Valhalla service."
+    },
+    "icons": {
+      "light": "icon.svg"
+    },
+    "routing": {
+      "version": "v1",
+      "roles": [
+        "route",
+        "elevation",
+        "maneuvers"
+      ],
+      "modes": [
+        "foot",
+        "bike",
+        "motor"
+      ],
+      "supportsViaRouting": true,
+      "supportsAlternatives": true,
+      "maxAlternatives": 4,
+      "supportsRouteElevation": false,
+      "supportsElevation": true,
+      "nativeControlDiscovery": {
+        "enabled": true,
+        "scope": "profile"
+      },
+      "standardPreferences": [
+        {
+          "key": "speedPreference",
+          "modes": [
+            "foot",
+            "bike",
+            "motor"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "hillPreference",
+          "modes": [
+            "foot",
+            "bike"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "maxHikingDifficulty",
+          "modes": [
+            "foot"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "roadPreference",
+          "modes": [
+            "bike"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "avoidBadSurfaces",
+          "modes": [
+            "bike"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "vehicleWidth",
+          "modes": [
+            "motor"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "vehicleHeight",
+          "modes": [
+            "motor"
+          ],
+          "comparable": true
+        }
+      ],
+      "nativeProfileUpload": {
+        "enabled": false
+      },
+      "categoryMappings": [
+        {
+          "category": "Walking",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 4.2,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Running",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 10,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Running",
+          "subcategory": "Road",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 11,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Running",
+          "subcategory": "Trail",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 9,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 2
+          }
+        },
+        {
+          "category": "Hiking",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 5.1,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 3
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Family",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 3.5,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Winter",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 4,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 2
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Snowshoeing",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 3,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 2
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Long-distance",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 4.5,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 3
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Pilgrimage",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 4.5,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 3
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Alpine",
+          "profile": "pedestrian",
+          "preferences": {
+            "speedPreference": 3.5,
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 5
+          }
+        },
+        {
+          "category": "Biking",
+          "profile": "bicycle",
+          "preferences": {
+            "speedPreference": 20,
+            "hillPreference": 0.5,
+            "roadPreference": 0.5,
+            "avoidBadSurfaces": 0.5
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "Road",
+          "profile": "bicycle",
+          "nativeConfig": {
+            "bicycle_type": "Road"
+          },
+          "preferences": {
+            "speedPreference": 28,
+            "hillPreference": 0.5,
+            "roadPreference": 0.9,
+            "avoidBadSurfaces": 0.8
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "Gravel",
+          "profile": "bicycle",
+          "nativeConfig": {
+            "bicycle_type": "Cross"
+          },
+          "preferences": {
+            "speedPreference": 18,
+            "hillPreference": 0.5,
+            "roadPreference": 0.35,
+            "avoidBadSurfaces": 0.5
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "MTB",
+          "profile": "bicycle",
+          "nativeConfig": {
+            "bicycle_type": "Mountain"
+          },
+          "preferences": {
+            "speedPreference": 14,
+            "hillPreference": 0.5,
+            "roadPreference": 0.2,
+            "avoidBadSurfaces": 0.35
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "E-Bike",
+          "profile": "bicycle",
+          "preferences": {
+            "speedPreference": 25,
+            "hillPreference": 0.7,
+            "roadPreference": 0.5,
+            "avoidBadSurfaces": 0.5
+          }
+        }
+      ],
+      "nativeProfiles": [
+        {
+          "key": "pedestrian",
+          "label": "Pedestrian",
+          "labels": {
+            "en": "Pedestrian",
+            "de": "Zu Fuß"
+          },
+          "mode": "foot",
+          "advanced": true,
+          "nativeControlGroups": [
+            {
+              "key": "pedestrian",
+              "label": "Pedestrian",
+              "labels": {
+                "en": "Pedestrian",
+                "de": "Zu Fuß"
+              },
+              "controls": [
+                {
+                  "key": "pedestrian.shortest",
+                  "label": "Shortest",
+                  "labels": {
+                    "en": "Shortest",
+                    "de": "Kürzeste Route"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "pedestrian",
+                    "shortest"
+                  ]
+                },
+                {
+                  "key": "pedestrian.use_hills",
+                  "label": "Use hills",
+                  "labels": {
+                    "en": "Use hills",
+                    "de": "Hügel berücksichtigen"
+                  },
+                  "type": "number",
+                  "ui": "slider",
+                  "valueType": "number",
+                  "min": 0,
+                  "max": 1,
+                  "step": 0.05,
+                  "default": 0.5,
+                  "path": [
+                    "pedestrian",
+                    "use_hills"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "bicycle",
+          "label": "Bicycle",
+          "labels": {
+            "en": "Bicycle",
+            "de": "Fahrrad"
+          },
+          "mode": "bike",
+          "nativeConfig": {
+            "bicycle_type": "Hybrid"
+          },
+          "advanced": true,
+          "nativeControlGroups": [
+            {
+              "key": "bicycle",
+              "label": "Bicycle",
+              "labels": {
+                "en": "Bicycle",
+                "de": "Fahrrad"
+              },
+              "controls": [
+                {
+                  "key": "bicycle.bicycle_type",
+                  "label": "Bicycle type",
+                  "labels": {
+                    "en": "Bicycle type",
+                    "de": "Fahrradtyp"
+                  },
+                  "type": "string",
+                  "ui": "select",
+                  "valueType": "string",
+                  "default": "Hybrid",
+                  "path": [
+                    "bicycle_type"
+                  ],
+                  "options": [
+                    {
+                      "value": "Hybrid",
+                      "labels": {
+                        "en": "Hybrid",
+                        "de": "Trekking"
+                      }
+                    },
+                    {
+                      "value": "Road",
+                      "labels": {
+                        "en": "Road",
+                        "de": "Rennrad"
+                      }
+                    },
+                    {
+                      "value": "Cross",
+                      "labels": {
+                        "en": "Cross",
+                        "de": "Cross"
+                      }
+                    },
+                    {
+                      "value": "Mountain",
+                      "labels": {
+                        "en": "Mountain",
+                        "de": "Mountainbike"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "key": "bicycle.shortest",
+                  "label": "Shortest",
+                  "labels": {
+                    "en": "Shortest",
+                    "de": "Kürzeste Route"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "bicycle",
+                    "shortest"
+                  ]
+                },
+                {
+                  "key": "bicycle.use_roads",
+                  "label": "Use roads",
+                  "labels": {
+                    "en": "Use roads",
+                    "de": "Straßen bevorzugen"
+                  },
+                  "type": "number",
+                  "ui": "slider",
+                  "valueType": "number",
+                  "min": 0,
+                  "max": 1,
+                  "step": 0.05,
+                  "default": 0.5,
+                  "path": [
+                    "bicycle",
+                    "use_roads"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "auto",
+          "label": "Auto",
+          "labels": {
+            "en": "Auto",
+            "de": "Auto"
+          },
+          "mode": "motor",
+          "advanced": true,
+          "nativeControlGroups": [
+            {
+              "key": "auto",
+              "label": "Auto",
+              "labels": {
+                "en": "Auto",
+                "de": "Auto"
+              },
+              "controls": [
+                {
+                  "key": "auto.shortest",
+                  "label": "Shortest",
+                  "labels": {
+                    "en": "Shortest",
+                    "de": "Kürzeste Route"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "auto",
+                    "shortest"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

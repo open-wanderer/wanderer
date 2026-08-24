@@ -285,6 +285,68 @@ func TestExecuteHostRequestBuildsFormURLEncodedBody(t *testing.T) {
 	}
 }
 
+func TestExecuteHostRequestBuildsTextBody(t *testing.T) {
+	useUnsafeTestHTTPClient(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Content-Type"); got != "text/plain" {
+			t.Fatalf("unexpected content type %q", got)
+		}
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if string(data) != "plain provider profile text\n" {
+			t.Fatalf("unexpected text body %q", string(data))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"profileid":"custom"}`))
+	}))
+	defer server.Close()
+
+	manifest := testHostManifest(t, server.URL)
+	manifest.Permissions.Uploads.ContentTypes = append(manifest.Permissions.Uploads.ContentTypes, "text/plain")
+	manifest.Permissions.Network.Connectors[0].AllowedPathPrefixes = []string{"/v1", "/profile"}
+	policy := testHostPolicy(t, server.URL)
+	policy.Connectors["api"] = ResolvedConnectorTarget{
+		Name:                "api",
+		Type:                ConnectorTypePublicAPI,
+		BaseURL:             policy.Connectors["api"].BaseURL,
+		BasePath:            "/",
+		AllowPrivate:        true,
+		AllowedPathPrefixes: []string{"/v1", "/profile"},
+	}
+	resp, err := ExecuteHostRequest(context.Background(), manifest, policy, HostRequestSpec{
+		Method: "POST",
+		Target: RequestTarget{Type: "connector", Connector: "api", Path: "/profile"},
+		Body: &HostRequestBody{
+			Type: HostRequestBodyTypeText,
+			Text: "plain provider profile text\n",
+		},
+		Expect: ResponseExpect{
+			ContentTypes: []string{"application/json"},
+			MaxBytes:     1024,
+		},
+	}, HostRequestOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != http.StatusOK {
+		t.Fatalf("unexpected status %d", resp.Status)
+	}
+}
+
+func TestExecuteHostRequestRejectsUnsafeTextBody(t *testing.T) {
+	_, _, _, err := hostRequestBody(HostRequestSpec{
+		Body: &HostRequestBody{
+			Type: HostRequestBodyTypeText,
+			Text: "valid\nbad\x00",
+		},
+	}, HostRequestOptions{})
+	if err == nil {
+		t.Fatal("expected unsafe text body to fail")
+	}
+}
+
 func TestExecuteHostRequestCanReturnRedirectResponse(t *testing.T) {
 	useUnsafeTestHTTPClient(t)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

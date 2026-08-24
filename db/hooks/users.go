@@ -3,11 +3,13 @@ package hooks
 import (
 	"fmt"
 	"os"
-	"pocketbase/util"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+
+	"pocketbase/pluginsystem"
+	"pocketbase/util"
 )
 
 func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
@@ -18,6 +20,10 @@ func CreateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 		}
 
 		if err := util.EnsureUserCategoryPriority(e.App, e.Record.Id, ""); err != nil {
+			return err
+		}
+
+		if err := pluginsystem.EnableDefaultPluginsForUser(e.App, e.Record.Id); err != nil {
 			return err
 		}
 

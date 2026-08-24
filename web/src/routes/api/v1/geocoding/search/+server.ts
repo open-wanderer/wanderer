@@ -1,6 +1,5 @@
 import { json, type RequestEvent } from "@sveltejs/kit";
-import { proxyJsonResponse } from "$lib/server/http";
-import { fetchNominatim } from "$lib/server/nominatim";
+import { handleError } from "$lib/util/api_util";
 
 export async function GET(event: RequestEvent) {
     const q = event.url.searchParams.get("q");
@@ -13,26 +12,18 @@ export async function GET(event: RequestEvent) {
         return json({ message: "Invalid query parameter: limit" }, { status: 400 });
     }
 
-    const params = new URLSearchParams({
-        q,
-        format: "geojson",
-        addressdetails: "1",
-    });
+    const params = new URLSearchParams({ q });
     if (limit) {
         params.set("limit", limit);
     }
 
     try {
-        const response = await fetchNominatim(event, "/search", params);
-        return await proxyJsonResponse(response);
+        const response = await event.locals.pb.send(`/geocoding/search?${params}`, {
+            method: "GET",
+            fetch: event.fetch,
+        });
+        return json(response);
     } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        const detail = {
-            name: err.name,
-            message: err.message,
-            cause: err.cause instanceof Error ? err.cause.message : err.cause,
-        };
-        console.error("Nominatim search request failed", detail);
-        return json({ message: "Nominatim request failed", detail }, { status: 502 });
+        return handleError(error);
     }
 }

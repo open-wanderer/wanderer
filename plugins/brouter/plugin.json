@@ -1,0 +1,771 @@
+{
+  "manifestVersion": "1.0",
+  "id": "brouter",
+  "type": "routing",
+  "name": "BRouter",
+  "description": "Routes using a BRouter service and native BRouter profiles.",
+  "version": "0.1.0",
+  "runtime": {
+    "type": "wasm",
+    "entrypoint": "plugin.wasm"
+  },
+  "capabilities": [
+    {
+      "name": "route",
+      "version": "v1",
+      "export": "route_v1"
+    },
+    {
+      "name": "round_trip",
+      "version": "v1",
+      "export": "round_trip_v1"
+    },
+    {
+      "name": "profile_introspect",
+      "version": "v1",
+      "export": "profile_introspect_v1"
+    },
+    {
+      "name": "profile_prepare",
+      "version": "v1",
+      "export": "profile_prepare_v1"
+    }
+  ],
+  "permissions": {
+    "network": {
+      "connectors": [
+        {
+          "name": "api",
+          "type": "configured",
+          "configKey": "brouter",
+          "allowedPathPrefixes": [
+            "/brouter",
+            "/brouter/profile"
+          ]
+        }
+      ]
+    },
+    "downloads": {
+      "maxBytes": 4194304,
+      "contentTypes": [
+        "application/json",
+        "application/geo+json",
+        "application/vnd.geo+json",
+        "text/plain"
+      ]
+    },
+    "uploads": {
+      "maxBytes": 65536,
+      "contentTypes": [
+        "text/plain"
+      ]
+    }
+  },
+  "hostConfig": {
+    "connectors": {
+      "brouter": {
+        "baseURL": "https://brouter.de",
+        "basePath": "",
+        "allowPrivate": false
+      }
+    },
+    "routing": {
+      "roles": [
+        "route",
+        "round_trip"
+      ],
+      "defaultProfiles": [
+        "shortest",
+        "hiking-mountain",
+        "trekking",
+        "fastbike",
+        "gravel",
+        "mtb",
+        "car-vario"
+      ]
+    }
+  },
+  "metadata": {
+    "displayNames": {
+      "de": "BRouter",
+      "en": "BRouter"
+    },
+    "descriptions": {
+      "de": "Berechnet Routen über einen BRouter-Dienst und native BRouter-Profile.",
+      "en": "Routes using a BRouter service and native BRouter profiles."
+    },
+    "icons": {
+      "light": "icon.svg"
+    },
+    "routing": {
+      "version": "v1",
+      "roles": [
+        "route",
+        "round_trip"
+      ],
+      "modes": [
+        "foot",
+        "bike",
+        "motor"
+      ],
+      "supportsViaRouting": true,
+      "supportsRoundTrip": true,
+      "supportsAlternatives": true,
+      "maxAlternatives": 4,
+      "supportsRouteElevation": true,
+      "supportsElevation": false,
+      "nativeControlDiscovery": {
+        "enabled": true,
+        "scope": "profile"
+      },
+      "nativeProfileUpload": {
+        "enabled": true,
+        "extensions": [
+          ".brf"
+        ],
+        "contentTypes": [
+          "text/plain"
+        ],
+        "maxBytes": 65536,
+        "editorLanguage": {
+          "id": "brouter",
+          "name": "BRouter",
+          "caseSensitive": true,
+          "lineComment": "#",
+          "keywords": [
+            "assign",
+            "if",
+            "then",
+            "else",
+            "switch",
+            "and",
+            "or",
+            "not"
+          ],
+          "atoms": [
+            "true",
+            "false"
+          ],
+          "builtins": [
+            "add",
+            "equal",
+            "greater",
+            "lesser",
+            "max",
+            "min",
+            "multiply"
+          ],
+          "directives": [
+            "---context:global",
+            "---context:way",
+            "---context:node"
+          ]
+        }
+      },
+      "categoryMappings": [
+        {
+          "category": "Walking",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Running",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Running",
+          "subcategory": "Road",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Running",
+          "subcategory": "Trail",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 2
+          },
+          "nativeConfig": {
+            "parameters": {
+              "path_preference": 20
+            }
+          }
+        },
+        {
+          "category": "Hiking",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 3
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Family",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 1
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Winter",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 2
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Snowshoeing",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 2
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Long-distance",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 3
+          },
+          "nativeConfig": {
+            "parameters": {
+              "hiking_routes_preference": 0.6
+            }
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Pilgrimage",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 3
+          },
+          "nativeConfig": {
+            "parameters": {
+              "hiking_routes_preference": 0.6
+            }
+          }
+        },
+        {
+          "category": "Hiking",
+          "subcategory": "Alpine",
+          "profile": "hiking-mountain",
+          "preferences": {
+            "hillPreference": 0.5,
+            "maxHikingDifficulty": 5
+          }
+        },
+        {
+          "category": "Biking",
+          "profile": "trekking",
+          "preferences": {
+            "speedPreference": 20,
+            "hillPreference": 0.5,
+            "roadPreference": 0.5,
+            "avoidBadSurfaces": 0.5
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "Road",
+          "profile": "fastbike",
+          "preferences": {
+            "speedPreference": 28,
+            "hillPreference": 0.5,
+            "roadPreference": 0.9,
+            "avoidBadSurfaces": 0.8
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "Gravel",
+          "profile": "gravel",
+          "preferences": {
+            "speedPreference": 18,
+            "hillPreference": 0.5,
+            "roadPreference": 0.35,
+            "avoidBadSurfaces": 0.5
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "MTB",
+          "profile": "mtb",
+          "preferences": {
+            "hillPreference": 0.5,
+            "roadPreference": 0.2,
+            "avoidBadSurfaces": 0.35
+          }
+        },
+        {
+          "category": "Biking",
+          "subcategory": "E-Bike",
+          "profile": "trekking",
+          "preferences": {
+            "speedPreference": 25,
+            "hillPreference": 0.7,
+            "roadPreference": 0.5,
+            "avoidBadSurfaces": 0.5
+          }
+        }
+      ],
+      "standardPreferences": [
+        {
+          "key": "speedPreference",
+          "modes": [
+            "foot",
+            "bike",
+            "motor"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "hillPreference",
+          "modes": [
+            "foot",
+            "bike"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "maxHikingDifficulty",
+          "modes": [
+            "foot"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "roadPreference",
+          "modes": [
+            "bike"
+          ],
+          "comparable": true
+        },
+        {
+          "key": "avoidBadSurfaces",
+          "modes": [
+            "bike",
+            "motor"
+          ],
+          "comparable": true
+        }
+      ],
+      "nativeProfiles": [
+        {
+          "key": "shortest",
+          "label": "Shortest",
+          "labels": {
+            "en": "Shortest",
+            "de": "Kürzeste Route"
+          },
+          "mode": "foot",
+          "advanced": false,
+          "supportedPreferences": []
+        },
+        {
+          "key": "hiking-mountain",
+          "label": "Hiking",
+          "labels": {
+            "en": "Hiking",
+            "de": "Wandern"
+          },
+          "mode": "foot",
+          "advanced": true,
+          "supportedPreferences": [
+            "hillPreference",
+            "maxHikingDifficulty"
+          ],
+          "templateKey": "hike",
+          "nativeControlGroups": [
+            {
+              "key": "template",
+              "label": "Hiking profile",
+              "labels": {
+                "en": "Hiking profile",
+                "de": "Wanderprofil"
+              },
+              "controls": [
+                {
+                  "key": "allow_steps",
+                  "label": "Allow steps",
+                  "labels": {
+                    "en": "Allow steps",
+                    "de": "Treppen erlauben"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": true,
+                  "path": [
+                    "parameters",
+                    "allow_steps"
+                  ]
+                },
+                {
+                  "key": "iswet",
+                  "label": "Wet conditions",
+                  "labels": {
+                    "en": "Wet conditions",
+                    "de": "Nasse Verhältnisse"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "iswet"
+                  ]
+                },
+                {
+                  "key": "hiking_routes_preference",
+                  "label": "Follow marked trails",
+                  "labels": {
+                    "en": "Follow marked trails",
+                    "de": "Markierten Wegen folgen"
+                  },
+                  "type": "number",
+                  "ui": "slider",
+                  "valueType": "number",
+                  "min": 0,
+                  "max": 2,
+                  "step": 0.1,
+                  "default": 0.2,
+                  "path": [
+                    "parameters",
+                    "hiking_routes_preference"
+                  ]
+                },
+                {
+                  "key": "path_preference",
+                  "label": "Prefer paths over roads",
+                  "labels": {
+                    "en": "Prefer paths over roads",
+                    "de": "Pfade gegenüber Straßen bevorzugen"
+                  },
+                  "type": "number",
+                  "ui": "slider",
+                  "valueType": "number",
+                  "min": 0,
+                  "max": 20,
+                  "step": 1,
+                  "default": 0,
+                  "path": [
+                    "parameters",
+                    "path_preference"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "trekking",
+          "label": "Trekking",
+          "labels": {
+            "en": "Trekking",
+            "de": "Trekking"
+          },
+          "mode": "bike",
+          "advanced": true,
+          "supportedPreferences": [
+            "speedPreference",
+            "hillPreference",
+            "roadPreference",
+            "avoidBadSurfaces"
+          ],
+          "templateKey": "bike-balanced",
+          "nativeControlGroups": [
+            {
+              "key": "template",
+              "label": "Bike profile",
+              "labels": {
+                "en": "Bike profile",
+                "de": "Fahrradprofil"
+              },
+              "controls": [
+                {
+                  "key": "allow_steps",
+                  "label": "Allow steps",
+                  "labels": {
+                    "en": "Allow steps",
+                    "de": "Treppen erlauben"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": true,
+                  "path": [
+                    "parameters",
+                    "allow_steps"
+                  ]
+                },
+                {
+                  "key": "stick_to_cycleroutes",
+                  "label": "Stick to cycle routes",
+                  "labels": {
+                    "en": "Stick to cycle routes",
+                    "de": "Radrouten folgen"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "stick_to_cycleroutes"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "fastbike",
+          "label": "Fast bike",
+          "labels": {
+            "en": "Fast bike",
+            "de": "Schnelles Fahrrad"
+          },
+          "mode": "bike",
+          "advanced": true,
+          "supportedPreferences": [
+            "speedPreference",
+            "hillPreference",
+            "roadPreference",
+            "avoidBadSurfaces"
+          ],
+          "templateKey": "fastbike",
+          "nativeControlGroups": [
+            {
+              "key": "template",
+              "label": "Fast bike profile",
+              "labels": {
+                "en": "Fast bike profile",
+                "de": "Rennradprofil"
+              },
+              "controls": [
+                {
+                  "key": "allow_motorways",
+                  "label": "Allow motorways",
+                  "labels": {
+                    "en": "Allow motorways",
+                    "de": "Autobahnen erlauben"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "allow_motorways"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "gravel",
+          "label": "Gravel",
+          "labels": {
+            "en": "Gravel",
+            "de": "Gravel"
+          },
+          "mode": "bike",
+          "advanced": true,
+          "supportedPreferences": [
+            "speedPreference",
+            "hillPreference",
+            "roadPreference",
+            "avoidBadSurfaces"
+          ],
+          "templateKey": "gravel",
+          "nativeControlGroups": [
+            {
+              "key": "template",
+              "label": "Gravel profile",
+              "labels": {
+                "en": "Gravel profile",
+                "de": "Gravel-Profil"
+              },
+              "controls": [
+                {
+                  "key": "prefer_cycle_routes",
+                  "label": "Prefer cycle routes",
+                  "labels": {
+                    "en": "Prefer cycle routes",
+                    "de": "Radrouten bevorzugen"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "prefer_cycle_routes"
+                  ]
+                },
+                {
+                  "key": "prefer_forests",
+                  "label": "Prefer forest",
+                  "labels": {
+                    "en": "Prefer forest",
+                    "de": "Waldwege bevorzugen"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "prefer_forests"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "mtb",
+          "label": "Mountain bike",
+          "labels": {
+            "en": "Mountain bike",
+            "de": "Mountainbike"
+          },
+          "mode": "bike",
+          "advanced": true,
+          "supportedPreferences": [
+            "hillPreference",
+            "roadPreference",
+            "avoidBadSurfaces"
+          ],
+          "templateKey": "mtb",
+          "nativeControlGroups": [
+            {
+              "key": "template",
+              "label": "Mountain bike profile",
+              "labels": {
+                "en": "Mountain bike profile",
+                "de": "Mountainbike-Profil"
+              },
+              "controls": [
+                {
+                  "key": "smallpaved_factor",
+                  "label": "Preference for small paved roads",
+                  "labels": {
+                    "en": "Preference for small paved roads",
+                    "de": "Vorliebe für kleine Asphaltstraßen"
+                  },
+                  "type": "number",
+                  "ui": "slider",
+                  "valueType": "number",
+                  "min": -3,
+                  "max": 3,
+                  "step": 0.5,
+                  "default": -0.5,
+                  "path": [
+                    "parameters",
+                    "smallpaved_factor"
+                  ]
+                },
+                {
+                  "key": "path_preference",
+                  "label": "Prefer paths over roads",
+                  "labels": {
+                    "en": "Prefer paths over roads",
+                    "de": "Pfade gegenüber Straßen bevorzugen"
+                  },
+                  "type": "number",
+                  "ui": "slider",
+                  "valueType": "number",
+                  "min": 0,
+                  "max": 40,
+                  "step": 1,
+                  "default": 20,
+                  "path": [
+                    "parameters",
+                    "path_preference"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "car-vario",
+          "label": "Car",
+          "labels": {
+            "en": "Car",
+            "de": "Auto"
+          },
+          "mode": "motor",
+          "advanced": true,
+          "supportedPreferences": [
+            "speedPreference",
+            "avoidBadSurfaces"
+          ],
+          "preferenceDefaults": {
+            "speedPreference": 90,
+            "avoidBadSurfaces": 0.5
+          },
+          "templateKey": "car",
+          "nativeControlGroups": [
+            {
+              "key": "template",
+              "label": "Car profile",
+              "labels": {
+                "en": "Car profile",
+                "de": "Autoprofil"
+              },
+              "controls": [
+                {
+                  "key": "avoid_toll",
+                  "label": "Avoid toll roads",
+                  "labels": {
+                    "en": "Avoid toll roads",
+                    "de": "Mautstraßen meiden"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "avoid_toll"
+                  ]
+                },
+                {
+                  "key": "avoid_motorways",
+                  "label": "Avoid motorways",
+                  "labels": {
+                    "en": "Avoid motorways",
+                    "de": "Autobahnen meiden"
+                  },
+                  "type": "boolean",
+                  "valueType": "boolean",
+                  "default": false,
+                  "path": [
+                    "parameters",
+                    "avoid_motorways"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

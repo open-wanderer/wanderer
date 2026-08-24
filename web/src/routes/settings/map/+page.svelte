@@ -23,9 +23,6 @@
 
     let settings = $derived(page.data.settings);
 
-    let allowAutoGeolocate = $state(
-        page.data.settings.behavior?.allowAutoGeolocate ?? false,
-    );
     let mapClusteringMaxZoom = $state(
         page.data.settings.behavior?.mapClusteringMaxZoom ?? 11,
     );
@@ -37,7 +34,6 @@
         const b = page.data.settings?.behavior;
         if (b) {
             untrack(() => {
-                allowAutoGeolocate = b.allowAutoGeolocate ?? false;
                 mapClusteringMaxZoom = b.mapClusteringMaxZoom ?? 11;
                 showTrailStartMarker = b.showTrailStartMarker ?? false;
             });
@@ -53,7 +49,8 @@
             const updatedSettings = {
                 ...settings,
                 behavior: {
-                    allowAutoGeolocate: allowAutoGeolocate,
+                    ...settings.behavior,
+                    allowAutoGeolocate: settings.behavior?.allowAutoGeolocate ?? false,
                     mapClusteringMaxZoom: Number(mapClusteringMaxZoom),
                     showTrailStartMarker: showTrailStartMarker,
                 },
@@ -188,18 +185,6 @@
                 </div>
             {/if}
             <div class="mt-8 space-y-4">
-                <div
-                    class="grid gap-4 items-center"
-                    style="grid-template-columns: 1fr min-content ;"
-                >
-                    <p>{$_("allow-auto-geolocate")}</p>
-                    <div>
-                        <Toggle
-                            bind:value={allowAutoGeolocate}
-                            onchange={handleBehaviorChange}
-                        ></Toggle>
-                    </div>
-                </div>
                 <div
                     class="grid gap-4 items-center"
                     style="grid-template-columns: 1fr min-content ;"

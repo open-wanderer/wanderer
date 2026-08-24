@@ -24,6 +24,7 @@ type RateLimiter struct {
 	maxReqs  int
 	window   time.Duration
 	key      []byte
+	now      func() time.Time
 }
 
 func NewRateLimiter(maxReqs int, window time.Duration) *RateLimiter {
@@ -32,10 +33,13 @@ func NewRateLimiter(maxReqs int, window time.Duration) *RateLimiter {
 		maxReqs:  maxReqs,
 		window:   window,
 		key:      make([]byte, 32),
+		now:      time.Now,
 	}
 	rand.Read(rl.key)
 
-	// Background worker: Cleans up memory and rotates keys
+	// Background worker removes only expired entries. Clearing the complete
+	// map (or rotating the HMAC key) would create a fixed reset boundary and
+	// violate the rolling-window guarantee enforced by CheckRateLimit.
 	go rl.maintenanceWorker()
 	return rl
 }
@@ -44,14 +48,26 @@ func (rl *RateLimiter) maintenanceWorker() {
 	ticker := time.NewTicker(rl.window * 2)
 	for range ticker.C {
 		rl.mu.Lock()
-
-		newKey := make([]byte, 32)
-		rand.Read(newKey)
-		rl.key = newKey
-
-		rl.requests = make(map[string][]time.Time)
-
+		rl.pruneExpiredLocked(rl.now())
 		rl.mu.Unlock()
+	}
+}
+
+func (rl *RateLimiter) pruneExpiredLocked(now time.Time) {
+	threshold := now.Add(-rl.window)
+	for key, timestamps := range rl.requests {
+		w := 0
+		for _, timestamp := range timestamps {
+			if timestamp.After(threshold) {
+				timestamps[w] = timestamp
+				w++
+			}
+		}
+		if w == 0 {
+			delete(rl.requests, key)
+			continue
+		}
+		rl.requests[key] = timestamps[:w]
 	}
 }
 
@@ -63,7 +79,7 @@ func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
 	h.Write([]byte(identifier + ":" + host))
 	key := hex.EncodeToString(h.Sum(nil))
 
-	now := time.Now()
+	now := rl.now()
 	threshold := now.Add(-rl.window)
 
 	timestamps := rl.requests[key]

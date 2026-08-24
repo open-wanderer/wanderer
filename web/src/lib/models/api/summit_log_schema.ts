@@ -13,7 +13,6 @@ const SummitLogCreateSchema = z.object({
     duration: z.number().nonnegative().optional(),
     author: z.string().length(15),
     trail: z.string().length(15).optional(),
-    photos: z.array(z.string()).default([])
 }) satisfies ZodType<Partial<SummitLog>>
 
 const SummitLogUpdateSchema = z.object({
@@ -24,9 +23,6 @@ const SummitLogUpdateSchema = z.object({
     elevation_gain: z.number().nonnegative().optional(),
     elevation_loss: z.number().nonnegative().optional(),
     duration: z.number().nonnegative().optional(),
-    photos: z.array(z.string()).optional(),
-    "photos-": z.string().optional(),
-    "photos+": z.string().optional(),
 }) satisfies ZodType<Partial<SummitLog>>
 
 export { SummitLogCreateSchema, SummitLogUpdateSchema };

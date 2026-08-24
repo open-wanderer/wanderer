@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { formatHTMLAsText, formatHTMLAsTextPreview } from "./format_util";
+import { describe, expect, it, vi } from "vitest";
+
+const appState = vi.hoisted(() => ({ settings: { unit: "metric" } }));
+
+vi.mock("$app/state", () => ({
+    page: { data: { settings: appState.settings } },
+}));
+
+import {
+    formatHTMLAsText,
+    formatHTMLAsTextPreview,
+    formatSpeed,
+} from "./format_util";
 
 describe("formatHTMLAsText", () => {
     it("returns an empty string for missing input", () => {
@@ -114,5 +125,15 @@ describe("formatHTMLAsTextPreview", () => {
             text: "",
             truncated: false,
         });
+    });
+});
+
+describe("formatSpeed", () => {
+    it("formats routing speeds in the user's configured unit", () => {
+        appState.settings.unit = "metric";
+        expect(formatSpeed(5.1 / 3.6)).toBe("5.1 km/h");
+
+        appState.settings.unit = "imperial";
+        expect(formatSpeed(5.1 / 3.6)).toBe("3.2 mph");
     });
 });

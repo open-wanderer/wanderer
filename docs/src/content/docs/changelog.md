@@ -2,6 +2,12 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## Unreleased
+
+### Breaking Changes
+- Provider plugins, including the first-party Valhalla and BRouter routing plugins, are separate release bundles and are not included in the official Wanderer images. After a valid Valhalla bundle is installed, Wanderer automatically enables it for existing users who do not already have an instance and for users created later. Missing route, elevation, and maneuver selections are resolved provider-neutrally from enabled plugin capabilities; explicitly disabled instances and explicit engine selections remain unchanged.
+- `VALHALLA_URL`, when set on the `db` service/process, is imported only during the first successful Valhalla discovery. Upgrading deployments that use a custom URL must move the variable from the `web` service to the `db` service before that discovery. Failed discovery and later routine synchronizations do not import it. New installations do not need the variable; after the import, maintain the global endpoint in the Valhalla plugin configuration.
+
 ## v0.20.0
 
 ### Breaking Changes

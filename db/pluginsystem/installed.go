@@ -1,6 +1,8 @@
 package pluginsystem
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +12,8 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+var ErrPluginNotFound = errors.New("unknown plugin")
+
 // LoadInstalledPlugin resolves one plugin from the installed_plugins cache. If
 // the cache record is missing or stale, it falls back to the local plugin
 // directory so newly copied bundles can still be discovered.
@@ -17,11 +21,14 @@ func LoadInstalledPlugin(app core.App, dir string, pluginID string) (LocalPlugin
 	if pluginID == "" {
 		return LocalPlugin{}, fmt.Errorf("plugin id is required")
 	}
-	record, _ := app.FindFirstRecordByFilter(
+	record, err := app.FindFirstRecordByFilter(
 		"installed_plugins",
 		"plugin_id={:plugin_id}",
 		dbx.Params{"plugin_id": pluginID},
 	)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return LocalPlugin{}, fmt.Errorf("find installed plugin %s: %w", pluginID, err)
+	}
 	if record != nil {
 		plugin, err := localPluginFromRecord(record)
 		if err == nil {
@@ -41,7 +48,7 @@ func LoadInstalledPlugin(app core.App, dir string, pluginID string) (LocalPlugin
 			return plugin, nil
 		}
 	}
-	return LocalPlugin{}, fmt.Errorf("unknown plugin")
+	return LocalPlugin{}, fmt.Errorf("%w: %s", ErrPluginNotFound, pluginID)
 }
 
 // LoadInstalledPlugins returns the cached installed plugin manifests used by

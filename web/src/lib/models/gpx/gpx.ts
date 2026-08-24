@@ -9,7 +9,7 @@ import GpxMetricsComputation from './gpx-metrics-computation';
 import geohash from "ngeohash"
 import { encodePolyline } from '$lib/util/polyline_util';
 import { APIError } from '$lib/util/api_util';
-import type { ValhallaHeightResponse } from '../valhalla';
+import type { RoutingElevationResponse } from '../routing';
 import { bbox } from '$lib/util/geojson_util';
 
 const defaultAttributes = {
@@ -187,15 +187,15 @@ export default class GPX {
     }
 
     const shape = encodePolyline(coordinates);
-    const r2 = await f("/api/v1/valhalla/height", { method: "POST", body: JSON.stringify({ encoded_polyline: shape }) })
+    const r2 = await f("/api/v1/routing/elevation", { method: "POST", body: JSON.stringify({ encodedPolyline: shape }) })
 
     if (!r2.ok) {
       const response = await r2.json();
       throw new APIError(r2.status, response.message, response.detail)
     }
 
-    const heightResponse: ValhallaHeightResponse = await r2.json()
-    const heights = heightResponse.height ?? [];
+    const heightResponse: RoutingElevationResponse = await r2.json()
+    const heights = heightResponse.heights ?? [];
     const finiteHeights = heights.filter((height) => Number.isFinite(height)).length;
 
     if (heights.length > 0 && finiteHeights === 0) {
@@ -209,7 +209,7 @@ export default class GPX {
           continue
         }
         segment.trkpt.forEach((pt) => {
-          pt.ele = heightResponse.height[heightIndex]
+          pt.ele = heightResponse.heights[heightIndex]
           heightIndex++;
         })
       }

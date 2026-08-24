@@ -4,6 +4,7 @@ import { Collection } from "$lib/util/api_util";
 import type { RequestEvent } from "@sveltejs/kit";
 
 type MeiliFilter = string | string[] | undefined;
+type MeiliFilterInput = string | null | undefined | MeiliFilterInput[];
 
 type TrailPreferenceCache = {
     categories?: Promise<UserCategoryPreference[]>;
@@ -16,7 +17,7 @@ function quotedList(ids: string[]) {
     return `[${ids.map((id) => `'${id}'`).join(", ")}]`;
 }
 
-function meiliFilterParts(filter: unknown): string[] {
+function meiliFilterParts(filter: MeiliFilterInput): string[] {
     if (!filter) {
         return [];
     }
@@ -28,6 +29,14 @@ function meiliFilterParts(filter: unknown): string[] {
     }
 
     return [];
+}
+
+function normalizedMeiliFilter(filter: MeiliFilterInput, parts = meiliFilterParts(filter)): MeiliFilter {
+    if (!parts.length) {
+        return undefined;
+    }
+
+    return typeof filter === "string" ? parts[0] : parts;
 }
 
 function isIdOnlyDetailQuery(parts: string[]) {
@@ -98,11 +107,12 @@ async function trailPreferenceExclusions(event: RequestEvent) {
 
 export async function withTrailPreferenceMeiliFilter(
     event: RequestEvent,
-    filter: MeiliFilter,
+    filter: MeiliFilterInput,
 ): Promise<MeiliFilter> {
     const parts = meiliFilterParts(filter);
+    const baseFilter = normalizedMeiliFilter(filter, parts);
     if (!event.locals.user || isIdOnlyDetailQuery(parts)) {
-        return filter;
+        return baseFilter;
     }
 
     const { hiddenCategoryIds, hiddenSubcategoryIds } =

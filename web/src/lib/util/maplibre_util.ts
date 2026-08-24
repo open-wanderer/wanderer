@@ -28,6 +28,20 @@ export class FontawesomeMarker extends M.Marker {
     }
 }
 
+export function markerElement(marker?: { getElement: () => HTMLElement } | null): HTMLElement | undefined {
+    return marker?.getElement();
+}
+
+export function syncMarkerHighlightClass(
+    elements: Iterable<HTMLElement | null | undefined>,
+    highlightedElement: HTMLElement | null | undefined,
+    className: string,
+) {
+    for (const element of elements) {
+        element?.classList.toggle(className, Boolean(highlightedElement && element === highlightedElement));
+    }
+}
+
 export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker: M.Marker, wpId?: string) => void): FontawesomeMarker {
     const safeMarkerIcon = waypoint.icon && icons.includes(waypoint.icon) ? waypoint.icon : "circle";
     const marker = new FontawesomeMarker({
@@ -83,7 +97,7 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
 }
 
 export function createAnchorMarker(lat: number, lon: number,
-    onDeleteClick: () => void, onLoopClick: () => void,
+    onDeleteClick: () => void, onEndRouteClick: () => void,
     onDragStart: (event: Event) => void, onDragEnd: (event: Event) => void): FontawesomeMarker {
 
     const anchorElement = document.createElement("span")
@@ -114,20 +128,19 @@ export function createAnchorMarker(lat: number, lon: number,
     deleteButton.appendChild(deleteButtonText)
     deleteButton.addEventListener("click", onDeleteClick)
 
-    const loopButton = document.createElement("button");
-    loopButton.className = "btn-secondary w-full mt-2 text-sm block";
-    const loopButtonIcon = document.createElement("i")
-    loopButtonIcon.classList.add("fa", "fa-person-walking-arrow-loop-left", "mr-2")
-    loopButton.appendChild(loopButtonIcon)
-    const loopButtonText = document.createElement("span")
-    loopButtonText.textContent = get(_)("loop")
-    loopButton.appendChild(loopButtonIcon)
-    loopButton.appendChild(loopButtonText)
-    loopButton.addEventListener("click", onLoopClick)
+    const endRouteButton = document.createElement("button");
+    endRouteButton.className = "route-end-action btn-secondary w-full mt-2 text-sm block";
+    const endRouteButtonIcon = document.createElement("i")
+    endRouteButtonIcon.classList.add("fa", "fa-flag-checkered", "mr-2")
+    const endRouteButtonText = document.createElement("span")
+    endRouteButtonText.textContent = get(_)("use-as-destination")
+    endRouteButton.appendChild(endRouteButtonIcon)
+    endRouteButton.appendChild(endRouteButtonText)
+    endRouteButton.addEventListener("click", onEndRouteClick)
 
     popupContent.appendChild(anchorH)
     popupContent.appendChild(deleteButton)
-    popupContent.appendChild(loopButton)
+    popupContent.appendChild(endRouteButton)
     popup.setDOMContent(popupContent)
     marker.setPopup(popup);
 
@@ -172,8 +185,9 @@ export function createEditTrailMapPopup(lnglat: M.LngLat, onCreateWaypointClick:
 }
 
 export function createPopupFromTrail(trail: Trail) {
-    const thumbnail = trail.photos.length
-        ? getFileURL(trail, trail.photos.at(trail.thumbnail ?? 0) ?? trail.photos[0])
+    const photos = trail.photos ?? [];
+    const thumbnail = photos.length
+        ? getFileURL(trail, photos.at(trail.thumbnail ?? 0) ?? photos[0])
         : get(theme) === "light"
             ? emptyStateTrailLight
             : emptyStateTrailDark;

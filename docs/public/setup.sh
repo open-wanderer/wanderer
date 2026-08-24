@@ -45,4 +45,9 @@ SED_INPLACE "s/POCKETBASE_ENCRYPTION_KEY:.*/POCKETBASE_ENCRYPTION_KEY: ${pocket_
 SED_INPLACE "s|ORIGIN:.*|ORIGIN: ${origin}|" docker-compose.yml
 SED_INPLACE "s/PUBLIC_DISABLE_SIGNUP: .*/PUBLIC_DISABLE_SIGNUP: \"${public_disable_signup}\"/" docker-compose.yml
 
+# Create the bind-mounted plugin directory as the invoking user. Otherwise
+# Docker may create it as root on first start, making later bundle installation
+# unnecessarily difficult.
+mkdir -p data/plugins
+
 echo "✅ Setup complete. Run 'docker compose up -d' to start the services."

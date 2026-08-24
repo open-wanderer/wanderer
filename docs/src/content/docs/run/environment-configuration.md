@@ -54,28 +54,53 @@ bundles and configuring self-hosted connector trust settings.
 
 ## Geocoding & Routing
 
-These variables configure server-side requests to Valhalla, Nominatim and Overpass.
+These variables configure server-side requests to Nominatim and Overpass.
 
 | Environment Variable     | Description                                                                 | Default                             |
 | ------------------------ | --------------------------------------------------------------------------- | ----------------------------------- |
-| VALHALLA_URL     | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
 | NOMINATIM_URL    | Nominatim API URL used for (reverse) geocoding                  | https://nominatim.openstreetmap.org |
 | OVERPASS_API_URL | Overpass API URL used for map points of interest                | https://overpass-api.de             |
 
 When `*_URL` is unset, the backend falls back to legacy `PUBLIC_*_URL`.
 
+`VALHALLA_URL` is only a legacy import value. It must be set on the `db`
+service/process before the first successful discovery of a valid Valhalla
+bundle. A failed discovery does not import the value, and routine
+synchronizations never reimport it. Changing
+`VALHALLA_URL` afterward therefore has no effect; manage the global endpoint in
+the Valhalla plugin configuration instead. Setting the variable alone does not
+install the plugin. New installations do not need it because the plugin supplies
+its own connector default. Removing and reinstalling the bundle does not reopen
+the import. See [Plugin installation](/run/installation/plugins#valhalla-routing-endpoint).
+
+## Plugin connector trust
+
+Provider plugins such as Immich are not configured through global environment
+variables. Private-network access, custom CA bundles, and storage redirect
+origins are configured per plugin connector. See
+[Plugin installation](/run/installation/plugins#self-hosted-asset-plugins).
+
 ## Custom CA certificates
 
-If your API endpoints use certificates signed by a private CA, add the CA bundle and set `NODE_EXTRA_CA_CERTS` for the `web` service.
+If your API endpoints use certificates signed by a private CA, add the CA bundle
+and configure the service that performs the request. The `web` service uses
+Node.js, while the `db` service uses Go/PocketBase.
 
-| Environment Variable | Description                                                              | Default |
-| -------------------- | ------------------------------------------------------------------------ | ------- |
-| NODE_EXTRA_CA_CERTS  | Path to an additional CA bundle used by Node.js TLS connections          |         |
+| Environment Variable | Service | Description                                                     | Default |
+| -------------------- | ------- | --------------------------------------------------------------- | ------- |
+| NODE_EXTRA_CA_CERTS  | web     | Path to an additional CA bundle used by Node.js TLS connections |         |
+| SSL_CERT_FILE        | db      | Path to the CA bundle used by Go/PocketBase TLS connections     |         |
 
 Example (`docker-compose.yml`):
 
 ```yaml
 services:
+  db:
+    environment:
+      SSL_CERT_FILE: /etc/ssl/private-ca/ca.pem
+    volumes:
+      - ./certs/ca.pem:/etc/ssl/private-ca/ca.pem:ro
+
   web:
     environment:
       NODE_EXTRA_CA_CERTS: /etc/ssl/private-ca/ca.pem
@@ -84,4 +109,5 @@ services:
 ```
 
 Provider plugin connector CAs are configured per connector when a plugin
-supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.
+supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS` or
+`SSL_CERT_FILE`.

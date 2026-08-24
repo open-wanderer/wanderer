@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -256,6 +257,118 @@ func TestRuntimeSessionFatalErrorIsDetectableThroughWrapping(t *testing.T) {
 	}
 }
 
+func TestEffectiveMaxHostRequestsUsesDefaultAndAbsoluteCeiling(t *testing.T) {
+	if got := EffectiveMaxHostRequests(RuntimeCallOptions{}); got != DefaultMaxHostRequestsPerCall {
+		t.Fatalf("default limit = %d, want %d", got, DefaultMaxHostRequestsPerCall)
+	}
+	if got := EffectiveMaxHostRequests(RuntimeCallOptions{MaxHostRequests: AbsoluteMaxHostRequestsPerCall + 1}); got != AbsoluteMaxHostRequestsPerCall {
+		t.Fatalf("clamped limit = %d, want %d", got, AbsoluteMaxHostRequestsPerCall)
+	}
+}
+
+func TestWorkerCallFailsWhenPluginSwallowsHostRequestBudgetError(t *testing.T) {
+	var workerOutput bytes.Buffer
+	writeWorkerHostRequestForTest(t, &workerOutput)
+	writeWorkerHostRequestForTest(t, &workerOutput)
+	result, err := workerMessageWithData(workerMessageCallResult, workerCallResult{OutputBase64: encodeWorkerBytes([]byte(`{"partial":true}`))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeWorkerMessage(&workerOutput, defaultWorkerResponseMaxBytes, result); err != nil {
+		t.Fatal(err)
+	}
+
+	var workerInput bytes.Buffer
+	session := &workerRuntimeSession{
+		plugin:           LocalPlugin{Manifest: Manifest{ID: "test.assets"}},
+		stdin:            nopWriteCloser{Writer: &workerInput},
+		stdout:           io.NopCloser(&workerOutput),
+		requestMaxBytes:  defaultWorkerRequestMaxBytes,
+		responseMaxBytes: defaultWorkerResponseMaxBytes,
+	}
+	outcome := session.call(context.Background(), "asset_library_v1", nil, RuntimeCallOptions{MaxHostRequests: 1})
+	var budgetErr HostRequestBudgetError
+	if !errors.As(outcome.err, &budgetErr) || budgetErr.Limit != 1 {
+		t.Fatalf("error = %v, want HostRequestBudgetError with limit 1", outcome.err)
+	}
+}
+
+func TestWorkerCallAllowsMaximumAssetImportRequestCount(t *testing.T) {
+	const photoCount = 200
+	var workerOutput bytes.Buffer
+	for range photoCount {
+		writeWorkerHostRequestForTest(t, &workerOutput)
+	}
+	result, err := workerMessageWithData(workerMessageCallResult, workerCallResult{OutputBase64: encodeWorkerBytes([]byte(`{"photos":[]}`))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeWorkerMessage(&workerOutput, defaultWorkerResponseMaxBytes, result); err != nil {
+		t.Fatal(err)
+	}
+
+	var workerInput bytes.Buffer
+	session := &workerRuntimeSession{
+		plugin:           LocalPlugin{Manifest: Manifest{ID: "test.assets"}},
+		stdin:            nopWriteCloser{Writer: &workerInput},
+		stdout:           io.NopCloser(&workerOutput),
+		requestMaxBytes:  defaultWorkerRequestMaxBytes,
+		responseMaxBytes: defaultWorkerResponseMaxBytes,
+	}
+	outcome := session.call(context.Background(), "asset_library_v1", nil, RuntimeCallOptions{MaxHostRequests: photoCount + 8})
+	if outcome.err != nil {
+		t.Fatalf("maximum import request count exceeded its budget: %v", outcome.err)
+	}
+}
+
+func TestWorkerHostRequestCounterResetsBetweenSessionCalls(t *testing.T) {
+	var workerOutput bytes.Buffer
+	for range 2 {
+		writeWorkerHostRequestForTest(t, &workerOutput)
+		result, err := workerMessageWithData(workerMessageCallResult, workerCallResult{OutputBase64: encodeWorkerBytes([]byte(`{}`))})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := writeWorkerMessage(&workerOutput, defaultWorkerResponseMaxBytes, result); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var workerInput bytes.Buffer
+	session := &workerRuntimeSession{
+		plugin:           LocalPlugin{Manifest: Manifest{ID: "test.session"}},
+		stdin:            nopWriteCloser{Writer: &workerInput},
+		stdout:           io.NopCloser(&workerOutput),
+		requestMaxBytes:  defaultWorkerRequestMaxBytes,
+		responseMaxBytes: defaultWorkerResponseMaxBytes,
+	}
+	for _, export := range []string{"list_v1", "detail_v1"} {
+		outcome := session.call(context.Background(), export, nil, RuntimeCallOptions{MaxHostRequests: 1})
+		if outcome.err != nil {
+			t.Fatalf("%s inherited the previous call's request count: %v", export, outcome.err)
+		}
+	}
+}
+
+func writeWorkerHostRequestForTest(t *testing.T, output *bytes.Buffer) {
+	t.Helper()
+	message, err := workerMessageWithData(workerMessageHostHTTPRequest, workerHostHTTPRequest{
+		RequestBase64: encodeWorkerBytes([]byte(`{}`)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeWorkerMessage(output, defaultWorkerResponseMaxBytes, message); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
+
 func TestChildEnvWithoutStripsKeys(t *testing.T) {
 	t.Setenv("EXTISM_ENABLE_WASI_OUTPUT", "1")
 	t.Setenv("WANDERER_TEST_KEEP", "yes")
@@ -298,6 +411,9 @@ func TestInjectHostRequestAuthUsesExistingSessionForRefresh(t *testing.T) {
 	if session.export != "refresh_session_v1" {
 		t.Fatalf("unexpected export: %q", session.export)
 	}
+	if session.options.MaxHostRequests != 4 {
+		t.Fatalf("refresh budget = %d, want 4", session.options.MaxHostRequests)
+	}
 	if got := spec.Headers[AuthHeaderAuthorization]; got != AuthSchemeBearer+" session-token" {
 		t.Fatalf("unexpected auth header: %q", got)
 	}
@@ -316,15 +432,17 @@ func TestInjectHostRequestAuthUsesExistingSessionForRefresh(t *testing.T) {
 }
 
 type fakeRuntimeSession struct {
-	export string
-	input  []byte
-	output []byte
-	err    error
+	export  string
+	input   []byte
+	output  []byte
+	err     error
+	options RuntimeCallOptions
 }
 
-func (s *fakeRuntimeSession) Call(_ context.Context, export string, input []byte) ([]byte, error) {
+func (s *fakeRuntimeSession) Call(_ context.Context, export string, input []byte, options RuntimeCallOptions) ([]byte, error) {
 	s.export = export
 	s.input = append([]byte(nil), input...)
+	s.options = options
 	if s.err != nil {
 		return nil, s.err
 	}
