@@ -4,7 +4,7 @@
   "type": "trails",
   "name": "Hammerhead",
   "description": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "runtime": {
     "type": "wasm",
     "entrypoint": "plugin.wasm"
@@ -118,6 +118,7 @@
       "de": "Dieses Plugin verbindet wanderer mit deinem Hammerhead-Konto. Es importiert geplante Routen und abgeschlossene Aktivitäten und kann in wanderer erstellte Routen an Hammerhead senden. Neue und aktualisierte Inhalte werden bei den regelmäßig ausgeführten Synchronisierungsläufen importiert. Ein Startdatum begrenzt die Importmenge und reduziert das Risiko, dass Hammerhead den Zugriff wegen zu vieler API-Anfragen vorübergehend einschränkt.",
       "en": "This plugin connects wanderer with your Hammerhead account. It imports planned routes and completed activities, and can send routes created in wanderer to Hammerhead. New and updated content is imported during the regularly scheduled synchronization runs. A start date limits the import volume and reduces the risk of Hammerhead temporarily restricting access because of too many API requests."
     },
+    "homepageUrl": "https://dashboard.hammerhead.io/",
     "icons": {
       "light": "icon.svg",
       "dark": "icon_dark.svg"

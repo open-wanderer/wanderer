@@ -5,26 +5,8 @@ export function localizedText(
     currentLocale: string | null | undefined,
     fallback = "",
 ): string {
-    if (!texts) {
-        return fallback;
-    }
-
-    const locale = normalizeLocale(currentLocale);
-    const language = locale.split("-")[0];
-    const candidates = [locale, language, "en"];
-    for (const candidate of candidates) {
-        const value = texts[candidate]?.trim();
-        if (value) {
-            return value;
-        }
-    }
-
-    const trimmedFallback = fallback.trim();
-    if (trimmedFallback) {
-        return trimmedFallback;
-    }
-
-    return "";
+    return localizedTextForCandidates(texts, [...localeCandidates(currentLocale), "en"])
+        || fallback.trim();
 }
 
 export function pluginTitle(plugin: PluginProvider, currentLocale: string | null | undefined): string {
@@ -36,16 +18,18 @@ export function pluginDescription(plugin: PluginProvider, currentLocale: string 
 }
 
 export function pluginInformation(plugin: PluginProvider, currentLocale: string | null | undefined): string {
-    const locale = normalizeLocale(currentLocale);
-    const language = locale.split("-")[0];
-    for (const candidate of [locale, language]) {
-        const value = plugin.information?.[candidate]?.trim();
-        if (value) {
-            return value;
-        }
+    const information = localizedTextForCurrentLocale(plugin.information, currentLocale);
+    if (information) {
+        return information;
     }
 
-    return pluginDescription(plugin, currentLocale) || localizedText(plugin.information, "en");
+    const description = localizedTextForCurrentLocale(plugin.descriptions, currentLocale);
+    if (description) {
+        return description;
+    }
+
+    return localizedTextForCandidates(plugin.information, ["en"])
+        || pluginDescription(plugin, currentLocale);
 }
 
 export function configFieldLabel(
@@ -95,5 +79,41 @@ export function providerCategoryLabel(
 }
 
 function normalizeLocale(value: string | null | undefined): string {
-    return (value || "en").trim().toLowerCase().replace("_", "-");
+    return normalizeLocaleKey(value) || "en";
+}
+
+function normalizeLocaleKey(value: string | null | undefined): string {
+    return (value || "").trim().toLowerCase().replaceAll("_", "-");
+}
+
+function localeCandidates(currentLocale: string | null | undefined): string[] {
+    const locale = normalizeLocale(currentLocale);
+    return [...new Set([locale, locale.split("-")[0]])];
+}
+
+function localizedTextForCurrentLocale(
+    texts: LocalizedTextMap | undefined,
+    currentLocale: string | null | undefined,
+): string {
+    return localizedTextForCandidates(texts, localeCandidates(currentLocale));
+}
+
+function localizedTextForCandidates(
+    texts: LocalizedTextMap | undefined,
+    candidates: string[],
+): string {
+    if (!texts) {
+        return "";
+    }
+    for (const candidate of candidates) {
+        for (const [key, text] of Object.entries(texts)) {
+            if (normalizeLocaleKey(key) === candidate) {
+                const value = text.trim();
+                if (value) {
+                    return value;
+                }
+            }
+        }
+    }
+    return "";
 }

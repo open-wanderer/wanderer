@@ -76,6 +76,10 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         primaryAuth.secretFields ??
         (primaryAuth.secretField ? [primaryAuth.secretField] : []);
     const metadata = plugin.manifest.metadata ?? {};
+    const setupErrorCode =
+        typeof plugin.setupErrorCode === "string"
+            ? plugin.setupErrorCode.trim() || undefined
+            : undefined;
 
     return {
         id: plugin.id,
@@ -86,6 +90,7 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         description: plugin.description,
         descriptions: localizedMetadata(metadata, "descriptions"),
         information: localizedMetadata(metadata, "information"),
+        homepageUrl: externalHttpUrl(metadata.homepageUrl),
         donationUrl: externalHttpUrl(metadata.donationUrl),
         icon: plugin.icon,
         iconDark: plugin.iconDark,
@@ -108,6 +113,7 @@ function pluginSystemToPluginProvider(plugin: PluginSystemPlugin): PluginProvide
         metadata,
         capabilities: plugin.capabilities,
         status: plugin.status,
+        setupErrorCode,
         error: plugin.error,
     };
 }

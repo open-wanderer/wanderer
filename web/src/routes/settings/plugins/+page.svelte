@@ -19,7 +19,10 @@
         pluginInformation as localizedPluginInformation,
         pluginTitle as localizedPluginTitle,
     } from "$lib/util/plugin_i18n";
-    import { translatePluginError } from "$lib/util/plugin_error_i18n";
+    import {
+        pluginSetupErrorKey,
+        translatePluginError,
+    } from "$lib/util/plugin_error_i18n";
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { theme } from "$lib/stores/theme_store";
@@ -461,7 +464,7 @@
         instance: PluginInstance | undefined,
     ) {
         if (plugin.status === "error") {
-            return plugin.error || $_("plugin-setup-error");
+            return plugin.error || $_(pluginSetupErrorKey(plugin.setupErrorCode));
         }
         if (plugin.status !== "available") {
             return plugin.error ?? "";
@@ -556,6 +559,7 @@
             title={pluginTitle(infoPlugin)}
             information={pluginInformation(infoPlugin)}
             version={infoPlugin.version}
+            homepageUrl={infoPlugin.homepageUrl}
             donationUrl={infoPlugin.donationUrl}
             img={pluginLogo(infoPlugin)}
             status={infoPlugin.status}

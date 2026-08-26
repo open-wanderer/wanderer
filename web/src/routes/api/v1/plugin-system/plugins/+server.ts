@@ -39,6 +39,9 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *                       status:
  *                         type: string
  *                         enum: [available, disabled, error]
+ *                       setupErrorCode:
+ *                         type: string
+ *                         enum: [setup_failed, manifest_missing, manifest_unreadable, manifest_invalid, runtime_entrypoint_invalid, runtime_entrypoint_missing, runtime_entrypoint_unreadable]
  *                       error:
  *                         type: string
  *                       manifest:

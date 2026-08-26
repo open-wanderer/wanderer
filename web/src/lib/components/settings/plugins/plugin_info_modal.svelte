@@ -7,6 +7,7 @@
         title: string;
         information: string;
         version?: string;
+        homepageUrl?: string;
         donationUrl?: string;
         img?: string;
         status: "available" | "disabled" | "error";
@@ -18,6 +19,7 @@
         title,
         information,
         version = "",
+        homepageUrl,
         donationUrl,
         img,
         status,
@@ -65,17 +67,33 @@
         </div>
     {/snippet}
     {#snippet footer({ closeModal })}
-        <div class="flex items-center gap-4" class:justify-between={donationUrl} class:justify-end={!donationUrl}>
-            {#if donationUrl}
-                <a
-                    class="btn-secondary inline-flex items-center gap-2"
-                    href={donationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <i class="fa fa-hand-holding-heart" aria-hidden="true"></i>
-                    {$_("plugin-donation-link")}
-                </a>
+        <div class="flex flex-wrap items-center justify-end gap-4">
+            {#if homepageUrl || donationUrl}
+                <div class="mr-auto flex flex-wrap items-center gap-3">
+                    {#if homepageUrl}
+                        <a
+                            class="btn-icon inline-flex items-center justify-center"
+                            href={homepageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={$_("plugin-homepage-link")}
+                            aria-label={$_("plugin-homepage-link")}
+                        >
+                            <i class="fa fa-globe" aria-hidden="true"></i>
+                        </a>
+                    {/if}
+                    {#if donationUrl}
+                        <a
+                            class="btn-secondary inline-flex items-center gap-2"
+                            href={donationUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <i class="fa fa-hand-holding-heart" aria-hidden="true"></i>
+                            {$_("plugin-donation-link")}
+                        </a>
+                    {/if}
+                </div>
             {/if}
             <button class="btn-primary" type="button" onclick={closeModal}>
                 {$_("close")}

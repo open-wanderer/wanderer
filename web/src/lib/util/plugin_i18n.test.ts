@@ -19,8 +19,11 @@ describe("pluginInformation", () => {
     it("selects the localized information text", () => {
         expect(
             pluginInformation(
-                plugin({ information: { de: "Langer Infotext", en: "Long information" } }),
-                "de-CH",
+                plugin({
+                    descriptions: { "de-CH": "Kurze regionale Beschreibung" },
+                    information: { de: "Langer Infotext", en: "Long information" },
+                }),
+                "de_CH",
             ),
         ).toBe("Langer Infotext");
     });
@@ -44,5 +47,42 @@ describe("pluginInformation", () => {
                 "ru",
             ),
         ).toBe("Long information");
+    });
+
+    it("prefers English information over an English description for an unsupported locale", () => {
+        expect(
+            pluginInformation(
+                plugin({
+                    descriptions: { en: "Short description" },
+                    information: { en: "Long information" },
+                }),
+                "fr",
+            ),
+        ).toBe("Long information");
+    });
+
+    it("uses the English and base descriptions as final fallbacks", () => {
+        expect(
+            pluginInformation(
+                plugin({ descriptions: { en: "English description" } }),
+                "fr",
+            ),
+        ).toBe("English description");
+        expect(
+            pluginInformation(plugin({ description: "  Short fallback  " }), "fr"),
+        ).toBe("Short fallback");
+        expect(pluginInformation(plugin({ description: "   " }), "fr")).toBe("");
+    });
+
+    it("skips empty localized values before applying fallbacks", () => {
+        expect(
+            pluginInformation(
+                plugin({
+                    descriptions: { "de-CH": "   ", de: "Kurze Beschreibung" },
+                    information: { "DE_ch": "   ", en: "Long information" },
+                }),
+                "de_CH",
+            ),
+        ).toBe("Kurze Beschreibung");
     });
 });

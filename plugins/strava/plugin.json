@@ -4,7 +4,7 @@
   "type": "trails",
   "name": "Strava",
   "description": "Imports Strava routes, activities and photos into wanderer.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "runtime": {
     "type": "wasm",
     "entrypoint": "plugin.wasm"
@@ -218,6 +218,7 @@
       "de": "Dieses Plugin verbindet wanderer über die offizielle API mit deinem Strava-Konto. Es importiert gespeicherte Routen, Aktivitäten und zugehörige Fotos. Für die Verbindung hinterlegst du die Zugangsdaten einer Strava-API-Anwendung und autorisierst den Zugriff. Ein Startdatum hilft dabei, große bestehende Aktivitätssammlungen schrittweise zu synchronisieren und API-Limits einzuhalten.",
       "en": "This plugin connects wanderer to your Strava account through the official API. It imports saved routes, activities and their photos. To connect, provide credentials for a Strava API application and authorize access. A start date helps synchronize large existing activity collections gradually and stay within API limits."
     },
+    "homepageUrl": "https://www.strava.com/",
     "icons": {
       "light": "icon.svg"
     },
