@@ -72,6 +72,7 @@
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
     import type { PluginProvider } from "$lib/models/plugin_provider";
+    import { withShareToken } from "$lib/util/url_util";
 
     interface Props {
         initTrail: Trail;
@@ -181,7 +182,12 @@
     }
 
     async function toggleMapFullScreen() {
-        goto(`/map/trail/${handle}/${trail.id!}`);
+        goto(
+            withShareToken(
+                `/map/trail/${handle}/${trail.id!}`,
+                page.url.searchParams,
+            ),
+        );
     }
 
     async function fetchComments() {
