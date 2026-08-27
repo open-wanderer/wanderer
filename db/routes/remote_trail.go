@@ -36,6 +36,20 @@ var remoteSyncThreshold = func() time.Duration {
 var trailSyncing sync.Map
 var listSyncing sync.Map
 
+var remoteTrailSyncCoreExpandPaths = []string{
+	"category",
+	"subcategory",
+	"waypoints_via_trail",
+	"summit_logs_via_trail",
+	"summit_logs_via_trail.author",
+}
+
+var remoteTrailSyncAssetExpandPaths = []string{
+	"trail_assets_via_trail.asset",
+	"waypoints_via_trail.waypoint_assets_via_waypoint.asset",
+	"summit_logs_via_trail.summit_log_assets_via_summit_log.asset",
+}
+
 // --- Main Handler ---
 
 func RemoteTrailGet(e *core.RequestEvent) error {
@@ -173,23 +187,23 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 
 	client := util.SafeHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	query := reqURL.Query()
-	query.Del("handle")
-	remoteUrl.RawQuery = query.Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
-	req, _ := http.NewRequestWithContext(ctx, "GET", remoteUrl.String(), nil)
-	res, err := client.Do(req)
+	assetExpandsRequested := true
+	remoteUrl.RawQuery = remoteTrailSyncQuery(reqURL, true).Encode()
+	remoteMap, err := fetchRemoteJSONMap(ctx, client, remoteUrl, "trail")
+	if shouldRetryRemoteFetchWithoutAssetExpands(err) {
+		legacyURL := *remoteUrl
+		legacyURL.RawQuery = remoteTrailSyncQuery(reqURL, false).Encode()
+		if legacyURL.RawQuery != remoteUrl.RawQuery {
+			if fallbackMap, fallbackErr := fetchRemoteJSONMap(ctx, client, &legacyURL, "trail"); fallbackErr == nil {
+				remoteMap = fallbackMap
+				assetExpandsRequested = false
+				err = nil
+			}
+		}
+	}
 	if err != nil {
-		return localTrail, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return localTrail, fmt.Errorf("remote trail fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
-	}
-
-	var remoteMap map[string]any
-	if err := json.NewDecoder(res.Body).Decode(&remoteMap); err != nil {
 		return localTrail, err
 	}
 
@@ -208,10 +222,16 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 			return err
 		}
 
+		// Materialize federated photos into the asset model. Done after the save
+		// so the trail has an ID to link the asset against.
+		if err := syncRecordPhotos(txApp, ctx, "trail", localTrail.Id, remoteID, localTrail.GetString("author"), origin, remoteMap, assetExpandsRequested); err != nil {
+			return err
+		}
+
 		// 3. Sync Waypoints
 		if expand, ok := remoteMap["expand"].(map[string]any); ok {
 			if wps, ok := expand["waypoints_via_trail"].([]any); ok {
-				err = syncWaypoints(txApp, ctx, localTrail, origin, wps)
+				err = syncWaypoints(txApp, ctx, localTrail, origin, wps, assetExpandsRequested)
 				if err != nil {
 					return err
 				}
@@ -221,7 +241,7 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 		// 3. Sync SummitLogs
 		if expand, ok := remoteMap["expand"].(map[string]any); ok {
 			if sls, ok := expand["summit_logs_via_trail"].([]any); ok {
-				err = syncSummitLogs(txApp, ctx, localTrail, origin, sls)
+				err = syncSummitLogs(txApp, ctx, localTrail, origin, sls, assetExpandsRequested)
 				if err != nil {
 					return err
 				}
@@ -232,6 +252,135 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 	})
 
 	return localTrail, err
+}
+
+func fetchRemoteJSONMap(ctx context.Context, client *http.Client, remoteURL *url.URL, kind string) (map[string]any, error) {
+	req, _ := http.NewRequestWithContext(ctx, "GET", remoteURL.String(), nil)
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, &remoteFetchStatusError{
+			Kind:       kind,
+			URL:        remoteURL.String(),
+			StatusCode: res.StatusCode,
+		}
+	}
+
+	var data map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+type remoteFetchStatusError struct {
+	Kind       string
+	URL        string
+	StatusCode int
+}
+
+func (err *remoteFetchStatusError) Error() string {
+	return fmt.Sprintf("remote %s fetch %s returned: %d", err.Kind, err.URL, err.StatusCode)
+}
+
+func shouldRetryRemoteFetchWithoutAssetExpands(err error) bool {
+	var statusErr *remoteFetchStatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+
+	switch statusErr.StatusCode {
+	case http.StatusBadRequest,
+		http.StatusRequestURITooLong,
+		http.StatusRequestHeaderFieldsTooLarge,
+		http.StatusUnprocessableEntity:
+		return true
+	default:
+		return false
+	}
+}
+
+func remoteTrailSyncQuery(reqURL *url.URL, includeAssetExpands bool) url.Values {
+	query := url.Values{}
+	if reqURL != nil {
+		for key, values := range reqURL.Query() {
+			if key == "handle" {
+				continue
+			}
+			for _, value := range values {
+				query.Add(key, value)
+			}
+		}
+	}
+
+	required := append([]string{}, remoteTrailSyncCoreExpandPaths...)
+	if includeAssetExpands {
+		required = append(required, remoteTrailSyncAssetExpandPaths...)
+	} else {
+		removeExpandQueryPaths(query, remoteTrailSyncAssetExpandPaths)
+	}
+	setMergedExpandQuery(query, required)
+	return query
+}
+
+func removeExpandQueryPaths(query url.Values, blocked []string) {
+	blockedSet := map[string]struct{}{}
+	for _, path := range blocked {
+		blockedSet[path] = struct{}{}
+	}
+
+	kept := []string{}
+	for _, value := range query["expand"] {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			if _, blocked := blockedSet[part]; blocked {
+				continue
+			}
+			kept = append(kept, part)
+		}
+	}
+	if len(kept) == 0 {
+		query.Del("expand")
+		return
+	}
+	query.Set("expand", strings.Join(kept, ","))
+}
+
+func setMergedExpandQuery(query url.Values, required []string) {
+	seen := map[string]struct{}{}
+	expands := make([]string, 0, len(required))
+	add := func(value string) {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			if _, ok := seen[part]; ok {
+				continue
+			}
+			seen[part] = struct{}{}
+			expands = append(expands, part)
+		}
+	}
+
+	for _, value := range query["expand"] {
+		add(value)
+	}
+	for _, value := range required {
+		add(value)
+	}
+
+	if len(expands) == 0 {
+		query.Del("expand")
+		return
+	}
+	query.Set("expand", strings.Join(expands, ","))
 }
 
 // --- Sub-Sync Helpers ---
@@ -280,7 +429,6 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 
 	// Clean protected/complex fields before bulk load
 	delete(data, "id")
-	delete(data, "photos")
 	delete(data, "gpx")
 	delete(data, "author")
 	delete(data, "category")
@@ -336,7 +484,7 @@ func resolveAndSyncTags(app core.App, data map[string]any) []string {
 	return localTagIds
 }
 
-func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, origin string, waypoints []any) error {
+func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, origin string, waypoints []any, assetExpandsRequested bool) error {
 	col, _ := txApp.FindCollectionByNameOrId("waypoints")
 
 	for _, wData := range waypoints {
@@ -355,7 +503,6 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 		syncRecordFiles(ctx, wp, "waypoints", wpID, origin, raw)
 
 		delete(raw, "id")
-		delete(raw, "photos")
 		wp.Load(raw)
 		wp.Set("author", trail.GetString("author"))
 		wp.Set("trail", trail.Id)
@@ -364,11 +511,15 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 		if err := txApp.Save(wp); err != nil {
 			return err
 		}
+
+		if err := syncRecordPhotos(txApp, ctx, "waypoint", wp.Id, wpID, wp.GetString("author"), origin, raw, assetExpandsRequested); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, origin string, summitLogs []any) error {
+func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, origin string, summitLogs []any, assetExpandsRequested bool) error {
 	col, _ := txApp.FindCollectionByNameOrId("summit_logs")
 
 	for _, slData := range summitLogs {
@@ -398,7 +549,6 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 		syncRecordFiles(ctx, sl, "summit_logs", slID, origin, raw)
 
 		delete(raw, "id")
-		delete(raw, "photos")
 		delete(raw, "gpx")
 
 		sl.Load(raw)
@@ -409,30 +559,223 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 		if err := txApp.Save(sl); err != nil {
 			return err
 		}
+
+		if err := syncRecordPhotos(txApp, ctx, "summit_log", sl.Id, slID, sl.GetString("author"), origin, raw, assetExpandsRequested); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func syncRecordFiles(ctx context.Context, record *core.Record, collection, remoteID, origin string, data map[string]any) {
 	// Handle GPX
-	if gpx, ok := data["gpx"].(string); ok && record.GetString("gpx") == "" {
+	if gpx, ok := data["gpx"].(string); ok && gpx != "" && record.GetString("gpx") == "" {
 		if f, err := downloadFile(ctx, origin, collection, remoteID, gpx); err == nil {
 			record.Set("gpx", f)
 		}
 	}
+}
 
-	// Handle Photos
-	if photos, ok := data["photos"].([]any); ok && len(record.GetStringSlice("photos")) == 0 {
-		var files []*filesystem.File
-		for _, p := range photos {
-			if f, err := downloadFile(ctx, origin, collection, remoteID, p.(string)); err == nil {
-				files = append(files, f)
-			}
+// syncRecordPhotos materializes federated photos for a synced target
+// (trail/waypoint/summit_log) into the local asset model. Photos travel in the
+// remote record's expand (e.g. trail_assets_via_trail[].expand.asset) and are
+// reconciled against the target by their canonical origin identity: new photos
+// are downloaded size-bounded via util.FetchPublicFile, known ones are kept,
+// and photos the origin no longer lists are unlinked again.
+func syncRecordPhotos(app core.App, ctx context.Context, targetField, targetID, remoteID, author, origin string, data map[string]any, assetExpandsRequested bool) error {
+	if targetID == "" || author == "" {
+		return nil
+	}
+
+	photos, authoritative := syncRecordPhotoList(targetField, remoteID, origin, data, assetExpandsRequested)
+	if !authoritative {
+		return nil
+	}
+	return util.ReconcileFederatedPhotoAssets(app, ctx, targetField, targetID, author, photos)
+}
+
+func syncRecordPhotoList(targetField, remoteID, origin string, data map[string]any, assetExpandsRequested bool) ([]util.FederatedPhoto, bool) {
+	photos := []util.FederatedPhoto{}
+	for _, link := range remotePhotoAssetLinks(data, targetField) {
+		asset := link.Asset
+		fileURL := remoteAssetFileURL(origin, asset)
+		canonicalID := remoteAssetCanonicalID(origin, asset)
+		if fileURL == "" || canonicalID == "" {
+			continue
 		}
-		if len(files) > 0 {
-			record.Set("photos", files)
+		photo := util.FederatedPhoto{
+			CanonicalID: canonicalID,
+			FileURL:     fileURL,
+			IsThumbnail: link.IsThumbnail,
+		}
+		if lat, ok := asset["lat"].(float64); ok && lat != 0 {
+			photo.Lat, photo.HasLat = lat, true
+		}
+		if lon, ok := asset["lon"].(float64); ok && lon != 0 {
+			photo.Lon, photo.HasLon = lon, true
+		}
+		photos = append(photos, photo)
+	}
+	if len(photos) > 0 {
+		return photos, true
+	}
+	if !assetExpandsRequested && !hasLegacyPhotosField(data) {
+		return nil, false
+	}
+	return legacyRecordPhotos(origin, targetField, remoteID, data), true
+}
+
+func hasLegacyPhotosField(data map[string]any) bool {
+	_, ok := data["photos"]
+	return ok
+}
+
+type remotePhotoAssetLink struct {
+	Asset       map[string]any
+	IsThumbnail bool
+}
+
+// remotePhotoAssetLinks extracts expanded photo asset records that travel with a
+// synced target through its asset-link expand (…_assets_via_…[].expand.asset).
+func remotePhotoAssetLinks(data map[string]any, targetField string) []remotePhotoAssetLink {
+	var linkKey string
+	switch targetField {
+	case "trail":
+		linkKey = "trail_assets_via_trail"
+	case "waypoint":
+		linkKey = "waypoint_assets_via_waypoint"
+	case "summit_log":
+		linkKey = "summit_log_assets_via_summit_log"
+	default:
+		return nil
+	}
+
+	expand, ok := data["expand"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	links, ok := expand[linkKey].([]any)
+	if !ok {
+		return nil
+	}
+
+	assetLinks := make([]remotePhotoAssetLink, 0, len(links))
+	for _, l := range links {
+		linkMap, ok := l.(map[string]any)
+		if !ok {
+			continue
+		}
+		linkExpand, ok := linkMap["expand"].(map[string]any)
+		if !ok {
+			continue
+		}
+		asset, ok := linkExpand["asset"].(map[string]any)
+		if !ok {
+			continue
+		}
+		if t, _ := asset["type"].(string); t != "photo" {
+			continue
+		}
+		assetLinks = append(assetLinks, remotePhotoAssetLink{
+			Asset:       asset,
+			IsThumbnail: boolValue(linkMap["is_thumbnail"]),
+		})
+	}
+	return assetLinks
+}
+
+func legacyRecordPhotos(origin string, targetField string, remoteID string, data map[string]any) []util.FederatedPhoto {
+	collection := legacyPhotoCollection(targetField)
+	if collection == "" || remoteID == "" {
+		return nil
+	}
+	rawPhotos, ok := data["photos"].([]any)
+	if !ok {
+		return nil
+	}
+
+	thumbnailIndex := -1
+	if targetField == "trail" {
+		if rawIndex, ok := data["thumbnail"].(float64); ok {
+			thumbnailIndex = int(rawIndex)
 		}
 	}
+
+	photos := make([]util.FederatedPhoto, 0, len(rawPhotos))
+	for i, rawPhoto := range rawPhotos {
+		photo, ok := rawPhoto.(string)
+		if !ok || photo == "" {
+			continue
+		}
+		fileURL := legacyPhotoURL(origin, collection, remoteID, photo)
+		photos = append(photos, util.FederatedPhoto{
+			CanonicalID: fileURL,
+			FileURL:     fileURL,
+			IsThumbnail: i == thumbnailIndex,
+		})
+	}
+	return photos
+}
+
+func legacyPhotoCollection(targetField string) string {
+	switch targetField {
+	case "trail":
+		return "trails"
+	case "waypoint":
+		return "waypoints"
+	case "summit_log":
+		return "summit_logs"
+	default:
+		return ""
+	}
+}
+
+func legacyPhotoURL(origin string, collection string, remoteID string, photo string) string {
+	if strings.HasPrefix(photo, "http://") || strings.HasPrefix(photo, "https://") {
+		return photo
+	}
+	if strings.HasPrefix(photo, "/") {
+		return strings.TrimRight(origin, "/") + photo
+	}
+	return fmt.Sprintf("%s/api/v1/files/%s/%s/%s", strings.TrimRight(origin, "/"), collection, remoteID, url.PathEscape(photo))
+}
+
+func boolValue(value any) bool {
+	v, _ := value.(bool)
+	return v
+}
+
+// remoteAssetCanonicalID mirrors util.CanonicalFederatedAssetID for a remote
+// asset map: an asset the origin itself materialized from federation keeps its
+// original identity (stable across hops), otherwise the origin's asset IRI
+// identifies it.
+func remoteAssetCanonicalID(origin string, asset map[string]any) string {
+	provider, _ := asset["external_provider"].(string)
+	externalID, _ := asset["external_id"].(string)
+	if provider == util.FederationAssetProvider && externalID != "" {
+		return externalID
+	}
+	id, _ := asset["id"].(string)
+	if id == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/api/v1/assets/%s", origin, id)
+}
+
+// remoteAssetFileURL builds the public media URL for a remote asset map,
+// mirroring util.AssetPublicMediaURL: a direct file URL when the asset stores a
+// copied file, otherwise the asset file endpoint for remotely-stored assets.
+func remoteAssetFileURL(origin string, asset map[string]any) string {
+	id, _ := asset["id"].(string)
+	if id == "" {
+		return ""
+	}
+	file, _ := asset["file"].(string)
+	collectionID, _ := asset["collectionId"].(string)
+	if file != "" && collectionID != "" {
+		return fmt.Sprintf("%s/api/v1/files/%s/%s/%s", origin, collectionID, id, file)
+	}
+	return fmt.Sprintf("%s/api/v1/assets/%s/file", origin, id)
 }
 
 func downloadFile(ctx context.Context, origin, col, id, name string) (*filesystem.File, error) {

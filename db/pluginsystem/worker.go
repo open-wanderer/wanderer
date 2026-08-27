@@ -57,7 +57,7 @@ func NewWorkerRuntime() WorkerRuntime {
 	return WorkerRuntime{}
 }
 
-func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error) {
+func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext, options RuntimeCallOptions) ([]byte, error) {
 	session, err := r.OpenSession(ctx, plugin, policy)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export stri
 	defer func() {
 		_ = session.Close(context.Background())
 	}()
-	return session.Call(ctx, export, input)
+	return session.Call(ctx, export, input, options)
 }
 
 func (r WorkerRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error) {
@@ -156,7 +156,7 @@ type workerRuntimeSession struct {
 	fatalMsg string
 }
 
-func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte) ([]byte, error) {
+func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) ([]byte, error) {
 	s.callMu.Lock()
 	defer s.callMu.Unlock()
 
@@ -177,7 +177,7 @@ func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []
 
 	result := make(chan workerCallOutcome, 1)
 	go func() {
-		result <- s.call(callCtx, export, input)
+		result <- s.call(callCtx, export, input, options)
 	}()
 
 	select {
@@ -202,7 +202,10 @@ type workerCallOutcome struct {
 	err    error
 }
 
-func (s *workerRuntimeSession) call(ctx context.Context, export string, input []byte) workerCallOutcome {
+func (s *workerRuntimeSession) call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) workerCallOutcome {
+	hostRequestLimit := EffectiveMaxHostRequests(options)
+	hostRequestCount := 0
+	var budgetErr error
 	msg, err := workerMessageWithData(workerMessageCallExport, workerCallExport{
 		WASMPath:    s.plugin.WASMPath,
 		Export:      export,
@@ -227,6 +230,20 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 		}
 		switch msg.Type {
 		case workerMessageHostHTTPRequest:
+			hostRequestCount++
+			if hostRequestCount > hostRequestLimit {
+				if budgetErr == nil {
+					budgetErr = HostRequestBudgetError{Limit: hostRequestLimit}
+				}
+				if err := s.writeHostHTTPResponse(hostHTTPResponse{
+					Error: &PluginError{Code: "request_budget_exceeded", Message: budgetErr.Error()},
+				}); err != nil {
+					s.markFatal("host http budget response failed")
+					s.kill()
+					return workerCallOutcome{err: RuntimeSessionFatalError{Err: s.withStderr(err)}}
+				}
+				continue
+			}
 			if err := s.handleHostHTTPRequest(ctx, msg); err != nil {
 				s.markFatal("host http rpc failed")
 				s.kill()
@@ -240,6 +257,9 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 				s.markFatal("invalid call_result payload")
 				s.kill()
 				return workerCallOutcome{err: RuntimeSessionFatalError{Err: err}}
+			}
+			if budgetErr != nil {
+				return workerCallOutcome{err: budgetErr}
 			}
 			if result.PluginError != nil {
 				return workerCallOutcome{err: PluginCallError{
@@ -303,6 +323,10 @@ func (s *workerRuntimeSession) handleHostHTTPRequest(ctx context.Context, msg wo
 		return err
 	}
 	response := executeHostHTTPRequest(ctx, s.plugin.Manifest, s.policy, requestBytes)
+	return s.writeHostHTTPResponse(response)
+}
+
+func (s *workerRuntimeSession) writeHostHTTPResponse(response hostHTTPResponse) error {
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		return err

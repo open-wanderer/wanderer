@@ -3,6 +3,7 @@ import { APIError } from "$lib/util/api_util";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
 import type { AuthRecord } from "pocketbase";
+import { assets_attach_to_target, assets_delete_removed } from "./asset_store";
 
 export const waypoint: Writable<Waypoint> = writable(new Waypoint(0, 0));
 
@@ -16,7 +17,7 @@ export async function waypoints_create(waypoint: Waypoint, f: (url: RequestInfo 
 
     let r = await f('/api/v1/waypoint', {
         method: 'PUT',
-        body: JSON.stringify(waypoint),
+        body: JSON.stringify({ ...waypoint, photos: [], _photos: undefined, _assetCandidates: undefined, _assetLinks: undefined, _assetPluginLinks: undefined }),
     })
 
     if (!r.ok) {
@@ -25,27 +26,20 @@ export async function waypoints_create(waypoint: Waypoint, f: (url: RequestInfo 
     }
 
 
-    if (waypoint._photos && waypoint._photos.length) {
-        let model: Waypoint = await r.json();
+    let model: Waypoint = await r.json();
+    model.photos = await assets_attach_to_target({
+        files: waypoint._photos,
+        assetIds: waypoint._assetLinks,
+        pluginLinks: waypoint._assetPluginLinks,
+        target: {
+            trail: model.trail ?? waypoint.trail,
+            waypoint: model.id,
+        },
+        existingPhotos: model.photos,
+        f,
+    });
 
-        const formData = new FormData()
-
-        for (const photo of waypoint._photos) {
-            formData.append("photos", photo)
-        }
-
-        r = await fetch(`/api/v1/waypoint/${model.id!}/file`, {
-            method: 'POST',
-            body: formData,
-        })
-
-        if (!r.ok) {
-            const response = await r.json();
-            throw new APIError(r.status, response.message, response.detail)
-        }
-    }
-
-    return await r.json();
+    return model;
 
 }
 
@@ -58,7 +52,7 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
 
     let r = await fetch('/api/v1/waypoint/' + newWaypoint.id, {
         method: 'POST',
-        body: JSON.stringify(newWaypoint),
+        body: JSON.stringify({ ...newWaypoint, photos: [], _photos: undefined, _assetCandidates: undefined, _assetLinks: undefined, _assetPluginLinks: undefined }),
     })
 
     if (!r.ok) {
@@ -66,28 +60,22 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    const formData = new FormData()
+    const model: Waypoint = await r.json();
+    await assets_delete_removed(oldWaypoint.photos, newWaypoint.photos, {
+        waypoint: model.id,
+    });
+    model.photos = await assets_attach_to_target({
+        files: newWaypoint._photos,
+        assetIds: newWaypoint._assetLinks,
+        pluginLinks: newWaypoint._assetPluginLinks,
+        target: {
+            trail: model.trail ?? newWaypoint.trail,
+            waypoint: model.id,
+        },
+        existingPhotos: model.photos ?? newWaypoint.photos,
+    });
 
-    for (const photo of newWaypoint._photos ?? []) {
-        formData.append("photos", photo)
-    }
-
-    const deletedPhotos = oldWaypoint.photos.filter(oldPhoto => !newWaypoint.photos.find(newPhoto => newPhoto === oldPhoto));
-
-    for (const deletedPhoto of deletedPhotos) {
-        formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));
-    }
-
-    r = await fetch(`/api/v1/waypoint/${newWaypoint.id!}/file`, {
-        method: 'POST',
-        body: formData,
-    })
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
-    }
-
-    return await r.json();
+    return model;
 
 }
 

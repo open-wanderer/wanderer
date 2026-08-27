@@ -8,20 +8,23 @@ export interface ConfigFieldOption {
 
 export interface ConfigField {
     key: string;
-    type: "boolean" | "date" | "select" | "text" | "url";
+    type: "boolean" | "date" | "number" | "select" | "text" | "url";
     label?: string;
     labels?: LocalizedTextMap;
     description?: string;
     descriptions?: LocalizedTextMap;
     options?: ConfigFieldOption[];
     default?: unknown;
+    min?: number;
+    max?: number;
+    step?: number;
     required?: boolean;
     hidden?: boolean;
 }
 
 export interface PluginProvider {
     id: string;
-    type: "trails";
+    type: "trails" | "assets";
     name: string;
     displayName?: string;
     displayNames?: LocalizedTextMap;

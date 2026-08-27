@@ -52,10 +52,12 @@
             goto(
                 `/trail/view/@${author?.preferred_username}@${author?.domain}/${f.item}`,
             );
-        } else {
+        } else if (f.type == "list") {
             goto(
                 `/lists/@${author?.preferred_username}@${author?.domain}/${f.item}`,
             );
+        } else {
+            goto(`/profile/${author?.preferred_username}@${author?.domain}/stats`);
         }
     }
 </script>

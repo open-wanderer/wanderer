@@ -372,20 +372,8 @@ func validateHostRequestUpload(manifest Manifest, spec HostRequestSpec, contentT
 func validateHostHTTPResponse(manifest Manifest, spec HostRequestSpec, resp *http.Response) error {
 	allowedContentTypes := effectiveResponseContentTypes(manifest, spec)
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 && len(allowedContentTypes) > 0 {
-		contentType := resp.Header.Get("Content-Type")
-		mediaType, _, err := mime.ParseMediaType(contentType)
-		if err != nil || mediaType == "" {
-			return fmt.Errorf("provider response has invalid content type")
-		}
-		allowed := false
-		for _, expected := range allowedContentTypes {
-			if strings.EqualFold(mediaType, expected) {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			return fmt.Errorf("provider response content type %q is not allowed", mediaType)
+		if err := ValidateResponseContentType(resp.Header.Get("Content-Type"), allowedContentTypes); err != nil {
+			return err
 		}
 	}
 	maxBytes := effectiveResponseMaxBytes(manifest, spec)

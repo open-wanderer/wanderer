@@ -13,7 +13,11 @@ export MEILI_URL=http://127.0.0.1:7700
 export MEILI_MASTER_KEY=p2gYZAWODOrwTPr4AYoahCZ9CI8y9bUd0yQLGk-E3m8
 export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
 export VALHALLA_URL=https://valhalla1.openstreetmap.de
+export OVERPASS_API_URL=https://overpass-api.de
+export NOMINATIM_URL=https://nominatim.openstreetmap.org
 export POCKETBASE_ENCRYPTION_KEY=9ada3c93163812101e50e2bf49e880bc
+# export SSL_CERT_FILE=/absolute/path/to/ca.pem
+# export NODE_EXTRA_CA_CERTS=/absolute/path/to/ca.pem
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
 cd db && ./pocketbase serve &
@@ -58,4 +62,3 @@ docker build db/ --no-cache -t flomp/wanderer-db:latest
 # web
 docker build web/ --no-cache  -t flomp/wanderer-web:latest 
 ```
-

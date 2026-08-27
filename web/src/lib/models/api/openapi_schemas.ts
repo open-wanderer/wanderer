@@ -529,12 +529,6 @@
  *           type: array
  *           items:
  *             type: string
- *         'photos-':
- *           type: string
- *           description: Remove photo by name
- *         'photos+':
- *           type: string
- *           description: Add photo by name
  *         thumbnail:
  *           type: integer
  *         like_count:
@@ -699,12 +693,6 @@
  *           type: array
  *           items:
  *             type: string
- *         'photos-':
- *           type: string
- *           description: Remove photo by name
- *         'photos+':
- *           type: string
- *           description: Add photo by name
  *
  *     Waypoint:
  *       type: object
@@ -812,12 +800,6 @@
  *           type: array
  *           items:
  *             type: string
- *         'photos-':
- *           type: string
- *           description: Remove photo by name
- *         'photos+':
- *           type: string
- *           description: Add photo by name
  *
  *     List:
  *       type: object
@@ -1444,6 +1426,95 @@
  *           type: array
  *           items:
  *             type: object
+ *
+ *     Asset:
+ *       type: object
+ *       required:
+ *         - id
+ *         - type
+ *         - storage_mode
+ *         - author
+ *       properties:
+ *         id:
+ *           type: string
+ *         collectionId:
+ *           type: string
+ *         collectionName:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum: [photo]
+ *         file:
+ *           type: string
+ *         storage_mode:
+ *           type: string
+ *           enum: [copy, link_private]
+ *         remote_status:
+ *           type: string
+ *           enum: [available, missing, inaccessible]
+ *         remote_checked_at:
+ *           type: string
+ *           format: date-time
+ *         remote_missing_since:
+ *           type: string
+ *           format: date-time
+ *         remote_error:
+ *           type: string
+ *         author:
+ *           type: string
+ *         trail:
+ *           type: string
+ *         waypoint:
+ *           type: string
+ *         summit_log:
+ *           type: string
+ *         external_provider:
+ *           type: string
+ *         external_id:
+ *           type: string
+ *         taken_at:
+ *           type: string
+ *           format: date-time
+ *         lat:
+ *           type: number
+ *         lon:
+ *           type: number
+ *         metadata:
+ *           type: object
+ *
+ *     AssetPluginCandidate:
+ *       type: object
+ *       required:
+ *         - assetId
+ *         - originalFileName
+ *         - takenAt
+ *         - lat
+ *         - lon
+ *         - distance
+ *       properties:
+ *         assetId:
+ *           type: string
+ *         originalFileName:
+ *           type: string
+ *         takenAt:
+ *           type: string
+ *           format: date-time
+ *         lat:
+ *           type: number
+ *         lon:
+ *           type: number
+ *         distance:
+ *           type: number
+ *         pointLat:
+ *           type: number
+ *         pointLon:
+ *           type: number
+ *         distanceFromStart:
+ *           type: number
+ *         city:
+ *           type: string
+ *         country:
+ *           type: string
  *
  *     Error:
  *       type: object

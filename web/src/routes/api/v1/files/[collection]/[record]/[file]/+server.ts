@@ -1,3 +1,4 @@
+import { resolveLegacyPhotoFile } from "$lib/server/legacy_photo_compat";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
 
@@ -57,11 +58,22 @@ export async function GET(event: RequestEvent) {
     }
 
     const safeSearchParams = z.object({
-        thumb: z.string().regex(/[0-9]*x[0-9]*[tbf]?/).optional()
+        thumb: z.string().regex(/^[0-9]+x[0-9]+[tbf]?$/).optional(),
+        share: z.string().regex(/^[a-z0-9]{32}$/).optional(),
     }).safeParse(Object.fromEntries(event.url.searchParams))
 
     if (!safeSearchParams.success) {
         throw json({ message: safeSearchParams.error }, { status: 400 })
+    }
+
+    const legacyResponse = await resolveLegacyPhotoFile(
+        event,
+        safeParams.data.collection,
+        safeParams.data.record,
+        safeParams.data.file,
+    );
+    if (legacyResponse) {
+        return legacyResponse;
     }
 
     const parts = [];

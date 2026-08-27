@@ -1,9 +1,11 @@
 import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import type { SummitLog } from '$lib/models/summit_log';
+import { enrichSummitLogAssetPhotos, withRequiredExpand } from '$lib/server/profile_asset_util';
 import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
+import { isURL } from '$lib/util/file_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
-import { ClientResponseError, type ListResult } from 'pocketbase';
+import { ClientResponseError } from 'pocketbase';
 
 /**
  * @swagger
@@ -59,8 +61,10 @@ export async function GET(event: RequestEvent) {
 
         let summitLogs: SummitLog[];
         if (actor.is_local) {
+            const listOptions = withRequiredExpand(safeSearchParams, ["summit_log_assets_via_summit_log.asset"]);
             summitLogs = await event.locals.pb.collection(Collection.summit_logs)
-                .getFullList<SummitLog>(safeSearchParams.page, { ...safeSearchParams })
+                .getFullList<SummitLog>(listOptions.page, { ...listOptions })
+            enrichSummitLogAssetPhotos(summitLogs);
         } else {
             const origin = new URL(actor.iri).origin
             const summitLogURL = `${origin}/api/v1/profile/${actor.preferred_username}/stats?` + event.url.searchParams
@@ -71,12 +75,10 @@ export async function GET(event: RequestEvent) {
             }
             summitLogs = await response.json()
 
+            enrichSummitLogAssetPhotos(summitLogs, origin);
             summitLogs.forEach(i => {
-                i.photos = i.photos.map(p =>
-                    `${origin}/api/v1/files/summit_logs/${i.id}/${p}`
-                )
                 if (i.gpx) {
-                    i.gpx =  `${origin}/api/v1/files/summit_logs/${i.id}/${i.gpx}`
+                    i.gpx = normalizeRemoteFileURL(i.gpx, origin, "summit_logs", i.id ?? "")
                 }
 
             })
@@ -87,4 +89,14 @@ export async function GET(event: RequestEvent) {
     } catch (e) {
         return handleError(e)
     }
+}
+
+function normalizeRemoteFileURL(file: string, origin: string, collection: string, recordId: string): string {
+    if (isURL(file)) {
+        return file;
+    }
+    if (file.startsWith("/")) {
+        return new URL(file, origin).toString();
+    }
+    return new URL(`/api/v1/files/${collection}/${recordId}/${file}`, origin).toString();
 }

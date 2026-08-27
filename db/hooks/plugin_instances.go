@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pocketbase/dbx"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 
 	"github.com/pocketbase/pocketbase/apis"
@@ -12,6 +13,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 )
 
 // ListPluginInstanceHandler censors auth values before plugin instances leave
@@ -70,6 +72,9 @@ func CreateUpdatePluginInstanceSuccessHandler() func(e *core.RecordEvent) error 
 // changed auth fields before the update is persisted.
 func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
+		if err := preventAssetPluginDisableWithRemoteLinks(e.App, e.Record); err != nil {
+			return err
+		}
 		ensurePluginInstanceStatus(e.Record)
 		mergePluginInstanceDefaultConfig(e.App, e.Record)
 		if err := encryptPluginInstanceAuth(e.App, e.Record); err != nil {
@@ -80,13 +85,48 @@ func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	}
 }
 
+func DeletePluginInstanceHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		if err := preventAssetPluginDeleteWithRemoteLinks(e.App, e.Record); err != nil {
+			return err
+		}
+		return e.Next()
+	}
+}
+
+func preventAssetPluginDisableWithRemoteLinks(app core.App, r *core.Record) error {
+	if !r.Original().GetBool("enabled") || r.GetBool("enabled") {
+		return nil
+	}
+	return preventAssetPluginRemovalWithRemoteLinks(app, r, "disabling")
+}
+
+func preventAssetPluginDeleteWithRemoteLinks(app core.App, r *core.Record) error {
+	return preventAssetPluginRemovalWithRemoteLinks(app, r, "deleting")
+}
+
+func preventAssetPluginRemovalWithRemoteLinks(app core.App, r *core.Record, action string) error {
+	pluginID := r.GetString("plugin_id")
+	plugin, err := pluginsystem.LoadInstalledPlugin(app, "", pluginID)
+	if err != nil || plugin.Manifest.Type != pluginsystem.PluginTypeAssets {
+		return nil
+	}
+	summary, err := assetservice.RemotePluginAssetsSummaryForUser(app, r.GetString("user"), pluginID)
+	if err != nil {
+		return err
+	}
+	if summary.Count == 0 {
+		return nil
+	}
+	return apis.NewBadRequestError("Plugin has linked remote photos. Download linked photos before "+action+" this plugin.", map[string]any{
+		"count":       summary.Count,
+		"publicCount": summary.PublicCount,
+	})
+}
+
 func mergePluginInstanceDefaultConfig(app core.App, r *core.Record) {
 	defaults := installedPluginDefaultConfig(app, r.GetString("plugin_id"))
-	if len(defaults) == 0 {
-		return
-	}
-	merged := pluginsystem.CloneJSONMap(defaults)
-	pluginsystem.MergePluginConfig(merged, pluginsystem.JSONMapFromRecord(r, "config"))
+	merged := pluginhost.MergeInstanceConfigDefaults(defaults, pluginsystem.JSONMapFromRecord(r, "config"))
 	r.Set("config", merged)
 }
 

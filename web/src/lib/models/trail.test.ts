@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { AssetLink } from "./asset";
 import { SummitLog } from "./summit_log";
 import {
     Trail,
     defaultTrailDuplicateOptions,
-    hasDuplicatePhotos,
     normalizeTrailDuplicateOptions,
 } from "./trail";
 import { Waypoint } from "./waypoint";
@@ -40,7 +40,7 @@ describe("Trail.from", () => {
         });
     });
 
-    it("honors optional waypoints and summit logs while leaving photos for the file clone step", () => {
+    it("honors optional waypoints and summit logs while copying requested asset links", () => {
         const duplicateActor = "targetactor1234";
         const original = originalTrail();
 
@@ -52,7 +52,10 @@ describe("Trail.from", () => {
             summitLogPhotos: true,
         });
 
-        expect(duplicate.photos).toEqual([]);
+        expect(duplicate.photos).toEqual([
+            "/api/v1/files/assetcollect001/trailasset00001/trail-photo.jpg",
+        ]);
+        expect(duplicate._assetLinks).toEqual(["trailasset00001"]);
         expect(duplicate.expand?.waypoints_via_trail).toEqual([]);
         expect(duplicate.expand?.summit_logs_via_trail).toHaveLength(1);
 
@@ -66,8 +69,14 @@ describe("Trail.from", () => {
             elevation_loss: summitLog.elevation_loss,
             duration: summitLog.duration,
             author: duplicateActor,
-            photos: [],
+            photos: [
+                "/api/v1/files/assetcollect001/summitasset001/summit-log-photo.jpg",
+            ],
+            _assetLinks: ["summitasset001"],
         });
+        expect(duplicatedSummitLog.expand?.assets_via_summit_log).toEqual([
+            summitLog.expand?.summit_log_assets_via_summit_log?.[0].expand?.asset,
+        ]);
         expect(duplicatedSummitLog.expand?.gpx_data).toBe(summitLog.expand?.gpx_data);
     });
 
@@ -87,7 +96,6 @@ describe("Trail.from", () => {
             waypointPhotos: false,
             summitLogPhotos: false,
         });
-        expect(hasDuplicatePhotos(options)).toBe(true);
     });
 });
 
@@ -99,14 +107,15 @@ function originalTrail() {
         name: "Viewpoint",
         description: "Look left.",
         icon: "circle",
-        photos: ["waypoint-photo.jpg"],
     });
     waypoint.author = sourceActor;
     waypoint.distance_from_start = 1200;
-    Object.assign(waypoint, {
-        collectionId: "waypoints",
-        collectionName: "waypoints",
-    });
+    waypoint.expand = {
+        waypoint_assets_via_waypoint: [
+            assetLink("waypointasset01", "waypoint-photo.jpg"),
+        ],
+    };
+    waypoint.photos = ["/api/v1/files/assetcollect001/waypointasset01/waypoint-photo.jpg"];
 
     const summitLog = new SummitLog("2025-06-14", {
         id: "summitlog000001",
@@ -115,10 +124,15 @@ function originalTrail() {
         elevation_gain: 900,
         elevation_loss: 880,
         duration: 7200,
-        photos: ["summit-log-photo.jpg"],
     });
     summitLog.author = sourceActor;
-    summitLog.expand = { gpx_data: "<gpx>summit-log-route</gpx>" };
+    summitLog.expand = {
+        gpx_data: "<gpx>summit-log-route</gpx>",
+        summit_log_assets_via_summit_log: [
+            assetLink("summitasset001", "summit-log-photo.jpg"),
+        ],
+    };
+    summitLog.photos = ["/api/v1/files/assetcollect001/summitasset001/summit-log-photo.jpg"];
 
     const original = new Trail("Ridge walk", {
         date: "2025-06-14",
@@ -134,7 +148,6 @@ function originalTrail() {
         lon: 7.3,
         location: "Valais",
         public: true,
-        photos: ["trail-photo.jpg"],
         tags: [{ id: "tag000000000001", name: "alpine" } as any],
         category: { id: "category0000001", name: "Hiking" },
         subcategory: {
@@ -148,6 +161,27 @@ function originalTrail() {
         bounding_box_diagonal: 42,
     });
     original.author = sourceActor;
+    original.expand!.trail_assets_via_trail = [
+        assetLink("trailasset00001", "trail-photo.jpg"),
+    ];
+    original.photos = ["/api/v1/files/assetcollect001/trailasset00001/trail-photo.jpg"];
 
     return original;
+}
+
+function assetLink(assetId: string, file: string): AssetLink {
+    return {
+        asset: assetId,
+        expand: {
+            asset: {
+                id: assetId,
+                collectionId: "assetcollect001",
+                collectionName: "assets",
+                type: "photo",
+                file,
+                storage_mode: "copy",
+                author: "sourceactor1234",
+            },
+        },
+    };
 }

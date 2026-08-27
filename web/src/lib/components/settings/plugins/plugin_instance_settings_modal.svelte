@@ -1,11 +1,12 @@
 <script lang="ts">
-    import Datepicker from "$lib/components/base/datepicker.svelte";
     import Modal from "$lib/components/base/modal.svelte";
-    import Select, { type SelectItem } from "$lib/components/base/select.svelte";
+    import type { SelectItem } from "$lib/components/base/select.svelte";
     import SingleSelect from "$lib/components/base/single_select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
+    import PluginAssetSettings from "$lib/components/settings/plugins/plugin_asset_settings.svelte";
+    import PluginConfigFields from "$lib/components/settings/plugins/plugin_config_fields.svelte";
     import PluginMergeSettings from "$lib/components/settings/plugins/plugin_merge_settings.svelte";
+    import PluginTrailSettings from "$lib/components/settings/plugins/plugin_trail_settings.svelte";
     import CategoryPicker from "$lib/components/trail/category_picker.svelte";
     import type { Category } from "$lib/models/category";
     import type { PluginInstance } from "$lib/models/plugin_instance";
@@ -49,12 +50,17 @@
 
     let { plugin, categories = [], subcategories = [], instance, onbeforecategorymappingsave, onsave }: Props = $props();
 
-    let modal: Modal;
+    let modal: Modal | undefined;
     let auth: Record<string, string> = $state(initialAuth());
     let planned = $state(true);
     let completed = $state(true);
     let mergeEnabled = $state(false);
     let privacy = $state("original");
+    let photoMode = $state("copy");
+    let maxPhotosPerTrail: string | number = $state("20");
+    let maxPhotosPerWaypoint: string | number = $state("5");
+    let autoAttachTrailPlugins = $state(true);
+    let autoAttachUpload = $state(true);
     let categoryMappingRows: CategoryMappingRow[] = $state(initialCategoryMappingRows());
     let categoryMappingList: HTMLDivElement | undefined = $state();
     let authFields = $derived(plugin.auth.fields ?? []);
@@ -66,7 +72,9 @@
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
     let configSchema = $derived(plugin.configSchema ?? []);
-    let visibleConfigSchema = $derived(configSchema.filter((field) => !field.hidden));
+    let serverUrlField = $derived(
+        configSchema.find((field) => !field.hidden && field.key === "url"),
+    );
     let extraConfig: Record<string, any> = $state(initialExtraConfig());
     let configErrors: Record<string, string> = $state({});
     let supportsPlanned = $derived(
@@ -79,7 +87,31 @@
     let supportsSourcePrivacy = $derived(
         plugin.capabilities?.includes("source_privacy") ?? false,
     );
-    let mergeAvailable = $derived((hostConfig().merge as any)?.available !== false);
+    let supportsPhotoMode = $derived(plugin.type === "assets");
+    let supportsPhotoLimits = $derived(plugin.type === "assets");
+    let importSizeField = $derived(
+        supportsPhotoMode
+            ? configSchema.find((field) => !field.hidden && field.key === "importSize")
+            : undefined,
+    );
+    let supportsMaxPhotosPerTrail = $derived(
+        supportsPhotoLimits && hostConfigDeclares("maxPhotosPerTrail"),
+    );
+    let maxWaypointsField = $derived(
+        supportsPhotoLimits
+            ? configSchema.find((field) => !field.hidden && field.key === "maxWaypoints")
+            : undefined,
+    );
+    let promotedConfigFieldKeys = $derived(
+        new Set([serverUrlField?.key, importSizeField?.key, maxWaypointsField?.key]),
+    );
+    let visibleConfigSchema = $derived(
+        configSchema.filter((field) => !field.hidden && !promotedConfigFieldKeys.has(field.key)),
+    );
+    let supportsAutoMerge = $derived(plugin.type === "trails");
+    let mergeAvailable = $derived(
+        supportsAutoMerge && (hostConfig().merge as any)?.available !== false,
+    );
     let supportsCategoryMapping = $derived(supportsPlanned || supportsCompleted);
     let providerCategorySelectItems: SelectItem[] = $derived(providerCategoryItems());
     let canAddCategoryMappingRow = $derived(
@@ -99,6 +131,12 @@
         { text: $_("keep-original"), value: "original" },
         { text: $_("apply-user-settings"), value: "settings" },
     ];
+    const photoModeSelectItems: SelectItem[] = [
+        { text: $_("plugin-photo-mode-copy"), value: "copy" },
+        { text: $_("plugin-photo-mode-link-private"), value: "link_private" },
+    ];
+    const defaultMaxPhotosPerTrail = 20;
+    const defaultMaxPhotosPerWaypoint = 5;
     const authLabels: Record<string, string> = {
         email: $_("email"),
         password: $_("password"),
@@ -125,6 +163,9 @@
                     return [field.key, booleanDefault(field.default, false)];
                 }
                 if (field.default !== undefined && field.default !== null) {
+                    if (field.type === "number") {
+                        return [field.key, configNumberValue(field.default) ?? ""];
+                    }
                     return [field.key, String(field.default)];
                 }
                 if (field.type === "select" && field.options?.length) {
@@ -133,7 +174,7 @@
                 if (field.type === "select") {
                     return [field.key, ""];
                 }
-                if (field.type === "text" || field.type === "url") {
+                if (field.type === "number" || field.type === "text" || field.type === "url") {
                     return [field.key, ""];
                 }
                 return [field.key, undefined];
@@ -324,14 +365,30 @@
         const errors: Record<string, string> = {};
         const hiddenMissing: ConfigField[] = [];
         for (const field of configSchema) {
-            if (!field.required) continue;
             const value = extraConfig[field.key];
             if (value === undefined || value === null || value === "") {
-                if (field.hidden) {
+                if (field.required && field.hidden) {
                     hiddenMissing.push(field);
+                } else if (field.required) {
+                    errors[field.key] = $_("required");
+                }
+                continue;
+            }
+            if (field.type === "number") {
+                const parsed = configNumberValue(value);
+                if (parsed === undefined) {
+                    errors[field.key] = $_("plugin-number-invalid");
                     continue;
                 }
-                errors[field.key] = $_("required");
+                const min = configNumberValue(field.min);
+                if (min !== undefined && parsed < min) {
+                    errors[field.key] = $_("plugin-number-min", { values: { min } });
+                    continue;
+                }
+                const max = configNumberValue(field.max);
+                if (max !== undefined && parsed > max) {
+                    errors[field.key] = $_("plugin-number-max", { values: { max } });
+                }
             }
         }
         configErrors = errors;
@@ -343,6 +400,14 @@
             });
         }
         return Object.keys(errors).length === 0 && hiddenMissing.length === 0;
+    }
+
+    function configNumberValue(value: unknown): number | undefined {
+        if (value === undefined || value === null || value === "") {
+            return undefined;
+        }
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
     }
 
     function authLabel(field: string): string {
@@ -376,6 +441,14 @@
             instanceConfig.merge && typeof instanceConfig.merge === "object"
                 ? (instanceConfig.merge as Record<string, unknown>)
                 : {};
+        const manifestAutoAttach =
+            manifestConfig.autoAttach && typeof manifestConfig.autoAttach === "object"
+                ? (manifestConfig.autoAttach as Record<string, unknown>)
+                : {};
+        const instanceAutoAttach =
+            instanceConfig.autoAttach && typeof instanceConfig.autoAttach === "object"
+                ? (instanceConfig.autoAttach as Record<string, unknown>)
+                : {};
         return {
             ...manifestConfig,
             ...instanceConfig,
@@ -383,7 +456,53 @@
                 ...manifestMerge,
                 ...instanceMerge,
             },
+            autoAttach: {
+                ...manifestAutoAttach,
+                ...instanceAutoAttach,
+            },
         };
+    }
+
+    function instanceHostConfigOverrides(): Record<string, unknown> {
+        const source = hostConfig();
+        const projected: Record<string, unknown> = {};
+        for (const key of [
+            "planned",
+            "completed",
+            "privacy",
+            "createSummitLogForCompleted",
+            "categoryMapping",
+            "categoryMappingUpdatedAt",
+            "photoMode",
+            "maxPhotosPerTrail",
+            "maxPhotosPerWaypoint",
+            "maxPhotosPerSummitLog",
+        ]) {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+                projected[key] = source[key];
+            }
+        }
+        const merge = source.merge;
+        if (merge && typeof merge === "object" && Object.prototype.hasOwnProperty.call(merge, "enabled")) {
+            projected.merge = { enabled: (merge as Record<string, unknown>).enabled };
+        }
+        const autoAttach = source.autoAttach;
+        if (autoAttach && typeof autoAttach === "object") {
+            const projectedAutoAttach: Record<string, unknown> = {};
+            for (const key of ["trailPlugins", "upload"]) {
+                if (Object.prototype.hasOwnProperty.call(autoAttach, key)) {
+                    projectedAutoAttach[key] = (autoAttach as Record<string, unknown>)[key];
+                }
+            }
+            if (Object.keys(projectedAutoAttach).length > 0) {
+                projected.autoAttach = projectedAutoAttach;
+            }
+        }
+        return projected;
+    }
+
+    function hostConfigDeclares(key: string): boolean {
+        return Object.prototype.hasOwnProperty.call(plugin.hostConfig ?? {}, key);
     }
 
     function authChanged() {
@@ -410,10 +529,22 @@
             supportsCompleted && (!hasTourKindChoice || ((config.completed as boolean | undefined) ?? true));
         mergeEnabled = mergeAvailable && Boolean((config.merge as any)?.enabled);
         privacy = (config.privacy as string | undefined) ?? "original";
+        photoMode = normalizedPhotoMode(config.photoMode);
+        if (supportsMaxPhotosPerTrail) {
+            maxPhotosPerTrail = photoLimitInputValue(config.maxPhotosPerTrail, defaultMaxPhotosPerTrail);
+        }
+        maxPhotosPerWaypoint = photoLimitInputValue(config.maxPhotosPerWaypoint, defaultMaxPhotosPerWaypoint);
+        const autoAttach = normalizedAutoAttachConfig(config);
+        autoAttachTrailPlugins = autoAttach.trailPlugins;
+        autoAttachUpload = autoAttach.upload;
         extraConfig = initialExtraConfig();
         categoryMappingRows = initialCategoryMappingRows();
         configErrors = {};
-        modal.openModal();
+        modal?.openModal();
+    }
+
+    function closeSettingsModal() {
+        modal?.closeModal();
     }
 
     function pluginInstanceFromForm(): PluginInstanceForm {
@@ -423,7 +554,7 @@
         }
 
         const pluginRuntimeConfig: Record<string, unknown> = { ...pluginConfig() };
-        const pluginHostConfig: Record<string, unknown> = { ...hostConfig() };
+        const pluginHostConfig = instanceHostConfigOverrides();
         if (supportsPlanned) {
             pluginHostConfig.planned = hasTourKindChoice ? planned : true;
         } else {
@@ -437,14 +568,37 @@
         if (supportsSourcePrivacy) {
             pluginHostConfig.privacy = privacy;
         }
-        const currentMergeConfig =
-            pluginHostConfig.merge && typeof pluginHostConfig.merge === "object"
-                ? (pluginHostConfig.merge as Record<string, unknown>)
-                : {};
-        pluginHostConfig.merge = {
-            ...currentMergeConfig,
-            enabled: mergeAvailable && mergeEnabled,
-        };
+        if (supportsPhotoMode) {
+            pluginHostConfig.photoMode = photoMode;
+            pluginHostConfig.autoAttach = {
+                trailPlugins: autoAttachTrailPlugins,
+                upload: autoAttachUpload,
+            };
+            delete pluginHostConfig.providers;
+        }
+        if (supportsPhotoLimits) {
+            if (supportsMaxPhotosPerTrail) {
+                pluginHostConfig.maxPhotosPerTrail = normalizedPhotoLimit(maxPhotosPerTrail, defaultMaxPhotosPerTrail);
+            } else {
+                delete pluginHostConfig.maxPhotosPerTrail;
+            }
+            pluginHostConfig.maxPhotosPerWaypoint = normalizedPhotoLimit(maxPhotosPerWaypoint, defaultMaxPhotosPerWaypoint);
+        } else {
+            delete pluginHostConfig.maxPhotosPerTrail;
+            delete pluginHostConfig.maxPhotosPerWaypoint;
+        }
+        if (supportsAutoMerge) {
+            const currentMergeConfig =
+                pluginHostConfig.merge && typeof pluginHostConfig.merge === "object"
+                    ? (pluginHostConfig.merge as Record<string, unknown>)
+                    : {};
+            pluginHostConfig.merge = {
+                ...currentMergeConfig,
+                enabled: mergeAvailable && mergeEnabled,
+            };
+        } else {
+            delete pluginHostConfig.merge;
+        }
         const categoryMappingConfig: Record<string, CategoryMappingTarget> = {};
         const assignedProviderCategories = new Set<string>();
         for (const row of categoryMappingRows) {
@@ -471,7 +625,7 @@
         for (const field of configSchema) {
             const val = extraConfig[field.key];
             if (val !== undefined && val !== "") {
-                pluginRuntimeConfig[field.key] = val;
+                pluginRuntimeConfig[field.key] = field.type === "number" ? configNumberValue(val) : val;
             } else {
                 delete pluginRuntimeConfig[field.key];
             }
@@ -533,7 +687,10 @@
         }
 
         try {
-            const candidate = pluginInstanceFromForm();
+            let candidate = pluginInstanceFromForm();
+            if (supportsPhotoMode) {
+                candidate = await applyAssetPluginCheckResult(candidate);
+            }
             if (candidate.mappingChanged) {
                 const shouldSave = await onbeforecategorymappingsave?.(candidate);
                 if (shouldSave === false) {
@@ -542,10 +699,15 @@
                 delete candidate.mappingChanged;
             }
             await onsave?.(candidate as Partial<PluginInstance>);
-            modal.closeModal();
-        } catch {
-            // onsave owns persistence error reporting so the modal does not
-            // duplicate toasts.
+            closeSettingsModal();
+        } catch (e) {
+            if (supportsPhotoMode && e instanceof Error) {
+                show_toast({
+                    text: e.message,
+                    icon: "close",
+                    type: "error",
+                });
+            }
         } finally {
             isSaving = false;
         }
@@ -583,6 +745,70 @@
             });
         }
     }
+
+    function normalizedPhotoMode(value: unknown): string {
+        return value === "link_private" ? value : "copy";
+    }
+
+    function normalizedPhotoLimit(value: unknown, fallback: number): number {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            return fallback;
+        }
+        return Math.floor(parsed);
+    }
+
+    function photoLimitInputValue(value: unknown, fallback: number): string {
+        return String(normalizedPhotoLimit(value, fallback));
+    }
+
+    function normalizedAutoAttachConfig(config: Record<string, any>): {
+        trailPlugins: boolean;
+        upload: boolean;
+    } {
+        if (Array.isArray(config.providers)) {
+            const providers = config.providers.filter((value): value is string => typeof value === "string");
+            return {
+                trailPlugins: providers.some((provider) => provider !== "upload"),
+                upload: providers.includes("upload"),
+            };
+        }
+        const raw = config.autoAttach;
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+            return {
+                trailPlugins: (raw as Record<string, unknown>).trailPlugins !== false,
+                upload: (raw as Record<string, unknown>).upload !== false,
+            };
+        }
+        return { trailPlugins: true, upload: true };
+    }
+
+    async function applyAssetPluginCheckResult(instance: PluginInstanceForm): Promise<PluginInstanceForm> {
+        const response = await fetch(`/api/v1/plugins/assets/${encodeURIComponent(plugin.id)}/check`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                auth: instance.auth ?? {},
+                config: instance.config ?? {},
+            }),
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message ?? $_("error-setting-up-plugin", { values: { provider: pluginTitle() } }));
+        }
+        const result = (await response.json()) as { userId?: string };
+        if (!result.userId) {
+            return instance;
+        }
+        const config = {
+            ...instance.config,
+            plugin: {
+                ...((instance.config?.plugin as Record<string, unknown> | undefined) ?? {}),
+                userId: result.userId,
+            },
+        };
+        return { ...instance, config };
+    }
 </script>
 
 <Modal
@@ -600,6 +826,17 @@
                 submit();
             }}
         >
+            <PluginConfigFields
+                fields={serverUrlField ? [serverUrlField] : []}
+                bind:config={extraConfig}
+                {fieldLabel}
+                {fieldHint}
+                {fieldError}
+                {selectItems}
+                bordered={false}
+                columns={1}
+            />
+
             {#each authFields as field}
                 <TextField
                     label={authLabel(field)}
@@ -626,93 +863,49 @@
                 </p>
             {/if}
 
-            {#if hasTourKindChoice}
-                <div class="flex flex-wrap gap-x-4">
-                    <Toggle
-                        bind:value={planned}
-                        label={$_("planned-tours", { values: { n: 2 } })}
-                    ></Toggle>
-                    <Toggle
-                        bind:value={completed}
-                        label={$_("completed-tours", { values: { n: 2 } })}
-                    ></Toggle>
-                </div>
+            <PluginTrailSettings
+                {hasTourKindChoice}
+                {supportsSourcePrivacy}
+                bind:planned={planned}
+                bind:completed={completed}
+                bind:privacy={privacy}
+                {privacySelectItems}
+            />
+
+            {#if supportsPhotoMode}
+                <PluginAssetSettings
+                    bind:photoMode={photoMode}
+                    {photoModeSelectItems}
+                    {importSizeField}
+                    {maxWaypointsField}
+                    {supportsPhotoLimits}
+                    {supportsMaxPhotosPerTrail}
+                    bind:maxPhotosPerTrail={maxPhotosPerTrail}
+                    bind:maxPhotosPerWaypoint={maxPhotosPerWaypoint}
+                    bind:autoAttachTrailPlugins={autoAttachTrailPlugins}
+                    bind:autoAttachUpload={autoAttachUpload}
+                    bind:config={extraConfig}
+                    {fieldLabel}
+                    {fieldError}
+                    {selectItems}
+                />
             {/if}
 
-            {#if supportsSourcePrivacy}
-                <Select
-                    label={$_("privacy")}
-                    items={privacySelectItems}
-                    bind:value={privacy}
-                ></Select>
-                <p class="text-xs text-gray-500 max-w-lg">
-                    {#if privacy == "original"}
-                        {$_("plugin-privacy-hint-original")}
-                    {:else}
-                        {$_("plugin-privacy-hint-user")}
-                    {/if}
-                </p>
-            {/if}
-
-            {#each visibleConfigSchema as field}
-                {#if field.type === "select"}
-                    <Select
-                        label={fieldLabel(field)}
-                        items={selectItems(field)}
-                        bind:value={extraConfig[field.key] as string}
-                        error={fieldError(field)}
-                    ></Select>
-                {:else if field.type === "boolean"}
-                    <Toggle
-                        bind:value={extraConfig[field.key]}
-                        label={fieldLabel(field)}
-                        error={fieldError(field)}
-                    ></Toggle>
-                    {@const hint = fieldHint(field)}
-                    {#if hint}
-                        <p class="text-xs text-gray-500 max-w-lg">{hint}</p>
-                    {/if}
-                {:else if field.type === "date"}
-                    {@const hint = fieldHint(field)}
-                    {#if hint}
-                        <p
-                            class="text-xs text-gray-500 max-w-lg pt-4 pb-1 border-t border-input-border"
-                        >
-                            {hint}
-                        </p>
-                    {/if}
-                    <div class="flex items-end relative gap-x-2">
-                        <Datepicker
-                            label={fieldLabel(field)}
-                            bind:value={extraConfig[field.key]}
-                            error={fieldError(field)}
-                        ></Datepicker>
-                        <button
-                            class="btn-icon mb-[10px]"
-                            type="button"
-                            onclick={() => {
-                                extraConfig[field.key] = undefined;
-                            }}
-                            aria-label={$_("clear")}
-                        ><i class="fa fa-close"></i></button>
-                    </div>
-                {:else if field.type === "text" || field.type === "url"}
-                    <TextField
-                        label={fieldLabel(field)}
-                        bind:value={extraConfig[field.key]}
-                        name={field.key}
-                        type={field.type === "url" ? "url" : "text"}
-                        error={fieldError(field)}
-                    ></TextField>
-                {/if}
-            {/each}
+            <PluginConfigFields
+                fields={visibleConfigSchema}
+                bind:config={extraConfig}
+                {fieldLabel}
+                {fieldHint}
+                {fieldError}
+                {selectItems}
+            />
 
             {#if supportsCategoryMapping && categories.length > 0}
                 <div class="space-y-2 pt-4 border-t border-input-border">
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <h4 class="text-sm font-medium">{$_("category-mapping")}</h4>
-                            <p class="text-xs text-secondary mt-1">
+                            <p class="text-xs text-gray-500 mt-1">
                                 {$_("category-mapping-help")}
                             </p>
                         </div>
@@ -782,7 +975,7 @@
     {/snippet}
     {#snippet footer()}
         <div class="flex items-center gap-4">
-            <button class="btn-secondary" onclick={() => modal.closeModal()} disabled={isSaving}
+            <button class="btn-secondary" onclick={closeSettingsModal} disabled={isSaving}
                 >{$_("cancel")}</button
             >
             {#if isOAuthPlugin}

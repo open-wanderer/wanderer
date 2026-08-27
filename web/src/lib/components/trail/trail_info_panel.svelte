@@ -45,7 +45,7 @@
     import EmptyStateComment from "../empty_states/empty_state_comment.svelte";
     import EmptyStateDescription from "../empty_states/empty_state_description.svelte";
     import EmptyStatePhotos from "../empty_states/empty_state_photos.svelte";
-    import PhotoGallery from "../photo_gallery.svelte";
+    import PhotoGallery from "../photo/photo_gallery.svelte";
     import ShareInfo from "../share_info.svelte";
     import SummitLogTable from "../summit_log/summit_log_table.svelte";
     import MapWithElevationMaplibre from "./map_with_elevation_maplibre.svelte";
@@ -71,6 +71,7 @@
     } from "$lib/stores/trail_store";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
+    import type { PluginProvider } from "$lib/models/plugin_provider";
     import { withShareToken } from "$lib/util/url_util";
 
     interface Props {
@@ -79,6 +80,8 @@
         mode?: "overview" | "map" | "list";
         markers?: M.Marker[];
         activeTab?: number;
+        assetPluginIds?: string[];
+        assetPluginProviders?: PluginProvider[];
     }
 
     let {
@@ -87,6 +90,8 @@
         mode = "map",
         markers = [],
         activeTab = 0,
+        assetPluginIds = [],
+        assetPluginProviders = [],
     }: Props = $props();
 
     let summitLogModal: SummitLogModal;
@@ -94,6 +99,7 @@
     let markTrailAsCompletedModal: ConfirmModal;
 
     let trail = $state(untrack(() => initTrail));
+    let trailPhotos = $derived(trail.photos ?? []);
 
     function trailCategoryIcon() {
         if (trail.expand?.subcategory) {
@@ -238,8 +244,8 @@
     }
 
     function getHeaderPhotos() {
-        if (trail.photos.length) {
-            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p));
+        if (trailPhotos.length) {
+            return trailPhotos.slice(0, 3).map((p) => getFileURL(trail, p));
         } else {
             return $theme === "light"
                 ? [emptyStateTrailLight]
@@ -499,7 +505,7 @@
                     : 'grid-cols-1'} h-80 rounded-t-3xl overflow-hidden cursor-pointer"
             >
                 <PhotoGallery
-                    photos={trail.photos.map((p) => getFileURL(trail, p))}
+                    photos={trailPhotos.map((p) => getFileURL(trail, p))}
                     bind:this={gallery}
                 ></PhotoGallery>
                 {#each headerPhotos as photo, i}
@@ -507,7 +513,7 @@
                         <!-- svelte-ignore a11y_media_has_caption -->
                         <video
                             class="object-cover h-full w-full"
-                            onclick={trail.photos.length
+                            onclick={trailPhotos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
                             autoplay
@@ -519,7 +525,7 @@
                         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                         <img
                             class="object-cover h-full w-full"
-                            onclick={trail.photos.length
+                            onclick={trailPhotos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
                             class:row-span-2={i == 0 && headerPhotos.length > 2}
@@ -913,14 +919,14 @@
                     </div>
                 {/if}
                 {#if activeTab == 1}
-                    {#if trail.photos.length}
+                    {#if trailPhotos.length}
                         <div
                             id="photo-gallery"
                             class="grid grid-cols-1 {mode == 'overview'
                                 ? 'sm:grid-cols-2 md:grid-cols-3'
                                 : ''} gap-4"
                         >
-                            {#each trail.photos ?? [] as photo, i}
+                            {#each trailPhotos as photo, i}
                                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                                 {#if isVideoURL(photo)}
@@ -1034,7 +1040,14 @@
     </section>
 </div>
 
-<SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
+<SummitLogModal
+    bind:this={summitLogModal}
+    onsave={(log) => saveSummitLog(log)}
+    {assetPluginIds}
+    {assetPluginProviders}
+    trailId={trail.id ?? ""}
+    trailData={trail.expand?.gpx_data}
+    trailPolyline={trail.polyline}
 ></SummitLogModal>
 
 <ConfirmModal

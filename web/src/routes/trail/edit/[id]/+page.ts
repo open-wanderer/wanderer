@@ -1,13 +1,14 @@
 import {
     Trail,
     defaultTrailDuplicateOptions,
-    hasDuplicatePhotos,
     normalizeTrailDuplicateOptions,
     type TrailDuplicateOptions,
 } from "$lib/models/trail";
 import { categories_index } from "$lib/stores/category_store";
 import { category_preferences_index } from "$lib/stores/category_preference_store";
 import { lists_index } from "$lib/stores/list_store";
+import { plugin_instances_index } from "$lib/stores/plugin_instance_store";
+import { plugins_index } from "$lib/stores/plugin_store";
 import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
 import { subcategories_index } from "$lib/stores/subcategory_store";
 import { trails_show } from "$lib/stores/trail_store";
@@ -25,12 +26,11 @@ export const load: Load = async ({ params, fetch, url }) => {
     }
     const categories = await categories_index(fetch)
     const categoryPreferences = await category_preferences_index(fetch)
-    await subcategories_index(fetch)
-    await subcategory_preferences_index(fetch)
+    const subcategories = await subcategories_index(fetch)
+    const subcategoryPreferences = await subcategory_preferences_index(fetch)
     const lists = await lists_index({ q: "", author: user?.actor ?? "" }, 1, -1, fetch)
 
     let trail: Trail;
-    let duplicateSourceTrail: Trail | undefined;
     let duplicateOptions: TrailDuplicateOptions | undefined;
     if (params.id === "new") {
         // duplicate trail
@@ -44,9 +44,6 @@ export const load: Load = async ({ params, fetch, url }) => {
                 true,
                 fetch,
             );
-            if (hasDuplicatePhotos(duplicateOptions)) {
-                duplicateSourceTrail = originalTrail;
-            }
             trail = Trail.from(originalTrail, user?.actor, duplicateOptions)
         } else {
             const defaultCategory =
@@ -70,13 +67,36 @@ export const load: Load = async ({ params, fetch, url }) => {
         );
     }
 
+    const [pluginInstances, plugins] = user
+        ? await Promise.all([
+              plugin_instances_index(fetch).catch(() => []),
+              plugins_index(fetch).catch(() => []),
+          ])
+        : [[], []];
+    const assetProviderIds = new Set(
+        plugins
+            .filter(plugin => plugin.type === "assets")
+            .map(plugin => plugin.id),
+    );
+    const assetPluginIds = pluginInstances
+        .filter(instance => instance.enabled && assetProviderIds.has(instance.plugin_id))
+        .map(instance => instance.plugin_id);
+    const assetPluginProviders = assetPluginIds
+        .map(id => plugins.find(plugin => plugin.id === id))
+        .filter(plugin => plugin !== undefined);
+    const assetPluginActive = assetPluginIds.length > 0;
+
     return {
-        trail: trail,
-        duplicateSourceTrail,
+        trail,
         duplicateOptions,
-        lists: lists,
-        categories: categories,
-        categoryPreferences: categoryPreferences,
+        lists,
+        categories,
+        categoryPreferences,
+        subcategories,
+        subcategoryPreferences,
+        assetPluginIds,
+        assetPluginProviders,
+        assetPluginActive,
     }
 };
 

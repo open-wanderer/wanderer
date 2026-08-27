@@ -41,6 +41,52 @@ func TestReadBoundedForPlugin(t *testing.T) {
 	}
 }
 
+func TestSafeFetchedFileName(t *testing.T) {
+	tests := []struct {
+		name        string
+		fallback    string
+		finalURL    string
+		contentType string
+		want        string
+	}{
+		{
+			name:        "uses URL filename with extension",
+			fallback:    "activitypub-photo",
+			finalURL:    "https://example.com/photos/camera.jpg?token=ignored",
+			contentType: "image/png",
+			want:        "camera.jpg",
+		},
+		{
+			name:        "uses fallback extension when URL has none",
+			fallback:    "activitypub-trail.gpx",
+			finalURL:    "https://example.com/download",
+			contentType: "application/xml+gpx",
+			want:        "activitypub-trail.gpx",
+		},
+		{
+			name:        "adds content type extension",
+			fallback:    "activitypub-photo",
+			finalURL:    "https://example.com/download",
+			contentType: "image/png; charset=binary",
+			want:        "download.png",
+		},
+		{
+			name:        "sanitizes path fallback",
+			fallback:    "../../bad",
+			finalURL:    "https://example.com/",
+			contentType: "",
+			want:        "bad.bin",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := safeFetchedFileName(test.fallback, test.finalURL, test.contentType); got != test.want {
+				t.Fatalf("got %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestValidatePluginMediaStatus(t *testing.T) {
 	for _, statusCode := range []int{200, 204, 299} {
 		if err := ValidatePluginMediaStatus(statusCode); err != nil {

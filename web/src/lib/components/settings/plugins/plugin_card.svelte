@@ -6,26 +6,30 @@
         onclick: () => void;
         ontoggle: (value: boolean) => void;
         active: boolean;
-        toggleDisabled?: boolean;
-        settingsDisabled?: boolean;
+        disabled: boolean;
         img?: string;
         title: string;
         description?: string;
         lastSyncAt?: string;
         error?: string;
+        actionLabel?: string;
+        actionLoading?: boolean;
+        onaction?: () => void;
     }
 
     let {
         onclick,
         ontoggle,
         active = $bindable(),
-        toggleDisabled = false,
-        settingsDisabled = false,
+        disabled,
         img,
         title,
         description = "",
         lastSyncAt = "",
         error = "",
+        actionLabel = "",
+        actionLoading = false,
+        onaction,
     }: Props = $props();
 
     function formatLastSyncAt(value: string) {
@@ -64,15 +68,27 @@
     </div>
     <div class="flex shrink-0 flex-col gap-2 md:items-start">
         <div class="flex items-center justify-between gap-4 md:justify-end">
-            <button
-                class="btn-secondary"
-                class:btn-disabled={settingsDisabled}
-                {onclick}
-                disabled={settingsDisabled}
+            <button class="btn-secondary" {onclick}
                 ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
             >
+            {#if onaction && actionLabel}
+                <button
+                    class="btn-secondary"
+                    class:btn-disabled={actionLoading}
+                    disabled={actionLoading}
+                    type="button"
+                    onclick={onaction}
+                >
+                    {#if actionLoading}
+                        <span class="spinner mr-2 inline-block h-4 w-4"></span>
+                    {:else}
+                        <i class="fa fa-download mr-2"></i>
+                    {/if}
+                    {actionLabel}
+                </button>
+            {/if}
             <div class="plugin-card-toggle">
-                <Toggle bind:value={active} onchange={ontoggle} disabled={toggleDisabled}></Toggle>
+                <Toggle bind:value={active} onchange={ontoggle} {disabled}></Toggle>
             </div>
         </div>
         <div class="min-h-5 max-w-56 text-xs text-gray-500">
@@ -81,7 +97,7 @@
                     class:text-red-400={error}
                     class="inline-flex min-w-0 items-center gap-2"
                     title={error
-                        ? $_("plugin-setup-error")
+                        ? error
                         : `${$_("last-sync")}: ${formatLastSyncAt(lastSyncAt)}`}
                 >
                     {#if error}
@@ -98,14 +114,25 @@
                     <span class="truncate">{formatLastSyncAt(lastSyncAt)}</span>
                 </span>
             {:else if error}
-                <span class="inline-flex items-center gap-2 text-red-400" title={$_("plugin-setup-error")}>
+                <span class="inline-flex items-center gap-2 text-red-400" title={error}>
                     <i
                         class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
                         aria-hidden="true"
                     ></i>
-                    <span class="truncate">{$_("plugin-setup-error")}</span>
+                    <span>Sync</span>
                 </span>
             {/if}
         </div>
     </div>
 </div>
+
+<style>
+    .plugin-card-toggle :global(label) {
+        margin: -0.5rem;
+        padding: 0.5rem;
+    }
+
+    .plugin-card-toggle :global(label > div) {
+        position: relative;
+    }
+</style>

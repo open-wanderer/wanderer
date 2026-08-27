@@ -2,10 +2,8 @@ package routes
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"pocketbase/federation"
 	"pocketbase/util"
@@ -16,6 +14,20 @@ import (
 )
 
 // --- Main Handler ---
+
+var remoteListSyncCoreExpandPaths = []string{
+	"trails",
+	"trails.author",
+	"trails.category",
+	"trails.subcategory",
+	"trails.tags",
+}
+
+var remoteListSyncAssetExpandPaths = []string{
+	"trails.trail_assets_via_trail.asset",
+	"trails.waypoints_via_trail.waypoint_assets_via_waypoint.asset",
+	"trails.summit_logs_via_trail.summit_log_assets_via_summit_log.asset",
+}
 
 func RemoteListGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
@@ -143,27 +155,21 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 
 	client := util.SafeHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	query := reqURL.Query()
-	query.Del("handle")
-	remoteUrl.RawQuery = query.Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteUrl.String(), nil)
+	remoteUrl.RawQuery = remoteListSyncQuery(reqURL, true).Encode()
+	remoteMap, err := fetchRemoteJSONMap(ctx, client, remoteUrl, "list")
+	if shouldRetryRemoteFetchWithoutAssetExpands(err) {
+		legacyURL := *remoteUrl
+		legacyURL.RawQuery = remoteListSyncQuery(reqURL, false).Encode()
+		if legacyURL.RawQuery != remoteUrl.RawQuery {
+			if fallbackMap, fallbackErr := fetchRemoteJSONMap(ctx, client, &legacyURL, "list"); fallbackErr == nil {
+				remoteMap = fallbackMap
+				err = nil
+			}
+		}
+	}
 	if err != nil {
-		return nil, err
-	}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return localList, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return localList, fmt.Errorf("remote list fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
-	}
-
-	var remoteMap map[string]any
-	if err := json.NewDecoder(res.Body).Decode(&remoteMap); err != nil {
 		return localList, err
 	}
 
@@ -196,6 +202,25 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 	})
 
 	return localList, err
+}
+
+func remoteListSyncQuery(reqURL *url.URL, includeAssetExpands bool) url.Values {
+	query := url.Values{}
+	if reqURL != nil {
+		for key, values := range reqURL.Query() {
+			if key == "handle" {
+				continue
+			}
+			for _, value := range values {
+				query.Add(key, value)
+			}
+		}
+	}
+	if !includeAssetExpands {
+		removeExpandQueryPaths(query, remoteListSyncAssetExpandPaths)
+	}
+	setMergedExpandQuery(query, remoteListSyncCoreExpandPaths)
+	return query
 }
 
 func syncListMetadata(record *core.Record, data map[string]any) {

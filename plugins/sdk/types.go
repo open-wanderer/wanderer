@@ -102,7 +102,40 @@ type RefreshSessionOutput struct {
 }
 
 type SyncLimits struct {
-	MaxItems int `json:"maxItems,omitempty"`
+	MaxItems              int `json:"maxItems,omitempty"`
+	MaxPhotosPerTrail     int `json:"maxPhotosPerTrail,omitempty"`
+	MaxPhotosPerWaypoint  int `json:"maxPhotosPerWaypoint,omitempty"`
+	MaxPhotosPerSummitLog int `json:"maxPhotosPerSummitLog,omitempty"`
+}
+
+// PhotoImportLimits are host-enforced write limits advertised to an asset
+// capability. Candidate search budgets belong in AssetSearchLimits instead.
+type PhotoImportLimits struct {
+	MaxPhotosPerTrail     int `json:"maxPhotosPerTrail,omitempty"`
+	MaxPhotosPerWaypoint  int `json:"maxPhotosPerWaypoint,omitempty"`
+	MaxPhotosPerSummitLog int `json:"maxPhotosPerSummitLog,omitempty"`
+}
+
+// AssetSearchLimits bounds a single asset-candidate search call. MaxItems
+// limits returned candidates, MaxScannedItems limits inspected provider items,
+// and MaxProviderRequests is the plugin's cooperative outbound-request budget.
+type AssetSearchLimits struct {
+	MaxItems            int `json:"maxItems,omitempty"`
+	MaxScannedItems     int `json:"maxScannedItems,omitempty"`
+	MaxProviderRequests int `json:"maxProviderRequests,omitempty"`
+}
+
+// OmittedAsset describes an explicitly requested asset that a plugin could not
+// convert into an importable photo.
+type OmittedAsset struct {
+	AssetID string `json:"assetId"`
+	Reason  string `json:"reason"`
+}
+
+// AssetSearchStats contains plugin-reported observability data. Hosts must not
+// use it to enforce limits because it is not independently trustworthy.
+type AssetSearchStats struct {
+	ScannedItems int `json:"scannedItems,omitempty"`
 }
 
 type ListInput struct {
@@ -124,6 +157,7 @@ type DetailInput struct {
 	Instance InstanceRef    `json:"instance"`
 	Auth     map[string]any `json:"auth,omitempty"`
 	Options  map[string]any `json:"options,omitempty"`
+	Limits   SyncLimits     `json:"limits,omitempty"`
 	Summary  TrailSummary   `json:"summary"`
 }
 
@@ -177,6 +211,7 @@ type Photo struct {
 	ExternalID  string      `json:"externalId,omitempty"`
 	Filename    string      `json:"filename,omitempty"`
 	ContentType string      `json:"contentType,omitempty"`
+	TakenAt     string      `json:"takenAt,omitempty"`
 	Lat         *float64    `json:"lat,omitempty"`
 	Lon         *float64    `json:"lon,omitempty"`
 	Source      MediaSource `json:"source"`
