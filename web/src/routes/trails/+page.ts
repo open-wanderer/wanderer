@@ -36,8 +36,8 @@ export const load: Load = async ({ url, fetch }) => {
         sort: "created",
         sortOrder: "+",
     };
-    const categories = await categories_index(fetch)
-    const subcategories = await subcategories_index(fetch)
+    const categories = await categories_index(fetch);
+    const subcategories = await subcategories_index(fetch);
 
     const paramAuthor = url.searchParams.get("author");
     if (paramAuthor) {
@@ -71,11 +71,12 @@ export const load: Load = async ({ url, fetch }) => {
         }
     }
 
-    await category_preferences_index(fetch)
-    await subcategory_preferences_index(fetch)
+    await category_preferences_index(fetch);
+    await subcategory_preferences_index(fetch);
 
     return {
         categories,
-        filter: filter
+        subcategories,
+        filter: filter,
     };
 };

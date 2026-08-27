@@ -3,6 +3,7 @@
     import { beforeNavigate, goto } from "$app/navigation";
     import { page } from "$app/state";
     import TrailFilterPanel from "$lib/components/trail/trail_filter_panel.svelte";
+    import TrailFilterPreview from "$lib/components/trail/trail_filter_preview.svelte";
     import TrailList from "$lib/components/trail/trail_list.svelte";
     import type { Trail, TrailFilter } from "$lib/models/trail";
     import { trails_search_filter } from "$lib/stores/trail_store";
@@ -51,6 +52,8 @@
     }
 
     let filterExpanded: boolean = $state(true);
+    let showFilterConcept = $state(true);
+    let filterConceptExpanded = $state(true);
 
     let loading: boolean = $state(true);
 
@@ -80,6 +83,7 @@
     onMount(() => {
         if (window.innerWidth < 768) {
             filterExpanded = false;
+            filterConceptExpanded = false;
         }
         loadWidthPreferences();
     });
@@ -133,6 +137,13 @@
     function toggleTrailWidth() {
         trailsFullWidth = !trailsFullWidth;
         updateWidthPreference(currentDisplayMode, trailsFullWidth);
+    }
+
+    function showPreviewResults() {
+        document.getElementById("trails")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
     }
 
     beforeNavigate(({ to }) => {
@@ -223,39 +234,120 @@
 </svelte:head>
 
 <main
-    class={`grid grid-cols-1 md:grid-cols-[300px_1fr] items-start gap-8 mx-6 ${trailsFullWidth ? "md:mx-6 max-w-full" : "md:mx-auto max-w-7xl"}`}
+    class={`grid grid-cols-1 md:grid-cols-[360px_1fr] items-start gap-8 mx-6 ${trailsFullWidth ? "md:mx-6 max-w-full" : "md:mx-auto max-w-7xl"}`}
 >
-    <TrailFilterPanel
-        categories={page.data.categories}
-        bind:filter
-        {filterExpanded}
-        onupdate={() => handleFilterUpdate()}
-    ></TrailFilterPanel>
-    <TrailList
-        bind:filter
-        {loading}
-        bind:trails
-        {pagination}
-        onupdate={() => handleFilterUpdate(false)}
-        onpagination={paginate}
-        ondisplaychange={handleDisplayModeChange}
-    >
-        {#snippet trailWidthToggleSnippet()}
+    <div class="min-w-0 space-y-2">
+        <div
+            class="grid grid-cols-2 rounded-xl border border-input-border bg-input-background p-1"
+            role="group"
+            aria-label={$_("filter-preview-view")}
+        >
             <button
                 type="button"
-                class="btn-icon"
-                onclick={toggleTrailWidth}
-                aria-pressed={trailsFullWidth}
-                aria-label={trailsFullWidth
-                    ? $_("collapse-trail-list")
-                    : $_("expand-trail-list")}
-                title={trailsFullWidth
-                    ? $_("collapse-trail-list")
-                    : $_("expand-trail-list")}
+                class="rounded-lg px-3 py-2 text-sm transition-all"
+                class:bg-background={!showFilterConcept}
+                class:font-semibold={!showFilterConcept}
+                class:shadow-sm={!showFilterConcept}
+                aria-pressed={!showFilterConcept}
+                onclick={() => (showFilterConcept = false)}
             >
-                <i class="fa {trailsFullWidth ? 'fa-compress' : 'fa-expand'}"
+                {$_("filter-preview-current")}
+            </button>
+            <button
+                type="button"
+                class="rounded-lg px-3 py-2 text-sm transition-all"
+                class:bg-background={showFilterConcept}
+                class:font-semibold={showFilterConcept}
+                class:shadow-sm={showFilterConcept}
+                aria-pressed={showFilterConcept}
+                onclick={() => (showFilterConcept = true)}
+            >
+                <i class="fa fa-flask mr-1.5 text-gray-500"></i>
+                {$_("filter-preview-concept")}
+            </button>
+        </div>
+
+        {#if showFilterConcept}
+            <button
+                type="button"
+                class="flex w-full items-center justify-between rounded-xl border border-input-border bg-input-background px-4 py-3 text-sm font-semibold md:hidden"
+                aria-expanded={filterConceptExpanded}
+                onclick={() => (filterConceptExpanded = !filterConceptExpanded)}
+            >
+                <span>
+                    <i class="fa fa-sliders mr-2 text-gray-500"></i>
+                    {$_("filter-preview-title")}
+                </span>
+                <i
+                    class="fa fa-chevron-down text-xs transition-transform"
+                    class:rotate-180={filterConceptExpanded}
                 ></i>
             </button>
-        {/snippet}
-    </TrailList>
+        {/if}
+
+        <div
+            class:hidden={!showFilterConcept}
+            class:mobile-filter-collapsed={!filterConceptExpanded}
+        >
+            <TrailFilterPreview
+                categories={page.data.categories}
+                subcategories={page.data.subcategories}
+                onapply={showPreviewResults}
+            />
+        </div>
+        <div class:hidden={showFilterConcept}>
+            <TrailFilterPanel
+                categories={page.data.categories}
+                bind:filter
+                {filterExpanded}
+                onupdate={() => handleFilterUpdate()}
+            ></TrailFilterPanel>
+        </div>
+    </div>
+    <div class="min-w-0">
+        {#if showFilterConcept}
+            <p
+                class="mb-4 flex items-center gap-2 rounded-xl border border-dashed border-input-border bg-input-background px-4 py-3 text-sm text-gray-500"
+            >
+                <i class="fa fa-flask"></i>
+                {$_("filter-preview-results-unchanged")}
+            </p>
+        {/if}
+        <TrailList
+            bind:filter
+            {loading}
+            bind:trails
+            {pagination}
+            onupdate={() => handleFilterUpdate(false)}
+            onpagination={paginate}
+            ondisplaychange={handleDisplayModeChange}
+        >
+            {#snippet trailWidthToggleSnippet()}
+                <button
+                    type="button"
+                    class="btn-icon"
+                    onclick={toggleTrailWidth}
+                    aria-pressed={trailsFullWidth}
+                    aria-label={trailsFullWidth
+                        ? $_("collapse-trail-list")
+                        : $_("expand-trail-list")}
+                    title={trailsFullWidth
+                        ? $_("collapse-trail-list")
+                        : $_("expand-trail-list")}
+                >
+                    <i
+                        class="fa {trailsFullWidth ? 'fa-compress' : 'fa-expand'}"
+                    ></i>
+                </button>
+            {/snippet}
+        </TrailList>
+    </div>
 </main>
+
+<style>
+    @media (max-width: 767px) {
+        .mobile-filter-collapsed {
+            display: none;
+        }
+    }
+</style>
