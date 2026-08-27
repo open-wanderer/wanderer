@@ -3,8 +3,10 @@ import { Waypoint } from "$lib/models/waypoint";
 import {
     getWaypointPopupMedia,
     highlightElevationWaypoint,
+    revokeWaypointPopupMedia,
     scrollToWaypointAnchor,
     waypointAnchorId,
+    waypointHasPopupMedia,
 } from "./waypoint_map_util";
 
 describe("waypointAnchorId", () => {
@@ -42,6 +44,21 @@ describe("getWaypointPopupMedia", () => {
         ]);
     });
 
+    it("appends a thumb query for saved photos", () => {
+        const waypoint = new Waypoint(46.5, 11.3, {
+            id: "waypointid12345",
+            photos: ["summit.jpg"],
+        });
+        Object.assign(waypoint, { collectionId: "waypoints" });
+
+        expect(getWaypointPopupMedia(waypoint, "600x0")).toEqual([
+            {
+                url: "/api/v1/files/waypoints/waypointid12345/summit.jpg?thumb=600x0",
+                video: false,
+            },
+        ]);
+    });
+
     it("marks video files", () => {
         const waypoint = new Waypoint(46.5, 11.3, {
             id: "waypointid12345",
@@ -69,17 +86,51 @@ describe("getWaypointPopupMedia", () => {
         Object.assign(waypoint, { collectionId: "waypoints" });
         waypoint._photos = [new File(["x"], "new.jpg", { type: "image/jpeg" })];
 
-        expect(getWaypointPopupMedia(waypoint)).toEqual([
+        const media = getWaypointPopupMedia(waypoint);
+        expect(media).toEqual([
             {
                 url: "/api/v1/files/waypoints/waypointid12345/saved.jpg",
                 video: false,
             },
-            { url: "blob:new.jpg", video: false },
+            {
+                url: "blob:new.jpg",
+                video: false,
+                revoke: expect.any(Function),
+            },
         ]);
     });
 
     it("returns an empty list when the waypoint has no photos", () => {
         expect(getWaypointPopupMedia(new Waypoint(0, 0))).toEqual([]);
+    });
+});
+
+describe("revokeWaypointPopupMedia", () => {
+    it("revokes object URLs once", () => {
+        const revoke = vi.fn();
+        const media = [
+            { url: "/saved.jpg", video: false },
+            { url: "blob:new.jpg", video: false, revoke },
+        ];
+
+        revokeWaypointPopupMedia(media);
+        revokeWaypointPopupMedia(media);
+
+        expect(revoke).toHaveBeenCalledTimes(1);
+        expect(media[1].revoke).toBeUndefined();
+    });
+});
+
+describe("waypointHasPopupMedia", () => {
+    it("detects saved and unsaved media without creating URLs", () => {
+        expect(waypointHasPopupMedia(new Waypoint(0, 0))).toBe(false);
+
+        const withPhotos = new Waypoint(0, 0, { photos: ["a.jpg"] });
+        expect(waypointHasPopupMedia(withPhotos)).toBe(true);
+
+        const withLocal = new Waypoint(0, 0);
+        withLocal._photos = [new File(["x"], "new.jpg")];
+        expect(waypointHasPopupMedia(withLocal)).toBe(true);
     });
 });
 

@@ -20,6 +20,9 @@ import {
     applyElevationWaypointHighlight,
     focusWaypoint,
     getWaypointPopupMedia,
+    revokeWaypointPopupMedia,
+    waypointHasPopupMedia,
+    type WaypointPopupMedia,
 } from "$lib/util/waypoint_map_util";
 import { haversineCumulatedDistanceWgs84, smoothElevations } from "./tools";
 
@@ -894,7 +897,10 @@ export class ElevationProfile {
 
         const xScale = chart.scales.x;
         const signature = this.waypoints
-            .map((waypoint) => `${waypoint.id ?? ""}:${waypoint.photos?.length ?? 0}`)
+            .map(
+                (waypoint) =>
+                    `${waypoint.id ?? ""}:${waypoint.icon ?? ""}:${waypoint.name ?? ""}:${(waypoint.photos ?? []).join("|")}:${waypoint._photos?.length ?? 0}:${waypoint.lat},${waypoint.lon}`,
+            )
             .join(",");
 
         if (
@@ -908,13 +914,23 @@ export class ElevationProfile {
             return;
         }
 
+        for (const child of Array.from(waypointContainer.children)) {
+            const ownedMedia = (
+                child as HTMLElement & { _waypointMedia?: WaypointPopupMedia[] }
+            )._waypointMedia;
+            if (ownedMedia) {
+                revokeWaypointPopupMedia(ownedMedia);
+            }
+        }
+
         waypointContainer.dataset.signature = signature;
         waypointContainer.innerHTML = "";
 
         this.waypointPositions.forEach((position, index) => {
             const waypoint = this.waypoints[index];
-            const media = waypoint ? getWaypointPopupMedia(waypoint) : [];
-            const marker = document.createElement("div");
+            const marker = document.createElement("div") as HTMLElement & {
+                _waypointMedia?: WaypointPopupMedia[];
+            };
             marker.className =
                 "wp-marker absolute -translate-x-1/2 w-6 aspect-square bg-background-inverse rounded-full flex justify-center items-center text-content-inverse cursor-pointer z-20";
             if (waypoint?.id) {
@@ -928,22 +944,39 @@ export class ElevationProfile {
             iconEl.className = `fa fa-${/^[a-z0-9-]+$/.test(safeIcon) ? safeIcon : "circle"}`;
             marker.appendChild(iconEl);
 
-            if (media[0]) {
-                const thumb = media[0].video
-                    ? document.createElement("video")
-                    : document.createElement("img");
+            if (waypoint && waypointHasPopupMedia(waypoint)) {
+                const thumb = document.createElement("img");
                 thumb.className = "wp-marker-thumb";
-                thumb.src = media[0].url;
-                if (thumb instanceof HTMLImageElement) {
-                    thumb.alt = waypoint?.name || "";
-                } else {
-                    thumb.muted = true;
-                    thumb.loop = true;
-                    thumb.playsInline = true;
-                    marker.addEventListener("mouseenter", () => thumb.play());
-                    marker.addEventListener("mouseleave", () => thumb.pause());
-                }
+                thumb.alt = waypoint.name || "";
                 marker.appendChild(thumb);
+
+                const loadThumb = () => {
+                    if (marker.dataset.thumbLoaded === "1") {
+                        return;
+                    }
+                    const allMedia = getWaypointPopupMedia(waypoint, "100x0");
+                    const first = allMedia[0];
+                    revokeWaypointPopupMedia(allMedia.slice(1));
+                    if (!first) {
+                        return;
+                    }
+                    marker.dataset.thumbLoaded = "1";
+                    if (first.video) {
+                        const video = document.createElement("video");
+                        video.className = "wp-marker-thumb";
+                        video.src = first.url;
+                        video.muted = true;
+                        video.loop = true;
+                        video.playsInline = true;
+                        thumb.replaceWith(video);
+                        marker.addEventListener("mouseenter", () => video.play());
+                        marker.addEventListener("mouseleave", () => video.pause());
+                    } else {
+                        thumb.src = first.url;
+                    }
+                    marker._waypointMedia = [first];
+                };
+                marker.addEventListener("mouseenter", loadThumb);
             } else {
                 const label = waypoint?.name?.length
                     ? waypoint.name
@@ -1024,7 +1057,7 @@ export class ElevationProfile {
                 if (distance < minDistances[waypointIndex]) {
                     minDistances[waypointIndex] = distance;
                     this.waypointPositions[waypointIndex] = this.cumulatedDistanceAdjustedUnit[i];
-                    waypoint.distance_from_start = this.cumulatedDistanceAdjustedUnit[i] * 1000;
+                    waypoint.distance_from_start = this.cumulatedDistance[i];
                 }
             });
 

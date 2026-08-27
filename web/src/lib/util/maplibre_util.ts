@@ -15,6 +15,10 @@ import {
     focusWaypoint,
     getWaypointPopupMedia,
     highlightElevationWaypoint,
+    revokeWaypointPopupMedia,
+    waypointHasPopupMedia,
+    WAYPOINT_POPUP_MEDIA_LIMIT,
+    type WaypointPopupMedia,
 } from "./waypoint_map_util";
 
 export class FontawesomeMarker extends M.Marker {
@@ -47,31 +51,10 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
     const content = document.createElement("div");
     content.className = "p-2 waypoint-popup"
 
-    const media = getWaypointPopupMedia(waypoint);
-    if (media.length) {
-        const photosContainer = document.createElement("div");
-        photosContainer.className = `waypoint-popup-photos${media.length > 1 ? " multiple" : ""}`;
-
-        media.forEach((item) => {
-            const mediaElement = item.video
-                ? document.createElement("video")
-                : document.createElement("img");
-            mediaElement.className = "waypoint-popup-media";
-            mediaElement.src = item.url;
-            if (mediaElement instanceof HTMLImageElement) {
-                mediaElement.alt = waypoint.name || "";
-            } else {
-                mediaElement.muted = true;
-                mediaElement.loop = true;
-                mediaElement.playsInline = true;
-                mediaElement.addEventListener("mouseenter", () => mediaElement.play());
-                mediaElement.addEventListener("mouseleave", () => mediaElement.pause());
-            }
-            photosContainer.appendChild(mediaElement);
-        });
-
-        content.appendChild(photosContainer);
-    }
+    const photosContainer = document.createElement("div");
+    photosContainer.className = "waypoint-popup-photos";
+    photosContainer.hidden = true;
+    content.appendChild(photosContainer);
 
     if (waypoint.name?.length) {
         const nameElement = document.createElement("b");
@@ -80,17 +63,15 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
         content.appendChild(nameElement);
     }
 
-    if (typeof waypoint.distance_from_start === "number") {
-        const distanceElement = document.createElement("p");
-        distanceElement.className = "text-sm text-gray-500";
-        const distanceIcon = document.createElement("i");
-        distanceIcon.classList.add("fa", "fa-left-right", "mr-1");
-        distanceElement.appendChild(distanceIcon);
-        distanceElement.appendChild(
-            document.createTextNode(formatDistance(waypoint.distance_from_start)),
-        );
-        content.appendChild(distanceElement);
-    }
+    const distanceElement = document.createElement("p");
+    distanceElement.className = "text-sm text-gray-500";
+    distanceElement.hidden = true;
+    const distanceIcon = document.createElement("i");
+    distanceIcon.classList.add("fa", "fa-left-right", "mr-1");
+    distanceElement.appendChild(distanceIcon);
+    const distanceText = document.createTextNode("");
+    distanceElement.appendChild(distanceText);
+    content.appendChild(distanceElement);
 
     if (waypoint.description && waypoint.description.length > 0) {
         const descriptionElement = document.createElement("p");
@@ -106,7 +87,67 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
     const popup = new M.Popup({ offset: 25, maxWidth: "280px" }).setDOMContent(
         content
     );
-    bindExclusivePopup(popup, waypoint);
+    let loadedMedia: WaypointPopupMedia[] = [];
+
+    const clearPopupMedia = () => {
+        photosContainer.replaceChildren();
+        photosContainer.hidden = true;
+        photosContainer.classList.remove("multiple");
+        revokeWaypointPopupMedia(loadedMedia);
+        loadedMedia = [];
+    };
+
+    const refreshPopupDistance = () => {
+        if (typeof waypoint.distance_from_start === "number") {
+            distanceText.textContent = formatDistance(waypoint.distance_from_start);
+            distanceElement.hidden = false;
+        } else {
+            distanceText.textContent = "";
+            distanceElement.hidden = true;
+        }
+    };
+
+    const loadPopupMedia = () => {
+        clearPopupMedia();
+        if (!waypointHasPopupMedia(waypoint)) {
+            return;
+        }
+        const allMedia = getWaypointPopupMedia(waypoint, "600x0");
+        loadedMedia = allMedia.slice(0, WAYPOINT_POPUP_MEDIA_LIMIT);
+        revokeWaypointPopupMedia(allMedia.slice(WAYPOINT_POPUP_MEDIA_LIMIT));
+        if (!loadedMedia.length) {
+            return;
+        }
+        photosContainer.classList.toggle("multiple", loadedMedia.length > 1);
+        for (const item of loadedMedia) {
+            const mediaElement = item.video
+                ? document.createElement("video")
+                : document.createElement("img");
+            mediaElement.className = "waypoint-popup-media";
+            mediaElement.src = item.url;
+            if (mediaElement instanceof HTMLImageElement) {
+                mediaElement.alt = waypoint.name || "";
+            } else {
+                mediaElement.muted = true;
+                mediaElement.loop = true;
+                mediaElement.playsInline = true;
+                mediaElement.addEventListener("mouseenter", () => mediaElement.play());
+                mediaElement.addEventListener("mouseleave", () => mediaElement.pause());
+            }
+            photosContainer.appendChild(mediaElement);
+        }
+        photosContainer.hidden = false;
+    };
+
+    bindExclusivePopup(popup, waypoint, {
+        onOpen: () => {
+            refreshPopupDistance();
+            loadPopupMedia();
+        },
+        onClose: () => {
+            clearPopupMedia();
+        },
+    });
     marker
         .setLngLat([waypoint.lon, waypoint.lat])
         .setPopup(popup)
@@ -125,19 +166,25 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
 
 let exclusiveWaypointPopup: M.Popup | undefined;
 
-function bindExclusivePopup(popup: M.Popup, waypoint: Waypoint) {
+function bindExclusivePopup(
+    popup: M.Popup,
+    waypoint: Waypoint,
+    handlers?: { onOpen?: () => void; onClose?: () => void },
+) {
     popup.on("open", () => {
         if (exclusiveWaypointPopup && exclusiveWaypointPopup !== popup) {
             exclusiveWaypointPopup.remove();
         }
         exclusiveWaypointPopup = popup;
         highlightElevationWaypoint(waypoint.id);
+        handlers?.onOpen?.();
     });
     popup.on("close", () => {
         if (exclusiveWaypointPopup === popup) {
             exclusiveWaypointPopup = undefined;
             highlightElevationWaypoint(undefined);
         }
+        handlers?.onClose?.();
     });
 }
 

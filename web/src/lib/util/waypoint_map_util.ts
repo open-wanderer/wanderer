@@ -4,9 +4,11 @@ import { getFileURL, isVideoURL } from "./file_util";
 export type WaypointPopupMedia = {
     url: string;
     video: boolean;
+    revoke?: () => void;
 };
 
 export const WAYPOINT_FOCUS_EVENT = "wanderer:focus-waypoint";
+export const WAYPOINT_POPUP_MEDIA_LIMIT = 3;
 
 export type WaypointFocusDetail = {
     waypointId: string;
@@ -27,24 +29,46 @@ export function waypointAnchorId(waypointId?: string) {
     return waypointId ? `waypoint-${waypointId}` : undefined;
 }
 
-export function getWaypointPopupMedia(waypoint: Waypoint): WaypointPopupMedia[] {
-    const urls: string[] = [];
+export function waypointHasPopupMedia(waypoint: Waypoint) {
+    return (
+        (waypoint.photos?.length ?? 0) > 0 ||
+        (waypoint._photos?.length ?? 0) > 0
+    );
+}
+
+export function getWaypointPopupMedia(
+    waypoint: Waypoint,
+    thumb?: string,
+): WaypointPopupMedia[] {
+    const media: WaypointPopupMedia[] = [];
 
     for (const photo of waypoint.photos ?? []) {
-        const url = getFileURL(waypoint, photo);
+        const url = getFileURL(waypoint, photo, thumb);
         if (url) {
-            urls.push(url);
+            media.push({
+                url,
+                video: isVideoURL(url),
+            });
         }
     }
 
     for (const file of waypoint._photos ?? []) {
-        urls.push(URL.createObjectURL(file));
+        const url = URL.createObjectURL(file);
+        media.push({
+            url,
+            video: isVideoURL(file.name) || file.type.startsWith("video/"),
+            revoke: () => URL.revokeObjectURL(url),
+        });
     }
 
-    return urls.map((url) => ({
-        url,
-        video: isVideoURL(url),
-    }));
+    return media;
+}
+
+export function revokeWaypointPopupMedia(media: WaypointPopupMedia[]) {
+    for (const item of media) {
+        item.revoke?.();
+        item.revoke = undefined;
+    }
 }
 
 export function scrollToWaypointAnchor(waypointId?: string) {

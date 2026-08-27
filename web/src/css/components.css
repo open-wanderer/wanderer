@@ -107,8 +107,7 @@
     background: var(--tooltip-background);
 }
 
-.wp-marker:hover .wp-marker-thumb,
-.wp-marker-active .wp-marker-thumb {
+.wp-marker:hover .wp-marker-thumb {
     display: block;
 }
 
