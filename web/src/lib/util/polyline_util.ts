@@ -1,4 +1,4 @@
-import type { GeoJSON } from "geojson";
+import type { FeatureCollection } from "geojson";
 import { bbox } from "./geojson_util";
 
 
@@ -101,7 +101,7 @@ export function polylineToGeoJSON(
     str: string,
     precision: number = 5,
     expected?: { lat: number; lon: number },
-) {
+): FeatureCollection {
     let coords = decodePolyline(str, precision);
 
     if (expected && coords.length) {
@@ -120,7 +120,7 @@ export function polylineToGeoJSON(
         coords = best;
     }
 
-    const geojson = {
+    const geojson: FeatureCollection = {
         type: "FeatureCollection",
         features: [
             {
@@ -133,7 +133,7 @@ export function polylineToGeoJSON(
             }
         ]
 
-    } as GeoJSON;
+    };
     geojson.bbox = bbox(geojson)
 
     return geojson

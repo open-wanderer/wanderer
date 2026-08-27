@@ -1,6 +1,7 @@
 import { List, type ListFilter } from "$lib/models/list";
 import type { Trail } from "$lib/models/trail";
 import { APIError } from "$lib/util/api_util";
+import type { PreviewListBounds, PreviewTrailGeometry } from "$lib/util/list_map_preview_util";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
@@ -11,6 +12,36 @@ import { objectToFormData } from "$lib/util/file_util";
 let lists: List[] = []
 export const list: Writable<List | null> = writable(null)
 export const listTrail: Writable<Trail | null> = writable(null);
+
+export type ListMapPreviewResponse = {
+    lists: {
+        id: string;
+        trails: PreviewTrailGeometry[];
+        bounds?: PreviewListBounds;
+    }[];
+    truncated: boolean;
+};
+
+export async function lists_map_preview(
+    listIds: string[],
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+): Promise<ListMapPreviewResponse> {
+    if (listIds.length === 0) {
+        return { lists: [], truncated: false };
+    }
+
+    const r = await f("/api/v1/list/map-preview", {
+        method: "POST",
+        body: JSON.stringify({ list_ids: listIds }),
+    });
+
+    if (!r.ok) {
+        const response = await r.json();
+        throw new APIError(r.status, response.message, response.detail);
+    }
+
+    return r.json();
+}
 
 export async function lists_index(filter?: ListFilter, page: number = 1, perPage: number = 5,
     f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
@@ -259,20 +290,15 @@ export async function searchResultToLists(hits: Hits<ListSearchResult>): Promise
             public: h.public,
             description: h.description,
             id: h.id,
-            trails: Array(h.trails).fill("000000000000000"),
+            trails: h.trail_ids?.length
+                ? h.trail_ids
+                : Array(h.trails).fill("000000000000000"),
             avatar: h.avatar,
             elevation_gain: h.elevation_gain,
             elevation_loss: h.elevation_loss,
             distance: h.distance,
             duration: h.duration,
             iri: h.iri,
-            lat: h.lat,
-            lon: h.lon,
-            min_lat: h.min_lat,
-            max_lat: h.max_lat,
-            min_lon: h.min_lon,
-            max_lon: h.max_lon,
-            trail_polylines: h.trail_polylines,
             expand: {
                 author: {
                     icon: h.author_avatar,

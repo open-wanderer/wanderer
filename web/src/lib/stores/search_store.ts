@@ -28,15 +28,9 @@ export type ListSearchResult = {
     domain?: string,
     public: boolean;
     trails: number
+    trail_ids?: string[];
     shares?: string[];
     iri?: string;
-    lat?: number;
-    lon?: number;
-    min_lat?: number;
-    max_lat?: number;
-    min_lon?: number;
-    max_lon?: number;
-    trail_polylines?: string[];
 }
 
 type NominatimResponse = {

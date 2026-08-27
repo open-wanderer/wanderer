@@ -21,12 +21,14 @@
     import { Trail } from "$lib/models/trail";
     import {
         lists_delete,
+        lists_map_preview,
         lists_search_filter,
         lists_show,
     } from "$lib/stores/list_store";
     import { trails_get_bounding_box, trails_show } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util.js";
+    import type { PreviewListBounds } from "$lib/util/list_map_preview_util";
     import * as M from "maplibre-gl";
 
     import { onMount, untrack } from "svelte";
@@ -71,6 +73,8 @@
 
     let userQuery = $state("");
     let overviewFitKey = $state("");
+    let overviewTrails: Trail[] = $state([]);
+    let overviewPreviewKey = $state("");
 
     let selectedTrailIndex = $derived(selectedTrail ? 0 : null);
 
@@ -78,58 +82,84 @@
         (selectedTrail as Trail | null)?.expand?.waypoints_via_trail,
     );
 
-    let overviewTrails = $derived(lists.flatMap(listToOverviewTrails));
-
     let mapTrails = $derived(
         selectedTrail
             ? [selectedTrail]
             : (selectedList?.expand?.trails ?? overviewTrails),
     );
 
-    function applyListBounds(trail: Trail, list: List) {
-        trail.min_lat = list.min_lat;
-        trail.max_lat = list.max_lat;
-        trail.min_lon = list.min_lon;
-        trail.max_lon = list.max_lon;
-    }
-
-    function listToOverviewTrails(list: List): Trail[] {
-        const polylines = list.trail_polylines ?? [];
-
-        if (polylines.length > 0) {
-            return polylines.map((polyline, index) => {
-                const trail = new Trail(list.name, {
-                    id: `${list.id}#${index}`,
-                    lat: list.lat,
-                    lon: list.lon,
-                });
-                trail.polyline = polyline;
-                trail.author = list.author;
-                applyListBounds(trail, list);
-                return trail;
-            });
+    function applyBounds(trail: Trail, bounds?: PreviewListBounds) {
+        if (!bounds) {
+            return;
         }
-
-        if (
-            list.lat == null ||
-            list.lon == null ||
-            (list.lat === 0 && list.lon === 0)
-        ) {
-            return [];
-        }
-
-        const trail = new Trail(list.name, {
-            id: list.id,
-            lat: list.lat,
-            lon: list.lon,
-        });
-        trail.author = list.author;
-        applyListBounds(trail, list);
-        return [trail];
+        trail.min_lat = bounds.min_lat;
+        trail.max_lat = bounds.max_lat;
+        trail.min_lon = bounds.min_lon;
+        trail.max_lon = bounds.max_lon;
     }
 
     function listIdFromOverviewTrail(trail: Trail) {
         return trail.id?.split("#")[0] ?? trail.id;
+    }
+
+    async function refreshOverviewPreview(sourceLists: List[]) {
+        const listIds = sourceLists
+            .map((item) => item.id)
+            .filter((id): id is string => !!id);
+        const key = listIds.join(",");
+        if (key === overviewPreviewKey && overviewTrails.length > 0) {
+            return;
+        }
+        overviewPreviewKey = key;
+
+        if (listIds.length === 0) {
+            overviewTrails = [];
+            return;
+        }
+
+        try {
+            const preview = await lists_map_preview(listIds);
+            const nextTrails: Trail[] = [];
+
+            for (const listPreview of preview.lists) {
+                const list = sourceLists.find((item) => item.id === listPreview.id);
+                if (!list) {
+                    continue;
+                }
+
+                if (listPreview.trails.length === 0) {
+                    continue;
+                }
+
+                for (const geometry of listPreview.trails) {
+                    const hasPoint =
+                        geometry.lat != null &&
+                        geometry.lon != null &&
+                        !(geometry.lat === 0 && geometry.lon === 0);
+                    if (!geometry.polyline && !hasPoint) {
+                        continue;
+                    }
+
+                    const trail = new Trail(list.name, {
+                        id: `${list.id}#${geometry.id}`,
+                        lat: geometry.lat,
+                        lon: geometry.lon,
+                    });
+                    trail.polyline = geometry.polyline;
+                    trail.author = list.author;
+                    trail.min_lat = geometry.min_lat;
+                    trail.max_lat = geometry.max_lat;
+                    trail.min_lon = geometry.min_lon;
+                    trail.max_lon = geometry.max_lon;
+                    applyBounds(trail, listPreview.bounds);
+                    nextTrails.push(trail);
+                }
+            }
+
+            overviewTrails = nextTrails;
+        } catch {
+            overviewTrails = [];
+        }
     }
 
     async function fitOverviewOrFallback() {
@@ -160,6 +190,16 @@
     }
 
     $effect(() => {
+        if (!browser || selectedList || selectedTrail) {
+            return;
+        }
+        const sourceLists = lists;
+        untrack(() => {
+            void refreshOverviewPreview(sourceLists);
+        });
+    });
+
+    $effect(() => {
         if (!browser) {
             return;
         }
@@ -177,6 +217,8 @@
             String(filter.shared),
             filter.sort ?? "",
             filter.sortOrder ?? "",
+            overviewPreviewKey,
+            String(overviewTrails.length),
         ].join("|");
         if (overviewTrails.length === 0 && loading) {
             return;
@@ -285,6 +327,7 @@
     async function loadNextPage() {
         pagination.page += 1;
         const response = await lists_search_filter(filter, pagination.page);
+        overviewPreviewKey = "";
         lists = response.items;
         pagination.page = response.page;
         pagination.totalPages = response.totalPages;
@@ -300,6 +343,7 @@
 
         pagination.page = 1;
         const response = await lists_search_filter(filter, pagination.page);
+        overviewPreviewKey = "";
         lists = response.items;
         pagination.page = response.page;
         pagination.totalPages = response.totalPages;

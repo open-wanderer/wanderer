@@ -234,7 +234,7 @@
                         t.lat !== undefined && t.lon !== undefined
                             ? { lat: t.lat, lon: t.lon }
                             : undefined,
-                    ) as FeatureCollection;
+                    );
                 }
 
                 if (fc) {

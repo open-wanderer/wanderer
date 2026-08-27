@@ -21,7 +21,6 @@ export class List {
     max_lat?: number;
     min_lon?: number;
     max_lon?: number;
-    trail_polylines?: string[];
     expand?: {
         trails?: Trail[]
         list_share_via_list?: ListShare[]
