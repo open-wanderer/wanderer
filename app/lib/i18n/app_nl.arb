@@ -4,18 +4,18 @@
   "@about": {
     "description": "Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both."
   },
-  "appearance": "Appearance",
+  "appearance": "Weergave",
   "account": "Account",
   "account_delete_confirm": "Je staat op het punt je account te verwijderen. Al je routes worden hierdoor eveneens verwijderd. Wil je doorgaan?",
   "account_privacy": "Account privacy",
   "add_bio": "Voeg Bio toe",
   "add_waypoint": "Routepunt toevoegen",
-  "adjust_track": "Adjust track",
+  "adjust_track": "Pas spoor aan",
   "after": "Na",
   "@after": {
     "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
   },
-  "all": "All",
+  "all": "Alles",
   "@all": {
     "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
   },
@@ -35,8 +35,8 @@
     "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
   },
   "cancel": "Annuleren",
-  "discard": "Discard",
-  "discard_trail_confirm": "Discard this trail and its changes?",
+  "discard": "Verwijderen",
+  "discard_trail_confirm": "Verwijder dit spoor en de bijbehorende wijzigingen?",
   "card": "{n, plural, =1 {Kaart} other {Kaarten}}",
   "@card": {
     "placeholders": {
@@ -64,10 +64,10 @@
   "completed": "Voltooid",
   "completion_status": "Voltooiingsstatus",
   "confirm_deletion": "Bevestig verwijderen",
-  "couldnt_start_navigation": "Couldn't start navigation. Check your connection and try again.",
-  "location_services_disabled": "Location services are disabled. Please enable GPS to use navigation.",
-  "location_permission_denied": "Location permission is required for navigation.",
-  "location_permission_permanently_denied": "Location permission is permanently denied. Please enable it in Settings.",
+  "couldnt_start_navigation": "Kon navigatie niet starten. Controleer je verbinding en probeer het opnieuw.",
+  "location_services_disabled": "Locatieservices zijn uitgeschakeld. Activeer GPS om navigatie te gebruiken.",
+  "location_permission_denied": "Locatie toestemming is vereist voor navigatie.",
+  "location_permission_permanently_denied": "Locatie toestemming is permanent geweigerd. Activeer het in de Instellingen.",
   "location_unavailable": "Unable to determine your location. Please try again.",
   "copy_link": "Kopieer Link",
   "create_waypoint": "Nieuw routepunt",
