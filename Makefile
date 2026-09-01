@@ -20,6 +20,32 @@ db-build:
 db-build-docker: db-build
 	docker buildx build db/ --no-cache -t flomp/wanderer-db:latest
 
+.PHONY: geo-bench-test
+geo-bench-test:
+	cd db/cmd/geobench && go test ./...
+
+.PHONY: geo-bench-fmt
+geo-bench-fmt:
+	cd db/cmd/geobench && gofmt -w *.go
+
+.PHONY: geo-bench-vet
+geo-bench-vet:
+	cd db/cmd/geobench && go vet ./...
+
+GEO_BENCH_BINARY ?= /tmp/wanderer-geobench
+
+.PHONY: geo-bench-build
+geo-bench-build:
+	cd db/cmd/geobench && CGO_ENABLED=1 go build -trimpath -o "$(abspath $(GEO_BENCH_BINARY))" .
+
+.PHONY: geo-bench-contract
+geo-bench-contract:
+	cd db/cmd/geobench && go run . --contract-only $(GEO_BENCH_ARGS)
+
+.PHONY: geo-bench
+geo-bench:
+	cd db/cmd/geobench && go run . $(GEO_BENCH_ARGS)
+
 ## Web
 
 .PHONY: web-install

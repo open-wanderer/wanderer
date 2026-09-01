@@ -32,6 +32,7 @@ jobs:
           tinygo version
 
       - run: make db-fmt
+      - run: make geo-bench-fmt
       - name: Ensure formatting
         run: |
           if [ -n "$(gofmt -l .)" ]; then
@@ -42,5 +43,7 @@ jobs:
         working-directory: db
       - run: make db-vet
       - run: make db-test
+      - run: make geo-bench-vet
+      - run: make geo-bench-test
       - run: make plugins-test
       - run: make plugins-build

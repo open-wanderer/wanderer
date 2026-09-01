@@ -146,6 +146,124 @@ export default defineConfig({
             label: 'Plugin System',
             link: '/develop/plugin-system/'
           },
+          {
+            label: 'Design-Spezifikationen',
+            collapsed: true,
+            items: [
+              {
+                label: 'Überblick',
+                link: '/develop/specs/trail-search/'
+              },
+              {
+                label: 'Gemeinsame Invarianten',
+                link: '/develop/specs/trail-search/shared-invariants/'
+              },
+              {
+                label: 'Delivery und Beiträge',
+                link: '/develop/specs/trail-search/delivery/'
+              },
+              {
+                label: 'Capabilities',
+                collapsed: true,
+                items: [{
+                  autogenerate: {
+                    directory: 'develop/specs/trail-search/capabilities',
+                    collapsed: true,
+                  }
+                }]
+              },
+              {
+                label: 'Work Items',
+                collapsed: true,
+                items: [
+                  {
+                    label: 'Übersicht',
+                    link: '/develop/specs/trail-search/work-items/'
+                  },
+                  {
+                    label: 'Suche und Panel',
+                    collapsed: true,
+                    items: [{
+                      autogenerate: {
+                        directory: 'develop/specs/trail-search/work-items/search',
+                        collapsed: true,
+                      }
+                    }]
+                  },
+                  {
+                    label: 'Engine',
+                    collapsed: true,
+                    items: [{
+                      autogenerate: {
+                        directory: 'develop/specs/trail-search/work-items/engine',
+                        collapsed: true,
+                      }
+                    }]
+                  },
+                  {
+                    label: 'Geo-Discovery',
+                    collapsed: true,
+                    items: [{
+                      autogenerate: {
+                        directory: 'develop/specs/trail-search/work-items/geo-discovery',
+                        collapsed: true,
+                      }
+                    }]
+                  },
+                  {
+                    label: 'Typisierte Ortssuche',
+                    collapsed: true,
+                    items: [{
+                      autogenerate: {
+                        directory: 'develop/specs/trail-search/work-items/place-search',
+                        collapsed: true,
+                      }
+                    }]
+                  },
+                  {
+                    label: 'Counts und Histogramme',
+                    collapsed: true,
+                    items: [{
+                      autogenerate: {
+                        directory: 'develop/specs/trail-search/work-items/aggregations',
+                        collapsed: true,
+                      }
+                    }]
+                  }
+                ]
+              },
+              {
+                label: 'Verträge',
+                collapsed: true,
+                items: [{
+                  autogenerate: {
+                    directory: 'develop/specs/trail-search/contracts',
+                    collapsed: true,
+                  }
+                }]
+              },
+              {
+                label: 'Entscheidungen',
+                collapsed: true,
+                items: [{
+                  autogenerate: {
+                    directory: 'develop/specs/trail-search/decisions',
+                    collapsed: true,
+                  }
+                }]
+              },
+              {
+                label: 'Evidenz und Kalibrierung',
+                collapsed: true,
+                items: [{
+                  autogenerate: {
+                    directory: 'develop/specs/trail-search/evidence',
+                    collapsed: true,
+                  }
+                }]
+              }
+            ]
+          },
         ]
       },
       ...openAPISidebarGroups,
