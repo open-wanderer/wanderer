@@ -28,7 +28,7 @@
     "svelte-check": "^4.7.1",
     "sveltekit-openapi-generator": "^0.1.6",
     "tslib": "^2.8.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "8.1.1"
   },
   "type": "module",
