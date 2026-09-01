@@ -1,6 +1,6 @@
 import type { PluginProvider } from "$lib/models/plugin_provider";
 import { describe, expect, it } from "vitest";
-import { pluginInformation } from "./plugin_i18n";
+import { pluginInformation, providerCategoryLabel } from "./plugin_i18n";
 
 function plugin(overrides: Partial<PluginProvider> = {}): PluginProvider {
     return {
@@ -84,5 +84,20 @@ describe("pluginInformation", () => {
                 "de_CH",
             ),
         ).toBe("Kurze Beschreibung");
+    });
+});
+
+describe("providerCategoryLabel", () => {
+    it("ignores non-string labels from an unvalidated manifest", () => {
+        const provider = plugin({
+            metadata: {
+                providerCategories: {
+                    hiking: { labels: { en: 42, de: "Wandern" } },
+                },
+            },
+        });
+
+        expect(providerCategoryLabel(provider, "hiking", "en")).toBe("hiking");
+        expect(providerCategoryLabel(provider, "hiking", "de")).toBe("Wandern");
     });
 });

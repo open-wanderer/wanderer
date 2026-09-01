@@ -107,11 +107,14 @@ function localizedTextForCandidates(
     }
     for (const candidate of candidates) {
         for (const [key, text] of Object.entries(texts)) {
-            if (normalizeLocaleKey(key) === candidate) {
-                const value = text.trim();
-                if (value) {
-                    return value;
-                }
+            // Callers may pass unvalidated manifest maps, so non-string values
+            // are ignored instead of throwing.
+            if (typeof text !== "string" || normalizeLocaleKey(key) !== candidate) {
+                continue;
+            }
+            const value = text.trim();
+            if (value) {
+                return value;
             }
         }
     }

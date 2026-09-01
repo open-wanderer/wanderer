@@ -459,12 +459,19 @@
         return $_(`plugin-type-${type}-description`);
     }
 
+    function pluginSetupError(plugin: PluginProvider) {
+        if (plugin.status !== "error") {
+            return "";
+        }
+        return plugin.error || $_(pluginSetupErrorKey(plugin.setupErrorCode));
+    }
+
     function pluginCardError(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
     ) {
         if (plugin.status === "error") {
-            return plugin.error || $_(pluginSetupErrorKey(plugin.setupErrorCode));
+            return pluginSetupError(plugin);
         }
         if (plugin.status !== "available") {
             return plugin.error ?? "";
@@ -563,7 +570,7 @@
             donationUrl={infoPlugin.donationUrl}
             img={pluginLogo(infoPlugin)}
             status={infoPlugin.status}
-            error={pluginCardError(infoPlugin, instanceForPlugin(infoPlugin))}
+            error={pluginSetupError(infoPlugin)}
         ></PluginInfoModal>
     {/key}
 {/if}

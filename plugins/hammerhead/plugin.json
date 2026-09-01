@@ -99,7 +99,8 @@
       "description": "Ignore routes and activities before this date.",
       "descriptions": {
         "de": "Wenn dein Konto viele Routen und Aktivitäten enthält, können zahlreiche API-Anfragen dazu führen, dass Hammerhead den Zugriff vorübergehend einschränkt. Lege ein Startdatum fest, um die Importmenge zu reduzieren; dann werden nur Inhalte nach diesem Datum synchronisiert.",
-        "en": "If your account contains many routes and activities, a large number of API requests may cause Hammerhead to temporarily restrict access. Set a start date to reduce the import volume so that only content after that date is synchronized."
+        "en": "If your account contains many routes and activities, a large number of API requests may cause Hammerhead to temporarily restrict access. Set a start date to reduce the import volume so that only content after that date is synchronized.",
+        "no": "Hvis kontoen din inneholder mange ruter og aktiviteter, kan et stort antall API-forespørsler føre til at Hammerhead midlertidig begrenser tilgangen. Angi en startdato for å redusere importmengden, slik at bare innhold etter denne datoen synkroniseres."
       }
     }
   ],

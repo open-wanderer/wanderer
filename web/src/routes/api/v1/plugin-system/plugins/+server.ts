@@ -44,6 +44,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *                         enum: [setup_failed, manifest_missing, manifest_unreadable, manifest_invalid, runtime_entrypoint_invalid, runtime_entrypoint_missing, runtime_entrypoint_unreadable]
  *                       error:
  *                         type: string
+ *                         description: Raw setup diagnostic. Only returned to superusers; other callers receive an empty value and should use setupErrorCode instead.
  *                       manifest:
  *                         type: object
  *       401:
