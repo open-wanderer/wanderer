@@ -23,14 +23,31 @@ func TestValidateManifestRejectsUnknownAuthPermission(t *testing.T) {
 	}
 }
 
+func TestValidateManifestIgnoresMalformedOptionalMetadata(t *testing.T) {
+	manifest := hammerheadManifestForTest()
+	manifest.Metadata = map[string]any{
+		"information": 42,
+		"homepageUrl": "example.com",
+		"donationUrl": "example.com/donate",
+	}
+
+	if err := ValidateManifest(manifest); err != nil {
+		t.Fatalf("optional UI metadata must not prevent plugin loading: %v", err)
+	}
+}
+
 func TestLoadLocalPluginRequiresRelativeEntrypoint(t *testing.T) {
 	dir := t.TempDir()
 	manifest := hammerheadManifestForTest()
 	manifest.Runtime.Entrypoint = "/tmp/plugin.wasm"
 	writeManifest(t, dir, manifest)
 
-	if _, err := LoadLocalPlugin(dir); err == nil {
+	_, err := LoadLocalPlugin(dir)
+	if err == nil {
 		t.Fatal("expected error")
+	}
+	if code := pluginSetupErrorCode(err); code != SetupErrorCodeRuntimeEntrypointInvalid {
+		t.Fatalf("got setup error code %q, want %q", code, SetupErrorCodeRuntimeEntrypointInvalid)
 	}
 }
 
@@ -78,8 +95,59 @@ func TestDiscoverLocalPluginsReportsMissingManifest(t *testing.T) {
 	if issues[0].ID != "komoot" || issues[0].Name != "komoot" || issues[0].Dir != brokenDir {
 		t.Fatalf("unexpected issue: %#v", issues[0])
 	}
+	if issues[0].SetupErrorCode != SetupErrorCodeManifestMissing {
+		t.Fatalf("got setup error code %q, want %q", issues[0].SetupErrorCode, SetupErrorCodeManifestMissing)
+	}
 	if issues[0].Error == "" || !strings.Contains(issues[0].Error, "plugin.json") {
 		t.Fatalf("expected useful plugin.json error, got %#v", issues[0])
+	}
+	if !strings.Contains(issues[0].Error, brokenDir) {
+		t.Fatalf("expected internal diagnostic to retain plugin path, got %q", issues[0].Error)
+	}
+}
+
+func TestDiscoverLocalPluginsClassifiesInvalidManifest(t *testing.T) {
+	root := t.TempDir()
+	brokenDir := filepath.Join(root, "komoot")
+	if err := os.MkdirAll(brokenDir, 0o700); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(brokenDir, "plugin.json"), []byte("{"), 0o600); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+
+	_, issues, err := DiscoverLocalPlugins(root)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("got %d issues, want 1", len(issues))
+	}
+	if issues[0].SetupErrorCode != SetupErrorCodeManifestInvalid {
+		t.Fatalf("got setup error code %q, want %q", issues[0].SetupErrorCode, SetupErrorCodeManifestInvalid)
+	}
+}
+
+func TestDiscoverLocalPluginsClassifiesMissingRuntimeEntrypoint(t *testing.T) {
+	root := t.TempDir()
+	brokenDir := filepath.Join(root, "komoot")
+	if err := os.MkdirAll(brokenDir, 0o700); err != nil {
+		t.Fatalf("mkdir plugin dir: %v", err)
+	}
+	manifest := hammerheadManifestForTest()
+	manifest.ID = "komoot"
+	manifest.Name = "komoot"
+	writeManifest(t, brokenDir, manifest)
+
+	_, issues, err := DiscoverLocalPlugins(root)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("got %d issues, want 1", len(issues))
+	}
+	if issues[0].SetupErrorCode != SetupErrorCodeRuntimeEntrypointMissing {
+		t.Fatalf("got setup error code %q, want %q", issues[0].SetupErrorCode, SetupErrorCodeRuntimeEntrypointMissing)
 	}
 }
 
@@ -98,7 +166,7 @@ func TestLoadLocalPluginsIgnoresMissingManifestForCompatibility(t *testing.T) {
 	}
 }
 
-func TestLoadLocalPluginsSkipsUnsupportedPluginTypes(t *testing.T) {
+func TestDiscoverLocalPluginsSkipsUnsupportedPluginTypes(t *testing.T) {
 	root := t.TempDir()
 	writePluginDir(t, root, "hammerhead")
 
@@ -115,9 +183,12 @@ func TestLoadLocalPluginsSkipsUnsupportedPluginTypes(t *testing.T) {
 		t.Fatalf("write wasm: %v", err)
 	}
 
-	plugins, err := LoadLocalPlugins(root)
+	plugins, issues, err := DiscoverLocalPlugins(root)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issues) != 0 {
+		t.Fatalf("unsupported plugin type was reported as an issue: %#v", issues)
 	}
 	if len(plugins) != 1 {
 		t.Fatalf("got %d plugins, want 1", len(plugins))
