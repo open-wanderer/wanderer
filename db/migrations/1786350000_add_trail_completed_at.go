@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
 )
@@ -38,39 +37,37 @@ func init() {
 			return err
 		}
 
-		trails, err := app.FindRecordsByFilter("trails", "completed=true", "", -1, 0)
-		if err != nil {
+		// An existing summit log is the best available completion date, so it is
+		// applied first; whatever is still blank afterwards falls back to the
+		// last update, which is closer to the completion toggle than the trail
+		// creation/planning date.
+		if _, err := app.DB().
+			NewQuery(`
+				UPDATE trails
+				SET completed_at = oldest_logs.completed_at
+				FROM (
+					SELECT trail, MIN(date) AS completed_at
+					FROM summit_logs
+					WHERE date != '' AND trail != ''
+					GROUP BY trail
+				) AS oldest_logs
+				WHERE trails.id = oldest_logs.trail
+					AND trails.completed = TRUE
+					AND COALESCE(trails.completed_at, '') = ''
+			`).
+			Execute(); err != nil {
 			return err
 		}
 
-		for _, trail := range trails {
-			// An existing summit log is the best available completion date. For
-			// explicitly completed trails without one, the last update is closer
-			// to the completion toggle than the trail creation/planning date.
-			completedAt := trail.GetDateTime("updated")
-			if completedAt.IsZero() {
-				completedAt = trail.GetDateTime("created")
-			}
-
-			logs, err := app.FindRecordsByFilter(
-				"summit_logs",
-				"trail={:trail}",
-				"+date",
-				1,
-				0,
-				dbx.Params{"trail": trail.Id},
-			)
-			if err != nil {
-				return err
-			}
-			if len(logs) > 0 {
-				completedAt = logs[0].GetDateTime("date")
-			}
-
-			trail.Set("completed_at", completedAt)
-			if err := app.UnsafeWithoutHooks().Save(trail); err != nil {
-				return err
-			}
+		if _, err := app.DB().
+			NewQuery(`
+				UPDATE trails
+				SET completed_at = COALESCE(NULLIF(updated, ''), created)
+				WHERE completed = TRUE
+					AND COALESCE(completed_at, '') = ''
+			`).
+			Execute(); err != nil {
+			return err
 		}
 
 		return nil

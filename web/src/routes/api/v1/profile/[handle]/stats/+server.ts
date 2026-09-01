@@ -116,7 +116,7 @@ export async function GET(event: RequestEvent) {
                         statisticsFilter,
                         availableSubcategories,
                     ),
-                    expand: 'category,subcategory,subcategory.category,author,summit_logs_via_trail',
+                    expand: 'category,subcategory,subcategory.category,author',
                 });
 
             activities = mergeStatisticActivities(summitLogs, completedTrails);
