@@ -76,14 +76,21 @@ class TrailEntity {
   /// plain scalar for the same reason as [categoryRecordId] — and for one
   /// more.
   ///
-  /// [ActorEntity.id] is `@Unique(onConflict: replace)`, so every sign-in and
-  /// profile refresh that re-puts a freshly constructed `ActorEntity`
-  /// (`obxId == 0`) DELETES the old row and inserts a new one under a new
-  /// ObjectBox id. The [author] ToOne stores its target by that ObjectBox id,
-  /// so it silently resolves to null afterwards — the trail's author line
-  /// degraded to "Unknown", the avatar to a bare grey circle, and
-  /// `readOwnLocalTrails`' author clause stopped matching. This scalar
-  /// survives the re-mint and lets both be recovered.
+  /// [ActorEntity.id] is `@Unique(onConflict: replace)`, so putting a freshly
+  /// constructed `ActorEntity` (`obxId == 0`) DELETES the old row and inserts
+  /// a new one under a new ObjectBox id. The [author] ToOne stores its target
+  /// by that ObjectBox id, so it silently resolved to null afterwards — the
+  /// trail's author line degraded to "Unknown", the avatar to a bare grey
+  /// circle, and `readOwnLocalTrails`' author clause stopped matching.
+  ///
+  /// Every writer now routes the actor through [actorEntityForUpsert], which
+  /// reuses the existing row's ObjectBox id so a put UPDATES rather than
+  /// re-mints, and the ToOne no longer goes stale. This scalar remains the
+  /// durable record of authorship regardless: it is the only thing carrying
+  /// the author id on a locally-composed draft, which has no expanded `Actor`
+  /// at all. Rows written by the old path keep a dangling relation — nothing
+  /// repairs them, so a device holding pre-fix data needs its app data
+  /// cleared (or those trails re-downloaded) to pick the author back up.
   String? authorRecordId;
 
   /// The `Trail.completed` flag. A plain field with an initializer, like
@@ -220,7 +227,18 @@ class TrailEntity {
   // NOT set `owner` or `localPhotos` — every writer that owns those two
   // fields (a local capture, an upload retry) sets them explicitly inside
   // its own transaction. Do not "helpfully" add them here.
-  factory TrailEntity.fromModel(Trail trail) {
+  //
+  /// [store] MUST be passed by every caller that intends to persist the
+  /// result. It is what lets the [author] relation reuse the ObjectBox id of
+  /// the `ActorEntity` row that already holds this actor (via
+  /// [actorEntityForUpsert]) instead of minting a fresh `obxId == 0` entity.
+  /// Because `ActorEntity.id` is `@Unique(onConflict: replace)`, putting a
+  /// fresh one deletes and re-inserts the actor row — orphaning the `author`
+  /// ToOne of every OTHER trail by that same author, which is how library
+  /// cards ended up showing "Unknown"/"UN" for trails that had been stored
+  /// correctly. It is optional only so pure model round-trip tests, which
+  /// never persist, can call this without an open store.
+  factory TrailEntity.fromModel(Trail trail, {Store? store}) {
     final entity = TrailEntity(
       id: trail.id,
       name: trail.name,
@@ -269,14 +287,18 @@ class TrailEntity {
     }
 
     if (trail.expand?.author != null) {
-      entity.author.target = ActorEntity.fromModel(trail.expand!.author!);
-      entity.authorRecordId ??= trail.expand!.author!.id;
+      final actor = trail.expand!.author!;
+      entity.author.target = store != null
+          ? actorEntityForUpsert(store, actor)
+          : ActorEntity.fromModel(actor);
+      entity.authorRecordId ??= actor.id;
     }
 
     if (trail.expand?.category != null) {
-      entity.category.target = CategoryEntity.fromModel(
-        trail.expand!.category!,
-      );
+      final category = trail.expand!.category!;
+      entity.category.target = store != null
+          ? categoryEntityForUpsert(store, category)
+          : CategoryEntity.fromModel(category);
     }
 
     return entity;

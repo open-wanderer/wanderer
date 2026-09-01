@@ -342,7 +342,7 @@ String saveNewLocalTrail(
   required Map<String, List<String>> waypointLocalPhotosByKey,
 }) {
   store.runInTransaction(TxMode.write, () {
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: store);
     entity.id = localId;
     entity.localId = localId;
     entity.owner = ownerAccountId;
@@ -461,7 +461,7 @@ LocalUpdateOutcome updateLocalTrail(
       return LocalUpdateOutcome.alreadyUploaded;
     }
 
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: store);
     entity.obxId = existing.obxId;
     entity.id = existing.id;
     entity.owner = existing.owner;
@@ -683,7 +683,7 @@ void applyServerTrailToLibraryRow(
     query.close();
     if (existing == null) return;
 
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: store);
     entity.obxId = existing.obxId;
     entity.id = existing.id;
     entity.owner = existing.owner;
