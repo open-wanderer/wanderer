@@ -13,17 +13,17 @@ spec:
   capability: FOUNDATION
   productSlice: search-foundation
   exposure: internal
-  implementationConditions: [SRCH0 Korpus/Tooling vollständig]
+  implementationConditions: [SRCH0 Bestandskorpus vollständig]
   normativeSources: [SRCH-V1-CONTRACT, ADR-0001, FEDERATION-SECURITY-V1]
-  lastReviewed: '2026-08-30'
+  lastReviewed: '2026-09-01'
 ---
 
 ## Metadaten
 
 | Feld | Wert |
 | --- | --- |
-| Delivery-Status | blockiert bis zur internen SRCH0-Marke Korpus/Tooling fertig |
-| Implementierungsabhängigkeiten | keine Work-Item-Kante; Implementierungsbedingung `SRCH0 Korpus/Tooling vollständig` |
+| Delivery-Status | blockiert bis zum vollständigen SRCH0-Bestandskorpus |
+| Implementierungsabhängigkeiten | keine Work-Item-Kante; Implementierungsbedingung `SRCH0 Bestandskorpus vollständig` |
 | Exposure | intern; noch kein Runtime-Cutover |
 | Normative Quelle | [Trail-Suchvertrag v1](/develop/specs/trail-search/contracts/trail-search-v1/) |
 
@@ -42,20 +42,26 @@ interpretieren.
   Capability-Schemas als versionierte Lieferartefakte bereitstellen.
 - Normalisierung, Defaults, `unknown`, Sortierung, Cursorbindung und URL-Codec
   eindeutig und testbar halten.
-- Legacyfälle samt bewussten Korrekturen explizit der V1-Normalform zuordnen.
+- Legacyfälle der V1-Normalform zuordnen. Bewusste Korrekturen bleiben
+  Ziel-Overlays ihrer Delivery-Owner und ändern die historischen SRCH0-Goldens
+  nicht.
 - Golden Fixtures für semantisch identische Browser-, API- und URL-Aufträge
   definieren.
 
 ## Nichtziele
 
 - Kein Enginecompiler und kein produktiver Gateway.
+- Kein Runtime-Produzent von `SearchReadinessV1`; für die heutigen
+  Legacyindizes implementiert IDX0 die beiden Endpunkte, spätere Owner
+  ersetzen nur deren interne Zustandsquelle.
 - Keine zweite generische Filter-AST und keine freien Feld-/Operatornamen.
 - Keine Implementierungsdetails aus Meilisearch als öffentliches Schema.
 
 ## Abnahme
 
-- Jeder SRCH0-Fall besitzt genau eine gültige V1-Normalform oder einen
-  typisierten Fehler.
+- Jeder unterstützte SRCH0-Basisfall besitzt genau eine gültige V1-Normalform
+  oder einen typisierten Fehler; Owner-Overlays benennen jede erlaubte
+  Abweichung separat.
 - JSON-Schemas und Anwendungstypen lehnen unbekannte Felder und unzulässige
   Capability-Kombinationen ab.
 - Browser-, App- und Chat-Beispiele erzeugen keine voneinander abweichenden

@@ -9,7 +9,7 @@ spec:
   id: TRAIL-SEARCH-SHARED
   kind: shared
   status: draft
-  lastReviewed: '2026-08-30'
+  lastReviewed: '2026-09-01'
 ---
 
 > **Rolle:** Dieses Dokument ist der capability-übergreifende
@@ -94,10 +94,15 @@ Invarianten:
   ACL-Kontexte und Sortierungen gegen den vorherigen Pfad bestanden haben.
 - Ein Rollback aktiviert nur einen bis zum aktuellen Cutoff aufgeholten und
   bestätigten Kandidaten, der denselben Bestandsvertrag erfüllt.
-- Dokumentierte Fehler dürfen korrigiert werden. Die doppelt angehängte
-  Radiusbedingung und die Abbildung eines unbekannten Difficulty-Strings auf
-  „leicht“ benötigen jeweils Regressionstest, Datenmigration beziehungsweise
-  Reindex und Release-Hinweis.
+- Dokumentierte Fehler dürfen nur durch ihren benannten Delivery-Owner
+  korrigiert werden. SRCH0 hält dafür unveränderte Referenzdaten,
+  Baselineerwartungen und stabile Case-IDs; die korrigierte Erwartung liegt als
+  task-spezifisches Delta-Overlay beim Owner. SRCH-COMP besitzt die Entfernung
+  der wirkungslosen doppelten Radiusbedingung, SRCH2 die Unknown-Difficulty-
+  Semantik samt nötigem Trailbackfill und SEC-VIS-0 die deterministische lokale
+  Aggregatprojektion föderierter Listen. Jedes Overlay weist seine erlaubten
+  Deltas und alle unveränderten Resultate nach; ein Golden-Update der
+  SRCH0-Baseline ist kein Korrekturbeleg.
 - Eine neue Oberfläche darf Controls neu ordnen oder verständlicher benennen,
   aber keine produktive Funktion still verbergen oder semantisch ersetzen.
   Ausschliesslich wirkungslose Prototypfelder und Beispielzahlen werden
@@ -374,6 +379,10 @@ Tests werden nach Verantwortung getrennt:
   Überlappung, Crash-Recovery, Retry, Cursor-Wrap und Supersession;
 - Meilisearch-Integration und Browser-E2E für Treffer, `total`, Counts,
   Nulloptionen, Fehlergruppen, Bucket-IDs, URL-State und Pagination;
+- IDX0-Tests für nichtdestruktiven Normalstart, fehlende beziehungsweise
+  unerwartet leere Legacyindizes, terminale Bootstrap-Tasks und beide
+  Readiness-Endpunkte sowie dauerhaft fehlerhafte Polyline-Kandidaten ohne
+  globales Readinessgate; der No-Engine-Guard gehört zu SRCH-COMP;
 - STATE1-Tests für atomaren Fach-/Revisions-/Dirty-/Fence-Commit,
   Watermarks, Tombstones, Publisher-Fencing, Pointer-CAS und Recovery;
 - Federation-Security-Tests für Eligibility auf jedem Ingest-/Read-Pfad,

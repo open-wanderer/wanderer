@@ -1417,13 +1417,55 @@ denselben geschlossenen Typ `SearchReadinessV1` mit
 | `status` | ja | `ready \| not_ready` |
 | `code` | ja | einer der unten festgelegten Codes |
 | `search_contract_revision` | ja | aktive stabile Request-/ACL-/DTO-Vertragsrevision |
-| `profile_revisions` | ja | geschlossenes Objekt mit `trails`, `lists` und `actors` |
+| `profile_revisions` | ja | nichtleeres kanonisches Array aus `SearchProfileRevisionV1` für alle in diesem Deployment erforderlichen logischen Suchprofile |
 | `expected_settings_fingerprint` | ja | SHA-256 des erwarteten vollständigen Profilsets |
 | `observed_settings_fingerprint` | nein | beobachteter SHA-256, sobald vollständig berechenbar |
 
+Auch die Arrayelemente sind geschlossen und besitzen
+`additionalProperties: false`:
+
+```text
+SearchProfileRevisionV1 = {
+  "logical_role": string,       # ^[a-z][a-z0-9_]{0,63}$
+  "profile_revision": string   # 1..128 Unicode-Codepoints
+}
+```
+
+Das Array hat `minItems: 1` und `uniqueItems: true`; die zusätzliche
+Kanonizitätsvalidierung verlangt jede `logical_role` genau einmal und eine nach
+ihren UTF-8-Bytes streng aufsteigende Ordnung. Damit ist sein JSON Schema
+deploymentunabhängig; welche Rollen ein Deployment verlangt, ist
+Laufzeitkonfiguration, keine dynamische Objektproperty.
+
 Ein Fingerprint ist `sha256:` gefolgt von genau 64 kleingeschriebenen
-Hexadezimalzeichen. Er bindet in fester Rollenreihenfolge Index-UID,
-Primärschlüssel und vollständige wirksame Settings jedes Indexprofils.
+Hexadezimalzeichen. Jedes Profilartefakt enthält die vollständigen wirksamen
+Engine-Settings einschliesslich expliziter Defaults als JSON-Objekt.
+`settings_digest` ist `sha256:` gefolgt von 64 kleingeschriebenen Hexzeichen
+des SHA-256 über dessen RFC-8785-kanonisierte Bytes. Der Settingsfingerprint
+ist der SHA-256 über die RFC-8785-kanonisierten Bytes genau dieser geschlossenen
+Preimage:
+
+```text
+SearchSettingsFingerprintPreimageV1 = {
+  "contract": "search-settings-fingerprint.v1",
+  "profiles": [{
+    "logical_role": string,
+    "profile_revision": string,
+    "primary_key": non-empty text,
+    "settings_digest": sha256-prefixed-lowercase-hex text
+  }]
+}
+```
+
+`profiles` ist nichtleer, folgt exakt Menge und Ordnung von
+`profile_revisions` und besitzt ebenfalls geschlossene Elemente. Für
+`expected_settings_fingerprint` stammen Primärschlüssel und Settings aus dem
+aktiven Profilartefakt; für `observed_settings_fingerprint` aus dem tatsächlich
+gelesenen Engineprofil, während Rolle und erwartete Profilrevision unverändert
+bleiben. Physische Indexnamen sind nie Teil der Preimage. Kann für nur eine
+erforderliche Rolle Primärschlüssel oder vollständiges Settingsobjekt nicht
+sicher gelesen werden, wird der beobachtete Fingerprint vollständig
+ausgelassen; ein Teilfingerprint ist verboten.
 
 HTTP `200`, `status: ready` und `code: search_ready` sind nur zulässig, wenn
 gleichzeitig:
@@ -1431,66 +1473,52 @@ gleichzeitig:
 1. die Engine erreichbar ist;
 2. der laufende DB- und Webbuild die aktive `search_contract_revision`
    unterstützt;
-3. jede logische UID genau eine Mutations- und Routingautorität besitzt: Unter
-   `offline-srch0-v1` nennt ihr interner PocketBase-Zustandsrecord dieselbe
-   Vertrags- und Profilrevision und trägt keinen Recovery-/Cutovermarker; nach
-   dem irreversiblen STATE1-Handoff sind stattdessen der in
-   `authority_head_key` exakt gebundene Head mit
-   `current.pointer_version >= authority_pointer_version` sowie dessen
-   Generation, Snapshot und Publisherzustand autoritativ; die eingefrorene
-   Authority-Version ist der Handoff-Floor, nicht die dauerhaft aktuelle
-   Pointerversion. Verschiedene UIDs dürfen vollständig gebundenen
-   unterschiedlichen Authorities gehören; eine kreuzende Abhängigkeit wird im
-   Fachcommit nach Authority partitioniert. STATE1 V1 akzeptiert als einzige
-   nichtleere Offline-Handoffmenge exakt `["trails"]`; `actors` und `lists`
-   bleiben Offline-Authority, jede andere erste Menge endet mutationsfrei mit
-   `state1_handoff_uid_unsupported` und jeder spätere Erweiterungsversuch mit
-   `state1_incremental_authority_handoff_unsupported`;
-4. jeder von dieser Autorität verpflichtete Index existiert und
-   Primärschlüssel sowie Settings exakt den erwarteten Fingerprint ergeben;
-5. für jede noch offline verwaltete UID die Startupvalidierung dieses Prozesses
-   grün ist und ihr aktives Profil PocketBase-ableitbar ist: entweder der vollständige PocketBase-gegen-Engine-Feld-/ID-/
-   Digestvergleich oder der in SRCH0 definierte Epochen-Kurzpfad aus
-   `applied_projection_epoch = attested_projection_epoch`, leerem
-   Vollvergleichsgrund, passender `attested_document_count`, passendem
-   Engine-Primärschlüssel/-Settings sowie globalem Taskguard im Zustand
-   `ready`; vor der initialen Freigabe muss dessen attestierter Head exakt dem
-   aktuellen ungefilterten Engine-Taskhead entsprechen, während im bereits
-   freigegebenen Prozess alternativ die unmittelbar folgende geschlossene
-   Runtimebedingung gilt; und
-6. kein innerhalb seiner deklarierten UID-Menge unvollständiger oder
-   mehrdeutiger Authority-Handoff,
-   Swap-, Rebuild- oder Publisherzustand vorliegt.
+3. jede erforderliche logische Suchrolle genau einen autoritativen, vollständig
+   gebundenen Routingzustand besitzt;
+4. jeder von diesem Zustand verpflichtete Index beziehungsweise jede
+   verpflichtete Generation existiert und Primärschlüssel sowie Settings dem
+   aktiven Profil entsprechen;
+5. die für den aktuellen Owner normativ festgelegten Freshness-, Delivery-,
+   Security-, Publisher- und Recoverygates grün sind; und
+6. kein innerhalb seines deklarierten Scopes unvollständiger, mehrdeutiger oder
+   recoverypflichtiger Handoff-, Rebuild-, Swap- oder Publisherzustand
+   vorliegt.
 
-Die exakte Gleichheit von persistent attestiertem und aktuellem Head in Punkt 5
-ist das initiale Startup-/Kurzpfadgate. Nach dieser ersten Freigabe darf
-Live-Readiness im selben ununterbrochenen Prozess trotz eines neueren Heads
-fortbestehen, wenn `search_engine_task_guard` persistent `ready` bleibt, der
-aktuelle Head exakt dem prozesslokalen `validated_runtime_task_head` entspricht,
-der vollständig paginierte Suffix lückenlos als
-`expected_pending|succeeded` dieses Prozesses klassifiziert ist, alle Pending-
-Leases innerhalb ihres Terminalbounds liegen und die erfolgreiche
-Observerbeobachtung höchstens 1 s alt ist. Dieser Runtimehead überlebt keinen
-Prozessstart und kann den initialen Gleichheitscheck nie ersetzen.
+Dieser API-Vertrag definiert bewusst nicht, wie ein Owner Quellrevisionen,
+Tasks, Generationen, Vergleiche oder Recovery persistiert. Für die drei
+heutigen direkten Legacyindizes ist
+[IDX0](/develop/specs/trail-search/work-items/engine/idx0/) der konkrete
+Produzent beider Endpunkte und seines kleinen Bootstrapzustands. Nach einem
+Ownerwechsel sind für die persistente Control Plane der STATE1-Vertrag und die
+jeweils implementierenden Indexbausteine normativ. Ein Legacy- oder
+Migrationswerkzeug darf seine eigenen strengeren Preflight- und Terminalgates
+besitzen, macht deren interne Records aber nicht zu Feldern von
+`SearchReadinessV1`.
 
-Audit- oder Migrationsdateien, Run-ID, ein Quellfingerprint aus einer externen
-Datei, eine einzelne beziehungsweise runlokale Task-UID und der Digest eines
-bestimmten Binary- oder Containerbuilds sind keine Readinessinputs. Der
-endpointweite persistente Taskhead-Guard, der gegebenenfalls validierte lokale
-Runtimehead und die frische Observerlease sind dagegen Readinessinputs. Die
-internen Applied-/Attested-Epochen samt
-attestiertem Enginezähler und Taskhead sind ausschliesslich die begrenzte
-Kurzpfadattestierung des lokalen Offlineprofils; ein nichtleerer
-`verification_required_reason` verbietet sie. Die an
-`verified_projection_epoch` gebundenen `verified_*`-Werte dokumentieren nur den
-letzten Vollvergleich und müssen nach späteren korrekt attestierten Writes
-nicht der aktuellen Projektion entsprechen. Ein verlorenes
-Auditverzeichnis darf einen vollständig vergleichbaren, revisions- und
-settingskonformen Index nicht unready machen.
-Ein App-Rollback oder -Rollforward bleibt ohne Reattest zulässig, wenn der
-Build dieselbe Vertragsrevision unterstützt. Eine Änderung an Requestcompiler,
-ACL-/DTO-Grenze, Projektion oder Indexsettings muss die entsprechende
-Vertrags- beziehungsweise Profilrevision erhöhen.
+Unter IDX0 ist der DB-Endpunkt die autoritative Legacyprobe; der Web-Endpunkt
+validiert deren geschlossene Wireform, ergänzt ausschliesslich seine eigene
+Vertragsunterstützung und veröffentlicht wieder `SearchReadinessV1`.
+SRCH-COMP konsumiert diesen Zustand für seine Consumer und erzeugt keine
+zweite Readinessquelle. Ein späterer STATE1-Handoff ersetzt nur Owner und
+interne Gates, niemals Endpunkte, Wireform oder Fehlerpräzedenz.
+
+DB und Web teilen dafür das statische Erwartungsmanifest des aktiven
+Legacyprofils. Kann Web die DB nach Ablauf seines höchstens fünf Sekunden alten
+lokalen Zustands nicht erreichen oder ihren Payload nicht validieren, emittiert
+es dieses Manifest ohne `observed_settings_fingerprint`. Unterstützt der
+Webbuild dessen Vertragsrevision nicht, gilt gemäss Präzedenz
+`not_ready/search_contract_unsupported`; andernfalls gilt
+`not_ready/search_recovery_required`. Web erfindet weder einen grünen Zustand
+noch einen beobachteten Teilfingerprint. IDX0 besitzt diese Produktion; der
+Search- und Token-Guard, der den Zustand vor Enginezugriff konsumiert, gehört
+zu SRCH-COMP.
+
+Audit- oder Migrationsdateien, Run-IDs, einzelne Engine-Task-IDs und Digests
+bestimmter Binary- oder Containerbuilds sind keine Readinessinputs. Ein
+kompatibler App-Rollback oder -Rollforward bleibt ohne Reattest zulässig, wenn
+der Build dieselbe Vertragsrevision unterstützt. Eine Änderung an
+Requestcompiler, ACL-/DTO-Grenze, Projektion oder Indexsettings muss die
+entsprechende Vertrags- beziehungsweise Profilrevision erhöhen.
 
 Jeder andere Zustand antwortet mit HTTP `503`, `status: not_ready` und genau
 einem Code nach dieser Präzedenz:
@@ -1499,273 +1527,29 @@ einem Code nach dieser Präzedenz:
 | ---: | --- | --- |
 | 1 | `search_engine_unreachable` | Engineverbindung oder notwendiger Engine-Read schlägt fehl |
 | 2 | `search_contract_unsupported` | der laufende Build unterstützt die aktive Vertragsrevision nicht |
-| 3 | `search_recovery_required` | die initiale `search_initializing`-Prüfung läuft, eine Epochenlücke, ein invalider/abweichender globaler Taskguard beziehungsweise vollständig diagnostizierter Manual-Dokumentdrift verlangt Offline-Recovery oder ein Operationsmarker, innerhalb seiner deklarierten Menge halb gebundener/mehrdeutiger Authority-Handoff beziehungsweise bekannter partieller/mehrdeutiger Rebuild-, Swap- oder Publisherzustand verlangt Recovery durch seinen aktuellen Owner |
-| 4 | `search_index_missing` | mindestens ein erforderlicher logischer Index fehlt, ohne dass `auto` ihn erfolgreich recovern konnte |
+| 3 | `search_recovery_required` | der autoritative Owner meldet Initialisierung, unvollständige Zustellung, einen nichtterminalen oder mehrdeutigen Betriebszustand oder erforderliches Recovery; Web kann den autoritativen DB-Owner nicht erreichen oder dessen Payload nicht validieren |
+| 4 | `search_index_missing` | mindestens ein erforderlicher logischer Index beziehungsweise eine erforderliche Generation fehlt |
 | 5 | `search_settings_mismatch` | Primärschlüssel oder Settings weichen vom aktiven Profilset ab, ohne erkannten Recoveryzustand |
-| 6 | `search_state_mismatch` | PocketBase-Zustandsrecord und Engineprofil widersprechen sich, ohne erkannten Recoveryzustand |
+| 6 | `search_state_mismatch` | autoritativer Routing-/Control-Plane-Zustand und Engineprofil widersprechen sich, ohne erkannten Recoveryzustand |
 
 `observed_settings_fingerprint` wird gesetzt, sobald das gesamte beobachtete
 Profilset sicher berechnet wurde; bei unerreichbarer Engine oder fehlendem
 Index bleibt es ausgelassen. Antworten enthalten weder Engine-URL oder -Key,
-interne Index-UIDs, Actor-/Principal-IDs, Task-IDs noch Dokumentfingerprints.
+interne Index-UIDs, Actor-/Principal-IDs, Task-IDs noch
+Dokumentfingerprints.
 
-Nach lokalem Lock und DB-Migrationsbootstrap registriert PocketBases
-`OnServe`-Hook Guards/Healthrouten und setzt `search_initializing`, ruft zum
-Binden von Socket/Mux `event.Next()` auf, startet danach genau eine
-lockgebundene Ensure-Goroutine und kehrt unverzüglich zurück. Erst dadurch
-erreicht PocketBase `http.Server.Serve(listener)`; ein synchron im Hook
-abgearbeiteter Vergleich würde die Liveness gerade nicht öffnen. Die
-Guard-Goroutine serialisiert ihre Phasen und wartet Engine-Tasks terminal, ohne
-die HTTP-Serverloop zu blockieren. `GET /health` liefert dabei `200`; beide Search-
-Readiness-Endpunkte liefern zunächst `503 search_recovery_required`. Alle
-Searchrouten brechen vor dem ersten Enginezugriff ab, projektionsrelevante
-mutierende HTTP-Routen liefern `503`, und Indexhooks, Cronjobs sowie andere
-projektionsrelevante Worker starten noch nicht. Der Guard greift vor jeder
-Fachmutation einschliesslich normaler PocketBase-Record-, Superuser-/Admin- und
-Pluginpfade; nur den nachgelagerten Indexhook zu unterdrücken wäre unzulässig.
-Erst ein atomarer lokaler
-Phasenwechsel nach grünem Guard öffnet Writes, Worker und Search-Readiness. So
-bleibt die Quelle während der Prüfung stabil und der Liveness-Healthcheck ist
-nicht durch die Dauer des Vergleichs begrenzt.
+DB und Web halten ihren lokalen Readinesszustand höchstens fünf Sekunden
+stale. Jede Search-, Multi-Search-, Profil-, Cluster-, Actor- und Hilfsroute
+prüft denselben lokalen Guard vor dem ersten Enginezugriff. Bei `not_ready`
+wird Meilisearch nicht aufgerufen; die öffentliche Suchroute liefert das
+bestehende Problem Detail mit HTTP `503` und `code: search_unavailable`.
+Interne Readinesscodes werden nicht als zusätzliche öffentliche Searchfehler
+ausgegeben.
 
-Die einzige Ausnahme ist SRCH0s prozesslokales
-`search_manual_intervention`: Findet ein in `manual` vollständig beendeter
-read-only Vollvergleich ausschliesslich Dokumentdrift der Offline-UIDs eines
-bekannten committed Profils bei `operation_state = ready`, vollständig
-gebundener Authoritypartition und ohne offenen Offline-Engine-Task, persistiert
-er unmittelbar und unabhängig von den STATE1-Ownergates den unten definierten
-atomaren Driftgrund. Erst nach diesem Commit und zusätzlich grünen STATE1-
-Ownergates darf er allgemeine Fach-/Admin-/Pluginwrites sowie nicht suchende
-Worker einschliesslich Federation-Inbox/-Outbox öffnen. Bei rotem Ownergate
-bleibt `search_initializing` mit geschlossenen Writes, der Driftgrund aber
-durable. Search-Readiness, Search-/Token-/Proxyrouten und alle engine-
-mutierenden Hooks/Worker bleiben in der geöffneten Manual-Phase gesperrt. Ein
-Quellcommit erhöht für die Offline-Partition source-only Applied/Fan-out und
-persistiert für die STATE1-Partition Change/Dirty im selben Fachcommit; beide
-Engine-Lieferpfade bleiben pausiert. Der
-  dokumentierte Repair stoppt den Serveprozess, repariert zuerst `O` per
-  owner-scharfem Offline-Reindex und drainiert danach mit
-  `search-state1 reconcile --durable-only --until-ready` ausschliesslich den
-  bereits durablen `S`-/`C`-Cutoff. Ein gültiger STATE1-Lag blockiert die
-  O-Stufe nicht; ihr Plan/Resume bleibt nach Crash O-only und meldet
-  `state1_drain_required`, aber niemals globale Readiness. Erst nach dem Drain
-  startet Serve neu. Jeder
-  andere nicht grüne oder unvollständig diagnostizierte Zustand bleibt
-`search_initializing`; der Offline-Reindex läuft später wieder bei gestopptem
-Serveprozess.
-„Read-only“ bezieht sich dabei auf Fachquelle und Engine. Ein explizites
-`ensure --full` validiert jedoch zuerst Authority, Profil und Operationsstruktur.
-Vor erstem Taskquieszenzversuch und Dokumentfetch persistiert danach ein
-einziger Multi-Row-CAS über die vollständige kanonische Offline-Zielmenge den SRCH0-Grund
-`operator` ausschliesslich auf der Menge `L`: Zeilen, die ohne das flüchtige
-Flag bereits vollständig kurzpfadfähig wären und noch einen leeren Grund
-besitzen. Jede Zeile in `L` verlangt einheitlich
-`state_revision <= 2^53-4`.
-Zeilen mit bereits durablem Trigger wie Epochenlücke, Zählerabweichung oder
-nichtleerem Grund werden ohne Revisionswrite gebunden und folgen ihrem
-bestehenden Recoverypfad; Operations-, Profil- oder Authorityfehler werden
-nicht überschrieben. Der Commit gelingt ganz oder gar nicht; bei verletzter
-einheitlicher `state_revision`-Vorbedingung in `L` oder CAS-Fehler beginnt der
-Vergleich nicht. Dadurch erzwingt
-ein Crash während oder nach dem Vergleich auch ohne erneutes `--full` den
-nächsten Vollvergleich. Bei grünem Ergebnis darf der Manual-Vollvergleich nach dem Vergleich ausschliesslich seine
-Control-Attestierung, neben dem gegebenenfalls vorher gesetzten `--full`-Latch,
-persistieren und damit vor Öffnung normaler Writes den Applied-/Attested-
-Gleichstand herstellen; bei Drift schreibt er diese Attestierung nicht.
-Unmittelbar nach der stabil gebundenen Driftdiagnose muss ein einziger SQLite-
-Commit die vollständige kanonische Driftmenge an die stabilen Source-, Epoch-
-und Quieszenzversuchswerte binden. Er setzt nur auf Zeilen mit leerem Grund dauerhaft
-`verification_required_reason = document_drift` samt Revisionsinkrement und
-verlangt `state_revision <= 2^53-4`; vorhandene nichtleere Gründe prüft und erhält er ohne
-Revisionswrite bytegleich. Alle Zeilen gewinnen oder keine. CAS-, Budget- oder
-Commitfehler halten `search_initializing`. Erst danach werden die STATE1-
-Ownergates für die mögliche Phasenöffnung ausgewertet. Der persistierte Grund
-überlebt somit auch einen Crash bei rotem Ownergate oder ohne Folgewrit und
-verbietet den nächsten Kurzpfad bis zum grünen Offline-Reindex.
-Der von demselben `--full`-Lauf gesetzte `operator`-Grund bleibt bei Drift
-bytegleich stehen; er wird nicht in einem vierten Revisionsschritt rein
-diagnostisch zu `document_drift` umgeschrieben.
-
-Für UIDs unter `offline-srch0-v1` lädt der DB-Guard die aktiven PocketBase-
-Revisionen und kleinen Zustandsrecords. Sind Applied- und Attested-Epoche
-gleich, liegt ein attestierter Dokumentzähler vor, passen Engine-
-Primärschlüssel, Settings und `numberOfDocuments`, ist
-`verification_required_reason` leer und steht der globale Taskguard mit exakt
-passendem aktuellem ungefiltertem Head auf `ready`, darf er nach genau einem
-Taskhead-Read ohne PocketBase-Vollprojektion und ohne Engine-Dokumentdownload
-öffnen. Fehlende oder ungleiche Epochen,
-abweichender Zähler, nichtterminale Operationen, bekannte Taskfehler,
-Quell-/Engine-Restore, Engine-Adminarbeit, ein invalider/abweichender Taskguard
-und ein erfolgreich vorab gelatchter
-expliziter Operatorwunsch
-erzwingen zuerst SRCH0s höchstens dreimaligen Taskquieszenz-Retry und danach
-den vollständigen Vergleich aller Offline-UIDs;
-nur dieser darf eine bestehende Epochenlücke schliessen, den Grund leeren und
-den globalen Taskguard in derselben Transaktion erneuern. Sind alle UID-Belege
-bereits exakt gültig und war ausschliesslich der globale Guard invalid oder
-gegenüber dem stabilen finalen Head abweichend, bleiben
-UID-Zeilen einschliesslich `verified_at` read-only und eine reine Guard-CAS ist
-auch bei `state_revision = 2^53-1` zulässig; jede tatsächlich nötige UID-
-Mutation verlangt weiterhin ihren Revisionsschritt.
-Scheitert ein `--full`-Vorab-Latch wegen zu knapper Revision, beginnt dieser
-Vergleich nicht und entwertet die vorherige Kurzpfadattestierung nicht.
-Eine direkte Quell- oder Engineänderung mit scheinbar passenden Epochen,
-Settings und gleicher Dokumentzahl liegt ausserhalb des unterstützten privaten
-Single-Writer-Profils und verlangt danach einen erzwungenen Vollvergleich. Nach
-STATE1-Handoff verwendet der Guard ausschliesslich dessen Pointer-/
-Publishergates und darf den eingefrorenen Offline-Record nicht mutieren.
-
-Der unterstützte Offline-Quellrestore-, Engine-Restore- oder Engine-Adminpfad
-muss bei gestopptem DB-Prozess nach dem Restore und vor dem nächsten Start
-`search-index invalidate` mit `source_restore`, `engine_restore`
-beziehungsweise `engine_admin` ausführen. Der dauerhafte Grund verbietet trotz
-gleicher Epochen, Settings und Dokumentzahl den Kurzpfad; erst der
-Vollvergleich leert ihn. `engine_restore` und `engine_admin` invalidieren im
-selben Commit zusätzlich den globalen Taskguard; dessen Reattestierung
-vergleicht alle UIDs in `O`, auch wenn nur ein manifestgebundenes Restore-Scope
-repariert wird. Ein Austausch unter Umgehung dieses Pfads ist
-ausserhalb des Offline-Betriebsvertrags. `source_restore` muss ohne Teilselektor
-alle Offline-UIDs erfassen; ein partieller `engine_restore` ist nur mit dem
-lesbaren geschlossenen exakten Restore-Scope-Manifest und dessen geprüftem
-RFC-8785-Digest zulässig. Eine explizit adressierte STATE1-UID
-wird abgewiesen, während die implizite Zielmenge alle Offline-UIDs atomar
-invalidiert und STATE1-UIDs überspringt. Betrifft derselbe PocketBase- oder
-Engine-Restore beide Authorities, müssen Offline-Invalidierung und STATE1-
-Restoregate vor demselben gestoppten Neustart vollständig durable sein.
-
-Nur in `search_ready` aktualisiert der Guard den gecachten Erreichbarkeits-,
-Settings- und Operationszustand danach im Hintergrund mit höchstens fünf
-Sekunden Staleness; Vollprojektion oder Vollvergleich laufen nicht alle fünf
-Sekunden. In `search_manual_intervention` ist auch dieses Enginepolling für die
-gesamte restliche Serveprozess-Lebenszeit pausiert, sodass dort ab dem
-Phasenwechsel kein Engineaufruf mehr erfolgt. Erst die ausdrücklich gestarteten
-gestoppten Offline-Reindex-/STATE1-Drainbefehle greifen wieder auf die Engine
-zu. Jeder projektionsrelevante PocketBase-Fachcommit
-berechnet dieselbe vollständige Adapter-Abhängigkeitshülle `A`, liest Authority
-und `state_revision` aller UIDs im selben SQLite-Schnitt und partitioniert in
-`O` und `S`. Atomar mit der Fachmutation erhöht er Applied ausschliesslich für
-`O` und schreibt ausschliesslich für `S` den STATE1-Commit-/Change-/Dirty-/
-Delivery-/Fence-/Tombstone-Schnitt; deren Offline-Records bleiben bytegleich.
-Authority-unabhängig verpflichtete STATE1-Security-/Federation-Control-Changes
-bleiben davon unberührt und können auch bei `S = []` eine Katalogrevision
-verlangen; sie übernehmen keine Offline-Suchprojektion.
-Authority-CAS-Verlust rollt alles zurück und partitioniert beim Retry neu.
-Vor dem ersten Effekt verlangt jeder neue mehrschrittige Offlineeintritt und
-jeder weitere Applied-Commit einheitlich `state_revision <= 2^53-4`; bei
-einer zu knappen UID rollt der gesamte Command mit
-`search_state_revision_exhausted` zurück. Bereits durable ausgelöste
-Fortsetzungen dürfen die zwei reservierten Schritte verbrauchen; der
-ein-CAS-Handoff verlangt im mutationsfreien Preflight vor Generationsaufbau nur
-eine freie Revision.
-
-STATE1s einmaliger Trail-Handoff besitzt zusätzlich den in SRCH0 geschlossenen
-read-only Precommit-Verbraucher desselben `H0/H1`-/Vollvergleich-/`H2`-Retries:
-Bei epochengleichen, grundfreien und seit Preflight gelockten O-UIDs prüft er
-die tatsächliche vollständige Projektion, ohne die absichtlich historischen
-`verified_*`-Felder als Freshnessgate zu verwenden oder zu schreiben. Nur der
-globale Guard darf auf `H2` fortschreiten; der All-O-Ergebnisdigest wird in den
-Handoff-Snapshot gebunden. Jede Inhaltsabweichung oder nötige UID-Mutation
-verwirft den Handoff und verlangt Preflight/Recovery statt einer Attestierung.
-
-Ausser in `search_manual_intervention`, wo beide Lieferpfade pausieren,
-weckt erst nach Abschluss des Responseversuchs ein zwingender `defer`-
-Post-Response-Finalizer den pro UID serialisierten Offlinekoordinator für `O`;
-ein Clientdisconnect nach durablem Commit hebt die Projektionspflicht nicht
-auf. STATE1 bedient die `S`-
-Projektionen sowie authority-unabhängigen `C`-Control-Changes. Der Request
-wartet nie auf Submit, Await, Stats oder Attestierungs-CAS. Der
-Offlinekoordinator ordnet und koalesziert lückenlose Applied-Envelopes, hält
-den UID-Lock nicht über Engine-I/O und lässt Attested während einer aktiven
-Kette auf `T0`. Erst die vollständig terminal erfolgreiche Taskmenge samt
-Dirty-Suffix darf Attested einmalig auf `Efinal` ziehen und den Zähler aus dem
-Vorher-/Nachher-Projektions-Keydelta fortschreiben; pro Epoche erfolgt kein
-Stats-Read. Ein späterer Erfolg überspringt nie eine ältere Lücke. Ein
-Engine- oder terminaler Mutationstaskfehler invalidiert den prozesslokalen
-Guard sofort. Er setzt, wenn die Fehler-CAS erreicht wird, `task_failed` und
-`operation_state = recovering` atomar im selben Revisionsschritt; ein Crash
-davor lässt die Epochenlücke mit zwei reservierten Recovery-Schritten zurück.
-Ein `awaiting_response`-Envelope ohne Finalizer-/Ownerübernahme schliesst nach
-der festen 5-s-Deadline Search und Write-Admission und nimmt denselben
-Failure-/Recoverypfad; der Watchdog submittet nie vor nachgewiesenem
-Responseende.
-Der nächste Recoverylauf stellt nach begrenztem Taskquieszenz-Retry die
-Dokumentkonvergenz wieder her. Der Web-
-Endpunkt prüft zusätzlich, dass sein lokaler Build dieselbe Vertragsrevision
-unterstützt.
-
-Ein endpointweites Submitregister ordnet jeden Engineauftrag von Offline-
-Koordinator, STATE1-Worker/-Publisher sowie Recovery/Reindex mit den Zuständen
-`socket_pending`, `expected_pending`, `succeeded`, `failed|canceled` oder
-`unknown`. Jede mögliche Submission verwendet SRCH0s gemeinsamen Admission-
-Mutex und 5-s-Submitdeadline; nur die direkte `202` desselben Prozesses erzeugt
-`expected_pending`. Ein ohne sichtbaren Head hängender POST invalidiert bei
-Deadline, ein bereits sichtbarer unklassifizierter Head innerhalb des
-strengeren verbleibenden 1-s-Budgets. Eine frühe versionsqualifizierte
-Non-Acceptance wird sofort `task_failed`, jede andere Non-202-Antwort sofort
-`task_submission_unknown`; keine wartet bis zur Deadline. Jeder eigene Task, auch ein reiner
-STATE1-Task, muss innerhalb 120 s terminal sein oder verwendet einen strengeren
-Ownerbound. Erfolgreiche Records bleiben bis zur sie subsumierenden Guard-CAS
-erhalten.
-
-Der persistente globale Taskguard wird nach inkrementellen Erfolgen nur an
-einer global ruhigen endpointweiten Grenze fortgeschrieben. Bei der letzten
-Offline-Attestierung darf diese Grenze prospektiv sein: Genau ein Owner steht
-noch auf `attesting`, seine validierte CAS erzeugt in **derselben** SQLite-
-Transaktion wie die Guard-CAS die letzte epochengleiche, grundfreie Postimage,
-und er wird genau bei Commit unmittelbar `idle`; alle anderen O-UIDs/-Owner sind
-bereits epochengleich/idle. Ohne Commit bleiben beide CAS aus und der Owner wird
-nicht `idle`. Daneben müssen alle beteiligten STATE1-Tasks ihren durablen Owner-
-Ack besitzen. Deshalb darf auch ein reiner S-/C-Erfolg eine eigenständige Guard-
-CAS auslösen. Der unter dem Admission-Mutex stabil geprüfte
-`Hq1/Hq2`-Head ist identisch und genau `Hq1` wird gebunden; kein dazwischen
-registrierter Task wird eingesaugt. Ein prozesslokaler validierter Runtimehead
-begrenzt die Suffixpagination und ist mit vollständig klassifiziertem Register,
-gültigen Pending-Leases und frischer Observerlease der Live-Readinessinput,
-bleibt aber für Startup wertlos. Ein bereits invalider Guard verlangt den
-Vollvergleich.
-
-Ein vor der ersten Freigabe gestarteter Runtime-Observer folgt SRCH0s festen
-250-ms-Pollslots, 500-ms-Deadline und sequenzierter maximal zweifacher
-Überlappung. Solange Poll `n` auch nach Cancellation transportseitig offen ist,
-fällt Slot `n+2` aus. Alte Antworten, Fehler und Timeouts sind nach einem bereits
-angewandten neueren Poll wirkungslos; vor Invalidierung aufgrund vermeintlich
-fehlender Registerdaten verwirft ein neuerer vollständig subsumierender
-`ready`-Checkpoint den stalen Poll oder rebasiert bei partieller Subsumption
-ohne Budgetneustart auf dessen noch ungeprüften Suffix. Unbekannter Head,
-Rücksprung, Scope-/Endpointfehler oder
-aktueller Timeout schliessen zuerst den lokalen Searchguard und invalidieren
-den persistenten Guard innerhalb des 1-s-`task_head_detection_budget`. Das ist
-Detect-and-Retry und ohne per-Response Enginefence ausdrücklich keine
-Nullfenster-Garantie zwischen Taskregistration und Observererkennung. Jeder Searchconsumer erfasst die lokale Guardgeneration
-vor dem Enginezugriff und prüft sie sowie eine höchstens 1 s alte erfolgreiche
-Observerbeobachtung vor Responseversand erneut; nach bereits erkannter
-Invalidierung wird kein laufender Response mehr ausgeliefert.
-
-Alle Search-, Multi-Search-, Profil-, Cluster-, Actor- und Hilfsrouten prüfen
-vor ihrem ersten Enginezugriff denselben lokalen Web-Guard. Bei `not_ready`
-rufen sie Meilisearch nicht auf und liefern das bestehende Problem Detail mit
-HTTP `503` und `code: search_unavailable`; der interne Readiness-Code wird
-nicht als öffentlicher Search-Fehler weitergereicht.
-
-Meilisearch bleibt für die PocketBase-ableitbaren Profile eine abgeleitete
-Datenhaltung. Fehlt ein solcher Index, darf der Bootstrap-Guard ihn nach dem
-für die aktive Profilrevision und Autorität definierten Recoveryvertrag
-vollständig aus PocketBase rekonstruieren. Ist `srch0_pair_activated_v1` noch nicht
-erfüllt, obwohl `lists` oder `trails` bereits STATE1-Authority besitzt, lautet
-die interne Diagnose `search_pair_migration_authority_conflict`; es gibt weder
-einen Offline-Cutover über die fremde Authority noch eine STATE1-Rückgabekante.
-Eine noch aktive
-`lists-legacy-v0` ist nur opake Engine-Rollbackbaseline: intakt verlangt sie vor
-dem neuen Serve `legacy_list_migration_required`, fehlend oder gegen ihren
-gebundenen Snapshot gedriftet `legacy_list_baseline_unrecoverable` und ein
-passendes Enginebackup. Beide internen Details werden öffentlich als
-`search_recovery_required` abgebildet. Erst der
-grüne Vollvergleich darf die Readiness wieder öffnen. Ein unbekanntes Profil
-einer konfigurierten logischen UID oder eine mehrdeutige aktive Swapabbildung
-wird nie automatisch überschrieben. Reservierte runlokale
-`*__srch0__<run-id>`-UIDs liegen ausserhalb des logischen Profilsets: Ohne exakt
-bindenden nichtterminalen Operationsmarker sind sie nur Orphan-/Cleanup-
-Diagnose und weder Routingziel noch `search_profile_conflict`.
+Der Liveness-Endpunkt darf während Initialisierung oder Recovery bereits
+`200` liefern. Das öffnet weder Suchrouten noch mutierende Lieferpfade. Wann
+Fachwrites, Projektionsworker oder Federation-Worker zulässig sind, bestimmt
+ihr jeweiliger Ownervertrag und nicht dieser Such-Wirevertrag.
 
 ## 13. Capability Discovery
 
@@ -2475,35 +2259,24 @@ Jede Zeile wird mindestens als Compiler-/Gateway-Test umgesetzt. Mit `E2E` marki
 
 | ID | Zustand beziehungsweise Ereignis | Erwartung |
 | --- | --- | --- |
-| RDY-01 | Engine, vollständiges Profilset, zuständige Offline-/STATE1-Autorität und vom Build unterstützte Vertragsrevision stimmen; Vollvergleich oder zulässiger Kurzpfad ist grün | beide Endpunkte liefern `200`, `search-readiness.v1`, `ready` und `search_ready` |
-| RDY-02 | anderer Binary-/Containerbuild unterstützt dieselbe aktive Vertragsrevision | Suche bleibt ohne Reattest ready |
+| RDY-01 | Engine, vollständiges Profilset, autoritativer Routingzustand und vom Build unterstützte Vertragsrevision stimmen; alle vom aktuellen Owner verlangten Gates sind grün | beide Endpunkte liefern `200`, `search-readiness.v1`, `ready` und `search_ready` |
+| RDY-02 | anderer Binary-/Containerbuild unterstützt dieselbe aktive Vertragsrevision | Suche bleibt ohne buildgebundene Reattestierung ready |
 | RDY-03 | laufender Build unterstützt die aktive Vertragsrevision nicht | `503 search_contract_unsupported`; keine Suchroute erreicht die Engine |
-| RDY-04 | Engine unerreichbar, Index fehlt oder Settings weichen ab | exakt der gemäss Präzedenz bestimmte Readiness-Code; kein nachrangiger Zustand leakt in den Body |
+| RDY-04 | Engine unerreichbar, erforderlicher Index fehlt oder Settings weichen ab | exakt der gemäss Präzedenz bestimmte Readinesscode; kein nachrangiger Zustand leakt in den Body |
 | RDY-05 | DB-Prozess lebt, Suche ist nicht ready | DB `GET /health` bleibt Liveness; beide Search-Readiness-Endpunkte bleiben `503` |
-| RDY-06 | Enginevolume fehlt bei aktivem bekannten PocketBase-ableitbarem Profil | Bootstrap-Listener hält `GET /health` grün; Owner-Recovery baut vollständig aus PocketBase, während Search/Writes/Worker gesperrt bleiben; erst der Vollvergleich darf `search_ready` setzen. Eine aktive `lists-legacy-v0` folgt stattdessen dem dokumentierten Backupfehlerpfad |
-| RDY-07 | Audit-/Reindexdateien fehlen, aktiver Index, State und interne Kurzpfadattestierung stimmen | Readiness bleibt grün; ein optionaler erzwungener Vollvergleich darf Audit neu erzeugen |
-| RDY-08 | Settings passen, PocketBase-State nennt aber eine andere Profilrevision | `503 search_state_mismatch`; Settingsgleichheit repariert den State nicht still |
-| RDY-09 | partieller oder mehrdeutiger Swap-/Rebuildzustand | `503 search_recovery_required`; kein automatischer zweiter Swap |
-| RDY-10 | normale Fachmutation nach gültiger Aktivierung | Fachcommit berechnet die vollständige Fan-out-Menge, erhöht Applied nur in deren Offline-Partition und schreibt den STATE1-Revisionsschnitt nur für deren STATE1-Partition; die Antwort endet vor dem ersten Offline-Submit, danach koalesziert der UID-Runner lückenlose Epochen und zieht Attested erst nach allen terminal erfolgreichen Tasks einmalig nach |
+| RDY-06 | der autoritative Owner meldet Initialisierung, unvollständige Zustellung oder Recovery | `503 search_recovery_required`, bis ausschliesslich dieser Owner seine normativen Gates wieder grün setzt |
+| RDY-07 | externe Audit-, Reindex- oder Run-Dateien fehlen, der autoritative Control-Plane-Zustand ist jedoch vollständig und grün | Readiness bleibt grün; externe Dateien sind kein System of Record |
+| RDY-08 | Settings passen, der autoritative Zustand nennt aber eine andere Profil- oder Vertragsrevision | `503 search_state_mismatch`; Settingsgleichheit repariert den Zustand nicht still |
+| RDY-09 | partieller oder mehrdeutiger Handoff-, Swap-, Rebuild- oder Publisherzustand | `503 search_recovery_required`; kein API-Readinesspfad führt selbst eine Kompensation aus |
+| RDY-10 | ein zuvor grüner Owner schliesst sein Freshness-, Delivery- oder Securitygate | beide Readiness-Endpunkte werden `not_ready`; laufende und neue Searchconsumer folgen der vom Owner zugesagten Invalidierungsgrenze |
 | RDY-11 | Web-Guard ist `not_ready` | Einzel-, Multi-, Profil-, Cluster-, Actor- und Hilfsrouten liefern `503 search_unavailable` ohne Engineaufruf |
-| RDY-12 | Profil und State passen, Offline-Epochen/Zähler oder `--full` zwingen zum Vollvergleich und dieser findet ausschliesslich Dokumentdrift | `auto` markiert die Offline-Zielmenge `recovering` und baut sie vollständig neu; `manual` besitzt dort vor der Ownergate-Entscheidung einen atomar durablen nichtleeren Vollvergleichsgrund (`operator` aus dem `--full`-Vorab-Latch beziehungsweise `document_drift` bei zuvor leerem Grund), verlangt erst für die App-only-Phasenöffnung grüne STATE1-Gates, liefert für Search weiter `503 search_recovery_required` und öffnet dann allgemeine Writes/nicht suchende Worker ohne Engineaufruf |
-| RDY-13 | Startvalidierung dauert länger als das Compose-Healthcheckbudget | `GET /health` bleibt `200`; Search-Readiness, Searchrouten, projektionsrelevante Writes und Worker bleiben während des laufenden Vergleichsfensters gesperrt; erst ein grüner Abschluss oder RDY-12s enger Manual-Ausgang wechselt die Phase |
-| RDY-14 | zusätzliche ungebundene `*__srch0__<run-id>`-UID | kein Profilkonflikt, kein Routing und keine Mutation; nur Orphan-/Cleanup-Diagnose |
-| RDY-15 | STATE1-Head-CAS übergibt eine logische UID atomar; danach versucht das Offlinewerkzeug sie explizit zu mutieren | STATE1 ist für diese UID alleinige Readiness-/Recoveryautorität; Offlinebefehl endet vor Engine-/Statewrite mit `search_control_plane_owned_by_state1`, während ein gemischter Auto-Lauf sie read-only überspringt |
-| RDY-16 | Quellcommit, danach Prozesscrash vor Response-Finalizer/Submit, während Task oder nach Task/vor Attestierungs-CAS | Applied ist grösser als Attested; nächster Start verwirft bei jeder Headänderung den Vollvergleichsversuch, versucht höchstens dreimal Taskquieszenz und vollvergleicht nur auf stabilem Versuch, statt in den Epochen-Kurzpfad zu fallen. Eine erst nach `H2` sichtbare Alttask lässt den persistierten globalen Head abweichen und kann deshalb keinen späteren Kurzstart überstehen |
-| RDY-17 | unterstützter Restore eines alten Enginevolumes mit gleichen Settings und gleicher Dokumentzahl, aber abweichenden Feldern | Restorepfad setzt nach Restore und vor Start für `O` dauerhaft `engine_restore` und durchläuft für `S` das STATE1-Restore-/Inkarnationsgate; der nächste Start vollvergleicht die Offline-UIDs, recoveriert STATE1 owner-exklusiv und wird niemals über scheinbar passende eingefrorene Zähler ready |
-| RDY-18 | Create, Update und Delete wurden in einer oder mehreren koaleszierten Ketten terminal erfolgreich attestiert; danach Neustart | Applied und Attested sind gleich; Guard liest nur State/PK/Settings/fortgeschriebenen Count sowie einmal den globalen Taskhead, ruft weder PocketBase-Vollprojektor noch Engine-Dokumentfetch auf und öffnet innerhalb des SRCH0-5-s-Budgets |
-| RDY-19 | ein Task-Wait endet transportseitig erfolgreich, Taskstatus ist aber `failed` oder `canceled`; danach folgt ein weiterer Write | Attested bleibt auf `T0`, Search wird unready und weder ein erfolgreicher Präfix noch ein späterer Suffix darf die Lücke teilweise oder vollständig überspringen |
-| RDY-20 | Actorname/-avatar, Kategorie-/Tagname oder Trailmetrik ändert sich | dieselbe versionierte Adapter-Abhängigkeitshülle erfasst Actors, referenzierende Trails und aggregierende Listen vollständig und partitioniert danach nach Authority; kein collection-lokaler Hook oder Handoff lässt eine UID aus oder doppelt sie |
-| RDY-21 | unterstützter PocketBase-Restore bei unverändertem Engineprofil/-zähler | `source_restore` verbietet für alle UIDs in `O` den Epochen-Kurzpfad und erzwingt ihren Vollvergleich; vorhandene `S`-UIDs durchlaufen zusätzlich das STATE1-Restore-/Inkarnationsgate. Ein Restore ausserhalb des Runbooks besitzt keine Integritätszusage |
-| RDY-22 | `manual` hat Dokumentdrift diagnostiziert und Federation-Inbox sowie Fachwrites laufen weiter | In `O` steigt Applied source-only und Attested bleibt stehen, in `S` werden Change/Dirty durable; Search-/Token-/Proxy-/Hilfsconsumer, Offline-Tasks und STATE1-Publisher erzeugen exakt null Engineaufrufe, bis der Serveprozess gestoppt ist und der ausdrückliche Offline-Reindex plus durable-only-STATE1-Drain beginnt |
-| RDY-23 | Im vollständig offline verwalteten Fixture mit zuvor leerem Grund findet `SEARCH_INDEX_STARTUP=manual` plus `search-index ensure --full` bei gleichen Epochen, Settings und Dokumentzahl Felddrift; Prozess crasht nach Vorab-Latch, während beziehungsweise nach Vergleich oder nach Phasenöffnung vor einem Fachwrite | `operator` ist vor dem ersten Fetch atomar durable und bleibt bei Drift bytegleich; jeder Neustart nimmt den Epochen-Kurzpfad nicht, vollvergleicht erneut und hält Search bis zum grünen Offline-Reindex und Neustart fail-closed |
-| RDY-24 | nach terminalem SRCH0-Zwei-Paar-Cutover, publiziertem `active.json` und vollständigem Baseline-Cleanup gilt `trails=state1`, `actors/lists=offline`; Actoränderung oder Trailmetrikänderung konkurriert mit Handoff beziehungsweise crasht direkt nach Fachcommit | vor dem Zwei-Paar-Cutover wird der Trail-Handoff mutationsfrei mit `search_pair_migration_required`, vor Terminalbeleg/Cleanup mit dem jeweiligen Handoff-Gate abgewiesen. Danach schreibt derselbe Fachcommit STATE1 Change/Dirty für `trails`, Applied nur für betroffene Offline-UIDs und nie den eingefrorenen Trailrecord; Rollback ist beidseitig leer, beide Rennordnungen retryen ohne Doppelung/Lücke und beide durablen Arbeitsanteile recovern. Ein späterer `ready -> recovering`-Listenfehler bleibt wegen monotonem `srch0_pair_activated_v1` normal resumierbar; ein Listen-Handoff ist im ersten Bootstrap `state1_handoff_uid_unsupported` und danach `state1_incremental_authority_handoff_unsupported` |
-| RDY-25 | Manual-Mix-Write erzeugt `O`-Lücke sowie `S`-/`C`-Arbeit; danach exakt dokumentierter Repair und Neustart, mit Crash während beider Stufen | Offline-Reindex repariert und resumiert nur `O`, terminiert als `offline_repair_complete` mit `state1_drain_required = true`; der gestoppte durable-only-STATE1-Drain setzt seine persistenten Attempts idempotent bis zu grünen Ownergates fort. Der Neustart ignoriert legitime Abweichungen der eingefrorenen `S`-Offline-Epochen/-Zähler, mutiert diese Records nicht und öffnet Search erst nach beiden grünen Teilgates |
-| RDY-26 | Manual-Vollvergleich diagnostiziert Offline-Drift, mindestens ein STATE1-Ownergate ist rot, danach Crash vor jeder Phasenöffnung | der vollständige Driftlatch ist bereits durable; allgemeine Writes/Worker bleiben geschlossen, und der Neustart ohne `--full` vollvergleicht statt kurz zu pfaden |
-| RDY-27 | zwei Offline-UIDs gehören zur `--full`- beziehungsweise Driftmenge; Crash wird zwischen hypothetischen Zeilenwrites injiziert | Vorab-Latch und gegebenenfalls Drift-Commit sind je ein SQLite-Commit: beide UIDs gewinnen oder beide bleiben unverändert; ein partiell markierter Zustand ist unmöglich |
-| RDY-28 | neue mehrschrittige Arbeit bei `state_revision = M-3`, `M-2`, `M-1` oder `M` | die einheitliche Vorbedingung lässt den Eintritt nur bei `M-3` zu; bei `M-2..M` endet er vor jedem Fach-/State-/Engineeffekt. Bereits zugelassene Fortsetzungen dürfen zwei Schritte bis `M` verbrauchen; ein ein-CAS-Trailhandoff bleibt bei `trails=M-1` zulässig und scheitert bei Current `trails=M` bereits vor Prepared-State/Generationsaufbau ohne Wirkung, auch wenn sein Plan noch `expected=M-1` trägt. Eine in O verbleibende read-only UID darf dabei bereits M besitzen. `manual --full` auf sonst kurzpfadfähigem Stand folgt derselben Grenze |
-| RDY-29 | unregistrierte/fremde Taskregistration nach `H2`, nach Attestierungs-CAS/vor Freigabe oder nach Freigabe; getrennt davon eigener Submit mit direkter `202` innerhalb des 1-s-Budgets | Vor Freigabe öffnet Search bei der unbekannten Änderung nie; danach schliesst der Runtime-Observer den lokalen Guard und persistiert `search_engine_task_guard = invalid` binnen 1 s, falls der sichtbare Head nicht vollständig als eigener Suffix klassifiziert wird. Ein rechtzeitig klassifizierter eigener Task bleibt bis höchstens 120 s live-ready. Ein Crash unmittelbar nach der Registration und vor einer sie subsumierenden Guard-CAS verhindert wegen Headabweichung den nächsten Kurzpfad; die Matrix behauptet ohne Enginefence keine Null-Stale-Response-Garantie innerhalb des Detektionsfensters |
+| RDY-12 | Engine ist unerreichbar oder ein erforderlicher Index fehlt, sodass das beobachtete vollständige Profilset nicht berechnet werden kann | `observed_settings_fingerprint` fehlt; die Antwort erfindet keinen Teilfingerprint |
+| RDY-13 | Deployment mit mehreren erforderlichen Rollen, vertauschter Eingabereihenfolge, duplizierter Rolle sowie semantisch gleichen Settingsobjekten mit anderer Propertyreihenfolge | beide Endpunkte emittieren dasselbe streng sortierte, duplikatfreie `profile_revisions`-Array und denselben RFC-8785-Golden-Fingerprint; die Schema- plus Kanonizitätsvalidierung verwirft ein dupliziertes oder unsortiertes Wirearray, eine Änderung von Rolle, Profilrevision, Primärschlüssel, explizitem Default oder wirksamem Setting ändert den Fingerprint |
+
+IDX0 besitzt für den Legacyowner die Produceranteile von `RDY-01` bis
+`RDY-09` sowie `RDY-12` und `RDY-13`. SRCH-COMP besitzt die Consumeranteile
+von `RDY-03`, `RDY-10` und `RDY-11`, insbesondere den Nachweis, dass bei Rot
+kein Token- oder Enginezugriff stattfindet.
 
 ## 18. Lieferartefakte und Änderungsregel
 

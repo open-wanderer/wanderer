@@ -118,6 +118,34 @@ filterbares `is_federated` trägt, ergänzt das Containment dieses abgeleitete
 Feld und reindexiert den Listenbestand kontrolliert. Fehlende Eligibilityfelder
 wirken fail-closed.
 
+`SEC-VIS-0` ist zugleich der Delivery-Owner der dabei notwendigen
+Bestandskorrektur für föderierte Listenaggregate. Der qualifizierte
+Listenprojektor verwendet für `trails`, `distance`, `duration`,
+`elevation_gain` und `elevation_loss` ausschliesslich die lokal persistierte
+`ExpandedAll("trails")`-Relation. Eine leere Relation ergibt für alle fünf
+Werte den numerischen Wert `0`, auch bei `needs_full_sync = true`; dieses Flag
+ist ein Refreshhinweis und kein fehlender Projektionsinput. Projektion,
+Reindex und inkrementelle Aktualisierung dürfen dafür keinen Origin- oder
+Remote-Searchrequest ausführen. Nur eine persistierte, aber nicht auflösbare
+Pflichtrelation endet mit `source_projection_incomplete`.
+
+Das task-spezifische SEC-VIS-0-Ziel-Overlay referenziert
+`SRCH0-GAP-LIST-001` und die zugehörigen stabilen Case-IDs, ohne deren
+Baselineerwartungen zu ändern. Es erlaubt als fachliches Delta ausschliesslich
+die fünf Aggregatwerte und deren unmittelbar gerenderte Darstellung.
+Pflichtfälle sind ein leerer Federation-Stub mit
+abweichendem Fake-Origin, eine vollständig lokal materialisierte Liste mit
+zwei Trails, der Übergang vom Stub zur Materialisierung und eine tatsächlich
+dangling persistierte Relation. Der erste Fall erwartet fünfmal `0` und in
+allen vier Fällen exakt null externe Projektionsrequests. Die sichtbare
+`0`-Semantik erhält einen Release-Hinweis. SRCH0 liefert nur Korpus und
+beobachtete Baseline; SRCH-COMP, SRCH2 und STATE1 besitzen dieses Delta nicht.
+
+Die allgemeine SEC-VIS-0-Accessmatrix bindet daneben
+`SRCH0-GAP-SEC-001`. Jede dort beobachtete ACL- oder Bypassabweichung wird
+ausschliesslich durch die Sichtbarkeits-, Proxy-, Netzwerk- und Tokenregeln
+dieses Vertrags geschlossen; das SRCH0-Golden bleibt historisch unverändert.
+
 Später ersetzt die belegte Federation-Sichtbarkeit den pauschalen Ausschluss:
 
 ```text
@@ -426,156 +454,61 @@ kaschieren.
 | Gateway-/Index-Cutover | alle vier Gates, Parität aller Bestandsfilter | ADR-, Build- und Lasttests |
 | `SEC-TARGETED` | `SEC-SCOPED` | bereits sichere scoped Federation |
 
-Als einzige enge Ausnahme von der Zeile **Gateway-/Index-Cutover** darf genau
-der lokale SRCH0-Bestandsübergang mit `SEC-VIS-0` und vollständig grüner
-SRCH0-Livematrix freigegeben werden. Die Ausnahme gilt gleich für eine
-vorhandene Installation, einen Erstaufbau und die Wiederherstellung eines
-verlorenen Meilisearch-Volumes; fehlende Engineindizes sind kein
-Sicherheits- oder Fresh-Beweis.
+Ein lokaler Legacy-Indexwechsel, der keine neue öffentliche Such-, Gateway-
+oder Federationfähigkeit einführt, darf als enger Bestandsschnitt nach
+`SEC-VIS-0` freigegeben werden. Das ist keine Ausnahme von den für den
+tatsächlich exponierten Datenpfad geltenden Sicherheitsregeln: Sobald der
+Schnitt föderierte Treffer, neue Scopes, Cursor, Aggregationen oder den neuen
+Gateway aktiviert, gelten die vollständigen Gates der Tabelle.
 
-Alle folgenden Bedingungen müssen gleichzeitig erfüllt sein:
+Reindex, Quellvergleich, Task-Wait, Swap, Recovery und Rollback gehören dem
+jeweiligen Migrations- beziehungsweise Indexowner. Dieser Securityvertrag
+macht weder dessen Auditdateien noch interne Epochen, Taskheads oder
+Readinesszustände zu Sicherheitsbelegen. Fehlende Engineindizes oder ein
+technisch erfolgreicher Swap beweisen insbesondere keine zulässige
+Treffermenge.
 
-- PocketBase bleibt dieselbe autoritative Quelle. Der Übergang führt keine
-  neue Gateway-, Federation-, Visibility-, Cursor-, Aggregations- oder
-  Indexvertrags-Capability ein.
-- Der unterstützte Produktionspfad besitzt genau einen lokalen DB-Writer und
-  eine private Meilisearch-Instanz. Öffentlicher Ingress, normaler DB-/Web-
-  Servebetrieb, projektionsrelevante Writes und Worker bleiben vom ersten
-  Quellfingerprint bis zur Terminalentscheidung gestoppt. Beim normalen
-  Startup-Recovery darf nur der lokale DB-Liveness-Listener bereits offen sein;
-  Search, Writes und Worker bleiben während der stabilitätsbedürftigen
-  Validierung gesperrt. Nur wenn `manual` nach vollständig beendetem read-only
-  Vergleich ausschliesslich Dokumentdrift der Offline-UIDs eines bekannten,
-  committed und operationsfreien Profils bei vollständig gebundener
-  Authoritypartition und nach stabilem begrenztem Taskquieszenzversuch feststellt, bindet
-  ein einziger SQLite-Commit unmittelbar und unabhängig von den STATE1-Gates
-  die vollständige kanonische Driftmenge. Er setzt bei leerem Grund
-  `document_drift` mit Revisionsheadroom und erhält vorhandene nichtleere
-  Gründe ohne Revisionswrite bytegleich; alle Zeilen gewinnen oder keine. Erst
-  nach diesem Commit und grünen STATE1-Gates darf
-  `search_manual_intervention` allgemeine Writes und nicht suchende Worker
-  einschliesslich Federation-Inbox/-Outbox öffnen. Search-/Token-/Proxypfade
-  und jede Engineprojektion bleiben dabei fail-closed; der Offline-Reindex
-  läuft erst wieder bei gestopptem Serveprozess. Bei rotem Gate oder
-  fehlgeschlagenem Drift-Commit bleibt die App gesperrt; ein erfolgreich
-  persistierter Grund überlebt den Crash und verbietet den Epochen-Kurzpfad.
-  `ensure --full` setzt dafür bereits vor erstem Quieszenzversuch und Dokumentfetch atomar
-  `operator` nur auf der Teilmenge, die ohne das flüchtige Flag vollständig
-  kurzpfadfähig wäre. Zeilen mit Epochenlücke, Zählerabweichung, nichtleerem
-  Grund oder Operationsmarker erhalten keinen zusätzlichen Revisionswrite.
-  Ohne Headroom auf einer neu zu latchenden Zeile beginnt der Vergleich nicht,
-  und bei Drift bleibt `operator` ohne rein diagnostische Promotion erhalten.
-  Fachwrites erhöhen dann Offline-
-  Applied source-only und persistieren STATE1-Change/Dirty atomar; sowohl
-  Offline-Tasker als auch STATE1-Publisher bleiben im laufenden Serveprozess
-  pausiert. Der dokumentierte Repair stoppt Serve, repariert `O` in einer
-  owner-scharfen, crash-resumierbaren Offline-Stufe und
-  verarbeitet danach mit dem ausdrücklichen
-  `search-state1 reconcile --durable-only --until-ready` nur den bereits
-  durablen `S`-/`C`-Cutoff; erst nach beiden grünen Teilgates wird neu gestartet.
-  Remote-, Rolling- oder Catch-up-Betrieb fällt auf die vollständigen Gates und
-  STATE1 zurück.
-- Der SRCH0-One-shot darf mit der heute konfigurierten administrativen
-  Engineberechtigung Kandidaten aufbauen, prüfen und tauschen. Dieser lokale
-  Trust-Boundary ist kein Nachweis einer Credentialhistorie. Ein externer
-  Credential-Controller, Signaturledger, Maintenance-Observer oder
-  Clock-Attest ist für diese Ausnahme weder vorausgesetzt noch behauptet.
+Für den engen Bestandsschnitt müssen gleichzeitig folgende Securitybelege
+vorliegen:
+
+- PocketBase bleibt die autoritative Fachquelle; der Schnitt führt keine neue
+  Visibilityklasse oder öffentliche Requestcapability ein.
 - Vor Öffnung des Ingress ist Meilisearch aus nicht autorisierten Netzen nicht
   erreichbar. Das Produktions-Compose veröffentlicht keinen Engine-Hostport,
   Web erhält keinen Master-Key, und DB erzeugt Tenant-Tokens aus einer
-  ausdrücklich konfigurierten Search-Parent-Key-ID samt Secret statt durch
-  Laufzeit-Inventarisierung aller Enginekeys.
-- `SEC-VIS-0` besitzt als konkretes Deliverable den produktiven Root-Compose-
-  Pfad, `docs/public/setup.sh`, Quickstart und manuelle Docker-Dokumentation.
-  Ihre gerenderte Produktionskonfiguration besitzt keinen Engine-Hostport; ein
-  lokales Entwicklungsprofil bindet `7700` höchstens an `127.0.0.1`. Ein
-  Migrationshinweis für bestehende Installationen und ein automatischer
-  Negativtest über alle vier Pfade sind Teil desselben Gates.
-- `SEC-VIS-0` rotiert diesen Search-Parent-Key und erhöht die lokale
-  Token-/Cookie-Epoche. Ziel- und Rollback-Webartefakt deklarieren bereits vor
-  dem Wartungsfenster dieselbe gegenüber dem letzten Release erhöhte Epoche;
-  für den ersten SRCH0-Cutover steigt die heutige
-  `SEARCH_TOKEN_VERSION` mindestens von `1` auf `2`. Ein Browsercookie einer
-  anderen Epoche wird vor dem ersten Engineaufruf verworfen und neu vom DB-
-  Tokenendpunkt befüllt. Der gemeinsame serverseitige Adapter darf bei genau
-  einem Engine-`403` seinen intern gecachten Token invalidieren, einmal neu
-  holen und denselben normalisierten Request genau einmal wiederholen; ein
-  zweiter `403` endet ohne Schleife. Ein vor der Rotation ausgestellter Tenant-
-  Token wird nachweislich von der Engine abgewiesen. Die Rotation erfolgt
-  unmittelbar **nach** der SRCH0-Aktiv- oder Abbruchentscheidung und zwingend
-  vor öffentlichem Ingress; der davon getrennte Engine-Mutationskey bleibt bis
-  zum möglichen Rückswap verfügbar. Cookie-Epoche und Indexvertragsrevision sind
-  getrennt; der Epochensprung verlangt keinen Reindex.
-- Das SRCH0-Tooling liefert die geschlossene Logical-Index-Adaptergrenze sowie
-  Plan/Build/Verify/Cutover für die kanonische vollständige Zwei-Paar-Menge
-  `{lists, trails}`. `SEC-VIS-0` liefert zwingend vor Produktionsplanpublikation
-  sein konkretes Profil `sec-vis0-list-v1` samt Projektor und Fällen;
-  `lists-legacy-srch0-v1` bleibt auf nicht exponierte CI-/Staging-Kandidaten
-  beschränkt. Fehlt das qualifizierte Profil, gilt
-  `security_list_profile_required`. Dadurch wird der Listenbestand im selben
-  Wartungsfenster korrigiert, ohne ein zweites Migrationsframework
-  vorauszusetzen. Korpus/Tooling und Liveaktivierung sind getrennte Meilensteine.
-- Trail- **und** Listenkandidat werden vollständig aus demselben
-  gestoppten PocketBase-Bestand aufgebaut und vor dem einen atomaren
-  Zwei-Paar-Swap dokumentweise
-  sowie gegen Primärschlüssel und Settings geprüft. Synthetische Fixtures
-  laufen ausschliesslich auf einer getrennten Wegwerf-Engine.
-- Die aktive `lists-legacy-v0` ist keine PocketBase-Projektion. SRCH0 bindet sie
-  ohne Origin-Dial als opaken Engine-Snapshot und verwendet denselben Beleg nur
-  für den vollständigen Zwei-Paar-Rückswap. Fehlt oder driftet diese physische
-  Baseline, gibt es weder automatische Rekonstruktion noch Einweg-Cutover.
-- Nur Vorwärts- und Rückswap besitzen dauerhafte No-Replace-Intents. Build-
-  und Settingsbatches sind auf rungebundenen Kandidaten idempotent und dürfen
-  nach Crash wiederholt werden. Ein mehrdeutiger Swapzustand bleibt
-  fail-closed.
+  ausdrücklich konfigurierten Search-Parent-Key-ID samt Secret.
+- `SEC-VIS-0` besitzt im produktiven Root-Compose-Pfad,
+  `docs/public/setup.sh`, Quickstart und der manuellen Docker-Dokumentation die
+  Netzwerk-, Port-, Key-/Token- und Containmentanteile. Die einmalige
+  Bootstrap-/Upgradereihenfolge für den ersten IDX0-Rollout besitzt IDX0 im
+  selben gemeinsamen Dateisatz; diese geteilte Datei erzeugt keine
+  Implementierungsabhängigkeit zwischen beiden Tasks. Ein lokales
+  Entwicklungsprofil bindet `7700` höchstens an `127.0.0.1`; ein
+  automatischer Negativtest deckt alle produktiven Pfade ab.
+- Das von `SEC-VIS-0` gelieferte Trail-/Listenprofil enthält sämtliche für die
+  lokale Containmentregel benötigten filterbaren Eligibilityfelder. Der
+  Migrationsowner baut und verifiziert die daraus erzeugten Zielindizes nach
+  seinem Vertrag; Security entscheidet weder seine Batch- noch seine
+  Swapmechanik.
 - Die vollständige ACL-/Proxy-/DTO-Matrix läuft vor dem Produktionsfenster in
-  CI/Staging am durch DB-/Web-Release-Artefaktdigests und Profilmanifestdigest
-  gebundenen auszuliefernden Build und Profil. Die Produktionsinstanz erhält
-  vor Ingress keinen anonymen oder authentifizierten Search-/SvelteKit-
-  ACL-Smoke, stellt dafür keine Principals oder Tenant-Tokens aus und dient
-  nicht als DTO-/Datensichtbarkeitsorakel. Nach dem Vorwärtsswap prüft der
-  Offlineprozess ausschliesslich State, UID-Abbildung, Settings und Dokumente
-  erneut; der normale Serve-Guard bleibt dabei fail-closed. Der post-terminale
-  Alt-Token-Negativtest ist ein datenunabhängiger Credentialtest und kein
-  ACL-Smoke. Bei Fehler bleibt
-  die Engine-Mutationsberechtigung erhalten und der belegte Rückswap erfolgt
-  vor dem Abbruchbeleg. Bei Erfolg wird die stabile
-  `search_contract_revision: srch0_compat_v1` committed; danach ist dieser
-  Altindex kein zulässiger Rückswapkandidat mehr.
-- Die initiale Startup-/Kurzpfad-Readiness bindet die stabile Vertragsrevision
-  sowie PocketBase-State und Engineprofile und verlangt im Offlineprofil
-  gleiche Applied-/Attested-Epochen samt attestiertem Enginezähler sowie einen
-  globalen Taskguard im Zustand `ready` mit exakt passendem ungefiltertem
-  Engine-Head, nicht einen vollständigen Build-Digest oder ein externes
-  Auditverzeichnis. Nach dieser ersten Freigabe darf eine registrierte eigene
-  Delivery-Kette Applied vor Attested und den Engine-Head vor dem persistenten
-  Checkpoint führen: Live-Readiness bleibt dann nur im selben Prozess zulässig,
-  wenn der persistente Guard weiter `ready` ist, der aktuelle Head exakt dem
-  `validated_runtime_task_head` entspricht, der vollständig paginierte Suffix
-  lückenlos `expected_pending|succeeded` klassifiziert ist, alle Pending-Leases
-  innerhalb ihrer Terminalfrist liegen und die Observerlease höchstens 1 s alt
-  ist. Runtimehead und Register überleben keinen Neustart. Ein kompatibler App-
-  Rollback benötigt keinen Reattest; ein Engine- oder Auditverlust ist über
-  vollständigen PocketBase-Rebuild beziehungsweise Vollvergleich reparierbar.
-- Im Offlineprofil endet ein erfolgreicher Request nach Fachcommit und Applied-
-  Inkrement vor dem ersten Engine-Submit. Der pro UID serialisierte
-  Post-Response-Runner koalesziert lückenlose Epochen, attestiert erst die
-  vollständige Kette einmalig und schreibt den Dokumentzähler aus dem
-  Projektions-Keydelta ohne Stats-Read pro Write fort.
-- Ein endpointweiter Runtime-Observer invalidiert unbekannte Headbewegung,
-  Rücksprung, Scope-/Endpointfehler oder Polltimeout innerhalb des normierten
-  1-s-Detektionsbudgets persistent und schliesst Search zuerst lokal. Eigene
-  terminal erfolgreiche Tasks schreiben den globalen Head erst an einer
-  global ruhigen oder prospektiv ruhigen Grenze fort. Im zweiten Fall ist genau
-  der letzte Offline-Owner noch `attesting`; seine validierte UID-Attestierung
-  und die Guard-CAS prüfen die epochengleiche, grundfreie
-  Transaktionspostimage und committen atomar, erst danach wird der Owner
-  `idle`. Dieser Detect-and-Retry-Vertrag ist
-  keine Admission-Linearisierung und behauptet ohne Enginefence kein
-  Nullfenster zwischen Registration und Observererkennung. Er gilt nur bei der
-  hier verpflichteten privaten Engine ohne direkt verwendbare Client-/Tenant-
-  Tokens; nach erkannter Invalidierung verhindert die Guardgeneration vor
-  Responseversand weitere Auslieferung.
+  CI oder Staging am auszuliefernden DB-/Webartefakt und demselben Zielprofil.
+  Die Produktionsinstanz dient dabei nicht als Principal-, Token- oder
+  Sichtbarkeitsorakel.
+- `SEC-VIS-0` rotiert den Search-Parent-Key und erhöht die lokale Token-/
+  Cookie-Epoche. Ziel- und Rollback-Webartefakt deklarieren vor dem
+  Wartungsfenster dieselbe neue Epoche. Ein Cookie einer anderen Epoche wird
+  vor dem ersten Engineaufruf ersetzt; der gemeinsame serverseitige Adapter
+  darf nach einem Engine-`403` genau einmal Tokenrefresh und Requestretry
+  ausführen. Ein zweiter `403` endet ohne Schleife.
+- Die Credentialrotation erfolgt nach der terminalen Aktiv- oder
+  Abbruchentscheidung des Migrationsowners und zwingend vor öffentlichem
+  Ingress. Ein vor der Rotation ausgestellter Tenant-Token wird danach
+  nachweislich abgewiesen. Der für einen möglichen verifizierten Rückweg
+  benötigte Engine-Mutationskey folgt ausschliesslich dem Migrationsvertrag.
+- Die aktive `search_contract_revision` bindet die gemeinsam freigegebene
+  Request-, ACL- und DTO-Grenze. Ein kompatibler App-Rollback kann dieselbe
+  Revision verwenden; Cookie-Epoche und Indexvertragsrevision bleiben
+  getrennt, und der Epochensprung allein verlangt keinen Reindex.
 
 Der gemeinsam aktivierte Adapter gilt nur dann **nicht** als neue Capability,
 wenn er ausschliesslich die inventarisierten First-Party-Legacyzustände
@@ -584,10 +517,6 @@ Filter-/Sortiersemantik nicht verbreitert. Öffentliche V1-Suche, Capability
 Discovery, Cursor/Snapshots, neue Filter oder Sorts, Aggregationen,
 Routenradius und Federation-/Origin-Scopes bleiben in diesem Profil negativ
 getestet deaktiviert.
-
-Fehlt eine Bedingung, gelten für die Aktivierung alle vier Gates der Tabelle.
-Die Ausnahme schwächt weder spätere Gateway-/Index-Cutover noch andere
-Migrationen ab.
 
 Die folgenden Bezeichnungen beschreiben mögliche technische Schnitte, keine
 zugesagte PR-Anzahl oder feste Ausführungsreihenfolge. Sie dürfen kombiniert,
@@ -634,21 +563,10 @@ Bestehende Filter verschwinden durch keinen Schnitt.
   Remote-Send, Engine-Submit und Scope-Watermark.
 - Migration mit Offline-Origin, 404/410, permanent ungültiger Authority,
   Prozessneustart, Restore und gleichzeitigem Neu-Ingest.
+- Das SEC-VIS-0-Listenoverlay prüft leeren Federation-Stub, zwei lokal
+  materialisierte Trails, Stub→materialisiert und dangling Relation. Die
+  ersten drei projizieren ausschliesslich lokale Zahl-/Summenwerte, der letzte
+  endet `source_projection_incomplete`; kein Fall erzeugt einen externen
+  Projektionsrequest.
 - Alte Tenant-Tokens und direkter Legacy-Enginepfad können nach Cutover weder
   private noch unverified/quarantänisierte Remote-Dokumente abfragen.
-- SRCH0-`manual` mit absichtlichem Dokumentdrift öffnet nach beendetem Vergleich
-  erst nach atomarem Drift-Commit über alle Offline-Ziele, der bei leerem Grund
-  `document_drift` durable setzt oder einen vorhandenen nichtleeren
-  Vollvergleichsgrund bytegleich erhält, und erst bei grünen STATE1-Gates,
-  Federation-Inbox/-Outbox und einen
-  Fachwrite, während sämtliche Search-, Tenant-Token-, Proxy- und
-  Engineprojektionspfade exakt null Engineaufrufe erzeugen; im Authority-Mix
-  sind Offline-Applied und STATE1-Change/Dirty dennoch atomar durable. Der
-  gestoppte Offline-Reindex plus durable-only-STATE1-Drain konvergiert diesen
-  Mix auch mit Crash während des Drains, bevor Search neu öffnet. `--full`
-  crasht zusätzlich nach seinem All-or-none-`operator`-Vorab-Latch während oder
-  nach dem Vergleich; ein Test mit rotem STATE1-Gate crasht nach durablem
-  Driftlatch vor der Phasenöffnung, und ein Zwei-UID-Test beweist null
-  Teilmarkierung zwischen hypothetischen Zeilenwrites. Jeder Neustart bleibt
-  ausserhalb des Kurzpfads; unvollständiger Vergleich, unbekanntes Profil oder
-  offene Operation öffnet diese Phase nicht.

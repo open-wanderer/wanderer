@@ -16,7 +16,7 @@ spec:
   implementationDependsOn: [SRCH-COMP, SRCH2]
   releaseGates: [SEC-VIS-0]
   normativeSources: [SRCH-V1-CONTRACT, TRAIL-SEARCH-SHARED]
-  lastReviewed: '2026-08-30'
+  lastReviewed: '2026-09-01'
 ---
 
 ## Metadaten
@@ -45,7 +45,8 @@ Jede sichtbare Auswahl verändert echte Requests und Treffer.
 - Lade-, Leer-, Fehler- und nicht verfügbare Capability-Zustände.
 - Responsive Tastatur-, Fokus-, Screenreader- und Touchbedienung.
 - Entfernen aller fest codierten Beispielzahlen und funktionslosen
-  Prototypfelder.
+  Prototypfelder; dieses UI-Delta bindet `SRCH0-GAP-UI-001`, ohne andere
+  SRCH0-Baselineerwartungen umzuschreiben.
 
 ## Nichtziele
 
@@ -71,7 +72,9 @@ wiederherstellen“; es deutet den bestehenden Reset nicht still um.
 
 - Sämtliche SRCH0-Filter bleiben im neuen Panel erreichbar.
 - Jede Steuerung erzeugt einen typisierten SRCH-COMP-Auftrag und echte Treffer.
-- Keine Beispieldaten werden als Count, Range oder Verfügbarkeit dargestellt.
+- Das Overlay zu `SRCH0-GAP-UI-001` entfernt alle funktionslosen
+  `TrailFilterPreview`-Beispielwerte; keine Beispieldaten werden als Count,
+  Range oder Verfügbarkeit dargestellt.
 - Tastatur- und mobile Bedienpfade decken Öffnen, Ändern, Anwenden und Entfernen
   vollständig ab.
 - URL-Roundtrip, Browsernavigation, Abbruch überholter Requests und Fehlerzustand
@@ -88,3 +91,4 @@ echter API-Anbindung und bestandenen Accessibility-/URL-Tests.
 | Datum | Entscheidung |
 | --- | --- |
 | 2026-08-30 | Das Panel ist der erste einfache reale Verbraucher des V1-Vertrags; Counts bleiben ein additiver Slice. |
+| 2026-09-01 | SRCH4a besitzt das UI-Overlay zu `SRCH0-GAP-UI-001`; der neutrale SRCH0-Basisfall bleibt unverändert. |

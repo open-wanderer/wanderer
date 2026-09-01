@@ -10,7 +10,7 @@ spec:
   kind: capability
   status: draft
   capability: FOUNDATION
-  lastReviewed: '2026-08-30'
+  lastReviewed: '2026-09-01'
 ---
 
 > **Rolle:** Dieses Dokument beschreibt die fachliche Capability
@@ -72,26 +72,42 @@ Traildokument kopiert.
 SRCH0 ist das Kompatibilitätsledger des heutigen Produkts. Es friert vor
 jeder UI-, Gateway-, Projektions- oder Indexmigration die tatsächlich
 unterstützte Matrix aus Filtern, Sortierungen, ACL-Kontexten, API- und
-URL-Zuständen ein. Die vollständige Bestandsliste und die dafür geltenden
-Cutover-/Rollbackregeln sind capability-übergreifend in den
-[gemeinsamen Invarianten](/develop/specs/trail-search/shared-invariants/)
-festgelegt. Der nicht normative
+URL-Zuständen ein. Die vollständige Bestandsliste besitzt SRCH0 selbst; die
+capability-übergreifenden Cutover-/Rollbackregeln stehen getrennt in den
+[gemeinsamen Invarianten](/develop/specs/trail-search/shared-invariants/).
+Der nicht normative
 [Bestandsaudit vom 30. August 2026](/develop/specs/trail-search/evidence/evidence-and-calibration/#bestandsaudit-vom-30-august-2026)
 liefert dafür den datierten Ausgangspunkt mit Codeankern; SRCH0 verifiziert ihn
 neu und ersetzt ihn durch ausführbare Evidenz.
 
-Jeder Altfall wird als eine der folgenden Klassen erfasst:
+Jeder Altfall wird im SRCH0-Korpus als eine der folgenden Klassen erfasst:
 
 1. semantisch unverändert zu erhalten;
-2. als dokumentierter Fehler mit Migrationstest und Release-Hinweis zu
-   korrigieren; oder
+2. als dokumentierter Fehler, dessen eigener Delivery-Owner Ziel-Overlay,
+   Migrationstest und gegebenenfalls Release-Hinweis liefert; oder
 3. als wirkungsloser Implementierungsunfall zu entfernen.
 
-Zu den bekannten Korrekturen gehören die doppelt angehängte
-`_geoRadius`-Bedingung und die Abbildung einer unbekannten Schwierigkeit auf
-„leicht“. Die angegebene beziehungsweise importierte Schwierigkeit bleibt
-gleichzeitig ein Bestandsfeld und wird nie in persönliche Schwierigkeit
-umgedeutet.
+SRCH0 besitzt keine Korrektursemantik und keinen Korrektur-Cutover. Es hält
+ausschliesslich Referenzdaten, beobachtete Baselineerwartungen und stabile
+Case-IDs. Ein nachfolgender Owner referenziert diese IDs in einem kleinen
+task-spezifischen Ziel-Overlay, statt die Baseline-Goldens umzuschreiben:
+
+| Beobachtete Abweichung | Delivery-Owner |
+| --- | --- |
+| doppelt angehängte `_geoRadius`-Bedingung | [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) |
+| fehlende, leere oder ungültige Schwierigkeit wird als „leicht“ behandelt | [SRCH2](/develop/specs/trail-search/work-items/search/srch2/) |
+| föderierte Listenaggregate hängen von einem Live-Origin-Read ab | `SEC-VIS-0` gemäss [Security-Vertrag](/develop/specs/trail-search/contracts/federation-security/#31-sec-vis-lokale-sichtbarkeitseindämmung) |
+| Serve-Start leert und befüllt die live verwendeten Suchindizes ungeschützt neu | [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) |
+
+Die angegebene beziehungsweise importierte Schwierigkeit bleibt ein
+Bestandsfeld und wird nie in persönliche Schwierigkeit umgedeutet. In der
+Delivery-Richtung konsumieren die Korrektur-Owner den fertigen SRCH0-Korpus;
+SRCH0 hängt nicht von der Umsetzung dieser Korrekturen ab.
+
+IDX0 ist davon unabhängig der kleine Runtimeowner für den heutigen
+Indexbootstrap und den Legacy-Produzenten von `SearchReadinessV1`. Seine
+Gap-Kante erzeugt keine Implementierungsabhängigkeit von SRCH0 und zieht weder
+STATE1 noch die M1-Enginemigration in den normalen App-Start.
 
 Der [Trail-Suchvertrag v1](/develop/specs/trail-search/contracts/trail-search-v1/)
 trennt den reproduzierbaren fachlichen Suchauftrag, die
@@ -516,8 +532,9 @@ Meilisearch-Fork.
 Eine `FOUNDATION`-Produktscheibe wird nur freigegeben, wenn alle für sie
 einschlägigen Punkte belegt sind:
 
-- SRCH0-Parität besteht für sämtliche berührten Bestandsfilter,
-  Sortierungen, ACL- und URL-Zustände.
+- Alle berührten SRCH0-`preserve`-Fälle bestehen unverändert. Jede bewusste
+  Abweichung ist ausschliesslich durch ein grünes, ownergebundenes Delta-
+  Overlay auf derselben Case-ID erlaubt.
 - Ein sichtbares Control verändert reale Suchresultate oder stellt einen
   klaren realen Zustand dar; Beispielwerte und funktionslose Controls sind
   ausgeschlossen.
@@ -542,6 +559,12 @@ einschlägigen Punkte belegt sind:
   und Datenschutztests.
 - Eine Installation ohne typisierten Autocomplete-Provider behält die
   bestehende Submit- und Startpunktsuche.
+- IDX0 lässt einen passenden vorhandenen Bestandsindex beim Neustart
+  unangetastet, stellt fehlende oder unerwartet leere Legacyindizes vor der
+  Suchfreigabe wieder her und produziert beide Search-Readiness-Endpunkte.
+  Ein dauerhaft nicht ableitbarer Polyline-Cache degradiert nur den betroffenen
+  Trail und nie die globale Readiness. SRCH-COMP konsumiert den Zustand für
+  sämtliche First-Party-Suchwege.
 - M1 besteht den unterstützten Migrationspfad, Startup-Preflight,
   Dump/Restore, Rollback und Soak für das gepinnte Engineprofil.
 - Gateway-, Cursor-, Federation- und Generationen-Cutover erfüllen die

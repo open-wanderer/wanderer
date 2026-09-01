@@ -10,7 +10,7 @@ spec:
   id: TRAIL-SEARCH-OVERVIEW
   kind: overview
   status: draft
-  lastReviewed: '2026-08-30'
+  lastReviewed: '2026-09-01'
 ---
 
 Diese Spezifikation beschreibt, wie Wanderer von einer überwiegend statischen
@@ -142,9 +142,15 @@ gilt:
 
 ```text
 Such-/Panel-Linie:
-SRCH0 Korpus/Tooling -> SRCH-V1 -> SRCH-COMP -> SRCH0 Liveaktivierung
+SRCH0 Bestandskorpus -> SRCH-V1 -> SRCH-COMP
+SRCH0 Bestandskorpus -> SEC-VIS-0
+IDX0 -> SRCH-COMP
+IDX0 -> SRCH2
+SRCH-COMP + SEC-VIS-0 -> kontrollierter Bestandsadapter live
 SRCH-COMP -> SRCH2 -> SRCH4a
-SRCH4a -> SRCH-SAVED
+SEC-VIS-0 + SRCH4a -> sichtbares Filterpanel
+SRCH-COMP -> SRCH-SAVED (Implementierung)
+SRCH4a + SEC-VIS-0 -> SRCH-SAVED sichtbar
 
 Geo- und Betriebs-Linie:
 G0 -> G1 -> M1 -> IDX3
@@ -158,13 +164,17 @@ SRCH3 + SRCH4a             -> SRCH4b
 SRCH3 + G3b                -> G3b-AGG
 ```
 
-Der Meilisearch-Betriebsrelease M1 läuft parallel zur Such-/Panel-Linie und wird
-nicht mit einem neuen UI- oder Geo-Feature gebündelt. L3 ist eine eigenständige
-Providerlinie für typisierte Startpunktsuche und kein Vorläufer von L4. Counts
-und Histogramme sind wertvolle additive Produkte, blockieren aber weder das
-ehrliche Panel ohne Optionszahlen noch den Routenradius mit korrektem `total`.
-SRCH-SAVED ist ein additiver Nutzerslice nach dem Panel und kein Gate für
-Geo-Discovery, Counts oder das Engine-Upgrade.
+[IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
+Vorgänger und schützt den heutigen Indexbootstrap samt Readiness; seine
+SRCH0-Gap-Referenz ist keine Abhängigkeitskante. Der Meilisearch-
+Betriebsrelease M1 läuft ebenfalls parallel, qualifiziert aber getrennt den
+Engine-Upgradepfad und wird nicht mit einem neuen UI- oder Geo-Feature
+gebündelt. L3 ist eine eigenständige Providerlinie für typisierte
+Startpunktsuche und kein Vorläufer von L4. Counts und Histogramme sind
+wertvolle additive Produkte, blockieren aber weder das ehrliche Panel ohne
+Optionszahlen noch den Routenradius mit korrektem `total`. SRCH-SAVED ist ein
+additiver Nutzerslice nach dem Panel und kein Gate für Geo-Discovery, Counts
+oder das Engine-Upgrade.
 
 Die konkreten Umsetzungsspezifikationen stehen im
 [Work-Item-Register](/develop/specs/trail-search/work-items/). Ein Work Item ist ein stabiler

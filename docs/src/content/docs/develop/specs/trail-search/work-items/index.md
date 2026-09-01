@@ -39,17 +39,18 @@ nicht, dass eine im Katalog genannte Abhängigkeit entfällt.
 
 | Work Item | Ziel | Stand |
 | --- | --- | --- |
-| [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) | Bestandsvertrag, Regressionsmatrix und lokaler Recovery-/Cutoverpfad | reviewable; Delivery-Kandidat, vier Engine-Evidenzprototypen vor `accepted` offen |
-| [SRCH-V1](/develop/specs/trail-search/work-items/search/srch-v1/) | normativen Suchvertrag implementierbar verankern | wartet auf SRCH0 Korpus/Tooling, nicht auf dessen Liveaktivierung |
-| [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) | Compiler und Legacyadapter auf heutigem Backend | wartet auf SRCH-V1 |
-| [SRCH2](/develop/specs/trail-search/work-items/search/srch2/) | Bestandsfelder, Subkategorien und Korrekturen | wartet auf SRCH-COMP |
+| [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) | neutraler Bestandsvertrag, stabile Case-IDs und ausführbarer Regressionskorpus | reviewable; Delivery-Kandidat ohne Runtime- oder Korrekturcutover |
+| [SRCH-V1](/develop/specs/trail-search/work-items/search/srch-v1/) | normativen Suchvertrag implementierbar verankern | wartet auf den vollständigen SRCH0-Bestandskorpus |
+| [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) | Compiler und Legacyadapter samt ownergebundenen SRCH0-Delta-Overlays | wartet auf SRCH-V1 und IDX0; sichtbare Aktivierung zusätzlich SEC-VIS-0 |
+| [SRCH2](/develop/specs/trail-search/work-items/search/srch2/) | Bestandsfelder, Subkategorien und Difficulty-Presence-/Unknown-Korrektur | wartet auf SRCH-COMP und IDX0 |
 | [SRCH4a](/develop/specs/trail-search/work-items/search/srch4a/) | vollständiges Panel ohne Fake-Counts | wartet auf SRCH2; sichtbare Freigabe zusätzlich SEC-VIS-0 |
 | [SRCH-SAVED](/develop/specs/trail-search/work-items/search/srch-saved/) | benannte Suchen und Standardsuche für die Trail-Liste | Implementierung nach SRCH-COMP; sichtbare Freigabe nach SRCH4a und SEC-VIS-0; kein Geo-/Count-Gate |
 
-## Paralleler Engine-Schnitt
+## Parallele Index- und Engine-Schnitte
 
 | Work Item | Ziel | Stand |
 | --- | --- | --- |
+| [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) | sicherer Alltags-Bootstrap, Legacy-Readiness und dokumentierter erster Wrapper-Rollout | ohne Vorgänger sofort umsetzbar; kein Engineupgrade |
 | [M1](/develop/specs/trail-search/work-items/engine/m1/) | unterstützter Betreiber-Upgradepfad auf Meilisearch 1.53.1 | fachlich bereit; eigener Betriebsrelease |
 
 ## Geo-Discovery

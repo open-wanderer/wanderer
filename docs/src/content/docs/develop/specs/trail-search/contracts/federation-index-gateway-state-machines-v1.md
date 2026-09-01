@@ -124,446 +124,189 @@ Indexvollrunden ausgeführt. Kann ein bestimmter Scope nicht sicher abgezogen
 werden, bleibt genau dieser Scope gesperrt. Nur eine unzuverlässige
 Scopebestimmung eskaliert zu `SEC-GLOBAL`.
 
-### 1.1 Eng begrenztes lokales Offlineprofil `offline-srch0-v1`
+### 1.1 Grenze zu Legacy-, Reindex- und Migrationsowner
 
-Der einmalige SRCH0-Bestandsübergang und die Wiederherstellung vollständig
-abgeleiteter lokaler Suchindizes DÜRFEN auf die allgemeinen
-`search_index_generation`-, Attempt-, Pointer- und Publisherautomaten dieses
-Vertrags verzichten. Die Ausnahme ist kein alternatives Online-Control-Plane-
-Modell, sondern ein gestoppter Single-Writer-One-shot.
+Ein vor STATE1 aktiver lokaler Suchindex gehört einem eigenständigen Legacy-
+beziehungsweise Migrationsowner. Dessen Reindex, Vergleich, Task-Wait,
+Startupmodus, manuelle Recovery, Swap- und Rollbackverfahren sind ausdrücklich
+nicht Teil dieses Vertrags. STATE1 liest oder mutiert weder dessen interne
+Epochen und Attestierungen noch dessen Audit- oder Run-Dateien.
 
-Sie gilt nur, wenn alle Bedingungen gemeinsam erfüllt sind:
+Die folgende Grenze ist ausdrücklich **kein** Lieferartefakt von IDX0 und
+keine Vorbedingung für dessen normalen Legacybetrieb. Erst der Baustein IDX3,
+der den Generationsbuild und Pointer-Cutover tatsächlich benötigt, liefert
+einen temporären Legacy-Handoff-Adapter. Dieser Adapter wird vor dem
+Handoff-Preflight in das Legacydeployment aufgenommen, initialisiert seine
+Snapshots aus PocketBase und umfasst danach jeden projektionsrelevanten
+Source-Commit. Ein partieller Authority-CAS beendet ihn nur für die dabei
+übergebenen Rollen. Für jede extern verbleibende Rolle und deren Anteil an
+gemischten Fachcommits bleibt er aktiv, bis auch diese Rolle irreversibel an
+STATE1 übergeben oder ausdrücklich aus der Handoffmenge retired wurde. Erst
+danach darf der Adapter entfernt werden. Ohne installierten Adapter beginnt
+STATE1 keinen Handoff; SRCH0, IDX0 und SRCH-COMP bleiben davon unabhängig.
 
-- genau eine lokale PocketBase-Datenbank ist autoritative Quelle und genau ein
-  DB-Prozess kann schreiben;
-- Meilisearch ist privat erreichbar; alle produktiven Zielprofile sind
-  vollständig aus PocketBase rekonstruierbar, während eine vor dem SRCH0-
-  Cutover noch aktive Legacylistenbaseline nur opak rollbackfähig ist;
-- Ingress, normaler DB-/Web-Servebetrieb, Worker und alle
-  projektionsrelevanten Writes sind während Plan, Aufbau, Swap und
-  Terminalentscheidung gestoppt;
-- ein lokales exklusives Dateilock schützt die PocketBase-Quelle;
-- der Lauf führt keine neue Quelle, Visibilityklasse, Federationfähigkeit,
-  Gateway-, Cursor-, Aggregations- oder zweite produktive Indexsemantik ein;
-  und
-- Quelle, Kandidat, Settings, Dokumente und jede Swapabbildung werden nach dem
-  SRCH0-Vertrag vollständig geprüft.
+Die Aktivierung des Adapters nimmt die kanonischen Source-/Authority-Locks,
+schreibt initiale Snapshots, Authorityrecords und den aktiven Dispatchmarker
+in einem PocketBase-Commit und gibt die Locks erst danach frei. Jeder spätere
+projektionsrelevante Fachcommit prüft diesen Marker und aktualisiert seinen
+Boundary-Anteil in derselben Transaktion. Damit existiert zwischen
+Initialsnapshot und laufender Erfassung kein ungeschütztes Writefenster.
 
-Ein beim normalen DB-Startup bereits geöffneter lokaler Liveness-Listener
-verlässt diese Ausnahme nicht: Er darf während `ensure` ausschliesslich
-`GET /health` grün halten und read-only Diagnose bedienen. Search-Readiness,
-Searchrouten, projektionsrelevante mutierende HTTP-Routen, Indexhooks und Worker
-bleiben während der Prüfung bis zum atomaren lokalen Freigabeschritt
-fail-closed. Ausschliesslich `SEARCH_INDEX_STARTUP=manual` darf nach einem
-vollständig beendeten read-only Vergleich in den engen SRCH0-Zustand
-`search_manual_intervention` wechseln, wenn nur Dokumentdrift der Offline-UIDs
-eines bekannten, `ready` committed Profils vorliegt, die Authoritypartition
-vollständig gebunden und der letzte begrenzte Taskquieszenzversuch stabil ist.
-Unmittelbar nach der Diagnose und unabhängig von den STATE1-
-Ownergates muss ein einziger SQLite-Commit die vollständige kanonische
-Offline-Driftmenge an Source-/Epoch-/Quieszenzwerte binden. Er setzt nur bei
-leerem Feld `verification_required_reason = document_drift` samt
-Revisionsinkrement und verlangt dafür die einheitliche Vorbedingung
-`state_revision <= 2^53-4`; vorhandene nichtleere Gründe
-prüft und erhält er ohne Revisionswrite bytegleich. Alle Zeilen gewinnen oder
-keine; jeder Fehler bleibt liveness-only. Erst nach diesem Commit und grünen
-STATE1-Ownergates öffnet `search_manual_intervention` allgemeine Writes und
-nicht suchende Worker einschliesslich Federation-Inbox/-Outbox. Bei rotem Gate
-bleiben sie geschlossen, der Driftlatch aber durable. Search und jede
-Engineprojektion bleiben in der geöffneten Phase gesperrt; Fachwrites
-persistieren für `O` source-only Applied und für `S` STATE1-Change/Dirty, ohne
-einen der beiden Engine-Lieferpfade zu starten.
-Ein explizites `ensure --full` setzt bereits vor erstem Taskquieszenzversuch und
-Dokumentfetch mit derselben All-or-none-Semantik `operator` nur auf der
-Teilmenge `L` der vollständigen kanonischen O-Zielmenge, die ohne das flüchtige
-Flag bereits vollständig kurzpfadfähig wäre. Zeilen mit durablem Trigger wie
-Epochenlücke, Zählerabweichung oder nichtleerem Grund werden ohne Revisionswrite
-gebunden; Operations-, Profil- und Authorityfehler werden nicht überschrieben.
-Ohne dieselbe `state_revision`-Vorbedingung auf einer Zeile in `L` beginnt der
-Vergleich nicht.
-Der Grund überlebt Crashs während oder nach dem
-Vergleich und bleibt bei erkanntem Drift `operator`, statt einen vierten
-Revisionsschritt für eine rein diagnostische Promotion zu verbrauchen. Damit
-kann auch ein Crash bei rotem Ownergate oder ohne Folgewrit den nächsten Start
-nicht in den Kurzpfad bringen. Das ist kein paralleler Reindex: Der Vergleich
-ist beendet, und der
-spätere Repair läuft wieder bei gestopptem Serveprozess. Er führt zuerst SRCH0s
-owner-scharfen Offline-Reindex für `O` und danach
-`search-state1 reconcile --durable-only --until-ready` aus. Dieser Befehl bindet
-unter demselben exklusiven Quelllock den zu Beginn committed Katalogcutoff und
-verarbeitet ausschliesslich bereits durable `S`-/`C`-Changes nach den normalen
-Attempt-, Publisher-, Delivery-, Fence-, Checkpoint- und Recoveryautomaten;
-ohne Rückstand ist er No-op. Er nimmt keine Facharbeit an, ändert weder
-Offline-Epochen noch Profile und setzt einen Crash idempotent aus den
-persistenten Attempts fort. Die vorherige O-Stufe darf bei strukturell gültigem
-S/C-Lag `state1_drain_required` melden; ihr plan-gebundenes Resume bleibt nach
-Crash O-only und behauptet nie globale Readiness. Erst grüne Offline- und STATE1-Teilbelege erlauben
-den Neustart. Alle anderen Fehler bleiben liveness-only.
-Der separate Migrations-One-shot läuft weiterhin bei gestopptem DB-Serveprozess.
-Konkret muss PocketBases `OnServe`-Kette nach Guard-/Routenregistrierung und
-`event.Next()` genau eine lockgebundene Ensure-Goroutine starten und sofort
-zurückkehren, damit `http.Server.Serve(listener)` beginnt. Nur die Phasen dieser
-Goroutine sind synchron/serialisiert; der Vergleich darf die `OnServe`-Kette
-nicht blockieren.
-
-Remote-Enginebetrieb, mehrere DB-Writer, Rolling Cutover, parallele Writes,
-Catch-up, Change-Log-Replay, ein dauerhaft aktueller Rollbackindex oder ein
-neuer produktiver Gatewaypfad verlassen diese Ausnahme und verwenden den
-vollständigen STATE1-Vertrag.
-
-Meilisearch bleibt für PocketBase-ableitbare Profile abgeleitet. Für jede UID
-mit einem solchen committed Offlineprofil verwenden Erstinstallation,
-bestehende Installation und Engine-Volumenverlust denselben PocketBase-
-Rebuildcode; `S` bleibt ausschliesslich STATE1s Generationen-/Restore-Recovery
-vorbehalten. `lists-legacy-v0` ist die ausdrückliche Ausnahme: als opake
-Engine-Rollbackbaseline ist sie weder vollvergleichs- noch recoverbar; intakt
-verlangt sie vor dem neuen Serve `legacy_list_migration_required`, verloren
-`legacy_list_baseline_unrecoverable` und ein exakt passendes Enginebackup. Ist
-dabei bereits `lists` oder `trails` an STATE1 übergeben, obwohl
-`srch0_pair_activated_v1` noch nicht gilt, lautet die mutationsfreie Diagnose
-`search_pair_migration_authority_conflict`; es existiert weder ein partieller
-Offline-Cutover noch eine Authority-Rückgabekante. Weder
-fehlende Indizes noch fehlende Auditdateien begründen einen besonderen
-Freshzustand. Ein dauerhafter Installations-Provenienzautomat,
-`engine_genesis`, Credential-Ledger und eine für diesen Lauf erfundene
-`installation_id` sind nicht Teil dieses Profils.
-
-Die kleine interne PocketBase-Base-Collection `search_index_state` speichert pro
-logischem Index aktive `search_contract_revision`, `profile_revision`,
-Settingsfingerprint, die optionale letzte vollständig verifizierte
-Quellfingerprint-/Dokumentzahl-Attestierung samt ihrer
-`verified_projection_epoch`, monotone `applied_projection_epoch` und
-`attested_projection_epoch`, `attested_document_count`, monotone
-`state_revision`,
-`control_plane_authority = offline-srch0-v1 | state1` und genau den schmalen
-Operationsmarker `ready | recovering | cutover` samt rungebundener Zielrevision.
-Ein separater endpointweiter `search_engine_task_guard` bindet bei
-`observation_state = ready` zusätzlich genau den zuletzt attestierten globalen
-Taskhead beziehungsweise den explizit leeren Tasklog mit einem opaken
-CAS-Token. Er wird `invalid` backgefüllt und ist weder Engine-Boot-ID noch
-Ersatz für den Restore-/Admin-Invalidierungsablauf.
-Ein optionaler `verification_required_reason` mit `source_changed`,
-`task_failed`, `document_drift`, `source_restore`, `engine_restore`,
-`engine_admin` oder `operator` blockiert den Kurzpfad bis zum nächsten
-Vollvergleich. Pro UID gilt
-stets `0 <= attested_projection_epoch <= applied_projection_epoch <= 2^53-1`;
-Altzeilen werden ungleich backgefüllt und erzwingen einmalig den Vollvergleich.
-Für `M = 2^53-1` gilt genau eine Offline-Headroomregel: Jeder neue
-mehrschrittige Eintritt und jeder weitere Applied-Commit verlangt vor dem
-ersten Effekt `state_revision <= M-3`. Eine knappe UID bricht eine Multi-UID-
-Fachtransaktion vollständig mit `search_state_revision_exhausted` ab. Bereits
-durable ausgelöste Fortsetzungs-/Terminal-CAS dürfen die zwei reservierten
-Schritte bis `M` verbrauchen; der irreversible genau ein CAS umfassende Handoff
-verlangt nur `state_revision < M` und friert die Zeile danach ein.
-Sie entscheidet keine Federationgeneration und ersetzt keinen späteren
-STATE1-Pointer. Vor einem direkten Recoverywrite beziehungsweise
-Vorwärtsswap-Intent wird der Marker per CAS gesetzt; erst Vollvergleich oder
-Aktiv-/Abbruchentscheidung setzt ihn zurück auf `ready`. Ein fehlender Eintrag
-darf nach vollständigem PocketBase-gegen-Engine-Vergleich höchstens als
-bekannte **PocketBase-ableitbare** Legacyrevision rekonstruiert werden. Eine
-erkannte `lists-legacy-v0` bleibt bis zum expliziten opaken Migrationslauf
-unattestiert. Ein widersprüchlicher vorhandener
-Eintrag wird nie still nachgezogen, sondern verlangt einen expliziten
-`resume`-, `abort`- oder Offline-`verify`-Lauf und hält Readiness fail-closed.
-Kein Record darf einen fehlenden, partiellen beziehungsweise unbekannten
-Enginezustand grün erklären.
-
-Für einen vorhandenen bekannten Baselineindex gilt:
+Der IDX3-Adapter MUSS für einen möglichen Handoff genau die geschlossene,
+transaktional lesbare Grenze `LegacyAuthorityBoundaryV1` bereitstellen. Die
+hier verwendeten `SafeRevisionV1`- und `DigestV1`-Formen sind in Abschnitt 3.1
+beziehungsweise beim Swaprecord definiert; jedes Objekt auf jeder Tiefe hat
+`additionalProperties: false`:
 
 ```text
-planned -> candidate_building -> candidate_verified
-        -> forward_swap_intent -> target_active_uncommitted
-target_active_uncommitted -> active
-target_active_uncommitted -> reverse_swap_intent -> baseline_restored -> aborted
+LegacyAuthorityBoundaryV1 = {
+  "schema": "legacy_authority_boundary_v1",
+  "records": [{
+    "logical_uid": non-empty text,
+    "authority": "legacy" | "state1",
+    "authority_version": SafeRevisionV1,
+    "source_revision": SafeRevisionV1,
+    "source_snapshot_digest": DigestV1,
+    "legacy_resource_set": [{
+      "engine_scope": non-empty text,
+      "physical_index_id": non-empty text
+    }],
+    "legacy_resource_set_digest": DigestV1,
+    "operation_state": "ready" | "running" | "recovery_required",
+    "authority_head_key": null | non-empty text,
+    "authority_pointer_version": null | SafeRevisionV1
+  }]
+}
+
+LegacySourceSnapshotPreimageV1 = {
+  "schema": "legacy_source_snapshot_preimage_v1",
+  "logical_uid": non-empty text,
+  "source_revision": SafeRevisionV1,
+  "projection_contract_revision": non-empty text,
+  "entries": [{
+    "source_key": non-empty text,
+    "projection_input_b64u": canonical unpadded base64url text
+  }]
+}
 ```
 
-Create, Settings und Add-or-Replace auf einer rungebundenen Kandidaten-UID
-sind wiederholbare Stages. Nur `forward_swap_intent` und
-`reverse_swap_intent` müssen vor dem jeweiligen nicht idempotenten Swap
-dauerhaft No-Replace publiziert sein. Recovery prüft Intent, erwartete
-Vor-/Nachfingerprints, Tasktyp, UIDs und Enginezustand. Jeder mögliche HTTP-
-POST besitzt zuvor einen lückenlos nummerierten, No-Replace publizierten
-Submit-Attempt mit Requestdigest und scopegebundener Pre-Submit-Beobachtung; er
-wird exakt einmal gesendet. Nur die direkte `202`-Antwort in demselben
-ununterbrochenen exklusiven SRCH0-Prozesskontext erhält einen eigenen
-No-Replace-Admissionrecord; spätere Tasklisten
-werden nie zur Adoption verwendet. Eine separate terminale, digestverkettete
-Decision bindet Taskausgang und Abbildung. Nach Restart wird auch eine durable
-Admission nicht taskbasiert weiterverfolgt. Als einzige Lost-Session-Präzedenz
-darf SRCH0s `swap_effect_proof_v1` nach begrenztem Taskquieszenz-Retry und
-vollständiger stabiler Post-State-Prüfung
-`applied_verified` belegen; er autorisiert keinen Submit. Nur durable `not_admitted` beziehungsweise
-versionsqualifiziertes `failed_no_effect` mit vollständiger unveränderter
-Preimage-Prüfung erlauben einen Folgeattempt. Nackte Tasklisten-Abwesenheit,
-höchste Task-ID oder ein neuer Scope erlauben keinen Resubmit. Bei verlorener
-Session bleibt der Attempt `swap_submission_unknown` und der Lauf ohne
-Engine-Mutation fail-closed; im normalen SRCH0-Profil gibt es dann keinen
-New-Attempt-Pfad. Vorwärts- und Rückswap verwenden denselben Automaten. Ist
-das Ziel bereits
-aktiv, darf es keinen zweiten Vorwärtsswap geben; ist die Abbildung gemischt
-oder mehrdeutig, bleibt der Lauf ohne automatische Mutation stehen.
+Alle aufgeführten Properties sind verpflichtend; `null` ist nur an den beiden
+ausdrücklich so typisierten Authoritybindings zulässig. `records` ist eindeutig
+und nach UTF-8-Bytes von `logical_uid` sortiert. Zu
+jedem Record stellt der IDX3-Übergangsadapter das durch `source_snapshot_digest`
+inhaltsadressierte unveränderliche `LegacySourceSnapshotPreimageV1` bereit;
+sein `logical_uid` und seine `source_revision` stimmen mit dem Record überein.
+Seine `entries` sind eindeutig und nach UTF-8-Bytes von `source_key` sortiert.
+`projection_input_b64u` enthält die exakten Bytes des durch
+`projection_contract_revision` bezeichneten, vollständigen
+Projektionsinputs. Dadurch umfasst der Snapshot auch alle aufgelösten
+denormalisierten Abhängigkeiten und die Dokumentmitgliedschaft, ohne deren
+owner-spezifisches Innenschema in STATE1 nachzubauen.
 
-Fehlt eine logische UID in `O` mit PocketBase-ableitbarem committed Profil oder
-weicht ihr Dokumentbestand bei einem solchen bekannten Profil von PocketBase
-ab, setzt Offline-`recover` zuerst ihren persistenten
-Operationsmarker, baut sie unter geschlossenem Ingress vollständig neu und
-verifiziert sie. Erst danach wird der Marker `ready`. Ohne abgelöste Baseline
-gibt es keinen Rückswap. Bei vollständigem Engineverlust rekonstruiert dieser
-Pfad ausschliesslich die aktuell offline verwalteten PocketBase-ableitbaren
-UIDs aus PocketBase; eine aktive `lists-legacy-v0` endet stattdessen
-`legacy_list_baseline_unrecoverable`,
-unabhängig vom Alter der Installation; UIDs in `S` werden separat und allein
-durch STATE1s Generationen-/Restore-Recovery neu aufgebaut. Search öffnet erst
-nach beiden Ownergates. Vor Search-Readiness verwendet der Offline-Guard für
-UIDs in `O` im normalen Fall nur den Epochen-Kurzpfad: Applied und
-Attested müssen gleich sein, der attestierte Dokumentzähler sowie Engine-
-Primärschlüssel/-Settings müssen passen, der Vollvergleichsgrund muss leer sein
-und der globale Taskguard muss `ready` sein und exakt dem aktuellen
-ungefilterten Taskhead entsprechen. Dann berechnet er weder die PocketBase-
-Vollprojektion noch lädt er Engine-Dokumente; hinzu kommt genau ein globaler
-Taskhead-Read. Bei Epochenlücke, fehlendem/abweichendem Zähler,
-nichtterminalem Operationsmarker, Engine-Taskfehler, Restore/Adminarbeit,
-invalidem/abweichendem Taskguard oder erfolgreich vorab gelatchtem
-Operator-`--full` führt er zunächst SRCH0s
-höchstens dreimaligen `task_quiescence_retry_v1` aus. Jeder Versuch drainiert
-alle bis zum globalen Head sichtbaren relevanten Aufgaben und verwirft bei
-Scope-/Headänderung vor Vergleich oder Attestierungs-CAS das gesamte Ergebnis.
-Nur ein stabiler Versuch und Vollvergleich aller UIDs in `O` darf in derselben
-SQLite-Transaktion nötige UID-Attestierungen und globalen Taskguard erneuern.
-Sind die UID-Belege bereits exakt und war nur der Guard invalid, bleiben die
-UID-Zeilen einschliesslich `verified_at` read-only; nur der Guard wird auch bei
-gesättigter UID-Revision geCAS-t. Ein
-Teilvergleich lässt einen invaliden Guard invalid. Anhaltende Unruhe endet
-retrybar mit
-`search_task_quiescence_failed`, nie mit einem permanenten Unsupported-Zustand.
-`--full` setzt davor atomar den oben genannten durablen `operator`-Latch nur auf
-der Teilmenge `L`, die ohne das flüchtige Flag bereits vollständig
-kurzpfadfähig wäre. Zeilen mit Epochenlücke, Zählerabweichung, nichtleerem Grund
-oder Operationsmarker erhalten keinen zusätzlichen Revisionswrite. Scheitert
-der Vorab-Latch auf `L` wegen `search_state_revision_exhausted`, beginnt dieser
-explizite Vergleich nicht und entwertet die frühere Attestierung nicht. Die
-eingefrorenen Offline-Records aus `S` sind für diesen Kurzpfad und Vollvergleich
-keine Eingänge.
+`source_snapshot_digest` ist der `DigestV1` über das zu derselben Rolle
+gehörende vollständige `LegacySourceSnapshotPreimageV1`. Der Digest des
+Ressourcensets hat exakt folgende Preimage, wobei `resources` bytegleich
+`legacy_resource_set` ist und nach `(engine_scope, physical_index_id)` in
+UTF-8-Byteordnung sortiert sowie als Tupel eindeutig ist:
 
-Jeder Fachcommand berechnet aus demselben Vorher-/Nachherschnitt die
-vollständige versionierte Adapter-Abhängigkeitshülle `A`. Die eine SQLite-
-Transaktion liest Authority und `state_revision` aller UIDs und partitioniert
-deterministisch in `O = offline-srch0-v1` und `S = state1`. Atomar mit der
-Fachmutation erhöht sie Applied/`state_revision` ausschliesslich für `O`, bildet
-deren unveränderliche Vorher-/Nachher-Projektionsenvelopes und schreibt für die
-auf `S` gemappten Ziele genau den STATE1-Revisions-/Change-/
-Dirty-/Delivery-/Fence-/Tombstone-Schnitt aus Abschnitt 5.1. Die Offline-
-Records aus `S` bleiben bytegleich. Registryrevision, `A/O/S` und erwartete
-Authority- sowie `state_revision`-Werte sind im Control-/Cause-Digest gebunden;
-ein Authority-CAS-Verlust rollt alles zurück und partitioniert beim Retry neu.
-Ausser in `search_manual_intervention`, wo beide Lieferpfade pausieren, weckt
-erst nach Ende des Responseversuchs ein zwingender `defer`-Finalizer den
-Offlinekoordinator nur für `O`; Clientdisconnect nach durablem Commit hebt die
-Projektionspflicht nicht auf. STATE1-Worker/Publisher bedienen die `S`-Projektionen sowie authority-
-unabhängigen `C`-Control-Changes. Kein Request wartet auf Submit, Await, Stats
-oder Attestierungs-CAS.
-Ein `awaiting_response`-Envelope ohne Finalizer-/Ownerübernahme schliesst nach
-5 s Search und projektionsrelevante Write-Admission und nimmt ohne Engine-
-Submit den reservierten Failure-/Recoverypfad; ein später Finalizer ist ein
-No-op.
+```text
+LegacyResourceSetDigestPreimageV1 = {
+  "schema": "legacy_resource_set_digest_preimage_v1",
+  "logical_uid": non-empty text,
+  "resources": [{
+    "engine_scope": non-empty text,
+    "physical_index_id": non-empty text
+  }]
+}
+```
 
-Für `O` besitzt der Koordinator pro UID einen Delivery-Owner. Er ordnet
-lückenlose Applied-Envelopes, koalesziert mehrere Writes je Dokument-ID und
-hält den kurzen UID-Lock nicht über Engine-I/O. Attested bleibt für die ganze
-Kette auf `T0`; erst alle explizit `succeeded`en Batches samt Dirty-Suffix
-erlauben genau eine CAS auf `Efinal`. Der Dokumentzähler wird aus den
-Vorher-/Nachher-Projektions-Keymengen fortgeschrieben; ein Stats-Read pro Epoche
-ist verboten. Bestand bereits eine nicht von diesem lebenden Owner gehaltene
-Lücke, fehlen Envelopes oder scheitert ein Task, bleiben weitere Offline-Writes
-source-only; ein späterer Erfolg überspringt sie nie. Dadurch bleiben normale
-erfolgreiche Writeketten über Neustarts attestiert, während jeder Crash zwischen
-Fachcommit und CAS den Vollvergleich erzwingt. Die an ihre historische
-Epoche gebundenen Quellfingerprints bleiben nur Vollvergleichsbelege. Direkte
-Quell-/Engine-Adminmutation bei scheinbar gleicher Dokumentzahl/Epoche liegt
-ausserhalb der privaten Single-Writer-Ausnahme und verlangt anschliessend
-`--full`.
+Der IDX3-Übergangsadapter hält je Rolle genau einen atomar mit PocketBase
+aktualisierbaren Authorityrecord in dieser Form. Solange `authority = legacy`
+gilt, sind `authority_head_key` und `authority_pointer_version` beide `null`;
+bei `authority = state1` sind beide gesetzt und binden den kanonischen
+STATE1-Head. Jede Recordänderung erhöht `authority_version` um genau eins.
+Jeder projektionsrelevante Source-Commit erhöht zusätzlich `source_revision`
+um genau eins und ersetzt im selben PocketBase-Commit Snapshot und Digest;
+ein Ressourcenset- oder Operationswechsel ersetzt seine vollständigen Felder
+im selben Authorityversions-CAS. Ein Überlauf ist fail-closed.
 
-Jeder Engine-Submit von Offlinekoordinator, STATE1-Worker/-Publisher sowie
-Recovery/Reindex steht im gemeinsamen prozesslokalen endpointweiten Register.
-Jede `socket_pending`-Transition und ihr möglicher Socketwrite verwenden
-denselben Admission-Mutex und die 5-s-Submitdeadline; nur eine direkte `202`
-erzeugt `expected_pending`. Ein ohne sichtbaren Head hängender POST invalidiert
-bei Deadline, ein bereits sichtbarer unklassifizierter Head innerhalb des
-verbleibenden 1-s-Budgets. Eine frühe versionsqualifizierte Non-Acceptance wird
-sofort `task_failed`, jede andere Non-202-Antwort sofort
-`task_submission_unknown`. Alle registrierten Tasks unterliegen dem gemeinsamen
-120-s-Terminalbound oder einem strengeren Ownerbound. `succeeded`-Records
-bleiben bis zur subsumierenden Guard-CAS erhalten.
+Source-Mutationen, `operation_state`-Kanten, Ressourcensetänderungen und der
+finale Authority-CAS verwenden dieselben je Rolle kanonisch geordneten
+Source-/Authority-Locks. Nur `operation_state = ready` ist terminal ruhig und
+handofffähig. Der Handoff liest die kleinen Authorityrecords im konsistenten
+PocketBase-Schnitt, löst danach ausschliesslich die digestgleich dazu gehörenden
+unveränderlichen Source-Snapshots auf und validiert ihre vollständige Preimage;
+ein bloss behaupteter Digest ohne rekonstruierbaren Inhalt ist ungültig.
 
-Der globale Taskguard wird nach inkrementellen Erfolgen nur an einer global
-ruhigen endpointweiten Grenze fortgeschrieben: Der Guard war bereits `ready`,
-alle seit seinem Head sichtbaren relevanten Tasks sind diesem Register
-lückenlos zugeordnet und `succeeded`, im bereits ruhigen Fall sind alle UIDs in
-`O` epochengleich/grundfrei sowie alle Offline-Delivery-Owner `idle`, und alle
-beteiligten STATE1-Tasks besitzen ihren owner-spezifischen durablen Ack. Genau bei der letzten Offline-
-Attestierung darf die Grenze prospektiv gegen die Transaktionspostimage geprüft
-werden: ein einziger `attesting`-Owner wird durch seine validierte UID-CAS in
-derselben SQLite-Transaktion wie die Guard-CAS epochengleich und unmittelbar
-nach Commit `idle`; alle anderen Owner sind bereits idle. Scheitert Commit oder
-CAS, werden weder UID noch Guard fortgeschrieben und der Owner nicht idle. Auch ein reiner S-/C-Erfolg darf
-daher eine eigenständige Guard-CAS auslösen. Unter dem Admission-Mutex müssen
-`Hq1`, vollständige Suffixpagination und `Hq2 = Hq1` stabil sein; gebunden wird
-genau `Hq1`. Ein prozesslokaler validierter Runtimehead begrenzt die laufende
-Suffixpagination. Nach grünem Startup ist er bei exakter Current-Head-
-Gleichheit, vollständig klassifiziertem Register, gültigen Pending-Leases und
-frischer Observerlease der Live-Readinessinput, aber nie ein persistenter
-Startup-/Kurzpfadbeleg. Ein bereits invalider Guard wird nur durch den
-vollständigen Vergleich aller UIDs in `O` wieder `ready`.
+Wie der IDX3-Übergangsadapter diese Aussagen beweist, bleibt sein
+Implementierungsvertrag.
+Insbesondere macht STATE1 weder einen Legacy-Taskhead noch einen
+Dokumentvollvergleich oder einen korrekturspezifischen Aktivierungsbeleg zu
+seinem dauerhaften Readinessinput.
 
-Der endpointweite Runtime-Observer folgt vollständig SRCH0. Er startet auf
-festen 250-ms-Slots mit 500-ms-Deadline; höchstens zwei Polls überlappen. Ist
-Poll `n` nach Cancellation noch transportseitig offen, fällt Slot `n+2` aus.
-Ein bereits angewandter neuerer Poll macht späte ältere Antworten, Fehler oder
-Timeouts wirkungslos. Vor Invalidierung wegen fehlender Registerdaten verwirft
-ein neuerer vollständig subsumierender `ready`-Checkpoint den stalen Poll oder
-rebasiert ihn bei partieller Subsumption ohne Budgetneustart auf den noch
-ungeprüften Suffix. Jeder aktuell
-unbekannte Head, Rücksprung, Scope-/Endpointfehler oder Polltimeout schliesst
-zuerst Search und setzt den Guard durable `invalid`; eigene direkt zugeordnete
-Tasks verschieben ihn erst an der global ruhigen Grenze. Pollperiode, Deadline
-und `task_head_detection_budget` betragen 250 ms, 500 ms und 1 s.
-Dies ist Detect-and-Retry: Ohne per-Response Enginefence besteht ausdrücklich
-keine Nullfenster-Zusage zwischen Taskregistration und Observererkennung.
+STATE1 übernimmt eine unterstützte Rollenmenge nur mit folgendem eigenen
+`legacy_authority_handoff_v1`-Protokoll:
 
-Der einzige unterstützte Offline-Quellrestore-, Engine-Restore- oder Engine-
-Adminpfad ruft bei gestopptem DB-Prozess nach dem Restore und vor dessen
-nächstem Start `search-index invalidate` auf. Dieser PocketBase-CAS setzt
-`source_restore`, `engine_restore` beziehungsweise `engine_admin`;
-`engine_restore` und `engine_admin` invalidieren im selben Commit zusätzlich
-den globalen Taskguard und erzwingen für dessen Reattestierung den Vergleich
-aller UIDs in `O`. Deshalb
-erzwingt auch ein zurückgespielter Quell- oder Enginebestand mit gleichen
-Epochen, Settings und gleicher Dokumentzahl den Vollvergleich.
-`source_restore` umfasst zwingend alle Offline-UIDs und verbietet einen
-Teilselektor; ein partieller `engine_restore` verlangt dagegen ein
-lesbares geschlossenes Restore-Scope-Manifest samt geprüftem RFC-8785-Digest,
-das exakt seine physischen/logischen UIDs und das wiederhergestellte Engine-
-Snapshotartefakt bindet. Nach dem
-Authority-Handoff überspringt die implizite Zielmenge STATE1-UIDs read-only;
-eine explizit genannte STATE1-UID wird abgewiesen. Betrifft derselbe
-PocketBase- oder Engine-Restore beide Authorities, müssen Offline-
-Invalidierung und der
-vollständige STATE1-Restore-/Inkarnationsvertrag vor demselben gestoppten
-Neustart durable abgeschlossen sein.
+1. Alle Rollen der deklarierten Handoffmenge sind vom Ziel-Entity-/Querymodell
+   und vom neuen Membermanifest vollständig abgedeckt. V1 deckt als
+   Suchdokumentrolle `trails` ab; nicht abgedeckte Rollen enden vor jeder
+   Wirkung mit `state1_handoff_uid_unsupported`.
+2. STATE1 liest die externe Authority- und Source-Bindung in einem kurzen
+   konsistenten Preflight. Der folgende Build verwendet ausschliesslich die
+   über deren Digest aufgelösten unveränderlichen Source-Snapshots. Vor
+   `prepared` entsteht keine persistente Buildplanbindung; die Locks werden
+   nicht über den Generationsbuild gehalten.
+3. STATE1 baut eine vollständige neue Generation ausschliesslich auf
+   physischen IDs auf, die von allen Legacyressourcen disjunkt sind. Alle
+   eigenen Buildtasks müssen nach den Attempt- und Taskautomaten dieses
+   Vertrags terminal erfolgreich und owner-bestätigt sein.
+4. Unmittelbar vor dem Pointer-CAS nimmt STATE1 Source- und Authority-Locks in
+   kanonischer Reihenfolge, liest Source-, Authority- und CAS-Version erneut
+   und hält diese Locks nur bis zum Commit. Jede Abweichung zur prozesslokalen
+   Preflight-Bindung quarantänisiert die staged Generation und beginnt mit
+   neuem Snapshot einen vollständigen Neubau. Für eine noch extern autoritative
+   Rolle besitzt V1 keinen Cutoff-/Replayvertrag.
+5. Genau eine PocketBase-Transaktion publiziert den ersten
+   `search_generation_head`, bindet den neuen Pointer und setzt die Authority
+   aller deklarierten Rollen auf `state1`. Alle Rollen gewinnen oder keine.
+6. Nach Commit routet ausschliesslich STATE1 auf die neue Generation. Die
+   Legacyressourcen sind keine Fallback- oder Readinessquelle und bleiben bis
+   zum vom ehemaligen Owner verantworteten Drain beziehungsweise Cleanup
+   physisch isoliert.
 
-Die normativen Lauftypen sind `plan`, `index_verification`,
-`swap_intent(direction)`, `swap_submit_attempt`, `swap_submit_admission`,
-`swap_submit_decision` und `terminal(active|abort)`. Attemptnummern sind je
-Richtung lückenlos und ihre Admission-/Decisionrecords digestverkettet; die
-genaue Zustandssemantik folgt SRCH0. Alle Typen sind lokal
-kanonisiert, digestgebunden, per Datei- und Verzeichnis-`fsync` atomar
-No-Replace publiziert. Signaturen, verteilte Uhren, Capacity-/Maintenance-
-Observer und Credential-Ledger sind keine Korrektheitsvoraussetzung dieses
-lokalen Profils. Auditdateien sind zudem kein Runtime-System-of-Record: Ihr
-Verlust macht einen nach dem lokalen Vollvergleich oder zulässigen Kurzpfad
-settings-, state-, revisions- und inhaltskonformen Index nicht unready; ein
-neuer Vollvergleich darf Audit neu erzeugen.
+Ein Handoff adoptiert nie einen aktiven Legacyindex als STATE1-Generation und
+es existiert keine Authority-Rückgabekante. Recovery und Rollback verwenden
+danach ausschliesslich neue, durch STATE1 registrierte Generationen. Ein
+innerhalb der deklarierten Menge halb gebundener Zustand ist
+`search_recovery_required` und darf weder durch einen zweiten Handoff noch
+durch Legacy-Routing kompensiert werden.
 
-Nach dem Vorwärtsswap verifiziert der Offlineprozess Abbildung, Settings und
-Dokumente erneut. Die vollständige Request-/ACL-/DTO-Matrix ist zuvor in
-CI/Staging am durch Release-Artefaktdigests gebundenen identischen Build und
-Profil grün. Die Produktionsprüfung ruft keine anonymen oder authentifizierten
-Search-/SvelteKit-Endpunkte auf, stellt keine Principals/Tenant-Tokens aus und
-verwendet Produktionsrecords nicht als ACL-/DTO-Orakel. Bei Fehler bleibt die
-Mutationsberechtigung bis zum verifizierten Rückswap und `abort` verfügbar. Ein
-Reverse-Intent ist erst nach terminalem Forward-`applied_verified` zulässig und
-verbietet danach dauerhaft `active`; `abort` bindet terminales Reverse-
-`applied_verified` samt darin durablem vollständigem Baseline-Postvergleich und
-Baseline-State-CAS. Bei
-Erfolg verlangt `active` dagegen terminales Forward-`applied_verified` und das
-vollständige Fehlen eines Reverse-Intents, bindet die geprüfte Abbildung, setzt den Operationsmarker
-`ready` und erhöht `search_index_state.state_revision` transaktional. Erst
-dieser DB-Commit ist die Terminalentscheidung. Danach und nach Wiederöffnung
-projektionsrelevanter Writes ist der abgelöste Index veraltet und kein
-zulässiger Rückswapkandidat; eine spätere Korrektur ist ein neuer
-Vorwärtsrebuild nach dem dann anwendbaren Vertrag.
+Das Handoffprotokoll ist absichtlich unabhängig von fachlichen
+Bestandskorrekturen, Listenprofilen oder einem bestimmten vorangegangenen
+Reindexlauf. Falls ein Release solche Voraussetzungen besitzt, bindet dessen
+Releaseowner sie außerhalb von STATE1; der Zustandsautomat benötigt nur die
+oben geschlossene Source-/Authoritygrenze und seine eigene vollständige
+Zielgeneration.
 
-Ein kompatibler App-Build bindet dieselbe stabile
-`search_contract_revision`, nicht einen vollständigen Binarydigest. Deploy und
-Rollback eines solchen Builds benötigen keinen Reattest. Eine inkompatible
-Request-, ACL-, DTO-, Projektions- oder Profiländerung erhöht die Revision und
-benötigt einen neuen qualifizierten Übergang.
-
-Für jede einzelne UID ist genau ihre `control_plane_authority` alleiniger
-State-/Engineowner. Der erste
-querybare STATE1-`search_generation_head`-Pointer-CAS für eine deklarierte
-ownership-disjunkte UID-Menge muss in derselben PocketBase-Transaktion deren
-`search_index_state`-Authority auf `state1` setzen und die neue
-`pointer_version` sowie den kanonischen `(contract, entity_kind)`-Head-Key
-binden. Diese eingefrorene Version ist die irreversible Handoff-Untergrenze;
-spätere STATE1-Swaps erhöhen nur den eigentlichen Head und Readiness verlangt
-denselben Head-Key sowie `current.pointer_version >= authority_pointer_version`.
-Alle übergebenen Offlinezeilen müssen zuvor `ready`, ohne Operationsfelder,
-mit leerem `verification_required_reason` und epochengleich sein. Ihr
-globaler `search_engine_task_guard` ist `ready` und stimmt mit dem erneut
-gelesenen Head überein. Ihr prozesslokaler Offline-Delivery-Owner ist `idle`;
-unmittelbar vor dem Commit
-muss der letzte begrenzte `task_quiescence_retry_v1`-Versuch einen stabilen
-`(engine_scope_id, global_task_head)` liefern. Das neue Membermanifest bindet
-für jede übergebene UID eine global eindeutige physische ID, die von sämtlichen
-alten Offline-IDs disjunkt ist. Der alte Offlineindex wird weder als
-`from_generation` adoptiert noch nach dem Handoff geroutet und bleibt bis zum
-sichtbaren Taskdrain beziehungsweise GC quarantänisiert. Diese physische
-Isolation, nicht der Quieszenzversuch, begrenzt verspätete Alttasks auf die
-abgelöste Ressource. Der Handoff nimmt während Preflight und Build den Source-
-Lock sowie alle aktuellen Offline-UID-Locks in kanonischer Reihenfolge und CAS-prüft
-dieselben State- und Quieszenzversuchswerte; gewinnt eine Fachmutation zuerst,
-verliert der Handoff, gewinnt der Handoff zuerst, rollt die alte Fachcommand-
-Partition zurück und routet beim Retry nach STATE1. Der Mengencommit ist
-atomar. Danach sind diese
-Zeilen eingefrorene Kompatibilitätsbelege und keine Routing-/Readinessquelle.
-Offline-`ensure`, `search-reindex`, `resume` und `abort` enden für sie vor jeder
-Mutation mit `search_control_plane_owned_by_state1`. Es existiert keine
-Rückgabekante; Recovery und Rollback verwenden ab dann neue STATE1-
-Generationen. Das Offline-Authority-Handoff-Set ist in STATE1 V1 entweder leer
-oder exakt die Einermenge `["trails"]`; `lists`, `actors` und jede andere UID
-sind vom Trail-Generationen-/Membermodell nicht abgedeckt und enden bereits im
-Preflight mutationsfrei mit `state1_handoff_uid_unsupported`. Sie bleiben in V1
-beim Offlineowner. Vor dem einzigen zulässigen Trail-Handoff muss zudem das monotone
-`srch0_pair_activated_v1` gelten: Die aktiven Felder beider Records tragen den
-terminalen SRCH0-Produktionsvertrag, `sec-vis0-list-v1` beziehungsweise
-`trails-legacy-srch0-v1`; spätere Operationsmarker verändern diesen
-historischen Beleg nicht. Andernfalls endet der Handoff vor Head-, State- und
-Enginewirkung mit `search_pair_migration_required`. Zusätzlich verlangt
-`srch0_pair_handoff_ready_v1` einen zur terminalen Paar-Aktivierungskette
-passenden `active.json`-Digest in `handoff_srch0_pair_activation` und unter dem
-exklusiven Lock keine
-reservierte physische Paar-UID mehr. Fehlender Terminalbeleg beziehungsweise
-verbliebene Baseline enden mit `search_pair_activation_evidence_required`
-beziehungsweise `search_pair_cleanup_required`. Die darin gebundenen
-`state_revision`-Werte sind nur historische Aktivierungsfloors. Dieser erste
-Bootstrap ist der einzige Authority-Handoff des V1-Automaten. Die deklarierte
-Menge `["trails"]` ist endgültig; jeder spätere Erweiterungsversuch auf dem nun aktiven Head
-endet vor Wirkung mit `state1_incremental_authority_handoff_unsupported`. Die
-allgemeinen aktuellen
-Handoff-Gates verlangen für jede tatsächlich übergebene UID weiterhin
-`operation_state = ready` und leere Operationsfelder. Erst danach muss die
-Handoffmenge nicht gegen die Projektions-Abhängigkeitshülle geschlossen sein,
-weil die Mischtransaktion kreuzende Effekte auf beide Owner verteilt.
-Nur ein innerhalb der deklarierten Menge halb gebundener Zustand ist
-unzulässig; dieselbe UID hat aber nie zwei Owner.
+Normale STATE1-Readiness beginnt nach dem ersten atomaren Head-/Pointercommit.
+Falls dieser Commit zugleich einen Authority-Handoff ausführt, sind von da an
+`search_generation_head`, Generation, Snapshot, Publisher-, Delivery-,
+Security- und Restorezustand dieses Vertrags allein autoritativ. Ein externer
+Auditverlust oder eine spätere Legacy-Task verändert diesen Zustand nicht;
+letztere kann wegen der physischen ID-Isolation ausschliesslich eine
+abgelöste Ressource treffen. Ein Greenfield-Bootstrap ohne Legacyowner erreicht
+dieselbe Readinessgrenze durch seinen normalen Bootstrap-Swap.
 
 ## 2. Architekturentscheidung: PocketBase-native Control Plane
 
 Die einzige persistente Control-Plane-Wahrheit ist die bestehende
-PocketBase-SQLite-Datenbank. Der schmale `search_index_state` aus Abschnitt 1.1
-und genau ein endpointweiter `search_engine_task_guard` sind bis zum expliziten
-Authority-Handoff die einzigen kleinen persistenten Crash-Guards für den
-lokalen Offlinepfad, aber kein allgemeiner Generationenautomat. Nach dem
-Handoff ist der UID-Record für die übergebene UID nur ein
-eingefrorener Kompatibilitätsrecord; `search_generation_head` und die
-nachfolgenden STATE1-Records sind exklusiv autoritativ. Die nur für diesen
-Übergang zulässigen lokalen
-Auditdateien sind ein Betreiberbeleg und kein Runtime-System-of-Record. Dieser
-Vertrag führt weder
-eine zweite SQLite-Datei noch einen eigenen Datenbankprozess oder eine parallele
-Persistenzschicht ein. Meilisearch und spätere räumliche Suchengines bleiben
-vollständig abgeleitete Systeme.
+PocketBase-SQLite-Datenbank. Nach einem Authority-Handoff sind
+`search_generation_head` und die nachfolgenden STATE1-Records exklusiv
+autoritativ. Ein externer Legacy- oder Migrationsrecord bleibt höchstens
+historischer Übergangsbeleg und ist weder Routing- noch Readinessquelle.
+Dieser Vertrag führt weder eine zweite SQLite-Datei noch einen eigenen
+Datenbankprozess oder eine parallele Persistenzschicht ein. Meilisearch und
+spätere räumliche Suchengines bleiben vollständig abgeleitete Systeme.
 
 ```text
 PocketBase / dieselbe SQLite-Datenbank
@@ -620,11 +363,10 @@ Ein normaler Wanderer-Start liest und validiert Route-Shard-Allocator,
 Assignment- und Manifestzustand und übernimmt die generationengebundenen
 physischen Indizes unverändert. Er darf weder live Trails neu verteilen noch
 die Route-Indexfamilie pauschal löschen oder vollständig neu aufbauen. Mit
-Ausnahme des in Abschnitt 1.1 abschliessend definierten lokalen
-`offline-srch0-v1`-Profils läuft jeder andere Backfill, Schema-/
-Projektionswechsel oder Vollrebuild als registrierte Shadowgeneration mit
-neuen physischen IDs und den in Abschnitt 8 festgelegten Cutoff-, Watermark-
-und Swap-Gates.
+Eintritt in STATE1 läuft jeder Backfill, Schema-/Projektionswechsel oder
+Vollrebuild als registrierte Shadowgeneration mit neuen physischen IDs und den
+in Abschnitt 8 festgelegten Cutoff-, Watermark- und Swap-Gates. Legacy- und
+Migrationsowner vor diesem Eintritt bleiben von Abschnitt 1.1 abgegrenzt.
 
 Die beiden folgenden zusätzlichen Infrastruktur-Ausnahmen sind keine parallele
 Datenbank: Root-Keymaterial liegt wie üblich in der Secret-Ablage, und ein monotoner
@@ -2865,121 +2607,56 @@ Auditdatensatz für den atomaren DB-Pointerwechsel.
 | `expected_pointer_version` | SafeRevisionV1 | CAS-Guard |
 | `cutoff` | SafeRevisionV1 | von neuer Generation bestätigt |
 | `reason` | select | `bootstrap`, `deploy`, `schema`, `rebuild`, `rollback`, `recovery` |
-| `handoff_logical_uids` | json? | nur beim ersten Bootstrap aus `offline-srch0-v1`; in STATE1 V1 bei Handoff exakt `["trails"]`, sonst leer. Jede andere nichtleere Menge endet mit `state1_handoff_uid_unsupported` |
-| `handoff_authority_snapshot` | json? | bei Handoff verpflichtetes geschlossenes `State1OfflineAuthoritySnapshotV1` mit exakt derselben UID-Menge; sein kanonischer Digest ist Pointer-CAS-Guard |
-| `handoff_srch0_pair_activation` | json? | bei Handoff verpflichtetes geschlossenes `Srch0PairActivationHandoffV1`; bindet Terminalartefakt, Zielvertrag, beide Zielprofile und historische Aktivierungsfloors |
-| `handoff_srch0_pair_cleanup_observation` | json? | bei Handoff verpflichtetes geschlossenes `Srch0PairCleanupObservationV1`; jede nichtleere reservierte Paarmenge verbietet den Handoff |
-| `handoff_offline_state_revisions` | json? | bei Handoff verpflichtetes geschlossenes `State1OfflineStateRevisionsV1`; bindet die im Pointer-CAS erwartete Trailrevision |
-| `handoff_offline_projection_epochs` | json? | bei Handoff verpflichtetes geschlossenes `State1OfflineProjectionEpochsV1`; bindet gleiches Applied-/Attested-Paar und attestierten Dokumentzähler |
-| `handoff_offline_quiescence_attempts` | json? | bei Handoff verpflichtetes geschlossenes `State1OfflineQuiescenceAttemptsV1`; bindet den unmittelbar vor dem Commit stabilen read-only Handoff-Versuch aus `task_quiescence_retry_v1` samt All-O-Vergleichsdigest, ohne Admission-Linearisierungsbehauptung |
+| `handoff_logical_uids` | json? | nur beim ersten Bootstrap aus einem externen Legacyowner; kanonische, nichtleere Liste der vom V1-Entity-/Querymodell vollständig abgedeckten Rollen |
+| `handoff_authority_snapshot` | json? | bei Handoff verpflichtetes geschlossenes `State1LegacyAuthoritySnapshotV1`; sein kanonischer Digest ist Pointer-CAS-Guard |
 | `state` | select | `prepared`, `committed`, `aborted` |
 | `committed_at` | date? | DB-Commitzeit |
 
-Die sechs gespeicherten JSON-Innenformen und die unten genannte Digest-Preimage
-sind keine freien Maps. `SafeRevisionV1` ist der oben
-definierte Integerbereich `0..M`; `DigestV1` ist `sha256:` gefolgt von exakt
-64 kleingeschriebenen Hexzeichen des SHA-256 über die RFC-8785-kanonisierten
-Bytes des bezeichneten Objekts. Alle nachfolgend genannten Properties sind verpflichtend, jedes Objekt
-auf jeder Tiefe hat `additionalProperties: false`, und die Arrayreihenfolge ist
-Teil der kanonischen Form:
+Die gespeicherte JSON-Innenform ist keine freie Map. `SafeRevisionV1` ist der
+oben definierte Integerbereich `0..M`; `DigestV1` ist `sha256:` gefolgt von
+exakt 64 kleingeschriebenen Hexzeichen des SHA-256 über die
+RFC-8785-kanonisierten Bytes des bezeichneten Objekts. Alle Properties sind
+verpflichtend, jedes Objekt auf jeder Tiefe hat
+`additionalProperties: false`, und die Arrayreihenfolge ist Teil der
+kanonischen Form:
 
 ```text
-State1OfflineAuthoritySnapshotV1 = {
-  "schema": "state1_offline_authority_snapshot_v1",
-  "dependency_registry_revision": SafeRevisionV1,
-  "uids": [{
-    "logical_uid": "trails",
-    "expected_authority": "offline-srch0-v1",
-    "state_revision": SafeRevisionV1
-  }],
-  "srch0_pair_activation_digest": DigestV1,
-  "srch0_pair_cleanup_observation_digest": DigestV1
-}
-
-Srch0PairActivationHandoffV1 = {
-  "schema": "srch0_pair_activation_handoff_v1",
-  "active_artifact_digest": DigestV1,
-  "target_contract": "srch0_compat_v1",
-  "target_profiles": {
-    "lists": "sec-vis0-list-v1",
-    "trails": "trails-legacy-srch0-v1"
-  },
-  "activation_state_revision_floors": {
-    "lists": SafeRevisionV1,
-    "trails": SafeRevisionV1
-  }
-}
-
-Srch0PairCleanupObservationV1 = {
-  "schema": "srch0_pair_cleanup_observation_v1",
-  "engine_scope_id": non-empty text,
-  "global_task_head": SafeRevisionV1,
-  "reserved_pair_uids": []
-}
-
-State1OfflineStateRevisionsV1 = {
-  "schema": "state1_offline_state_revisions_v1",
-  "trails": SafeRevisionV1
-}
-
-State1OfflineProjectionEpochsV1 = {
-  "schema": "state1_offline_projection_epochs_v1",
-  "trails": {
-    "applied_projection_epoch": SafeRevisionV1,
-    "attested_projection_epoch": SafeRevisionV1,
-    "attested_document_count": SafeRevisionV1
-  }
-}
-
-State1OfflineQuiescenceAttemptsV1 = {
-  "schema": "state1_offline_quiescence_attempts_v1",
-  "all_offline_projection_comparison_digest": DigestV1,
-  "trails": {
-    "attempt_ordinal": integer 1..3,
-    "engine_scope_id": non-empty text,
-    "global_task_head": SafeRevisionV1
-  }
-}
-
-Srch0HandoffAllOfflineProjectionComparisonV1 = {
-  "schema": "srch0_handoff_all_offline_projection_comparison_v1",
-  "engine_scope_id": non-empty text,
-  "global_task_head": SafeRevisionV1,
+State1LegacyAuthoritySnapshotV1 = {
+  "schema": "state1_legacy_authority_snapshot_v1",
   "uids": [{
     "logical_uid": non-empty text,
-    "state_revision": SafeRevisionV1,
-    "search_contract_revision": non-empty text,
-    "active_profile_revision": non-empty text,
-    "applied_projection_epoch": SafeRevisionV1,
-    "attested_projection_epoch": SafeRevisionV1,
-    "attested_document_count": SafeRevisionV1,
-    "source_projection_fingerprint": DigestV1,
-    "engine_primary_key": non-empty text,
-    "engine_settings_fingerprint": DigestV1,
-    "engine_document_count": SafeRevisionV1,
-    "engine_id_fingerprint": DigestV1,
-    "engine_field_fingerprint": DigestV1,
-    "engine_document_fingerprint": DigestV1
+    "expected_authority": "legacy",
+    "authority_version": SafeRevisionV1,
+    "source_revision": SafeRevisionV1,
+    "source_snapshot_digest": DigestV1,
+    "legacy_resource_set": [{
+      "engine_scope": non-empty text,
+      "physical_index_id": non-empty text
+    }],
+    "legacy_resource_set_digest": DigestV1,
+    "operation_state": "ready",
+    "authority_head_key": null,
+    "authority_pointer_version": null
   }]
 }
 ```
 
-Die beiden Digestproperties des Authority-Snapshots sind exakt die `DigestV1`-
-Werte der vollständigen kanonischen Activation- beziehungsweise Cleanupobjekte.
-Die Revision-Floors stimmen exakt mit den terminalen `active.json`-Werten
-überein, sind aber keine aktuellen CAS-Werte. Im Epochobjekt müssen Applied und
-Attested gleich sein. State-Revision in Snapshot und Revisionsobjekt,
-Engine-Scope/Head in Cleanup- und Quieszenzobjekt sowie alle gleichnamigen
-Commit-Guard-Werte müssen jeweils exakt übereinstimmen. Ohne Handoff sind alle
-in der Tabelle aufgeführten `handoff_*`-Felder leer.
+`uids` ist eindeutig und nach UTF-8-Bytes von `logical_uid` aufsteigend
+sortiert und stimmt bijektiv mit `handoff_logical_uids` überein. Vor dem
+Pointer-CAS werden alle Felder des zugehörigen `LegacyAuthorityBoundaryV1`-
+Records und das vollständige Legacyressourcenset unter denselben Locks erneut
+gelesen und byte- beziehungsweise digestgleich verlangt; die durch den
+unveränderten `source_snapshot_digest` bezeichnete Preimage bleibt vollständig
+auflösbar und digestgültig. Die eingebetteten Ressourcensets haben
+dieselbe kanonische Ordnung und Digest-Preimage wie in Abschnitt 1.1. Die neue
+Generation muss sämtliche Rollen vollständig abdecken und ihre physischen IDs
+müssen von der Vereinigung aller gebundenen Legacyressourcenmengen disjunkt
+sein. Ohne Handoff sind beide `handoff_*`-Felder leer.
 
-Die `uids`-Liste der Vergleichs-Preimage enthält bijektiv sämtliche beim
-Precommit in `O` partitionierten UIDs, eindeutig und nach UTF-8-Bytes von
-`logical_uid` aufsteigend sortiert. Jeder Eintrag bindet die unter den Locks
-erneut gelesene State-Postimage und die tatsächlichen grünen PocketBase-/Engine-
-Vergleichsergebnisse; Rohdokumentwerte sind verboten. Der
-`all_offline_projection_comparison_digest` ist exakt `DigestV1` dieser
-vollständigen `Srch0HandoffAllOfflineProjectionComparisonV1`-Preimage.
+Der Snapshot bindet keine internen Epochen, Taskheads, Auditdateien oder
+korrekturspezifischen Aktivierungsartefakte des Legacyowners. STATE1 beweist
+die Zielbytes ausschliesslich über seine Generation-, Member-, Attempt-,
+Task-, Cutoff- und Publisherrecords.
 
 #### `search_context_resource`
 
@@ -3140,80 +2817,65 @@ unbegrenzten periodischen Full-Scan im Requestpfad kompensiert werden.
 
 ### 5.1 Normale Fachmutation
 
-Auch während eines Partial-Handoffs existiert genau **eine** Fachtransaktion.
-Der Command berechnet mit der SRCH0-Registry aus demselben konsistenten Vorher-/
-Nachherschnitt die vollständige logische UID-Hülle `A`, liest Authority und
-`state_revision` aller UIDs in diesem SQLite-Schnitt und partitioniert
-kanonisch in `O` und `S`. Registryrevision, `A/O/S` und alle erwarteten
-Authority- sowie `state_revision`-Werte werden im `cause_digest` beziehungsweise, wenn keine
-STATE1-Katalogrevision benötigt wird, im gleichwertigen internen Command-
-Control-Digest gebunden. Zusätzlich bezeichnet `C` die geschlossene Menge der
-von diesem Command unabhängig von der Such-UID-Authority verpflichteten
-STATE1-Federation-/Visibility-/Security-/Fence-/Tombstone-Changes. Es gilt
-`needs_catalog_revision = (S != []) || (C != [])`. Nur dann entsteht eine
-STATE1-Katalogrevision; nur wenn `O` nicht leer ist, entstehen Offline-
-Epochenänderungen. Die Fachmutation selbst wird nie doppelt ausgeführt.
+Auch während eines Authoritywechsels existiert genau **eine**
+Fachtransaktion. Der Command berechnet mit der versionierten
+Projektions-Abhängigkeitsregistry aus demselben konsistenten Vorher-/
+Nachherschnitt die vollständige logische Zielhülle `A`. Er liest die Authority
+aller Ziele und bildet `T` als die kanonische Teilmenge, deren aktueller Owner
+`state1` ist. Zusätzlich bezeichnet `C` die geschlossene Menge der unabhängig
+von einer Suchrollen-Authority verpflichteten STATE1-Federation-, Visibility-,
+Security-, Fence- und Tombstone-Changes.
 
-Jeder so katalogrelevante Command führt in genau einer PocketBase-Transaktion
+Registryrevision, `A`, `T`, `C` und alle erwarteten Authority-CAS-Versionen
+werden im `cause_digest` gebunden. Es gilt
+`needs_catalog_revision = (T != []) || (C != [])`. Die Fachmutation wird nie
+doppelt ausgeführt. Ziele ausserhalb `T` werden ausschliesslich durch ihren
+aktuellen externen Owner verarbeitet; dessen Transitionservice muss seinen
+Anteil in derselben PocketBase-Transaktion persistieren. STATE1 liest oder
+schreibt dabei keine ownerfremden Epochen, Attestierungen oder Taskguards.
+
+Jeder STATE1-relevante Command führt in genau einer PocketBase-Transaktion
 aus:
 
-1. `cause_key`, vollständigen `cause_digest`, die erwartete Authority-
-   Partition und für jede UID in `O` die einheitliche SRCH0-Vorbedingung
-   `state_revision <= 2^53-4` vor jeder Wirkung prüfen; eine geänderte Partition
-   oder zu knappe Revision rollt den gesamten Command zurück und wird nur bei
-   einem retrybaren Authoritywechsel neu berechnet;
+1. `cause_key`, vollständigen `cause_digest`, Registryrevision, erwartete
+   Authoritypartition und deren CAS-Versionen vor jeder Wirkung prüfen; eine
+   geänderte Partition rollt den gesamten Command zurück und wird beim Retry
+   neu berechnet;
 2. die einmalige DB-Zeit lesen, die genau einmalige Fachmutation und bei einer
    STATE1-Erstaufnahme deren lokalen Allocation-Key vorbereiten;
 3. falls `needs_catalog_revision`,
    `search_catalog_state.committed_revision + 1` per CAS als Revision `R`
-   reservieren; nur bei `S = []` **und** `C = []` existiert für diesen Command
-   kein `R`;
-4. die Fachmutation genau einmal anwenden und nur für ein auf `S` gemapptes,
+   reservieren; nur bei `T = []` und `C = []` existiert für STATE1 kein `R`;
+4. die Fachmutation genau einmal anwenden und nur für ein auf `T` gemapptes,
    erstmals lokal materialisiertes Trailziel im Allocatorzustand `active`
-   unter demselben CAS dessen
-   unveränderliches `search_geo_route_assignment` samt Shardheader und neuer
-   Manifestversion schreiben; während des ausdrücklich nicht ausstellbaren
-   initialen `backfilling` übernimmt stattdessen der unten definierte durable
-   Keyset-Sweep diese Zuweisung;
+   unter demselben CAS dessen unveränderliches
+   `search_geo_route_assignment` samt Shardheader und neuer Manifestversion
+   schreiben; während des nicht ausstellbaren initialen `backfilling`
+   übernimmt stattdessen der durable Keyset-Sweep diese Zuweisung;
 5. bei `needs_catalog_revision` genau einen `search_catalog_commit(R)` und
    seine lückenlosen `search_catalog_change(R, ordinal)` für die Vereinigung
-   aus den auf `S` gemappten Projektionschanges und `C` anlegen;
-6. je auf `S` gemapptem betroffenem Projektionsziel und je durch `C`
-   verpflichteten Dirty-Ziel `search_projection_dirty` mit
-   `desired_revision = max(alt, R)` upserten;
-   bei Visibilityänderungen umfasst dies jedes betroffene `federation_scope`-
-   Ziel für Local-, Global-, Origin-, Actor-, ACL- und Publication-Scope;
-7. für jedes zu diesen `S`-/`C`-Changes bereits registrierte relevante Generationenmember mit
+   aus den auf `T` gemappten Projektionschanges und `C` anlegen;
+6. je auf `T` gemapptem Projektionsziel und je durch `C` verpflichteten
+   Dirty-Ziel `search_projection_dirty` mit
+   `desired_revision = max(alt, R)` upserten; bei Visibilityänderungen umfasst
+   dies jedes betroffene `federation_scope`-Ziel;
+7. für jedes relevante registrierte Generationenmember mit
    `R > baseline_revision` einen `pending`-Beleg in
    `search_catalog_delivery` anlegen;
-8. die zu diesen `S`-Zielen oder `C` gehörenden Delete-Tombstones und bei
-   Visibilityänderungen den betroffenen
-   `search_subject_visibility_frontier` samt Restriction-Fence beziehungsweise
-   Successor-Link im selben Schnitt persistieren;
-9. ausschliesslich für jede UID in `O`
-   `applied_projection_epoch` und deren `search_index_state.state_revision`
-   um eins erhöhen; jede `S`-Zeile bytegleich lassen; und
-10. gegebenenfalls `change_count`, `change_manifest_digest`, Katalogzustand,
-    Fachrecord, Offline-Epochen und alle Control-Records gemeinsam committen.
+8. die zu diesen Änderungen gehörenden Delete-Tombstones und bei
+   Visibilityänderungen `search_subject_visibility_frontier`, Restriction-
+   Fence beziehungsweise Successor-Link persistieren; und
+9. `change_count`, `change_manifest_digest`, Katalogzustand, Fachrecord und
+   sämtliche STATE1-Control-Records gemeinsam committen.
 
-Die Authoritypartition begrenzt nur die Ownerzuordnung der logischen
-Suchprojektionen. `C` und zusätzlich verpflichtete Outbox-/Anti-Rollback-
-Effekte bleiben vollständig anzulegen; sie dürfen nicht mit `S = []`
-entfallen. Ausserhalb `search_manual_intervention` submitten nach dem Commit
-Offline-Hooks nur für `O`; STATE1-Worker/Publisher verarbeiten die auf `S`
-gemappten Projektionen sowie `C`. In `search_manual_intervention` bleiben beide
-Lieferpfade bis zum gestoppten Repair/Drain pausiert. Kein Enginezugriff findet
-in der Transaktion statt.
-
-Scheitert ein Schritt, ist nichts davon sichtbar. Ein Fehler nach diesem Commit
-kann die Fachmutation nicht zurückrollen. Ausserhalb
-`search_manual_intervention` nehmen Worker und Publisher den durablen STATE1-
-Anteil wieder auf, und der Offlinekoordinator attestiert oder invalidiert seinen
-durablen Epochenanteil. In der Manual-Phase übernimmt erst der dokumentierte
-gestoppte Offline-Reindex mit anschliessendem durable-only-STATE1-Drain beide
-Anteile. Kein Projektionsziel darf von beiden Ownern oder von keinem Owner
-bedient werden.
-
+Authority-unabhängige `C`- und zusätzlich verpflichtete Outbox-/Anti-
+Rollback-Effekte dürfen nicht mit `T = []` entfallen. Kein Enginezugriff findet
+in der Transaktion statt. Nach Commit nehmen STATE1-Worker und Publisher
+ausschliesslich den durablen `T`-/`C`-Anteil auf. Ein Authority-CAS-Verlust
+rollt die gesamte Fachtransaktion zurück; der Retry bestimmt die aktuelle
+Partition neu. Damit bedient STATE1 kein Ziel, das noch einem externen Owner
+gehört, und kein Handoff kann denselben Fachcommit auf beiden Seiten
+duplizieren oder verlieren.
 Bei der Erstaufnahme stammt `local_created_at` ausschliesslich aus der in
 Schritt 2 gelesenen lokalen DB-Zeit. Ein Import- oder Federation-Payload darf
 dieses Feld weder vorbelegen noch durch `published`, `created`,
@@ -4211,7 +3873,7 @@ Physische Index-IDs enthalten die unveränderliche Generation und werden beim
 Cutover nicht umbenannt. Der atomare Bundlewechsel ist eine einzige
 PocketBase-Transaktion. Sobald sämtliche statischen und dynamischen Bindings
 feststehen, wird der deterministische Auditrecord einmal als `prepared`
-angelegt; das verändert den Head nicht. Beim Offline-Authority-Handoff geschieht
+angelegt; das verändert den Head nicht. Beim Legacy-Authority-Handoff geschieht
 dies ausdrücklich erst nach dem letzten Buildtask und der unten definierten
 Precommit-Beobachtung. Die Pointertransaktion setzt ihn gemeinsam mit allen
 übrigen Änderungen auf `committed`. Ein
@@ -4219,93 +3881,123 @@ Precommit-Beobachtung. Die Pointertransaktion setzt ihn gemeinsam mit allen
 und ein dauerhaft verlorener Guard beziehungsweise expliziter Abbruch belegt
 ist; `committed` und `aborted` sind terminal.
 
-`requested_handoff_logical_uids` ist die unveränderliche Command-/Planabsicht,
-nicht bereits der gleichnamige Inhalt des späteren Swaprecords. Erst die
-Precommit-Stufe materialisiert daraus die geschlossenen `handoff_*`-Felder. Beim
-Resume eines nichtterminalen `prepared`-Records wird diese Absicht nach dessen
-vollständiger Schemavalidierung exakt aus `handoff_logical_uids` rekonstruiert;
-ein Request darf sie dabei weder ersetzen noch erweitern.
+Der Handoff-spezifische Teil eines Bootstrap-Kommandos ist genau dieses
+geschlossene Objekt; alle Properties sind verpflichtend:
+
+```text
+State1LegacyHandoffRequestV1 = {
+  "schema": "state1_legacy_handoff_request_v1",
+  "reason": "bootstrap",
+  "requested_handoff_logical_uids": [non-empty text]
+}
+```
+
+`requested_handoff_logical_uids` ist die unveränderliche Commandabsicht, nicht
+bereits der gleichnamige Inhalt des späteren Swaprecords. Der Wert ist eine
+nichtleere, duplikatfreie, nach UTF-8-Bytes sortierte Liste nichtleerer
+Strings. Erst die Precommit-Stufe
+materialisiert daraus die geschlossenen `handoff_*`-Felder. Vorher existiert
+bewusst weder ein persistenter Handoff-Buildplan noch ein adoptierbarer
+Snapshotbeleg. Ein Crash oder Prozesswechsel vor Precommit quarantänisiert
+deshalb jede angelegte staged Generation; der nächste Lauf baut nach neuem
+Preflight vollständig auf neuen physischen IDs.
+
+Ein bei einem neuen Kommando gefundener `search_generation_swap(state =
+prepared)` mit Handofffeldern wird vor jeder weiteren Wirkung vollständig
+schemavalidiert. Bei gültigem Record darf ein Request dessen Rollenmenge weder
+ersetzen noch erweitern. Weil sein früherer Source-/Authority-Lockkontext nicht
+adoptiert werden kann, wird er nach belegtem Nichtcommit `aborted`, seine
+Zielgeneration quarantänisiert und die Absicht nur für einen vollständigen
+Neubau rekonstruiert.
 
 ```text
 Handoff-Dispatch, vor prepared-Record, Aufbau von new und jedem anderen Effekt:
   falls requested_handoff_logical_uids nicht leer ist oder ein bestehender
-    nichtterminaler Attempt irgendein handoff_* Feld trägt:
-    falls head.state = active:
-      state1_incremental_authority_handoff_unsupported, null Wirkung
+    search_generation_swap(state=prepared) irgendein handoff_* Feld trägt:
     head.state = empty AND head.active_generation leer AND V = 0;
-      andernfalls state1_handoff_binding_invalid, null Wirkung
+      andernfalls state1_incremental_authority_handoff_unsupported, null Wirkung
     reason = bootstrap;
       andernfalls state1_handoff_binding_invalid, null Wirkung
-    requested_handoff_logical_uids = ["trails"];
+    ohne bestehenden prepared-Swap:
+      Request ist geschlossen; requested_handoff_logical_uids ist kanonisch,
+        nichtleer und duplikatfrei; andernfalls
+        state1_handoff_binding_invalid, null Wirkung
+    mit bestehendem prepared-Swap:
+      handoff_logical_uids und handoff_authority_snapshot sind beide gesetzt,
+        vollständig schema-valide und bijektiv; ein Request ist entweder leer
+        oder nennt exakt dieselbe kanonische Menge; andernfalls
+        state1_handoff_binding_invalid, null Wirkung
+      requested_handoff_logical_uids exakt aus der validierten Menge rekonstruieren
+    jede Rolle dieser Menge ist vom V1-Entity-/Querymodell unterstützt;
       andernfalls state1_handoff_uid_unsupported, null Wirkung
-    zum Offline-Authority-Handoff-Preflight verzweigen
+    bei bestehendem prepared-Swap erst jetzt nach Nichtcommitbeleg Swap ->
+      aborted und seine Zielgeneration samt Membern quarantänisieren; keine
+      Generation oder Buildbindung übernehmen
+    zum Legacy-Authority-Handoff-Preflight verzweigen
   andernfalls:
     kein Authority-Handoff; der spätere Swaprecord lässt sämtliche
       handoff_* Felder leer
 
-Offline-Authority-Handoff-Preflight, nur nach dem vorstehenden Empty-Head-Dispatch:
-  vor prepared-Record, Aufbau von new sowie jedem Head-, State- oder Engineeffekt
-  reason = bootstrap
-  head.state = empty AND head.active_generation leer AND V = 0
-  requested_handoff_logical_uids = ["trails"];
-    andernfalls state1_handoff_uid_unsupported, null Wirkung
-  den Source-Lock sowie die UID-Locks aller aktuellen Offline-UIDs in
-    kanonischer Reihenfolge nehmen und bis Commit halten; darin liegt
-    insbesondere die vollständige Handoffmenge
-  jede aktuelle search_index_state-Zeile erneut lesen und verlangen:
-    current.control_plane_authority = offline-srch0-v1
-    current.state_revision = ihre gebundene erwartete Revision <= M
-  ausschliesslich für die Handoff-UID trails zusätzlich:
-    current.state_revision = gebundene erwartete Revision < M
-  bei trails.current.state_revision = M:
-    search_state_revision_exhausted, null Wirkung
-  bei anderer Erwartungsabweichung: Attempt verwerfen und ohne Wirkung neu planen
-  srch0_pair_activated_v1 und den schema-validen active.json-Terminalbeleg prüfen
-  Abwesenheit aller reservierten Paar-UIDs als frühes Cleanup-Gate prüfen,
-    aber noch keinen Taskhead- oder Cleanupdigest in den Swaprecord binden
-  aktuelle Revision, gleiche Epochen, Dokumentzähler und Activationobjekt als
-    statischen Preflight-Snapshot halten; unter den Locks dürfen sie nicht wechseln
+Legacy-Authority-Handoff-Preflight:
+  vor prepared-Record, Aufbau von new sowie jedem Head-, Authority- oder
+    Engineeffekt
+  vollständiges LegacyAuthorityBoundaryV1 für exakt die angeforderte
+    Rollenmenge in einem kurzen konsistenten Read lesen; Schema, kanonische
+    Ordnungen, Bijektion, Source-Snapshot- und Ressourcenset-Preimages sowie
+    beide Digests vollständig validieren; bei Struktur-, Ordnungs-, Coverage-,
+    Auflösungs- oder Digestfehler state1_handoff_binding_invalid, null Wirkung
+  je Rolle verlangen:
+    current.authority = legacy
+    current.authority_version < M;
+      andernfalls state1_authority_revision_exhausted, null Wirkung
+    current.operation_state = ready
+    current.authority_head_key = null AND
+      current.authority_pointer_version = null
+  Boundary samt vollständigen unveränderlichen Source-Snapshots nur
+    prozesslokal an diesen Build binden; keinen Source-/Authority-Lock über
+    den Build halten
+  bei jeder Erwartungsabweichung: Command ohne Wirkung verwerfen und neu planen
 
-Aufbauphase bei gewähltem Offline-Authority-Handoff:
-  new samt Generation-/Snapshot-/Membermanifest auf disjunkten physischen IDs bauen
-  jeden dadurch erzeugten Engine-Task über das gemeinsame Submitregister terminal
-    succeeded abwarten und new vollständig ready/published machen
-  danach bis zum Pointercommit keinen weiteren Engine-Submit autorisieren
+Aufbauphase bei gewähltem Legacy-Authority-Handoff:
+  new samt Generation-/Snapshot-/Membermanifest ausschliesslich auf von der
+    gebundenen Legacyressourcenmenge disjunkten physischen IDs bauen
+  Projektionsbytes ausschliesslich aus den im Preflight gebundenen
+    LegacySourceSnapshotPreimageV1-Objekten erzeugen
+  jeden STATE1-Engine-Task nach den eigenen Attempt-/Submission-/Taskautomaten
+    terminal succeeded und owner-bestätigt abwarten
+  new vollständig ready/published machen
+  bei Crash oder Verlust des Prozesskontexts vor Precommit new und seine
+    Member quarantänisieren; niemals fortsetzen oder adoptieren
 
-Offline-Authority-Handoff-Precommit-Binding:
-  weiterhin alle Offline-UID-Locks halten und den endpointweiten Admission-Mutex nehmen
-  statischen Preflight-Snapshot und active.json erneut byte-/digestgleich validieren
-  den in SRCH0 geschlossenen read-only Handoff-Verbraucher von
-    task_quiescence_retry_v1 nach dem letzten Buildtask als stabilen All-O-
-    Vollvergleich erfolgreich abschliessen; historische verified_* sind dabei
-    kein Freshnessgate und bleiben read-only. Der tatsächliche grüne
-    Projektionsvergleich schreibt nur die globale Guard-CAS auf den finalen
-    Head und liefert den kanonischen All-O-Ergebnisdigest. Würde irgendeine
-    Projektionsabweichung, Epochen-/Zählerlücke, UID-Attestierung oder
-    UID-state_revision-Mutation nötig, Attempt verwerfen und zum statischen
-    Preflight beziehungsweise zuständigen Recoverypfad zurückkehren
-  unter demselben finalen Scope/Head erneut beweisen, dass keine reservierte
-    physische Paar-UID existiert
-  aus genau dieser Beobachtung Srch0PairCleanupObservationV1 und
-    State1OfflineQuiescenceAttemptsV1 mit identischem engine_scope_id/
-    global_task_head sowie dem eben berechneten
-    all_offline_projection_comparison_digest erzeugen
-  Activation-, Revisions- und Epochenobjekte aus dem unveränderten statischen
-    Snapshot erzeugen; daraus den Authority-Snapshot samt Childdigests bilden
-  sämtliche handoff_* Felder schema-valid und untereinander gleich gebunden in
-    einem neuen search_generation_swap-Record state=prepared persistieren
-  bis zum Pointercommit Admission-Mutex und Offline-UID-Locks halten;
-    nach prepared ist kein Engine-Submit und keine Feldmutation erlaubt
-  ändert sich Scope/Head bei weiter gehaltenen Locks:
-    etwaigen prepared-Record -> aborted und mit neuem swap_key nur das
-    Precommit-Binding wiederholen
-  geht Prozesskontext oder irgendein Lock verloren:
-    etwaigen prepared-Record nach belegtem Nichtcommit -> aborted und zwingend
-    zum statischen Preflight zurückkehren; Source, Revisionen und Buildbaseline
-    neu lesen. New darf nur nach vollständiger Gleichheitsvalidierung gegen
-    diesen neuen Snapshot wiederverwendet werden, andernfalls new
-    quarantänisieren und neu bauen; niemals nur einen frischen Head an stale
-    Generationbytes binden
+Legacy-Authority-Handoff-Precommit-Binding:
+  Source-Lock und Authority-Locks der vollständigen Handoffmenge in
+    kanonischer Reihenfolge nehmen und bis zum Pointercommit halten
+  unter diesen Locks kann keine neue Legacy-Source-Mutation committen; ein
+    bereits begonnener Writer gewinnt entweder vor dem finalen Read oder
+    verliert nach dem Authority-CAS vollständig
+  vollständiges LegacyAuthorityBoundaryV1 erneut lesen; alle Authorityrecords,
+    Authorityversionen < M, Source-Revisionen, Source-Snapshot-Digests,
+    Ressourcensets und Ressourcenset-Digests bytegleich zum prozesslokalen
+    Preflight verlangen; jede gebundene immutable Source-Preimage bleibt
+    vollständig auflösbar und digestgültig
+  vollständige Abdeckung jeder Handoffrolle durch Generation-, Queryfamily-,
+    Member- und Snapshotmanifest beweisen
+  Disjunktheit jeder neuen physischen ID von der gebundenen
+    Legacyressourcenmenge erneut beweisen
+  bei jeder Abweichung Locks freigeben, noch keinen prepared-Record anlegen,
+    new samt Membern quarantänisieren und mit neuem Preflight eine vollständige
+    Generation auf neuen physischen IDs bauen; kein externer Source-Cutoff/-
+    Replay und keine Wiederverwendung
+  erst bei vollständiger Gleichheit daraus
+    `State1LegacyAuthoritySnapshotV1` erzeugen und gemeinsam mit der
+    kanonischen Handoffmenge in einem neuen
+    `search_generation_swap(state=prepared)` persistieren
+  bis zum Pointercommit die Locks halten; nach `prepared` sind keine
+    Source-, Authority- oder Handofffeldänderungen erlaubt
+  geht Prozesskontext oder ein Lock verloren:
+    prepared nach belegtem Nichtcommit -> aborted und zwingend zum statischen
+    Preflight zurückkehren; new samt Membern immer quarantänisieren und eine
+    vollständige Generation auf neuen physischen IDs bauen
 
 Gemeinsamer Guard:
   head.pointer_version = V
@@ -4341,55 +4033,31 @@ Normaler Guard:
   old = head.active_generation = active/published
   Ressourcen von old Generation und aktuellem old Snapshot = issuing
   handoff_logical_uids und alle handoff_* Felder sind leer;
-    andernfalls state1_incremental_authority_handoff_unsupported vor Wirkung;
-      der vorgelagerte Dispatch muss diesen Fall bereits vor dem Aufbau von new
-      abgewiesen haben, hier wird dieselbe Bedingung nur beim Commit erneut geprüft
+    andernfalls state1_incremental_authority_handoff_unsupported vor Wirkung
 
 Bootstrap-Guard:
   head.state = empty AND head.active_generation leer AND V = 0
 
-Offline-Authority-Handoff-Commit-Guard, falls handoff_logical_uids nicht leer:
+Legacy-Authority-Handoff-Commit-Guard, falls handoff_logical_uids nicht leer:
   reason = bootstrap
-  handoff_logical_uids = ["trails"];
-    andernfalls state1_handoff_uid_unsupported vor jeder Wirkung
-  srch0_pair_activated_v1 gilt für die aktiven Felder beider Records;
-    andernfalls search_pair_migration_required vor jeder Wirkung
-  typisiertes handoff_srch0_pair_activation ist im Authority-Snapshot digestgebunden;
-    andernfalls search_pair_activation_evidence_required vor jeder Wirkung
-  typisiertes handoff_srch0_pair_cleanup_observation bindet aktuellen Scope/Head und [];
-    andernfalls search_pair_cleanup_required vor jeder Wirkung
-  trails ist vom neuen Generation-/Membermanifest vollständig abgedeckt
-  jede neue Member-Physical-ID ist global eindeutig und disjunkt von allen
-    bisherigen Offline-Physical-IDs derselben logischen UID
-  kein alter Offlineindex ist from_generation oder nach dem Commit querybar;
-    er bleibt bis zum sichtbaren Taskdrain beziehungsweise GC quarantänisiert
-  handoff_authority_snapshot deckt exakt dieselbe kanonische UID-Menge und
-    aktuelle Dependency-Registryrevision ab
-  ihr search_index_state.control_plane_authority = offline-srch0-v1
-  ihre aktuelle search_index_state.state_revision =
-    handoff_authority_snapshot.uids[0].state_revision =
-    handoff_offline_state_revisions.trails < M
-  ihr operation_state = ready und alle operation_* Felder sind leer
-  ihr verification_required_reason ist leer
-  ihr applied_projection_epoch = ihr attested_projection_epoch =
-    handoff_offline_projection_epochs.trails.applied_projection_epoch =
-    handoff_offline_projection_epochs.trails.attested_projection_epoch
-  ihr attested_document_count =
-    handoff_offline_projection_epochs.trails.attested_document_count =
-    erneut bestätigter Enginezähler
-  search_engine_task_guard = ready und sein attestierter globaler Head stimmt
-    mit dem aktuellen ungefilterten Head überein
-  der prozesslokale Offline-Delivery-Owner jeder UID ist idle
-  current engine_scope_id und globaler task_head entsprechen exakt
-    handoff_offline_quiescence_attempts.trails.engine_scope_id und
-    handoff_offline_quiescence_attempts.trails.global_task_head;
-    handoff_offline_quiescence_attempts.all_offline_projection_comparison_digest
-    entspricht exakt dem grünen read-only All-O-Vergleich dieses Versuchs;
-    alle bis dorthin sichtbaren
-    relevanten Tasktypen sind terminal, unbekannte Typen sind fail-closed
-  die Offline-UID-Locks der gesamten Handoffmenge werden bis zum Commit gehalten
-  unter diesen Locks wurde danach kein neuer Offline-Submit autorisiert
-  keine nicht genannte UID wird in diesem Commit übergeben
+  Handoffmenge ist kanonisch, nichtleer und vollständig vom V1-Entity-/
+    Querymodell sowie new Generation-/Membermanifest abgedeckt
+  `handoff_authority_snapshot` ist ein schema-valides
+    `State1LegacyAuthoritySnapshotV1` und deckt bijektiv dieselbe Rollenmenge
+    ab
+  unter weiterhin gehaltenen Locks stimmen je Rolle current.authority = legacy,
+    authority_version < M, authority_version und source_revision exakt mit dem
+    Snapshot überein, operation_state = ready und beide Authoritybindings = null
+  Source-Snapshot-Digest, Ressourcenset und Ressourcenset-Digest stimmen
+    bytegleich mit den jeweiligen Snapshotfeldern überein; die bezeichnete
+    Source-Preimage bleibt vollständig auflösbar und digestgültig
+  kein nichtterminaler Legacy-Operationszustand liegt vor; die gehaltenen
+    Source-/Authority-Locks schliessen bis zum Commit jede neue
+    Legacy-Mutation aus
+  jede neue Member-Physical-ID ist global eindeutig und von sämtlichen
+    gebundenen Legacy-Physical-IDs disjunkt
+  kein Legacyindex ist from_generation oder nach dem Commit querybar
+  keine nicht genannte Rolle wird in diesem Commit übergeben
 
 Recovery-Guard:
   head.state = active
@@ -4413,24 +4081,25 @@ Gemeinsamer Commit:
   head.state = active
   head.active_generation = new
   head.pointer_version = V + 1
-  falls Offline-Authority-Handoff:
-    jede gebundene search_index_state-Zeile:
-      control_plane_authority = state1
+  falls Legacy-Authority-Handoff:
+    jede gebundene externe Authorityzeile per erwartetem authority_version-CAS:
+      authority = state1
       authority_head_key = kanonischer (contract, entity_kind)-Key dieses Heads
       authority_pointer_version = V + 1
-      state_revision = erwartete Revision + 1
-      sonstige Offlinefelder werden eingefroren
+      authority_version = erwartete Version + 1
   search_generation_swap = committed
 ```
 
-Der Pointer-/Authority-CAS linearisiert gegen die Mischtransaktion aus
-Abschnitt 5.1. Gewinnt ein Fachcommand zuerst, ändern dessen Offline-
-`state_revision` beziehungsweise gebundene Quieszenzversuchswerte den Snapshot und der
-Handoff-CAS verliert vollständig. Gewinnt der Handoff zuerst, verliert ein mit
-alter Partition begonnener Fachcommand seinen Authority-CAS, rollt Fachrecord,
-Offline-Epochen und STATE1-Controlrecords gemeinsam zurück und partitioniert
-beim Retry neu. Ein Crash kann daher weder eine übergebene UID nachträglich im
-Offline-Record inkrementieren noch ihren STATE1-Change auslassen.
+Der Pointer-/Authority-CAS linearisiert gegen die Fachtransaktion aus Abschnitt
+5.1. Gewinnt ein Fachcommand vor der Precommit-Lockaufnahme, ändern
+Authorityversion oder Source-Revision die prozesslokale Bindung; Precommit legt
+keinen `prepared`-Swap an, quarantänisiert `new` und baut vollständig neu. Nach
+erfolgreichem finalem Read kann unter den gehaltenen Locks kein Fachcommand vor
+dem Handoff-CAS gewinnen. Gewinnt dieser CAS, verliert ein mit alter Partition
+begonnener Fachcommand seinen Authority-CAS, rollt Fachrecord und sämtliche
+Controlrecords gemeinsam zurück und partitioniert beim Retry neu. Ein Crash
+kann daher weder eine übergebene Rolle nachträglich beim Legacyowner zustellen
+noch ihren STATE1-Change auslassen.
 
 Der Swap schliesst eine alte Contract-Artefakt-Ressource nicht pauschal mit
 der alten Generation. Bindet `new` dasselbe Artefakt, bleibt dessen Ressource
@@ -4448,13 +4117,12 @@ gepinnten Content-Snapshots liest. Der Pointercommit schaltet damit auch eine
 Route-Shard-Familie immer vollständig um; ein shardweiser Head- oder
 Engine-Swap ist verboten.
 
-Beim Bootstrap nach dem vollständigen STATE1-Modell ausserhalb des engen
-lokalen Offlineprofils aus Abschnitt 1.1 ist `from_generation` leer und
+Beim Bootstrap nach dem vollständigen STATE1-Modell ist `from_generation` leer und
 `reason = bootstrap`; der bis dahin leere Head ist nicht querybar. Wird dabei
-eine bisher offline bediente UID übernommen, ist ihr alter physischer Index
+eine bisher vom Legacyowner bediente Rolle übernommen, ist ihr alter physischer Index
 keine `from_generation`: Erst der gemeinsame Head-/Authority-Commit beendet die
-Offlineautorität, und der eingefrorene Kompatibilitätsrecord kann sie danach
-nicht reaktivieren. Ein Recovery-Swap verwendet
+Legacyautorität, und ihr historischer Übergangsrecord kann sie danach nicht
+reaktivieren. Ein Recovery-Swap verwendet
 `reason = recovery`. Die beschädigte alte Generation bleibt für alle alten
 Cursor stale/fail-closed und wird weder versiegelt weiterbedient noch jemals
 reaktiviert. Ihr möglicherweise verspäteter Enginewrite kann die neue
@@ -5307,11 +4975,10 @@ klassifiziert, endet der Inboxrecord intern `rejected`.
 | Crashpunkt | Persistenter Befund | Normative Recovery |
 | --- | --- | --- |
 | vor Revisionscommit | keine Fachmutation und kein Control-Plane-Effekt | normaler Clientretry |
-| nach normalem Revisionscommit, vor Worker, ausserhalb `search_manual_intervention` | Commit, Change und Dirty/Fence vorhanden | Queue beziehungsweise Reconciler nimmt auf; bei Securitycommit bis zum Checkpoint-CAS nicht ready. In der Manual-Phase bleiben die Search-Lieferanteile durable pausiert und folgen der gestoppten Repair-/Drainzeile |
-| nach authority-gemischtem Fachcommit, vor Offline-Task und STATE1-Worker, ausserhalb `search_manual_intervention` | Fachrecord, Applied-Inkremente nur für `O` sowie Commit/Change/Dirty für die `S`-Projektion und gegebenenfalls `C` sind atomar durable; `S`-Offlinezeilen sind unverändert | Offlinekoordinator recoveriert ausschliesslich `O`, STATE1-Worker/Publisher die `S`-Projektion und `C`; keine Seite rekonstruiert die Fachmutation oder erzeugt den Anteil der anderen. In der Manual-Phase gilt stattdessen ausschliesslich die folgende gestoppte Repair-/Drainzeile |
-| `search_manual_intervention`, danach Stopp und Crash während `search-state1 reconcile --durable-only --until-ready` | Offline-Reindex hat `O` separat attestiert; der beim Reconcile-Eintritt eingefrorene `S`-/`C`-Cutoff und alle bis dahin entstandenen STATE1-Attempts bleiben durable | Serve bleibt gestoppt; derselbe Reconcilelauf setzt nur diesen Prefix idempotent bis zu grünen Ownergates fort, ohne Fachwrite, Offline-State-Mutation oder neue Profilsemantik. Erst danach normal neu starten |
-| Fachcommand gewinnt unmittelbar vor Handoff-CAS | Offline-`state_revision`/Epoche beziehungsweise gebundener Partitionstand ist neuer als der Handoff-Snapshot | Handoff-CAS verliert vollständig, errichtet nach Quieszenz einen neuen Snapshot und übernimmt nie den alten Stand |
-| Handoff-CAS gewinnt unmittelbar vor Fachcommand-Commit | übergebene UID ist bereits `state1`, ihr Offline-Record eingefroren | Fachcommand-CAS rollt vollständig zurück, berechnet `A/O/S` neu und schreibt beim Retry für diese UID ausschliesslich STATE1-Change/Dirty |
+| nach normalem Revisionscommit, vor Worker | Commit, Change und Dirty/Fence für `T`/`C` vorhanden | Queue beziehungsweise Reconciler nimmt den STATE1-Anteil auf; bei Securitycommit bleibt Serving bis zum erforderlichen Checkpoint-CAS fail-closed |
+| nach authority-gemischtem Fachcommit, vor STATE1-Worker | Fachrecord, ownerfremder Anteil sowie Commit/Change/Dirty für `T`/`C` sind in derselben SQLite-Transaktion durable | jeder Owner recoveriert ausschliesslich seinen persistenten Anteil; keine Seite rekonstruiert die Fachmutation oder erzeugt den Anteil der anderen |
+| Fachcommand gewinnt vor der Handoff-Precommit-Bindung | Authorityversion oder Source-Revision ist neuer als der prozesslokale Preflight | Precommit legt keinen `prepared`-Swap an, quarantänisiert die Kandidatengeneration und baut nach neuem Preflight vollständig neu |
+| Handoff-CAS gewinnt unmittelbar vor Fachcommand-Commit | übergebene Rolle ist bereits `state1` | Fachcommand-CAS rollt vollständig zurück, berechnet die Authoritypartition neu und schreibt beim Retry für diese Rolle ausschliesslich STATE1-Change/Dirty |
 | nach erstem Assignment in den bereits vorhandenen initialen Shard, vor Memberwrite | Assignment auf Slot `0`, befüllte Manifestversion und Change sind durable; das bisher leere physische Member und seine Family-Bindung bestehen bereits | Delivery in genau dieses Member idempotent aufnehmen und eine neue Epoch publizieren; den ersten Trail nie durch einen zweiten Shard oder ein zweites Member umleiten |
 | nach Allocation eines weiteren Route-Shards, vor physischer Memberprovisionierung | Assignment, Slot, neuer logischer Shard, Manifestversion, Change und Generationenmember sind atomar durable; dessen Contractwerte stammen aus der bereits gebundenen Generation-Queryfamily; alter Snapshot enthält das neue Member nicht | Memberbuild idempotent aus dieser Family-Bindung aufnehmen; alter Snapshot bleibt vollständig querybar, neuer Katalogstand bis zur nächsten vollständigen Epoch unpubliziert |
 | nach Contract-Artefakt-/Resourcecommit, vor erster Memberregistrierung | immutable Payloadbytes und 1:1-Resource sind `staged`, keine öffentliche Bindung und kein HWM | denselben Artifact-Key idempotent weiterverwenden oder bei endgültigem Abbruch ohne Pins `staged -> gc_eligible`; nie aus Binarydefaults neu erzeugen |
@@ -5341,11 +5008,10 @@ klassifiziert, endet der Inboxrecord intern `rejected`.
 | Publisher-Failover mit unresolved Attempt | alter Term und Submissions persistent | extern fencen, höheren Term übernehmen, `adopt_recovery_attempt`-CAS |
 | vor Generation-Swapcommit | bisheriger Head unverändert | Bootstrap-/Normal-/Recovery-Swap erneut versuchen |
 | nach Generation-Swapcommit | neuer Head und beide Lifecycles atomar sichtbar | neuen Head bedienen; keine Enginekompensation |
-| während des Offline-Authority-Generationsbuilds, vor Precommit-Binding | Head und Offline-Authority unverändert, `new` höchstens staged/teilgebaut, noch kein `search_generation_swap` | unter neuem exklusivem Lauf statischen Preflight wiederholen, staged Generation sicher fortsetzen oder quarantänisieren und erst nach allen terminal erfolgreichen Buildtasks dynamische Bindings erzeugen; keinen vor dem Build gelesenen Taskhead übernehmen |
-| vor gemeinsamem STATE1-Head-/Offline-Authority-Handoff-Commit, derselbe exklusive Lauf besteht fort | Head leer, `trails` weiter `offline-srch0-v1`; gebundene Epochen und Quieszenzversuch noch kein Authoritywechsel | bei geschlossenem Ingress Gleichstand, idle Delivery-Owner, Zähler, `state_revision < M`, stabilen Scope/Head, Paar-Aktivierungsbeleg sowie weiterhin leere Kandidatenmenge erneut beweisen und denselben auf `["trails"]` gebundenen Bootstrap-CAS versuchen; kein STATE1-Routing und kein partieller Ownerwechsel |
-| vor gemeinsamem STATE1-Head-/Offline-Authority-Handoff-Commit, nur Quieszenzhead ändert sich bei weiter gehaltenen Locks | alter `prepared`-Swap bindet keinen aktuell stabilen Versuch; Source, Revision und Buildbytes sind unverändert | den alten Swap `prepared -> aborted` setzen, unter demselben Lockkontext bis zu drei neue Quieszenzversuche ausführen und einen neuen `swap_key`/Bindingsatz anlegen; niemals den alten Bootstrap-CAS mit neuen Versuchswerten verwenden |
-| vor gemeinsamem STATE1-Head-/Offline-Authority-Handoff-Commit, Prozesskontext oder Lock verloren | Head und Authority bleiben unverändert; Source/Revision können nach Lockverlust fortgeschritten und `new` dadurch stale sein | alten `prepared`-Swap nach Nichtcommitbeleg aborten und zwingend ab statischem Preflight neu beginnen. Nur bei vollständiger Gleichheitsvalidierung gegen den neuen Snapshot darf `new` wiederverwendet werden; sonst quarantänisieren/neu bauen und erst danach einen neuen Precommit-Bindingsatz erzeugen |
-| nach gemeinsamem STATE1-Head-/Offline-Authority-Handoff-Commit | Head aktiv und jede deklarierte Zeile atomar `state1` mit derselben Pointerversion | nur STATE1 bedienen/recovern; Offlinewerkzeug bleibt read-only und darf den alten physischen Index nicht reaktivieren |
+| während des Legacy-Authority-Generationsbuilds, vor Precommit-Binding | Head und Legacy-Authority unverändert, `new` höchstens staged/teilgebaut, noch kein `search_generation_swap` und keine persistente Handoff-Buildbindung | `new` samt Membern quarantänisieren; unter neuem Prozesskontext Preflight wiederholen und auf neuen physischen IDs vollständig neu bauen, niemals staged Arbeit fortsetzen oder adoptieren |
+| Source-, Operations-, Ressourcen- oder Authoritybindung ändert sich zwischen Preflight und Precommit | noch kein `prepared`-Swap; die prozesslokale Buildbindung ist stale | unter den Precommit-Locks Abweichung feststellen, keinen Swap anlegen, `new` samt Membern quarantänisieren und nach neuem Preflight auf neuen physischen IDs vollständig neu bauen; kein externer Source-Cutoff/-Replay |
+| nach `prepared`, vor gemeinsamem STATE1-Head-/Legacy-Authority-Handoff-Commit geht Prozesskontext oder ein Lock verloren | Head und Authority bleiben unverändert oder Source kann nach Lockverlust fortschreiten; der alte Swap besitzt keinen adoptierbaren Lockkontext | alten Swap nach Nichtcommitbeleg `prepared -> aborted`, `new` samt Membern quarantänisieren und zwingend ab Preflight vollständig neu bauen; bei intakten Locks kann in diesem Fenster keine Legacyänderung committen |
+| nach gemeinsamem STATE1-Head-/Legacy-Authority-Handoff-Commit | Head aktiv und jede deklarierte Authorityzeile atomar `state1` mit derselben Pointerversion | nur STATE1 bedienen/recovern; der Legacyowner darf alte physische Indizes weder routen noch reaktivieren |
 | Engine-Restore/-Reset | `engine_incarnation` abweichend | betroffene Generation blockieren/quarantänisieren und validieren oder neu bauen |
 | PocketBase-Restore/-Rollback | externer Restore-/Security-/HWM-Checkpoint liegt vor DB | Gateway, Publisher und GC blockieren; Abschnitt 10.6 vollständig ausführen |
 | vor Restore angenommener Enginetask fehlt im zurückgespielten Submissionlog und läuft verzögert weiter | alter Task kann nur alte physische IDs adressieren | alte Generation nie reaktivieren; neue Inkarnation/Generation/IDs vollständig bauen, alte IDs bis umfassendem Drain/Barrier oder Namespace-Reset quarantänisiert retenieren |
@@ -5366,27 +5032,25 @@ verschiedenen Identitäten behaupten keine historische Kontinuität.
 - Genau ein `search_catalog_state`, ein Restore-State und ein Generation-Head
   pro Scope beziehungsweise Contract/Entity-Kind; der Head darf vor Bootstrap
   ausdrücklich `empty` sein.
-- Pro logischer Such-UID existiert genau eine Mutationsautorität. Ein
-  `offline-srch0-v1 -> state1`-Wechsel ist nur gemeinsam mit dem ersten sie
-  abdeckenden Head-CAS, mit identisch gebundenem Head-Key und dessen neuer
-  Pointerversion als dauerhaftem Handoff-Floor sowie ohne Rückgabekante
-  zulässig. Vorher müssen Applied/Attested gleich, der Offline-Delivery-Owner
-  idle und alle bis zum letzten stabilen Quieszenzversuch sichtbaren Offline-
-  Aufträge terminal sein; nachher ist der
-  Offline-Record eingefroren und jeder aktuelle Head besitzt mindestens diese
-  Version.
+- Pro logischer Suchrolle existiert genau eine Mutations- und Routingautorität.
+  Ein `legacy -> state1`-Wechsel ist nur gemeinsam mit dem ersten sie
+  vollständig abdeckenden Head-CAS, mit identisch gebundenem Head-Key und dessen
+  neuer Pointerversion als dauerhaftem Handoff-Floor sowie ohne Rückgabekante
+  zulässig. Vorher müssen die externe Authorityversion, Source-Revision, der
+  Source-Snapshot und die Legacyressourcenmenge exakt dem Handoff-Snapshot
+  entsprechen; nachher sind ausschliesslich Head, Generation und Publisher von
+  STATE1 autoritativ.
 - `search_catalog_commit.revision` ist lückenlos monoton; Zahl und
   `change_manifest_digest` seiner Change-Zeilen stimmen, und `cause_digest`
   bindet die vollständige autorisierte Mutationsabsicht.
 - Jede projektionsrelevante committed Fachmutation bindet ihre vollständige
   Registryrevision und Authoritypartition. Bei
-  `needs_catalog_revision = (S != []) || (C != [])` besitzt sie genau einen
-  Commit und Changes für die Vereinigung aus `S`-Projektionseffekten und den
-  authority-unabhängig verpflichteten Control-Changes `C`; nur bei
-  `S = [] && C = []` erzeugt sie keine leere STATE1-Katalogrevision. Applied wird
-  für genau `O` erhöht, niemals für `S`; kein STATE1-Deliveryziel gehört zu
-  `O`. Fachrecord, beide Partitionseffekte und Authority-CAS sind atomar ganz
-  oder gar nicht sichtbar.
+  `needs_catalog_revision = (T != []) || (C != [])` besitzt sie genau einen
+  Commit und Changes für die Vereinigung aus den von STATE1 verantworteten
+  Projektionseffekten `T` und den authority-unabhängig verpflichteten Control-
+  Changes `C`; nur bei `T = [] && C = []` erzeugt sie keine leere STATE1-
+  Katalogrevision. Fachrecord, ownerfremde Transitionseffekte, STATE1-Anteil
+  und Authority-CAS sind atomar ganz oder gar nicht sichtbar.
 - Der Route-Shard-Allocator besitzt genau einen Singleton. Nach `active` hat
   jeder katalogfähige Trail genau ein append-only Assignment; `local_created_at`,
   `geo_shard_id`, Slot und Assignmentrevision ändern sich nie. Remotezeiten,
@@ -5970,127 +5634,56 @@ Vor produktiver Aktivierung einer abhängigen Capability bestehen mindestens:
   F2-Stand umstellen kann. Nach Retirement ausgestellte Kontexte verwenden die
   F2-Epoch und sind nicht selbststale;
 - Bootstrap-Swap sowie Recovery-Swap von `updating/recovery/quarantined` auf
-  neue physische IDs; der Bootstrap aus `offline-srch0-v1` injiziert Crashs vor
-  und nach dem gemeinsamen Head-/Authority-CAS, versucht danach jeden
-  Offline-Mutationsbefehl und beweist atomare, irreversible Exklusivität; eine
-  Applied-/Attested-Lücke oder eine Headänderung im gebundenen Versuch lässt
-  den Handoff-CAS verlieren;
-- der Offline-Authority-Bootstrap akzeptiert als einzige nichtleere Menge exakt
-  `["trails"]`; `["lists"]`, `["actors"]`, `["lists", "trails"]` und jede
-  unbekannte UID enden schon im vorgelagerten Dispatch mit `state1_handoff_uid_unsupported`,
-  ein falscher Reason mit `state1_handoff_binding_invalid`, jeweils ohne
-  `prepared`-Record, Generation, Head-, State- oder Engineeffekt. Ein in der
-  Precommit-Stufe injiziertes partielles oder quer widersprüchliches finales
-  Handoff-Fieldset endet ebenfalls `state1_handoff_binding_invalid`; die
-  gebaute Generation bleibt staged/quarantänisiert, aber es entsteht weder
-  `prepared`-Record noch Head-/Authorityeffekt. Auf aktivem Head hat für jede
-  Handoffabsicht stets `state1_incremental_authority_handoff_unsupported` Vorrang;
-- der Handoff-Generationsbuild erzeugt absichtlich mindestens einen Task nach
-  dem statischen Preflight-Head. Precommit bindet Cleanup und Quieszenz beide
-  auf den höheren finalen Head und der Pointer-CAS gelingt; eine Variante, die
-  den Preflight-Head wiederverwendet oder nach Precommit nochmals submitten
-  will, scheitert ohne Head-/Authoritycommit;
-- eine normal benutzte, inkrementell epochengleich attestierte Instanz besitzt
-  absichtlich ältere `verified_*`-Felder. Der read-only Handoff-Vollvergleich
-  bleibt erreichbar, bindet seinen All-O-Ergebnisdigest, lässt sämtliche UID-
-  Felder/Revisionen bytegleich, CAS-t nur den globalen Guard auf den finalen
-  Buildhead und darf danach den Trail-Handoff committen; echte Inhalts- oder
-  Zählerabweichung nimmt dagegen die Preflight-/Recovery-Rückkante;
-- derselbe Fall mit `trails.state_revision = M-1` und einer in `O` verbleibenden
-  UID bei `M` bleibt zulässig: Vergleich und Guard verändern keine UID,
-  ausschliesslich der gemeinsame Authority-CAS setzt `trails` auf `M`; die
-  gesättigte andere Offlinezeile bleibt bytegleich. `trails = M` scheitert
-  dagegen weiterhin vor Build und `prepared`;
-- nach `prepared`, aber vor Pointercommit verliert ein Lauf Prozess und Locks;
-  ein Offline-Trailwrite erhöht Source/Applied/Revision. Resume abortet den
-  alten Swap, fällt zum statischen Preflight zurück und darf die alte
-  Generation nicht nur an einen neuen Quieszenzhead binden; erst validierter
-  Neubau beziehungsweise belegte vollständige Gleichheit erlaubt ein neues
-  Precommit-Binding;
-- Partial-Handoff mit `trails=state1`, `actors/lists=offline`: Bei aktiver
-  `lists-legacy-v0` scheitert der versuchte Trail-Handoff vor Head-, State- und
-  Enginewirkung mit `search_pair_migration_required`. Erst nach terminalem
-  SRCH0-Zwei-Paar-Cutover, publiziertem `active.json` und vollständigem Cleanup
-  aller reservierten Paar-UIDs erzeugen Actor-Rename/-Delete und Trailmetrikänderung
-  im selben SQLite-Commit STATE1-
-  Change/Dirty für `trails` sowie Applied nur für die jeweils betroffenen
-  Offline-UIDs. Commitrollback, Crash direkt danach und beide Rennordnungen
-  gegen den Handoff-CAS beweisen atomare Recovery ohne Doppelung oder Lücke;
-  in `search_manual_intervention` bleiben trotz durabler beider Arbeitsanteile
-  Offline-Tasker und STATE1-Publisher pausiert. Nach einem Mixed-Write bringt
-  exakt Offline-Reindex, gestoppter durable-only-STATE1-Drain und Neustart beide
-  Teilgates auf grün; ein Crash während des Drains setzt persistente Attempts
-  fort. Der Neustart ignoriert die danach legitim abweichenden eingefrorenen
-  Offline-Epochen/-Zähler der STATE1-UID und mutiert deren Record nicht. Ein
-  Listen-Recovery `ready -> recovering`, Crash und Resume nach dem Trail-Handoff
-  bleibt zulässig, weil nur das monotone Aktivierungsprädikat, nicht der mutable
-  Operationsmarker der Offline-Liste, den historischen Paar-Cutover belegt. Der
-  anschliessende Versuch, `lists` in den bereits aktiven Head zu übergeben,
-  endet vor Generation-, Head-, State- und Enginewirkung mit
-  `state1_incremental_authority_handoff_unsupported`; auch im ersten Bootstrap
-  wäre `lists` mit `state1_handoff_uid_unsupported` abgewiesen worden und bleibt
-  unter STATE1 V1 dauerhaft Offline-Authority;
-- Bei vollständig offline verwalteten Such-UIDs erzeugt eine
-  sichtbarkeitsverengende Fachmutation weiterhin `C != []`, reserviert `R` und
-  committet Security-Change, Fence und Checkpoint atomar neben den Offline-
-  Applied-Epochen; ein inhaltlicher Offline-Write ohne `C` erzeugt dagegen
-  keine leere STATE1-Katalogrevision;
-- SRCH0s Requestpfad endet vor dem ersten Engine-Submit. Ein künstlich
-  blockierter Enginepfad lässt 500 Writes antworten und erzeugt pro UID
-  höchstens einen laufenden Batch plus koaleszierten Dirty-Suffix; Attested
-  springt ohne Zwischen-CAS einmalig von `T0` auf `Efinal`, der Dokumentzähler
-  folgt dem Projektions-Keydelta und der Writepfad ruft keine Stats ab. Startup
-  danach ruft weder PocketBase-Vollprojektor noch Engine-Dokumentfetch auf;
-  Crashs zwischen Fachcommit, Response-Finalizer, Submit, terminalem Task und
-  Attestierungs-CAS sowie `failed`/`canceled` halten Applied vor Attested und
-  erzwingen begrenzten Taskquieszenz-Retry plus Vollvergleich. Headänderungen
-  zwischen den Reads oder während des Vergleichs verwerfen den ganzen Versuch;
-  nach drei Versuchen folgt retrybar `search_task_quiescence_failed`.
-  Derselbe endpointweite Registertest umfasst O-, reine S-/C- und Recoverytasks:
-  sichtbarer Head vor direkter `202`, POST ohne sichtbaren Head über 5 s,
-  `processing` knapp unter/oberhalb 120 s, fremder Task zwischen
-  `Hq1`/Pagination/`Hq2` und staler Observerpoll nach subsumierender Guard-CAS.
-  Der Pollrace wird sowohl mit vollständig subsumiertem Head als auch mit einem
-  erst nach dem Checkpoint registrierten legitimen Suffix ausgeführt; letzterer
-  rebasiert nach Präfix-GC ohne falsche Invalidierung und ohne neues 1-s-Budget.
-  Nur vollständig registrierte Tasks bleiben grün; ein reiner S-/C-Erfolg mit
-  durablem Ack darf die Guard-CAS ohne O-Mutation auslösen. Pollantworten nach
-  249/300/499 ms, ein aktueller 500-ms-Timeout und ein verspäteter Timeout nach
-  neuerem grünem Poll prüfen die feste Sequenzierung und das 1-s-Budget. Bleibt
-  der am exakten 500-ms-Rand gecancelte Transport offen, fällt Slot `n+2` aus
-  und es existieren weiterhin höchstens zwei In-flight-Requests.
-  Ein letzter Offline-Owner steht beim kombinierten Attestierungs-/Guardcommit
-  noch auf `attesting`; nur seine validierte Postimage macht alle O-UIDs
-  epochengleich. Erfolgs- und CAS-/Commitfehlerfixture beweisen atomare
-  UID-/Guardwirkung sowie `idle` ausschliesslich nach Commit.
-  `ensure --full` crasht nach seinem atomaren `operator`-Vorab-
-  Latch, während und nach dem Vergleich; jeder Neustart vollvergleicht erneut.
-  `search_manual_intervention` öffnet erst nach einem All-or-none-Commit über
-  die vollständige Driftmenge, der bei zuvor leerem Grund `document_drift`
-  durable setzt oder einen vorhandenen nichtleeren Vollvergleichsgrund
-  bytegleich erhält, und nach grünen STATE1-Ownergates nur allgemeine Appwrites
-  und Federation-Inbox/-Outbox,
-  niemals Search oder Engineprojektion; ein Crash vor jedem Folgewrit lässt den
-  Neustart deshalb wieder vollvergleichen. Ein rotes STATE1-Gate verhindert
-  die Phasenöffnung, nicht die vorherige Persistierung; Zwei-UID- und
-  Crashzwischen-Row-Fixtures beweisen die Atomizität;
-- `state_revision`-Grenzen bei `M`, `M-1`, `M-2` und `M-3`: Jeder neue
-  mehrschrittige Eintritt verwendet dieselbe Grenze `<= M-3`; eine knappe UID
-  rollt den gesamten Mixed-/Multi-UID-Command ohne Fach-, Control- oder
-  Engineeffekt zurück. Bereits durable ausgelöste Pfade verbrauchen ihre zwei
-  reservierten Fortsetzungen bis `M`, der ein-CAS-Handoff ist bei `M-1`
-  zulässig und wird bei `M` vor Aufbau der neuen Generation sowie vor jedem
-  Head-, State- oder Engineeffekt mit `search_state_revision_exhausted`
-  abgewiesen. Ein zweiter Fall plant mit `expected = M-1`, erhöht die aktuelle
-  Zeile vor dem Preflight auf `M` und beweist, dass `current = expected < M`
-  bereits vor `prepared` und Generationsaufbau scheitert. Die
-  Koaleszierungsprobe startet bei `M-4`, lässt zwei Writes bis
-  `M-2`, aber keinen dritten zu und attestiert ohne Zwischen-CAS bei Erfolg nach
-  `M-1` beziehungsweise schliesst den Fehler-/Recoveryweg auf `M` ab;
-  ein ausschliesslich invalider globaler Guard wird nach grünem All-O-Vergleich
-  bei UID-Revision `M-2`, `M-1` und `M` ohne UID-/`verified_at`-Write
-  reattestiert; sobald eine UID tatsächlich mutiert werden müsste, bleibt die
-  Gesamttransaktion ohne Headroom fail-closed;
+  neue physische IDs; der Bootstrap aus einem Legacyowner injiziert Crashs vor
+  und nach dem gemeinsamen Head-/Authority-CAS und beweist atomare,
+  irreversible Exklusivität ohne Adoption eines alten physischen Index;
+- der Legacy-Authority-Bootstrap akzeptiert nur Rollen, die vom V1-Entity-/
+  Querymodell und vom neuen Membermanifest vollständig abgedeckt sind.
+  Nicht unterstützte, unbekannte oder nur teilweise abgedeckte Mengen enden
+  vor `prepared`, Generation, Head-, Authority- und Enginewirkung mit
+  `state1_handoff_uid_unsupported`; ein falscher Reason oder widersprüchliches
+  Handofffeldset endet ebenso wirkungslos mit
+  `state1_handoff_binding_invalid`. Auf aktivem Head hat
+  `state1_incremental_authority_handoff_unsupported` Vorrang;
+- fehlende oder zusätzliche Boundaryproperties, unsortierte oder duplizierte
+  Rollen/Ressourcen/Source-Keys, nicht bijektive Snapshotrollen, eine nicht
+  auflösbare Source-Preimage sowie jeder Source- oder Ressourcenset-
+  Digestfehler enden ebenfalls vor Generation-, Head-, Authority-, `prepared`-
+  und Enginewirkung mit `state1_handoff_binding_invalid`;
+- der STATE1-Generationsbuild erzeugt absichtlich Engine-Tasks nach dem
+  statischen Legacy-Snapshot. Alle werden durch STATE1s eigene Attempt-,
+  Submission- und Taskautomaten terminal bestätigt; der Precommit bindet
+  danach ausschliesslich die erneut gelesene Source-/Authoritygrenze und
+  vollständige Manifestabdeckung, keinen Legacy-Taskhead;
+- Source-Revision, Source-Snapshot, Operationszustand, Authorityversion oder
+  Legacyressourcenmenge ändern sich zwischen Preflight und Precommit. Es
+  entsteht kein `prepared`-Record; die gebaute Generation wird samt Membern
+  quarantänisiert und nach neuem Preflight vollständig auf neuen physischen
+  IDs gebaut. Weder Gleichheitsadoption noch externer Source-Cutoff/-Replay
+  sind zulässig;
+- Crash oder Prozessverlust zu beliebigem Zeitpunkt vor Precommit behandelt
+  auch eine vollständig gebaute staged Generation genauso: kein Resume und
+  keine Adoption, sondern Quarantäne und vollständiger Neubau;
+- zwischen `prepared` und Pointer-CAS kann unter intakten Source-/Authority-
+  Locks keine Legacyänderung committen. Prozess- oder Lockverlust abortet nach
+  Nichtcommitbeleg den alten Swap, quarantänisiert seine Zielgeneration und
+  beginnt mit vollständigem Neubau beim Preflight; kein Test setzt in diesem
+  Fenster eine normale konkurrierende Source-Mutation voraus;
+- `authority_version = M-1` der unterstützten Rolle `trails` besteht Preflight
+  und Commit-Guard und wird im gemeinsamen Handoff-CAS exakt zu `M`.
+  `authority_version = M` derselben Rolle endet bereits vor Generation-, Head-,
+  Authority-, `prepared`- und Enginewirkung vollständig mit
+  `state1_authority_revision_exhausted`;
+- Partial-Ownership mit einer STATE1-Trailrolle und weiterhin extern
+  verwalteten Rollen: Actor-, Taxonomie- oder Trailänderungen persistieren im
+  selben SQLite-Commit den ownerfremden Anteil sowie STATE1-Change/Dirty für
+  alle Ziele in `T` und die unabhängigen Control-Changes `C`. Commitrollback,
+  Crash direkt danach und beide Rennordnungen gegen den Handoff-CAS beweisen
+  Recovery ohne Doppelung oder Lücke;
+- Auch wenn `T = []`, erzeugt eine sichtbarkeitsverengende Fachmutation mit
+  `C != []` weiterhin Katalogrevision, Security-Change, Fence und Checkpoint.
+  Ein inhaltlicher Write ohne `T` oder `C` erzeugt dagegen keine leere
+  STATE1-Katalogrevision;
 - Cursor auf intakter `G1 sealed/published` nach Swap zu `G2`: Fällt nur die
   aktive G2 aus oder wird sie quarantänisiert, läuft der G1-Cursor unabhängig
   vom aktuellen Head normal weiter; nur neue erste Seiten sind unavailable;

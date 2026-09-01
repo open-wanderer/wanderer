@@ -95,13 +95,14 @@ Schnitt genannten Security-Gates nachweislich erfüllt sind.
 
 ### Sequenzielle Hauptlinie
 
-1. **[SRCH0 Korpus/Tooling fertig](/develop/specs/trail-search/work-items/search/srch0/)
+1. **[SRCH0 Bestandskorpus fertig](/develop/specs/trail-search/work-items/search/srch0/)
    – heutigen Bestand messbar machen.** Diese interne Abschlussmarke umfasst
    einen gemeinsamen Fixturekorpus und automatisierte Tests für Filter,
-   Sortierungen, API-/URL-Zustände, Projektion und ACL-Kontexte. Dazu gehören
-   auch das Reindex- und Recoverytooling, der Korrekturcode sowie ein geprüfter,
-   nicht exponierter Kandidat. Für Nutzer ändert sich noch nichts; SRCH-V1 und
-   SEC-VIS-0 können darauf aufbauen.
+   Sortierungen, API-/URL-Zustände, Projektion und ACL-Kontexte. SRCH0 hält
+   ausschliesslich den beobachteten Ausgangsstand und stabile Case-IDs fest;
+   Zielkorrekturen, Migration und Aktivierung gehören den nachfolgenden
+   Ownern. Für Nutzer ändert sich noch nichts; SRCH-V1, SRCH-COMP, SRCH2,
+   SEC-VIS-0 und die späteren Indexbausteine können denselben Korpus verwenden.
 2. **[SRCH-V1](/develop/specs/trail-search/work-items/search/srch-v1/) – eine
    gemeinsame Suchsprache festlegen.** Request, Response, Normalisierung und
    URL-Zustand werden eindeutig beschrieben und gegen die SRCH0-Fälle geprüft.
@@ -109,18 +110,21 @@ Schnitt genannten Security-Gates nachweislich erfüllt sind.
 3. **[SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) – den
    freigeschalteten Bestandsumfang auf dem heutigen Backend ausführen.** Ein
    serverseitiger Adapter übersetzt die dafür erlaubten typisierten Aufträge in
-   Meilisearch. Nach dem gemeinsamen Cutover erzeugt der Browser keine freien
-   Engine-Ausdrücke mehr. Golden Fixtures beweisen, dass bestehende und neue
-   Eingaben denselben unterstützten Suchauftrag ergeben.
-4. **Geschlossenen Kompatibilitätspfad und SRCH0-Korrekturen aktivieren.** Erst
-   wenn SRCH-COMP und SEC-VIS-0 abgenommen sind und die vollständige
-   `srch0_live`-Matrix grün ist, werden der serverseitig kontrollierte
-   Bestandsweg, der geprüfte Reindex und die dokumentierten Korrekturen
-   gemeinsam aktiviert. Dabei wird noch keine neue frei nutzbare öffentliche
-   V1-Suchcapability geöffnet. Für autorisierte Bestandsfälle bleibt das
-   Suchverhalten erhalten; die dokumentierten Such- und Securitykorrekturen
-   sind die ausdrücklich ausgewiesenen Abweichungen.
-5. **[SRCH2](/develop/specs/trail-search/work-items/search/srch2/) und
+   Meilisearch und konsumiert den zuvor unabhängig durch IDX0 bereitgestellten
+   Readinesszustand. Nach dem gemeinsamen Cutover erzeugt der Browser keine
+   freien Engine-Ausdrücke mehr. Golden Fixtures beweisen, dass bestehende und
+   neue Eingaben denselben unterstützten Suchauftrag ergeben. SRCH-COMP besitzt
+   als eigene, gegen SRCH0-Case-IDs gebundene Overlays für die genau einmalige
+   `_geoRadius`-Klausel und die ihm zugeordneten Legacyadapter-Lücken; diese
+   Korrekturen sind keine SRCH0-Deliverables.
+4. **Korrekturen bei ihren fachlichen Ownern liefern.** SRCH-COMP liefert das
+   Radiusdelta, [SRCH2](/develop/specs/trail-search/work-items/search/srch2/)
+   die Presence-/Unknown-Semantik der Quellschwierigkeit und SEC-VIS-0 die rein
+   lokale Projektion föderierter Listenaggregate. Jeder Owner führt ein kleines
+   Ziel-Overlay auf den stabilen SRCH0-Case-IDs und verantwortet seine eigene
+   Migration, Abnahme und Releaseinformation. Es gibt keinen gemeinsamen
+   SRCH0-Korrekturcutover.
+5. **SRCH2 und
    [SRCH4a](/develop/specs/trail-search/work-items/search/srch4a/) – das
    Filterpanel auf realen Daten veröffentlichen.** Alle Bestandsfilter,
    Kategorien und Subkategorien, Sortierung, aktive Chips, responsive
@@ -132,26 +136,30 @@ Schnitt genannten Security-Gates nachweislich erfüllt sind.
    G3a → G3b → L4. L4 benötigt einen normalisierten Punktanker, aber weder
    Photon noch typisiertes Autocomplete zwingend als Provider.
 
-Die Verantwortungsgrenzen der ersten vier Schritte sind bewusst getrennt:
+Die Verantwortungsgrenzen der frühen Bausteine sind bewusst getrennt:
 
 | Baustein | Verantwortet |
 | --- | --- |
-| SRCH0 | reproduzierbarer Bestand, Regressionstests, die drei Bestandskorrekturen und die zugehörige Trail-/Listenindexmigration |
+| SRCH0 | reproduzierbarer beobachteter Bestand, stabile Case-IDs und gemeinsamer Regressionstestkorpus |
+| IDX0 | nichtdestruktiver Bootstrap der drei heutigen Legacyindizes, Offline-Rebuildmechanik, konkreter `SearchReadinessV1`-Produzent und einmalige Erstrollout-/Upgradeanweisung |
 | SRCH-V1 | gemeinsame fachliche Suchsprache |
-| SRCH-COMP | serverseitige Ausführung und Ablösung freier Browser-zu-Engine-Ausdrücke |
-| SEC-VIS-0 | Schliessen von Sichtbarkeits- und direkten Zugriffswegen sowie Security-Freigabe für den produktiven Pfad |
+| SRCH-COMP | serverseitige Ausführung, Ablösung freier Browser-zu-Engine-Ausdrücke und seine ownergebundenen Legacyadapter-Deltas |
+| SRCH2 | bestehende Suchfelder einschliesslich Presence-/Unknown-Korrektur der Quellschwierigkeit |
+| SEC-VIS-0 | Sichtbarkeits- und Netzwerkcontainment sowie lokale Listenaggregatprojektion |
 
 Die Darstellung zeigt nur die für diese Entscheidung wichtigen Kanten; die Tabelle enthält die vollständigen Abhängigkeiten:
 
 ```text
 Such-/Panel-Linie:
-SRCH0 Korpus/Tooling fertig -> SRCH-V1 -> SRCH-COMP
-SRCH0 Korpus/Tooling fertig -> SEC-VIS-0
-SRCH0 Korpus/Tooling fertig + SRCH-COMP + SEC-VIS-0
-  -> geschlossener Kompatibilitätspfad live
+SRCH0 Bestandskorpus fertig -> SRCH-V1 -> SRCH-COMP
+SRCH0 Bestandskorpus fertig -> SEC-VIS-0
+IDX0 -> SRCH-COMP
+IDX0 -> SRCH2
+SRCH-COMP + SEC-VIS-0 -> kontrollierter Bestandsadapter live
 SRCH-COMP -> SRCH2 -> SRCH4a
-geschlossener Kompatibilitätspfad live + SRCH4a -> sichtbares Filterpanel
-SRCH4a -> SRCH-SAVED
+SEC-VIS-0 + SRCH4a -> sichtbares Filterpanel
+SRCH-COMP -> SRCH-SAVED (Implementierung)
+SRCH4a + SEC-VIS-0 -> SRCH-SAVED sichtbar
 
 Geo- und Betriebs-Linie:
 G0 -> G1 -> M1 -> IDX3
@@ -167,6 +175,11 @@ SRCH3 + G3b                -> G3b-AGG
 
 ### Parallele, nicht blockierende Linien
 
+- **[IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
+  Vorgänger.** Es ersetzt den ungeschützten Alltags-Startup-Rebuild, produziert
+  die beiden Readiness-Endpunkte und liefert den Offline-Rebuild für SRCH2.
+  Seine Gap-Referenz auf SRCH0 ist keine Implementierungsabhängigkeit; fertig
+  sein muss IDX0 erst vor SRCH-COMP beziehungsweise SRCH2.
 - **[M1](/develop/specs/trail-search/work-items/engine/m1/) startet parallel zu
   SRCH0.** Es qualifiziert den unterstützten Meilisearch-Upgradepfad und wird
   als eigener Betriebsrelease veröffentlicht, nicht gemeinsam mit einem neuen
@@ -176,8 +189,9 @@ SRCH3 + G3b                -> G3b-AGG
   nach dem erprobten Panelvertrag parallel zur Geo-Linie entstehen.** Counts
   und Histogramme sind ein eigener sichtbarer Slice und kein Gate für L4.
 - **[SRCH-SAVED](/develop/specs/trail-search/work-items/search/srch-saved/)
-  folgt unabhängig auf SRCH4a.** Gespeicherte Suchen blockieren weder
-  Geo-Discovery noch Counts, Histogramme oder das Engine-Upgrade.
+  kann nach SRCH-COMP implementiert werden; sichtbar wird es erst nach SRCH4a
+  und SEC-VIS-0.** Gespeicherte Suchen blockieren weder Geo-Discovery noch
+  Counts, Histogramme oder das Engine-Upgrade.
 - **[G3b](/develop/specs/trail-search/work-items/geo-discovery/g3b/) liefert den
   Kern des Routenradius:** Treffer, `total`, Filter, Sortierung und Pagination.
   [G3b-AGG](/develop/specs/trail-search/work-items/aggregations/g3b-agg/) ergänzt
@@ -226,10 +240,11 @@ weiterhin ausschliesslich aus der Spalte **Abhängigkeit**.
 
 | Baustein                                          | Inhalt                                                                                                                                                                                                                                                                                                         | Abhängigkeit                  | Ergebnis                                                |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------ |
-| <span id="baustein-srch0"></span>[SRCH0 – Bestandsvertrag](/develop/specs/trail-search/work-items/search/srch0/) | Gemeinsames Testkorpus für das heutige Suchverhalten sowie geprüfte Reindex-, Migrations-, Recovery- und Rollbackwerkzeuge; enthält drei klar ausgewiesene Bestandskorrekturen | Korpus/Tooling: keine; Liveaktivierung: SRCH-COMP und SEC-VIS-0 abgenommen, `srch0_live`-Matrix grün | spätere Änderungen lassen sich zuverlässig auf Funktionsgleichheit prüfen; abgesehen von den Korrekturen kein neues Suchfeature |
-| <span id="baustein-srch-v1"></span>[SRCH-V1 – Normativer Suchvertrag](/develop/specs/trail-search/work-items/search/srch-v1/) | versionierte gemeinsame Suchsprache mit Request, Response, Normalisierung, URL-Codec, Fehlern und Schemas | SRCH0 Korpus/Tooling | implementierbare gemeinsame Sprache ohne Runtime-Cutover |
-| <span id="baustein-srch-comp"></span>[SRCH-COMP – Bestandsadapter](/develop/specs/trail-search/work-items/search/srch-comp/) | führt den freigeschalteten Bestandsumfang unter SRCH-V1 serverseitig auf dem heutigen Backend aus, wird gegen die gesamte SRCH0-Matrix geprüft und erfüllt die dort SRCH-COMP zugeordneten Fälle | Implementierung: SRCH-V1; Liveaktivierung: SEC-VIS-0 | kontrollierter Suchpfad für bestehende First-Party-Aufträge |
-| <span id="baustein-sec-vis-0"></span>SEC-VIS-0 – sofortiges Containment          | prüft und begrenzt die erlaubte Sichtbarkeit über alle Such- und Lesepfade; schliesst direkte Umgehungswege über Netzwerk, Tokens und Installationskonfiguration | SRCH0 Korpus/Tooling | die bestätigte Sichtbarkeitsklasse ist lokal eingedämmt |
+| <span id="baustein-srch0"></span>[SRCH0 – Bestandsvertrag](/develop/specs/trail-search/work-items/search/srch0/) | Datierter, ausführbarer Testkorpus für das beobachtete heutige Suchverhalten mit stabilen Case-IDs und bekannten Lücken | keine | spätere Änderungen lassen sich gegen dieselbe neutrale Baseline prüfen |
+| <span id="baustein-idx0"></span>[IDX0 – Suchindex-Bootstrap und Readiness](/develop/specs/trail-search/work-items/engine/idx0/) | entfernt den unbedingten asynchronen Startup-Wipe, stellt fehlende beziehungsweise unerwartet leere Legacyindizes kontrolliert her, bietet einen Offline-Rebuild, produziert beide `SearchReadinessV1`-Endpunkte und dokumentiert den einmaligen gefencten Erstrollout | keine | normale Neustarts lassen grüne Indizes unangetastet; SRCH-COMP erhält einen konkreten Readinessproduzenten |
+| <span id="baustein-srch-v1"></span>[SRCH-V1 – Normativer Suchvertrag](/develop/specs/trail-search/work-items/search/srch-v1/) | versionierte gemeinsame Suchsprache mit Request, Response, Normalisierung, URL-Codec, Fehlern und Schemas | SRCH0 Bestandskorpus | implementierbare gemeinsame Sprache ohne Runtime-Cutover |
+| <span id="baustein-srch-comp"></span>[SRCH-COMP – Bestandsadapter](/develop/specs/trail-search/work-items/search/srch-comp/) | führt den freigeschalteten Bestandsumfang unter SRCH-V1 serverseitig auf dem heutigen Backend aus, konsumiert IDX0-Readiness und besitzt die ihm zugeordneten Legacyadapter-Overlays auf den SRCH0-Fixtures | Implementierung: SRCH-V1 und [IDX0](#baustein-idx0); Liveaktivierung: SEC-VIS-0 | kontrollierter Suchpfad für bestehende First-Party-Aufträge |
+| <span id="baustein-sec-vis-0"></span>SEC-VIS-0 – sofortiges Containment          | begrenzt die erlaubte Sichtbarkeit, schliesst direkte Umgehungswege über Netzwerk und Tokens und besitzt die lokale Listenaggregatprojektion samt kontrollierter Migration | SRCH0 Bestandskorpus | die bestätigte Sichtbarkeitsklasse ist lokal eingedämmt |
 
 #### Federationsvertrag und Zustandsmodell
 
@@ -255,9 +270,9 @@ weiterhin ausschliesslich aus der Spalte **Abhängigkeit**.
 | --- | --- | --- | --- |
 | <span id="baustein-m1"></span>M1 – Verbindlicher Meili-Vertrag            | reale Ausgangsprofile 1.11.3 und 1.36.0 inventarisieren; unterstützten Upgradepfad samt möglichen Zwischenständen auf das durch G1/ADR 0002 qualifizierte 1.53.1-Profil testen; 1.44.0-Benchmarkevidenz einbeziehen; Startup-Preflight, Soak, Dump-/Upgrade-/Rollback-Runbook und Geo-/Facetten-Contracts; eigener Betriebsrelease mit Vorlauf | [G1](#baustein-g1) | ein unterstütztes Engineprofil und eine getrennt betreibbare Self-Hoster-Migration |
 | <span id="baustein-srch-adr1"></span>SRCH-ADR1 – Cursor-/Snapshot-Lifecycle      | [ADR 0001](/develop/specs/trail-search/decisions/0001-search-cursor-and-snapshot-lifecycle/): HMAC-Stateless-Cursor, generationengebundene `revision_fenced` Content-Epoch, Retention versiegelter Altgenerationen sowie Deep-Paging-, Retention-, Deployment- und Failover-Gates                                                            | [SRCH-V1](#baustein-srch-v1)                                 | technische Cursor-/Snapshotentscheidung                |
-| <span id="baustein-idx1"></span>IDX1 – Typisierte Suchprojektion            | `trail_search_projection`, Schema-/Input-/Projektionsrevision, Dokumenthash, unveränderliches Lieferartefakt und reiner Builder mit Golden-Tests                                                                                                                                                              | M1, [SEC-AUTH-1](#baustein-sec-auth-1), [SRCH0](#baustein-srch0) Korpus/Tooling, [STATE1](#baustein-state1)            | persistiertes Read Model mit Bestandsparität           |
+| <span id="baustein-idx1"></span>IDX1 – Typisierte Suchprojektion            | `trail_search_projection`, Schema-/Input-/Projektionsrevision, Dokumenthash, unveränderliches Lieferartefakt und reiner Builder mit Golden-Tests                                                                                                                                                              | M1, [SEC-AUTH-1](#baustein-sec-auth-1), [SRCH0](#baustein-srch0) Bestandskorpus, [STATE1](#baustein-state1)            | persistiertes Read Model mit Bestandsparität           |
 | <span id="baustein-idx2"></span>IDX2 – Revision, Dirty-Queue und Change-Log | inkarnationsgebundene monotone transaktionale `catalog_revision`; koaleszierende Claims/Leases; getrenntes lückenloses Change-/Tombstone-Log; Subsumption, vollständige Invalidation und Reconciliation                                                                                                               | IDX1, [SEC-AUTH-1](#baustein-sec-auth-1), [STATE1](#baustein-state1)                | driftfreie, replaybare Updates                         |
-| <span id="baustein-idx3"></span>IDX3 – Shadow-Rebuild                       | Keyset-/Byte-Batches, Task-Waits, Generationen, Cutoff-Replay samt Tombstones, fenced Epoch-Publisher, Delivery-/Security-Watermarks, `issued_valid_until`-High-Watermarks, versiegelte Altgenerationen, atomarer Generationen-Pointer-CAS und getrennt aufgeholter Rollbackkandidat                          | IDX2, [SEC-SCOPE-1](#baustein-sec-scope-1), M1, SRCH-ADR1, [STATE1](#baustein-state1) | sicherer Vollaufbau und konsistente Suchstände        |
+| <span id="baustein-idx3"></span>IDX3 – Shadow-Rebuild                       | IDX3-eigener temporärer Legacy-Handoff-Adapter; Keyset-/Byte-Batches, Task-Waits, Generationen, Cutoff-Replay samt Tombstones, fenced Epoch-Publisher, Delivery-/Security-Watermarks, `issued_valid_until`-High-Watermarks, versiegelte Altgenerationen, atomarer Generationen-Pointer-CAS und getrennt aufgeholter Rollbackkandidat | IDX2, [SEC-SCOPE-1](#baustein-sec-scope-1), M1, SRCH-ADR1, [STATE1](#baustein-state1) | sicherer Vollaufbau und konsistente Suchstände        |
 | <span id="baustein-srch1"></span>SRCH1 – Ziel-Schema und Compiler            | führt denselben SRCH-V1-Vertrag auf Zielprojektion aus: Federation-Scope, gemeinsamer `search_context`, Capability-Revision und strikt allowlistetes `trail_hit_v1`; keine zweite Semantik                                                                                                                     | [SEC-AUTH-1](#baustein-sec-auth-1), IDX1, [SRCH-COMP](#baustein-srch-comp), [STATE1](#baustein-state1)      | ein fachlicher Vertrag für UI, App und Chat            |
 | <span id="baustein-srch1b"></span>SRCH1b – Search-Gateway                     | HMAC-Cursor-Keyring und -Validierung samt Expand/Contract, dauerhafte Issuance-High-Watermarks, Tenant-ACL, scope-isolierte Fence-/Generation-/Epoch-Prüfung, Routing gepinnter Altgenerationen und Response-DTO-Allowlist; Meili-Netz abschotten und alte Search-/Tenant-Tokens widerrufen                       | SRCH1, [SEC-SCOPE-1](#baustein-sec-scope-1), IDX3, SRCH-ADR1, [STATE1](#baustein-state1) | sicherer produktiver Runtimepfad                   |
 | <span id="baustein-acl1"></span>ACL1 – Actor-sichere Content-Overlays       | ADR/Lasttest und Umsetzung für scopegebundene `trail_search_acl_overlay`; autorisierte Vollmengen-Union, Deduplikation, Ranking, Counts, Widerruf und Negativ-Leaktests                                                                                                                                        | SRCH1b, IDX3, [SEC-SCOPE-1](#baustein-sec-scope-1)     | korrekte engere Asset-/Waypoint-Sichtbarkeit           |
@@ -266,7 +281,7 @@ weiterhin ausschliesslich aus der Spalte **Abhängigkeit**.
 
 | Baustein | Inhalt | Abhängigkeit | Ergebnis |
 | --- | --- | --- | --- |
-| <span id="baustein-srch2"></span>SRCH2 – Bestehende und billige Suchfelder   | auf dem heutigen Indexpfad: die in SRCH0 korrigierte Radius-/Unknown-Semantik übernehmen, Startpunktmodus und Quellschwierigkeit erhalten; Rangfolge, vererbte Taxonomie-/Waypoint-Terme, lokale Likes, Kategorien/Subkategorien und alle Bestandssortierungen | [SRCH-COMP](#baustein-srch-comp) | vollständige vorhandene Daten plus Subkategorien |
+| <span id="baustein-srch2"></span>SRCH2 – Bestehende und billige Suchfelder   | auf dem heutigen Indexpfad: Quellschwierigkeit mit expliziter Presence-/Unknown-Semantik korrigieren; Startpunktmodus, Rangfolge, vererbte Taxonomie-/Waypoint-Terme, lokale Likes, Kategorien/Subkategorien und alle Bestandssortierungen erhalten | [SRCH-COMP](#baustein-srch-comp), [IDX0](#baustein-idx0), SRCH0 Bestandskorpus als Testbasis | vollständige vorhandene Daten plus Subkategorien |
 | <span id="baustein-a0"></span>A0 – Aktivitätsmodell                       | getrennte versionierte Familie, Disziplin und Unterstützungsclaim; lokales/föderiertes Mapping samt Rohwert, Presence, getrennten Auflösungszuständen und -quellen sowie Modell-Supportstatus; Walk/Hike/Cycle nach ADR 0003 als erster produktiver Modellumfang                                                  | SRCH2                         | stabile Schlüssel für p99-Domains und spätere Modelle |
 | <span id="baustein-srch2a"></span>SRCH2A – Asset-Projektion                   | `has_photos`/Thumbnail gegen das kanonische Assetmodell; Link/Unlink und eigene Asset-/Waypoint-Sichtbarkeit invalidieren Kern beziehungsweise Overlay korrekt                                                                                                                                                 | SRCH2, [ACL1](#baustein-acl1), [BASE-A](#baustein-base-a) (Assets #948)      | belastbarer actor-korrekter Fotofilter                 |
 | <span id="baustein-srch3"></span>SRCH3 – Counts, Ranges und Histogramme      | exhaustive disjunktive Counts, gruppenweise Fehler, ausgewählte Nulloptionen, versionierte Bucket-IDs, Presence/Unknown, feste Buckets, p99/Caps, 16/32/16-Limits, vollständiger Policy-Cache-Key sowie Federation-/Expiry-/Swap-Tests über 1'000 Treffer; räumliche Counts tragen den aktiven Spatial-Vertrag | [IDX3](#baustein-idx3), [SRCH1b](#baustein-srch1b), SRCH2, A0       | dynamische Zahlen exhaustiv für ihre jeweils berechnete Ergebnismenge; bei `predicate_accuracy: bounded_approximate` sichtbar qualifiziert |
@@ -276,9 +291,10 @@ weiterhin ausschliesslich aus der Spalte **Abhängigkeit**.
 
 SRCH-V1 definiert die vollständige fachliche Semantik. SRCH-COMP implementiert
 den freigeschalteten Bestandsumfang dieser Sprache auf dem heutigen Backend und
-kapselt Legacyunterschiede. Beim SRCH0-Cutover wird zunächst nur das
-geschlossene Kompatibilitätsprofil für inventarisierte Wanderer-Aufträge
-aktiviert; eine neue öffentliche V1-Capability ist nicht Teil dieses Cutovers.
+kapselt Legacyunterschiede. SRCH0 besitzt keinen Runtime-Cutover. Jeder
+Delivery-Owner aktiviert sein ausdrückliches Delta gegen SRCH0-Basisfall und
+eigenes Ziel-Overlay unter seinen jeweiligen Releasegates; eine neue
+öffentliche V1-Capability ist dadurch noch nicht geöffnet.
 SRCH1 und SRCH1b verantworten später den öffentlichen Gatewaypfad auf dem
 Zielindex samt seinen eigenen Security- und STATE1-Gates. Sie ergänzen
 capability-gebundene Federation- und Count-Funktionen, ohne bereits
@@ -432,6 +448,7 @@ Vollständige transitive Abhängigkeiten bleiben im
 
 | Release | Ergebnis | Benötigt | Voraussetzung für |
 | --- | --- | --- | --- |
+| Legacy-Suchbootstrap ([IDX0](#baustein-idx0)) | Vorhandene grüne Indizes werden beim Neustart nicht geleert; fehlende beziehungsweise unerwartet leere Indizes werden vor der Suchfreigabe wiederhergestellt, beide Readiness-Endpunkte besitzen einen konkreten Produzenten, und der erste Bestandsrollout ist mit Wrapper, Fehlerpfad und Retry dokumentiert. | keine | [SRCH-COMP](#baustein-srch-comp) und [SRCH2](#baustein-srch2) |
 | Meilisearch-Upgrade ([M1](#baustein-m1)) | Ein geprüfter und dokumentierter Upgrade-, Rollback- und Wiederherstellungspfad auf das unterstützte Engineprofil. | [G1](#baustein-g1) | [IDX1](#baustein-idx1) und [IDX3](#baustein-idx3) sowie damit die Zielindex- und Geo-Linie |
 
 [M1](#baustein-m1) wird mit Vorlauf als eigener Betreiberrelease und nicht gekoppelt an einen
@@ -442,7 +459,7 @@ UI-Rollout veröffentlicht.
 | Release | Ergebnis | Benötigt | Voraussetzung für |
 | --- | --- | --- | --- |
 | [L1](#baustein-l1)-Compliance | Die bestehende Ortssuche erfüllt die Nominatim-Vorgaben. | keine weiteren Bausteine in diesem Abschnitt | [GEO1](#baustein-geo1); alternativ kann [L1](#baustein-l1) den Punktanker für [L4](#baustein-l4) liefern |
-| Filterpanel ([SRCH4a](#baustein-srch4a)) | Bestandsfilter, Subkategorien und Sortierung funktionieren mit verständlichem, stabilem URL-State. | [SRCH-COMP](#baustein-srch-comp) und [SRCH2](#baustein-srch2); für den Livegang der geschlossene Kompatibilitätspfad aus [SRCH0](#baustein-srch0), [SRCH-COMP](#baustein-srch-comp) und [SEC-VIS-0](#baustein-sec-vis-0) | [SRCH-SAVED](#baustein-srch-saved), [L3](#baustein-l3), [SRCH4b](#baustein-srch4b) und [Q3](#baustein-q3) |
+| Filterpanel ([SRCH4a](#baustein-srch4a)) | Bestandsfilter, Subkategorien und Sortierung funktionieren mit verständlichem, stabilem URL-State. | [SRCH-COMP](#baustein-srch-comp), [SRCH2](#baustein-srch2) und [SEC-VIS-0](#baustein-sec-vis-0); SRCH0-Basisfälle und die jeweiligen Owner-Overlays sind grün | [SRCH-SAVED](#baustein-srch-saved), [L3](#baustein-l3), [SRCH4b](#baustein-srch4b) und [Q3](#baustein-q3) |
 | Gespeicherte Suchen ([SRCH-SAVED](#baustein-srch-saved)) | Benannte Suchen und ein verlässlicher Default für `trail_list`; URL und History gewinnen, ungültige Bedingungen führen in einen Reparaturzustand statt zu einer breiteren Suche. | [SRCH-COMP](#baustein-srch-comp); für den Livegang [SRCH4a](#baustein-srch4a) und [SEC-VIS-0](#baustein-sec-vis-0) | Speicher- und Defaultaktionen in [Q6](#baustein-q6) |
 | Fotofilter ([SRCH2A](#baustein-srch2a)) | Trails lassen sich zuverlässig nach sichtbaren Fotos filtern. | [BASE-A](#baustein-base-a) (Assets #948), [SRCH2](#baustein-srch2) und [ACL1](#baustein-acl1) | — |
 | Counts und Range-Histogramme ([SRCH3](#baustein-srch3)) | Die Suche liefert belastbare Optionszahlen und numerische Verteilungen. | [IDX3](#baustein-idx3), [SRCH1b](#baustein-srch1b), [SRCH2](#baustein-srch2) und [A0](#baustein-a0); für föderierte Counts zusätzlich [SEC-VIS-1](#baustein-sec-vis-1), [SEC-AUTH-1](#baustein-sec-auth-1), [SEC-DUR-1](#baustein-sec-dur-1) und [SEC-SCOPE-1](#baustein-sec-scope-1) | [SRCH4b](#baustein-srch4b), [A2](#baustein-a2), [A6](#baustein-a6), [R1](#baustein-r1), [C3](#baustein-c3), [G3b-AGG](#baustein-g3b-agg), [SURF4](#baustein-surf4), [TRN2](#baustein-trn2), [POI3](#baustein-poi3) und [CTX2](#baustein-ctx2) |
