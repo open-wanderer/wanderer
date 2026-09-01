@@ -31,6 +31,13 @@ class TrailMap extends ConsumerStatefulWidget {
 
   final bool disabled;
   final bool offline;
+
+  /// Set when this map is mounted inside a scrolling parent.
+  ///
+  /// Selects the Android platform-view composition mode — see the build site.
+  /// Init-only: it is read once, when the native view is created, so flipping
+  /// it on a live map has no effect.
+  final bool embedded;
   final List<Widget>? controls;
   final ml.Geographic? elevationMarkerPosition;
   final EdgeInsets initialCameraFitPadding;
@@ -54,6 +61,7 @@ class TrailMap extends ConsumerStatefulWidget {
     this.onMapEvent,
     this.disabled = false,
     this.offline = false,
+    this.embedded = false,
     this.controls = const [],
     this.showTrail = true,
     this.showLocation = false,
@@ -218,6 +226,10 @@ class _TrailMapState extends ConsumerState<TrailMap>
             ? const ml.MapGestures.none()
             : const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
+        // Two different workloads, two different composition modes.
+        //
+        // Full-screen, interactive (`embedded: false`): the map redraws on
+        // every pan frame, so the cost that matters is per-map-frame.
         // MapLibre's texture mode renders into a TextureView, costing a
         // GPU→CPU→GPU copy per frame — measured at 76% of a core on the
         // TextureViewRend thread alone while panning. SurfaceView renders
@@ -225,8 +237,28 @@ class _TrailMapState extends ConsumerState<TrailMap>
         // default `tlhc_vd` falls back to Virtual Display (its own slow
         // path), whereas Hybrid Composition keeps correct z-ordering for
         // the Flutter marker layers drawn over the map.
-        androidTextureMode: false,
-        androidMode: ml.AndroidPlatformViewMode.hc,
+        //
+        // Embedded in a scrollable (`embedded: true`): the camera is fixed,
+        // so the map draws ~nothing after the initial fit and the texture
+        // copy above is close to free — but `hc` resolves to
+        // `initExpensiveAndroidView`, which hoists the map into the real
+        // Android view hierarchy. That forces raster/platform-thread
+        // synchronisation on every Flutter frame for as long as the view is
+        // mounted, and pushes every widget painted after it (elevation
+        // profile, waypoint timeline, the screen's bottom action bar) into
+        // Android overlay surfaces whose overlap region is recomputed on
+        // each scrolled pixel. The result was visibly stuttery scrolling on
+        // the trail detail screen that DevTools reported as jank-free,
+        // because none of that cost lands on a thread the frame chart
+        // measures. TextureView + `tlhc_hc` composites the map as an
+        // ordinary texture layer inside the Flutter scene instead: it
+        // scrolls in lockstep with the content around it, with no overlay
+        // and no per-frame thread handshake. `tlhc_hc` (not `tlhc_vd`)
+        // keeps Hybrid Composition as the fallback for API < 23.
+        androidTextureMode: widget.embedded,
+        androidMode: widget.embedded
+            ? ml.AndroidPlatformViewMode.tlhc_hc
+            : ml.AndroidPlatformViewMode.hc,
       );
     }
 

@@ -141,6 +141,11 @@ class TrailPanel extends ConsumerWidget {
                       child: TrailMap(
                         trail: trail,
                         disabled: true,
+                        // Inside a SingleChildScrollView — picks the
+                        // texture-layer composition mode so the native
+                        // surface scrolls in sync with the rest of the
+                        // panel. See TrailMap's build site.
+                        embedded: true,
                         // Connectivity, NOT trail.isOffline — see
                         // that field's doc comment. Online we
                         // always prefer network tiles, even for a

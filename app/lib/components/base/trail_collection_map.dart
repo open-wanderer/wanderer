@@ -20,6 +20,12 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 /// `_ListMap`, and `map_screen.dart` — screens that render N trails
 /// (or none) rather than a single trail's track.
 class TrailCollectionMap extends ConsumerStatefulWidget {
+  /// Set when this map is mounted inside a scrolling parent.
+  ///
+  /// Selects the Android platform-view composition mode — see the build site.
+  /// Init-only: it is read once, when the native view is created, so flipping
+  /// it on a live map has no effect.
+  final bool embedded;
   final ml.Geographic? initCenter;
   final double? initZoom;
   final bool disabled;
@@ -39,6 +45,7 @@ class TrailCollectionMap extends ConsumerStatefulWidget {
     this.initCenter,
     this.initZoom,
     this.disabled = false,
+    this.embedded = false,
     this.onMapCreated,
     this.onStyleLoaded,
     this.onMapEvent,
@@ -124,9 +131,12 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
             ? const ml.MapGestures.none()
             : const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
-        // See TrailMap for why texture mode is off and `hc` is pinned.
-        androidTextureMode: false,
-        androidMode: ml.AndroidPlatformViewMode.hc,
+        // See TrailMap for why an interactive map takes SurfaceView + `hc`
+        // and an embedded one takes TextureView + `tlhc_hc`.
+        androidTextureMode: widget.embedded,
+        androidMode: widget.embedded
+            ? ml.AndroidPlatformViewMode.tlhc_hc
+            : ml.AndroidPlatformViewMode.hc,
       );
     }
 

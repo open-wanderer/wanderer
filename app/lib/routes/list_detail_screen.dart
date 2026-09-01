@@ -386,6 +386,7 @@ class _ListMapState extends ConsumerState<_ListMap> {
 
     return TrailCollectionMap(
       disabled: true,
+      embedded: true,
       onMapCreated: (controller) => _controller = controller,
       onStyleLoaded: (style) {
         if (combinedBounds != null) {
