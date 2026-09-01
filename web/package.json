@@ -78,7 +78,7 @@
     "photoswipe": "^5.4.4",
     "pocketbase": "^0.27.0",
     "qrcode": "^1.5.4",
-    "supercluster": "^8.0.1",
+    "supercluster": "^9.0.0",
     "svelte-i18n": "^4.0.1",
     "tailwindcss": "^4.3.2",
     "three": "^0.185.0",
