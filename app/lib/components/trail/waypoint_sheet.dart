@@ -28,6 +28,31 @@ class WaypointSheet extends ConsumerWidget {
     final localizations = AppLocalizations.of(context)!;
     final unit = ref.watch(unitProvider);
 
+    // A waypoint whose photos have been downloaded for offline use (library)
+    // carries BOTH `photos` (server filenames) and `localPhotos` (downloaded
+    // file paths) at the same time -- unlike `Trail`, which leaves `photos`
+    // empty for any DB-backed row. When local copies exist, prefer them
+    // exclusively: building network URLs alongside them would duplicate every
+    // photo in PhotoCollage (network copy first, local copy second) and,
+    // offline, the leading network copies fail to load while the trailing
+    // local ones succeed -- showing placeholders for photos that are in fact
+    // available on-device. This also sidesteps `user!` below when `user` is
+    // null but local copies already make the collage worth showing.
+    final currentUser = user;
+    final webPhotos = waypoint.localPhotos.isNotEmpty || currentUser == null
+        ? const <String>[]
+        : waypoint.photos
+              .map(
+                (p) =>
+                    waypoint.getFileUrl(
+                      currentUser.serverUrl,
+                      p,
+                      thumb: '200x0',
+                    ) ??
+                    '',
+              )
+              .toList();
+
     return NotificationListener<DraggableScrollableNotification>(
       onNotification: (n) {
         if (n.extent <= n.minExtent) onClose();
@@ -68,17 +93,7 @@ class WaypointSheet extends ConsumerWidget {
                         ),
                         child: PhotoCollage(
                           localPhotos: waypoint.localPhotos,
-                          webPhotos: waypoint.photos
-                              .map(
-                                (p) =>
-                                    waypoint.getFileUrl(
-                                      user!.serverUrl,
-                                      p,
-                                      thumb: '200x0',
-                                    ) ??
-                                    '',
-                              )
-                              .toList(),
+                          webPhotos: webPhotos,
                         ),
                       ),
                     Padding(
