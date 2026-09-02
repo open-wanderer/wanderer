@@ -39,7 +39,7 @@
     "@tailwindcss/vite": "^4.3.2",
     "@threlte/core": "^8.5.16",
     "@threlte/extras": "^9.21.0",
-    "@tiptap/core": "^3.27.1",
+    "@tiptap/core": "^3.30.4",
     "@tiptap/extension-heading": "^3.27.1",
     "@tiptap/extension-link": "^3.27.1",
     "@tiptap/extension-mention": "^3.27.1",
