@@ -228,13 +228,7 @@
                 } else if (t.expand?.gpx_data) {
                     fc = GPX.parse(t.expand.gpx_data).toGeoJSON();
                 } else if (t.polyline && !clusterTrails) {
-                    fc = polylineToGeoJSON(
-                        t.polyline,
-                        5,
-                        t.lat !== undefined && t.lon !== undefined
-                            ? { lat: t.lat, lon: t.lon }
-                            : undefined,
-                    );
+                    fc = polylineToGeoJSON(t.polyline, 5);
                 }
 
                 if (fc) {
@@ -273,13 +267,7 @@
                 }
 
                 if (t.polyline) {
-                    const previewGeojson = polylineToGeoJSON(
-                        t.polyline,
-                        5,
-                        t.lat !== undefined && t.lon !== undefined
-                            ? { lat: t.lat, lon: t.lon }
-                            : undefined,
-                    );
+                    const previewGeojson = polylineToGeoJSON(t.polyline, 5);
                     const groupId = t.id?.split("#")[0] ?? t.id ?? "";
                     previewData.features.push({
                         id: t.id,

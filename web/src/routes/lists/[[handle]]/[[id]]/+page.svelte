@@ -75,6 +75,7 @@
     let overviewFitKey = $state("");
     let overviewTrails: Trail[] = $state([]);
     let overviewPreviewKey = $state("");
+    let overviewPreviewRequest = 0;
 
     let selectedTrailIndex = $derived(selectedTrail ? 0 : null);
 
@@ -111,6 +112,7 @@
             return;
         }
         overviewPreviewKey = key;
+        const request = ++overviewPreviewRequest;
 
         if (listIds.length === 0) {
             overviewTrails = [];
@@ -119,6 +121,9 @@
 
         try {
             const preview = await lists_map_preview(listIds);
+            if (request !== overviewPreviewRequest) {
+                return;
+            }
             const nextTrails: Trail[] = [];
 
             for (const listPreview of preview.lists) {
@@ -158,7 +163,9 @@
 
             overviewTrails = nextTrails;
         } catch {
-            overviewTrails = [];
+            if (request === overviewPreviewRequest) {
+                overviewTrails = [];
+            }
         }
     }
 
@@ -541,8 +548,8 @@
                 }
             }}
             onselect={(trail) => {
-                if (selectedList) {
-                    selectedTrail = trail;
+                if (selectedList && !selectedTrail) {
+                    selectTrail(trail);
                 }
             }}
             oninit={() => {
