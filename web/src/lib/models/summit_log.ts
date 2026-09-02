@@ -42,6 +42,7 @@ class SummitLog {
 
 interface SummitLogFilter {
   category: string[],
+  subcategory?: string[],
   startDate?: string;
   endDate?: string;
   trail?: string;

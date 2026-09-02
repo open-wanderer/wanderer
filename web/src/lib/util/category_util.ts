@@ -239,6 +239,45 @@ type TrailCategoryIconEntity = {
     } | null;
 };
 
+type TrailCategoryLabelEntity = {
+    expand?: {
+        category?: CategoryDisplayEntity | null;
+        subcategory?: CategoryDisplayEntity | null;
+    } | null;
+};
+
+type TrailCategoryKeyEntity = {
+    category?: string | null;
+    subcategory?: string | null;
+    expand?: {
+        category?: Pick<Category, "id"> | null;
+        subcategory?: Pick<Subcategory, "id"> | null;
+    } | null;
+};
+
+export function trailCategoryKey(
+    trail?: TrailCategoryKeyEntity | null,
+): string {
+    const category = trail?.category || trail?.expand?.category?.id || "-";
+    const subcategory =
+        trail?.subcategory || trail?.expand?.subcategory?.id || "-";
+
+    return `${category}:${subcategory}`;
+}
+
+export function displayTrailCategoryLabel(
+    trail?: TrailCategoryLabelEntity | null,
+    locale?: string | null,
+): string {
+    const category = displayCategoryName(trail?.expand?.category, locale);
+    const subcategory = displayCategoryName(
+        trail?.expand?.subcategory,
+        locale,
+    );
+
+    return [category, subcategory].filter(Boolean).join(" / ");
+}
+
 export function displayTrailCategoryIcon(
     trail?: TrailCategoryIconEntity | null,
 ): string {
