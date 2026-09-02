@@ -40,6 +40,7 @@ export interface PluginSystemPlugin {
     runtime: string;
     capabilities: string[];
     status: "available" | "disabled" | "error";
+    setupErrorCode?: string;
     error?: string;
     manifest: PluginSystemManifest;
 }
