@@ -7,7 +7,9 @@ plugins {
 
 android {
     namespace = "com.openwanderer.wanderer"
-    compileSdk = flutter.compileSdkVersion
+    // receive_sharing_intent compiles against Android SDK 37, so we have to
+    // compile against at least that (instead of flutter.compileSdkVersion = 36).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

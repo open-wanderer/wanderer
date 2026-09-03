@@ -99,7 +99,7 @@ Widget subcategoryFilterAvatar(
   final primary = _subcategoryIconData(s, parent);
 
   Widget? badgeIconWidget;
-  final badgeFa = subcategoryBadgeAvatar(s);
+  final badgeFa = subcategoryBadgeAvatar(s, color: color);
   if (badgeFa != null) {
     badgeIconWidget = Positioned(right: -6, top: -4, child: badgeFa);
   }
