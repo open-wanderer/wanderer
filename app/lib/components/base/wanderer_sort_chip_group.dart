@@ -51,7 +51,7 @@ class WandererSortChipGroup<T extends Enum> extends StatelessWidget {
                       child: Icon(
                         Icons.arrow_upward,
                         size: 16,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                       ),
                     ),
                   ),

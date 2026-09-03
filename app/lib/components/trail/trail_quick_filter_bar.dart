@@ -368,6 +368,18 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                                       (c) => c.id == s.category,
                                                     ),
                                                 locale,
+
+                                                color:
+                                                    Theme.of(
+                                                          context,
+                                                        ).brightness ==
+                                                        Brightness.light
+                                                    ? Theme.of(
+                                                        context,
+                                                      ).primaryColor
+                                                    : Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
                                               ),
                                           onChanged: (sel) => ref
                                               .read(

@@ -119,7 +119,12 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   keepSelectedOnTap: true,
                   labelBuilder: (c) =>
                       c.displayName(Localizations.localeOf(context)),
-                  avatarBuilder: (c) => _categoryAvatar(c),
+                  avatarBuilder: (c) => categoryFilterAvatar(
+                    c,
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? Theme.of(context).primaryColor
+                        : Theme.of(context).colorScheme.onSurface,
+                  ),
                   badgeCountBuilder: (c) =>
                       f.subcategory.where((s) => s.category == c.id).length,
                   onItemTap: (c) => setState(() => _focusedCategoryId = c.id),
@@ -186,11 +191,17 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                               labelBuilder: (s) => s.displayName(
                                 Localizations.localeOf(context),
                               ),
-                              avatarBuilder: (s) => _subcategoryAvatar(
+                              avatarBuilder: (s) => subcategoryFilterAvatar(
                                 s,
                                 f.category.firstWhereOrNull(
                                   (c) => c.id == s.category,
                                 ),
+                                Localizations.localeOf(context),
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.light
+                                    ? Theme.of(context).primaryColor
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                               onChanged: (sel) => ref
                                   .read(
@@ -511,11 +522,6 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
       ),
     );
   }
-
-  Widget _categoryAvatar(Category c) => categoryFilterAvatar(c);
-
-  Widget _subcategoryAvatar(Subcategory s, Category? parent) =>
-      subcategoryFilterAvatar(s, parent, Localizations.localeOf(context));
 }
 
 class _AuthorChip extends StatelessWidget {
