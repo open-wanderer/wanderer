@@ -203,7 +203,7 @@ abstract class AppLocalizations {
   /// No description provided for @background_location_body.
   ///
   /// In en, this message translates to:
-  /// **'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Without this, clearing wanderer from your recent apps ends the recording. Location is only collected while a trail is in progress, and is saved with that trail.'**
+  /// **'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.'**
   String get background_location_body;
 
   /// No description provided for @background_location_confirm.

@@ -25,7 +25,7 @@
     "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
   },
   "average_speed": "Avg. Speed",
-  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Without this, clearing wanderer from your recent apps ends the recording. Location is only collected while a trail is in progress, and is saved with that trail.",
+  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.",
   "background_location_confirm": "Continue",
   "background_location_title": "Keep recording in the background",
   "basic_info": "Basic Info",
