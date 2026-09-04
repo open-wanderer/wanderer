@@ -344,6 +344,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `onStyleLoaded` (the same race `TrailCollectionMap` guards against).
   ml.StyleController? _pendingStyle;
 
+  /// The style currently bound, held so a trail that resolves *after*
+  /// `onStyleLoaded` can still have its outline added.
+  ml.StyleController? _loadedStyle;
+
+  /// Whether the trail outline is on [_loadedStyle]. Reset on every style
+  /// load — a swap drops added sources and layers, and re-adding onto a style
+  /// that still has them would throw on the duplicate source id.
+  bool _trailLayerAdded = false;
+
   /// The last successfully-resolved (and possibly offline-rewritten) style
   /// JSON. Cached so a provider refresh (e.g. a theme toggle) never drops us
   /// back to the loading state and remounts the map — the live swap goes
@@ -1216,17 +1225,35 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         });
   }
 
+  /// Adds the trail outline, if the trail is available and it is not already
+  /// on this style.
+  ///
+  /// `trailProvider` is read rather than awaited because on a warm open —
+  /// arriving from the trail screen — it already holds the trail. A session
+  /// resumed after a cold start has nothing warm, so the read returns null and
+  /// the outline never appeared at all: `_onStyleLoaded` runs once and never
+  /// retried. The listener in [build] covers that case by calling back here
+  /// when the trail lands.
+  Future<void> _addTrailOutline(ml.StyleController style) async {
+    if (_trailLayerAdded) return;
+    final trail = ref.read(trailProvider(widget.id)).value;
+    if (trail?.expand?.gpx == null) return;
+    // Claimed before the await so a style load and a late-arriving trail
+    // cannot both get past the guard and add a duplicate source.
+    _trailLayerAdded = true;
+    await _trailLayer.add(style, trail!);
+  }
+
   /// Re-arms everything that binds to the current native `Style` object:
   /// `setStyle` (used for theme swaps) drops added layers/sources, so this
   /// must run after every style load, not just once at `onMapCreated`. The
   /// location marker itself is a Flutter `_LocationMarkerLayer` (not a
   /// native style layer), so it survives style swaps untouched.
   Future<void> _onStyleLoaded(ml.StyleController style) async {
+    _loadedStyle = style;
+    _trailLayerAdded = false;
     try {
-      final trail = ref.read(trailProvider(widget.id)).value;
-      if (trail?.expand?.gpx != null) {
-        await _trailLayer.add(style, trail!);
-      }
+      await _addTrailOutline(style);
 
       final breadcrumb = ref.read(_navProviderInstance).breadcrumb;
       // Two-source split: everything so far seeds the frozen source; the
@@ -1292,6 +1319,23 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // region-change listener is required.
     // Offline reads the network-free providers so no `/map/style-sources`
     // call is ever made.
+    // The trail can resolve after the style has loaded: a resumed session
+    // starts cold, with nothing having warmed `trailProvider`, so the read in
+    // [_addTrailOutline] finds nothing and the blue outline never appears.
+    // Add it when it lands instead of only at style-load time. Skipped while
+    // recording, which has no trail id to resolve.
+    if (!widget.isRecording && widget.id.isNotEmpty) {
+      ref.listen(trailProvider(widget.id), (_, next) {
+        final style = _loadedStyle;
+        if (style == null || next.value?.expand?.gpx == null) return;
+        unawaited(
+          _addTrailOutline(style).catchError((Object e) {
+            debugPrint('NavigationScreen: failed to add trail outline — $e');
+          }),
+        );
+      });
+    }
+
     if (widget.isOffline) {
       ref.listen(offlineMapStyleJsonProvider, (_, _) => _swapStyle());
       ref.listen(offlineGlyphSpritePathsProvider, (_, _) => _swapStyle());
