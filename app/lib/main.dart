@@ -17,6 +17,7 @@ import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
+import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
@@ -223,7 +224,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       _resumeHandled = true;
       final user = next.value;
       if (user == null) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeResume());
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_maybeResume()));
     }, fireImmediately: true);
 
     // Inbound share intents: while running (stream) and cold-start (initial).
@@ -364,10 +365,16 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     _shareRouteWaiterRouter = null;
   }
 
-  /// Checks for a persisted active-navigation row and, if resolvable, shows a
-  /// resume dialog naming the trail. Accepting reopens navigation seeded from
-  /// the row; declining (or an unresolvable/non-nav row) clears it silently.
-  void _maybeResume() {
+  /// Checks for a persisted active-navigation row and reopens the session it
+  /// describes.
+  ///
+  /// A session whose native tracking is still running goes straight back to
+  /// its screen: the foreground notification is up, the user can see it is
+  /// live, and asking whether to resume something visibly in progress reads as
+  /// a bug. Only a row whose tracking has already stopped — a stale session
+  /// from an earlier launch — is worth a dialog, where resuming really is a
+  /// question. Declining (or an unresolvable/non-nav row) clears it silently.
+  Future<void> _maybeResume() async {
     final store = ref.read(objectBoxProvider);
     final row = active_nav.read(store);
     if (row == null) {
@@ -380,7 +387,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     }
 
     if (row.sessionType == ActiveSessionType.rec) {
-      _maybeResumeRecording(store, row);
+      await _maybeResumeRecording(store, row);
       return;
     }
 
@@ -403,9 +410,6 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       return;
     }
 
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return;
-
     final query = store
         .box<TrailEntity>()
         .query(TrailEntity_.id.equals(row.trailId!))
@@ -413,6 +417,16 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     final trailEntity = query.findFirst();
     query.close();
     final trailName = trailEntity?.name ?? row.trailId!;
+
+    if (await TraceletPositionSource.isTracking()) {
+      await _pushNavigationResume(row, response);
+      return;
+    }
+
+    // Read after the await — the navigator context can change while the
+    // tracking state is being fetched.
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) return;
 
     showDialog<bool>(
       context: ctx,
@@ -433,22 +447,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       ),
     ).then((accepted) async {
       if (accepted == true) {
-        // Re-probe rather than trusting the persisted flag: connectivity may
-        // have changed since the session was last saved (e.g. saved online,
-        // relaunched in airplane mode). A stale `isOffline=false` here would
-        // send NavigationScreen down the online style path, whose
-        // `/map/style-sources` fetch hangs offline and freezes the map on its
-        // loading spinner. The cached response already makes navigation itself
-        // work offline; this flag only selects the map style path.
-        final isOffline = !await ref
-            .read(onlineStatusProvider.notifier)
-            .refresh();
-        navigatorKey.currentContext?.push(
-          '/trail/${row.trailId}/navigate',
-          // No fresh fix to seed on resume — same as a brand-new session
-          // pending its first tracelet fix.
-          extra: (response, isOffline, row, null),
-        );
+        await _pushNavigationResume(row, response);
       } else {
         // Declined: drop the row AND the native tracking session that
         // survived termination for it (stopOnTerminate: false).
@@ -458,15 +457,54 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     });
   }
 
+  /// Reopens a navigation session, re-probing connectivity first.
+  ///
+  /// The persisted `isOffline` flag is deliberately not trusted: connectivity
+  /// may have changed since the session was last saved (saved online,
+  /// relaunched in airplane mode). A stale `isOffline=false` sends
+  /// NavigationScreen down the online style path, whose `/map/style-sources`
+  /// fetch hangs offline and freezes the map on its loading spinner. The
+  /// cached response already makes navigation itself work offline; this flag
+  /// only selects the map style path.
+  Future<void> _pushNavigationResume(
+    ActiveNavigationEntity row,
+    NavigateResponse response,
+  ) async {
+    final isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
+    navigatorKey.currentContext?.push(
+      '/trail/${row.trailId}/navigate',
+      // No fresh fix to seed on resume — same as a brand-new session pending
+      // its first tracelet fix.
+      extra: (response, isOffline, row, null),
+    );
+  }
+
+  /// Reopens a recording session. Re-probes connectivity for the same reason
+  /// as [_pushNavigationResume]; the router reads it back off
+  /// `resume.isOffline`.
+  Future<void> _pushRecordingResume(ActiveNavigationEntity row) async {
+    row.isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
+    navigatorKey.currentContext?.push('/record', extra: row);
+  }
+
   /// Resumes an in-progress `ActiveSessionType.rec` row — mirrors
   /// [_maybeResume]'s `.nav` dialog structure but with no trail name (a
   /// recording session has no trail) and skips `readCachedNav` entirely
   /// (there is no trail to look up). Accepting re-pushes `/record` seeded
   /// with the row; `NavigationScreen.initState` already rehydrates
   /// breadcrumb + stats generically from `resumeSession`.
-  void _maybeResumeRecording(Store store, ActiveNavigationEntity row) {
+  Future<void> _maybeResumeRecording(
+    Store store,
+    ActiveNavigationEntity row,
+  ) async {
+    if (await TraceletPositionSource.isTracking()) {
+      await _pushRecordingResume(row);
+      return;
+    }
+
+    // Read after the await — see [_maybeResume].
     final ctx = navigatorKey.currentContext;
-    if (ctx == null) return;
+    if (ctx == null || !ctx.mounted) return;
 
     showDialog<bool>(
       context: ctx,
@@ -485,15 +523,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       ),
     ).then((accepted) async {
       if (accepted == true) {
-        // Re-probe rather than trusting the persisted flag (see the .nav
-        // resume branch): a recording saved online then resumed in airplane
-        // mode must open NavigationScreen's offline style path, or its
-        // `/map/style-sources` fetch hangs the map on its loading spinner.
-        // The router reads this back off `resume.isOffline`.
-        row.isOffline = !await ref
-            .read(onlineStatusProvider.notifier)
-            .refresh();
-        navigatorKey.currentContext?.push('/record', extra: row);
+        await _pushRecordingResume(row);
       } else {
         // Declined: drop the row AND the native tracking session that
         // survived termination for it (stopOnTerminate: false).

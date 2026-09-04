@@ -286,6 +286,21 @@ class TraceletPositionSource {
     await tl.Tracelet.stop();
   }
 
+  /// Whether a native tracking session is currently running.
+  ///
+  /// True after the app process was killed while `stopOnTerminate: false` kept
+  /// tracelet recording — the case where the foreground notification is still
+  /// up and the user is looking at a live session, so relaunching should drop
+  /// them straight back into it rather than asking whether to resume.
+  /// Conservatively false when the state cannot be read.
+  static Future<bool> isTracking() async {
+    try {
+      return (await tl.Tracelet.getState()).enabled;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Best-effort stop of a native tracking session left running by a killed
   /// app process. `stopOnTerminate: false` (see [_foregroundConfig]) is what
   /// lets an in-progress recording survive termination — but it also means
