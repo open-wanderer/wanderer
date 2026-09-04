@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:tracelet/tracelet.dart' as tl;
 import 'package:wanderer/provider/foreground_position_stream_provider.dart'
@@ -166,8 +168,38 @@ class TraceletPositionSource {
       _controller.add(seed);
     }
 
+    // Ask before the service exists: on Android 13+ the foreground-service
+    // notification is suppressed without POST_NOTIFICATIONS, and granting it
+    // afterwards does not retroactively surface the running service's
+    // notification. Only the trail-download service ever requested it, so on a
+    // fresh install a recording ran with no visible notification at all —
+    // which is also the only thing telling the user tracking survived the app
+    // being swiped away.
+    await _ensureNotificationPermission();
+
     await tl.Tracelet.ready(_foregroundConfig());
     await tl.Tracelet.start();
+  }
+
+  /// Best-effort POST_NOTIFICATIONS request for tracelet's foreground-service
+  /// notification.
+  ///
+  /// A no-op below Android 13, where the permission does not exist, and on
+  /// iOS, where the notification is not permission-gated the same way.
+  /// Failures are swallowed deliberately: a denied or unavailable permission
+  /// costs visibility, never the recording itself.
+  static Future<void> _ensureNotificationPermission() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await FlutterLocalNotificationsPlugin()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.requestNotificationsPermission();
+    } catch (_) {
+      // Plugin unavailable or the request threw — tracking proceeds either
+      // way, just without a visible notification.
+    }
   }
 
   /// Swaps the live config between the foreground (continuous) and
