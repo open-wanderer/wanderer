@@ -15,14 +15,14 @@ part of 'local_trail_provider.dart';
 /// Synchronous on purpose. The row is already on this device: there is
 /// no request to await, no `AsyncError` to be auto-retried, and no
 /// `AsyncLoading` for a `.when()` to render as a spinner -- exactly the
-/// failure mode 36-09 removed from the own-trails list. `Trail?` is
+/// failure mode the own-trails list deliberately avoids. `Trail?` is
 /// also a truer type than `AsyncValue<Trail>`: "this local id has no
 /// row" is an ordinary outcome, not an error.
 ///
 /// NOT a variant of `trailProvider`. That one is keyed on the SERVER id
 /// and its ObjectBox fallback filters on
 /// `savedByUserIds.containsElement(userId)`, which a local capture never
-/// sets and MUST never set (D-10) -- writing it would give an unsynced
+/// sets and MUST never set -- writing it would give an unsynced
 /// trail the downloaded badge and make the two states indistinguishable.
 
 @ProviderFor(localTrail)
@@ -35,14 +35,14 @@ final localTrailProvider = LocalTrailFamily._();
 /// Synchronous on purpose. The row is already on this device: there is
 /// no request to await, no `AsyncError` to be auto-retried, and no
 /// `AsyncLoading` for a `.when()` to render as a spinner -- exactly the
-/// failure mode 36-09 removed from the own-trails list. `Trail?` is
+/// failure mode the own-trails list deliberately avoids. `Trail?` is
 /// also a truer type than `AsyncValue<Trail>`: "this local id has no
 /// row" is an ordinary outcome, not an error.
 ///
 /// NOT a variant of `trailProvider`. That one is keyed on the SERVER id
 /// and its ObjectBox fallback filters on
 /// `savedByUserIds.containsElement(userId)`, which a local capture never
-/// sets and MUST never set (D-10) -- writing it would give an unsynced
+/// sets and MUST never set -- writing it would give an unsynced
 /// trail the downloaded badge and make the two states indistinguishable.
 
 final class LocalTrailProvider
@@ -55,14 +55,14 @@ final class LocalTrailProvider
   /// Synchronous on purpose. The row is already on this device: there is
   /// no request to await, no `AsyncError` to be auto-retried, and no
   /// `AsyncLoading` for a `.when()` to render as a spinner -- exactly the
-  /// failure mode 36-09 removed from the own-trails list. `Trail?` is
+  /// failure mode the own-trails list deliberately avoids. `Trail?` is
   /// also a truer type than `AsyncValue<Trail>`: "this local id has no
   /// row" is an ordinary outcome, not an error.
   ///
   /// NOT a variant of `trailProvider`. That one is keyed on the SERVER id
   /// and its ObjectBox fallback filters on
   /// `savedByUserIds.containsElement(userId)`, which a local capture never
-  /// sets and MUST never set (D-10) -- writing it would give an unsynced
+  /// sets and MUST never set -- writing it would give an unsynced
   /// trail the downloaded badge and make the two states indistinguishable.
   LocalTrailProvider._({
     required LocalTrailFamily super.from,
@@ -124,14 +124,14 @@ String _$localTrailHash() => r'24b9ef25f4746748d51e6f0fe83c10d3e4e4b135';
 /// Synchronous on purpose. The row is already on this device: there is
 /// no request to await, no `AsyncError` to be auto-retried, and no
 /// `AsyncLoading` for a `.when()` to render as a spinner -- exactly the
-/// failure mode 36-09 removed from the own-trails list. `Trail?` is
+/// failure mode the own-trails list deliberately avoids. `Trail?` is
 /// also a truer type than `AsyncValue<Trail>`: "this local id has no
 /// row" is an ordinary outcome, not an error.
 ///
 /// NOT a variant of `trailProvider`. That one is keyed on the SERVER id
 /// and its ObjectBox fallback filters on
 /// `savedByUserIds.containsElement(userId)`, which a local capture never
-/// sets and MUST never set (D-10) -- writing it would give an unsynced
+/// sets and MUST never set -- writing it would give an unsynced
 /// trail the downloaded badge and make the two states indistinguishable.
 
 final class LocalTrailFamily extends $Family
@@ -152,14 +152,14 @@ final class LocalTrailFamily extends $Family
   /// Synchronous on purpose. The row is already on this device: there is
   /// no request to await, no `AsyncError` to be auto-retried, and no
   /// `AsyncLoading` for a `.when()` to render as a spinner -- exactly the
-  /// failure mode 36-09 removed from the own-trails list. `Trail?` is
+  /// failure mode the own-trails list deliberately avoids. `Trail?` is
   /// also a truer type than `AsyncValue<Trail>`: "this local id has no
   /// row" is an ordinary outcome, not an error.
   ///
   /// NOT a variant of `trailProvider`. That one is keyed on the SERVER id
   /// and its ObjectBox fallback filters on
   /// `savedByUserIds.containsElement(userId)`, which a local capture never
-  /// sets and MUST never set (D-10) -- writing it would give an unsynced
+  /// sets and MUST never set -- writing it would give an unsynced
   /// trail the downloaded badge and make the two states indistinguishable.
 
   LocalTrailProvider call(String localId) =>
@@ -172,10 +172,10 @@ final class LocalTrailFamily extends $Family
 /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
 /// the signed-in account.
 ///
-/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// The single UI-facing handle on `isOwnLiveCapture`: it exists for
 /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
 /// download-family guard, and `library_screen.dart`'s Remove tile -- and
-/// D-12 requires there be exactly one predicate serving both, never two.
+/// there must be exactly one predicate serving both, never two.
 ///
 /// [localId] is nullable on purpose so both call sites can watch this
 /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
@@ -187,10 +187,10 @@ final ownLiveCaptureProvider = OwnLiveCaptureFamily._();
 /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
 /// the signed-in account.
 ///
-/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// The single UI-facing handle on `isOwnLiveCapture`: it exists for
 /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
 /// download-family guard, and `library_screen.dart`'s Remove tile -- and
-/// D-12 requires there be exactly one predicate serving both, never two.
+/// there must be exactly one predicate serving both, never two.
 ///
 /// [localId] is nullable on purpose so both call sites can watch this
 /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
@@ -201,10 +201,10 @@ final class OwnLiveCaptureProvider extends $FunctionalProvider<bool, bool, bool>
   /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
   /// the signed-in account.
   ///
-  /// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+  /// The single UI-facing handle on `isOwnLiveCapture`: it exists for
   /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
   /// download-family guard, and `library_screen.dart`'s Remove tile -- and
-  /// D-12 requires there be exactly one predicate serving both, never two.
+  /// there must be exactly one predicate serving both, never two.
   ///
   /// [localId] is nullable on purpose so both call sites can watch this
   /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
@@ -265,10 +265,10 @@ String _$ownLiveCaptureHash() => r'031de3045552e1a668e534cb9572a51322b1ee46';
 /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
 /// the signed-in account.
 ///
-/// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+/// The single UI-facing handle on `isOwnLiveCapture`: it exists for
 /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
 /// download-family guard, and `library_screen.dart`'s Remove tile -- and
-/// D-12 requires there be exactly one predicate serving both, never two.
+/// there must be exactly one predicate serving both, never two.
 ///
 /// [localId] is nullable on purpose so both call sites can watch this
 /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`
@@ -288,10 +288,10 @@ final class OwnLiveCaptureFamily extends $Family
   /// Whether [localId] identifies a live, not-yet-uploaded capture owned by
   /// the signed-in account.
   ///
-  /// The single UI-facing handle on `isOwnLiveCapture` (D-12): it exists for
+  /// The single UI-facing handle on `isOwnLiveCapture`: it exists for
   /// exactly two call sites -- `trail_dropdown.dart`'s `_allowDelete` and its
   /// download-family guard, and `library_screen.dart`'s Remove tile -- and
-  /// D-12 requires there be exactly one predicate serving both, never two.
+  /// there must be exactly one predicate serving both, never two.
   ///
   /// [localId] is nullable on purpose so both call sites can watch this
   /// unconditionally with `ref.watch(ownLiveCaptureProvider(trail.localId))`

@@ -50,10 +50,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get background_location_body =>
-      'wanderer erfasst Standortdaten im Hintergrund, damit deine Tour weiter aufgezeichnet wird, wenn der Bildschirm aus ist oder du die App schließt. Deine Aufzeichnung bleibt auf deinem Gerät, bis du die Tour speicherst.';
+      'wanderer erfasst Standortdaten im Hintergrund, damit deine Tour weiter aufgezeichnet wird, wenn der Bildschirm aus ist oder du die App schließt. Deine Aufzeichnung bleibt auf deinem Gerät, bis du die Tour speicherst.\n\nAndroid bietet das nur in den Systemeinstellungen an: Öffne „Standort“ und wähle „Immer zulassen“.';
 
   @override
-  String get background_location_confirm => 'Weiter';
+  String get background_location_confirm => 'Einstellungen öffnen';
 
   @override
   String get background_location_title =>

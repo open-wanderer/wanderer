@@ -123,7 +123,7 @@ Future<void> launchNavigation({
   // required disclosure before the system prompt on Android; navigation
   // proceeds either way if declined.
   if (context.mounted) {
-    permission = await requestBackgroundLocation(context, permission);
+    permission = await requestBackgroundLocation(context, ref, permission);
   }
 
   // Best-effort: seed the live marker with an already-warm fix from the

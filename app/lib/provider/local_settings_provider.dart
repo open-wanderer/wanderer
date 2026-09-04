@@ -25,6 +25,14 @@ class LocalSettingsNotifier extends _$LocalSettingsNotifier {
     ref.invalidateSelf();
   }
 
+  Future<void> markBackgroundLocationAsked() async {
+    final entity = _box.getAll().firstOrNull ?? LocalSettingsEntity();
+    if (entity.backgroundLocationAsked) return;
+    entity.backgroundLocationAsked = true;
+    _box.put(entity);
+    ref.invalidateSelf();
+  }
+
   String _modeToString(ThemeMode mode) => switch (mode) {
     ThemeMode.light => 'light',
     ThemeMode.dark => 'dark',

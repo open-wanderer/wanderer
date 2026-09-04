@@ -120,12 +120,12 @@ abstract class _$ProfileNotifier extends $AsyncNotifier<Actor> {
 }
 
 /// keepAlive provider — fetches the current user's own profile Actor.
-/// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
-/// (T-h2p-02: watching `authProvider` instead of reading it once means this
-/// provider rebuilds — and re-fetches — the moment auth resolves to a
-/// different session, rather than holding the first account's `Actor`
-/// forever); still no app-resume invalidation (D-03).
+/// Reads handle from authProvider.preferredUsername.
+/// Cache refreshed on pull-to-refresh AND on any auth change: watching
+/// `authProvider` instead of reading it once means this provider rebuilds —
+/// and re-fetches — the moment auth resolves to a different session, rather
+/// than holding the first account's `Actor` forever. Still no app-resume
+/// invalidation.
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -136,12 +136,12 @@ abstract class _$ProfileNotifier extends $AsyncNotifier<Actor> {
 final ownProfileProvider = OwnProfileProvider._();
 
 /// keepAlive provider — fetches the current user's own profile Actor.
-/// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
-/// (T-h2p-02: watching `authProvider` instead of reading it once means this
-/// provider rebuilds — and re-fetches — the moment auth resolves to a
-/// different session, rather than holding the first account's `Actor`
-/// forever); still no app-resume invalidation (D-03).
+/// Reads handle from authProvider.preferredUsername.
+/// Cache refreshed on pull-to-refresh AND on any auth change: watching
+/// `authProvider` instead of reading it once means this provider rebuilds —
+/// and re-fetches — the moment auth resolves to a different session, rather
+/// than holding the first account's `Actor` forever. Still no app-resume
+/// invalidation.
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -150,12 +150,12 @@ final ownProfileProvider = OwnProfileProvider._();
 final class OwnProfileProvider
     extends $AsyncNotifierProvider<OwnProfile, Actor> {
   /// keepAlive provider — fetches the current user's own profile Actor.
-  /// Reads handle from authProvider.preferredUsername (per D-02).
-  /// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
-  /// (T-h2p-02: watching `authProvider` instead of reading it once means this
-  /// provider rebuilds — and re-fetches — the moment auth resolves to a
-  /// different session, rather than holding the first account's `Actor`
-  /// forever); still no app-resume invalidation (D-03).
+  /// Reads handle from authProvider.preferredUsername.
+  /// Cache refreshed on pull-to-refresh AND on any auth change: watching
+  /// `authProvider` instead of reading it once means this provider rebuilds —
+  /// and re-fetches — the moment auth resolves to a different session, rather
+  /// than holding the first account's `Actor` forever. Still no app-resume
+  /// invalidation.
   ///
   /// Writes every successful fetch through to `UserEntity.actor` and falls back
   /// to that cached actor when the fetch fails, so the own-profile screen renders
@@ -183,12 +183,12 @@ final class OwnProfileProvider
 String _$ownProfileHash() => r'b1d7fa0d60c2b0b159cd8afed1193d609645a438';
 
 /// keepAlive provider — fetches the current user's own profile Actor.
-/// Reads handle from authProvider.preferredUsername (per D-02).
-/// Cache refreshed on pull-to-refresh (Phase 2) AND on any auth change
-/// (T-h2p-02: watching `authProvider` instead of reading it once means this
-/// provider rebuilds — and re-fetches — the moment auth resolves to a
-/// different session, rather than holding the first account's `Actor`
-/// forever); still no app-resume invalidation (D-03).
+/// Reads handle from authProvider.preferredUsername.
+/// Cache refreshed on pull-to-refresh AND on any auth change: watching
+/// `authProvider` instead of reading it once means this provider rebuilds —
+/// and re-fetches — the moment auth resolves to a different session, rather
+/// than holding the first account's `Actor` forever. Still no app-resume
+/// invalidation.
 ///
 /// Writes every successful fetch through to `UserEntity.actor` and falls back
 /// to that cached actor when the fetch fails, so the own-profile screen renders

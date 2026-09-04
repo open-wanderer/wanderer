@@ -119,7 +119,7 @@ final class GlyphSpriteCacheProvider
   GlyphSpriteCache create() => GlyphSpriteCache();
 }
 
-String _$glyphSpriteCacheHash() => r'3e1a3f5c0ddf8f8c98f21b59763d8c250b86d3b0';
+String _$glyphSpriteCacheHash() => r'925adc62e7d07832d61831b3ca24fb893a336499';
 
 /// The one shared app-wide glyph/sprite cache.
 ///

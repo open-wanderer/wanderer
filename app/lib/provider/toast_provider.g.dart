@@ -40,7 +40,7 @@ final class ToastProvider extends $NotifierProvider<Toast, List<ToastMessage>> {
   }
 }
 
-String _$toastHash() => r'469dc3df01c686f81935ac0851ee67542793d239';
+String _$toastHash() => r'e04371162987c3be8537db14c22d7f32c28cf4a7';
 
 abstract class _$Toast extends $Notifier<List<ToastMessage>> {
   List<ToastMessage> build();

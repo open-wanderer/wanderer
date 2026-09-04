@@ -23,7 +23,7 @@ part of 'profile_local_trail_count_provider.dart';
 /// The own-handle
 /// test and the actor id are both re-derived here from fresh
 /// `authProvider`/`currentAccountId` reads rather than passed in, which is
-/// D-13's "never from a cached value" — a stale actor id would pair this
+/// The "never from a cached value" — a stale actor id would pair this
 /// account with the previous one's trails.
 
 @ProviderFor(profileLocalTrailCount)
@@ -44,7 +44,7 @@ final profileLocalTrailCountProvider = ProfileLocalTrailCountFamily._();
 /// The own-handle
 /// test and the actor id are both re-derived here from fresh
 /// `authProvider`/`currentAccountId` reads rather than passed in, which is
-/// D-13's "never from a cached value" — a stale actor id would pair this
+/// The "never from a cached value" — a stale actor id would pair this
 /// account with the previous one's trails.
 
 final class ProfileLocalTrailCountProvider
@@ -65,7 +65,7 @@ final class ProfileLocalTrailCountProvider
   /// The own-handle
   /// test and the actor id are both re-derived here from fresh
   /// `authProvider`/`currentAccountId` reads rather than passed in, which is
-  /// D-13's "never from a cached value" — a stale actor id would pair this
+  /// The "never from a cached value" — a stale actor id would pair this
   /// account with the previous one's trails.
   ProfileLocalTrailCountProvider._({
     required ProfileLocalTrailCountFamily super.from,
@@ -137,7 +137,7 @@ String _$profileLocalTrailCountHash() =>
 /// The own-handle
 /// test and the actor id are both re-derived here from fresh
 /// `authProvider`/`currentAccountId` reads rather than passed in, which is
-/// D-13's "never from a cached value" — a stale actor id would pair this
+/// The "never from a cached value" — a stale actor id would pair this
 /// account with the previous one's trails.
 
 final class ProfileLocalTrailCountFamily extends $Family
@@ -166,7 +166,7 @@ final class ProfileLocalTrailCountFamily extends $Family
   /// The own-handle
   /// test and the actor id are both re-derived here from fresh
   /// `authProvider`/`currentAccountId` reads rather than passed in, which is
-  /// D-13's "never from a cached value" — a stale actor id would pair this
+  /// The "never from a cached value" — a stale actor id would pair this
   /// account with the previous one's trails.
 
   ProfileLocalTrailCountProvider call(String handle) =>

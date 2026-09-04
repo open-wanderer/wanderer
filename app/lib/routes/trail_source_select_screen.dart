@@ -83,7 +83,7 @@ class _TrailSourceSelectScreenState
     // Play's required disclosure before the system prompt on Android; recording
     // proceeds either way if declined.
     if (mounted) {
-      permission = await requestBackgroundLocation(context, permission);
+      permission = await requestBackgroundLocation(context, ref, permission);
     }
 
     if (!mounted) return;

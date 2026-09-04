@@ -8,7 +8,7 @@ part of 'region_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Construction-only provider seam (D-02) -- builds a [RegionRepository]
+/// Construction-only provider seam -- builds a [RegionRepository]
 /// from the existing [apiProvider]/[objectBoxProvider] without performing
 /// any fetch on build; the Settings/Regions screen drives
 /// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
@@ -16,7 +16,7 @@ part of 'region_provider.dart';
 @ProviderFor(regionRepository)
 final regionRepositoryProvider = RegionRepositoryProvider._();
 
-/// Construction-only provider seam (D-02) -- builds a [RegionRepository]
+/// Construction-only provider seam -- builds a [RegionRepository]
 /// from the existing [apiProvider]/[objectBoxProvider] without performing
 /// any fetch on build; the Settings/Regions screen drives
 /// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
@@ -29,7 +29,7 @@ final class RegionRepositoryProvider
           RegionRepository
         >
     with $Provider<RegionRepository> {
-  /// Construction-only provider seam (D-02) -- builds a [RegionRepository]
+  /// Construction-only provider seam -- builds a [RegionRepository]
   /// from the existing [apiProvider]/[objectBoxProvider] without performing
   /// any fetch on build; the Settings/Regions screen drives
   /// [RegionRepository.refreshCatalogAndFetchHierarchy] on open.
@@ -69,13 +69,13 @@ final class RegionRepositoryProvider
 String _$regionRepositoryHash() => r'3eb7cb07afb9eb85eea394d6fab49f0359cccb0e';
 
 /// Synchronous ObjectBox snapshot of every persisted [RegionEntity], sorted
-/// alphabetically by [RegionEntity.name] (D-09) -- mirrors
+/// alphabetically by [RegionEntity.name] -- mirrors
 /// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
 /// precedent verbatim. No mutation methods live here; all region mutations
 /// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
 /// which invalidates this provider itself at every terminal point of a
-/// download/cancel/delete (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target`
-/// caches per-instance after first read). That invalidation deliberately
+/// download/cancel/delete (ObjectBox `ToOne.target` caches per-instance
+/// after first read). That invalidation deliberately
 /// lives in the keepAlive notifier, NOT in the calling widget: a widget-side
 /// `mounted` guard skipped it whenever the user left the Settings/Regions
 /// screen mid-download.
@@ -84,26 +84,26 @@ String _$regionRepositoryHash() => r'3eb7cb07afb9eb85eea394d6fab49f0359cccb0e';
 final regionListNotifierProvider = RegionListNotifierProvider._();
 
 /// Synchronous ObjectBox snapshot of every persisted [RegionEntity], sorted
-/// alphabetically by [RegionEntity.name] (D-09) -- mirrors
+/// alphabetically by [RegionEntity.name] -- mirrors
 /// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
 /// precedent verbatim. No mutation methods live here; all region mutations
 /// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
 /// which invalidates this provider itself at every terminal point of a
-/// download/cancel/delete (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target`
-/// caches per-instance after first read). That invalidation deliberately
+/// download/cancel/delete (ObjectBox `ToOne.target` caches per-instance
+/// after first read). That invalidation deliberately
 /// lives in the keepAlive notifier, NOT in the calling widget: a widget-side
 /// `mounted` guard skipped it whenever the user left the Settings/Regions
 /// screen mid-download.
 final class RegionListNotifierProvider
     extends $NotifierProvider<RegionListNotifier, List<RegionEntity>> {
   /// Synchronous ObjectBox snapshot of every persisted [RegionEntity], sorted
-  /// alphabetically by [RegionEntity.name] (D-09) -- mirrors
+  /// alphabetically by [RegionEntity.name] -- mirrors
   /// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
   /// precedent verbatim. No mutation methods live here; all region mutations
   /// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
   /// which invalidates this provider itself at every terminal point of a
-  /// download/cancel/delete (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target`
-  /// caches per-instance after first read). That invalidation deliberately
+  /// download/cancel/delete (ObjectBox `ToOne.target` caches per-instance
+  /// after first read). That invalidation deliberately
   /// lives in the keepAlive notifier, NOT in the calling widget: a widget-side
   /// `mounted` guard skipped it whenever the user left the Settings/Regions
   /// screen mid-download.
@@ -138,13 +138,13 @@ String _$regionListNotifierHash() =>
     r'6d1dc36084b4f91dda9f630d31e9e5c1650eb6a0';
 
 /// Synchronous ObjectBox snapshot of every persisted [RegionEntity], sorted
-/// alphabetically by [RegionEntity.name] (D-09) -- mirrors
+/// alphabetically by [RegionEntity.name] -- mirrors
 /// `trail_library_provider.dart`'s `TrailLibraryNotifier` structural
 /// precedent verbatim. No mutation methods live here; all region mutations
 /// flow through `TileRepositoryStatus` (`tile_repository_provider.dart`),
 /// which invalidates this provider itself at every terminal point of a
-/// download/cancel/delete (RESEARCH.md Pitfall 2 -- ObjectBox `ToOne.target`
-/// caches per-instance after first read). That invalidation deliberately
+/// download/cancel/delete (ObjectBox `ToOne.target` caches per-instance
+/// after first read). That invalidation deliberately
 /// lives in the keepAlive notifier, NOT in the calling widget: a widget-side
 /// `mounted` guard skipped it whenever the user left the Settings/Regions
 /// screen mid-download.

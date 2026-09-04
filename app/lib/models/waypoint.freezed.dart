@@ -17,7 +17,7 @@ mixin _$Waypoint {
 
  String get id; String get collectionId; String get collectionName; String? get name; String? get description; double get lat; double get lon;@JsonKey(name: 'distance_from_start') double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail; DateTime get created; DateTime get updated;// Non-serializable local fields
 @JsonKey(includeFromJson: false, includeToJson: false) dynamic get marker;@JsonKey(includeFromJson: false, includeToJson: false) List<String> get localPhotos;/// Carries list identity for a waypoint that has no server id yet
-/// (D-06 / RESEARCH.md Pitfall 1). Device-local only, never serialized.
+/// yet. Device-local only, never serialized.
 @JsonKey(includeFromJson: false, includeToJson: false) String? get localKey;
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
@@ -261,7 +261,7 @@ class _Waypoint extends Waypoint {
 }
 
 /// Carries list identity for a waypoint that has no server id yet
-/// (D-06 / RESEARCH.md Pitfall 1). Device-local only, never serialized.
+/// yet. Device-local only, never serialized.
 @override@JsonKey(includeFromJson: false, includeToJson: false) final  String? localKey;
 
 /// Create a copy of Waypoint

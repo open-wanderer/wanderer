@@ -628,7 +628,7 @@
     },
     {
       "id": "8:5734302023385580278",
-      "lastPropertyId": "3:3987020287664329095",
+      "lastPropertyId": "4:3385512587357651788",
       "name": "LocalSettingsEntity",
       "properties": [
         {
@@ -641,6 +641,11 @@
           "id": "2:293543109978045611",
           "name": "themeMode",
           "type": 9
+        },
+        {
+          "id": "4:3385512587357651788",
+          "name": "backgroundLocationAsked",
+          "type": 1
         }
       ],
       "relations": []
