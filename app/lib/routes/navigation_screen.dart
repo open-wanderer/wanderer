@@ -789,7 +789,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _positionAnimController.dispose();
     _bearingTransitionController.dispose();
     _bearingFollowTicker.dispose();
-    unawaited(_positionSource.dispose());
+    // A surviving session row means this screen is going away while tracking
+    // is meant to continue — the task was swiped off recents, or the route was
+    // popped mid-recording. Stopping tracelet here killed the foreground
+    // service and recorded nothing until the app was reopened. The finish
+    // paths clear the row before popping, so a completed session still stops.
+    unawaited(
+      active_nav.read(_store) != null
+          ? _positionSource.detach()
+          : _positionSource.dispose(),
+    );
     _currentPosition.dispose();
     _sheetController.dispose();
     _waypointSheetController.dispose();

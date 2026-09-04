@@ -225,14 +225,33 @@ class TraceletPositionSource {
     _movingController.add(event.state != tl.SpeedMotionState.stationary);
   }
 
-  Future<void> dispose() async {
+  /// Tear down the Dart-side listeners but leave the native session running.
+  ///
+  /// For when the screen goes away while the session is still live — the task
+  /// was swiped off the recents list, or the route was popped mid-recording.
+  /// `stopOnTerminate: false` (see [_foregroundConfig]) is what lets tracelet
+  /// keep recording through it, notification and all; the startup
+  /// reconciliation in `main.dart` owns the session from here, resuming it or
+  /// calling [stopOrphanedTracking].
+  ///
+  /// Stopping here instead is what used to end a recording the moment Android
+  /// tore the widget tree down: the foreground notification vanished and
+  /// nothing was recorded until the app was reopened, while the persisted
+  /// session row still offered a resume that silently skipped the gap.
+  Future<void> detach() async {
     await _locationSub?.cancel();
     _locationSub = null;
     await _motionSub?.cancel();
     _motionSub = null;
-    await tl.Tracelet.stop();
     await _controller.close();
     await _movingController.close();
+  }
+
+  /// Tear down everything, native tracking session included. Only correct
+  /// when the session is genuinely over — use [detach] otherwise.
+  Future<void> dispose() async {
+    await detach();
+    await tl.Tracelet.stop();
   }
 
   /// Best-effort stop of a native tracking session left running by a killed
