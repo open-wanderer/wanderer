@@ -95,7 +95,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   /// Altitude noise-floor (metres). Only altitude deltas at or above this
   /// magnitude are accumulated as gain/loss, so per-fix GPS jitter does not
   /// inflate elevation totals. Tunable in one place.
-  static const _kAltitudeNoiseFloorMeters = 2.0;
+  /// Elevation deltas below this are drift, not climb. Public because the
+  /// gap backfill in `session_gap_backfill.dart` must accumulate by exactly
+  /// the same rule as the live path — two thresholds would make a resumed
+  /// session's elevation depend on where the app happened to be killed.
+  static const kAltitudeNoiseFloorMeters = 2.0;
 
   /// 1-second clock driving [NavigationStats.elapsed]. Independent of GPS
   /// cadence so the clock keeps ticking while the user stands still.
@@ -224,7 +228,7 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     if (hasUsableAltitude(pos)) {
       if (_lastAltitude != null) {
         final delta = pos.altitude - _lastAltitude!;
-        if (delta.abs() >= _kAltitudeNoiseFloorMeters) {
+        if (delta.abs() >= kAltitudeNoiseFloorMeters) {
           if (delta > 0) {
             gain += delta;
           } else {

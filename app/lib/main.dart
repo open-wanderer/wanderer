@@ -28,6 +28,7 @@ import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
+import 'package:wanderer/services/session_gap_backfill.dart';
 import 'package:wanderer/services/tracelet_position_source.dart';
 
 import 'i18n/app_localizations.dart';
@@ -535,6 +536,10 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     ActiveNavigationEntity row,
     NavigateResponse response,
   ) async {
+    // Splice in whatever tracelet recorded while the app was dead before the
+    // screen seeds itself from this row — its resume seeds are family provider
+    // keys, resolved once in initState, so they cannot be amended afterwards.
+    await backfillSessionGap(row);
     final isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
     navigatorKey.currentContext?.push(
       '/trail/${row.trailId}/navigate',
@@ -548,6 +553,8 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   /// as [_pushNavigationResume]; the router reads it back off
   /// `resume.isOffline`.
   Future<void> _pushRecordingResume(ActiveNavigationEntity row) async {
+    // See [_pushNavigationResume] — must land before the screen reads the row.
+    await backfillSessionGap(row);
     row.isOffline = !await ref.read(onlineStatusProvider.notifier).refresh();
     navigatorKey.currentContext?.push('/record', extra: row);
   }
