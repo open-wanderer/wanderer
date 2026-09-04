@@ -151,7 +151,9 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   // Listener waiting for the router to leave the splash route before the share
   // import opens its bottom sheet. Held so dispose() can detach it.
   VoidCallback? _shareRouteWaiter;
+  VoidCallback? _resumeRouteWaiter;
   GoRouter? _shareRouteWaiterRouter;
+  GoRouter? _resumeRouteWaiterRouter;
 
   @override
   void initState() {
@@ -224,7 +226,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       _resumeHandled = true;
       final user = next.value;
       if (user == null) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_maybeResume()));
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeResume());
     }, fireImmediately: true);
 
     // Inbound share intents: while running (stream) and cold-start (initial).
@@ -259,6 +261,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     _onlineStatusSub?.close();
     _shareSub?.cancel();
     _detachShareRouteWaiter();
+    _detachResumeRouteWaiter();
     super.dispose();
   }
 
@@ -374,7 +377,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   /// a bug. Only a row whose tracking has already stopped — a stale session
   /// from an earlier launch — is worth a dialog, where resuming really is a
   /// question. Declining (or an unresolvable/non-nav row) clears it silently.
-  Future<void> _maybeResume() async {
+  void _maybeResume() {
     final store = ref.read(objectBoxProvider);
     final row = active_nav.read(store);
     if (row == null) {
@@ -387,7 +390,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     }
 
     if (row.sessionType == ActiveSessionType.rec) {
-      await _maybeResumeRecording(store, row);
+      _resumeWhenRouterSettled(() => _maybeResumeRecording(store, row));
       return;
     }
 
@@ -418,6 +421,18 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     query.close();
     final trailName = trailEntity?.name ?? row.trailId!;
 
+    _resumeWhenRouterSettled(
+      () => _maybeResumeNavigation(store, row, response, trailName),
+    );
+  }
+
+  /// Reopens a `.nav` session, or asks first when its tracking has stopped.
+  Future<void> _maybeResumeNavigation(
+    Store store,
+    ActiveNavigationEntity row,
+    NavigateResponse response,
+    String trailName,
+  ) async {
     if (await TraceletPositionSource.isTracking()) {
       await _pushNavigationResume(row, response);
       return;
@@ -455,6 +470,56 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
         unawaited(TraceletPositionSource.stopOrphanedTracking());
       }
     });
+  }
+
+  /// Runs [action] once the router has left the `/` splash for a real route.
+  ///
+  /// Anything pushed while the splash is still up does not survive: the
+  /// redirect leaves `/` as soon as auth settles and the reveal hold releases,
+  /// and that rebuild discards imperative routes — the same failure
+  /// [_runImportWhenRouterSettled] exists to avoid, and it takes the resume
+  /// dialog with it just as readily as the pushed screen.
+  ///
+  /// Offline this was reliable rather than rare: the connectivity probe in the
+  /// resume path only resolves once its request has timed out, which lands the
+  /// push inside the reveal's 3.5s failsafe window, so the recording screen
+  /// appeared for an instant and was then replaced by `/map`.
+  ///
+  /// The hold is released outright — as the share-import path does, and for
+  /// the same reason: the reveal is decoration on a wait, and here there is a
+  /// real destination to get to. An auth route means the optimistic cached
+  /// session turned out invalid, so the resume is dropped rather than opened
+  /// behind a login screen; the row survives for the next launch.
+  void _resumeWhenRouterSettled(Future<void> Function() action) {
+    _detachResumeRouteWaiter();
+
+    ref.read(splashRevealProvider.notifier).complete();
+
+    const authRoutes = {'/login', '/register', '/welcome', '/select-server'};
+    final router = ref.read(routerProvider);
+
+    void attempt() {
+      final location = router.routerDelegate.currentConfiguration.uri.path;
+      if (location == '/') return; // Still on the splash — keep waiting.
+
+      _detachResumeRouteWaiter();
+      if (authRoutes.contains(location)) return;
+
+      unawaited(action());
+    }
+
+    _resumeRouteWaiter = attempt;
+    _resumeRouteWaiterRouter = router;
+    router.routerDelegate.addListener(attempt);
+    attempt();
+  }
+
+  void _detachResumeRouteWaiter() {
+    final waiter = _resumeRouteWaiter;
+    if (waiter == null) return;
+    _resumeRouteWaiterRouter?.routerDelegate.removeListener(waiter);
+    _resumeRouteWaiter = null;
+    _resumeRouteWaiterRouter = null;
   }
 
   /// Reopens a navigation session, re-probing connectivity first.
