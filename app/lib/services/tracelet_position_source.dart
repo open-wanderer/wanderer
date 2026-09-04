@@ -108,6 +108,11 @@ class TraceletPositionSource {
     // switches back to continuous the moment it re-confirms motion — no
     // second, manually-swapped config is needed for this.
     motion: const tl.MotionConfig(
+      // The hardware-pedometer path needs ACTIVITY_RECOGNITION, which is
+      // stripped from the merged manifest (see AndroidManifest.xml), so ask
+      // tracelet for its location-based stationary detection outright rather
+      // than letting it attempt the pedometer and fall back.
+      disableMotionActivityUpdates: true,
       motionDetectionMode: tl.MotionDetectionMode.speed,
       speedMovingThreshold: 0.4, // m/s (~1.5 km/h) — slow walking still moves
       speedStationaryDelay: 10, // seconds below threshold before stationary

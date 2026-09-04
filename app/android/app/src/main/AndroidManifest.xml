@@ -1,11 +1,40 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Recording runs in tracelet's foreground service (type "location"),
+         started while the app is visible, which Android treats as foreground
+         access for as long as the service lives — so background location is
+         not needed and was never requested at runtime (verified on device:
+         granted=false throughout field testing). tracelet-sdk declares it, so
+         it is stripped here to keep the app out of Play's background-location
+         declaration and its demo-video requirement.
+         Revisit if testers on OEMs with aggressive power management report
+         dropped recordings that "Allow all the time" would fix; that is why
+         comparable apps carry it. Doing so means adding a prominent
+         disclosure before the runtime prompt, plus the Play declaration. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove" />
+
+    <!-- tracelet-sdk declares ACTIVITY_RECOGNITION so it can use the hardware
+         pedometer for stationary detection. wanderer never requested the
+         runtime permission, so it has always run on tracelet's location-based
+         fallback anyway ("slightly more battery" per tracelet's docs).
+         Declaring it would pull the app into Play's Health apps policy for a
+         feature it does not use, so it is stripped from the merged manifest.
+         To adopt it later: drop this block, call
+         Tracelet.requestMotionAuthorization() alongside the location request,
+         clear disableMotionActivityUpdates below, and file the Health apps
+         declaration. -->
+    <uses-permission
+        android:name="android.permission.ACTIVITY_RECOGNITION"
+        tools:node="remove" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:label="wanderer"
