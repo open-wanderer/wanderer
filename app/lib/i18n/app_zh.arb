@@ -25,6 +25,9 @@
     "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
   },
   "average_speed": "平均速度",
+  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".",
+  "background_location_confirm": "Open settings",
+  "background_location_title": "Keep recording in the background",
   "basic_info": "基本信息",
   "before": "之前",
   "@before": {
@@ -79,6 +82,7 @@
     "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
   },
   "delete": "删除",
+  "not_now": "Not now",
   "open": "Open",
   "@open": {
     "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
