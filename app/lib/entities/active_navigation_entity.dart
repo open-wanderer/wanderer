@@ -55,6 +55,19 @@ class ActiveNavigationEntity {
   List<double>? elevations;
   List<int>? timestampsUtc;
 
+  /// The session's own copy of its route, as `NavigateResponse` JSON.
+  ///
+  /// Nullable, `nav`-specific. Resuming used to re-read the route from
+  /// `TrailEntity.navCacheJson`, which only exists for a trail the account has
+  /// downloaded — so navigating an undownloaded trail left nothing to resume
+  /// from, and the session was dropped on relaunch. The route is session
+  /// state, not library state, so it is carried here instead and a resume no
+  /// longer depends on what happens to be in the library.
+  ///
+  /// Null for `rec` sessions (no route) and for a `nav` row persisted before
+  /// this field existed, which still falls back to the trail cache.
+  String? navResponseJson;
+
   double distanceMeters;
   double elevationGainMeters;
   double elevationLossMeters;
@@ -75,6 +88,7 @@ class ActiveNavigationEntity {
     this.breadcrumbPolyline,
     this.elevations,
     this.timestampsUtc,
+    this.navResponseJson,
     this.distanceMeters = 0,
     this.elevationGainMeters = 0,
     this.elevationLossMeters = 0,

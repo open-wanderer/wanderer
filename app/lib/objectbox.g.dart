@@ -862,7 +862,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 8580051984298238879),
     name: 'ActiveNavigationEntity',
-    lastPropertyId: const obx_int.IdUid(18, 5891370304847306650),
+    lastPropertyId: const obx_int.IdUid(19, 8065206108951194476),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -959,6 +959,12 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(18, 5891370304847306650),
         name: 'recordingCosting',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 8065206108951194476),
+        name: 'navResponseJson',
         type: 9,
         flags: 0,
       ),
@@ -2288,7 +2294,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final recordingCostingOffset = object.recordingCosting == null
             ? null
             : fbb.writeString(object.recordingCosting!);
-        fbb.startTable(19);
+        final navResponseJsonOffset = object.navResponseJson == null
+            ? null
+            : fbb.writeString(object.navResponseJson!);
+        fbb.startTable(20);
         fbb.addInt64(0, object.obxId);
         fbb.addInt64(1, object.dbSessionType);
         fbb.addOffset(2, trailIdOffset);
@@ -2305,6 +2314,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(15, elevationsOffset);
         fbb.addOffset(16, timestampsUtcOffset);
         fbb.addOffset(17, recordingCostingOffset);
+        fbb.addOffset(18, navResponseJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -2341,6 +2351,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fb.Int64Reader(),
           lazy: false,
         ).vTableGetNullable(buffer, rootOffset, 36);
+        final navResponseJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 40);
         final distanceMetersParam = const fb.Float64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2391,6 +2404,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 breadcrumbPolyline: breadcrumbPolylineParam,
                 elevations: elevationsParam,
                 timestampsUtc: timestampsUtcParam,
+                navResponseJson: navResponseJsonParam,
                 distanceMeters: distanceMetersParam,
                 elevationGainMeters: elevationGainMetersParam,
                 elevationLossMeters: elevationLossMetersParam,
@@ -3366,6 +3380,12 @@ class ActiveNavigationEntity_ {
   static final recordingCosting =
       obx.QueryStringProperty<ActiveNavigationEntity>(
         _entities[8].properties[15],
+      );
+
+  /// See [ActiveNavigationEntity.navResponseJson].
+  static final navResponseJson =
+      obx.QueryStringProperty<ActiveNavigationEntity>(
+        _entities[8].properties[16],
       );
 }
 

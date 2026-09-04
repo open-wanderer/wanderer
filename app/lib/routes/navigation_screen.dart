@@ -157,6 +157,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `navigationProvider`/`navigationStatsProvider` call site below must pass
   /// the identical seed fields or the family resolves to a different
   /// (split-brain) provider instance.
+  /// The session's route as JSON, encoded once and written on every persist.
+  ///
+  /// Re-encoding the full route on each persist tick would be pure waste, and
+  /// a resumed session already has the string — reuse it rather than rebuild
+  /// an identical one. Null while recording (no route).
+  late final String? _sessionNavJson;
+
   late final int? _resumeManeuverIndex;
   late final List<Wpt>? _resumeBreadcrumb;
   late final NavigationStatsSeed? _resumeStats;
@@ -382,6 +389,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     _store = ref.read(objectBoxProvider);
     final resumeSession = widget.resumeSession;
+    _sessionNavJson = widget.isRecording
+        ? null
+        : (resumeSession?.navResponseJson ??
+              jsonEncode(widget.response.toJson()));
     _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
     _activeRowObxId = resumeSession?.obxId ?? 0;
     _recordingCosting =
@@ -821,6 +832,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       trailId: widget.isRecording ? null : widget.id,
       isOffline: widget.isOffline,
       recordingCosting: widget.isRecording ? _recordingCosting : null,
+      navResponseJson: _sessionNavJson,
       currentManeuverIndex: navState.currentManeuverIndex,
       breadcrumbPolyline: PolylineUtil.encode(
         navState.breadcrumb

@@ -404,11 +404,17 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       return;
     }
 
-    final response = readCachedNav(store, row.trailId!);
+    // The session's own copy first: it exists for any navigated trail, while
+    // the trail cache exists only for one this account downloaded. The cache
+    // is the fallback for rows written before sessions carried their route.
+    final response =
+        readSessionNav(row) ?? readCachedNav(store, row.trailId!);
     if (response == null ||
         response.maneuvers.isEmpty ||
         response.shape.isEmpty) {
-      // Trail not downloaded / corrupt cache — silently drop, no dialog.
+      // No route to navigate by, from either source — the row predates
+      // navResponseJson and the trail was never downloaded, or both copies are
+      // corrupt. Silently drop, no dialog.
       active_nav.clear(store);
       unawaited(TraceletPositionSource.stopOrphanedTracking());
       return;

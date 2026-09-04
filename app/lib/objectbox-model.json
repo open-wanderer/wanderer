@@ -710,7 +710,7 @@
     },
     {
       "id": "10:8580051984298238879",
-      "lastPropertyId": "18:5891370304847306650",
+      "lastPropertyId": "19:8065206108951194476",
       "name": "ActiveNavigationEntity",
       "properties": [
         {
@@ -794,6 +794,11 @@
         {
           "id": "18:5891370304847306650",
           "name": "recordingCosting",
+          "type": 9
+        },
+        {
+          "id": "19:8065206108951194476",
+          "name": "navResponseJson",
           "type": 9
         }
       ],

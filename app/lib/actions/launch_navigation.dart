@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/actions/request_background_location.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/entities/trail_entity.dart';
@@ -47,6 +48,23 @@ NavigateResponse? readCachedNav(Store store, String trailId) {
   final json = entity.navCacheJson;
   if (json == null) return null;
 
+  try {
+    return NavigateResponse.fromJson(jsonDecode(json) as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Reads the route a `nav` session carried on its own row, or null when the
+/// row predates [ActiveNavigationEntity.navResponseJson] or its JSON is
+/// unusable.
+///
+/// Preferred over [readCachedNav] on resume: this copy exists for any trail
+/// that was navigated, where the trail cache exists only for one the account
+/// downloaded.
+NavigateResponse? readSessionNav(ActiveNavigationEntity row) {
+  final json = row.navResponseJson;
+  if (json == null || json.isEmpty) return null;
   try {
     return NavigateResponse.fromJson(jsonDecode(json) as Map<String, dynamic>);
   } catch (_) {
