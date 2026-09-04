@@ -5,6 +5,7 @@ import { APIError } from "$lib/util/api_util";
 type PluginErrorLike = {
     code?: unknown;
     message?: unknown;
+    retryAfterSeconds?: unknown;
 };
 
 const credentialErrorCodes = new Set(["auth_failed"]);
@@ -80,6 +81,16 @@ export function translatePluginAPIError(error: unknown, fallback: string): strin
     }
 
     return fallback;
+}
+
+// The seconds a provider asked to wait before trying again, when the error
+// carries such a hint; 0 otherwise.
+export function pluginErrorRetryAfterSeconds(error: unknown): number {
+    if (!(error instanceof APIError)) {
+        return 0;
+    }
+    const value = extractPluginError(error.detail)?.retryAfterSeconds;
+    return typeof value === "number" && value > 0 ? Math.ceil(value) : 0;
 }
 
 function extractPluginError(value: unknown): PluginErrorLike | undefined {

@@ -20,9 +20,10 @@ func activityGPX(activity *activity) ([]byte, error) {
 		if math.Abs(lat) < zeroEps && math.Abs(lng) < zeroEps {
 			continue
 		}
+		// recordData.elevation is delivered in meters.
 		elevation := 0.0
 		if i < len(activity.RecordData.Elevation) {
-			elevation = activity.RecordData.Elevation[i] / 1000.0
+			elevation = activity.RecordData.Elevation[i]
 		}
 		pointTime := time.Unix(int64(timestamp), 0).UTC()
 		points = append(points, sdkgpx.Point{

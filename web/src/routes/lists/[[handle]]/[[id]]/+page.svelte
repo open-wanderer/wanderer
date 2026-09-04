@@ -148,6 +148,56 @@
         window.scrollTo({ top: 0 });
     }
 
+    function handleTrailUpdate(updatedTrail: Trail) {
+        selectedTrail = updatedTrail;
+        const listTrails = selectedList?.expand?.trails;
+        if (!selectedList || !listTrails?.some((trail) => trail.id === updatedTrail.id)) {
+            return;
+        }
+
+        const updatedTrails = listTrails.map((trail) =>
+            trail.id === updatedTrail.id
+                ? {
+                      ...trail,
+                      ...updatedTrail,
+                      expand: { ...trail.expand, ...updatedTrail.expand },
+                  }
+                : trail,
+        );
+        const totals = updatedTrails.reduce(
+            (sum, trail) => ({
+                distance: sum.distance + (trail.distance ?? 0),
+                elevationGain: sum.elevationGain + (trail.elevation_gain ?? 0),
+                elevationLoss: sum.elevationLoss + (trail.elevation_loss ?? 0),
+                duration: sum.duration + (trail.duration ?? 0),
+            }),
+            { distance: 0, elevationGain: 0, elevationLoss: 0, duration: 0 },
+        );
+        const updatedList: List = {
+            ...selectedList,
+            distance: totals.distance,
+            elevation_gain: totals.elevationGain,
+            elevation_loss: totals.elevationLoss,
+            duration: totals.duration,
+            expand: {
+                ...selectedList.expand,
+                trails: updatedTrails,
+            },
+        };
+        selectedList = updatedList;
+        lists = lists.map((list) =>
+            list.id === updatedList.id
+                ? {
+                      ...list,
+                      distance: updatedList.distance,
+                      elevation_gain: updatedList.elevation_gain,
+                      elevation_loss: updatedList.elevation_loss,
+                      duration: updatedList.duration,
+                  }
+                : list,
+        );
+    }
+
     function highlightTrail(trail: Trail) {
         mapWithElevation?.highlightTrail(trail.id!);
     }
@@ -368,6 +418,7 @@
             {:else if selectedList && selectedTrail}
                 <TrailInfoPanel
                     initTrail={selectedTrail}
+                    onTrailUpdate={handleTrailUpdate}
                     mode="list"
                     {markers}
                     handle={handleFromRecordWithIRI(selectedTrail)}

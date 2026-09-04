@@ -79,6 +79,7 @@
         mode?: "overview" | "map" | "list";
         markers?: M.Marker[];
         activeTab?: number;
+        onTrailUpdate?: (trail: Trail) => void;
     }
 
     let {
@@ -87,6 +88,7 @@
         mode = "map",
         markers = [],
         activeTab = 0,
+        onTrailUpdate,
     }: Props = $props();
 
     let summitLogModal: SummitLogModal;
@@ -94,6 +96,15 @@
     let markTrailAsCompletedModal: ConfirmModal;
 
     let trail = $state(untrack(() => initTrail));
+
+    function handleTrailUpdate(updatedTrails?: Trail[]) {
+        const updatedTrail = updatedTrails?.find((candidate) => candidate.id === trail.id);
+        if (!updatedTrail) {
+            return;
+        }
+        trail = updatedTrail;
+        onTrailUpdate?.(updatedTrail);
+    }
 
     function trailCategoryIcon() {
         if (trail.expand?.subcategory) {
@@ -723,7 +734,9 @@
                         onDelete={() =>
                             history.length ? history.back() : goto("/trails")}
                         onMerge={handleTrailMerge}
+                        onUpdate={handleTrailUpdate}
                         {mode}
+                        checkTrackResync={true}
                     ></TrailDropdown>
                 </div>
             </div>

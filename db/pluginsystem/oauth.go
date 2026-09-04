@@ -7,11 +7,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -171,7 +173,7 @@ func ExchangeOAuthToken(ctx context.Context, manifest Manifest, authContext Auth
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(respBody)))
+		return nil, OAuthTokenEndpointError{StatusCode: resp.StatusCode, Status: resp.Status, Body: strings.TrimSpace(string(respBody))}
 	}
 	var token OAuthTokenResponse
 	token.Raw = append([]byte{}, respBody...)
@@ -207,6 +209,77 @@ func OAuthTokenURLAllowed(manifest Manifest, tokenURL *url.URL) bool {
 	return false
 }
 
+// OAuthTokenEndpointError is a non-2xx answer of the provider's token endpoint.
+type OAuthTokenEndpointError struct {
+	StatusCode int
+	Status     string
+	Body       string
+}
+
+func (e OAuthTokenEndpointError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Status, e.Body)
+}
+
+// ErrOAuthRefreshTokenMissing means no refresh token is stored, so only a new
+// authorization can restore the connection.
+var ErrOAuthRefreshTokenMissing = errors.New("refreshToken is missing")
+
+// ErrPluginInstanceChanged means that the plugin instance no longer matches
+// the snapshot which started an OAuth refresh or sync transition. The caller
+// must not continue with or persist data derived from the stale snapshot.
+var ErrPluginInstanceChanged = errors.New("plugin instance changed concurrently")
+
+// OAuthError is the standardised error code from the endpoint's JSON body
+// (RFC 6749 section 5.2), empty when the provider sent none.
+func (e OAuthTokenEndpointError) OAuthError() string {
+	var body struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(e.Body), &body); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(body.Error)
+}
+
+// OAuthRefreshFailureCode maps a failed token refresh to the plugin error
+// codes the rest of the system understands: invalid_grant when the user has
+// to reconnect, auth_failed when the client credentials are wrong,
+// plugin_error when the plugin sent a request the provider does not accept,
+// rate_limited and provider_unavailable for conditions that say nothing
+// about the credentials. The provider's standardised error field decides
+// where it exists; without one, a 401 points at the client and a 400 at
+// the grant, as Strava reports an invalid refresh token.
+func OAuthRefreshFailureCode(err error) string {
+	if errors.Is(err, ErrOAuthRefreshTokenMissing) {
+		return "invalid_grant"
+	}
+	var endpointErr OAuthTokenEndpointError
+	if !errors.As(err, &endpointErr) {
+		return "provider_unavailable"
+	}
+	if endpointErr.StatusCode == http.StatusTooManyRequests {
+		return "rate_limited"
+	}
+	if endpointErr.StatusCode >= 500 {
+		return "provider_unavailable"
+	}
+	switch endpointErr.OAuthError() {
+	case "invalid_grant":
+		return "invalid_grant"
+	case "invalid_client", "unauthorized_client":
+		return "auth_failed"
+	case "invalid_request", "unsupported_grant_type", "invalid_scope":
+		return "plugin_error"
+	}
+	switch endpointErr.StatusCode {
+	case http.StatusUnauthorized:
+		return "auth_failed"
+	case http.StatusBadRequest, http.StatusForbidden:
+		return "invalid_grant"
+	}
+	return "provider_unavailable"
+}
+
 // RefreshOAuthToken uses the stored refresh token, persists the refreshed auth
 // map, and keeps the plugin instance configured when refresh succeeds.
 func RefreshOAuthToken(ctx context.Context, app core.App, plugin LocalPlugin, instance *core.Record, auth map[string]any, contextName string) (map[string]any, error) {
@@ -220,7 +293,7 @@ func RefreshOAuthToken(ctx context.Context, app core.App, plugin LocalPlugin, in
 	}
 	refreshToken := StringFromAny(auth[AuthFieldRefreshToken])
 	if refreshToken == "" {
-		return auth, fmt.Errorf("refreshToken is missing")
+		return auth, ErrOAuthRefreshTokenMissing
 	}
 	token, err := ExchangeOAuthToken(ctx, plugin.Manifest, authContext, auth, map[string]string{
 		"grant_type":    grantType,
@@ -233,12 +306,66 @@ func RefreshOAuthToken(ctx context.Context, app core.App, plugin LocalPlugin, in
 		token.RefreshToken = refreshToken
 	}
 	StoreOAuthToken(auth, contextName, token)
-	instance.Set("auth", auth)
-	instance.Set("status", "configured")
-	if err := app.Save(instance); err != nil {
+	if err := storeRefreshedOAuthAuth(app, instance, auth); err != nil {
 		return auth, err
 	}
 	return auth, nil
+}
+
+// storeRefreshedOAuthAuth persists a refreshed auth map. The instance record
+// may have been loaded long before the token round trip, so the write goes
+// to a fresh copy and touches only the refreshed fields. A reconnect or revoke
+// changes auth itself and wins completely. If only another field changed, the
+// rotated token is still stored (the provider may already have invalidated the
+// previous refresh token), but status/config/enabled are preserved and the
+// caller receives ErrPluginInstanceChanged. Compare and write run in one transaction;
+// PocketBase serialises every write through a single connection, so no other
+// save can slip in between. On success the caller is rebased to the freshly
+// stored record, including its Original snapshot, so later field-scoped saves
+// cannot accidentally include the old auth value.
+func storeRefreshedOAuthAuth(app core.App, instance *core.Record, auth map[string]any) error {
+	var stored *core.Record
+	changedMeanwhile := false
+	err := app.RunInTransaction(func(txApp core.App) error {
+		fresh, err := txApp.FindRecordById("plugin_instances", instance.Id)
+		if err != nil {
+			return err
+		}
+		if fresh.GetString("auth") != instance.GetString("auth") {
+			txApp.Logger().Info("plugin instance credentials changed during token refresh, refreshed token not stored", "instance", instance.Id)
+			return ErrPluginInstanceChanged
+		}
+		changedMeanwhile = !reflect.DeepEqual(fresh.FieldsData(), instance.FieldsData())
+		fresh.Set("auth", auth)
+		if !changedMeanwhile {
+			fresh.Set("status", "configured")
+		}
+		fresh.IgnoreUnchangedFields(true)
+		if err := txApp.Save(fresh); err != nil {
+			return err
+		}
+		// Read back what the database holds: autodate fields cannot be set
+		// through Set, and the caller compares against stored values later.
+		stored, err = txApp.FindRecordById("plugin_instances", instance.Id)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if changedMeanwhile {
+		app.Logger().Info("plugin instance changed during token refresh, stored rotated credentials but stopped stale operation", "instance", instance.Id)
+		return ErrPluginInstanceChanged
+	}
+	// Only these fields changed after the full-record comparison above. Reset
+	// the caller's baseline so later field-scoped status saves don't include
+	// the old auth value.
+	instance.SetRaw("auth", stored.GetRaw("auth"))
+	instance.SetRaw("status", stored.GetRaw("status"))
+	instance.SetRaw("updated", stored.GetRaw("updated"))
+	return instance.PostScan()
 }
 
 // StoreOAuthToken normalizes provider token responses into the plugin instance

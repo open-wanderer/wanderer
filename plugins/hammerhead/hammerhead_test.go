@@ -95,3 +95,23 @@ func TestTrailGPXFilename(t *testing.T) {
 		}
 	}
 }
+
+func TestActivityGPXKeepsElevationInMeters(t *testing.T) {
+	act := &activity{}
+	act.ActivityData.Name = "Morgenausfahrt"
+	act.RecordData = recordData{
+		Timestamp: []int{1756704382, 1756704418},
+		Elevation: []float64{508.3, 510.1},
+		Lat:       []float64{47.165613, 47.16561},
+		Lng:       []float64{8.113537, 8.113552},
+	}
+
+	data, err := activityGPX(act)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	gpx := string(data)
+	if !strings.Contains(gpx, "<ele>508.30</ele>") || !strings.Contains(gpx, "<ele>510.10</ele>") {
+		t.Fatalf("expected elevations in meters, got: %s", gpx)
+	}
+}

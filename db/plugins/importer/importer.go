@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"math"
 	"mime"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	urlpath "path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -125,7 +128,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 
-	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item)); err != nil {
+	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item), KindFromImport(item)); err != nil {
 		return nil, err
 	}
 
@@ -140,6 +143,180 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	}
 
 	return &Result{TrailID: record.Id, Created: true}, nil
+}
+
+// KindFromImport maps a plugin item to the reference kind stored on
+// trail_external_reference.
+func KindFromImport(item pluginsystem.TrailImport) string {
+	if item.Kind == "completed" {
+		return util.ExternalReferenceKindCompleted
+	}
+	return util.ExternalReferenceKindPlanned
+}
+
+// ValidateTrack checks that a plugin item carries a usable track: a
+// decodable GPX document with at least two real track points. Metrics, start
+// point and polyline are derived from tracks only, so a document with routes
+// but no track would leave a trail with empty metrics and no polyline.
+func ValidateTrack(track pluginsystem.Track) error {
+	gpxBytes, parsedGPX, err := decodeAndParseGPX(track)
+	if err != nil {
+		return err
+	}
+	return gpxTrackUsable(gpxBytes, parsedGPX)
+}
+
+// gpxTrackUsable requires a track that may replace a stored one: at least
+// two track points, every one of them with lat and lon attributes that are
+// finite and inside the valid ranges. The check reads the document itself,
+// because the GPX parser turns a missing attribute into 0 and would let a
+// point without coordinates pass as a position. A route-only file, a lone
+// point or a nonsense position would leave the trail with a useless
+// geometry.
+func gpxTrackUsable(content []byte, parsedGPX *gpx.GPX) error {
+	decoder := xml.NewDecoder(bytes.NewReader(content))
+	// The document already parsed as GPX; the attributes read here are
+	// ASCII, so any declared charset can be passed through.
+	decoder.CharsetReader = func(_ string, input io.Reader) (io.Reader, error) { return input, nil }
+	points := 0
+	var elements []xml.Name
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("read GPX: %w", err)
+		}
+		switch element := token.(type) {
+		case xml.StartElement:
+			elements = append(elements, element.Name)
+			if !isGPXTrackPoint(elements) {
+				continue
+			}
+			lat, lon, err := trackPointCoordinates(element)
+			if err != nil {
+				return err
+			}
+			if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+				return fmt.Errorf("track point outside the valid coordinate range: %f, %f", lat, lon)
+			}
+			points++
+		case xml.EndElement:
+			if len(elements) > 0 {
+				elements = elements[:len(elements)-1]
+			}
+		}
+	}
+	parsedPoints := parsedTrackPointCount(parsedGPX)
+	if parsedPoints < 2 {
+		return fmt.Errorf("track has %d parsed track points, at least two are required", parsedPoints)
+	}
+	if points != parsedPoints {
+		return fmt.Errorf("GPX track point structure does not match parsed track: found %d structural and %d parsed points", points, parsedPoints)
+	}
+	return nil
+}
+
+func isGPXTrackPoint(elements []xml.Name) bool {
+	if len(elements) != 4 {
+		return false
+	}
+	if elements[0].Local != "gpx" || elements[1].Local != "trk" || elements[2].Local != "trkseg" || elements[3].Local != "trkpt" {
+		return false
+	}
+	// GPX files in the wild may omit the namespace. When present, all elements
+	// of the structural path must use the root namespace; extension elements
+	// with the same local names must not count as track points.
+	for _, element := range elements[1:] {
+		if element.Space != elements[0].Space {
+			return false
+		}
+	}
+	return true
+}
+
+func parsedTrackPointCount(parsedGPX *gpx.GPX) int {
+	if parsedGPX == nil {
+		return 0
+	}
+	points := 0
+	for _, track := range parsedGPX.Tracks {
+		for _, segment := range track.Segments {
+			points += len(segment.Points)
+		}
+	}
+	return points
+}
+
+// trackPointCoordinates reads the required lat and lon attributes of a
+// trkpt element.
+func trackPointCoordinates(start xml.StartElement) (float64, float64, error) {
+	values := map[string]float64{}
+	for _, attr := range start.Attr {
+		if attr.Name.Space != "" || (attr.Name.Local != "lat" && attr.Name.Local != "lon") {
+			continue
+		}
+		value, err := strconv.ParseFloat(strings.TrimSpace(attr.Value), 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+			return 0, 0, fmt.Errorf("track point has an unusable %s %q", attr.Name.Local, attr.Value)
+		}
+		values[attr.Name.Local] = value
+	}
+	lat, hasLat := values["lat"]
+	lon, hasLon := values["lon"]
+	if !hasLat || !hasLon {
+		return 0, 0, fmt.Errorf("track point without lat/lon")
+	}
+	return lat, lon, nil
+}
+
+// ReplaceTrailTrack swaps the stored track of an already imported trail with
+// the plugin's current track and recomputes the track-derived fields. It backs
+// the on-demand track resync a user can trigger after a plugin fix changed how
+// tracks are generated. Everything a user may have edited or added locally
+// (name, description, category, date, visibility, photos, waypoints, summit
+// logs) is left untouched: only the changed fields are written. Pass a freshly
+// loaded record. Polyline and bounds are included in the primary record write;
+// the update hook verifies them from the stored GPX and updates the index.
+func ReplaceTrailTrack(app core.App, trail *core.Record, item pluginsystem.TrailImport) error {
+	if trail == nil {
+		return fmt.Errorf("trail is required")
+	}
+
+	gpxBytes, parsedGPX, err := decodeAndParseGPX(item.Track)
+	if err != nil {
+		return err
+	}
+	if err := gpxTrackUsable(gpxBytes, parsedGPX); err != nil {
+		return err
+	}
+
+	gpxFile, err := filesystem.NewFileFromBytes(gpxBytes, safeGPXFileName(item.Name))
+	if err != nil {
+		return err
+	}
+
+	metrics := metricsFromGPX(parsedGPX)
+	trackIndex := trackDistanceIndexFromGPX(parsedGPX)
+	applyProviderStart(&metrics, trackIndex, item.Metadata)
+	applyProviderMetrics(&metrics, item.Metadata)
+	geometry, err := util.NewTrailGeometry(parsedGPX, metrics.StartLat, metrics.StartLon)
+	if err != nil {
+		return err
+	}
+
+	trail.Set("gpx", gpxFile)
+	trail.Set("distance", metrics.Distance)
+	trail.Set("elevation_gain", metrics.ElevationGain)
+	trail.Set("elevation_loss", metrics.ElevationLoss)
+	trail.Set("duration", metrics.Duration)
+	trail.Set("lat", metrics.StartLat)
+	trail.Set("lon", metrics.StartLon)
+	util.ApplyTrailGeometry(trail, geometry)
+	trail.IgnoreUnchangedFields(true)
+
+	return app.Save(trail)
 }
 
 type trailMetrics struct {

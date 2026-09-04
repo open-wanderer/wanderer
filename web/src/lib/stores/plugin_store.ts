@@ -26,6 +26,26 @@ export const hasSendCapablePlugin: Readable<boolean> = derived(
     },
 );
 
+// True when the user has at least one enabled plugin instance whose plugin
+// can fetch trail details. Used to gate the per-trail "reload track" action;
+// the backend checks the capability matching the trail's reference.
+export const hasImportCapablePlugin: Readable<boolean> = derived(
+    [pluginProviders, pluginInstances],
+    ([$plugins, $instances]) => {
+        const enabledProviders = new Set(
+            $instances.filter((a) => a.enabled).map((a) => a.plugin_id),
+        );
+        return $plugins.some(
+            (p) =>
+                p.status === "available" &&
+                enabledProviders.has(p.id) &&
+                (p.capabilities ?? []).some(
+                    (c) => c === "get_route_detail.v1" || c === "get_activity_detail.v1",
+                ),
+        );
+    },
+);
+
 let pluginDataLoaded = false;
 
 // Loads plugins and instances once per session so the derived gating

@@ -10,6 +10,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
+	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	pluginsystem "pocketbase/pluginsystem"
 	"pocketbase/util"
@@ -667,4 +668,136 @@ func mustFindImporterTestCollection(t *testing.T, app core.App, name string) *co
 	}
 
 	return collection
+}
+
+func TestReplaceTrailTrackReplacesTrackAndKeepsUserFields(t *testing.T) {
+	app, err := pbtests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Cleanup()
+
+	trails := core.NewBaseCollection("trails")
+	trails.Fields.Add(
+		&core.TextField{Name: "name"},
+		&core.TextField{Name: "description"},
+		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: 5 << 20},
+		&core.NumberField{Name: "distance"},
+		&core.NumberField{Name: "elevation_gain"},
+		&core.NumberField{Name: "elevation_loss"},
+		&core.NumberField{Name: "duration"},
+		&core.NumberField{Name: "lat"},
+		&core.NumberField{Name: "lon"},
+		&core.TextField{Name: "polyline", Max: util.PolylineMaxLength},
+		&core.NumberField{Name: "min_lat"},
+		&core.NumberField{Name: "max_lat"},
+		&core.NumberField{Name: "min_lon"},
+		&core.NumberField{Name: "max_lon"},
+		&core.NumberField{Name: "bounding_box_diagonal"},
+	)
+	if err := app.Save(trails); err != nil {
+		t.Fatal(err)
+	}
+
+	oldGPX, err := filesystem.NewFileFromBytes([]byte("<gpx></gpx>"), "old.gpx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trail := core.NewRecord(trails)
+	trail.Load(map[string]any{
+		"name":           "Edited by user",
+		"description":    "Edited description",
+		"distance":       1.0,
+		"elevation_gain": 1.0,
+		"elevation_loss": 1.0,
+		"duration":       1.0,
+		"lat":            1.0,
+		"lon":            1.0,
+	})
+	trail.Set("gpx", oldGPX)
+	if err := app.Save(trail); err != nil {
+		t.Fatal(err)
+	}
+	oldFile := trail.GetString("gpx")
+
+	item := pluginsystem.TrailImport{
+		Name:        "Provider name",
+		Description: "Provider description",
+		Track:       gpxTrack(),
+		Metadata:    map[string]any{"distance": 4321.0},
+	}
+	if err := ReplaceTrailTrack(app, trail, item); err != nil {
+		t.Fatalf("ReplaceTrailTrack: %v", err)
+	}
+
+	saved, err := app.FindRecordById("trails", trail.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.GetString("name") != "Edited by user" || saved.GetString("description") != "Edited description" {
+		t.Fatalf("user fields changed: name=%q description=%q", saved.GetString("name"), saved.GetString("description"))
+	}
+	if gpx := saved.GetString("gpx"); gpx == "" || gpx == oldFile || !strings.HasSuffix(gpx, ".gpx") {
+		t.Fatalf("expected replaced gpx file, got %q (old %q)", gpx, oldFile)
+	}
+	if got := saved.GetFloat("distance"); got != 4321 {
+		t.Fatalf("expected provider distance override, got %v", got)
+	}
+	if got := saved.GetFloat("elevation_gain"); got != 20 {
+		t.Fatalf("expected elevation gain from track, got %v", got)
+	}
+	if got := saved.GetFloat("duration"); got != 600 {
+		t.Fatalf("expected duration from track, got %v", got)
+	}
+	if saved.GetFloat("lat") != 46 || saved.GetFloat("lon") != 8 {
+		t.Fatalf("expected start from track, got %v/%v", saved.GetFloat("lat"), saved.GetFloat("lon"))
+	}
+	if saved.GetString("polyline") == "" {
+		t.Fatal("expected geometry to be stored with the track")
+	}
+	if saved.GetFloat("min_lat") != 46 || saved.GetFloat("max_lat") != 46.001 ||
+		saved.GetFloat("min_lon") != 8 || saved.GetFloat("max_lon") != 8.001 ||
+		saved.GetFloat("bounding_box_diagonal") <= 0 {
+		t.Fatalf("unexpected stored geometry: min=%v/%v max=%v/%v diagonal=%v",
+			saved.GetFloat("min_lat"), saved.GetFloat("min_lon"),
+			saved.GetFloat("max_lat"), saved.GetFloat("max_lon"),
+			saved.GetFloat("bounding_box_diagonal"))
+	}
+}
+
+func TestValidateTrackRequiresUsableGeometry(t *testing.T) {
+	track := func(points string) pluginsystem.Track {
+		content := `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>` + points + `</trkseg></trk></gpx>`
+		return pluginsystem.Track{Format: "gpx", ContentBase64: base64.StdEncoding.EncodeToString([]byte(content))}
+	}
+	cases := []struct {
+		name   string
+		points string
+		ok     bool
+	}{
+		{"two points", `<trkpt lat="47.1" lon="8.1"><ele>400</ele></trkpt><trkpt lat="47.2" lon="8.2"><ele>410</ele></trkpt>`, true},
+		{"equivalent GPX namespace prefix", `<p:trkpt xmlns:p="http://www.topografix.com/GPX/1/1" lat="47.1" lon="8.1"></p:trkpt><p:trkpt xmlns:p="http://www.topografix.com/GPX/1/1" lat="47.2" lon="8.2"></p:trkpt>`, true},
+		{"single point", `<trkpt lat="47.1" lon="8.1"></trkpt>`, false},
+		{"no points", ``, false},
+		{"latitude out of range", `<trkpt lat="91" lon="8.1"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"longitude out of range", `<trkpt lat="47.1" lon="-181"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"missing coordinates", `<trkpt></trkpt><trkpt></trkpt>`, false},
+		{"only one point with coordinates", `<trkpt></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"missing latitude", `<trkpt lon="8"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"real null island points are fine", `<trkpt lat="0" lon="0"></trkpt><trkpt lat="0.1" lon="0.1"></trkpt>`, true},
+		{"unparseable latitude", `<trkpt lat="abc" lon="8.1"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"not a number", `<trkpt lat="NaN" lon="8.1"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"infinite", `<trkpt lat="Inf" lon="8.1"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt>`, false},
+		{"extension namespace lookalikes", `<x:trkpt xmlns:x="urn:extension" lat="47.1" lon="8.1"></x:trkpt><x:trkpt xmlns:x="urn:extension" lat="47.2" lon="8.2"></x:trkpt>`, false},
+		{"nested extension lookalikes", `<extensions><trkpt lat="47.1" lon="8.1"></trkpt><trkpt lat="47.2" lon="8.2"></trkpt></extensions>`, false},
+	}
+	for _, tc := range cases {
+		err := ValidateTrack(track(tc.points))
+		if tc.ok && err != nil {
+			t.Errorf("%s: expected a usable track, got %v", tc.name, err)
+		}
+		if !tc.ok && err == nil {
+			t.Errorf("%s: expected the track to be refused", tc.name)
+		}
+	}
 }

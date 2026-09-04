@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 
@@ -11,6 +12,10 @@ import (
 )
 
 const PolylineMaxLength = 5 * 1024 * 1024
+
+// ErrTrailGPXChanged means the geometry was computed for a GPX file that is no
+// longer the trail's current file. Callers must not store that geometry.
+var ErrTrailGPXChanged = errors.New("trail GPX changed while computing geometry")
 
 type TrailGeometry struct {
 	Polyline            string
@@ -22,16 +27,9 @@ type TrailGeometry struct {
 }
 
 func ComputeTrailGeometry(app core.App, r *core.Record) (*TrailGeometry, error) {
-	geometry := &TrailGeometry{
-		MinLat: r.GetFloat("lat"),
-		MaxLat: r.GetFloat("lat"),
-		MinLon: r.GetFloat("lon"),
-		MaxLon: r.GetFloat("lon"),
-	}
-
 	gpxPath := r.GetString("gpx")
 	if len(gpxPath) == 0 {
-		return geometry, nil
+		return NewTrailGeometry(nil, r.GetFloat("lat"), r.GetFloat("lon"))
 	}
 
 	fsys, err := app.NewFilesystem()
@@ -55,6 +53,22 @@ func ComputeTrailGeometry(app core.App, r *core.Record) (*TrailGeometry, error) 
 	gpxData, err := gpx.Parse(content)
 	if err != nil {
 		return nil, fmt.Errorf("parse gpx file %q: %w", gpxFilePath, err)
+	}
+	return NewTrailGeometry(gpxData, r.GetFloat("lat"), r.GetFloat("lon"))
+}
+
+// NewTrailGeometry computes the persisted geometry fields from an already
+// parsed GPX. This lets imports store GPX, metrics and geometry in the same
+// record write instead of relying on a post-commit follow-up.
+func NewTrailGeometry(gpxData *gpx.GPX, fallbackLat float64, fallbackLon float64) (*TrailGeometry, error) {
+	geometry := &TrailGeometry{
+		MinLat: fallbackLat,
+		MaxLat: fallbackLat,
+		MinLon: fallbackLon,
+		MaxLon: fallbackLon,
+	}
+	if gpxData == nil {
+		return geometry, nil
 	}
 
 	minLat, maxLat, minLon, maxLon := 90.0, -90.0, 180.0, -180.0
@@ -100,6 +114,10 @@ func ComputeTrailGeometry(app core.App, r *core.Record) (*TrailGeometry, error) 
 		}
 	}
 	geometry.Polyline = string(polyline.EncodeCoords(coordinates))
+	// Encoded polylines are ASCII-only, so byte length matches character length.
+	if len(geometry.Polyline) > PolylineMaxLength {
+		return nil, fmt.Errorf("polyline exceeds maximum length of %d characters", PolylineMaxLength)
+	}
 
 	if hasPoints {
 		geometry.MinLat = minLat
@@ -121,13 +139,55 @@ func ComputePolyline(app core.App, r *core.Record) (string, error) {
 }
 
 func SavePolyline(app core.App, r *core.Record) error {
-	geometry, err := ComputeTrailGeometry(app, r)
+	if r == nil || r.Id == "" {
+		return fmt.Errorf("persisted trail is required")
+	}
+
+	expectedGPX := r.GetString("gpx")
+	// The event record may have gone stale while an after-update hook was
+	// running. Compute from a fresh copy and refuse work for an older GPX.
+	fresh, err := app.FindRecordById(r.Collection().Id, r.Id)
+	if err != nil {
+		return fmt.Errorf("reload trail for geometry: %w", err)
+	}
+	if fresh.GetString("gpx") != expectedGPX {
+		return fmt.Errorf("%w: expected %q, found %q", ErrTrailGPXChanged, expectedGPX, fresh.GetString("gpx"))
+	}
+	geometry, err := ComputeTrailGeometry(app, fresh)
 	if err != nil {
 		return err
 	}
-	// Encoded polylines are ASCII-only, so byte length matches character length.
-	if len(geometry.Polyline) > PolylineMaxLength {
-		return fmt.Errorf("polyline exceeds maximum length of %d characters", PolylineMaxLength)
+
+	err = app.RunInTransaction(func(txApp core.App) error {
+		stored, err := txApp.FindRecordById(r.Collection().Id, r.Id)
+		if err != nil {
+			return fmt.Errorf("reload trail before saving geometry: %w", err)
+		}
+		if stored.GetString("gpx") != expectedGPX {
+			return fmt.Errorf("%w: expected %q, found %q", ErrTrailGPXChanged, expectedGPX, stored.GetString("gpx"))
+		}
+		ApplyTrailGeometry(stored, geometry)
+		stored.IgnoreUnchangedFields(true)
+		if err := txApp.UnsafeWithoutHooks().Save(stored); err != nil {
+			return fmt.Errorf("save trail geometry: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	// Follow-up hooks and callers should see the geometry computed for this
+	// event, without copying unrelated fields from the freshly loaded record.
+	ApplyTrailGeometry(r, geometry)
+	return nil
+}
+
+// ApplyTrailGeometry adds only geometry-derived fields to a record. Callers
+// decide whether those fields are part of a primary write or a guarded
+// follow-up.
+func ApplyTrailGeometry(r *core.Record, geometry *TrailGeometry) {
+	if r == nil || geometry == nil {
+		return
 	}
 	r.Set("polyline", geometry.Polyline)
 	r.Set("min_lat", geometry.MinLat)
@@ -135,8 +195,4 @@ func SavePolyline(app core.App, r *core.Record) error {
 	r.Set("min_lon", geometry.MinLon)
 	r.Set("max_lon", geometry.MaxLon)
 	r.Set("bounding_box_diagonal", geometry.BoundingBoxDiagonal)
-	if err := app.UnsafeWithoutHooks().Save(r); err != nil {
-		return fmt.Errorf("save trail geometry: %w", err)
-	}
-	return nil
 }

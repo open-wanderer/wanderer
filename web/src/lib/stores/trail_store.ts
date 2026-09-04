@@ -123,6 +123,33 @@ function setDetailedCache(id: string, trail: Trail) {
     }
 }
 
+// Keep a previously loaded map detail in step with an in-place trail update.
+// Do not add new entries here: the cache is scoped to the last map filter and
+// only trails fetched for that view should become cache members.
+export function trails_update_map_cache(updatedTrail: Trail) {
+    if (!updatedTrail.id) {
+        return;
+    }
+
+    const cached = detailedCache.get(updatedTrail.id);
+    if (!cached) {
+        return;
+    }
+
+    setDetailedCache(updatedTrail.id, {
+        ...cached,
+        distance: updatedTrail.distance,
+        elevation_gain: updatedTrail.elevation_gain,
+        elevation_loss: updatedTrail.elevation_loss,
+        duration: updatedTrail.duration,
+        lat: updatedTrail.lat,
+        lon: updatedTrail.lon,
+        polyline: updatedTrail.polyline,
+        bounding_box_diagonal: updatedTrail.bounding_box_diagonal,
+        updated: updatedTrail.updated,
+    });
+}
+
 export const trail: Writable<Trail> = writable(new Trail(""));
 
 export const editTrail: Writable<Trail> = writable(new Trail(""));

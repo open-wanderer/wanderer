@@ -20,7 +20,7 @@
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
-    import { type Snippet } from "svelte";
+    import { onDestroy, untrack, type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
@@ -41,7 +41,16 @@
     import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
     import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
     import { trail_merge } from "$lib/stores/trail_merge_api";
-    import { hasSendCapablePlugin } from "$lib/stores/plugin_store";
+    import { hasImportCapablePlugin, hasSendCapablePlugin } from "$lib/stores/plugin_store";
+    import {
+        plugin_track_resync_preview,
+        type TrackResyncPreview,
+    } from "$lib/stores/plugin_instance_store";
+    import TrailTrackResyncModal, {
+        type TrailTrackResyncPatch,
+        type TrailTrackResyncTarget,
+    } from "./trail_track_resync_modal.svelte";
+    import { applyTrackResyncPatch } from "./trail_track_resync";
 
     export interface MergeResult {
         targetTrail: Trail;
@@ -57,11 +66,195 @@
         onShare?: () => void;
         onUpdate?: (updatedTrails?: Trail[]) => void;
         onMerge?: (result: MergeResult) => void;
+        // Set by the trail detail panel only: cards in lists and feeds must
+        // not ask the backend per trail whether its track can be reloaded.
+        checkTrackResync?: boolean;
     }
 
-    let { trails, mode, toggle, onDelete, onShare, onUpdate, onMerge }: Props = $props();
+    let {
+        trails,
+        mode,
+        toggle,
+        onDelete,
+        onShare,
+        onUpdate,
+        onMerge,
+        checkTrackResync = false,
+    }: Props = $props();
 
     let confirmModal: ConfirmModal;
+    type TrackResyncPreviewState =
+        | { status: "off" }
+        | { status: "loading"; trailId: string; generation: number }
+        | {
+              status: "ready";
+              trailId: string;
+              preview: TrackResyncPreview;
+              retryDeadline: number;
+          }
+        | { status: "failed"; trailId: string };
+
+    let trackResyncModal: TrailTrackResyncModal | undefined = $state();
+    let trackResyncPreviewState: TrackResyncPreviewState = $state({
+        status: "off",
+    });
+    let trackResyncPreviewGeneration = 0;
+    let trackResyncPreviewController: AbortController | undefined;
+
+    onDestroy(() => {
+        trackResyncPreviewGeneration += 1;
+        trackResyncPreviewController?.abort();
+    });
+
+    $effect(() => {
+        const id = trackResyncCandidateId();
+        untrack(() => syncTrackResyncPreview(id));
+    });
+
+    function trackResyncCandidateId(): string | undefined {
+        const current = trail();
+        if (
+            !current?.id ||
+            !checkTrackResync ||
+            isMultiselectMode() ||
+            !$currentUser ||
+            !isFromCurrentUser(current) ||
+            !$hasImportCapablePlugin
+        ) {
+            return undefined;
+        }
+        return current.id;
+    }
+
+    function syncTrackResyncPreview(id: string | undefined) {
+        if (!id) {
+            trackResyncPreviewGeneration += 1;
+            trackResyncPreviewController?.abort();
+            trackResyncPreviewController = undefined;
+            trackResyncPreviewState = { status: "off" };
+            return;
+        }
+
+        if (
+            trackResyncPreviewState.status !== "off" &&
+            trackResyncPreviewState.trailId === id
+        ) {
+            return;
+        }
+        void loadTrackResyncPreview(id);
+    }
+
+    async function loadTrackResyncPreview(id: string) {
+        trackResyncPreviewController?.abort();
+        const controller = new AbortController();
+        const generation = ++trackResyncPreviewGeneration;
+        trackResyncPreviewController = controller;
+        trackResyncPreviewState = { status: "loading", trailId: id, generation };
+
+        try {
+            const preview = await plugin_track_resync_preview(
+                id,
+                (input, init) =>
+                    fetch(input, { ...init, signal: controller.signal }),
+            );
+            if (!isCurrentTrackResyncPreview(id, generation, controller)) {
+                return;
+            }
+
+            trackResyncPreviewState = {
+                status: "ready",
+                trailId: id,
+                preview: { ...preview },
+                retryDeadline: (preview.retryAfterSeconds ?? 0) > 0
+                    ? Date.now() + (preview.retryAfterSeconds ?? 0) * 1000
+                    : 0,
+            };
+        } catch (error) {
+            if (
+                isAbortError(error) ||
+                !isCurrentTrackResyncPreview(id, generation, controller)
+            ) {
+                return;
+            }
+            console.error(error);
+            trackResyncPreviewState = { status: "failed", trailId: id };
+        } finally {
+            if (trackResyncPreviewController === controller) {
+                trackResyncPreviewController = undefined;
+            }
+        }
+    }
+
+    function isCurrentTrackResyncPreview(
+        id: string,
+        generation: number,
+        controller: AbortController,
+    ): boolean {
+        return (
+            !controller.signal.aborted &&
+            generation === trackResyncPreviewGeneration &&
+            trackResyncPreviewState.status === "loading" &&
+            trackResyncPreviewState.trailId === id &&
+            trackResyncPreviewState.generation === generation &&
+            trackResyncCandidateId() === id
+        );
+    }
+
+    function isAbortError(error: unknown): boolean {
+        return error instanceof Error && error.name === "AbortError";
+    }
+
+    function retryTrackResyncPreview() {
+        const id = trackResyncCandidateId();
+        if (
+            id &&
+            trackResyncPreviewState.status === "failed" &&
+            trackResyncPreviewState.trailId === id
+        ) {
+            void loadTrackResyncPreview(id);
+        }
+    }
+
+    function allowTrackResync(): boolean {
+        return (
+            trackResyncPreviewState.status === "ready" &&
+            trackResyncPreviewState.preview.available &&
+            trackResyncPreviewState.trailId === trackResyncCandidateId()
+        );
+    }
+
+    function openTrackResyncModal() {
+        const current = trail();
+        const previewState = trackResyncPreviewState;
+        if (
+            !current?.id ||
+            previewState.status !== "ready" ||
+            previewState.trailId !== current.id ||
+            previewState.trailId !== trackResyncCandidateId() ||
+            !previewState.preview.available
+        ) {
+            return;
+        }
+
+        const target: TrailTrackResyncTarget = {
+            trailId: current.id,
+            trail: current,
+            preview: previewState.preview,
+            retryDeadline: previewState.retryDeadline,
+        };
+        void trackResyncModal?.open(target);
+    }
+
+    function handleTrackResyncUpdate(
+        trailId: string,
+        patch: TrailTrackResyncPatch,
+    ) {
+        const current = trail();
+        if (current?.id !== trailId) {
+            return;
+        }
+        onUpdate?.([applyTrackResyncPatch(current, patch)]);
+    }
     let listSelectModal: ListSearchModal;
     let trailExportModal: TrailExportModal;
     let trailSendModal: TrailSendModal;
@@ -449,6 +642,15 @@
                       },
                   ]
                 : []),
+            ...(allowTrackResync()
+                ? [
+                      {
+                          text: $_("plugin-track-resync-action"),
+                          value: "track-resync",
+                          icon: "rotate",
+                      },
+                  ]
+                : []),
             ...(!isMultiselectMode()
                 ? [
                       {
@@ -581,6 +783,8 @@
             trailShareModal.openModal();
         } else if (ddVal == "send-to") {
             trailSendModal.openModal();
+        } else if (ddVal == "track-resync") {
+            openTrackResyncModal();
         } else if (ddVal == "download") {
             trailExportModal.openModal();
         } else if (ddVal == "edit") {
@@ -962,7 +1166,11 @@
     items={dropdownItems()}
     onchange={(item) => handleDropdownClick(item)}
 >
-    {#snippet children({ toggleMenu: openDropdown })}
+    {#snippet children({ toggleMenu })}
+        {@const openDropdown = (e: MouseEvent) => {
+            retryTrackResyncPreview();
+            toggleMenu(e);
+        }}
         {#if toggle}{@render toggle({
                 toggleMenu: openDropdown,
             })}
@@ -998,6 +1206,12 @@
     bind:this={confirmModal}
     onconfirm={deleteTrails}
 ></ConfirmModal>
+{#if checkTrackResync}
+    <TrailTrackResyncModal
+        bind:this={trackResyncModal}
+        onupdated={handleTrackResyncUpdate}
+    />
+{/if}
 <ListSearchModal
     {lists}
     trails={getTrails()}

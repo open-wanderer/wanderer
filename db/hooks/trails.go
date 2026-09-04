@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -84,6 +85,13 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 
 		if record.GetString("gpx") != record.Original().GetString("gpx") {
 			if err := util.SavePolyline(e.App, record); err != nil {
+				// A newer GPX superseded this event. Its own update hook is
+				// responsible for geometry and follow-ups; do not publish/index
+				// the stale event and do not turn the newer update into an error.
+				if errors.Is(err, util.ErrTrailGPXChanged) {
+					e.App.Logger().Info("skipping geometry for superseded trail update", "trail", record.Id)
+					return nil
+				}
 				log.Printf("failed to save polyline for trail %s: %v", record.Id, err)
 			}
 		}

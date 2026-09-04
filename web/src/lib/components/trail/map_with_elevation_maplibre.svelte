@@ -432,6 +432,7 @@
     }
 
     function removeTrailLayer(id: string) {
+        removeStartEndMarkers(id);
         layerManager.removeLayer(id);
     }
 
@@ -467,6 +468,11 @@
             },
         );
 
+        // Replacing a layer swaps the object that holds its markers; take
+        // the old ones off the map first or they stay behind.
+        if (layerManager.layers[id]) {
+            removeStartEndMarkers(id);
+        }
         layerManager.addLayer(id, trailLayer);
 
         if (!drawing && !clusterTrails) {
@@ -800,8 +806,9 @@
         if (!id) {
             return;
         }
-        layerManager.layers[id].markers?.start?.remove();
-        layerManager.layers[id].markers?.end?.remove();
+        const markers = layerManager.layers[id]?.markers;
+        markers?.start?.remove();
+        markers?.end?.remove();
     }
 
     function showWaypoints() {

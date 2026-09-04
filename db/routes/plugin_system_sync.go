@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -119,6 +120,10 @@ func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilis
 			app.Logger().Info("plugin instance sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id)
 			result, err := syncPluginInstance(ctx, app, client, plugin, instance)
 			if err != nil {
+				if errors.Is(err, pluginsystem.ErrPluginInstanceChanged) {
+					app.Logger().Info("plugin instance sync stopped because the instance changed", "plugin", plugin.Manifest.ID, "instance", instance.Id)
+					continue
+				}
 				app.Logger().Warn("plugin instance sync failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "error", err)
 				syncErr = err
 				continue
@@ -158,6 +163,12 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	}
 	auth, err = pluginsystem.RefreshOAuthAuthIfNeeded(ctx, app, plugin, instance, auth)
 	if err != nil {
+		// The shared refresh helper also protects the manual track resync. If
+		// it detects a user change, never turn that into an auth failure with
+		// another save from this stale scheduled-sync snapshot.
+		if errors.Is(err, pluginsystem.ErrPluginInstanceChanged) {
+			return nil, err
+		}
 		setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
 		return nil, err
 	}
@@ -185,6 +196,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	}()
 
 	instance.Set("status", "syncing")
+	instance.IgnoreUnchangedFields(true)
 	if err := app.Save(instance); err != nil {
 		return nil, err
 	}
@@ -227,6 +239,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	instance.Set("last_error", map[string]any{})
 	instance.Set("retry_not_before", "")
 	instance.Set("status", "configured")
+	instance.IgnoreUnchangedFields(true)
 	if err := app.Save(instance); err != nil {
 		return nil, err
 	}
@@ -474,6 +487,10 @@ func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessi
 
 	ref.Set("provider_category", importer.ProviderCategoryFromImport(item))
 	ref.Set("provider_category_checked_at", time.Now())
+	// The reference was loaded before the provider call; write only the two
+	// category fields so changes made meanwhile (a merge marking it moved,
+	// a resync recording its kind) survive.
+	ref.IgnoreUnchangedFields(true)
 	if err := app.Save(ref); err != nil {
 		return false, err
 	}
@@ -532,6 +549,7 @@ func setPluginInstanceStatus(app core.App, instance *core.Record, status string,
 		"code":    code,
 		"message": message,
 	})
+	instance.IgnoreUnchangedFields(true)
 	if err := app.Save(instance); err != nil {
 		app.Logger().Warn("failed to update plugin instance status", "instance", instance.Id, "error", err)
 	}
@@ -550,6 +568,7 @@ func setPluginInstanceStatusForError(app core.App, instance *core.Record, err er
 	} else {
 		instance.Set("retry_not_before", "")
 	}
+	instance.IgnoreUnchangedFields(true)
 	if saveErr := app.Save(instance); saveErr != nil {
 		app.Logger().Warn("failed to update plugin instance status", "instance", instance.Id, "error", saveErr)
 	}
