@@ -49,6 +49,17 @@ class AppLocalizationsDe extends AppLocalizations {
   String get average_speed => 'Durchschn. Geschwindigkeit';
 
   @override
+  String get background_location_body =>
+      'wanderer erfasst Standortdaten im Hintergrund, damit deine Tour weiter aufgezeichnet wird, wenn der Bildschirm aus ist oder du die App schließt. Ohne diese Berechtigung beendet das Entfernen von wanderer aus den zuletzt verwendeten Apps die Aufzeichnung. Der Standort wird nur während einer laufenden Aufzeichnung erfasst und mit der Tour gespeichert.';
+
+  @override
+  String get background_location_confirm => 'Weiter';
+
+  @override
+  String get background_location_title =>
+      'Aufzeichnung im Hintergrund fortsetzen';
+
+  @override
   String get basic_info => 'Basisinformation';
 
   @override
@@ -156,6 +167,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get delete => 'Löschen';
+
+  @override
+  String get not_now => 'Jetzt nicht';
 
   @override
   String get open => 'Öffnen';

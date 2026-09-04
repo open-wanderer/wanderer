@@ -200,6 +200,24 @@ abstract class AppLocalizations {
   /// **'Avg. Speed'**
   String get average_speed;
 
+  /// No description provided for @background_location_body.
+  ///
+  /// In en, this message translates to:
+  /// **'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Without this, clearing wanderer from your recent apps ends the recording. Location is only collected while a trail is in progress, and is saved with that trail.'**
+  String get background_location_body;
+
+  /// No description provided for @background_location_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get background_location_confirm;
+
+  /// No description provided for @background_location_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep recording in the background'**
+  String get background_location_title;
+
   /// No description provided for @basic_info.
   ///
   /// In en, this message translates to:
@@ -373,6 +391,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete'**
   String get delete;
+
+  /// No description provided for @not_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get not_now;
 
   /// Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'.
   ///

@@ -1,5 +1,9 @@
 {
   "cs": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -12,6 +16,10 @@
   ],
 
   "es": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -19,6 +27,10 @@
   ],
 
   "eu": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -26,6 +38,10 @@
   ],
 
   "fr": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -33,6 +49,10 @@
   ],
 
   "hu": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -40,6 +60,10 @@
   ],
 
   "it": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -47,6 +71,10 @@
   ],
 
   "nl": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -54,6 +82,10 @@
   ],
 
   "no": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -61,6 +93,10 @@
   ],
 
   "pl": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -68,6 +104,10 @@
   ],
 
   "pt": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -75,6 +115,10 @@
   ],
 
   "ru": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",
@@ -82,6 +126,10 @@
   ],
 
   "zh": [
+    "background_location_body",
+    "background_location_confirm",
+    "background_location_title",
+    "not_now",
     "show_more",
     "show_less",
     "regions_map_geometry_failed",

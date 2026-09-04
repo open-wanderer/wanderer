@@ -49,6 +49,16 @@ class AppLocalizationsNl extends AppLocalizations {
   String get average_speed => 'Gem. Snelheid';
 
   @override
+  String get background_location_body =>
+      'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Without this, clearing wanderer from your recent apps ends the recording. Location is only collected while a trail is in progress, and is saved with that trail.';
+
+  @override
+  String get background_location_confirm => 'Continue';
+
+  @override
+  String get background_location_title => 'Keep recording in the background';
+
+  @override
   String get basic_info => 'Algemene informatie';
 
   @override
@@ -155,6 +165,9 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get delete => 'Verwijderen';
+
+  @override
+  String get not_now => 'Not now';
 
   @override
   String get open => 'Open';

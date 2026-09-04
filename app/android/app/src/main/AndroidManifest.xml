@@ -7,20 +7,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-    <!-- Recording runs in tracelet's foreground service (type "location"),
-         started while the app is visible, which Android treats as foreground
-         access for as long as the service lives — so background location is
-         not needed and was never requested at runtime (verified on device:
-         granted=false throughout field testing). tracelet-sdk declares it, so
-         it is stripped here to keep the app out of Play's background-location
-         declaration and its demo-video requirement.
-         Revisit if testers on OEMs with aggressive power management report
-         dropped recordings that "Allow all the time" would fix; that is why
-         comparable apps carry it. Doing so means adding a prominent
-         disclosure before the runtime prompt, plus the Play declaration. -->
-    <uses-permission
-        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
-        tools:node="remove" />
+    <!-- Required, and load-bearing: tracelet-sdk stops tracking on task
+         removal whenever this is missing ("ACCESS_BACKGROUND_LOCATION not
+         granted — stopping tracking on task removal"), regardless of
+         stopOnTerminate: false. Without it, clearing the app from recents
+         silently ends an in-progress recording and drops the foreground
+         notification. Android itself would allow the location-type foreground
+         service to continue; this is the SDK's own policy, and AppConfig
+         exposes no way to opt out of it.
+         Requested at runtime by requestBackgroundLocation(), which shows the
+         prominent disclosure Play requires before the system prompt. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- tracelet-sdk declares ACTIVITY_RECOGNITION so it can use the hardware
          pedometer for stationary detection. wanderer never requested the

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:wanderer/actions/request_background_location.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/objectbox.g.dart';
@@ -118,11 +118,12 @@ Future<void> launchNavigation({
       return;
     }
   }
-  // iOS: re-requesting when WhenInUse triggers the "Change to Always
-  // Allow?" prompt (requires NSLocationAlwaysAndWhenInUseUsageDescription).
-  // No-op on Android. Navigation proceeds either way if declined.
-  if (permission == LocationPermission.whileInUse && Platform.isIOS) {
-    permission = await Geolocator.requestPermission();
+  // Background location is what keeps tracking alive when the app is cleared
+  // from recents — tracelet stops on task removal without it. Shows Play's
+  // required disclosure before the system prompt on Android; navigation
+  // proceeds either way if declined.
+  if (context.mounted) {
+    permission = await requestBackgroundLocation(context, permission);
   }
 
   // Best-effort: seed the live marker with an already-warm fix from the
