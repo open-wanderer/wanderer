@@ -4,6 +4,7 @@
 
     interface Props {
         onclick: () => void;
+        oninfo: () => void;
         ontoggle: (value: boolean) => void;
         active: boolean;
         toggleDisabled?: boolean;
@@ -17,6 +18,7 @@
 
     let {
         onclick,
+        oninfo,
         ontoggle,
         active = $bindable(),
         toggleDisabled = false,
@@ -63,9 +65,19 @@
         </div>
     </div>
     <div class="flex shrink-0 flex-col gap-2 md:items-start">
-        <div class="flex items-center justify-between gap-4 md:justify-end">
+        <div class="flex items-center justify-between gap-2 md:justify-end">
+            <button
+                class="btn-icon"
+                type="button"
+                onclick={oninfo}
+                title={$_("plugin-info-title", { values: { plugin: title } })}
+                aria-label={$_("plugin-info-title", { values: { plugin: title } })}
+            >
+                <i class="fa fa-circle-info" aria-hidden="true"></i>
+            </button>
             <button
                 class="btn-secondary"
+                type="button"
                 class:btn-disabled={settingsDisabled}
                 {onclick}
                 disabled={settingsDisabled}

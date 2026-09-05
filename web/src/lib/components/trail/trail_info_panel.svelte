@@ -19,6 +19,7 @@
     import {
         formatDistance,
         formatElevation,
+        formatHTMLAsTextPreview,
         formatTimeHHMM,
     } from "$lib/util/format_util";
     import {
@@ -70,6 +71,7 @@
     } from "$lib/stores/trail_store";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
+    import { withShareToken } from "$lib/util/url_util";
 
     interface Props {
         initTrail: Trail;
@@ -130,6 +132,12 @@
     let summitLogCreateLoading: boolean = $state(false);
 
     let fullDescription: boolean = $state(false);
+
+    const DESCRIPTION_PREVIEW_LENGTH = 300;
+
+    let descriptionPreview = $derived(
+        formatHTMLAsTextPreview(trail.description, DESCRIPTION_PREVIEW_LENGTH),
+    );
     let metadataSaving: boolean = $state(false);
     let editingName: boolean = $state(false);
     let editingDescription: boolean = $state(false);
@@ -168,7 +176,12 @@
     }
 
     async function toggleMapFullScreen() {
-        goto(`/map/trail/${handle}/${trail.id!}`);
+        goto(
+            withShareToken(
+                `/map/trail/${handle}/${trail.id!}`,
+                page.url.searchParams,
+            ),
+        );
     }
 
     async function fetchComments() {
@@ -826,13 +839,9 @@
                         </div>
                     </div>
                 {:else if trail.description?.length}
-                    <article
-                        class="text-justify whitespace-pre-line text-sm prose dark:prose-invert"
-                    >
-                        {@html !fullDescription
-                            ? trail.description?.substring(0, 300)
-                            : trail.description}
-                        {#if (trail.description?.length ?? 0) > 300 && !fullDescription}
+                    <article class="text-justify whitespace-pre-line text-sm">
+                        {#if descriptionPreview.truncated && !fullDescription}
+                            <div>{descriptionPreview.text}</div>
                             <button
                                 onclick={(e) => {
                                     e.stopPropagation();
@@ -844,6 +853,10 @@
                                     >{$_("read-more")}</span
                                 ></button
                             >
+                        {:else}
+                            <div class="prose dark:prose-invert">
+                                {@html trail.description}
+                            </div>
                         {/if}
                     </article>
                 {:else}

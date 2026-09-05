@@ -19,6 +19,7 @@ import (
 	"pocketbase/pluginsystem"
 	"pocketbase/util"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/tkrajina/gpxgo/gpx"
@@ -91,7 +92,12 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	categoryTarget := categoryTargetForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
 	mediaBudget := &pluginMediaBudget{}
-	photos := photoFiles(ctx, app, item.Photos, opts, mediaBudget)
+	mediaContext := pluginMediaLogContext{
+		Provider:        item.Source.Provider,
+		TrailExternalID: item.Source.ExternalID,
+		TrailName:       fallbackName(item.Name),
+	}
+	photos := photoFiles(ctx, app, collection, item.Photos, opts, mediaBudget, mediaContext)
 
 	record.Load(map[string]any{
 		"name":           fallbackName(item.Name),
@@ -123,7 +129,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 
-	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id, trackIndex); err != nil {
+	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id, trackIndex, mediaContext); err != nil {
 		return nil, err
 	}
 
@@ -438,7 +444,7 @@ func dateFromImport(item pluginsystem.TrailImport, metrics trailMetrics) time.Ti
 
 // createWaypoints persists plugin-provided waypoints after the trail exists so
 // they can reference the imported trail record.
-func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, opts Options, mediaBudget *pluginMediaBudget, trailID string, trackIndex trackDistanceIndex) error {
+func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, opts Options, mediaBudget *pluginMediaBudget, trailID string, trackIndex trackDistanceIndex, mediaContext pluginMediaLogContext) error {
 	if len(waypoints) == 0 {
 		return nil
 	}
@@ -461,7 +467,9 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		if distance, ok := trackIndex.nearest(geoPoint{Lat: waypoint.Lat, Lon: waypoint.Lon}); ok {
 			distanceFromStart = distance.fromStart
 		}
-		photos := photoFiles(ctx, app, waypoint.Photos, opts, mediaBudget)
+		waypointMediaContext := mediaContext
+		waypointMediaContext.WaypointName = waypoint.Name
+		photos := photoFiles(ctx, app, collection, waypoint.Photos, opts, mediaBudget, waypointMediaContext)
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
 			"description":         waypoint.Description,
@@ -486,10 +494,23 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 // photoFiles converts plugin photo descriptors into PocketBase file objects.
 // Individual photo failures are logged and skipped so one broken media URL does
 // not fail the whole trail import.
+//
+// pluginMediaBudget tracks bytes across the whole import (trail plus all of its
+// waypoints) so total media size stays bounded regardless of waypoint count.
+// The item count, by contrast, is capped per photoFiles call (i.e. per trail or
+// per waypoint) so a trail's own photos cannot starve every waypoint's photos.
 type pluginMediaBudget struct {
-	items int
 	bytes int64
 }
+
+type pluginMediaLogContext struct {
+	Provider        string
+	TrailExternalID string
+	TrailName       string
+	WaypointName    string
+}
+
+var pluginMediaRetryDelays = []time.Duration{time.Second, 3 * time.Second}
 
 func (b *pluginMediaBudget) remainingBytes() int64 {
 	remaining := util.DefaultPluginMaxImportMediaBytes - b.bytes
@@ -499,40 +520,42 @@ func (b *pluginMediaBudget) remainingBytes() int64 {
 	return util.DefaultPluginMediaMaxBytes
 }
 
-func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, budget *pluginMediaBudget) []*filesystem.File {
+func photoFiles(ctx context.Context, app core.App, collection *core.Collection, photos []pluginsystem.Photo, opts Options, budget *pluginMediaBudget, mediaContext pluginMediaLogContext) []*filesystem.File {
 	if len(photos) == 0 {
 		return nil
 	}
 
 	files := make([]*filesystem.File, 0, len(photos))
+	allowedMimeTypes := photoMimeTypes(collection)
 	now := time.Now()
+	items := 0
 	for _, photo := range photos {
-		if budget.items >= util.DefaultPluginMaxImportMediaItems {
-			app.Logger().Warn("skipping plugin photo because media item limit was reached", "limit", util.DefaultPluginMaxImportMediaItems)
+		if items >= util.DefaultPluginMaxMediaItemsPerEntity {
+			logSkippedPluginPhoto(app, "skipping plugin photo because photo item limit was reached", mediaContext, photo, "limit", util.DefaultPluginMaxMediaItemsPerEntity)
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			app.Logger().Warn("skipping plugin photo because import context was cancelled", "error", err)
+			logSkippedPluginPhoto(app, "skipping plugin photo because import context was cancelled", mediaContext, photo, "error", err)
 			return files
 		}
 		if photo.Source.ExpiresAt != nil && photo.Source.ExpiresAt.Before(now) {
-			app.Logger().Warn("skipping expired plugin photo", "external_id", photo.ExternalID)
+			logSkippedPluginPhoto(app, "skipping expired plugin photo", mediaContext, photo)
 			continue
 		}
 		maxBytes := budget.remainingBytes()
 		if maxBytes <= 0 {
-			app.Logger().Warn("skipping plugin photo because aggregate media byte limit was reached", "external_id", photo.ExternalID, "limit", util.DefaultPluginMaxImportMediaBytes)
+			logSkippedPluginPhoto(app, "skipping plugin photo because aggregate media byte limit was reached", mediaContext, photo, "limit", util.DefaultPluginMaxImportMediaBytes)
 			continue
 		}
 
-		file, bytesRead, err := photoFile(ctx, photo, opts, maxBytes)
+		file, bytesRead, err := photoFile(ctx, photo, opts, maxBytes, allowedMimeTypes)
 		if err != nil {
-			app.Logger().Warn("skipping plugin photo", "external_id", photo.ExternalID, "error", err)
+			logSkippedPluginPhoto(app, "skipping invalid plugin photo", mediaContext, photo, "error", err)
 			continue
 		}
 		if file != nil {
 			files = append(files, file)
-			budget.items++
+			items++
 			budget.bytes += bytesRead
 		}
 	}
@@ -540,9 +563,36 @@ func photoFiles(ctx context.Context, app core.App, photos []pluginsystem.Photo, 
 	return files
 }
 
+func photoMimeTypes(collection *core.Collection) []string {
+	if collection == nil {
+		return nil
+	}
+	field, _ := collection.Fields.GetByName("photos").(*core.FileField)
+	if field == nil {
+		return nil
+	}
+	return field.MimeTypes
+}
+
+func logSkippedPluginPhoto(app core.App, message string, mediaContext pluginMediaLogContext, photo pluginsystem.Photo, extra ...any) {
+	attrs := []any{
+		"provider", mediaContext.Provider,
+		"trail_external_id", mediaContext.TrailExternalID,
+		"trail_name", mediaContext.TrailName,
+		"photo_external_id", photo.ExternalID,
+		"filename", photo.Filename,
+		"source_type", photo.Source.Type,
+	}
+	if mediaContext.WaypointName != "" {
+		attrs = append(attrs, "waypoint_name", mediaContext.WaypointName)
+	}
+	app.Logger().Warn(message, append(attrs, extra...)...)
+}
+
 // photoFile fetches one plugin-provided photo source. URL sources are validated
 // before PocketBase performs the server-side download.
-func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64) (*filesystem.File, int64, error) {
+func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64, allowedMimeTypes []string) (*filesystem.File, int64, error) {
+	var fetch func() (*util.SafeFetchResult, error)
 	switch photo.Source.Type {
 	case "url":
 		if photo.Source.URL == "" {
@@ -551,22 +601,64 @@ func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxB
 		if err := validateRemoteMediaURLSyntax(photo.Source.URL); err != nil {
 			return nil, 0, err
 		}
-		fetched, err := util.FetchPublicURL(ctx, photo.Source.URL, maxBytes)
-		if err != nil {
-			return nil, 0, err
+		fetch = func() (*util.SafeFetchResult, error) {
+			return util.FetchPublicURL(ctx, photo.Source.URL, maxBytes)
 		}
-		file, err := filesystem.NewFileFromBytes(fetched.Body, safeMediaFileName(photo.Filename, urlPathBase(fetched.FinalURL), fetched.ContentType, photo.ContentType))
-		return file, int64(len(fetched.Body)), err
 	case "connector":
-		fetched, err := fetchConnectorMedia(ctx, photo, opts, maxBytes)
-		if err != nil {
-			return nil, 0, err
+		fetch = func() (*util.SafeFetchResult, error) {
+			return fetchConnectorMedia(ctx, photo, opts, maxBytes)
 		}
-		file, err := filesystem.NewFileFromBytes(fetched.Body, safeMediaFileName(photo.Filename, urlPathBase(fetched.FinalURL), fetched.ContentType, photo.ContentType))
-		return file, int64(len(fetched.Body)), err
 	default:
 		return nil, 0, fmt.Errorf("unsupported photo source type %q", photo.Source.Type)
 	}
+
+	fetched, err := fetchPluginMediaWithRetry(ctx, pluginMediaRetryDelays, fetch)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := validatePhotoMimeType(fetched.Body, allowedMimeTypes); err != nil {
+		return nil, int64(len(fetched.Body)), err
+	}
+	file, err := filesystem.NewFileFromBytes(fetched.Body, safeMediaFileName(photo.Filename, urlPathBase(fetched.FinalURL), fetched.ContentType, photo.ContentType))
+	return file, int64(len(fetched.Body)), err
+}
+
+func fetchPluginMediaWithRetry(ctx context.Context, retryDelays []time.Duration, fetch func() (*util.SafeFetchResult, error)) (*util.SafeFetchResult, error) {
+	for attempt := 0; ; attempt++ {
+		fetched, err := fetch()
+		if err == nil {
+			return fetched, nil
+		}
+		if !util.IsRetryablePluginMediaError(err) || attempt >= len(retryDelays) {
+			if attempt == 0 {
+				return nil, err
+			}
+			return nil, fmt.Errorf("plugin media fetch failed after %d attempts: %w", attempt+1, err)
+		}
+
+		timer := time.NewTimer(retryDelays[attempt])
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func validatePhotoMimeType(body []byte, allowedMimeTypes []string) error {
+	if len(allowedMimeTypes) == 0 {
+		return nil
+	}
+	detected := mimetype.Detect(body)
+	for _, allowed := range allowedMimeTypes {
+		if detected.Is(allowed) {
+			return nil
+		}
+	}
+	return fmt.Errorf("detected MIME type %q is not allowed (allowed: %s)", detected.String(), strings.Join(allowedMimeTypes, ", "))
 }
 
 func fetchConnectorMedia(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64) (*util.SafeFetchResult, error) {
@@ -641,6 +733,9 @@ func fetchConnectorMedia(ctx context.Context, photo pluginsystem.Photo, opts Opt
 	if storageRedirect != nil && resp.StatusCode >= 300 && resp.StatusCode < 400 {
 		return fetchStorageRedirectMedia(ctx, *storageRedirect, maxBytes)
 	}
+	if err := util.ValidatePluginMediaStatus(resp.StatusCode); err != nil {
+		return nil, err
+	}
 	body, err := util.ReadBoundedForPlugin(resp.Body, maxBytes)
 	if err != nil {
 		return nil, err
@@ -689,6 +784,9 @@ func fetchStorageRedirectMedia(ctx context.Context, redirect storageRedirectTarg
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if err := util.ValidatePluginMediaStatus(resp.StatusCode); err != nil {
+		return nil, err
+	}
 	body, err := util.ReadBoundedForPlugin(resp.Body, maxBytes)
 	if err != nil {
 		return nil, err
