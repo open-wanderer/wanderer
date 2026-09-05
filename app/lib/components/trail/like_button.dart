@@ -12,7 +12,12 @@ class LikeButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final actorId = ref.watch(authProvider).requireValue!.actorId;
+    // Guarded rather than degraded: liking is meaningless without an
+    // identity, and `requireValue!` throws while `logout()` holds a
+    // value-less AsyncLoading — reachable with a trail open now that a
+    // rejected session resolves after routing (`Auth._validateInBackground`).
+    final actorId = ref.watch(authProvider).value?.actorId;
+    if (actorId == null) return const SizedBox.shrink();
 
     final isLiked = (trail.expand?.trailLikeViaTrail ?? [])
         .where((l) => l.actor == actorId)

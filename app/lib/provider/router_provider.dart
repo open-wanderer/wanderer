@@ -145,11 +145,14 @@ class Router extends _$Router {
         final isAtSplash = location == '/';
         final isAtAuthRoute = authRoutes.contains(location);
 
-        // Hold the splash until its trail reveal lands on the summit. Auth
-        // usually settles in a few hundred ms, which would otherwise cut the
-        // animation off partway — an unfinished ascent reads as a failure
-        // rather than a load. Costs up to ~500ms on a fast cold start;
-        // accepted so the animation always pays off.
+        // Hold the splash until its trail reveal lands on the summit — an
+        // unfinished ascent reads as a failure rather than a load.
+        //
+        // This is now the *only* gate that costs wall-clock time. `Auth.build()`
+        // answers the signed-in question from local disk (cached UserEntity +
+        // unexpired pb_auth cookie) and validates against the server in the
+        // background, so the check below effectively never blocks. Cold start
+        // is a flat ~900ms of animation, by choice.
         if (isAtSplash && !ref.read(splashRevealProvider)) {
           return null;
         }

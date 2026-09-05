@@ -52,7 +52,13 @@ class TrailPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).requireValue!;
+    // Tolerates a null. `Auth.logout()` drops this provider to a value-less
+    // AsyncLoading, and a rejected session can now trigger that with this
+    // widget mounted (see `Auth._validateInBackground`) rather than only
+    // during the splash, where nothing was built yet. `requireValue!` throws
+    // in that window; degrading is a frame or two of wrong pixels before the
+    // router redirect lands.
+    final user = ref.watch(authProvider).value;
     final unit = ref.watch(unitProvider);
     final isOnline = ref.watch(onlineStatusProvider);
 
@@ -62,7 +68,7 @@ class TrailPanel extends ConsumerWidget {
     final isSkeleton = Skeletonizer.maybeOf(context)?.enabled ?? false;
 
     final webPhotos = trail.photos
-        .map((p) => trail.getFileUrl(user.serverUrl, p, thumb: '1200x0') ?? '')
+        .map((p) => trail.getFileUrl(user?.serverUrl ?? '', p, thumb: '1200x0') ?? '')
         .toList();
 
     final metrics = trail.expand?.gpx == null

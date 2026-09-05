@@ -112,13 +112,19 @@ class _ListHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authProvider).requireValue!;
+    // Tolerates a null. `Auth.logout()` drops this provider to a value-less
+    // AsyncLoading, and a rejected session can now trigger that with this
+    // widget mounted (see `Auth._validateInBackground`) rather than only
+    // during the splash, where nothing was built yet. `requireValue!` throws
+    // in that window; degrading is a frame or two of wrong pixels before the
+    // router redirect lands.
+    final user = ref.watch(authProvider).value;
     final unit = ref.watch(unitProvider);
     final theme = Theme.of(context);
     final l18n = AppLocalizations.of(context)!;
 
     final avatarUrl = list.getFileUrl(
-      user.serverUrl,
+      user?.serverUrl ?? '',
       list.avatar,
       thumb: '1200x0',
     );

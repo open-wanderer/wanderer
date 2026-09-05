@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
 
 /// Rendered size of the logo, and the source SVG's viewBox. Both layers are
@@ -31,21 +30,19 @@ const double _discRadius = 64;
 const Offset _revealOrigin = Offset(59.7516, 123.824);
 const double _revealRadius = 56;
 
-/// How long the ascent takes when nothing interrupts it.
+/// How long the ascent takes. Nothing shortens it any more — the auth
+/// catch-up that used to is gone, because auth no longer races it.
 const Duration _revealDuration = Duration(milliseconds: 900);
-
-/// Upper bound on the catch-up once auth has already settled. Scaled by the
-/// fraction still left to draw, so a nearly-finished reveal snaps shut and a
-/// barely-started one still reads as motion rather than a jump cut.
-const Duration _revealCatchUp = Duration(milliseconds: 300);
 
 /// Wall-clock release for the router hold, independent of the animation.
 ///
-/// Sits just past `auth_provider.dart`'s own 3s validation timeout. `/` is the
-/// initial route and has no navigation affordance, so a hold that never lifts
-/// strands the user with no way out but force-quit. Treat the animation as
-/// something that can only *shorten* the hold — never as the sole thing that
-/// ends it.
+/// Since `Auth.build()` stopped awaiting its network validation, the reveal is
+/// the *only* thing gating the exit from `/` — and `/` is the initial route
+/// with no navigation affordance, so a hold that never lifts strands the user
+/// with no way out but force-quit. This is the guard for a reveal that never
+/// runs or never reports completion (a disposed widget, a test environment
+/// with no vsync). Comfortably clear of the 900ms the animation actually
+/// takes; never treat the animation as the sole thing that ends the hold.
 const Duration _revealDeadline = Duration(milliseconds: 3500);
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -60,7 +57,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   late final AnimationController _controller;
   Timer? _failsafe;
   bool _started = false;
-  bool _caughtUp = false;
 
   @override
   void initState() {
@@ -105,38 +101,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ref.read(splashRevealProvider.notifier).complete();
   }
 
-  /// Auth has settled with the reveal still in flight — run it to the summit at
-  /// speed rather than letting the screen sit there fully loaded.
-  void _catchUp() {
-    if (_caughtUp || !_controller.isAnimating) return;
-    _caughtUp = true;
-
-    final int remaining =
-        (_revealCatchUp.inMilliseconds * (1 - _controller.value)).round().clamp(
-          80,
-          _revealCatchUp.inMilliseconds,
-        );
-    _controller.animateTo(
-      1,
-      duration: Duration(milliseconds: remaining),
-      curve: Curves.easeOut,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<dynamic>>(authProvider, (
-      AsyncValue<dynamic>? previous,
-      AsyncValue<dynamic> next,
-    ) {
-      if (!next.isLoading) _catchUp();
-    });
-
-    // Auth may already have settled before the first frame.
-    if (!ref.read(authProvider).isLoading) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _catchUp());
-    }
-
+    // Deliberately does not watch auth. It used to, to cut a reveal short once
+    // auth settled — but auth now settles off local disk within a microtask of
+    // the first frame, so that rescue would fire on every launch and clamp the
+    // ascent to ~300ms. The reveal is the gate; it always plays in full.
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(

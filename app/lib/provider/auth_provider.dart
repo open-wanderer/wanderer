@@ -58,28 +58,76 @@ class Auth extends _$Auth {
     );
     final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
 
-    if (pbAuthCookie != null) {
-      final validation = _updateUserEntity(savedUserEntity.id);
-      unawaited(validation.catchError((_) => null));
-
-      try {
-        final validated = await validation.timeout(const Duration(seconds: 2));
-        return validated ?? savedUserEntity;
-      } on TimeoutException {
-        // Offline/slow network: preserve the cached session.
-        return savedUserEntity;
-      } catch (err) {
-        if (_isAuthError(err)) {
-          unawaited(Future.microtask(logout));
-          return null;
-        }
-        // Any other error (e.g. a 5xx or Dio connectionError/
-        // connectionTimeout) is treated as offline; preserve the cached
-        // session.
-        return savedUserEntity;
-      }
+    if (pbAuthCookie == null) {
+      return null;
     }
-    return null;
+
+    unawaited(_validateInBackground(savedUserEntity));
+    return savedUserEntity;
+  }
+
+  /// Re-reads the signed-in user from the server without holding up the
+  /// session.
+  ///
+  /// Everything the router needs is one bit — whether anyone is signed in —
+  /// and [build] has already resolved it from disk above: a cached
+  /// [UserEntity] plus an unexpired `pb_auth` cookie. `PersistCookieJar` drops
+  /// expired cookies as it loads them, and the server stamps the cookie's
+  /// `expires` from the token's own `exp` claim (`exportToCookie` in
+  /// web/src/hooks.server.ts), so cookie-present *is* token-unexpired. An
+  /// expired token therefore resolves to `/welcome` off local disk, with no
+  /// request at all. Awaiting the network to learn the same bit again is what
+  /// left the splash sitting on a finished animation.
+  ///
+  /// What the round-trip still buys is a session the server revoked inside a
+  /// still-valid token window, plus fresher profile data. Both are fine to
+  /// land late.
+  Future<void> _validateInBackground(UserEntity cached) async {
+    final UserEntity? fresh;
+    try {
+      fresh = await _updateUserEntity(cached.id);
+    } catch (err) {
+      if (_isAuthError(err)) {
+        await logout();
+      }
+      // Any other error (a 5xx, or a Dio connectionError/connectionTimeout) is
+      // treated as offline: the cached session stands.
+      return;
+    }
+
+    if (fresh == null || !ref.mounted) return;
+
+    // Only a material change is published. 29 call sites watch this provider,
+    // and two of them (trail_search_provider, profile_provider) watch
+    // `.future` — so an unconditional emission would refetch trails and
+    // profile a beat after every cold start, to redisplay identical data. Same
+    // reasoning as the flip-only filter in `routerListenable`
+    // (router_provider.dart), one layer up.
+    if (_materiallyDiffers(state.value, fresh)) {
+      state = AsyncData(fresh);
+    }
+  }
+
+  /// Whether re-publishing [fresh] would change anything a widget can see.
+  ///
+  /// Compares the scalar fields read off this provider and nothing else. The
+  /// two related rows the fetch also refreshes are deliberately out of scope:
+  /// settings propagate through `settingsProvider.updateFromServer`, and the
+  /// actor row is upserted in place — no caller reads `user.actor.target` off
+  /// the auth state, only the scalar [UserEntity.actorId].
+  ///
+  /// `updated` is excluded on purpose: any server-side bump unrelated to what
+  /// is displayed would defeat the filter and make every launch emit.
+  bool _materiallyDiffers(UserEntity? cached, UserEntity fresh) {
+    if (cached == null) return true;
+    return cached.id != fresh.id ||
+        cached.actorId != fresh.actorId ||
+        cached.username != fresh.username ||
+        cached.preferredUsername != fresh.preferredUsername ||
+        cached.email != fresh.email ||
+        cached.avatar != fresh.avatar ||
+        cached.iri != fresh.iri ||
+        cached.serverUrl != fresh.serverUrl;
   }
 
   bool _isAuthError(Object err) {
@@ -218,6 +266,13 @@ class Auth extends _$Auth {
     state = await AsyncValue.guard(() => _updateUserEntity(id));
   }
 
+  /// Signs the current user out.
+  ///
+  /// Note for callers reading the auth state: this drops the provider to a
+  /// value-less [AsyncLoading] for the duration, which `settings_screen`
+  /// renders as a spinner on the sign-out button. Widgets that read the user
+  /// must therefore tolerate a null — see the note on [_validateInBackground],
+  /// which can now trigger this with `/map` live rather than during the splash.
   Future<void> logout() async {
     state = const AsyncLoading();
     final jar = ref.read(cookieJarProvider);

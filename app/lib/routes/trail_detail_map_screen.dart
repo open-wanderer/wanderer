@@ -103,7 +103,8 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
   }
 
   Widget _buildMap(BuildContext context, Trail trail) {
-    final user = ref.watch(authProvider).requireValue;
+    // `.value`, not `.requireValue` — see the note in navigation_screen.
+    final user = ref.watch(authProvider).value;
 
     return Stack(
       children: [

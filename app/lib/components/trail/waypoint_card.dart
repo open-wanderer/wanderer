@@ -26,7 +26,13 @@ class WaypointCard extends ConsumerWidget {
     final hasPhotos =
         waypoint.localPhotos.isNotEmpty || waypoint.photos.isNotEmpty;
 
-    final user = ref.watch(authProvider).requireValue!;
+    // Tolerates a null. `Auth.logout()` drops this provider to a value-less
+    // AsyncLoading, and a rejected session can now trigger that with this
+    // widget mounted (see `Auth._validateInBackground`) rather than only
+    // during the splash, where nothing was built yet. `requireValue!` throws
+    // in that window; degrading is a frame or two of wrong pixels before the
+    // router redirect lands.
+    final user = ref.watch(authProvider).value;
 
     // A waypoint whose photos have been downloaded for offline use (library)
     // carries BOTH `photos` (server filenames) and `localPhotos` (downloaded
@@ -42,7 +48,7 @@ class WaypointCard extends ConsumerWidget {
         : waypoint.photos
               .map(
                 (p) =>
-                    waypoint.getFileUrl(user.serverUrl, p, thumb: '200x0') ??
+                    waypoint.getFileUrl(user?.serverUrl ?? '', p, thumb: '200x0') ??
                     '',
               )
               .toList();

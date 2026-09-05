@@ -1363,7 +1363,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       _navProviderInstance.select((s) => s.currentManeuverIndex),
     );
     final trailAsync = ref.watch(trailProvider(widget.id));
-    final user = ref.watch(authProvider).requireValue;
+    // `.value`, not `.requireValue`: the latter throws while `logout()`
+    // holds a value-less AsyncLoading, which a rejected session can now
+    // reach mid-recording. WaypointSheet already takes a nullable user.
+    final user = ref.watch(authProvider).value;
     final localizations = AppLocalizations.of(context)!;
     final unit = ref.watch(unitProvider);
 
