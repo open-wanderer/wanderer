@@ -144,16 +144,33 @@ Future<void> launchNavigation({
     permission = await requestBackgroundLocation(context, ref, permission);
   }
 
-  // Best-effort: seed the live marker with an already-warm fix from the
-  // singleton foreground stream (see `foreground_position_stream_provider`)
-  // so it doesn't sit blank through tracelet's own cold GPS acquisition in
-  // NavigationScreen. Short timeout and swallowed failure — unlike
-  // `_openRecorder`'s blocking fetch, a miss here must never delay or block
-  // starting navigation, since the tracelet fix will still arrive shortly.
-  final pos = await ref
-      .read(foregroundPositionStreamProvider.notifier)
-      .currentFix(timeout: const Duration(seconds: 3));
-  final Position? seedFix = pos == null ? null : seedPositionFrom(pos);
+  // Best-effort: seed the live marker so it doesn't sit blank through
+  // tracelet's own cold GPS acquisition in NavigationScreen. The OS's
+  // cached last-known position is the primary source — it returns near-
+  // instantly (no new GPS callback required), which is exactly what
+  // Geolocator's own docs recommend pairing with a live fix. Waiting on a
+  // brand-new tick from the foreground stream instead (the previous
+  // approach) fails far more often than it succeeds: a stationary device
+  // (the common case — read the trail, then tap Navigate) never produces a
+  // new callback at all under the stream's 10m distance filter, so that
+  // wait almost always just burned its timeout. The live-stream fallback
+  // below only matters when no cached position exists yet at all (e.g.
+  // location was never resolved on this device before). Swallowed failure
+  // either way — unlike `_openRecorder`'s blocking fetch, a miss here must
+  // never delay or block starting navigation, since the tracelet fix will
+  // still arrive shortly.
+  Position? seedFix;
+  try {
+    seedFix = await Geolocator.getLastKnownPosition();
+  } catch (_) {
+    seedFix = null;
+  }
+  if (seedFix == null) {
+    final pos = await ref
+        .read(foregroundPositionStreamProvider.notifier)
+        .currentFix(timeout: const Duration(seconds: 3));
+    seedFix = pos == null ? null : seedPositionFrom(pos);
+  }
 
   final gpx = trail.expand?.gpx;
   if (gpx == null) {
