@@ -12,14 +12,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get about => 'O aplikaci';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'Vzhled';
 
   @override
-  String get account => 'Account';
+  String get account => 'Účet';
 
   @override
   String get account_delete_confirm =>
-      'Chystáte se odstranit svůj účet. Všechny vaše záznamy budou odstraněny též. Chcete pokračovat?';
+      'Chystáte se smazat svůj účet. Smazány budou i všechny vaše trasy. Chcete pokračovat?';
 
   @override
   String get account_privacy => 'Ochrana osobních údajů';
@@ -31,13 +31,13 @@ class AppLocalizationsCs extends AppLocalizations {
   String get add_waypoint => 'Přidat bod trasy';
 
   @override
-  String get adjust_track => 'Adjust track';
+  String get adjust_track => 'Upravit záznam trasy';
 
   @override
   String get after => 'Po';
 
   @override
-  String get all => 'All';
+  String get all => 'Vše';
 
   @override
   String get altitude => 'Nadmořská výška';
@@ -71,10 +71,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String get cancel => 'Zrušit';
 
   @override
-  String get discard => 'Discard';
+  String get discard => 'Zahodit';
 
   @override
-  String get discard_trail_confirm => 'Discard this trail and its changes?';
+  String get discard_trail_confirm => 'Zahodit tuto trasu a její změny?';
 
   @override
   String card(num n) {
@@ -129,23 +129,23 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get couldnt_start_navigation =>
-      'Couldn\'t start navigation. Check your connection and try again.';
+      'Navigaci se nepodařilo spustit. Zkontrolujte připojení a zkuste to znovu.';
 
   @override
   String get location_services_disabled =>
-      'Location services are disabled. Please enable GPS to use navigation.';
+      'Polohové služby jsou vypnuté. Chcete-li používat navigaci, zapněte GPS.';
 
   @override
   String get location_permission_denied =>
-      'Location permission is required for navigation.';
+      'Navigace vyžaduje oprávnění k poloze.';
 
   @override
   String get location_permission_permanently_denied =>
-      'Location permission is permanently denied. Please enable it in Settings.';
+      'Přístup k poloze je trvale zamítnut. Povolte jej v nastavení.';
 
   @override
   String get location_unavailable =>
-      'Unable to determine your location. Please try again.';
+      'Vaši polohu se nepodařilo určit. Zkuste to znovu.';
 
   @override
   String get copy_link => 'Kopírovat odkaz';
@@ -172,7 +172,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get not_now => 'Not now';
 
   @override
-  String get open => 'Open';
+  String get open => 'Otevřít';
 
   @override
   String get delete_account => 'Odstranit účet';
@@ -183,15 +183,15 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get delete_blocked_while_uploading =>
-      'This trail is uploading right now. Wait for the upload to finish, then try again.';
+      'Tato trasa se právě nahrává. Počkejte na dokončení nahrávání a poté to zkuste znovu.';
 
   @override
   String get delete_unsynced_trail_confirm =>
-      'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
+      'Smazat tuto trasu? Ještě nebyla nahrána, takže tuto akci nelze vrátit zpět.';
 
   @override
   String get delete_needs_connection =>
-      'This trail is already on the server. Connect to the internet to delete it.';
+      'Tato trasa již je na serveru. Chcete-li ji smazat, připojte se k internetu.';
 
   @override
   String get description => 'Popis';
@@ -215,14 +215,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get duration => 'Doba trvání';
 
   @override
-  String get easy => 'Jednoduchý';
+  String get easy => 'Snadné';
 
   @override
   String get edit => 'Upravit';
 
   @override
   String get edit_needs_connection =>
-      'Editing works on the server copy of this trail. Connect to the internet to edit it.';
+      'Úpravy se provádějí na kopii této trasy uložené na serveru. Chcete-li ji upravit, připojte se k internetu.';
 
   @override
   String get edit_waypoint => 'Upravit bod trasy';
@@ -237,7 +237,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get elevation_loss => 'Klesání';
 
   @override
-  String get elevation_profile => 'Elevation Profile';
+  String get elevation_profile => 'Výškový profil';
 
   @override
   String get email => 'E-mail';
@@ -249,13 +249,13 @@ class AppLocalizationsCs extends AppLocalizations {
   String get email_updated => 'E-mail byl aktualizován';
 
   @override
-  String get error_deleting_trail => 'Error deleting trail';
+  String get error_deleting_trail => 'Chyba při mazání trasy';
 
   @override
   String get error_reading_file => 'Soubor nelze načíst';
 
   @override
-  String get error_saving_settings => 'Error saving settings';
+  String get error_saving_settings => 'Chyba při ukládání nastavení';
 
   @override
   String get error_saving_trail => 'Chyba při ukládání trasy';
@@ -267,11 +267,11 @@ class AppLocalizationsCs extends AppLocalizations {
   String get explore => 'Objevování';
 
   @override
-  String get exit_navigation => 'Exit';
+  String get exit_navigation => 'Ukončit';
 
   @override
   String get stop_navigation_confirm =>
-      'Stop navigation and return to the trail?';
+      'Zastavit navigaci a vrátit se k trase?';
 
   @override
   String get stop_recording => 'Zastavit nahrávání';
@@ -280,20 +280,20 @@ class AppLocalizationsCs extends AppLocalizations {
   String get stop_recording_confirm => 'Zastavit nahrávání?';
 
   @override
-  String get search_this_area => 'Search this area';
+  String get search_this_area => 'Hledat v této oblasti';
 
   @override
   String get filter_tags => 'Filtrovat podle štítků';
 
   @override
-  String get filter_trails => 'Filter trails';
+  String get filter_trails => 'Filtrovat trasy';
 
   @override
   String get finish => 'Konec';
 
   @override
   String get finish_disabled_hint =>
-      'Add at least 2 anchors to finish your route.';
+      'K dokončení trasy přidejte alespoň 2 body trasy.';
 
   @override
   String get follow => 'Sledovat';
@@ -356,20 +356,20 @@ class AppLocalizationsCs extends AppLocalizations {
   String get location => 'Poloha';
 
   @override
-  String get locations => 'Locations';
+  String get locations => 'Místa';
 
   @override
-  String get center_on_my_location => 'Center on my location';
+  String get center_on_my_location => 'Vycentrovat na mou polohu';
 
   @override
-  String get location_tracking_notification_title => 'wanderer';
+  String get location_tracking_notification_title => 'Wanderer';
 
   @override
-  String get location_tracking_notification_text => 'Recording your trail';
+  String get location_tracking_notification_text => 'Probíhá záznam trasy';
 
   @override
   String location_tracking_notification_text_navigating(String trail) {
-    return 'Navigating $trail';
+    return 'Navigace po trase $trail';
   }
 
   @override
@@ -385,7 +385,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get map => 'Mapa';
 
   @override
-  String get metric => 'Metrický';
+  String get metric => 'Metrické jednotky';
 
   @override
   String get moderate => 'Středně náročné';
@@ -395,14 +395,14 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String in_distance(String distance) {
-    return 'in $distance';
+    return 'za $distance';
   }
 
   @override
   String get name => 'Název';
 
   @override
-  String get navigate => 'Navigate';
+  String get navigate => 'Navigovat';
 
   @override
   String get new_password => 'Nové heslo';
@@ -414,32 +414,32 @@ class AppLocalizationsCs extends AppLocalizations {
   String get new_trail => 'Nová trasa';
 
   @override
-  String get trail_source_planner => 'Open trail planner';
+  String get trail_source_planner => 'Otevřít plánovač tras';
 
   @override
   String get trail_source_planner_description =>
-      'Draw a new route on the map, waypoint by waypoint.';
+      'Nakreslete na mapu novou trasu bod po bodu.';
 
   @override
-  String get trail_source_record => 'Record trail';
+  String get trail_source_record => 'Zaznamenat trasu';
 
   @override
   String get trail_source_record_description =>
-      'Track your live coordinates and log your journey in real-time.';
+      'Sledujte své aktuální souřadnice a zaznamenávejte cestu v reálném čase.';
 
   @override
-  String get trail_source_import => 'Import file';
+  String get trail_source_import => 'Importovat soubor';
 
   @override
   String get trail_source_import_description =>
-      'Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.';
+      'Nahrajte soubory GPX, KML, KMZ, TCX nebo FIT přímo z úložiště zařízení.';
 
   @override
-  String get trail_source_import_error => 'Could not import file';
+  String get trail_source_import_error => 'Soubor se nepodařilo importovat';
 
   @override
   String get trail_source_offline_import_error =>
-      'Only GPX files can be imported offline';
+      'Offline lze importovat pouze soubory GPX';
 
   @override
   String get no_comments_so_far => 'Zatím žádné komentáře';
@@ -457,7 +457,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get no_preference => 'Bez preference';
 
   @override
-  String get no_trails_found => 'No trails found';
+  String get no_trails_found => 'Nebyly nalezeny žádné trasy';
 
   @override
   String get not_completed => 'Nedokončeno';
@@ -473,20 +473,20 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get own_trails_empty_body =>
-      'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
+      'Trasy, které zaznamenáte nebo uložíte offline, se zobrazí zde a automaticky se nahrají, jakmile budete znovu online.';
 
   @override
-  String get own_trails_empty_title => 'Nothing saved yet';
+  String get own_trails_empty_title => 'Zatím nic uloženo';
 
   @override
   String get own_trails_offline_banner =>
-      'Offline — showing only trails on this device.';
+      'Offline — zobrazují se pouze trasy v tomto zařízení.';
 
   @override
-  String get trails_on_device => 'Trails (on device)';
+  String get trails_on_device => 'Trasy (v zařízení)';
 
   @override
-  String get pause => 'Pause';
+  String get pause => 'Pozastavit';
 
   @override
   String get password => 'Heslo';
@@ -502,8 +502,9 @@ class AppLocalizationsCs extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Trail saved, but $count photos couldn\'t be saved.',
-      one: 'Trail saved, but 1 photo couldn\'t be saved.',
+      other: 'Trasa byla uložena, ale $count fotografií se nepodařilo uložit.',
+      few: 'Trasa byla uložena, ale $count fotografie se nepodařilo uložit.',
+      one: 'Trasa byla uložena, ale 1 fotografii se nepodařilo uložit.',
     );
     return '$_temp0';
   }
@@ -516,8 +517,9 @@ class AppLocalizationsCs extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count photos skipped — no GPS data',
-      one: '1 photo skipped — no GPS data',
+      other: '$count fotografií přeskočeno — chybí data GPS',
+      few: '$count fotografie přeskočeny — chybí data GPS',
+      one: '1 fotografie přeskočena — chybí data GPS',
     );
     return '$_temp0';
   }
@@ -535,23 +537,24 @@ class AppLocalizationsCs extends AppLocalizations {
   String get public => 'Veřejné';
 
   @override
-  String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
+  String get reached_end_of_trail => 'Dorazili jste na konec trasy.';
 
   @override
   String get register => 'Registrace';
 
   @override
-  String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
+  String get reorder_photos_hint =>
+      'Dlouhým stisknutím a přetažením změníte pořadí fotografií.';
 
   @override
   String get reset => 'Obnovit';
 
   @override
-  String get resume => 'Resume';
+  String get resume => 'Pokračovat';
 
   @override
   String resume_navigation_prompt(String trail) {
-    return 'Resume navigation on $trail?';
+    return 'Pokračovat v navigaci po trase $trail?';
   }
 
   @override
@@ -570,36 +573,36 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get follow_roads => 'Follow roads';
+  String get follow_roads => 'Vést po cestách';
 
   @override
   String get follow_roads_description =>
-      'Snap the recorded path to the nearest roads and trails.';
+      'Přizpůsobit zaznamenanou trasu nejbližším silnicím a stezkám.';
 
   @override
-  String get recalculate_heights => 'Recalculate heights';
+  String get recalculate_heights => 'Přepočítat nadmořské výšky';
 
   @override
   String get recalculate_heights_description =>
-      'Replace recorded GPS elevation with more accurate values from the map.';
+      'Nahradit zaznamenané údaje o nadmořské výšce z GPS přesnějšími hodnotami z mapy.';
 
   @override
   String get save => 'Uložit';
 
   @override
-  String get save_recording_options => 'Save recording';
+  String get save_recording_options => 'Uložit záznam';
 
   @override
-  String get save_track => 'Save track';
+  String get save_track => 'Uložit trasu';
 
   @override
-  String get search => 'Search';
+  String get search => 'Vyhledat';
 
   @override
   String get search_for_trails_places => 'Vyhledat trasy, seznamy, místa';
 
   @override
-  String get select_date => 'Select date';
+  String get select_date => 'Vybrat datum';
 
   @override
   String get settings => 'Nastavení';
@@ -677,9 +680,11 @@ class AppLocalizationsCs extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'You have $count trails not uploaded yet. Signing out won\'t delete them — they\'ll be here when you sign back in — but they won\'t upload until then.',
+          'Máte $count dosud nenahraných tras. Odhlášením je nesmažete — po opětovném přihlášení zde zůstanou — ale do té doby se nenahrají.',
+      few:
+          'Máte $count dosud nenahrané trasy. Odhlášením je nesmažete — po opětovném přihlášení zde zůstanou — ale do té doby se nenahrají.',
       one:
-          'You have 1 trail not uploaded yet. Signing out won\'t delete it — it\'ll be here when you sign back in — but it won\'t upload until then.',
+          'Máte 1 dosud nenahranou trasu. Odhlášením ji nesmažete — po opětovném přihlášení zde zůstane — ale do té doby se nenahraje.',
     );
     return '$_temp0';
   }
@@ -694,7 +699,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get speed => 'Rychlost';
 
   @override
-  String get start => 'Start';
+  String get start => 'Spustit';
 
   @override
   String get subcategories => 'Podkategorie';
@@ -703,28 +708,28 @@ class AppLocalizationsCs extends AppLocalizations {
   String get summit_book => 'Vrcholová kniha';
 
   @override
-  String get sync_failed => 'Upload failed · Tap to retry';
+  String get sync_failed => 'Nahrávání selhalo · Klepnutím opakujete';
 
   @override
-  String get sync_pending => 'Waiting to upload';
+  String get sync_pending => 'Čeká na nahrání';
 
   @override
-  String get sync_uploading => 'Uploading…';
+  String get sync_uploading => 'Nahrávání…';
 
   @override
   String get tags => 'Štítky';
 
   @override
-  String get theme_dark => 'Dark';
+  String get theme_dark => 'Tmavý';
 
   @override
-  String get theme_light => 'Light';
+  String get theme_light => 'Světlý';
 
   @override
-  String get theme_system => 'Follow system';
+  String get theme_system => 'Podle systému';
 
   @override
-  String get time_in_motion => 'Time in Motion';
+  String get time_in_motion => 'Čas v pohybu';
 
   @override
   String trail(num n) {
@@ -743,21 +748,21 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get trail_not_on_this_device =>
-      'This trail is no longer on this device.';
+      'Tato trasa již není v tomto zařízení.';
 
   @override
   String get trail_uploaded_reopen_to_edit =>
-      'This trail finished uploading. Re-open it from your trails to keep editing.';
+      'Nahrávání této trasy bylo dokončeno. Chcete-li pokračovat v úpravách, znovu ji otevřete ze svých tras.';
 
   @override
   String get some_waypoints_failed_to_save =>
-      'Trail saved, but some waypoints failed to save';
+      'Trasa byla uložena, některé body trasy se však nepodařilo uložit';
 
   @override
   String get units => 'Jednotky';
 
   @override
-  String get users => 'Users';
+  String get users => 'Uživatelé';
 
   @override
   String get username => 'Uživatelské jméno';
@@ -785,324 +790,328 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get welcome_to => 'Welcome to';
+  String get welcome_to => 'Vítejte v';
 
   @override
   String get wrong_username_or_password =>
       'Nesprávné uživatelské jméno nebo heslo';
 
   @override
-  String get you_have_arrived => 'You\'ve arrived';
+  String get you_have_arrived => 'Dorazili jste';
 
   @override
-  String get settings_categories_confirm_disable_title => 'Hide this category?';
+  String get settings_categories_confirm_disable_title =>
+      'Skrýt tuto kategorii?';
 
   @override
   String get settings_categories_confirm_disable_subcategory_title =>
-      'Hide this subcategory?';
+      'Skrýt tuto podkategorii?';
 
   @override
   String settings_categories_confirm_disable_body(int count) {
-    return '$count of your trails use this category. They will stay published but this filter will be hidden.';
+    return 'Počet vašich tras používajících tuto kategorii: $count. Trasy zůstanou zveřejněné, ale tento filtr bude skrytý.';
   }
 
   @override
-  String get settings_categories_confirm_view_trails => 'View trails';
+  String get settings_categories_confirm_view_trails => 'Zobrazit trasy';
 
   @override
-  String get settings_categories_confirm_disable_confirm => 'Disable anyway';
+  String get settings_categories_confirm_disable_confirm => 'Přesto skrýt';
 
   @override
-  String get settings_categories_empty_title => 'No subcategories';
+  String get settings_categories_empty_title => 'Žádné podkategorie';
 
   @override
   String get settings_categories_empty_body =>
-      'This category has no subcategories to configure.';
+      'Tato kategorie nemá žádné podkategorie, které by bylo možné nastavit.';
 
   @override
   String get settings_categories_reorder_hint =>
-      'Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won\'t appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.';
+      'Kategorie určují, které typy tras uvidíte a v jakém pořadí. Vypnutím kategorie ji skryjete ve filtrech — vaše trasy zůstanou zveřejněné, pouze se přestanou zobrazovat pod touto kategorií. Klepnutím na kategorii můžete samostatně spravovat její podkategorie.\n\nChcete-li změnit pořadí, dlouze stiskněte řádek a přetáhněte jej na nové místo. Zvolené pořadí se použije všude, kde se zobrazují kategorie.';
 
   @override
-  String get something_went_wrong => 'Something went wrong';
+  String get something_went_wrong => 'Něco se pokazilo';
 
   @override
-  String get technical_details => 'Technical Details';
+  String get technical_details => 'Technické podrobnosti';
 
   @override
-  String get link => 'Link';
+  String get link => 'Propojit';
 
   @override
-  String get url => 'URL';
+  String get url => 'Adresa URL';
 
   @override
   String get open_in_new_tab => 'Otevřít na nové kartě';
 
   @override
-  String get remove => 'Remove';
+  String get remove => 'Odebrat';
 
   @override
   String get remove_download_confirm_body =>
-      'This removes the downloaded copy from this device. The trail itself is not deleted — you\'ll need to download it again to use it offline.';
+      'Tímto odeberete staženou kopii z tohoto zařízení. Samotná trasa nebude smazána — pro použití offline ji budete muset stáhnout znovu.';
 
   @override
-  String get apply => 'Apply';
+  String get apply => 'Použít';
 
   @override
   String get add_at_least_2_anchors_hint =>
-      'Add at least 2 anchors to see the elevation profile.';
+      'K zobrazení výškového profilu přidejte alespoň 2 body trasy.';
 
   @override
   String get reverse_direction => 'Obrátit směr';
 
   @override
-  String get delete_all => 'Delete all';
+  String get delete_all => 'Vymazat vše';
 
   @override
-  String get auto_routing => 'Auto-routing';
+  String get auto_routing => 'Automatické trasování';
 
   @override
   String get auto_routing_hint =>
-      'Automatically follow roads and paths between anchors.';
+      'Automaticky vést po silnicích a cestách mezi body trasy.';
 
   @override
-  String get travel_profile => 'Travel profile';
+  String get travel_profile => 'Způsob přesunu';
 
   @override
-  String get no_track_data => 'No track data';
+  String get no_track_data => 'Žádná data trasy';
 
   @override
-  String get available_offline => 'Available offline';
+  String get available_offline => 'Dostupné offline';
 
   @override
-  String get no_lists_found => 'No lists found';
+  String get no_lists_found => 'Nebyly nalezeny žádné seznamy';
 
   @override
-  String get search_lists => 'Search lists…';
+  String get search_lists => 'Vyhledat v seznamech…';
 
   @override
-  String get search_for_a_location => 'Search for a location';
+  String get search_for_a_location => 'Vyhledat místo';
 
   @override
   String no_results_for_query(String query) {
-    return 'No results for \"$query\"';
+    return 'Pro „$query“ nebyly nalezeny žádné výsledky';
   }
 
   @override
-  String get filter => 'Filter';
+  String get filter => 'Filtrovat';
 
   @override
   String no_label_yet(String label) {
-    return 'No $label yet.';
+    return 'Zatím žádné $label.';
   }
 
   @override
-  String get no_lists_yet => 'No lists yet.';
+  String get no_lists_yet => 'Zatím žádné seznamy.';
 
   @override
-  String get no_bio_yet => 'No bio yet.';
+  String get no_bio_yet => 'Zatím bez informací o uživateli.';
 
   @override
-  String get show_more => 'Show more';
+  String get show_more => 'Zobrazit více';
 
   @override
-  String get show_less => 'Show less';
+  String get show_less => 'Zobrazit méně';
 
   @override
-  String get feed => 'Feed';
+  String get feed => 'Kanál';
 
   @override
-  String get no_trails_yet => 'No trails yet.';
+  String get no_trails_yet => 'Zatím žádné trasy.';
 
   @override
-  String get library_empty_title => 'No downloaded trails';
+  String get library_empty_title => 'Žádné stažené trasy';
 
   @override
   String get library_empty_body =>
-      'Trails you download are kept here so you can open them offline.';
+      'Stažené trasy jsou uloženy zde, abyste je mohli otevírat offline.';
 
   @override
   String get library_empty_search_body =>
-      'Try a different search term or clear your filters.';
+      'Zkuste jiný hledaný výraz nebo vymažte filtry.';
 
   @override
-  String get search_location => 'Search location';
+  String get search_location => 'Vyhledat místo';
 
   @override
   String no_servers_match_query(String query) {
-    return 'No servers match \"$query\"';
+    return 'Výrazu „$query“ neodpovídají žádné servery';
   }
 
   @override
-  String get use_custom_url_instead => 'Use custom URL instead';
+  String get use_custom_url_instead => 'Místo toho použít vlastní URL';
 
   @override
-  String get select_instance => 'Select Instance';
+  String get select_instance => 'Vybrat instanci';
 
   @override
-  String get enter_server_url_hint => 'Enter server URL (e.g. wanderer.to)';
+  String get enter_server_url_hint => 'Zadejte URL serveru (např. wanderer.to)';
 
   @override
-  String get search_library => 'Search library…';
+  String get search_library => 'Prohledat knihovnu…';
 
   @override
   String language_and_units(String language, String units) {
-    return '$language & $units';
+    return '$language a $units';
   }
 
   @override
   String get edit_route => 'Upravit trasu';
 
   @override
-  String get undo => 'Undo';
+  String get undo => 'Vrátit zpět';
 
   @override
-  String get redo => 'Redo';
+  String get redo => 'Znovu';
 
   @override
-  String get bold => 'Bold';
+  String get bold => 'Tučně';
 
   @override
-  String get italic => 'Italic';
+  String get italic => 'Kurzíva';
 
   @override
-  String get underline => 'Underline';
+  String get underline => 'Podtržení';
 
   @override
-  String get bullet_list => 'Bullet list';
+  String get bullet_list => 'Seznam s odrážkami';
 
   @override
-  String get ordered_list => 'Ordered list';
+  String get ordered_list => 'Číslovaný seznam';
 
   @override
-  String get blockquote => 'Blockquote';
+  String get blockquote => 'Citace';
 
   @override
-  String get library => 'Library';
+  String get library => 'Knihovna';
 
   @override
-  String get settings_offline_regions_title => 'Offline Maps/Regions';
+  String get settings_offline_regions_title => 'Offline mapy a oblasti';
 
   @override
-  String get regions_search_hint => 'Search regions';
+  String get regions_search_hint => 'Vyhledat oblasti';
 
   @override
-  String get regions_dem_toggle_label => 'Download elevation data (DEM)';
+  String get regions_dem_toggle_label => 'Stáhnout výšková data (DEM)';
 
   @override
   String get regions_dem_toggle_caption =>
-      'Adds hillshading; increases download size';
+      'Přidá stínování reliéfu; zvětší velikost stahovaných dat';
 
   @override
-  String get regions_update_available => 'Update available';
+  String get regions_update_available => 'Je dostupná aktualizace';
 
   @override
-  String get regions_update_action => 'Update';
+  String get regions_update_action => 'Aktualizovat';
 
   @override
-  String get regions_retry => 'Retry';
+  String get regions_retry => 'Opakovat';
 
   @override
-  String get regions_not_yet_available => 'Not yet available';
+  String get regions_not_yet_available => 'Zatím nedostupné';
 
   @override
-  String get regions_build_failed => 'Build failed';
+  String get regions_build_failed => 'Příprava selhala';
 
   @override
   String regions_delete_confirm_title(String name) {
-    return 'Delete $name?';
+    return 'Smazat oblast $name?';
   }
 
   @override
   String get regions_delete_confirm_body =>
-      'This removes the downloaded map and elevation data for this region. You\'ll need to download it again to use it offline.';
+      'Tímto smažete staženou mapu a výšková data této oblasti. Pro použití offline je budete muset stáhnout znovu.';
 
   @override
-  String get regions_delete_confirm_action => 'Delete';
+  String get regions_delete_confirm_action => 'Vymazat';
 
   @override
   String regions_disk_usage_summary(String size, num count) {
-    return '$size used across $count downloaded region(s)';
+    return 'Stažených oblastí: $count · využito $size';
   }
 
   @override
-  String get regions_empty_search_title => 'No matching regions';
+  String get regions_empty_search_title => 'Žádné odpovídající oblasti';
 
   @override
-  String get regions_empty_search_body => 'Try a different search term.';
+  String get regions_empty_search_body => 'Zkuste jiný hledaný výraz.';
 
   @override
-  String get regions_empty_catalog_title => 'No offline regions available';
+  String get regions_empty_catalog_title =>
+      'Nejsou dostupné žádné offline oblasti';
 
   @override
   String get regions_empty_catalog_body =>
-      'Ask your Wanderer instance administrator to configure downloadable regions.';
+      'Požádejte správce své instance Wandereru, aby nastavil oblasti ke stažení.';
 
   @override
-  String get regions_vector_tile_title => 'Vector';
+  String get regions_vector_tile_title => 'Vektorová mapa';
 
   @override
-  String get regions_dem_tile_title => 'Elevation data';
+  String get regions_dem_tile_title => 'Výšková data';
 
   @override
-  String get regions_download_failed => 'Download failed';
+  String get regions_download_failed => 'Stahování selhalo';
 
   @override
-  String get regions_dem_locked_subtitle => 'Download map data first';
+  String get regions_dem_locked_subtitle => 'Nejprve stáhněte mapová data';
 
   @override
-  String get regions_offline_unavailable_title => 'Can\'t load regions';
+  String get regions_offline_unavailable_title => 'Oblasti nelze načíst';
 
   @override
   String get regions_offline_unavailable_body =>
-      'Connect to the internet to browse and manage downloadable regions.';
+      'Chcete-li procházet a spravovat oblasti ke stažení, připojte se k internetu.';
 
   @override
-  String get regions_map_geometry_failed => 'Could not load region outline';
+  String get regions_map_geometry_failed =>
+      'Obrys oblasti se nepodařilo načíst';
 
   @override
-  String get regions_map_back_label => 'Back to regions';
+  String get regions_map_back_label => 'Zpět na oblasti';
 
   @override
   String regions_group_expand_label(String name) {
-    return 'Expand $name';
+    return 'Rozbalit $name';
   }
 
   @override
   String regions_group_collapse_label(String name) {
-    return 'Collapse $name';
+    return 'Sbalit $name';
   }
 
   @override
-  String get offline_title => 'You\'re offline';
+  String get offline_title => 'Jste offline';
 
   @override
-  String get offline_try_again => 'Try again';
+  String get offline_try_again => 'Zkusit znovu';
 
   @override
   String get offline_map_body =>
-      'Connect to the internet to load the map. Downloaded trails are still available.';
+      'Chcete-li načíst mapu, připojte se k internetu. Stažené trasy jsou nadále dostupné.';
 
   @override
-  String get offline_list_body => 'Connect to the internet to load lists.';
+  String get offline_list_body =>
+      'Chcete-li načíst seznamy, připojte se k internetu.';
 
   @override
   String get offline_profile_body =>
-      'Connect to the internet to load your full profile.';
+      'Chcete-li načíst celý profil, připojte se k internetu.';
 
   @override
   String get offline_settings_banner =>
-      'You\'re offline. Settings are read-only until you reconnect.';
+      'Jste offline. Nastavení je až do obnovení připojení pouze pro čtení.';
 
   @override
   String get offline_action_unavailable =>
-      'You\'re offline — try again once you\'re back online.';
+      'Jste offline — zkuste to znovu, až budete opět online.';
 
   @override
   String get offline_categories_body =>
-      'Connect to the internet to manage categories.';
+      'Chcete-li spravovat kategorie, připojte se k internetu.';
 
   @override
   String get offline_trail_search_body =>
-      'Connect to the internet to search for trails. Downloaded trails are still available.';
+      'Chcete-li vyhledávat trasy, připojte se k internetu. Stažené trasy jsou nadále dostupné.';
 }

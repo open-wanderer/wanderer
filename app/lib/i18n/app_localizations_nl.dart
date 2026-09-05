@@ -12,7 +12,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get about => 'Over';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'Weergave';
 
   @override
   String get account => 'Account';
@@ -31,13 +31,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get add_waypoint => 'Routepunt toevoegen';
 
   @override
-  String get adjust_track => 'Adjust track';
+  String get adjust_track => 'Pas spoor aan';
 
   @override
   String get after => 'Na';
 
   @override
-  String get all => 'All';
+  String get all => 'Alles';
 
   @override
   String get altitude => 'Hoogte';
@@ -71,10 +71,11 @@ class AppLocalizationsNl extends AppLocalizations {
   String get cancel => 'Annuleren';
 
   @override
-  String get discard => 'Discard';
+  String get discard => 'Verwijderen';
 
   @override
-  String get discard_trail_confirm => 'Discard this trail and its changes?';
+  String get discard_trail_confirm =>
+      'Verwijder dit spoor en de bijbehorende wijzigingen?';
 
   @override
   String card(num n) {
@@ -127,19 +128,19 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get couldnt_start_navigation =>
-      'Couldn\'t start navigation. Check your connection and try again.';
+      'Kon navigatie niet starten. Controleer je verbinding en probeer het opnieuw.';
 
   @override
   String get location_services_disabled =>
-      'Location services are disabled. Please enable GPS to use navigation.';
+      'Locatieservices zijn uitgeschakeld. Activeer GPS om navigatie te gebruiken.';
 
   @override
   String get location_permission_denied =>
-      'Location permission is required for navigation.';
+      'Locatie toestemming is vereist voor navigatie.';
 
   @override
   String get location_permission_permanently_denied =>
-      'Location permission is permanently denied. Please enable it in Settings.';
+      'Locatie toestemming is permanent geweigerd. Activeer het in de Instellingen.';
 
   @override
   String get location_unavailable =>

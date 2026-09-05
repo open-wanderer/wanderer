@@ -183,15 +183,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get delete_blocked_while_uploading =>
-      'This trail is uploading right now. Wait for the upload to finish, then try again.';
+      'Diese Route wird gerade hochgeladen. Warten Sie, bis der Upload beendet ist, und versuchen Sie es erneut.';
 
   @override
   String get delete_unsynced_trail_confirm =>
-      'Delete this trail? It hasn\'t been uploaded yet, so this can\'t be undone.';
+      'Diese Route löschen? Sie wurde noch nicht hochgeladen und kann daher nicht rückgängig gemacht werden.';
 
   @override
   String get delete_needs_connection =>
-      'This trail is already on the server. Connect to the internet to delete it.';
+      'Diese Route ist bereits auf dem Server. Verbinden Sie sich mit dem Internet, um sie zu löschen.';
 
   @override
   String get description => 'Beschreibung';
@@ -222,7 +222,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get edit_needs_connection =>
-      'Editing works on the server copy of this trail. Connect to the internet to edit it.';
+      'Bearbeiten funktioniert auf der Server-Kopie dieser Route. Verbinde dich mit dem Internet, um sie zu bearbeiten.';
 
   @override
   String get edit_waypoint => 'Wegpunkt bearbeiten';
@@ -249,7 +249,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get email_updated => 'E_Mail aktualisiert';
 
   @override
-  String get error_deleting_trail => 'Error deleting trail';
+  String get error_deleting_trail => 'Fehler beim Löschen der Route';
 
   @override
   String get error_reading_file => 'Fehler beim Lesen der Datei';
@@ -474,17 +474,17 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get own_trails_empty_body =>
-      'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
+      'Routen, die du offline aufnimmst oder speicherst, erscheinen hier und werden automatisch hochgeladen, sobald du wieder online bist.';
 
   @override
-  String get own_trails_empty_title => 'Nothing saved yet';
+  String get own_trails_empty_title => 'Noch nichts gespeichert';
 
   @override
   String get own_trails_offline_banner =>
-      'Offline — showing only trails on this device.';
+      'Offline — zeigt nur Routen auf diesem Gerät an.';
 
   @override
-  String get trails_on_device => 'Trails (on device)';
+  String get trails_on_device => 'Routen (auf Gerät)';
 
   @override
   String get pause => 'Pausieren';
@@ -503,8 +503,9 @@ class AppLocalizationsDe extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Trail saved, but $count photos couldn\'t be saved.',
-      one: 'Trail saved, but 1 photo couldn\'t be saved.',
+      other:
+          'Route gespeichert, aber $count Fotos konnten nicht gespeichert werden.',
+      one: 'Route gespeichert, aber 1 Foto konnte nicht gespeichert werden.',
     );
     return '$_temp0';
   }
@@ -683,9 +684,9 @@ class AppLocalizationsDe extends AppLocalizations {
       count,
       locale: localeName,
       other:
-          'You have $count trails not uploaded yet. Signing out won\'t delete them — they\'ll be here when you sign back in — but they won\'t upload until then.',
+          'Du hast $count Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.',
       one:
-          'You have 1 trail not uploaded yet. Signing out won\'t delete it — it\'ll be here when you sign back in — but it won\'t upload until then.',
+          'Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.',
     );
     return '$_temp0';
   }
@@ -709,13 +710,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get summit_book => 'Gipfelbuch';
 
   @override
-  String get sync_failed => 'Upload failed · Tap to retry';
+  String get sync_failed => 'Upload fehlgeschlagen · Zum Wiederholen tippen';
 
   @override
-  String get sync_pending => 'Waiting to upload';
+  String get sync_pending => 'Warten auf Upload';
 
   @override
-  String get sync_uploading => 'Uploading…';
+  String get sync_uploading => 'Wird hochgeladen…';
 
   @override
   String get tags => 'Tags';
@@ -748,11 +749,11 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get trail_not_on_this_device =>
-      'This trail is no longer on this device.';
+      'Dieser Route ist nicht mehr auf diesem Gerät.';
 
   @override
   String get trail_uploaded_reopen_to_edit =>
-      'This trail finished uploading. Re-open it from your trails to keep editing.';
+      'Diese Route wurde hochgeladen. Öffne sie erneut von deinen Routen, um sie weiter zu bearbeiten.';
 
   @override
   String get some_waypoints_failed_to_save =>
@@ -849,7 +850,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get remove_download_confirm_body =>
-      'This removes the downloaded copy from this device. The trail itself is not deleted — you\'ll need to download it again to use it offline.';
+      'Dies entfernt die heruntergeladene Kopie von diesem Gerät. Die Route selbst wird nicht gelöscht — Sie müssen sie erneut herunterladen, um sie offline nutzen zu können.';
 
   @override
   String get apply => 'Anwenden';
@@ -1066,10 +1067,11 @@ class AppLocalizationsDe extends AppLocalizations {
       'Verbinden Sie sich mit dem Internet, um herunterladbare Regionen zu durchsuchen und zu verwalten.';
 
   @override
-  String get regions_map_geometry_failed => 'Could not load region outline';
+  String get regions_map_geometry_failed =>
+      'Konnte die Regionsumrandung nicht laden';
 
   @override
-  String get regions_map_back_label => 'Back to regions';
+  String get regions_map_back_label => 'Zurück zu den Regionen';
 
   @override
   String regions_group_expand_label(String name) {

@@ -232,7 +232,7 @@
   "password": "Passwort",
   "password_confirm": "Passwort bestätigen",
   "passwords_must_match": "Passwörter müssen übereinstimmen",
-  "photo_copy_failed_toast": "{count, plural, one {}=1 {Route gespeichert, aber 1 Foto konnte nicht gespeichert werden.} other {Route gespeichert, aber {count} Fotos konnten nicht gespeichert werden.}}",
+  "photo_copy_failed_toast": "{count, plural, =1 {Route gespeichert, aber 1 Foto konnte nicht gespeichert werden.} other {Route gespeichert, aber {count} Fotos konnten nicht gespeichert werden.}}",
   "@photo_copy_failed_toast": {
     "placeholders": {
       "count": {
@@ -314,7 +314,7 @@
     "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
   },
   "show_on_map": "Auf der Karte anzeigen",
-  "signout_unsynced_warning": "{count, plural, one {}=1 {Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.} other {Du hast {count} Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.}}",
+  "signout_unsynced_warning": "{count, plural, =1 {Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.} other {Du hast {count} Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.}}",
   "@signout_unsynced_warning": {
     "placeholders": {
       "count": {
