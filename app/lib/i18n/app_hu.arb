@@ -1,6 +1,9 @@
 {
   "@@locale": "hu",
   "about": "A programról",
+  "@about": {
+    "description": "Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both."
+  },
   "appearance": "Appearance",
   "account": "Account",
   "account_delete_confirm": "Ön most a profilját készül törölni. Minden nyomvonala törlődik. Szeretné folytatni?",
@@ -9,13 +12,31 @@
   "add_waypoint": "Útvonalpont hozzáadása",
   "adjust_track": "Adjust track",
   "after": "After",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
   "all": "All",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
   "altitude": "Magasság",
   "author": "Author",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
   "average_speed": "Avg. Speed",
+  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".",
+  "background_location_confirm": "Open settings",
+  "background_location_title": "Keep recording in the background",
   "basic_info": "Alap információk",
   "before": "Before",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
   "by": "by",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
   "cancel": "Mégsem",
   "discard": "Discard",
   "discard_trail_confirm": "Discard this trail and its changes?",
@@ -57,8 +78,15 @@
   "current_password": "Current password",
   "danger_zone": "Veszélyes zóna",
   "date": "Dátum",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
   "delete": "Törlés",
+  "not_now": "Not now",
   "open": "Open",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
   "delete_account": "Fiók törlése",
   "delete_trail_confirm": "Tényleg törölni akarja ezt a nyomvonalat? Ezt a műveletet nem lehet visszavonni!",
   "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
@@ -76,6 +104,9 @@
   "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
   "edit_waypoint": "Útvonalpont szerkesztése",
   "edited": "edited",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
   "elevation_gain": "Magasságnövekedés",
   "elevation_loss": "Elevation Loss",
   "elevation_profile": "Elevation Profile",
@@ -96,6 +127,9 @@
   "filter_tags": "Filter tags",
   "filter_trails": "Filter trails",
   "finish": "Finish",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
   "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
   "follow": "Follow",
   "followers": "Followers",
@@ -105,12 +139,18 @@
   "hiking": "Hiking",
   "home": "Home",
   "icon": "Ikon",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
   "imperial": "Angolszász",
   "joined": "Joined",
   "language": "Nyelf",
   "latitude": "Szélesség",
   "like_status": "Like Status",
   "liked": "Liked",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
   "likes": "Likes",
   "list": "{n, plural, =1 {Lista} other {Listák}}",
   "@list": {
@@ -150,6 +190,9 @@
     }
   },
   "name": "Név",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
   "navigate": "Navigate",
   "new_password": "New password",
   "new_password_success": "The new password has been set",
@@ -175,6 +218,9 @@
   "notifications": "Notifications",
   "only_me": "Only me",
   "or": "vagy",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
   "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
   "own_trails_empty_title": "Nothing saved yet",
   "own_trails_offline_banner": "Offline — showing only trails on this device.",
@@ -213,6 +259,9 @@
   "register": "Regisztráció",
   "reorder_photos_hint": "Long-press and drag to reorder photos.",
   "reset": "Reset",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
   "resume": "Resume",
   "resume_navigation_prompt": "Resume navigation on {trail}?",
   "@resume_navigation_prompt": {
@@ -261,6 +310,9 @@
   "share": "Share",
   "share_profile": "Share profile",
   "shared": "Shared",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
   "show_on_map": "Mutatás térképen",
   "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
   "@signout_unsynced_warning": {
@@ -273,8 +325,17 @@
   },
   "slogan": "Az Ön útvonalai. Az Ön adatai. Az Ön szervere.",
   "sort": "Rendezés",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
   "speed": "Speed",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
   "start": "Start",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
   "subcategories": "Alkategóriák",
   "@subcategories": {
     "description": "Label for the subcategories filter section"
@@ -307,6 +368,9 @@
   "username_not_unique": "This username is already taken. Please try another.",
   "visibilty_status": "Visibility status",
   "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
   "waypoints": "{n, plural, =1 {Waypoint} other {Waypoints}}",
   "@waypoints": {
     "placeholders": {
@@ -317,6 +381,9 @@
     }
   },
   "welcome_to": "Welcome to",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
   "wrong_username_or_password": "Helytelen felhasználónév vagy jelszó",
   "you_have_arrived": "You've arrived",
   "settings_categories_confirm_disable_title": "Hide this category?",
@@ -342,6 +409,9 @@
   "remove": "Remove",
   "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
   "apply": "Apply",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
   "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
   "reverse_direction": "Reverse direction",
   "delete_all": "Delete all",
@@ -363,6 +433,9 @@
     }
   },
   "filter": "Filter",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
   "no_label_yet": "No {label} yet.",
   "@no_label_yet": {
     "placeholders": {
@@ -374,6 +447,14 @@
   },
   "no_lists_yet": "No lists yet.",
   "no_bio_yet": "No bio yet.",
+  "show_more": "Show more",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Show less",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
   "feed": "Feed",
   "no_trails_yet": "No trails yet.",
   "library_empty_title": "No downloaded trails",
@@ -456,6 +537,8 @@
   "regions_dem_locked_subtitle": "Download map data first",
   "regions_offline_unavailable_title": "Can't load regions",
   "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_map_geometry_failed": "Could not load region outline",
+  "regions_map_back_label": "Back to regions",
   "regions_group_expand_label": "Expand {name}",
   "@regions_group_expand_label": {
     "placeholders": {
