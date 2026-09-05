@@ -96,6 +96,11 @@ func RemoteListGet(e *core.RequestEvent) error {
 
 func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
 	// 1. Get Actor to build the IRI
+	// A private profile is not a resolution failure: the list's own ViewRule
+	// still decides whether it may be seen, exactly as findLocalTrailByRemoteInfo
+	// does for trails (#986). Bailing out here 500'd every /lists/@handle/id URL
+	// whose owner had set account privacy to "private", including their public
+	// lists.
 	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
 	if actor == nil {
 		// No actor available at all — no cache, and the live lookup itself
