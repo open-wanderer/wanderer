@@ -233,14 +233,13 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
-	// Custom PocketBase admin extension (ADMINUI-01/02/03): a standalone,
-	// superuser-gated page at a distinct top-level path (NOT nested under
-	// /regions below, which is bound to apis.RequireAuth() for any
-	// logged-in user — see Pitfall 6 in 30-RESEARCH.md). Auth is enforced
+	// Custom PocketBase admin extension: a standalone, superuser-gated page
+	// at a distinct top-level path (NOT nested under /regions below, which
+	// is bound to apis.RequireAuth() for any logged-in user). Auth is enforced
 	// entirely by the page's own content: it reads the PocketBase
 	// dashboard's own superuser JWT from localStorage and talks directly
 	// to PocketBase's built-in collection REST API, which is superuser-
-	// only by default on regions/region_geometry (T-30-01).
+	// only by default on regions/region_geometry.
 	se.Router.GET("/region-catalog/", routes.RegionsDashboard)
 
 	// Destructive, admin-only: unlike the page above (which relies on the
@@ -261,14 +260,12 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 		FS:   routes.RegionsExtFS(),
 	})
 
-	// /regions is an internal-only contract (D-06/D-07): the literal
-	// /api/v1 prefix deviates from every other unprefixed custom Go route in
-	// this file, per the routing resolution recorded in
-	// 21.5-03-PLAN.md's <assumptions>. It is reachable only from inside the
-	// docker network — a SvelteKit proxy under the same public path forwards
-	// external requests to it (web/src/routes/regions/**). Auth is
-	// ENABLED — D-07 requires any
-	// logged-in user for both the catalog listing and the archive downloads.
+	// /regions is an internal-only contract: the literal /api/v1 prefix
+	// deviates from every other unprefixed custom Go route in this file. It
+	// is reachable only from inside the docker network — a SvelteKit proxy
+	// under the same public path forwards external requests to it
+	// (web/src/routes/regions/**). Auth is ENABLED: any logged-in user, for
+	// both the catalog listing and the archive downloads.
 	regionsGroup := se.Router.Group("/regions")
 	regionsGroup.Bind(apis.RequireAuth())
 
@@ -279,7 +276,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	// Standalone, NOT a member of regionsGroup above: this route triggers
 	// outbound third-party requests (CoMaps, via ResolveGeometry), so an
 	// authenticated-user gate would make it both an open proxy and a way to
-	// burn CoMaps' rate limit from outside (D-13). It lives under /regions
+	// burn CoMaps' rate limit from outside. It lives under /regions
 	// only for URL coherence with its siblings — not because it belongs to
 	// the group's weaker RequireAuth() trust class. Mirrors the standalone
 	// superuser-bound registrations above (RegionArchiveDelete,

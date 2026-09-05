@@ -31,6 +31,14 @@ class WandererAttribution extends StatefulWidget {
 class _WandererAttributionState extends State<WandererAttribution> {
   bool _expanded = false;
 
+  /// Attributions cached per native style object. Reading the controller
+  /// subscribes this widget to every camera frame (the MapLibre inherited
+  /// model notifies unconditionally), and `getAttributionsSync()` used to run
+  /// on each of those frames — attributions only ever change when the style
+  /// itself is swapped, so key the fetch on the style's identity instead.
+  ml.StyleController? _attributionsStyle;
+  List<String> _attributions = const [];
+
   @override
   Widget build(BuildContext context) {
     final style = ml.MapController.maybeOf(context)?.style;
@@ -39,10 +47,14 @@ class _WandererAttributionState extends State<WandererAttribution> {
     final theme = Theme.of(context);
     final size = MediaQuery.sizeOf(context);
 
-    final attributions = [
-      '<a href="https://pub.dev/packages/maplibre">MapLibre</a>',
-      ...style.getAttributionsSync(),
-    ];
+    if (!identical(style, _attributionsStyle)) {
+      _attributionsStyle = style;
+      _attributions = [
+        '<a href="https://pub.dev/packages/maplibre">MapLibre</a>',
+        ...style.getAttributionsSync(),
+      ];
+    }
+    final attributions = _attributions;
 
     // Use a SafeArea to ensure the widget is completely visible on devices
     // with rounded edges like iOS.
@@ -101,28 +113,56 @@ class _AttributionHtml extends StatefulWidget {
   State<_AttributionHtml> createState() => _AttributionHtmlState();
 }
 
+/// One parsed HTML node: plain text, or a link with a long-lived tap
+/// recognizer (created once at parse time, disposed with the state — the old
+/// per-build parse allocated a fresh undisposed [TapGestureRecognizer] per
+/// link per rebuild, and this widget rebuilds on every camera frame while
+/// expanded).
+class _ParsedNode {
+  const _ParsedNode(this.text, {this.recognizer});
+  final String text;
+  final TapGestureRecognizer? recognizer;
+}
+
 class _AttributionHtmlState extends State<_AttributionHtml> {
   bool _hovering = false;
+  List<_ParsedNode> _nodes = const [];
 
   @override
-  Widget build(BuildContext context) {
-    var textStyle = Theme.of(context).textTheme.bodySmall;
-    if (_hovering) {
-      textStyle = textStyle?.copyWith(decoration: TextDecoration.underline);
-    }
-    final textSpans = <TextSpan>[];
-    final document = html_parser.parse(widget.html);
+  void initState() {
+    super.initState();
+    _parse();
+  }
 
+  @override
+  void didUpdateWidget(_AttributionHtml oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.html != widget.html) _parse();
+  }
+
+  @override
+  void dispose() {
+    _disposeRecognizers();
+    super.dispose();
+  }
+
+  void _disposeRecognizers() {
+    for (final node in _nodes) {
+      node.recognizer?.dispose();
+    }
+  }
+
+  void _parse() {
+    _disposeRecognizers();
+    final nodes = <_ParsedNode>[];
+    final document = html_parser.parse(widget.html);
     for (final node in document.body!.nodes) {
       if (node is dom.Text) {
-        textSpans.add(TextSpan(text: node.text));
+        nodes.add(_ParsedNode(node.text));
       } else if (node is dom.Element && node.localName == 'a') {
-        textSpans.add(
-          TextSpan(
-            onEnter: (event) => setState(() => _hovering = true),
-            onExit: (event) => setState(() => _hovering = false),
-            text: node.text,
-            style: textStyle,
+        nodes.add(
+          _ParsedNode(
+            node.text,
             recognizer: TapGestureRecognizer()
               ..onTap = () {
                 if (node.attributes['href'] case final String href) {
@@ -133,8 +173,32 @@ class _AttributionHtmlState extends State<_AttributionHtml> {
         );
       }
     }
+    _nodes = nodes;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var textStyle = Theme.of(context).textTheme.bodySmall;
+    if (_hovering) {
+      textStyle = textStyle?.copyWith(decoration: TextDecoration.underline);
+    }
     return RichText(
-      text: TextSpan(style: textStyle, children: textSpans),
+      text: TextSpan(
+        style: textStyle,
+        children: [
+          for (final node in _nodes)
+            if (node.recognizer == null)
+              TextSpan(text: node.text)
+            else
+              TextSpan(
+                onEnter: (event) => setState(() => _hovering = true),
+                onExit: (event) => setState(() => _hovering = false),
+                text: node.text,
+                style: textStyle,
+                recognizer: node.recognizer,
+              ),
+        ],
+      ),
     );
   }
 }

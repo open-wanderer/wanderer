@@ -32,3 +32,97 @@ details details .group-label span {
         width: 100%;
     }
 }
+
+/* Screenshot in a mock phone frame, floated so body copy wraps around it. */
+.phone {
+    margin: 0 0 1.5rem;
+    width: 15rem;
+    max-width: 100%;
+}
+
+.phone__body {
+    position: relative;
+    padding: 0.5rem;
+    border-radius: 2.25rem;
+    background: #1c1c1e;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+        0 0.75rem 2rem -0.75rem rgba(0, 0, 0, 0.45);
+}
+
+.phone__notch {
+    position: absolute;
+    top: 0.9rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 3.25rem;
+    height: 0.3rem;
+    border-radius: 999px;
+    background: #3a3a3c;
+    z-index: 1;
+}
+
+.phone__screen {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 1.75rem;
+}
+
+/* Float only where there is room for text beside the frame. */
+@media (min-width: 60rem) {
+    .phone--right {
+        float: right;
+        margin-left: 2rem;
+    }
+
+    .phone--left {
+        float: left;
+        margin-right: 2rem;
+    }
+
+    /* Keep a new section from starting alongside the previous frame. */
+    .content-panel h2 {
+        clear: both;
+    }
+}
+
+/* Centre the frame when it can no longer sit beside the text. */
+@media (max-width: 59.999rem) {
+    .phone {
+        margin-inline: auto;
+    }
+}
+
+/* Two-column alternative to the floated frame: body copy in one column, the
+   screenshot in the other, so short sections don't wrap awkwardly. */
+.phone-grid {
+    display: grid;
+    gap: 1.5rem 2rem;
+    align-items: start;
+}
+
+.phone-grid .phone {
+    margin: 0;
+    justify-self: center;
+}
+
+@media (min-width: 60rem) {
+    .phone-grid {
+        grid-template-columns: minmax(0, 1fr) 15rem;
+    }
+
+    .phone-grid--left {
+        grid-template-columns: 15rem minmax(0, 1fr);
+    }
+
+    /* Source order stays text-first for screen readers; only the visual
+       columns swap. */
+    .phone-grid--left .phone-grid__text {
+        order: 2;
+    }
+
+    .phone-grid--left .phone {
+        order: 1;
+    }
+}

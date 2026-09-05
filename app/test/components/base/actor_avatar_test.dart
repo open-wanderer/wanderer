@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,19 +89,26 @@ void main() {
       ),
     );
 
-    // No pump: the test HTTP client fails every request, so the widget swaps
-    // to the glyph as soon as the image resolve completes. The assertion here
-    // is about which URL was handed to the image, before that happens.
+    // No pump: the assertion here is about which URL was handed to the
+    // (disk-caching) image provider, before any resolve completes.
     final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
-    expect(avatar.backgroundImage, isA<NetworkImage>());
+    expect(avatar.backgroundImage, isA<CachedNetworkImageProvider>());
     expect(
-      (avatar.backgroundImage! as NetworkImage).url,
+      (avatar.backgroundImage! as CachedNetworkImageProvider).url,
       'https://example.test/avatar.png',
     );
   });
 
   testWidgets('a load failure falls back to the glyph rather than leaving the '
       'circle blank', (tester) async {
+    // CachedNetworkImageProvider's cache manager does real file/network I/O
+    // that never completes under the widget test's FakeAsync zone, so route
+    // this test through NetworkImage — which uses the test HTTP client
+    // (400 for every request) — to exercise the SAME error-listener wiring
+    // this test guards.
+    debugAvatarImageProviderFactory = NetworkImage.new;
+    addTearDown(() => debugAvatarImageProviderFactory = null);
+
     await tester.pumpWidget(
       _harness(
         const ActorAvatar(
@@ -112,8 +120,8 @@ void main() {
       ),
     );
 
-    // The default test HTTP client returns 400 for every request, so the image
-    // resolve fails and the error listener fires.
+    // The image resolve fails against the test HTTP client and the error
+    // listener fires.
     await tester.pumpAndSettle();
 
     expect(find.byType(FaIcon), findsOneWidget);

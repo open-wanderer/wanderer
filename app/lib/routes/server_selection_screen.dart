@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -141,8 +142,10 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                       ),
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          "https://wanderer.to/${server.image}",
+                        child: Image(
+                          image: CachedNetworkImageProvider(
+                            "https://wanderer.to/${server.image}",
+                          ),
                           width: 48,
                           height: 48,
                           fit: BoxFit.cover,

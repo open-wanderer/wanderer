@@ -22,7 +22,7 @@ describe("parseElevation", () => {
   });
 });
 
-describe("GpxMetricsComputation — CONV-03 missing elevation", () => {
+describe("GpxMetricsComputation — missing elevation", () => {
   it("carries elevation forward across a point whose <ele> tag is omitted", () => {
     const xml = gpxXml([
       trkptXml(47.000, 11.0, "1000"),
@@ -70,9 +70,9 @@ describe("GpxMetricsComputation — CONV-03 missing elevation", () => {
   });
 });
 
-describe("GpxMetricsComputation — CONV-03 genuine sea level", () => {
+describe("GpxMetricsComputation — genuine sea level", () => {
   it("counts an explicit <ele>0</ele> as real sea-level data, not a missing tag", () => {
-    // This is the Pitfall-3 guard: a truthiness check (`!point.ele` or
+    // This is the guard: a truthiness check (`!point.ele` or
     // `point.ele || 0`) would wrongly treat this genuine 0 m reading as missing.
     const xml = gpxXml([
       trkptXml(47.000, 11.0, "0"),
@@ -85,7 +85,7 @@ describe("GpxMetricsComputation — CONV-03 genuine sea level", () => {
   });
 });
 
-describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stretch", () => {
+describe("GpxMetricsComputation — steep, low-horizontal-movement stretch", () => {
   it("registers the full climb of an 88 m scramble spread over ~4.4 m of horizontal movement", () => {
     const trkpts: string[] = [];
     for (let i = 0; i < 12; i++) {
@@ -110,8 +110,8 @@ describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stret
     const metrics = new GpxMetricsComputation(5, 5);
     points.forEach((point) => metrics.addAndFilter(point));
 
-    // The reported distance is totalDistance since 2026-08-01 (CONV-05
-    // superseded); totalDistanceSmoothed survives on the class, unreported.
+    // The reported distance is totalDistance; totalDistanceSmoothed
+    // survives on the class, unreported.
     expect(metrics.totalDistanceSmoothed).toBe(0);
     // finalElevationGain, not totalElevationGainSmoothed: this monotonic climb
     // ends without a confirming move, so its last 8 m step is still sitting in
@@ -122,7 +122,7 @@ describe("GpxMetricsComputation — CONV-04 steep, low-horizontal-movement stret
   });
 });
 
-describe("GpxMetricsComputation — CONV-04 stationary GPS/altimeter noise", () => {
+describe("GpxMetricsComputation — stationary GPS/altimeter noise", () => {
   it("reports elevationGain === 0 and elevationLoss === 0 for a fully-stationary track whose altitude oscillates +/-7 m and returns to its starting elevation", () => {
     // 61 samples, identical lat/lon, altitude alternating 1000/1007, ends at 1000.
     const trkpts: string[] = [];
@@ -177,7 +177,7 @@ describe("GpxMetricsComputation — CONV-04 stationary GPS/altimeter noise", () 
   });
 });
 
-describe("GpxMetricsComputation — CONV-04 rolling terrain guard", () => {
+describe("GpxMetricsComputation — rolling terrain guard", () => {
   it("still reports full gain and loss for rolling terrain with genuine horizontal movement (noise rejection never eats real terrain)", () => {
     // 6 trackpoints spaced ~100 m apart, elevations 1000, 1008, 1000, 1008,
     // 1000, 1008. Green before AND after the noise-tolerant filter lands.
@@ -213,8 +213,8 @@ describe("GpxMetricsComputation — the class's smoothing behavior is unchanged"
     points.forEach((point) => metrics.addAndFilter(point));
 
     // Neither number changes here — only which one gpx.ts reports changed.
-    // The reported distance is totalDistance since 2026-08-01 (CONV-05
-    // superseded); totalDistanceSmoothed survives on the class, unreported.
+    // The reported distance is totalDistance; totalDistanceSmoothed
+    // survives on the class, unreported.
     expect(metrics.totalDistanceSmoothed).toBeCloseTo(100.075, 0);
     expect(metrics.totalDistance).toBeCloseTo(110.083, 0);
   });
@@ -284,7 +284,7 @@ describe("GpxMetricsComputation — smoothed elevation totals are monotonic", ()
 describe("GpxMetricsComputation — per-segment differencing never goes negative", () => {
   // Mirrors trail_anchor_list.svelte's routeMetrics: it snapshots the running
   // totals at each segment boundary and subtracts consecutive snapshots. This
-  // is the consumer that rendered negative elevation gain (CR-03), reproduced
+  // is the consumer that rendered negative elevation gain, reproduced
   // here so the contract is enforced from within this file's own test suite.
   it("reports no negative segment gain or loss across a stationary-noise boundary", () => {
     const segments = [

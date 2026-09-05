@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -314,6 +315,32 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
   /// Offline stand-in for the trail-results list inside the draggable sheet.
   /// Identical to `map_screen.dart`'s equivalent except for the bottom
   /// padding, which has no bottom nav to clear on this route.
+  /// The result sheet's no-matches state — extracted from the sheet list so
+  /// the list itself could become a `ListView.builder` (mirrors map_screen).
+  Widget _buildSheetEmptyState(BuildContext context) {
+    return Padding(
+      padding: EdgeInsetsGeometry.only(top: 64),
+      child: Column(
+        children: [
+          SvgPicture.asset(
+            "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
+            semanticsLabel: 'wanderer comment empty state',
+            height: 120,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context)!.no_trails_found,
+            style: Theme.of(context).textTheme.labelLarge!.copyWith(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSheetOfflineState(ScrollController scrollController) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
@@ -635,10 +662,12 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                   right: 8,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    children: const [ml.MapCompass(hideIfRotatedNorth: true)],
+                    children: const [
+                      WandererMapCompass(hideIfRotatedNorth: true),
+                    ],
                   ),
                 ),
-                ml.MapScalebar(
+                WandererMapScalebar(
                   alignment: Alignment.topLeft,
                   padding: EdgeInsets.only(left: 24, top: kToolbarHeight + 24),
                 ),
@@ -658,6 +687,11 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
               top: MediaQuery.paddingOf(context).top + kToolbarHeight,
               left: 0,
               right: 0,
+              // The offline chip works here because the clause is an
+              // `id IN [...]` whitelist evaluated server-side, so clusters are
+              // aggregated over the already-filtered set. A client-side
+              // intersection could not have done this -- a cluster is a count,
+              // not a trail -- and would have made filtering depend on zoom.
               child: TrailQuickFilterBar(filterId: _filterId),
             ),
 
@@ -795,7 +829,10 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                               5,
                               (_) => TrailSearchResult.mock(),
                             ),
-                            builder: (trails) => ListView(
+                            // .builder, not children — same rationale as
+                            // map_screen's search sheet: rows scale with the
+                            // accumulated result set. Index 0 is the header.
+                            builder: (trails) => ListView.builder(
                               padding: EdgeInsets.fromLTRB(
                                 16,
                                 8,
@@ -803,8 +840,24 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                                 MediaQuery.paddingOf(context).bottom + 16 + 32,
                               ),
                               controller: scrollController,
-                              children: [
-                                ValueListenableBuilder<double>(
+                              itemCount:
+                                  1 + (trails.isEmpty ? 1 : trails.length),
+                              itemBuilder: (context, index) {
+                                if (index > 0) {
+                                  if (trails.isEmpty) {
+                                    return _buildSheetEmptyState(context);
+                                  }
+                                  final t = trails[index - 1];
+                                  return TrailCard(
+                                    key: ValueKey(t.id),
+                                    trail: t,
+                                    onTrailSelect: () => context.push(
+                                      "/trail/${t.id}",
+                                      extra: t,
+                                    ),
+                                  );
+                                }
+                                return ValueListenableBuilder<double>(
                                   valueListenable: _sheetSize,
                                   builder: (context, size, child) {
                                     final opacity = sheetHeaderOpacity(
@@ -871,48 +924,8 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                                       ],
                                     );
                                   },
-                                ),
-                                if (trails.isNotEmpty) ...{
-                                  ...trails.map(
-                                    (t) => TrailCard(
-                                      trail: t,
-                                      onTrailSelect: () => context.push(
-                                        "/trail/${t.id}",
-                                        extra: t,
-                                      ),
-                                    ),
-                                  ),
-                                } else ...{
-                                  Padding(
-                                    padding: EdgeInsetsGeometry.only(top: 64),
-                                    child: Column(
-                                      children: [
-                                        SvgPicture.asset(
-                                          "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
-                                          semanticsLabel:
-                                              'wanderer comment empty state',
-                                          height: 120,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          AppLocalizations.of(
-                                            context,
-                                          )!.no_trails_found,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelLarge!
-                                              .copyWith(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurface
-                                                    .withValues(alpha: 0.5),
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                },
-                              ],
+                                );
+                              },
                             ),
                           ),
                   );

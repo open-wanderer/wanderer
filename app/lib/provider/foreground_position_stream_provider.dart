@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -51,8 +53,8 @@ class PermissionDeniedException implements Exception {
 /// [ForegroundPositionStream.currentFix] for a single fix.
 final foregroundPositionStreamProvider =
     NotifierProvider<ForegroundPositionStream, Stream<LocationMarkerPosition?>>(
-  ForegroundPositionStream.new,
-);
+      ForegroundPositionStream.new,
+    );
 
 /// Scopes a live GPS subscription to widget lifetime.
 ///
@@ -62,20 +64,31 @@ final foregroundPositionStreamProvider =
 /// permission denied) is unchanged for callers.
 final liveLocationProvider =
     Provider.autoDispose<Stream<LocationMarkerPosition?>>((ref) {
-  final notifier = ref.read(foregroundPositionStreamProvider.notifier);
-  notifier.acquire();
-  ref.onDispose(notifier.release);
-  return ref.read(foregroundPositionStreamProvider);
-});
+      final notifier = ref.read(foregroundPositionStreamProvider.notifier);
+      notifier.acquire();
+      ref.onDispose(notifier.release);
+      return ref.read(foregroundPositionStreamProvider);
+    });
 
-class ForegroundPositionStream
-    extends Notifier<Stream<LocationMarkerPosition?>> {
+class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
+    with WidgetsBindingObserver {
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<ServiceStatus>? _statusSub;
   late StreamController<LocationMarkerPosition?> _controller;
 
   /// Number of live consumers. The receiver runs only while this is > 0.
   int _consumers = 0;
+
+  /// True while the app is backgrounded (paused/hidden/detached). The
+  /// consumers that hold this receiver are map location markers — screens
+  /// that stay mounted (and thus keep their acquire) underneath the app
+  /// switcher, so without this gate the GPS receiver ran at full duty cycle
+  /// for as long as a map screen sat anywhere in the back stack while the
+  /// app was backgrounded. Recording is unaffected: tracelet owns its own
+  /// native session, entirely separate from this receiver. `inactive` is
+  /// deliberately not treated as background (transient — notification
+  /// shade, incoming call).
+  bool _uiSuspended = false;
 
   /// Whether a start attempt has already been allowed to raise the system
   /// "Turn on GPS?" dialog this session. See [_startPositionStream].
@@ -100,6 +113,13 @@ class ForegroundPositionStream
         return AppleSettings(
           accuracy: accuracy,
           distanceFilter: distanceFilter,
+          // Tells iOS this is human-locomotion tracking and lets it park the
+          // GPS hardware when the user is genuinely still — Core Location
+          // resumes on significant motion. Purely a map-marker receiver
+          // (recording runs on tracelet's own session), so an auto-pause
+          // while stationary costs nothing.
+          activityType: ActivityType.fitness,
+          pauseLocationUpdatesAutomatically: true,
         );
       default:
         return const LocationSettings(
@@ -131,6 +151,26 @@ class ForegroundPositionStream
   /// Releases a live consumer, stopping the receiver once none remain.
   void release() {
     if (_consumers > 0 && --_consumers == 0) _cancelPosition();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_uiSuspended) return;
+        _uiSuspended = false;
+        // Restore the receiver for whoever was holding it when the app
+        // backgrounded — consumers kept their acquire the whole time.
+        if (_consumers > 0) _scheduleStart();
+      case AppLifecycleState.inactive:
+        // Transient — see [_uiSuspended].
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        _uiSuspended = true;
+        _cancelPosition();
+    }
   }
 
   /// Resolves a single GPS fix, holding the receiver open only as long as it
@@ -186,28 +226,31 @@ class ForegroundPositionStream
     if (_controller.isClosed) return;
 
     // The awaits above can outlive the consumer that asked for this start
-    // (a queued start whose acquirer has since released). Starting anyway
-    // would run the receiver with nobody watching.
-    if (_consumers == 0) return;
+    // (a queued start whose acquirer has since released, or an app that
+    // backgrounded mid-start). Starting anyway would run the receiver with
+    // nobody watching / nothing visible.
+    if (_consumers == 0 || _uiSuspended) return;
 
-    _positionSub =
-        Geolocator.getPositionStream(locationSettings: _settings).listen(
-      (pos) {
-        if (!_controller.isClosed) {
-          _controller.add(LocationMarkerPosition(
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-            accuracy: pos.accuracy,
-            heading: pos.heading,
-            headingAccuracy: pos.headingAccuracy,
-          ));
-        }
-      },
-      onError: (_) {
-        // Swallow position stream errors (GPS declined or toggled off);
-        // service status listener handles the disabled → enabled transition.
-      },
-    );
+    _positionSub = Geolocator.getPositionStream(locationSettings: _settings)
+        .listen(
+          (pos) {
+            if (!_controller.isClosed) {
+              _controller.add(
+                LocationMarkerPosition(
+                  latitude: pos.latitude,
+                  longitude: pos.longitude,
+                  accuracy: pos.accuracy,
+                  heading: pos.heading,
+                  headingAccuracy: pos.headingAccuracy,
+                ),
+              );
+            }
+          },
+          onError: (_) {
+            // Swallow position stream errors (GPS declined or toggled off);
+            // service status listener handles the disabled → enabled transition.
+          },
+        );
   }
 
   @override
@@ -240,7 +283,11 @@ class ForegroundPositionStream
       },
     );
 
+    // Background gating — see [_uiSuspended].
+    WidgetsBinding.instance.addObserver(this);
+
     ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
       _statusSub?.cancel();
       _cancelPosition();
       _controller.close();

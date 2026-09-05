@@ -19,12 +19,14 @@ part 'region_catalog_entry.g.dart';
 abstract class RegionCatalogEntry with _$RegionCatalogEntry {
   const factory RegionCatalogEntry({
     required String id,
+
     /// The region's materialized `path` (e.g. `canada.alberta.south`) — the
     /// key the backend names every on-disk archive dir and download URL after
     /// (`RegionsList` in `db/routes/regions_get.go`). Distinct from [id],
     /// which is the opaque PocketBase record id used only for local storage.
     required String path,
     required String name,
+
     /// `[minLon, minLat, maxLon, maxLat]` — matches `generator.go`'s pmtiles
     /// extract argument order and the region archive path builders.
     required List<double> bbox,

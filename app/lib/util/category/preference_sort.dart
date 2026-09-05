@@ -50,8 +50,10 @@ List<Subcategory> sortedSubcategoriesByPreference(
   List<SubcategoryPreference> prefs,
   Locale? locale,
 ) {
-  int? priorityOf(String id) =>
-      prefs.where((p) => p.subcategory == id).map((p) => p.priority).firstOrNull;
+  int? priorityOf(String id) => prefs
+      .where((p) => p.subcategory == id)
+      .map((p) => p.priority)
+      .firstOrNull;
 
   final list = [...subs];
   list.sort((a, b) {
@@ -79,9 +81,11 @@ List<Category> visibleSortedCategories(
   List<CategoryPreference> prefs,
   Locale? locale, {
   String? keepVisibleId,
-}) => sortedCategoriesByPreference(categories, prefs, locale)
-    .where((c) => categoryVisible(c.id, prefs) || c.id == keepVisibleId)
-    .toList();
+}) => sortedCategoriesByPreference(
+  categories,
+  prefs,
+  locale,
+).where((c) => categoryVisible(c.id, prefs) || c.id == keepVisibleId).toList();
 
 /// [subs] sorted by preference and filtered to visible ones. Optionally keeps
 /// [keepVisibleId] in the result even if hidden, so a picker doesn't drop the

@@ -2,8 +2,8 @@ package commands
 
 import "testing"
 
-// hierarchyFixture mirrors the Germany subtree from 28-RESEARCH.md's real
-// CoMaps hierarchy.txt excerpt, plus the World/WorldCoasts header lines.
+// hierarchyFixture mirrors the Germany subtree from a real CoMaps
+// hierarchy.txt excerpt, plus the World/WorldCoasts header lines.
 const hierarchyFixture = `World
 WorldCoasts
 Germany;Q183;de;de

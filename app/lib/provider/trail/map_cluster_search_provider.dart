@@ -7,6 +7,7 @@ import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 
 part 'map_cluster_search_provider.g.dart';
 
@@ -45,7 +46,10 @@ class MapClusterSearch extends _$MapClusterSearch {
       if (next != null) _removeTrail(next.id);
     });
 
-    return <String, dynamic>{'type': 'FeatureCollection', 'features': <Object>[]};
+    return <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': <Object>[],
+    };
   }
 
   /// Drops the deleted trail's marker from the feature collection so its
@@ -103,6 +107,11 @@ class MapClusterSearch extends _$MapClusterSearch {
       final baseFilterText = filter.toFilterText(
         actor: user?.actorId ?? "",
         includeGeo: false,
+        offlineTrailIds: offlineTrailIdsForMapSearch(
+          ref,
+          offlineOnly: filter.offlineOnly,
+          authorId: authorId,
+        ),
       );
 
       // The cluster endpoint takes `filterText` as a single string (unlike
@@ -111,8 +120,8 @@ class MapClusterSearch extends _$MapClusterSearch {
       final filterText = authorId == null
           ? baseFilterText
           : (baseFilterText.isEmpty
-              ? 'author = $authorId'
-              : '$baseFilterText AND author = $authorId');
+                ? 'author = $authorId'
+                : '$baseFilterText AND author = $authorId');
 
       final response = await api.post(
         '/search/trails/cluster',

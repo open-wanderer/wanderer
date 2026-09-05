@@ -22,6 +22,21 @@ import 'package:wanderer/models/trail.dart';
 /// - `tags`, `author`, visibility (`public`/`private`/`shared`), `liked` and
 ///   the `_geoRadius` clause are skipped — they are server-side concerns.
 ///
+/// `offlineOnly` is the one clause with a server-side counterpart that is not
+/// simply a mirror. `toFilterText()` expresses it as an explicit
+/// `id IN [...]` whitelist, because the server has no field for a device's
+/// library membership and must be told the ids outright. This client-side
+/// half is NOT redundant with it: a trail recorded on-device but not yet
+/// uploaded has no server id at all, is absent from the Meilisearch index,
+/// and so can never come back from the whitelist — it is matched here
+/// instead, by `trail.isLocal`.
+///
+/// A trail is kept when either `trail.isLocal` is true (this row came off the
+/// device — the exact definition of offline availability; the ban in
+/// `isLocal`'s own doc comment is on gating destructive actions, badges and
+/// tab visibility on it, not this) or its id is present in the
+/// caller-supplied [downloadedIds] set.
+///
 /// Range clauses follow `toFilterText()`'s convention: the minimum always
 /// applies, the maximum only when it is below its limit. `buildDefaultTrailFilter`
 /// constructs every bounded axis with `max == limit`, so an untouched slider
@@ -30,7 +45,11 @@ import 'package:wanderer/models/trail.dart';
 ///
 /// `Trail.difficulty` is a `TrailDifficulty` enum whose index maps to the
 /// filter's 0/1/2. `Trail.category`/`Trail.subcategory` hold record IDs.
-List<Trail> applyTrailFilter(List<Trail> trails, TrailFilter filter) {
+List<Trail> applyTrailFilter(
+  List<Trail> trails,
+  TrailFilter filter, {
+  Set<String> downloadedIds = const {},
+}) {
   // Category/subcategory form ONE OR-group, matching toFilterText(): a
   // category whose subcategories are also selected is represented by those
   // subcategories rather than by itself, so selecting a subcategory narrows
@@ -66,6 +85,13 @@ List<Trail> applyTrailFilter(List<Trail> trails, TrailFilter filter) {
     if (trail.elevationLoss < filter.elevationLossMin) return false;
     if (filter.elevationLossMax < filter.elevationLossLimit &&
         trail.elevationLoss > filter.elevationLossMax) {
+      return false;
+    }
+
+    // Offline availability. `toFilterText()` emits an `id IN [...]` sibling
+    // for the network half; this half additionally catches unsynced local
+    // captures, which have no server id to whitelist.
+    if (filter.offlineOnly && !trail.isLocal && !downloadedIds.contains(trail.id)) {
       return false;
     }
 

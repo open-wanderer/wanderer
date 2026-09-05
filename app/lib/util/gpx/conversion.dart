@@ -482,6 +482,26 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
 /// mirroring `import_trail_file.dart`'s `convertGpxToTrail` convention for a
 /// not-yet-persisted trail — that function's own placeholder-injection is
 /// unchanged by this plan; only its data source moves here in a later plan.
+/// Top-level `compute()` entry point for [trailFromGpx] — takes one sendable
+/// record so no capturing closure (which would drag its enclosing scope,
+/// WidgetRef and all, into the isolate message) is ever needed at call sites.
+Trail trailFromGpxIsolate(
+  ({Gpx gpx, String? fallbackName, Duration? movingDuration, String? gpxData})
+  args,
+) {
+  return trailFromGpx(
+    args.gpx,
+    fallbackName: args.fallbackName,
+    movingDuration: args.movingDuration,
+    gpxData: args.gpxData,
+  );
+}
+
+/// Top-level `compute()` entry point for GPX serialization — the writer walk
+/// over a full track is pure CPU that must not run on the UI thread at the
+/// recording-Stop / planner-Finish / import moments that call it.
+String serializeGpxToXml(Gpx gpx) => GpxWriter().asString(gpx);
+
 Trail trailFromGpx(
   Gpx gpx, {
   String? fallbackName,

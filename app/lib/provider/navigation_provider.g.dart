@@ -63,7 +63,7 @@ final class NavigationProvider
   }
 }
 
-String _$navigationHash() => r'492bd39e886e65ef18d61b800afb41e6f5fc52ae';
+String _$navigationHash() => r'cd1f5d2cbd43b317d353a8733dcc0c3c11483faa';
 
 final class NavigationFamily extends $Family
     with

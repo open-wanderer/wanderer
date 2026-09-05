@@ -28,11 +28,24 @@ class WaypointCard extends ConsumerWidget {
 
     final user = ref.watch(authProvider).requireValue!;
 
-    final webPhotos = waypoint.photos
-        .map(
-          (p) => waypoint.getFileUrl(user.serverUrl, p, thumb: '200x0') ?? '',
-        )
-        .toList();
+    // A waypoint whose photos have been downloaded for offline use (library)
+    // carries BOTH `photos` (server filenames) and `localPhotos` (downloaded
+    // file paths) at the same time -- unlike `Trail`, which leaves `photos`
+    // empty for any DB-backed row. When local copies exist, prefer them
+    // exclusively: building network URLs alongside them would duplicate every
+    // photo in PhotoCollage (network copy first, local copy second) and,
+    // offline, the leading network copies fail to load while the trailing
+    // local ones succeed -- showing placeholders for photos that are in fact
+    // available on-device.
+    final webPhotos = waypoint.localPhotos.isNotEmpty
+        ? const <String>[]
+        : waypoint.photos
+              .map(
+                (p) =>
+                    waypoint.getFileUrl(user.serverUrl, p, thumb: '200x0') ??
+                    '',
+              )
+              .toList();
 
     return Container(
       decoration: BoxDecoration(

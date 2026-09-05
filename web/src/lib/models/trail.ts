@@ -30,7 +30,7 @@ class Trail {
     elevation_loss?: number;
     duration?: number;
     // Moving time in seconds for trails recorded in the Wanderer app; `duration`
-    // always means GPX-derived elapsed time (D-10, phase 34).
+    // always means GPX-derived elapsed time.
     moving_duration?: number;
     difficulty?: "easy" | "moderate" | "difficult"
     lat?: number;

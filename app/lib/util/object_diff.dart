@@ -34,7 +34,9 @@ ObjectArrayDiff<T> compareObjectArrays<T>(
     }
   }
 
-  final deleted = oldArray.where((item) => !newIds.contains(idOf(item))).toList();
+  final deleted = oldArray
+      .where((item) => !newIds.contains(idOf(item)))
+      .toList();
 
   return ObjectArrayDiff(added: added, updated: updated, deleted: deleted);
 }

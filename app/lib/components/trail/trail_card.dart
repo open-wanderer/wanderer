@@ -1,19 +1,19 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
+import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
-import 'package:wanderer/components/trail/trail_category_label.dart';
 import 'package:wanderer/util/format.dart';
 
 class TrailCard extends ConsumerWidget {
@@ -59,7 +59,7 @@ class TrailCard extends ConsumerWidget {
         thumb: "600x0",
       );
       if (networkUrl != null) {
-        imageProvider = NetworkImage(networkUrl);
+        imageProvider = CachedNetworkImageProvider(networkUrl);
       }
     }
 
@@ -178,7 +178,7 @@ class TrailCard extends ConsumerWidget {
                       const SizedBox(height: 4),
                       if (trail.summaryDate != null)
                         Text(
-                          DateFormat.yMMMMd(locale).format(trail.summaryDate!),
+                          dateFormatYMMMMd(locale).format(trail.summaryDate!),
                           style: TextStyle(
                             color: Theme.of(
                               context,
@@ -344,16 +344,16 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 11,
-          color: Theme.of(context).colorScheme.onSurface,
+          fontSize: 10,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -400,4 +400,3 @@ class _StatsGrid extends StatelessWidget {
     );
   }
 }
-

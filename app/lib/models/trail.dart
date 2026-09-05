@@ -266,6 +266,11 @@ abstract class TrailFilter with _$TrailFilter {
     DateTime? endDate,
     bool? completed,
     bool? liked,
+    // Emitted server-side as an `id IN [...]` whitelist, but only when the
+    // caller supplies the ids -- see `toFilterText`'s [offlineTrailIds].
+    // `applyTrailFilter` carries a second, non-redundant half for unsynced
+    // local captures, which have no server id to whitelist.
+    @Default(false) bool offlineOnly,
     required TrailFilterSort
     sort, // "name" | "distance" | "elevation_gain" | "created"
     required SortOrder sortOrder,
@@ -273,13 +278,38 @@ abstract class TrailFilter with _$TrailFilter {
 
   const TrailFilter._();
 
+  /// The character set a trail id must fall within to be interpolated into a
+  /// Meilisearch filter string. PocketBase ids are alphanumeric; federated
+  /// ids may add `-`/`_`. Anything outside this set (quotes, brackets,
+  /// commas, whitespace) could break out of the `id IN [...]` literal, so a
+  /// row carrying one is dropped rather than escaped.
+  static final RegExp _kTrailIdPattern = RegExp(r'^[A-Za-z0-9_-]+$');
+
   /// Builds a Meilisearch filter string from this filter.
   ///
   /// Pass [actor] (the current user's actor ID) to include author, visibility,
   /// and liked constraints. Omit it (or pass null) when the caller does not
   /// need user-scoped filtering — e.g. profile trail searches where the server
   /// already enforces the author constraint.
-  String toFilterText({String? actor, bool includeGeo = true}) {
+  ///
+  /// [offlineTrailIds] supplies the server ids of the trails held on this
+  /// device, and is read ONLY when [offlineOnly] is set. It is a parameter
+  /// rather than a field because the id set is a property of the device, not
+  /// of the filter: the same `TrailFilter` instance is shared across the map,
+  /// library and profile surfaces via one `trailFilterProvider` family, while
+  /// the relevant id set differs per surface (author-narrowed on a profile,
+  /// whole-library on the map).
+  ///
+  /// Callers should narrow the set to the author whose trails are being
+  /// searched where they can. That is a privacy and payload measure, not a
+  /// correctness one — `/profile/{handle}/trails` already ANDs
+  /// `author = <actor>` server-side — and it matters most for federated
+  /// profiles, whose requests are proxied verbatim to the origin instance.
+  String toFilterText({
+    String? actor,
+    bool includeGeo = true,
+    Set<String>? offlineTrailIds,
+  }) {
     List<String> parts = [];
 
     // Basic Numeric Filters
@@ -394,6 +424,34 @@ abstract class TrailFilter with _$TrailFilter {
     // Completed
     if (completed != null) {
       parts.add('completed = $completed');
+    }
+
+    // Offline-available: expressed as an explicit id whitelist. Meilisearch
+    // has no field for "is this trail's data on THIS device" -- the server
+    // does not track downloads at all (`savedByUserIds` is device-local, and
+    // appears nowhere in db/ or web/) -- so the device names the ids itself.
+    //
+    // The empty set emits a clause that matches nothing rather than being
+    // skipped. Skipping it would silently widen the search to every trail,
+    // which is the opposite of what the chip asks for; callers that want to
+    // avoid the round-trip entirely should short-circuit before calling.
+    //
+    // Ids are whitelisted to the PocketBase id alphabet before interpolation.
+    // These strings come from local ObjectBox rows, so a corrupt or hostile
+    // row must not be able to inject filter syntax into the query.
+    if (offlineOnly) {
+      final safeIds = (offlineTrailIds ?? const <String>{})
+          .where((id) => _kTrailIdPattern.hasMatch(id))
+          .toList();
+      // `id IN ['']` rather than `id IN []`: a one-element array is
+      // unambiguously valid filter syntax, and no trail id is ever the empty
+      // string, so it reliably matches nothing. An empty array literal was
+      // avoided because its acceptance is not worth depending on.
+      parts.add(
+        safeIds.isEmpty
+            ? "id IN ['']"
+            : 'id IN [${safeIds.map((id) => "'$id'").join(", ")}]',
+      );
     }
 
     // Geo Location

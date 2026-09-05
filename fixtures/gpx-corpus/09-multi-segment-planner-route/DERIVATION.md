@@ -10,7 +10,7 @@ second leg's opening point is deliberately the same coordinate as the first leg'
 
 ## Defect pinned
 
-CONV-01, applied across a segment boundary: the `i = 0` loop-bound fix must not have introduced
+The segment-first-point fix, applied across a segment boundary: the `i = 0` loop bound must not have introduced
 a *per-segment* metrics-anchor reset. `GpxMetricsComputation` is a single shared instance across
 every segment (`gpx.ts:106`, constructed once per `getTotals()` call and never re-created inside
 the segment loop) — this fixture proves that a route with multiple track segments still measures

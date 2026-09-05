@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -26,13 +28,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
 
+  /// Debounces the search field: [_filtered] runs a lowercase scan + full
+  /// filter/sort over the whole library, and doing that per keystroke made
+  /// fast typing pay the entire pipeline once per character. The text field
+  /// itself stays live (it owns its controller) — only the list refresh
+  /// waits for a typing pause.
+  Timer? _searchDebounce;
+
+  void _onQueryChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) setState(() => _query = value);
+    });
+  }
+
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  List<Trail> _filtered(List<Trail> trails, TrailFilter? filter) {
+  List<Trail> _filtered(
+    List<Trail> trails,
+    TrailFilter? filter,
+    Set<String> downloadedIds,
+  ) {
     final q = _query.trim().toLowerCase();
     List<Trail> result = q.isEmpty
         ? trails
@@ -42,7 +63,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           }).toList();
 
     if (filter != null) {
-      result = applyTrailFilter(result, filter);
+      // downloadedIds is tautological here -- every row on this screen
+      // already comes from trailLibraryProvider, so offlineOnly can never
+      // drop anything. Threaded through anyway so there is exactly one
+      // filtering path; do not "clean up" this apparently-dead argument.
+      result = applyTrailFilter(result, filter, downloadedIds: downloadedIds);
     }
 
     return result;
@@ -53,7 +78,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final trailLibrary = ref.watch(trailLibraryProvider);
     final router = ref.watch(routerProvider);
     final filterAsync = ref.watch(trailFilterProvider('library'));
-    final visible = _filtered(trailLibrary, filterAsync.value);
+    final downloadedIds = ref.watch(downloadedTrailIdsProvider);
+    final visible = _filtered(trailLibrary, filterAsync.value, downloadedIds);
     final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
@@ -66,7 +92,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: TextField(
                 controller: _searchController,
-                onChanged: (v) => setState(() => _query = v),
+                onChanged: _onQueryChanged,
                 cursorColor: Theme.of(context).colorScheme.onSurface,
                 decoration: InputDecoration(
                   hintText: l10n.search_library,
@@ -76,6 +102,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ? IconButton(
                           icon: const Icon(Icons.clear),
                           onPressed: () {
+                            _searchDebounce?.cancel();
                             _searchController.clear();
                             setState(() => _query = '');
                           },
@@ -98,7 +125,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ),
             ),
-            const TrailQuickFilterBar(filterId: 'library'),
+            // showOfflineChip: false -- every row on this screen is already
+            // downloaded by definition, so the chip would be a
+            // visible-but-inert control (toggling it never changes the
+            // list), which reads as a bug rather than a feature.
+            const TrailQuickFilterBar(
+              filterId: 'library',
+              showOfflineChip: false,
+            ),
             Expanded(
               child: visible.isEmpty
                   // An empty library and an over-narrow search/filter are
@@ -121,6 +155,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         final trail = visible[i];
                         final location = trailDetailLocation(trail);
                         return TrailCard(
+                          // Key so a filter/sort reorder MOVES elements
+                          // instead of rebuilding every card's subtree from
+                          // scratch. localId disambiguates unsynced rows,
+                          // whose server id is blanked.
+                          key: ValueKey(trail.localId ?? trail.id),
                           trail: trail,
                           onTrailSelect: location == null
                               ? null

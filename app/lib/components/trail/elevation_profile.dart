@@ -55,7 +55,10 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
   @override
   void didUpdateWidget(ElevationProfile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.gpx != widget.gpx ||
+    // identical() first: gpx 2.3.0's == has no identity short-circuit — it
+    // deep-walks every trackpoint even when comparing an object to itself,
+    // which made this check O(track) on every parent rebuild.
+    if (!identical(oldWidget.gpx, widget.gpx) && oldWidget.gpx != widget.gpx ||
         oldWidget.smoothingWindowSize != widget.smoothingWindowSize) {
       _points = _parseGpx(widget.gpx, widget.smoothingWindowSize);
       _selectedIndex = null;
@@ -71,7 +74,12 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     // read it via ref.read within the same frame.
     ref.watch(unitProvider);
 
-    if (_points.isEmpty) {
+    // A single point is not a profile: every axis range collapses to zero and
+    // the chart degenerates to one dot with no line. Reachable now that points
+    // lacking elevation are skipped rather than plotted at 0 — a recording
+    // whose first breadcrumb point came from the altitude-less seed fix has
+    // exactly one plottable point until its second real fix lands.
+    if (_points.length < 2) {
       return const _EmptyState();
     }
 
@@ -332,7 +340,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
                         FlLine(
                           color: Theme.of(
                             context,
-                          ).primaryColor.withValues(alpha: 0.4),
+                          ).colorScheme.onSurface.withValues(alpha: 0.4),
                           strokeWidth: 1,
                         ),
                         FlDotData(
@@ -691,6 +699,16 @@ List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
     for (final segment in track.trksegs) {
       for (final wpt in segment.trkpts) {
         if (wpt.lat == null || wpt.lon == null) continue;
+        // A point with no usable elevation is skipped rather than plotted at
+        // 0. `wpt.ele ?? 0` was the third of the three disagreeing answers to
+        // "is this elevation usable?" that conversion.dart's hasUsablePosition
+        // doc comment warns about, and it is visible: a live recording's first
+        // breadcrumb point carries no altitude when the session seeded from an
+        // already-resolved map marker, so plotting it at 0 drew a cliff from
+        // sea level to the device's real altitude at the start of the chart.
+        // computeTrailMetrics already skips these; the chart now agrees.
+        final elevation = parseGpxElevation(wpt.ele);
+        if (elevation == null) continue;
 
         if (prevPoint != null) {
           final hop = haversineMeters(prevPoint, wpt);
@@ -708,7 +726,7 @@ List<TrackPoint> buildElevationTrackPoints(Gpx gpx, int windowSize) {
         result.add(
           TrackPoint(
             distanceM: cumDist,
-            elevationM: wpt.ele ?? 0,
+            elevationM: elevation,
             lonlat: Geographic(lat: wpt.lat!, lon: wpt.lon!),
             duration: cumDuration,
             gradient: 0,

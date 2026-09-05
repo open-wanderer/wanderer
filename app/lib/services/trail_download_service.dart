@@ -144,7 +144,7 @@ class TrailDownloadService {
       rethrow;
     }
 
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: _store);
     entity.photos = localPaths;
     for (final waypointEntity in entity.waypoints) {
       final paths = waypointLocalPhotos[waypointEntity.id];

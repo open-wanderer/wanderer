@@ -1,7 +1,7 @@
 name: wanderer
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.1.0+4
 
 environment:
   sdk: ^3.11.5
@@ -59,6 +59,7 @@ dependencies:
   tracelet: ^3.5.0
   url_launcher: ^6.3.2
   xml: ^6.3.0
+  cached_network_image: ^3.4.1
 
 dependency_overrides:
   meta: ^1.18.0

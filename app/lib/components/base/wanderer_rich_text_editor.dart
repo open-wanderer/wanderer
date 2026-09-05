@@ -414,7 +414,10 @@ class _LinkDialogState extends State<_LinkDialog> {
             controlAffinity: ListTileControlAffinity.leading,
             value: _newTab,
             onChanged: (v) => setState(() => _newTab = v ?? false),
-            title: Text(l10n.open_in_new_tab, style: TextStyle(color: onSurface)),
+            title: Text(
+              l10n.open_in_new_tab,
+              style: TextStyle(color: onSurface),
+            ),
           ),
         ],
       ),
@@ -424,7 +427,10 @@ class _LinkDialogState extends State<_LinkDialog> {
             onPressed: () => Navigator.of(context).pop(
               const _LinkDialogResult(href: '', newTab: false, remove: true),
             ),
-            child: Text(l10n.remove, style: TextStyle(color: Colors.red.shade400)),
+            child: Text(
+              l10n.remove,
+              style: TextStyle(color: Colors.red.shade400),
+            ),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),

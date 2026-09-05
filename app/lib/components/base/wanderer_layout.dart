@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -253,7 +254,7 @@ class _NavAvatarState extends State<_NavAvatar> {
           return CircleAvatar(
             radius: 12,
             backgroundColor: backgroundColor,
-            backgroundImage: NetworkImage(
+            backgroundImage: CachedNetworkImageProvider(
               user?.getFileUrl(user.serverUrl, user.avatar) ??
                   "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",
             ),

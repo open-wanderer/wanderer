@@ -12,7 +12,10 @@ Future<({double lat, double lon})?> readGpsFromImage(String path) async {
   final bytes = await File(path).readAsBytes();
   final tags = await readExifFromBytes(bytes);
 
-  final lat = _dmsToDecimal(tags['GPS GPSLatitude'], tags['GPS GPSLatitudeRef']);
+  final lat = _dmsToDecimal(
+    tags['GPS GPSLatitude'],
+    tags['GPS GPSLatitudeRef'],
+  );
   final lon = _dmsToDecimal(
     tags['GPS GPSLongitude'],
     tags['GPS GPSLongitudeRef'],

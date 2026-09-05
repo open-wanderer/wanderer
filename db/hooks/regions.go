@@ -49,7 +49,7 @@ func ValidateRegionPathReferenceHandler() func(e *core.RecordEvent) error {
 
 // CacheGeometryOnEnableHandler caches a leaf region's boundary geometry the
 // moment the region is enabled, by calling regions.ResolveGeometry — whose
-// persist branch (D-10) fires precisely because the record is now enabled.
+// persist branch fires precisely because the record is now enabled.
 //
 // Why this exists as a server-side hook rather than a client call: the
 // original design assumed the admin picker's toggle-on redraw would populate
@@ -57,7 +57,7 @@ func ValidateRegionPathReferenceHandler() func(e *core.RecordEvent) error {
 // The redraw read the collection directly instead of the read-through route,
 // so it never triggered a fetch at all; and it ran *before* the enabling PATCH
 // resolved, so even a route call would have seen enabled=false and taken the
-// D-11 pass-through with no write. The result was that nothing ever wrote
+// disabled pass-through with no write. The result was that nothing ever wrote
 // region_geometry from the admin flow — rows only appeared when the archive
 // cron eventually ran buildRegion.
 //
@@ -108,7 +108,7 @@ func CacheGeometryOnEnableHandler(app core.App) func(e *core.RecordEvent) error 
 			}
 			if _, _, err := regions.ResolveGeometry(app, region); err != nil {
 				// Non-fatal by design: the region is enabled either way, and
-				// buildRegion's D-14 self-heal will refetch at build time.
+				// buildRegion's self-heal will refetch at build time.
 				// Losing the cache write only costs the admin map its outline
 				// until then.
 				log.Printf("[regions] geometry cache-on-enable failed for %s: %v", path, err)

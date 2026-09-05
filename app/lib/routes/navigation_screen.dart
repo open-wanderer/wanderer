@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show exp, pi;
@@ -54,6 +55,33 @@ import 'package:wanderer/util/route/valhalla.dart';
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s
 /// premature-exit dialog.
 enum _NavExitChoice { cancel, exit, saveTrack }
+
+/// Breadcrumb length below which the live elevation chart still refreshes on
+/// every single GPS fix. Redrawing is cheap while the track is short, and a
+/// just-started recording is exactly when the user is most likely watching the
+/// profile appear.
+const _kLiveChartFullFidelityPoints = 300;
+
+/// One chart refresh per this many fixes once past
+/// [_kLiveChartFullFidelityPoints]. At 1 Hz that is a redraw roughly every
+/// 10 s — invisible on an elevation profile spanning hours, and it cuts the
+/// per-fix cost by 10x exactly when the track is long enough for that cost to
+/// matter.
+const _kLiveChartStride = 10;
+
+/// Change signal for the live (recording) elevation chart, derived from
+/// `NavigationState.breadcrumbLength`.
+///
+/// Monotonically non-decreasing, so it can never make the chart go backwards,
+/// but it deliberately holds steady across consecutive fixes once the track is
+/// long — see the two constants above and the cost note in
+/// `_buildElevationPage`. Full fidelity below the threshold, then one step per
+/// [_kLiveChartStride] fixes.
+@visibleForTesting
+int liveElevationChartRevision(int breadcrumbLength) =>
+    breadcrumbLength <= _kLiveChartFullFidelityPoints
+    ? breadcrumbLength
+    : _kLiveChartFullFidelityPoints + breadcrumbLength ~/ _kLiveChartStride;
 
 class NavigationScreen extends ConsumerStatefulWidget {
   final String id;
@@ -129,6 +157,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `navigationProvider`/`navigationStatsProvider` call site below must pass
   /// the identical seed fields or the family resolves to a different
   /// (split-brain) provider instance.
+  /// The session's route as JSON, encoded once and written on every persist.
+  ///
+  /// Re-encoding the full route on each persist tick would be pure waste, and
+  /// a resumed session already has the string — reuse it rather than rebuild
+  /// an identical one. Null while recording (no route).
+  late final String? _sessionNavJson;
+
   late final int? _resumeManeuverIndex;
   late final List<Wpt>? _resumeBreadcrumb;
   late final NavigationStatsSeed? _resumeStats;
@@ -138,6 +173,47 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// only ever supplies one of the two — resume seeds have no fresh sheet
   /// selection to carry). Null outside recording mode.
   late final String? _recordingCosting;
+
+  /// Family provider instances constructed ONCE (in [initState], after the
+  /// resume seeds resolve) and reused for every watch/read/listen in this
+  /// file. Constructing them inline per call site both risks split-brain
+  /// seeds and re-creates the argument record each time. Note the container
+  /// still hashes the argument per lookup (and that hash deep-walks the full
+  /// route shape — freezed's DeepCollectionEquality), which is why the
+  /// per-GPS-fix path below goes through the cached NOTIFIER references
+  /// instead of any provider read.
+  late final NavigationProvider _navProviderInstance;
+  late final NavigationStatsNotifierProvider _statsProviderInstance;
+
+  /// Notifier references cached once in [initState] — the per-fix hot path
+  /// calls these directly, doing ZERO provider lookups per GPS fix. Safe for
+  /// the session: both families are kept alive by this screen's own
+  /// watch/listen subscriptions and nothing invalidates them mid-session.
+  late final Navigation _navNotifier;
+  late final NavigationStatsNotifier _statsNotifier;
+
+  /// Mirror of `stats.isPaused || stats.isStationary`, maintained by a
+  /// [ref.listenManual] subscription — so the per-fix handler never has to
+  /// `ref.read` the stats provider (see [_statsProviderInstance] docs).
+  bool _frozen = false;
+
+  /// False while the app is backgrounded (paused/hidden/detached). Gates the
+  /// per-fix breadcrumb GeoJSON serialization + platform-channel push — the
+  /// native map is paused and invisible, so feeding it geometry is pure
+  /// battery waste. Recording itself (breadcrumb, stats, persistence) is
+  /// UNAFFECTED: background recording is first-class, only map-feeding
+  /// stops. On resume, [_pushBreadcrumbSources] catches the map up in one
+  /// update.
+  bool _uiVisible = true;
+
+  /// Number of leading breadcrumb points currently baked into the native
+  /// `breadcrumb` (frozen) GeoJSON source. Points past this index live in the
+  /// small `breadcrumb-tail` source, re-serialized per fix — bounding the
+  /// per-fix cost to O(tail) instead of O(whole track), which over a
+  /// multi-hour hike made the old single-source push quadratic. The tail is
+  /// rolled into the frozen source every [_kBreadcrumbTailMax] points.
+  int _frozenCount = 0;
+  static const _kBreadcrumbTailMax = 250;
 
   /// obxId of the single active-session row this screen owns. 0 means "not
   /// yet inserted" — the first [_persistNow] call inserts and this is updated
@@ -268,11 +344,34 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `onStyleLoaded` (the same race `TrailCollectionMap` guards against).
   ml.StyleController? _pendingStyle;
 
+  /// The style currently bound, held so a trail that resolves *after*
+  /// `onStyleLoaded` can still have its outline added.
+  ml.StyleController? _loadedStyle;
+
+  /// Whether the trail outline is on [_loadedStyle]. Reset on every style
+  /// load — a swap drops added sources and layers, and re-adding onto a style
+  /// that still has them would throw on the duplicate source id.
+  bool _trailLayerAdded = false;
+
   /// The last successfully-resolved (and possibly offline-rewritten) style
   /// JSON. Cached so a provider refresh (e.g. a theme toggle) never drops us
   /// back to the loading state and remounts the map — the live swap goes
   /// through [ml.MapController.setStyle] instead.
   String? _lastStyleJson;
+
+  /// Identity-keyed memo of [_composeStyle]'s last inputs/output — see the
+  /// build() comment at the compose call site.
+  String? _composeBaseInput;
+  GlyphSpriteCachePaths? _composeCacheInput;
+  String? _composeOutput;
+
+  /// [ml.MapOptions] built exactly once (first build with a resolved style):
+  /// `MapOptions` has no value equality, so a fresh instance per build
+  /// defeats the plugin's `didUpdateWidget` early-out and re-issues its
+  /// min/max zoom + pitch JNI setters on every rebuild. Every field in it is
+  /// init-only anyway (style/theme changes post-creation go through
+  /// [_swapStyle], never through options).
+  ml.MapOptions? _mapOptions;
 
   bool _cacheWarmed = false;
 
@@ -299,6 +398,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
     _store = ref.read(objectBoxProvider);
     final resumeSession = widget.resumeSession;
+    _sessionNavJson = widget.isRecording
+        ? null
+        : (resumeSession?.navResponseJson ??
+              jsonEncode(widget.response.toJson()));
     _resumeManeuverIndex = resumeSession?.currentManeuverIndex;
     _activeRowObxId = resumeSession?.obxId ?? 0;
     _recordingCosting =
@@ -336,6 +439,26 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           )
         : null;
 
+    // Family instances + notifiers cached once — see the field docs. Every
+    // later read/watch/listen in this file MUST go through these so the
+    // family seeds can never split-brain.
+    _navProviderInstance = navigationProvider(
+      widget.response,
+      resumeManeuverIndex: _resumeManeuverIndex,
+      resumeBreadcrumb: _resumeBreadcrumb,
+    );
+    _statsProviderInstance = navigationStatsProvider(
+      widget.response,
+      resume: _resumeStats,
+    );
+    _navNotifier = ref.read(_navProviderInstance.notifier);
+    _statsNotifier = ref.read(_statsProviderInstance.notifier);
+    // Keeps the per-fix handler free of provider reads: mirror the frozen
+    // flag on every stats emission instead of re-deriving it per fix.
+    ref.listenManual(_statsProviderInstance, fireImmediately: true, (_, next) {
+      _frozen = next.isPaused || next.isStationary;
+    });
+
     if (resumeSession == null) {
       // Fresh session: clear any stale prior-trail row, then write an
       // initial zeroed row for this trail.
@@ -353,28 +476,38 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // stationary → freeze timer/GPS-power/stats; moving → auto-resume. The
     // notifier never computes motion itself, it only reacts to this stream.
     _movingSub = _positionSource.isMovingStream.listen((moving) {
-      ref
-          .read(
-            navigationStatsProvider(
-              widget.response,
-              resume: _resumeStats,
-            ).notifier,
-          )
-          .setStationary(!moving);
+      _statsNotifier.setStationary(!moving);
     });
     // AppLocalizations.of(context) isn't safe to call synchronously here —
     // inherited-widget dependencies aren't established until after the first
     // frame — so the notification-text lookup (and thus `start()`) is
     // deferred by one frame.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final localizations = AppLocalizations.of(context)!;
-      unawaited(
-        _positionSource.start(
-          notificationTitle: localizations.location_tracking_notification_title,
-          notificationText: localizations.location_tracking_notification_text,
-          seed: widget.initialPosition,
-        ),
+      // Awaited (not fire-and-forget) purely so the rewrite below can never
+      // reconfigure the service before it has been configured.
+      await _positionSource.start(
+        notificationTitle: localizations.location_tracking_notification_title,
+        notificationText: _notificationText(localizations),
+        seed: widget.initialPosition,
+      );
+      // The navigating notification names the trail, and the trail model can
+      // still be loading right here — a session resumed at launch pushes
+      // straight to this route with nothing warm to read, so `start()` above
+      // had to fall back to the generic wording. Resolve it ONCE and rewrite
+      // the body; the trail is fixed for the session (switching trails means
+      // leaving this screen), so there is nothing further to watch. A no-op
+      // in the common case where the name was already known at `start()`.
+      if (widget.isRecording) return;
+      // Failure (offline with nothing cached) leaves the generic wording
+      // rather than naming a trail we don't have.
+      final name = await ref
+          .read(trailProvider(widget.id).future)
+          .then<String?>((trail) => trail.name, onError: (_) => null);
+      if (!mounted || name == null || name.isEmpty) return;
+      await _positionSource.setNotificationText(
+        localizations.location_tracking_notification_text_navigating(name),
       );
     });
     // Single stream drives both recording/stats and the live marker/camera —
@@ -384,38 +517,35 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // separate GPS session just for the UI.
     _sub = _positionStream.listen(
       (pos) {
-        final navProviderInstance = navigationProvider(
-          widget.response,
-          resumeManeuverIndex: _resumeManeuverIndex,
-          resumeBreadcrumb: _resumeBreadcrumb,
-        );
-        final statsProviderInstance = navigationStatsProvider(
-          widget.response,
-          resume: _resumeStats,
-        );
+        // HOT PATH — one call per GPS fix for the whole session. Zero
+        // provider lookups here by design: every ref.read hashes the family
+        // argument, which deep-walks the full route shape (see the
+        // _navProviderInstance field docs).
+        //
         // Frozen (manually paused and/or tracelet-detected stationary) must
         // not append to the breadcrumb — that's the data persisted to disk
         // and exported as the saved trail's GPX. Maneuver-advance detection
         // is unrelated bookkeeping and must keep running even while frozen,
         // so it's not gated here — only the breadcrumb append is.
-        final stats = ref.read(statsProviderInstance);
-        final frozen = stats.isPaused || stats.isStationary;
-        final beforeIndex = ref.read(navProviderInstance).currentManeuverIndex;
-        ref
-            .read(navProviderInstance.notifier)
-            .onPosition(
-              ml.Geographic(lat: pos.latitude, lon: pos.longitude),
-              altitude: pos.altitude,
-              heading: pos.heading,
-              headingAccuracy: pos.headingAccuracy,
-              speed: pos.speed,
-              accuracy: pos.accuracy,
-              recordBreadcrumb: !frozen,
-            );
-        final afterIndex = ref.read(navProviderInstance).currentManeuverIndex;
-        ref.read(statsProviderInstance.notifier).onPosition(pos);
+        final advanced = _navNotifier.onPosition(
+          ml.Geographic(lat: pos.latitude, lon: pos.longitude),
+          // `null`, never a fabricated 0, when the fix carries no real
+          // altitude (see [hasUsableAltitude]). The breadcrumb IS the saved
+          // trail's GPX, and computeTrailMetrics deliberately skips waypoints
+          // with no usable `ele` so the first point that does carry elevation
+          // becomes the anchor. Passing 0 here instead would bake a
+          // ~absolute-altitude phantom climb into every saved recording that
+          // started from an already-resolved map-marker position.
+          altitude: hasUsableAltitude(pos) ? pos.altitude : null,
+          heading: pos.heading,
+          headingAccuracy: pos.headingAccuracy,
+          speed: pos.speed,
+          accuracy: pos.accuracy,
+          recordBreadcrumb: !_frozen,
+        );
+        _statsNotifier.onPosition(pos);
         _onFix(pos);
-        if (afterIndex > beforeIndex) {
+        if (advanced) {
           _persistNow();
         }
       },
@@ -427,6 +557,23 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _startHeadingSub();
   }
 
+  /// Body of the Android foreground-service notification for this session.
+  ///
+  /// Recording says what it is doing; navigating names the trail being
+  /// followed, which is the only thing that distinguishes the two sessions
+  /// from the notification shade. Falls back to the recording wording while
+  /// the trail model is still loading (or failed to load) — the listener in
+  /// [initState] rewrites the text if the name lands later.
+  String _notificationText(AppLocalizations localizations) {
+    if (widget.isRecording) {
+      return localizations.location_tracking_notification_text;
+    }
+    final name = ref.read(trailProvider(widget.id)).value?.name;
+    return name == null || name.isEmpty
+        ? localizations.location_tracking_notification_text
+        : localizations.location_tracking_notification_text_navigating(name);
+  }
+
   /// Subscribes to the device orientation sensor for heading — decoupled from
   /// GPS so the marker/map keep rotating when the user turns in place (GPS
   /// `heading` only updates while moving). Same source `flutter_map_location_
@@ -434,7 +581,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   void _startHeadingSub() {
     _headingSub?.cancel();
     if (!RotationSensor.isPlatformSupported) return;
-    RotationSensor.samplingPeriod = SensorInterval.uiInterval;
+    // ~15 Hz — always this file's documented intent, but `uiInterval` is
+    // 16.7ms (~60 Hz on most devices): 4× the sensor callbacks and marker
+    // publishes this screen was designed for, for the whole session. 66ms
+    // is plenty: the low-pass smoothing plus [_bearingFollowTicker]'s
+    // per-frame easing already decouple perceived rotation smoothness from
+    // the sensor cadence.
+    RotationSensor.samplingPeriod = const Duration(milliseconds: 66);
     _headingSub = RotationSensor.orientationStream.listen(
       (event) {
         // azimuth: radians, 0 = north, clockwise — same convention as the
@@ -468,9 +621,18 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// docs for why.
   void _onHeading(double rawDegrees) {
     final normalized = rawDegrees % 360 + (rawDegrees < 0 ? 360 : 0);
-    _smoothedHeading = _smoothedHeading == null
+    final previous = _smoothedHeading;
+    _smoothedHeading = previous == null
         ? normalized
-        : _lerpBearing(_smoothedHeading!, normalized, _kHeadingSmoothingAlpha);
+        : _lerpBearing(previous, normalized, _kHeadingSmoothingAlpha);
+    // A rotation under ~0.3° is invisible at marker size — skip the
+    // republish (and its marker rebuild) while the heading is effectively
+    // still. Position changes republish independently via the tween, so this
+    // can never starve position updates.
+    if (previous != null &&
+        _bearingDelta(previous, _smoothedHeading!).abs() < 0.3) {
+      return;
+    }
     _publishMarker();
   }
 
@@ -494,7 +656,15 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         (elapsed - last).inMicroseconds / Duration.microsecondsPerSecond;
     if (dtSeconds <= 0) return;
     final alpha = 1 - exp(-dtSeconds / _kBearingFollowTauSeconds);
+    final previous = _mapBearing;
     _mapBearing = _lerpBearing(_mapBearing, target, alpha);
+    // Converged: once the per-frame easing step falls below ~0.02° the
+    // rotation is done to sub-pixel precision — skip the JNI camera push.
+    // Without this the ticker issues a native moveCamera every display frame
+    // (60–120 Hz) for the entire heading-up session even while standing
+    // still. The position tween pushes the camera independently, so centering
+    // never depends on this.
+    if (_bearingDelta(previous, _mapBearing).abs() < 0.02) return;
     _pushCamera();
   }
 
@@ -519,6 +689,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
     return (from + diff * t) % 360;
+  }
+
+  /// Shortest-path signed angular difference in degrees ([-180, 180]) —
+  /// the wraparound-safe companion to [_lerpBearing], used for the
+  /// below-visible-threshold guards in [_onHeading] and
+  /// [_onBearingFollowTick].
+  double _bearingDelta(double from, double to) {
+    var diff = (to - from) % 360;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    return diff;
   }
 
   /// Composes the latest interpolated position with the latest smoothed
@@ -593,13 +774,24 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
+        _uiVisible = true;
         unawaited(_positionSource.setForeground(true));
         _startHeadingSub();
         _syncBearingFollowTicker();
-      case AppLifecycleState.paused:
+        // Catch the paused native map up on everything recorded while
+        // backgrounded — per-fix pushes are skipped while !_uiVisible.
+        _pushBreadcrumbSources(ref.read(_navProviderInstance).breadcrumb);
       case AppLifecycleState.inactive:
+        // Transient (notification shade, incoming call, app-switcher peek) —
+        // treating it as background used to bounce tracelet through a full
+        // native setConfig round-trip and kill/restart the heading sensor on
+        // every shade pull. A real background always delivers paused/hidden
+        // right after, so doing nothing here loses nothing.
+        break;
+      case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
+        _uiVisible = false;
         unawaited(_positionSource.setForeground(false));
         _headingSub?.cancel();
         _headingSub = null;
@@ -617,7 +809,16 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     _positionAnimController.dispose();
     _bearingTransitionController.dispose();
     _bearingFollowTicker.dispose();
-    unawaited(_positionSource.dispose());
+    // A surviving session row means this screen is going away while tracking
+    // is meant to continue — the task was swiped off recents, or the route was
+    // popped mid-recording. Stopping tracelet here killed the foreground
+    // service and recorded nothing until the app was reopened. The finish
+    // paths clear the row before popping, so a completed session still stops.
+    unawaited(
+      active_nav.read(_store) != null
+          ? _positionSource.detach()
+          : _positionSource.dispose(),
+    );
     _currentPosition.dispose();
     _sheetController.dispose();
     _waypointSheetController.dispose();
@@ -629,19 +830,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// duplicating) the row via [_activeRowObxId]. Best-effort — see
   /// `active_navigation_store`'s swallow-all semantics.
   void _persistNow() {
-    final navState = ref.read(
-      navigationProvider(
-        widget.response,
-        resumeManeuverIndex: _resumeManeuverIndex,
-        resumeBreadcrumb: _resumeBreadcrumb,
-      ),
-    );
-    final statsNotifier = ref.read(
-      navigationStatsProvider(widget.response, resume: _resumeStats).notifier,
-    );
-    final stats = ref.read(
-      navigationStatsProvider(widget.response, resume: _resumeStats),
-    );
+    final navState = ref.read(_navProviderInstance);
+    final stats = ref.read(_statsProviderInstance);
 
     final entity = ActiveNavigationEntity(
       obxId: _activeRowObxId,
@@ -651,6 +841,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       trailId: widget.isRecording ? null : widget.id,
       isOffline: widget.isOffline,
       recordingCosting: widget.isRecording ? _recordingCosting : null,
+      navResponseJson: _sessionNavJson,
       currentManeuverIndex: navState.currentManeuverIndex,
       breadcrumbPolyline: PolylineUtil.encode(
         navState.breadcrumb
@@ -672,7 +863,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       elevationGainMeters: stats.elevationGainMeters,
       elevationLossMeters: stats.elevationLossMeters,
       currentElapsedSeconds: stats.elapsed.inSeconds,
-      pausedAccumSeconds: statsNotifier.pausedAccum.inSeconds,
+      pausedAccumSeconds: _statsNotifier.pausedAccum.inSeconds,
       isPaused: stats.isPaused,
       updatedAtUtc: DateTime.now().toUtc(),
     );
@@ -685,14 +876,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// dialog, rather than accepting the tap and no-op'ing inside
   /// [_saveRecordedTrack].
   bool _hasSavableTrack() {
-    final navState = ref.read(
-      navigationProvider(
-        widget.response,
-        resumeManeuverIndex: _resumeManeuverIndex,
-        resumeBreadcrumb: _resumeBreadcrumb,
-      ),
-    );
-    return navState.breadcrumb.length >= 2;
+    return ref.read(_navProviderInstance).breadcrumb.length >= 2;
   }
 
   /// Builds a stub [Trail] from the recorded breadcrumb (via the same
@@ -743,20 +927,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     setState(() => _savingTrack = true);
 
     try {
-      final navState = ref.read(
-        navigationProvider(
-          widget.response,
-          resumeManeuverIndex: _resumeManeuverIndex,
-          resumeBreadcrumb: _resumeBreadcrumb,
-        ),
-      );
-      // IDENTICAL family seed args as every other navigationStatsProvider
-      // read in this file (see _persistNow and build()) — a different seed
-      // would resolve a different, split-brain provider instance whose
-      // `elapsed` is zero.
-      final navStats = ref.read(
-        navigationStatsProvider(widget.response, resume: _resumeStats),
-      );
+      final navState = ref.read(_navProviderInstance);
+      final navStats = ref.read(_statsProviderInstance);
 
       final originalTrail = ref.read(trailProvider(widget.id)).value;
 
@@ -1019,43 +1191,108 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     });
   }
 
+  /// Pushes the breadcrumb to the map across its two native sources: the
+  /// `breadcrumb` (frozen) source holding points `[0.._frozenCount)`, updated
+  /// only when the tail rolls over, and the `breadcrumb-tail` source holding
+  /// the still-growing remainder (sharing one overlap point so the line reads
+  /// as continuous), re-serialized per fix. Bounds per-fix serialization +
+  /// platform-channel traffic to O([_kBreadcrumbTailMax]) — pushing the whole
+  /// track per fix was quadratic over a session. The roll itself is O(track),
+  /// amortized to O(1)-per-fix by the chunk size.
+  ///
+  /// Idempotent against arbitrary gaps: passing the full current list after
+  /// any number of skipped pushes (style reload, backgrounded interval)
+  /// converges both sources — callers never need to replay missed fixes.
+  void _pushBreadcrumbSources(List<Wpt> pts) {
+    final style = _controller?.style;
+    if (style == null) return;
+    if (pts.length - _frozenCount >= _kBreadcrumbTailMax) {
+      style
+          .updateGeoJsonSource(id: 'breadcrumb', data: _breadcrumbGeoJson(pts))
+          .catchError((Object e) {
+            debugPrint('NavigationScreen: failed to update breadcrumb — $e');
+          });
+      _frozenCount = pts.length;
+    }
+    final tailStart = _frozenCount == 0 ? 0 : _frozenCount - 1;
+    style
+        .updateGeoJsonSource(
+          id: 'breadcrumb-tail',
+          data: _breadcrumbGeoJson(pts.sublist(tailStart)),
+        )
+        .catchError((Object e) {
+          debugPrint('NavigationScreen: failed to update breadcrumb tail — $e');
+        });
+  }
+
+  /// Adds the trail outline, if the trail is available and it is not already
+  /// on this style.
+  ///
+  /// `trailProvider` is read rather than awaited because on a warm open —
+  /// arriving from the trail screen — it already holds the trail. A session
+  /// resumed after a cold start has nothing warm, so the read returns null and
+  /// the outline never appeared at all: `_onStyleLoaded` runs once and never
+  /// retried. The listener in [build] covers that case by calling back here
+  /// when the trail lands.
+  Future<void> _addTrailOutline(ml.StyleController style) async {
+    if (_trailLayerAdded) return;
+    final trail = ref.read(trailProvider(widget.id)).value;
+    if (trail?.expand?.gpx == null) return;
+    // Claimed before the await so a style load and a late-arriving trail
+    // cannot both get past the guard and add a duplicate source.
+    _trailLayerAdded = true;
+    await _trailLayer.add(style, trail!);
+  }
+
   /// Re-arms everything that binds to the current native `Style` object:
   /// `setStyle` (used for theme swaps) drops added layers/sources, so this
   /// must run after every style load, not just once at `onMapCreated`. The
   /// location marker itself is a Flutter `_LocationMarkerLayer` (not a
   /// native style layer), so it survives style swaps untouched.
   Future<void> _onStyleLoaded(ml.StyleController style) async {
+    _loadedStyle = style;
+    _trailLayerAdded = false;
     try {
-      final trail = ref.read(trailProvider(widget.id)).value;
-      if (trail?.expand?.gpx != null) {
-        await _trailLayer.add(style, trail!);
-      }
+      await _addTrailOutline(style);
 
-      final breadcrumb = ref
-          .read(
-            navigationProvider(
-              widget.response,
-              resumeManeuverIndex: _resumeManeuverIndex,
-              resumeBreadcrumb: _resumeBreadcrumb,
-            ),
-          )
-          .breadcrumb;
+      final breadcrumb = ref.read(_navProviderInstance).breadcrumb;
+      // Two-source split: everything so far seeds the frozen source; the
+      // tail source starts empty and takes the per-fix updates — see
+      // [_pushBreadcrumbSources].
       await style.addSource(
         ml.GeoJsonSource(
           id: 'breadcrumb',
           data: _breadcrumbGeoJson(breadcrumb),
         ),
       );
+      _frozenCount = breadcrumb.length;
+      await style.addSource(
+        ml.GeoJsonSource(
+          id: 'breadcrumb-tail',
+          data: _breadcrumbGeoJson(const []),
+        ),
+      );
+      // Style-spec defaults to butt cap / miter join, which reads as
+      // angular at turns — round both so the trail renders as a
+      // continuously smooth line, matching the pre-migration
+      // flutter_map `Polyline`'s auto-rounded rendering. Both breadcrumb
+      // layers share identical paint so the frozen/tail split is invisible.
+      const breadcrumbPaint = {'line-color': '#DC2626', 'line-width': 3.5};
+      const breadcrumbLayout = {'line-cap': 'round', 'line-join': 'round'};
       await style.addLayer(
         const ml.LineStyleLayer(
           id: 'breadcrumb-route',
           sourceId: 'breadcrumb',
-          paint: {'line-color': '#DC2626', 'line-width': 3.5},
-          // Style-spec defaults to butt cap / miter join, which reads as
-          // angular at turns — round both so the trail renders as a
-          // continuously smooth line, matching the pre-migration
-          // flutter_map `Polyline`'s auto-rounded rendering.
-          layout: {'line-cap': 'round', 'line-join': 'round'},
+          paint: breadcrumbPaint,
+          layout: breadcrumbLayout,
+        ),
+      );
+      await style.addLayer(
+        const ml.LineStyleLayer(
+          id: 'breadcrumb-route-tail',
+          sourceId: 'breadcrumb-tail',
+          paint: breadcrumbPaint,
+          layout: breadcrumbLayout,
         ),
       );
     } catch (e) {
@@ -1082,6 +1319,23 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     // region-change listener is required.
     // Offline reads the network-free providers so no `/map/style-sources`
     // call is ever made.
+    // The trail can resolve after the style has loaded: a resumed session
+    // starts cold, with nothing having warmed `trailProvider`, so the read in
+    // [_addTrailOutline] finds nothing and the blue outline never appears.
+    // Add it when it lands instead of only at style-load time. Skipped while
+    // recording, which has no trail id to resolve.
+    if (!widget.isRecording && widget.id.isNotEmpty) {
+      ref.listen(trailProvider(widget.id), (_, next) {
+        final style = _loadedStyle;
+        if (style == null || next.value?.expand?.gpx == null) return;
+        unawaited(
+          _addTrailOutline(style).catchError((Object e) {
+            debugPrint('NavigationScreen: failed to add trail outline — $e');
+          }),
+        );
+      });
+    }
+
     if (widget.isOffline) {
       ref.listen(offlineMapStyleJsonProvider, (_, _) => _swapStyle());
       ref.listen(offlineGlyphSpritePathsProvider, (_, _) => _swapStyle());
@@ -1089,38 +1343,24 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       ref.listen(mapStyleJsonProvider, (_, _) => _swapStyle());
     }
 
-    // Breadcrumb in-place update: swap the native source's data on every new
-    // position fix, never remove/re-add the source.
-    ref.listen(
-      navigationProvider(
-        widget.response,
-        resumeManeuverIndex: _resumeManeuverIndex,
-        resumeBreadcrumb: _resumeBreadcrumb,
-      ),
-      (prev, next) {
-        if (prev?.breadcrumb == next.breadcrumb) return;
-        final style = _controller?.style;
-        if (style == null) return;
-        style
-            .updateGeoJsonSource(
-              id: 'breadcrumb',
-              data: _breadcrumbGeoJson(next.breadcrumb),
-            )
-            .catchError((Object e) {
-              debugPrint('NavigationScreen: failed to update breadcrumb — $e');
-            });
-      },
-    );
+    // Breadcrumb in-place update: swap the native tail source's data on every
+    // new position fix, never remove/re-add sources. Keyed on
+    // breadcrumbLength — the list object itself is identity-stable by design
+    // (see NavigationState.breadcrumb). Skipped while backgrounded: the
+    // native map is paused, [_pushBreadcrumbSources] catches it up on resume.
+    ref.listen(_navProviderInstance, (prev, next) {
+      if (prev?.breadcrumbLength == next.breadcrumbLength) return;
+      if (!_uiVisible) return;
+      _pushBreadcrumbSources(next.breadcrumb);
+    });
 
-    final navState = ref.watch(
-      navigationProvider(
-        widget.response,
-        resumeManeuverIndex: _resumeManeuverIndex,
-        resumeBreadcrumb: _resumeBreadcrumb,
-      ),
-    );
-    final stats = ref.watch(
-      navigationStatsProvider(widget.response, resume: _resumeStats),
+    // Deliberately NOT a whole-state watch: navigation state changes per GPS
+    // fix and stats tick at 1 Hz — a whole-state watch rebuilt this entire
+    // screen (map included) at ≥1 Hz for the whole session. The banner only
+    // needs the maneuver index; the stats sheet and pause button watch their
+    // own slices via scoped Consumers below.
+    final currentIndex = ref.watch(
+      _navProviderInstance.select((s) => s.currentManeuverIndex),
     );
     final trailAsync = ref.watch(trailProvider(widget.id));
     final user = ref.watch(authProvider).requireValue;
@@ -1140,12 +1380,20 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       error ??= cacheAsync.error;
     }
 
-    final composed = _composeStyle(baseJson, cache);
+    // Memoized on input identity: the offline path's compose is a full
+    // style-JSON decode → rewrite → encode round-trip (100s of KB), far too
+    // heavy to re-run on every incidental rebuild of this screen.
+    if (!identical(baseJson, _composeBaseInput) ||
+        !identical(cache, _composeCacheInput)) {
+      _composeBaseInput = baseJson;
+      _composeCacheInput = cache;
+      _composeOutput = _composeStyle(baseJson, cache);
+    }
+    final composed = _composeOutput;
     if (composed != null) _lastStyleJson = composed;
     final styleJson = _lastStyleJson;
 
     final maneuvers = widget.response.maneuvers;
-    final currentIndex = navState.currentManeuverIndex;
     final isArrived =
         currentIndex >= maneuvers.length - 1 && maneuvers.isNotEmpty;
 
@@ -1171,7 +1419,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                     onPointerCancel: (_) =>
                         _activePointers = (_activePointers - 1).clamp(0, 10),
                     child: ml.MapLibreMap(
-                      options: ml.MapOptions(
+                      options: _mapOptions ??= ml.MapOptions(
                         initStyle: styleJson,
                         initCenter:
                             widget.initialCenter ??
@@ -1233,7 +1481,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                           top: widget.isRecording ? 8 : 128,
                           left: 8,
                           child: SafeArea(
-                            child: const ml.MapScalebar(
+                            child: const WandererMapScalebar(
                               alignment: Alignment.topLeft,
                             ),
                           ),
@@ -1254,7 +1502,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                ml.MapCompass(
+                                WandererMapCompass(
                                   hideIfRotatedNorth: false,
                                   rotateNorthOnPressed: false,
                                   onPressed: () {
@@ -1322,19 +1570,13 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
                       ),
                     ),
 
-                  _buildStatsSheet(
-                    context,
-                    localizations,
-                    stats,
-                    trailAsync,
-                    unit,
-                  ),
+                  _buildStatsSheet(context, localizations, trailAsync, unit),
 
                   Positioned(
                     left: 16,
                     right: 16,
                     bottom: MediaQuery.of(context).padding.bottom,
-                    child: _buildButtonRow(context, localizations, stats),
+                    child: _buildButtonRow(context, localizations),
                   ),
 
                   if (_selectedWaypoint != null)
@@ -1558,7 +1800,6 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   Widget _buildStatsSheet(
     BuildContext context,
     AppLocalizations localizations,
-    NavigationStats stats,
     AsyncValue<Trail> trailAsync,
     String unit,
   ) {
@@ -1589,87 +1830,112 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           ),
           child: SingleChildScrollView(
             controller: scrollController,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle.
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-
-                // Always-visible top stats row.
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Row(
-                    children: [
-                      _buildStatCell(
-                        context,
-                        localizations.time_in_motion,
-                        formatElapsed(stats.elapsed),
-                      ),
-                      _buildStatCell(
-                        context,
-                        localizations.distance,
-                        formatDistance(stats.distanceMeters, unit: unit),
-                      ),
-                      _buildStatCell(
-                        context,
-                        localizations.elevation_gain,
-                        formatElevation(stats.elevationGainMeters, unit: unit),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Additional content fades in as the sheet expands.
-                AnimatedBuilder(
-                  animation: _sheetController,
-                  builder: (ctx, child) {
-                    final targetSize = _showingElevation
-                        ? _kSheetElevationSize
-                        : _kSheetStatsSize;
-                    final t = _sheetController.isAttached
-                        ? ((_sheetController.size - _kSheetMinSize) /
-                                  (targetSize - _kSheetMinSize))
-                              .clamp(0.0, 1.0)
-                        : 0.0;
-                    return Opacity(opacity: t, child: child);
-                  },
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: _showingElevation
-                        ? SizedBox(
-                            key: const ValueKey('elevation'),
-                            height: 216,
-                            child: _buildElevationPage(context, trailAsync),
-                          )
-                        : SizedBox(
-                            key: const ValueKey('stats'),
-                            child: _buildAdditionalStats(
-                              context,
-                              localizations,
-                              stats,
-                              unit,
-                            ),
-                          ),
-                  ),
-                ),
-
-                // Clearance so content does not hide behind the button overlay.
-                const SizedBox(height: 80),
-              ],
+            // Scoped stats watch: the 1 Hz tick and per-fix stat updates
+            // rebuild only this sheet content, never the screen (see the
+            // build() comment where the whole-state watches used to live).
+            child: Consumer(
+              builder: (context, ref, _) {
+                final stats = ref.watch(_statsProviderInstance);
+                return _buildStatsSheetContent(
+                  context,
+                  localizations,
+                  stats,
+                  trailAsync,
+                  unit,
+                );
+              },
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildStatsSheetContent(
+    BuildContext context,
+    AppLocalizations localizations,
+    NavigationStats stats,
+    AsyncValue<Trail> trailAsync,
+    String unit,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Drag handle.
+        Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
+        // Always-visible top stats row.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Row(
+            children: [
+              _buildStatCell(
+                context,
+                localizations.time_in_motion,
+                formatElapsed(stats.elapsed),
+              ),
+              _buildStatCell(
+                context,
+                localizations.distance,
+                formatDistance(stats.distanceMeters, unit: unit),
+              ),
+              _buildStatCell(
+                context,
+                localizations.elevation_gain,
+                formatElevation(stats.elevationGainMeters, unit: unit),
+              ),
+            ],
+          ),
+        ),
+
+        // Additional content fades in as the sheet expands.
+        AnimatedBuilder(
+          animation: _sheetController,
+          builder: (ctx, child) {
+            final targetSize = _showingElevation
+                ? _kSheetElevationSize
+                : _kSheetStatsSize;
+            final t = _sheetController.isAttached
+                ? ((_sheetController.size - _kSheetMinSize) /
+                          (targetSize - _kSheetMinSize))
+                      .clamp(0.0, 1.0)
+                : 0.0;
+            return Opacity(opacity: t, child: child);
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _showingElevation
+                ? SizedBox(
+                    key: const ValueKey('elevation'),
+                    height: 216,
+                    child: _buildElevationPage(context, trailAsync),
+                  )
+                : SizedBox(
+                    key: const ValueKey('stats'),
+                    child: _buildAdditionalStats(
+                      context,
+                      localizations,
+                      stats,
+                      unit,
+                    ),
+                  ),
+          ),
+        ),
+
+        // Clearance so content does not hide behind the button overlay.
+        const SizedBox(height: 80),
+      ],
     );
   }
 
@@ -1739,13 +2005,79 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
   /// Page 1: the reused [ElevationProfile] chart with a top-left back control
   /// returning to the stats page. The map behind the sheet stays interactive.
+  ///
+  /// Recording mode has no saved trail/GPX to profile (`trailProvider('')`
+  /// would resolve to AsyncError) — it builds a LIVE `Gpx` from the
+  /// in-progress `navState.breadcrumb` instead, via the same
+  /// [buildGpxFromPoints] helper `_saveRecordedTrack` uses for the identical
+  /// breadcrumb. Scoped in its own [Consumer] selecting `breadcrumbLength`
+  /// (never `breadcrumb` itself — see [NavigationState.breadcrumb]'s
+  /// stable-identity doc comment, a `select` on the list would never fire)
+  /// so only this page rebuilds per GPS fix, not the whole screen — mirrors
+  /// every other scoped watch in this file (see the build() comment on
+  /// whole-state watches).
   Widget _buildElevationPage(
     BuildContext context,
     AsyncValue<Trail> trailAsync,
   ) {
-    // Recording mode has no trail GPX to profile — trailProvider('') resolves
-    // to AsyncError, which would otherwise render error_reading_file.
-    if (widget.isRecording) return const SizedBox.shrink();
+    if (widget.isRecording) {
+      return Consumer(
+        builder: (context, ref, _) {
+          // Both watches are deliberately COARSE. Every rebuild of this
+          // subtree costs two full O(n) passes over the whole recording so
+          // far — buildElevationTrackPoints (via didUpdateWidget) and
+          // computeTrailMetrics (in ElevationProfile.build, since trail is
+          // null here) — each with a haversine per point. Measured at 1 Hz
+          // recording: ~11 ms per rebuild at 4 h of track on a desktop, so
+          // several times that on a phone, on the UI thread, growing with
+          // recording length. Rebuilding per GPS fix (and, worse, per
+          // stats-clock tick) made the chart page the most expensive thing
+          // on screen late in a hike, for pixels that did not change.
+          ref.watch(
+            _navProviderInstance.select(
+              (s) => liveElevationChartRevision(s.breadcrumbLength),
+            ),
+          );
+          // The header renders this at DurationTersity.minute, so watching
+          // whole minutes produces byte-identical output while dropping 59
+          // of every 60 rebuilds. Watching `elapsed` itself would rebuild
+          // once a second regardless of the stride above, since the stats
+          // clock ticks independently of GPS.
+          final elapsedMinutes = ref.watch(
+            _statsProviderInstance.select((s) => s.elapsed.inMinutes),
+          );
+
+          final live = ref.read(_navProviderInstance).breadcrumb;
+          // Length-checked BEFORE copying, so the not-enough-points case
+          // costs nothing. (This used to read `gpx.allPoints.length`, which
+          // allocated a fresh Geographic per recorded point just to compare
+          // a count.)
+          if (live.length < 2) {
+            return const SizedBox.shrink();
+          }
+          // SNAPSHOT, not the live view. `breadcrumb` is an identity-stable
+          // UnmodifiableListView over a grow-in-place list, so feeding it
+          // straight in makes every rebuild's Gpx wrap the SAME list instance
+          // as the previous one — and gpx 2.3.0's Gpx/Trkseg `==` delegates to
+          // ListEquality, which short-circuits on `identical`. The two Gpx
+          // objects would compare EQUAL no matter how many fixes arrived, so
+          // ElevationProfile.didUpdateWidget would never re-parse and the
+          // chart would freeze at its first two points. Copying gives each
+          // rebuild a distinct list whose differing length fails that
+          // equality check cheaply (length is compared before any element).
+          final gpx = buildGpxFromPoints(List<Wpt>.of(live));
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevationProfile(
+              trail: null,
+              gpx: gpx,
+              enableLineTouch: false,
+              durationOverride: Duration(minutes: elapsedMinutes),
+            ),
+          );
+        },
+      );
+    }
     return trailAsync.when(
       data: (trail) {
         final gpx = trail.expand?.gpx;
@@ -1778,26 +2110,28 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// not flip this button to its "paused" state, since the user never asked
   /// to pause and onPressed always toggles the manual flag regardless of
   /// isStationary.
-  Widget _buildPauseFab(AppLocalizations localizations, NavigationStats stats) {
-    return FloatingActionButton(
-      heroTag: 'nav_pause',
-      tooltip: stats.isPaused ? localizations.resume : localizations.pause,
-      elevation: 2,
-      shape: StadiumBorder(),
-      onPressed: () {
-        ref
-            .read(
-              navigationStatsProvider(
-                widget.response,
-                resume: _resumeStats,
-              ).notifier,
-            )
-            .togglePause();
-        _persistNow();
+  Widget _buildPauseFab(AppLocalizations localizations) {
+    // Scoped isPaused watch — the FAB flips on pause toggles without the
+    // screen watching the whole (1 Hz-ticking) stats state.
+    return Consumer(
+      builder: (context, ref, _) {
+        final isPaused = ref.watch(
+          _statsProviderInstance.select((s) => s.isPaused),
+        );
+        return FloatingActionButton(
+          heroTag: 'nav_pause',
+          tooltip: isPaused ? localizations.resume : localizations.pause,
+          elevation: 2,
+          shape: StadiumBorder(),
+          onPressed: () {
+            _statsNotifier.togglePause();
+            _persistNow();
+          },
+          child: FaIcon(
+            isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
+          ),
+        );
       },
-      child: FaIcon(
-        stats.isPaused ? FontAwesomeIcons.play : FontAwesomeIcons.pause,
-      ),
     );
   }
 
@@ -1851,11 +2185,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
     );
   }
 
-  Widget _buildButtonRow(
-    BuildContext context,
-    AppLocalizations localizations,
-    NavigationStats stats,
-  ) {
+  Widget _buildButtonRow(BuildContext context, AppLocalizations localizations) {
     if (widget.isRecording) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -1863,7 +2193,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             // Left — Pause/Resume toggle.
-            _buildPauseFab(localizations, stats),
+            _buildPauseFab(localizations),
 
             // Center — dominant red Stop button; the ONLY finish trigger for
             // a recording session (isArrived is structurally always false
@@ -1917,7 +2247,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
           ),
 
           // Center — dominant Pause/Resume.
-          _buildPauseFab(localizations, stats),
+          _buildPauseFab(localizations),
 
           // Right — toggle between additional stats and elevation profile.
           _buildElevationFab(localizations),

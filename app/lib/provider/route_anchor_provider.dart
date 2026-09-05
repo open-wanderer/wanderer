@@ -620,13 +620,25 @@ class RouteAnchors extends _$RouteAnchors {
     }
   }
 
+  /// Depth cap for [_pushUndo]. Every snapshot duplicates ALL segment
+  /// polylines + elevation profiles, and this keepAlive provider survives
+  /// screen exits — an unbounded stack over a long planning session was a
+  /// measurable slice of peak memory. 20 steps is far beyond practical
+  /// undo reach.
+  static const _kMaxUndoDepth = 20;
+
   /// Pushes the current (pre-mutation) anchors/segments onto the undo stack
-  /// and clears the redo stack. Called first, before mutating, by every
-  /// mutation method below.
+  /// and clears the redo stack, dropping the oldest snapshot beyond
+  /// [_kMaxUndoDepth]. Called first, before mutating, by every mutation
+  /// method below.
   void _pushUndo() {
+    final stack = state.undoStack;
     state = state.copyWith(
       undoStack: [
-        ...state.undoStack,
+        if (stack.length >= _kMaxUndoDepth)
+          ...stack.sublist(stack.length - _kMaxUndoDepth + 1)
+        else
+          ...stack,
         RouteAnchorsSnapshot(anchors: state.anchors, segments: state.segments),
       ],
       redoStack: const [],

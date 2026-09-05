@@ -80,7 +80,9 @@ class TrailFilterNotifier extends _$TrailFilterNotifier {
   /// get wrong on a rebuild. `build()`'s success and connection-failure paths
   /// still overwrite this value; every other error still surfaces as an
   /// `AsyncError` rather than hiding behind this default.
-  TrailFilter defaultFilter = buildDefaultTrailFilter(kOfflineTrailFilterValues);
+  TrailFilter defaultFilter = buildDefaultTrailFilter(
+    kOfflineTrailFilterValues,
+  );
 
   @override
   Future<TrailFilter> build(String filterId) async {

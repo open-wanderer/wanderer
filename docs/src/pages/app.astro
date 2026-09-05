@@ -1,0 +1,1742 @@
+---
+import { Image } from "astro:assets";
+import PageNav from "../components/page_nav.astro";
+import PageFooter from "../components/page_footer.astro";
+
+import mapShot from "../assets/guides/wanderer_app_map_alt.png";
+import searchShot from "../assets/guides/wanderer_app_search.png";
+import detailShot from "../assets/guides/wanderer_app_trail_detail.png";
+import plannerShot from "../assets/guides/wanderer_app_planner.png";
+import regionsShot from "../assets/guides/wanderer_app_regions.png";
+import newTrailShot from "../assets/guides/wanderer_app_new_trail.png";
+import navigationShot from "../assets/guides/wanderer_app_navigation.png";
+import trailsShot from "../assets/guides/wanderer_app_trails.png";
+
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/600.css";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLACEHOLDERS: the store listings are not published yet. Swap both values
+// for the real URLs when the beta ships; nothing else on this page needs to
+// change. See PRODUCT.md → "Store links do not exist yet".
+// ─────────────────────────────────────────────────────────────────────────────
+const APP_STORE_URL = "#app-store-listing-pending";
+const PLAY_STORE_URL = "#play-store-listing-pending";
+
+// The route is one real hike: the Emerald Lake loop, 10.93 km with 237 m of
+// climbing (the trail on the detail screenshot below). `km` and `gain` drive the
+// travelling readout and must stay monotonic up to those totals; `signal` tells
+// the story the page is making: coverage is lost four kilometers out on the far
+// side of the lake and returns as the deferred upload fires.
+const waypoints = [
+  {
+    n: "01",
+    km: "0.80",
+    gain: "12",
+    signal: "ONLINE",
+    eyebrow: "Find trails",
+    heading: "Find your next adventure.",
+    body: "Search across trails, places, lists and people, including users on instances yours federates with. Filter by category, difficulty, distance or elevation until the right trail turns up.",
+    href: "/app/find-trails",
+    src: searchShot,
+    alt: "Searching across trails, locations and users in the wanderer app",
+  },
+  {
+    n: "02",
+    km: "1.70",
+    gain: "31",
+    signal: "ONLINE",
+    eyebrow: "Plan a route",
+    heading: "Or draw one that does not exist yet.",
+    body: "Tap the map to drop anchors and the routing service connects them along paths that suit your needs: hiking, or one of four biking profiles.",
+    href: "/app/plan-a-route",
+    src: plannerShot,
+    alt: "The wanderer route planner with four anchors set on the map",
+  },
+  {
+    n: "03",
+    km: "2.60",
+    gain: "52",
+    signal: "ONLINE",
+    eyebrow: "Record a trail",
+    heading: "Or skip the planning and just start walking.",
+    body: "Hit record and the app tracks your position with live distance, gain, speed and moving time. It keeps running in the background and needs no network at all.",
+    href: "/app/record-a-trail",
+    src: newTrailShot,
+    alt: "The New Trail screen in the wanderer app",
+  },
+  {
+    n: "04",
+    km: "3.60",
+    gain: "78",
+    signal: "ONLINE",
+    eyebrow: "Trail details",
+    heading: "However you got it, this is the trail.",
+    body: "Read up before you commit: the elevation profile shows exactly what climb is ahead, waypoints flag what's coming and where, and the summit book holds reports from everyone who has already made the trip. A comment about a washed-out bridge is worth more than any stat block.",
+    href: "/app/trail-details",
+    src: detailShot,
+    alt: "A trail's detail page in the wanderer app",
+  },
+  {
+    n: "05",
+    km: "4.35",
+    gain: "99",
+    signal: "1 BAR",
+    eyebrow: "Offline use",
+    heading: "Take the map with you.",
+    body: "No network? No problem. Download the map at home and be prepared for every surprise.",
+    href: "/app/offline-use",
+    src: regionsShot,
+    alt: "The offline regions screen in the wanderer app",
+  },
+  {
+    n: "06",
+    km: "5.10",
+    gain: "121",
+    signal: "NO SIGNAL",
+    eyebrow: "Navigate a trail",
+    heading: "Navigate the trail",
+    body: "Get precise turn by turn navigation instructions. Your route is recorded at the same time so you can simply save it once you are done. And all of this works even if you are offline.",
+    href: "/app/navigate-a-trail",
+    src: navigationShot,
+    alt: "A trail's route map and elevation profile in the wanderer app",
+  },
+  {
+    n: "07",
+    km: "9.10",
+    gain: "221",
+    signal: "SYNCED",
+    eyebrow: "Profile",
+    heading: "Back in range, and it's already there.",
+    body: "The moment your instance is reachable again, the recording uploads on its own: no action needed. Open your profile and it sits in your trails with everything else you've walked, recorded, or planned.",
+    href: "/app/profile",
+    src: trailsShot,
+    alt: "Your trails list, with the hike you just finished already in it",
+  },
+];
+
+const legs = [
+  { start: 0, end: 3, marker: "Leg 01 · three ways to start" },
+  { start: 3, end: 6, marker: "Leg 02 · off the grid" },
+  // `cue: "sync"` hooks this leg's divider as the point the travelling HUD
+  // starts showing a sync icon, earlier than waypoint 07 itself, which is
+  // where the HUD instead resolves to a completed checkmark. See the
+  // signal-breakpoints block in the route script below.
+  { start: 6, end: 7, marker: "Leg 03 · back in range", cue: "sync" },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wanderer for iOS and Android: your trails, off the grid</title>
+    <meta
+      name="description"
+      content="The wanderer app puts your own instance on your phone: browse and record trails, plan routes, navigate turn-by-turn, and take whole map regions offline."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="wanderer for iOS and Android: your trails, off the grid"
+    />
+    <meta
+      property="og:description"
+      content="Browse and record trails, plan routes, navigate turn-by-turn, and take whole map regions offline. Connects to any wanderer instance."
+    />
+    <link rel="icon" href="/favicon.svg" />
+    <script is:inline>
+      // Set before first paint so the pre-reveal state never applies to a
+      // visitor whose JavaScript never arrives.
+      document.documentElement.classList.add("js");
+    </script>
+  </head>
+
+  <body>
+    <PageNav />
+
+    <!-- ─── HERO ──────────────────────────────────────────────────────────── -->
+    <section class="hero">
+      <canvas id="hero-topo" aria-hidden="true"></canvas>
+
+      <div class="hero-content">
+        <div class="hero-badge">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="6" y="2" width="12" height="20" rx="2.5"></rect>
+            <path d="M11 18h2"></path>
+          </svg>
+          Beta · Expect some rough edges
+        </div>
+
+        <h1 class="hero-headline">
+          <span class="hero-line">Your trails.</span>
+          <span class="hero-line">In your pocket.</span>
+          <span class="hero-line">Off the grid.</span>
+        </h1>
+
+        <p class="hero-sub">
+          The <span class="tracking-[-0.075em]">wanderer</span> app is now available for iOS and Android.
+        </p>
+
+        <div class="store-row">
+          <a
+            class="store-btn"
+            href={APP_STORE_URL}
+            aria-label="Download wanderer on the App Store"
+          >
+            <svg
+              class="store-glyph"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
+              ></path>
+            </svg>
+            <span class="store-btn-text">
+              <span class="store-btn-quiet">Download on the</span>
+              <span class="store-btn-label">App Store</span>
+            </span>
+          </a>
+
+          <a
+            class="store-btn"
+            href={PLAY_STORE_URL}
+            aria-label="Get wanderer on Google Play"
+          >
+            <svg
+              class="store-glyph"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"
+              ></path>
+            </svg>
+            <span class="store-btn-text">
+              <span class="store-btn-quiet">Get it on</span>
+              <span class="store-btn-label">Google Play</span>
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-device">
+        <div class="app-phone app-phone--hero">
+          <div class="app-phone-notch" aria-hidden="true"></div>
+          <Image
+            src={mapShot}
+            alt="The wanderer app showing a selected trail on the map"
+            widths={[320, 640]}
+            sizes="320px"
+            class="app-phone-screen"
+            loading="eager"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── THE ROUTE ─────────────────────────────────────────────────────── -->
+    <div class="route">
+      <div class="route-spine" aria-hidden="true">
+        <div class="route-spine-lit"></div>
+      </div>
+
+      <div class="route-marker" aria-hidden="true">
+        <span class="route-marker-dot"></span>
+        <div class="route-hud">
+          <div class="hud-phone">
+            <span class="hud-phone-notch"></span>
+            <div class="hud-phone-screen">
+              <svg class="hud-bars" viewBox="0 0 16 12" data-hud="bars">
+                <rect class="hud-bar" x="0" y="8" width="2.4" height="4" rx="0.5"></rect>
+                <rect class="hud-bar" x="4.4" y="6" width="2.4" height="6" rx="0.5"></rect>
+                <rect class="hud-bar" x="8.8" y="3.4" width="2.4" height="8.6" rx="0.5"></rect>
+                <rect class="hud-bar" x="13.2" y="0.8" width="2.4" height="11.2" rx="0.5"></rect>
+                <line class="hud-slash" x1="0.5" y1="1" x2="15.5" y2="11"></line>
+              </svg>
+              <svg class="hud-sync" viewBox="0 0 16 16" data-hud="sync">
+                <path
+                  d="M13.65 2.35A7.958 7.958 0 0 0 8 0C3.58 0 0 3.58 0 8h2c0-3.31 2.69-6 6-6 1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z"
+                ></path>
+                <path
+                  d="M14 8c0 3.31-2.69 6-6 6-1.66 0-3.14-.69-4.22-1.78L7 9H0v7l2.35-2.35A7.958 7.958 0 0 0 8 16c4.42 0 8-3.58 8-8h-2z"
+                ></path>
+              </svg>
+              <svg class="hud-check" viewBox="0 0 16 12" data-hud="check">
+                <path d="M2 6.4L6.4 10.4L14 1.6"></path>
+              </svg>
+              <div class="hud-readout">
+                <span data-hud="km">KM 0.00</span>
+                <span data-hud="gain">&#8593; 0 M</span>
+              </div>
+              <span class="hud-phone-home"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Trailhead ── -->
+      <section class="leg leg--void trailhead" aria-label="Getting started">
+        <div class="leg-inner">
+          <div class="waypoint waypoint--cap">
+            <div class="waypoint-text reveal">
+              <p class="node-tag">KM 0.00 &middot; Trailhead</p>
+              <h2 class="waypoint-heading">Pick your own server.</h2>
+              <p class="waypoint-body">
+                Choose which instance to connect to:
+                yours, your club's, or a public one. No central service sits in
+                between. Log in, or register straight from the app.
+              </p>
+              <a class="text-link" href="/app/getting-started">
+                Getting started
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+                >
+              </a>
+            </div>
+
+            <div class="waypoint-nodecol">
+              <div class="route-node route-node--start" data-km="0.0" data-gain="0" data-signal="ONLINE">
+                <span class="sr-only">Trailhead</span>
+              </div>
+            </div>
+
+            <div class="waypoint-media" aria-hidden="true"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Legs ── -->
+      {
+        legs.map((leg, legIndex) => (
+          <section
+            class:list={[
+              "leg",
+              legIndex === 1 ? "leg--surface" : "leg--void",
+            ]}
+            aria-label={leg.marker}
+          >
+            <div class="leg-inner">
+              <div class="leg-marker" data-hud-cue={leg.cue}>
+                <span>{leg.marker}</span>
+              </div>
+
+              <ol class="waypoints" start={leg.start + 1}>
+                {waypoints.slice(leg.start, leg.end).map((wp, i) => (
+                  <li
+                    class:list={[
+                      "waypoint",
+                      (leg.start + i) % 2 === 1 && "waypoint--flip",
+                    ]}
+                  >
+                    <div class="waypoint-text reveal">
+                      <p class="node-tag">
+                        KM {wp.km} &middot; &#8593; {wp.gain} M &middot;{" "}
+                        {wp.signal}
+                      </p>
+                      <h2 class="waypoint-heading">{wp.heading}</h2>
+                      <p class="waypoint-body">{wp.body}</p>
+                      <a class="text-link" href={wp.href}>
+                        {wp.eyebrow}
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                      </a>
+                    </div>
+
+                    <div class="waypoint-nodecol">
+                      <div
+                        class="route-node"
+                        data-km={wp.km}
+                        data-gain={wp.gain}
+                        data-signal={wp.signal}
+                      >
+                        <span class="route-node-num">{wp.n}</span>
+                      </div>
+                    </div>
+
+                    <div class="waypoint-media reveal">
+                      <div class="app-phone">
+                        <div class="app-phone-notch" aria-hidden="true" />
+                        <Image
+                          src={wp.src}
+                          alt={wp.alt}
+                          widths={[272, 544]}
+                          sizes="272px"
+                          class="app-phone-screen"
+                          loading="lazy"
+                        />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+        ))
+      }
+
+      <!-- ── Summit ── -->
+      <section class="leg leg--night summit" aria-label="Download the app">
+        <div class="leg-inner">
+          <div class="summit-node-row">
+            <div
+              class="route-node route-node--summit"
+              data-km="10.93"
+              data-gain="237"
+              data-signal="ONLINE"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                <rect x="2.2" y="1.8" width="1.5" height="12.4" rx="0.75"></rect>
+                <rect x="5" y="2.6" width="2.6" height="2.6"></rect>
+                <rect x="10.2" y="2.6" width="2.6" height="2.6"></rect>
+                <rect x="7.6" y="5.2" width="2.6" height="2.6"></rect>
+                <rect x="5" y="7.8" width="2.6" height="2.6"></rect>
+                <rect x="10.2" y="7.8" width="2.6" height="2.6"></rect>
+              </svg>
+              <span class="sr-only">Summit</span>
+            </div>
+          </div>
+
+          <div class="summit-close reveal">
+
+              <p class="node-tag">
+                KM 10.93 &middot; &#8593; 237 M &middot; Trip complete
+              </p>
+              <h2 class="summit-heading">
+                Everything wanderer does. Now in your pocket.
+              </h2>
+              <p class="waypoint-body">
+                Search, plan, record and navigate trails, online or off. It
+                connects to any wanderer instance, including one you run
+                yourself. Free, open source, no subscription.
+              </p>
+
+              <div class="store-row store-row--summit">
+                <a
+                  class="store-btn"
+                  href={APP_STORE_URL}
+                  aria-label="Download wanderer on the App Store"
+                >
+                  <svg
+                    class="store-glyph"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
+                    ></path>
+                  </svg>
+                  <span class="store-btn-text">
+                    <span class="store-btn-quiet">Download on the</span>
+                    <span class="store-btn-label">App Store</span>
+                  </span>
+                </a>
+
+                <a
+                  class="store-btn"
+                  href={PLAY_STORE_URL}
+                  aria-label="Get wanderer on Google Play"
+                >
+                  <svg
+                    class="store-glyph"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"
+                    ></path>
+                  </svg>
+                  <span class="store-btn-text">
+                    <span class="store-btn-quiet">Get it on</span>
+                    <span class="store-btn-label">Google Play</span>
+                  </span>
+                </a>
+              </div>
+
+              <a class="text-link summit-link" href="/app/getting-started">
+                Read the app documentation
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg
+                >
+              </a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <PageFooter />
+  </body>
+</html>
+
+<style>
+  /* ── Reset & Base ───────────────────────────────────────────────────────── */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    font-family:
+      "IBM Plex Sans",
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+    background: #12141c;
+    color: #ffffff;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: clip;
+  }
+
+  a {
+    color: inherit;
+  }
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* ── Tokens ─────────────────────────────────────────────────────────────── */
+  :root {
+    --polar-night: #242734;
+    --deep-void: #12141c;
+    --surface-dark: #1e2028;
+    --carbon: #262831;
+    --dusk-divide: #374151;
+    --summit-fog: #94a3b8;
+    --white: #ffffff;
+    --signal-red: #ef4444;
+    --start-green: #4ade80;
+    --route-marker-blue: #2196f3;
+
+    --container: min(1160px, 100% - 3rem);
+    --section-py: clamp(4rem, 8vw, 7rem);
+    --ease: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ── Shared type ────────────────────────────────────────────────────────── */
+  .node-tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--summit-fog);
+    margin-bottom: 0.875rem;
+  }
+
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--white);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    padding-bottom: 1px;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .text-link:hover {
+    border-color: var(--white);
+  }
+  .text-link:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* ── Scroll reveal ──────────────────────────────────────────────────────── */
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(html.js) .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition:
+        opacity 0.65s var(--ease),
+        transform 0.65s var(--ease);
+    }
+    :global(html.js) .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+    :global(html.js) .waypoint-media.reveal {
+      transition-delay: 0.12s;
+    }
+  }
+
+  /* ── Store buttons ──────────────────────────────────────────────────────── */
+  .store-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+  }
+
+  .store-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--white);
+    color: var(--deep-void);
+    border-radius: 8px;
+    text-decoration: none;
+    transition:
+      background 0.15s ease,
+      transform 0.15s ease;
+  }
+  .store-btn:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
+  }
+  .store-btn:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
+  }
+
+  .store-glyph {
+    flex-shrink: 0;
+  }
+
+  .store-btn-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.15;
+  }
+  .store-btn-quiet {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.6875rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: #4b5563;
+  }
+  .store-btn-label {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  @media (max-width: 480px) {
+    .store-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .store-btn {
+      justify-content: center;
+    }
+  }
+
+  /* ── Hero ───────────────────────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    background: linear-gradient(
+      to bottom,
+      #0b0d16 0%,
+      #12141c 30%,
+      #1b1e2c 62%,
+      #242734 100%
+    );
+    padding: clamp(3.5rem, 7vw, 5.5rem) clamp(1rem, 4vw, 2.5rem) 0;
+    overflow: hidden;
+  }
+
+  #hero-topo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .hero-content,
+  .hero-device {
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-content {
+    max-width: var(--container);
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--summit-fog);
+    background: rgba(55, 65, 81, 0.4);
+    border: 1px solid var(--dusk-divide);
+    border-radius: 9999px;
+    margin-bottom: 2.25rem;
+  }
+
+  .hero-headline {
+    font-size: clamp(2.75rem, 7vw, 5.25rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-line {
+    display: block;
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.1875rem);
+    line-height: 1.65;
+    color: var(--summit-fog);
+    max-width: 52ch;
+    margin-inline: auto;
+    margin-bottom: 2.5rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-badge {
+      animation: badge-in 0.6s var(--ease) both;
+    }
+    .hero-line {
+      animation: line-in 0.7s var(--ease) both;
+    }
+    .hero-line:nth-child(1) {
+      animation-delay: 0.1s;
+    }
+    .hero-line:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    .hero-line:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+    .hero-sub {
+      animation: line-in 0.7s var(--ease) 0.4s both;
+    }
+    .hero .store-row {
+      animation: line-in 0.7s var(--ease) 0.5s both;
+    }
+  }
+
+  @keyframes badge-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes line-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .hero-device {
+    display: flex;
+    justify-content: center;
+    margin-top: clamp(3rem, 6vw, 4.5rem);
+  }
+
+  /* ── Phone frame ────────────────────────────────────────────────────────── */
+  .app-phone {
+    position: relative;
+    width: 17rem;
+    padding: 0.5rem;
+    background: #1c1c1e;
+    border-radius: 2.25rem;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  }
+
+  .app-phone--hero {
+    width: 20rem;
+    border-radius: 2.5rem 2.5rem 0 0;
+    padding-bottom: 0;
+  }
+
+  .app-phone-notch {
+    position: absolute;
+    top: 0.9rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4.5rem;
+    height: 0.3rem;
+    background: #3a3a3c;
+    border-radius: 999px;
+    z-index: 2;
+  }
+
+  .app-phone-screen {
+    width: 100%;
+    height: auto;
+    border-radius: 1.8rem;
+    display: block;
+  }
+  .app-phone--hero .app-phone-screen {
+    border-radius: 2rem 2rem 0 0;
+  }
+
+  @media (max-width: 480px) {
+    .app-phone--hero {
+      width: min(20rem, 100%);
+    }
+  }
+
+  /* ── The route ──────────────────────────────────────────────────────────── */
+  .route {
+    position: relative;
+    --node-size: 2rem;
+    --spine-x: 50%;
+  }
+
+  .route-spine {
+    position: absolute;
+    top: var(--spine-top, 0px);
+    height: var(--spine-height, 100%);
+    left: var(--spine-x);
+    width: 2px;
+    margin-left: -1px;
+    background: var(--dusk-divide);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .route-spine-lit {
+    position: absolute;
+    inset: 0;
+    background: var(--white);
+    opacity: 0.55;
+    transform-origin: top center;
+  }
+
+  .route-marker {
+    position: absolute;
+    top: 0;
+    left: var(--spine-x);
+    width: 0;
+    height: 0;
+    transform: translateY(var(--marker-y, 0px));
+    opacity: var(--marker-o, 1);
+    z-index: 5;
+    display: none;
+    pointer-events: none;
+  }
+
+  .route-marker-dot {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 50%;
+    border: 3px solid var(--route-marker-blue);
+    background: var(--deep-void);
+    box-shadow: 0 0 0 6px rgba(74, 121, 222, 0.1);
+  }
+  .route-marker-dot::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--route-marker-blue);
+  }
+
+  .route-hud {
+    position: absolute;
+    left: 0;
+    top: 1.15rem;
+    transform: translateX(-50%);
+  }
+
+  /* A shrunken instance of the same phone-frame grammar as the hero and
+     waypoint mockups: the HUD is what your actual phone is showing you at
+     this point on the hike. Proportioned like an actual handset (roughly
+     1:2), not a watch face: narrower than it is tall, with the top notch
+     and a bottom home-indicator bar doing the work of selling the silhouette. */
+  .hud-phone {
+    width: 3.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.25rem 0.4rem;
+    background: #1c1c1e;
+    border-radius: 0.9rem;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  }
+
+  .hud-phone-notch {
+    width: 0.875rem;
+    height: 0.1875rem;
+    border-radius: 999px;
+    background: #3a3a3c;
+  }
+
+  .hud-phone-screen {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.2rem 0.625rem;
+    background: var(--deep-void);
+    border-radius: 0.6rem;
+  }
+
+  .hud-phone-home {
+    width: 1rem;
+    height: 0.1875rem;
+    border-radius: 999px;
+    background: var(--dusk-divide);
+  }
+
+  .hud-bars,
+  .hud-sync,
+  .hud-check {
+    width: 0.875rem;
+    height: 0.6875rem;
+    overflow: visible;
+  }
+
+  .hud-bar {
+    fill: var(--dusk-divide);
+    transition: fill 0.3s ease;
+  }
+  .hud-slash {
+    stroke: var(--white);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .hud-sync {
+    display: none;
+    fill: var(--white);
+  }
+
+  .hud-check {
+    display: none;
+    fill: none;
+    stroke: var(--start-green);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .route-hud[data-signal="full"] .hud-bar {
+    fill: var(--white);
+  }
+  .route-hud[data-signal="low"] .hud-bar:first-child {
+    fill: var(--white);
+  }
+  .route-hud[data-signal="none"] .hud-slash {
+    opacity: 1;
+  }
+  .route-hud[data-signal="sync"] .hud-bars {
+    display: none;
+  }
+  .route-hud[data-signal="sync"] .hud-sync {
+    display: block;
+  }
+  .route-hud[data-signal="done"] .hud-bars {
+    display: none;
+  }
+  .route-hud[data-signal="done"] .hud-check {
+    display: block;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .route-hud[data-signal="sync"] .hud-sync {
+      animation: hud-sync-spin 1.6s linear infinite;
+    }
+  }
+  @keyframes hud-sync-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .hud-readout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+    color: var(--summit-fog);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 860px) {
+    .route-hud {
+      display: none;
+    }
+  }
+
+  /* ── Bands ──────────────────────────────────────────────────────────────── */
+  .leg {
+    position: relative;
+    padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 4vw, 2.5rem);
+  }
+  .leg--void {
+    background: var(--deep-void);
+  }
+  .leg--surface {
+    background: var(--surface-dark);
+    border-block: 1px solid var(--dusk-divide);
+  }
+  .leg--night {
+    background: var(--polar-night);
+    border-top: 1px solid var(--dusk-divide);
+  }
+
+  .trailhead {
+    padding-top: clamp(3.5rem, 7vw, 5.5rem);
+  }
+  .summit {
+    padding-bottom: clamp(4rem, 8vw, 6.5rem);
+  }
+
+  .leg-inner {
+    width: var(--container);
+    margin-inline: auto;
+  }
+
+  /* ── Leg marker: a signpost the spine passes behind ─────────────────────── */
+  .leg-marker {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    justify-content: center;
+    margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  }
+  .leg-marker::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--dusk-divide);
+  }
+  .leg-marker span {
+    position: relative;
+    padding: 0 1rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--summit-fog);
+    background: var(--deep-void);
+  }
+  .leg--surface .leg-marker span {
+    background: var(--surface-dark);
+    color: var(--white);
+  }
+
+  /* ── Waypoints ──────────────────────────────────────────────────────────── */
+  .waypoints {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3.5rem, 8vw, 7rem);
+  }
+
+  .waypoint {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--node-size) minmax(0, 1fr);
+    column-gap: clamp(1.5rem, 5vw, 5rem);
+    align-items: center;
+  }
+
+  .waypoint--flip .waypoint-text {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .waypoint--flip .waypoint-media {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .waypoint-nodecol {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .waypoint--cap .waypoint-text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .waypoint-media {
+    display: flex;
+    justify-content: center;
+  }
+
+  .waypoint-heading {
+    font-size: clamp(1.5rem, 3vw, 2.125rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin-bottom: 0.875rem;
+  }
+
+  .waypoint-body {
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--summit-fog);
+    max-width: 52ch;
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Nodes ──────────────────────────────────────────────────────────────── */
+  .route-node {
+    position: relative;
+    z-index: 4;
+    width: var(--node-size);
+    height: var(--node-size);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--polar-night);
+    border: 2px solid var(--white);
+    transition:
+      border-color 0.45s var(--ease),
+      box-shadow 0.5s var(--ease) 0.05s,
+      color 0.45s var(--ease);
+  }
+  .leg--surface .route-node {
+    background: var(--carbon);
+  }
+
+  .route-node-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--white);
+  }
+
+  .route-node--start {
+    background: transparent;
+    border: 3px solid var(--start-green);
+  }
+  .route-node--start::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--start-green);
+  }
+
+  .route-node--summit {
+    background: var(--signal-red);
+    border: 2px solid var(--white);
+  }
+  .route-node--summit svg {
+    fill: var(--white);
+  }
+
+  /* Pre-arrival state: only when scripting and motion are both available. */
+  @media (prefers-reduced-motion: no-preference) {
+    :global(html.js) .route-spine-lit {
+      transform: scaleY(var(--p, 0));
+    }
+    :global(html.js) .route-node {
+      border-color: var(--dusk-divide);
+    }
+    :global(html.js) .route-node .route-node-num {
+      color: var(--summit-fog);
+      transition: color 0.45s var(--ease);
+    }
+    :global(html.js) .route-node--start {
+      border-color: rgba(74, 222, 128, 0.35);
+    }
+    :global(html.js) .route-node--start::after {
+      background: rgba(74, 222, 128, 0.35);
+      transition: background 0.45s var(--ease);
+    }
+    :global(html.js) .route-node--summit {
+      background: var(--polar-night);
+    }
+    :global(html.js) .route-node--summit svg {
+      fill: var(--dusk-divide);
+      transition: fill 0.45s var(--ease);
+    }
+
+    :global(html.js) .route-node.is-reached {
+      border-color: var(--white);
+      box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.08);
+    }
+    :global(html.js) .route-node.is-reached .route-node-num {
+      color: var(--white);
+    }
+    :global(html.js) .route-node--start.is-reached {
+      border-color: var(--start-green);
+      box-shadow: 0 0 0 5px rgba(74, 222, 128, 0.14);
+    }
+    :global(html.js) .route-node--start.is-reached::after {
+      background: var(--start-green);
+    }
+    :global(html.js) .route-node--summit.is-reached {
+      background: var(--signal-red);
+      box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.18);
+    }
+    :global(html.js) .route-node--summit.is-reached svg {
+      fill: var(--white);
+    }
+
+    .route.is-live .route-marker {
+      display: block;
+    }
+  }
+
+  /* ── Summit ─────────────────────────────────────────────────────────────── */
+  .summit-node-row {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    justify-content: center;
+  }
+  .summit-close {
+    position: relative;
+    z-index: 2;
+    max-width: 44rem;
+    margin: clamp(2.25rem, 4vw, 3rem) auto 0;
+    text-align: center;
+  }
+  .summit-close .waypoint-body {
+    margin-inline: auto;
+  }
+  .summit-heading {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+    margin-bottom: 1rem;
+  }
+  .store-row--summit {
+    justify-content: center;
+    margin-bottom: 1.75rem;
+  }
+  .summit-link {
+    display: inline-flex;
+  }
+
+  /* ── Docked spine ───────────────────────────────────────────────────────── */
+  @media (max-width: 860px) {
+    .route {
+      --node-size: 1.75rem;
+      --spine-x: calc(clamp(1rem, 4vw, 2.5rem) + 1.5rem + var(--node-size) / 2);
+    }
+
+    .waypoint {
+      grid-template-columns: var(--node-size) minmax(0, 1fr);
+      column-gap: 1.25rem;
+      row-gap: 1.75rem;
+      align-items: start;
+    }
+    .waypoint-nodecol {
+      grid-column: 1;
+      grid-row: 1;
+      padding-top: 0.125rem;
+    }
+    .waypoint-text,
+    .waypoint--flip .waypoint-text,
+    .waypoint--cap .waypoint-text {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .waypoint-media,
+    .waypoint--flip .waypoint-media {
+      grid-column: 2;
+      grid-row: 2;
+      justify-content: flex-start;
+    }
+    .waypoint--cap .waypoint-media {
+      display: none;
+    }
+
+    .summit-node-row {
+      justify-content: flex-start;
+    }
+    .summit-close {
+      margin-left: calc(var(--node-size) + 1.25rem);
+      margin-top: 1.75rem;
+      text-align: left;
+    }
+    .summit-close .waypoint-body {
+      margin-inline: 0;
+    }
+    .store-row--summit {
+      justify-content: flex-start;
+    }
+
+    .leg-marker {
+      justify-content: flex-start;
+      padding-left: calc(var(--node-size) + 1.25rem);
+    }
+    .leg-marker::before {
+      left: calc(var(--node-size) + 1.25rem);
+    }
+  }
+
+  @media (max-width: 560px) {
+    .app-phone {
+      width: min(15.5rem, 100%);
+    }
+  }
+</style>
+
+<script>
+  // ── Scroll reveal ─────────────────────────────────────────────────────────
+  if (typeof IntersectionObserver !== "undefined") {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.18 },
+    );
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
+  }
+
+  // ── Travelling position marker ────────────────────────────────────────────
+  // The marker's place on the spine is the reader's place on the route: the
+  // fraction of the route that sits above the middle of the viewport. Every
+  // value it reports also exists as static text on the waypoint it belongs to,
+  // so a visitor who never sees the marker loses nothing.
+  (function () {
+    const routeEl = document.querySelector<HTMLElement>(".route");
+    const hudEl = document.querySelector<HTMLElement>(".route-hud");
+    const kmEl = document.querySelector<HTMLElement>('[data-hud="km"]');
+    const gainEl = document.querySelector<HTMLElement>('[data-hud="gain"]');
+    if (!routeEl || !hudEl || !kmEl || !gainEl) return;
+
+    // Reassign to typed consts so the narrowing survives into the hoisted
+    // functions below.
+    const route: HTMLElement = routeEl;
+    const hud: HTMLElement = hudEl;
+    const hudKm: HTMLElement = kmEl;
+    const hudGain: HTMLElement = gainEl;
+
+    // The waypoint copy still says "ONLINE" / "1 BAR" / "NO SIGNAL" /
+    // "SYNCED": that text is what the reduced-motion and no-JS reader sees.
+    // The HUD reduces those to a reception icon, plus a fifth state ("done")
+    // that has no static-copy equivalent: it's purely the HUD's own resolution
+    // of "synced" once the reader has scrolled past the waypoint that promised
+    // it, so the reduced-motion reader isn't missing information: SYNCED
+    // remains what that waypoint states, just without the follow-through.
+    const SIGNAL_STATE: Record<string, string> = {
+      ONLINE: "full",
+      "1 BAR": "low",
+      "NO SIGNAL": "none",
+      SYNCED: "sync",
+    };
+
+    // Leg 3's divider ("LEG 03 · BACK IN RANGE") is tagged as the sync cue:
+    // the icon starts spinning there, before the reader ever reaches the
+    // waypoint whose copy names synced. See `cue: "sync"` on the legs array.
+    const syncCueEl = document.querySelector<HTMLElement>('[data-hud-cue="sync"]');
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const nodes = Array.from(
+      route.querySelectorAll<HTMLElement>(".route-node"),
+    );
+    if (nodes.length < 2) return;
+
+    type Stop = {
+      t: number;
+      km: number;
+      gain: number;
+      signal: string;
+      el: HTMLElement;
+    };
+
+    type SignalBreakpoint = { t: number; state: string };
+
+    let stops: Stop[] = [];
+    let signalBreakpoints: SignalBreakpoint[] = [];
+    let routeTop = 0;
+    let spineTop = 0;
+    let spineHeight = 1;
+    let lastSignal = "";
+    let scheduled = false;
+
+    function measure(): void {
+      const routeRect = route.getBoundingClientRect();
+      routeTop = routeRect.top + window.scrollY;
+
+      const centers = nodes.map((node) => {
+        const r = node.getBoundingClientRect();
+        return r.top + window.scrollY + r.height / 2 - routeTop;
+      });
+
+      spineTop = centers[0];
+      spineHeight = Math.max(1, centers[centers.length - 1] - spineTop);
+
+      route.style.setProperty("--spine-top", `${spineTop}px`);
+      route.style.setProperty("--spine-height", `${spineHeight}px`);
+
+      stops = nodes.map((node, i) => ({
+        t: (centers[i] - spineTop) / spineHeight,
+        km: Number(node.dataset.km ?? 0),
+        gain: Number(node.dataset.gain ?? 0),
+        signal: node.dataset.signal ?? "",
+        el: node,
+      }));
+
+      // Drop the summit's own breakpoint (it's the last stop) so that once the
+      // route resolves to "done" there's nothing left to switch it back to a
+      // reception state: the checkmark holds all the way to the flag.
+      signalBreakpoints = stops
+        .slice(0, -1)
+        .map((s) => ({ t: s.t, state: SIGNAL_STATE[s.signal] ?? "full" }));
+
+      const syncIdx = stops.findIndex((s) => s.signal === "SYNCED");
+      if (syncIdx > 0 && syncIdx < stops.length - 1 && syncCueEl) {
+        const cueRect = syncCueEl.getBoundingClientRect();
+        const cueT =
+          (cueRect.top +
+            window.scrollY +
+            cueRect.height / 2 -
+            routeTop -
+            spineTop) /
+          spineHeight;
+
+        // Spin the sync icon on from the leg divider, then resolve it to a
+        // checkmark exactly where the waypoint's own breakpoint sat.
+        signalBreakpoints.splice(syncIdx, 0, { t: cueT, state: "sync" });
+        signalBreakpoints[syncIdx + 1].state = "done";
+      }
+    }
+
+    function signalStateAt(p: number): string {
+      let state = signalBreakpoints[0]?.state ?? "full";
+      for (const bp of signalBreakpoints) {
+        if (p < bp.t) break;
+        state = bp.state;
+      }
+      return state;
+    }
+
+    function render(): void {
+      const anchor = window.scrollY + window.innerHeight * 0.5;
+      const raw = (anchor - (routeTop + spineTop)) / spineHeight;
+      const p = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+
+      route.style.setProperty("--p", String(p));
+      route.style.setProperty("--marker-y", `${spineTop + p * spineHeight}px`);
+
+      // Hand the ends of the route back to the trailhead bullseye and the
+      // summit flag rather than parking the marker on top of them.
+      const FADE = 0.015;
+      const edge = p < FADE ? p / FADE : p > 1 - FADE ? (1 - p) / FADE : 1;
+      route.style.setProperty("--marker-o", edge.toFixed(3));
+
+      // Locate the segment the reader is standing in, then read between its ends.
+      let i = 0;
+      while (i < stops.length - 2 && p > stops[i + 1].t) i++;
+
+      const from = stops[i];
+      const to = stops[i + 1];
+      const span = to.t - from.t;
+      const local = span > 0 ? Math.min(1, Math.max(0, (p - from.t) / span)) : 0;
+
+      const km = from.km + (to.km - from.km) * local;
+      const gain = from.gain + (to.gain - from.gain) * local;
+
+      hudKm.textContent = `KM ${km.toFixed(2)}`;
+      hudGain.textContent = `↑ ${Math.round(gain)} M`;
+
+      const state = signalStateAt(p);
+      if (state !== lastSignal) {
+        hud.dataset.signal = state;
+        lastSignal = state;
+      }
+
+      for (const stop of stops) {
+        stop.el.classList.toggle("is-reached", p >= stop.t);
+      }
+    }
+
+    function schedule(): void {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        render();
+      });
+    }
+
+    function remeasure(): void {
+      measure();
+      render();
+    }
+
+    measure();
+    render();
+    route.classList.add("is-live");
+
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", remeasure, { passive: true });
+
+    // Lazily-loaded screenshots change the route's height as they land.
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(remeasure).observe(route);
+    }
+    window.addEventListener("load", remeasure);
+  })();
+
+  // ── Hero topo contour background ──────────────────────────────────────────
+  (function () {
+    const el = document.getElementById("hero-topo");
+    if (!(el instanceof HTMLCanvasElement)) return;
+    const canvas: HTMLCanvasElement = el;
+
+    const rawCtx = canvas.getContext("2d");
+    if (!rawCtx) return;
+    const ctx: CanvasRenderingContext2D = rawCtx;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    let w = 0,
+      h = 0;
+    let rafId: number | null = null;
+    let t = 2.4;
+    let mouseX = 0.5,
+      targetMouseX = 0.5;
+
+    function hash(ix: number, iy: number): number {
+      const n = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453;
+      return n - Math.floor(n);
+    }
+    function smoothstep(x: number): number {
+      return x * x * (3 - 2 * x);
+    }
+    function valueNoise(x: number, y: number): number {
+      const xi = Math.floor(x),
+        yi = Math.floor(y);
+      const xf = x - xi,
+        yf = y - yi;
+      const u = smoothstep(xf),
+        v = smoothstep(yf);
+      const a = hash(xi, yi),
+        b = hash(xi + 1, yi);
+      const c = hash(xi, yi + 1),
+        d = hash(xi + 1, yi + 1);
+      return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    }
+    function fbm(x: number, y: number): number {
+      const v =
+        valueNoise(x, y) * 0.5 +
+        valueNoise(x * 2.1 + 1.7, y * 2.1 + 9.2) * 0.25 +
+        valueNoise(x * 4.3 + 4.3, y * 4.3 + 2.8) * 0.125;
+      return (v / 0.875) * 2 - 1;
+    }
+
+    const LEVELS = 24;
+    const NOISE_SCALE = 0.0028;
+    const AMPLITUDE = 0.095;
+
+    function resize(): void {
+      const hero = canvas.closest(".hero");
+      if (!(hero instanceof HTMLElement)) return;
+      w = canvas.width = hero.offsetWidth;
+      h = canvas.height = hero.offsetHeight;
+    }
+
+    function drawFrame(): void {
+      if (!w || !h) return;
+      ctx.clearRect(0, 0, w, h);
+      mouseX += (targetMouseX - mouseX) * 0.04;
+
+      for (let i = 0; i < LEVELS; i++) {
+        const progress = i / (LEVELS - 1);
+        const baseY = h * (0.05 + 0.92 * progress);
+        const parallax = (mouseX - 0.5) * w * 0.03 * (0.2 + progress * 0.8);
+        const opacity = 0.018 + progress * 0.062;
+        const lineW = 0.3 + progress * 0.8;
+
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255,255,255,${opacity.toFixed(3)})`;
+        ctx.lineWidth = lineW;
+
+        const steps = Math.ceil(w / 2.5);
+        for (let j = 0; j <= steps; j++) {
+          const x = (j / steps) * w;
+          const nx = (x + parallax) * NOISE_SCALE + t * 0.07;
+          const ny = baseY * NOISE_SCALE * 0.55 + i * 0.18;
+          const y = baseY + fbm(nx, ny) * h * AMPLITUDE;
+          j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function tick(): void {
+      t += 0.003;
+      drawFrame();
+      rafId = requestAnimationFrame(tick);
+    }
+    function pause(): void {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+    function resume(): void {
+      if (!reducedMotion && rafId === null) tick();
+    }
+
+    if (typeof ResizeObserver !== "undefined") {
+      const hero = canvas.closest(".hero");
+      if (hero) new ResizeObserver(resize).observe(hero);
+    } else {
+      window.addEventListener("resize", resize, { passive: true });
+    }
+
+    if (typeof IntersectionObserver !== "undefined") {
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => (e.isIntersecting ? resume() : pause()));
+        },
+        { threshold: 0 },
+      );
+      io.observe(canvas);
+    }
+
+    document.addEventListener(
+      "mousemove",
+      (e: MouseEvent) => {
+        targetMouseX = e.clientX / window.innerWidth;
+      },
+      { passive: true },
+    );
+
+    resize();
+    reducedMotion ? drawFrame() : tick();
+  })();
+</script>

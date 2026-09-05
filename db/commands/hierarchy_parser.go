@@ -33,10 +33,10 @@ type HierarchyNode struct {
 //	  Germany_Baden-Wurttemberg_Regierungsbezirk Freiburg;Q2833
 //
 // The "World"/"WorldCoasts" header lines (zero ';' characters) are skipped
-// and never appear as nodes (Pitfall 2). Depth is the exact count of
+// and never appear as nodes. Depth is the exact count of
 // leading space characters. comaps_id is the first ';'-delimited field with
 // only the leading indentation trimmed — internal spaces are preserved
-// verbatim (Pitfall 3). A node's parent is the most recently seen node at
+// verbatim. A node's parent is the most recently seen node at
 // depth-1 (empty ParentComapsID at depth 0). Name is comaps_id with the
 // exact "ParentComapsID_" prefix stripped (full comaps_id at depth 0). Path
 // is the materialized dotted path of slug(comaps_id) segments (slug =
@@ -46,11 +46,11 @@ type HierarchyNode struct {
 // parent, in file order.
 //
 // This does not fetch or parse countries.txt — hierarchy.txt's indentation
-// alone determines group/leaf (per 28-RESEARCH.md's resolved Open Question
-// 2). ParseHierarchy returns a descriptive error, and never aborts the
+// alone determines group/leaf. ParseHierarchy returns a descriptive error,
+// and never aborts the
 // process, if a line's depth jumps by more than +1 relative to the
 // previous node — an indentation shape the parent-tracking below cannot
-// resolve (Security Domain V5, threat T-28-01).
+// resolve.
 func ParseHierarchy(data []byte) ([]HierarchyNode, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	scanner.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
@@ -67,7 +67,7 @@ func ParseHierarchy(data []byte) ([]HierarchyNode, error) {
 		line := scanner.Text()
 
 		if strings.Count(line, ";") == 0 {
-			continue // World/WorldCoasts header lines (Pitfall 2)
+			continue // World/WorldCoasts header lines
 		}
 
 		depth := countLeadingSpaces(line)

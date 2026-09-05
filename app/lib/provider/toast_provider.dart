@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -26,18 +28,34 @@ class ToastMessage {
 
 @Riverpod(keepAlive: true)
 class Toast extends _$Toast {
+  /// Auto-dismiss timers keyed by toast id — cancellable [Timer]s, not
+  /// fire-and-forget `Future.delayed`s: a manually-dismissed toast's delayed
+  /// callback used to outlive the toast (and, in principle, the provider)
+  /// as an uncancellable pending timer per toast shown.
+  final Map<String, Timer> _dismissTimers = {};
+
   @override
-  List<ToastMessage> build() => [];
+  List<ToastMessage> build() {
+    ref.onDispose(() {
+      for (final timer in _dismissTimers.values) {
+        timer.cancel();
+      }
+      _dismissTimers.clear();
+    });
+    return [];
+  }
 
   void add(ToastMessage toast) {
     state = [...state, toast];
 
-    Future.delayed(const Duration(seconds: 4), () {
+    _dismissTimers[toast.id]?.cancel();
+    _dismissTimers[toast.id] = Timer(const Duration(seconds: 4), () {
       remove(toast.id);
     });
   }
 
   void remove(String id) {
+    _dismissTimers.remove(id)?.cancel();
     state = [
       for (final t in state)
         if (t.id != id) t,

@@ -213,6 +213,44 @@ void main() {
     );
 
     test(
+      'breadcrumb keeps a stable list identity across appends; '
+      'breadcrumbLength is the change signal',
+      () {
+        // The per-fix O(1) append contract: the state exposes ONE view object
+        // for the whole session (listeners must key on breadcrumbLength, the
+        // screen's GeoJSON updater relies on this), and every append bumps
+        // breadcrumbLength in the emitted state.
+        final notifier = container.read(navigationProvider(response).notifier);
+        final before = container.read(navigationProvider(response));
+        expect(before.breadcrumbLength, 0);
+
+        notifier.onPosition(_farFromManeuver1);
+        final after1 = container.read(navigationProvider(response));
+        notifier.onPosition(_farFromManeuver1);
+        final after2 = container.read(navigationProvider(response));
+
+        expect(identical(before.breadcrumb, after1.breadcrumb), isTrue);
+        expect(identical(after1.breadcrumb, after2.breadcrumb), isTrue);
+        expect(after1.breadcrumbLength, 1);
+        expect(after2.breadcrumbLength, 2);
+        expect(after2.breadcrumb.length, 2);
+      },
+    );
+
+    test(
+      'onPosition returns true exactly when the maneuver index advances',
+      () {
+        // The screen persists on advance using this return value instead of a
+        // before/after pair of provider reads — it must track state exactly.
+        final notifier = container.read(navigationProvider(response).notifier);
+
+        expect(notifier.onPosition(_farFromManeuver1), isFalse);
+        expect(notifier.onPosition(_nearManeuver1), isTrue);
+        expect(notifier.onPosition(_nearManeuver1), isFalse);
+      },
+    );
+
+    test(
       'onPosition at last maneuver does not throw and does not advance further',
       () {
         final notifier = container.read(navigationProvider(response).notifier);

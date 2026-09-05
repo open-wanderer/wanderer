@@ -78,8 +78,8 @@ Widget trailCategoryIcon(
 Widget categoryFilterAvatar(Category c, {double size = 16, Color? color}) {
   final iconData = _categoryIconData(c);
   return iconData != null
-      ? FaIcon(iconData, size: size)
-      : Icon(Icons.category, size: size);
+      ? FaIcon(iconData, size: size, color: color)
+      : Icon(Icons.category, size: size, color: color);
 }
 
 Widget? subcategoryBadgeAvatar(Subcategory c, {Color? color, double size = 8}) {
@@ -99,7 +99,7 @@ Widget subcategoryFilterAvatar(
   final primary = _subcategoryIconData(s, parent);
 
   Widget? badgeIconWidget;
-  final badgeFa = subcategoryBadgeAvatar(s);
+  final badgeFa = subcategoryBadgeAvatar(s, color: color);
   if (badgeFa != null) {
     badgeIconWidget = Positioned(right: -6, top: -4, child: badgeFa);
   }

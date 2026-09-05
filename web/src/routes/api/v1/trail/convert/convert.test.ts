@@ -63,7 +63,7 @@ describe("POST /api/v1/trail/convert - raw-text branch", () => {
     });
 });
 
-// CR-04 regression. The transcode-only rewrite dropped the endpoint's only
+// Regression: the transcode-only rewrite dropped the endpoint's only
 // content validation (previously a side effect of `gpx2trail` throwing), which
 // turned an unauthenticated, CSRF-exempt route into a verbatim reflector of
 // arbitrary request bodies under an active XML content type.
@@ -97,7 +97,7 @@ describe("POST /api/v1/trail/convert - content validation", () => {
         });
     }
 
-    // CR-04 guard. Preserved through the removal of the `application/json`
+    // Guard preserved through the removal of the `application/json`
     // request branch: the endpoint must never echo an attacker-controlled
     // body, and an `application/json` content-type must not be a way around
     // that. With no JSON branch left, such a request falls through to the
@@ -134,7 +134,7 @@ describe("POST /api/v1/trail/convert - multipart branch", () => {
         expect(await res.text()).toContain("<gpx");
     });
 
-    it("transcodes an uploaded KML file into a GPX document - PORT-05 proof transcoding still happens server-side", async () => {
+    it("transcodes an uploaded KML file into a GPX document - transcoding still happens server-side", async () => {
         const formData = new FormData();
         formData.set("file", new Blob([kmlDoc], { type: "application/vnd.google-earth.kml+xml" }), "track.kml");
         const request = new Request("http://localhost/api/v1/trail/convert", {
@@ -175,7 +175,7 @@ describe("POST /api/v1/trail/convert - empty body guard", () => {
     });
 });
 
-describe("POST /api/v1/trail/convert - D-06 regression guard", () => {
+describe("POST /api/v1/trail/convert - regression guard", () => {
     it("the 200 response body is not a Trail - it does not parse as JSON and contains neither `expand` nor `elevation_gain`", async () => {
         const request = new Request("http://localhost/api/v1/trail/convert", {
             method: "POST",

@@ -1,10 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
@@ -84,14 +84,16 @@ class SummitLogCard extends ConsumerWidget {
                         child: SizedBox(
                           width: 80,
                           height: 80,
-                          child: Image.network(
-                            summitLog.photos.isNotEmpty
-                                ? summitLog.getFileUrl(
-                                        user.serverUrl,
-                                        summitLog.photos.first,
-                                      ) ??
-                                      ''
-                                : '',
+                          child: Image(
+                            image: CachedNetworkImageProvider(
+                              summitLog.photos.isNotEmpty
+                                  ? summitLog.getFileUrl(
+                                          user.serverUrl,
+                                          summitLog.photos.first,
+                                        ) ??
+                                        ''
+                                  : '',
+                            ),
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
                                 _buildPlaceholder(context),
@@ -147,7 +149,7 @@ class SummitLogCard extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               parsedDate != null
-                                  ? DateFormat.yMMMMd(locale).format(parsedDate)
+                                  ? dateFormatYMMMMd(locale).format(parsedDate)
                                   : summitLog.date,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,

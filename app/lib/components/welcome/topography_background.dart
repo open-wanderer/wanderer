@@ -62,12 +62,29 @@ class _TopographyBackgroundState extends State<TopographyBackground>
   final ValueNotifier<double> _pointerX = ValueNotifier<double>(0.5);
   double _targetPointerX = 0.5;
 
+  /// The painter's clock, republished from [_controller] at ~30 Hz instead
+  /// of every display frame. Each repaint runs the full contour-field noise
+  /// pass (24 levels × ~w/4 steps × 12 hashed sines — tens of thousands of
+  /// `sin()` calls), and driving a subtle ambient background at 60–120 Hz
+  /// doubled-to-quadrupled that for no perceptible smoothness gain.
+  final ValueNotifier<double> _time = ValueNotifier<double>(0);
+  Duration _lastTimePush = Duration.zero;
+
   bool _reducedMotion = false;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(_easePointer);
+    _controller.addListener(_onTick);
+  }
+
+  void _onTick() {
+    _easePointer();
+    final elapsed = _controller.lastElapsedDuration ?? Duration.zero;
+    if ((elapsed - _lastTimePush).inMilliseconds >= 33) {
+      _lastTimePush = elapsed;
+      _time.value = _controller.value;
+    }
   }
 
   @override
@@ -89,6 +106,7 @@ class _TopographyBackgroundState extends State<TopographyBackground>
   void dispose() {
     _controller.dispose();
     _pointerX.dispose();
+    _time.dispose();
     super.dispose();
   }
 
@@ -116,7 +134,8 @@ class _TopographyBackgroundState extends State<TopographyBackground>
         child: RepaintBoundary(
           child: CustomPaint(
             painter: _TopographyPainter(
-              controller: _controller,
+              time: _time,
+              durationMs: _controller.duration!.inMilliseconds,
               pointerX: _pointerX,
               lineColor: isDark ? Colors.white : Colors.black,
               // Dark strokes on a light field need more weight to read.
@@ -132,13 +151,17 @@ class _TopographyBackgroundState extends State<TopographyBackground>
 
 class _TopographyPainter extends CustomPainter {
   _TopographyPainter({
-    required this.controller,
+    required this.time,
+    required this.durationMs,
     required this.pointerX,
     required this.lineColor,
     required this.opacityScale,
-  }) : super(repaint: Listenable.merge([controller, pointerX]));
+  }) : super(repaint: Listenable.merge([time, pointerX]));
 
-  final AnimationController controller;
+  /// Throttled clock (see `_TopographyBackgroundState._time`) — the painter
+  /// deliberately does NOT listen to the raw controller.
+  final ValueNotifier<double> time;
+  final int durationMs;
   final ValueNotifier<double> pointerX;
   final Color lineColor;
   final double opacityScale;
@@ -172,12 +195,7 @@ class _TopographyPainter extends CustomPainter {
     final w = size.width, h = size.height;
     if (w <= 0 || h <= 0) return;
 
-    final t =
-        _kTimeOrigin +
-        controller.value *
-            controller.duration!.inMilliseconds /
-            1000 *
-            _kTimePerSecond;
+    final t = _kTimeOrigin + time.value * durationMs / 1000 * _kTimePerSecond;
     final pointer = pointerX.value;
     final steps = math.max(2, (w / _kStepPx).ceil());
 

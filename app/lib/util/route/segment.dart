@@ -114,5 +114,8 @@ Geographic _closestPointOnSegment(Geographic a, Geographic b, Geographic p) {
     t = t.clamp(0.0, 1.0);
   }
 
-  return Geographic(lat: a.lat + t * (b.lat - a.lat), lon: a.lon + t * (b.lon - a.lon));
+  return Geographic(
+    lat: a.lat + t * (b.lat - a.lat),
+    lon: a.lon + t * (b.lon - a.lon),
+  );
 }

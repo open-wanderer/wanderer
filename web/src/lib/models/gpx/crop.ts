@@ -1,10 +1,10 @@
 // Extracted from `web/src/routes/trail/edit/[id]/+page.svelte`'s
 // `updateCropMarkers()`/`getCoordinateAtDistance()`. This logic lived inline in a
-// `.svelte` component's script block, where Vitest cannot reach it, which is why the
-// NaN-coordinate defect described in `.planning/phases/33-conversion-correctness/33-VERIFICATION.md`
-// (gap 2 / CR-01: `updateCropMarkers()`'s guard checked `!Number.isFinite(rawRouteTotal)`,
-// missing the actual failure mode of `rawRouteTotal === 0` or a coincident leading point
-// pair) shipped with no regression test. Moving it here makes it directly testable.
+// `.svelte` component's script block, where Vitest cannot reach it, which is why a
+// NaN-coordinate defect shipped with no regression test: `updateCropMarkers()`'s guard
+// checked `!Number.isFinite(rawRouteTotal)`, missing the actual failure mode of
+// `rawRouteTotal === 0` or a coincident leading point pair. Moving it here makes it
+// directly testable.
 import type Waypoint from './waypoint';
 
 /**

@@ -1,8 +1,8 @@
 {
   "id": "01-two-point-segment",
-  "covers": ["CONV-01"],
+  "covers": ["segment-first-point"],
   "derivation": "hand",
-  "notes": "The pre-CONV-01 loop started at i = 1, so a 2-point segment's only call to addAndFilter() was on point b, which is that call's first-ever invocation and only initializes anchors -- no distance is ever added. The fix (i = 0) restores the missing hop.",
+  "notes": "The old loop started at i = 1, so a 2-point segment's only call to addAndFilter() was on point b, which is that call's first-ever invocation and only initializes anchors -- no distance is ever added. The fix (i = 0) restores the missing hop.",
   "metrics": {
     "distance": 134.59240148587796,
     "elevationGain": 0,

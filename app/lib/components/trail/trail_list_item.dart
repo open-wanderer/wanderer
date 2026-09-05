@@ -1,11 +1,11 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
@@ -49,7 +49,7 @@ class TrailListItem extends ConsumerWidget {
         thumb: "600x0",
       );
       if (networkUrl != null) {
-        imageProvider = NetworkImage(networkUrl);
+        imageProvider = CachedNetworkImageProvider(networkUrl);
       }
     }
 
@@ -122,7 +122,7 @@ class TrailListItem extends ConsumerWidget {
                           children: [
                             if (trail.summaryDate != null) ...[
                               Text(
-                                DateFormat.yMMMd(
+                                dateFormatYMMMd(
                                   locale,
                                 ).format(trail.summaryDate!),
                                 style: TextStyle(

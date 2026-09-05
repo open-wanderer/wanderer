@@ -1,0 +1,64 @@
+---
+title: Offline use
+description: Download regions and trails to use the <span class="-tracking-[0.075em]">wanderer</span> app without a network connection
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import regionsShot from '../../../assets/guides/wanderer_app_regions.png';
+import regionMapShot from '../../../assets/guides/wanderer_app_region_map.png';
+import libraryShot from '../../../assets/guides/wanderer_app_library.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+The app is built to keep working where hikes actually happen: outside network coverage. Two things can be stored on your device — **trails** and **map regions** — and together they cover the full offline experience.
+
+## Download trails
+
+Tap **Download** on a [trail's detail page](/app/trail-details) to store it on your device: its route, metadata, waypoints, and photos. Downloaded trails are marked throughout the app and can be filtered with the **Available offline** quick filter.
+
+## Download map regions
+
+<PhoneGrid src={regionsShot} alt="The offline regions screen">
+
+A downloaded trail alone gives you the route — for a base map around it, download the region it lies in. Go to **Profile → Settings → Offline Maps/Regions**, then search or browse the hierarchy of countries and regions. Which regions are available depends on what your instance's administrator has enabled.
+
+Each region offers two separate downloads:
+
+- **Vector** — the base map itself (streets, terrain features, labels)
+- **Elevation data** — optional hillshading and elevation information. It becomes available once the region's vector data is downloaded, and is considerably larger.
+
+Both show their size before you start, and a running download can be cancelled at any time. The summary at the top tracks the disk space used across all downloaded regions. Each downloaded row carries its own actions — a trash icon to delete it, and a refresh icon labelled **Update available** when your instance has rebuilt that region. Deleting a region's vector data also removes its elevation data.
+
+</PhoneGrid>
+
+<PhoneGrid src={regionMapShot} alt="A region's boundary shown on the map" side="left">
+
+The map icon on a region shows you exactly which area it covers before you commit to the download — useful when a region's name alone doesn't tell you whether your hike falls inside it.
+
+</PhoneGrid>
+
+## The Library
+
+<PhoneGrid src={libraryShot} alt="The Library tab">
+
+The **Library** tab lists every trail stored on this device — downloaded trails as well as recordings that haven't been uploaded yet. It works fully offline and has its own search, sorting, and filters.
+
+Trails you record or create offline carry a sync status chip: **Waiting to upload** while your instance is unreachable, and **Upload failed · Tap to retry** if an upload didn't go through. Uploads happen automatically as soon as the instance is reachable again.
+
+</PhoneGrid>
+
+## What works offline?
+
+| Feature | Offline |
+| ------- | ------- |
+| Viewing downloaded trails (incl. waypoints & photos) | ✅ |
+| Base map & hillshading in downloaded regions | ✅ |
+| [Recording a trail](/app/record-a-trail) | ✅ (uploads later) |
+| [Navigating](/app/navigate-a-trail) a downloaded trail | ✅ |
+| Browsing/searching your instance's trails | ❌ needs a connection |
+| Comments, likes, summit logs | ❌ needs a connection |
+| [Route planning](/app/plan-a-route) | ❌ needs a connection (routing runs on the instance) |
+
+The app detects on its own whether your instance is reachable and switches between online and offline behavior — there is no manual offline mode.

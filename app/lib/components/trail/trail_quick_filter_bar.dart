@@ -25,12 +25,27 @@ import 'package:wanderer/components/category/category_icon.dart';
 class TrailQuickFilterBar extends ConsumerWidget {
   final String filterId;
 
-  const TrailQuickFilterBar({super.key, required this.filterId});
+  /// Whether the "Available offline" chip renders at all.
+  ///
+  /// Exists solely for surfaces that cannot honor a device-local clause:
+  /// the profile trail MAP screen renders server-side aggregated clusters,
+  /// not individual trails, so device library membership cannot be
+  /// intersected against a cluster count. Defaults to `true` -- every other
+  /// surface renders the chip.
+  final bool showOfflineChip;
+
+  const TrailQuickFilterBar({
+    super.key,
+    required this.filterId,
+    this.showOfflineChip = true,
+  });
 
   bool _isSortActive(TrailFilter filter) {
     return filter.sort != TrailFilterSort.created ||
         filter.sortOrder != SortOrder.desc;
   }
+
+  bool _isOfflineActive(TrailFilter filter) => filter.offlineOnly;
 
   bool _isCategoryActive(TrailFilter filter) {
     return filter.category.isNotEmpty || filter.subcategory.isNotEmpty;
@@ -61,8 +76,10 @@ class TrailQuickFilterBar extends ConsumerWidget {
 
   bool _isAnyActive(TrailFilter filter) {
     return _isSortActive(filter) ||
+        _isOfflineActive(filter) ||
         _isCategoryActive(filter) ||
         _isDifficultyActive(filter) ||
+        _isDistanceActive(filter) ||
         _isElevationActive(filter) ||
         _isDateActive(filter) ||
         _isCompletionActive(filter);
@@ -260,7 +277,14 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               multiple: true,
                               keepSelectedOnTap: true,
                               labelBuilder: (c) => c.displayName(locale),
-                              avatarBuilder: (c) => categoryFilterAvatar(c),
+                              avatarBuilder: (c) => categoryFilterAvatar(
+                                c,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.light
+                                    ? Theme.of(context).primaryColor
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
                               badgeCountBuilder: (c) => currentFilter
                                   .subcategory
                                   .where((s) => s.category == c.id)
@@ -344,6 +368,18 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                                       (c) => c.id == s.category,
                                                     ),
                                                 locale,
+
+                                                color:
+                                                    Theme.of(
+                                                          context,
+                                                        ).brightness ==
+                                                        Brightness.light
+                                                    ? Theme.of(
+                                                        context,
+                                                      ).primaryColor
+                                                    : Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSurface,
                                               ),
                                           onChanged: (sel) => ref
                                               .read(
@@ -862,6 +898,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
     }
 
     final sortActive = filter != null && _isSortActive(filter);
+    final offlineActive = filter != null && _isOfflineActive(filter);
     final categoryActive = filter != null && _isCategoryActive(filter);
     final difficultyActive = filter != null && _isDifficultyActive(filter);
     final elevationActive = filter != null && _isElevationActive(filter);
@@ -889,6 +926,23 @@ class TrailQuickFilterBar extends ConsumerWidget {
                     ? () => _showSortSheet(context, ref, filter)
                     : () {},
               ),
+              if (showOfflineChip) ...[
+                const SizedBox(width: 8),
+                buildChip(
+                  label: l10n.available_offline,
+                  icon: Icons.cloud_done_outlined,
+                  active: offlineActive,
+                  // Unlike every other chip, this is a plain toggle -- it
+                  // opens no sheet.
+                  onPressed: filter != null
+                      ? () => ref
+                            .read(trailFilterProvider(filterId).notifier)
+                            .updateFilter(
+                              (f) => f.copyWith(offlineOnly: !f.offlineOnly),
+                            )
+                      : () {},
+                ),
+              ],
               const SizedBox(width: 8),
               buildChip(
                 label: l10n.categories,

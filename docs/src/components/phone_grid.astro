@@ -1,0 +1,25 @@
+---
+import Phone from './phone.astro';
+
+interface Props {
+	/** Imported image asset, e.g. `import shot from '../../../assets/guides/foo.png'` */
+	src: ImageMetadata;
+	/** Alt text describing the screenshot */
+	alt: string;
+	/** Column the frame occupies. Defaults to the right. */
+	side?: 'left' | 'right';
+}
+
+const { src, alt, side = 'right' } = Astro.props;
+---
+
+{/* Places body copy and a screenshot in two columns instead of floating the
+    frame, so a short section can't leave the text wrapping awkwardly around
+    it. The wrapper keeps Starlight's prose styles — only the frame itself
+    opts out (see phone.astro). */}
+<div class:list={['phone-grid', `phone-grid--${side}`]}>
+	<div class="phone-grid__text">
+		<slot />
+	</div>
+	<Phone src={src} alt={alt} side="none" />
+</div>

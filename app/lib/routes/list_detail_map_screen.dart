@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -189,12 +190,12 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                   if (markers.isNotEmpty)
                     ml.WidgetLayer(allowInteraction: true, markers: markers),
                   const SafeArea(
-                    child: ml.MapCompass(
+                    child: WandererMapCompass(
                       hideIfRotatedNorth: true,
                       padding: EdgeInsets.only(top: 0, right: 8),
                     ),
                   ),
-                  const ml.MapScalebar(),
+                  const WandererMapScalebar(),
                   const WandererAttribution(),
                 ],
               ),

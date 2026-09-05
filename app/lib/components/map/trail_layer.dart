@@ -284,11 +284,168 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
   String? _draggingWaypointId;
   Offset? _dragOffset;
 
+  /// Memoized waypoint markers and the inputs they were built from — the
+  /// same pattern (and rationale) as `RouteAnchorLayer`: this widget rebuilds
+  /// on every camera frame (`MapController/MapCamera.maybeOf` subscribe to a
+  /// model whose `updateShouldNotify` is unconditionally true), and what's
+  /// avoidable is rebuilding every marker's subtree per frame —
+  /// [ml.WidgetLayer] repositions markers itself, so handing it the same
+  /// `Widget` instances lets element diffing skip the subtrees entirely.
+  List<ml.Marker>? _cachedWaypointMarkers;
+  List<Waypoint>? _cachedWaypoints;
+  String? _cachedSelectedId;
+  Color? _cachedPrimary;
+
+  /// Start/finish pin children never depend on theme or camera — built once.
+  late final Widget _startPin = _buildCircularMarker(
+    FontAwesomeIcons.bullseye,
+    color: Colors.greenAccent,
+  );
+  late final Widget _endPin = _buildCircularMarker(
+    FontAwesomeIcons.flagCheckered,
+    color: Colors.redAccent,
+  );
+
+  /// Endpoints + their great-circle separation, cached on gpx identity so the
+  /// O(n) `allPoints` materialization runs once per trail instead of once per
+  /// camera frame.
+  Object? _cachedGpx;
+  ml.Geographic? _firstPoint;
+  ml.Geographic? _lastPoint;
+  double? _endpointsMeters;
+
   void _clearDrag() {
     setState(() {
       _draggingWaypointId = null;
       _dragOffset = null;
+      _cachedWaypointMarkers = null;
     });
+  }
+
+  void _resolveEndpoints() {
+    final gpx = widget.trail.expand?.gpx;
+    if (identical(gpx, _cachedGpx)) return;
+    _cachedGpx = gpx;
+    final points = gpx?.allPoints ?? const <ml.Geographic>[];
+    _firstPoint = points.isEmpty ? null : points.first;
+    _lastPoint = points.isEmpty ? null : points.last;
+    _endpointsMeters = (points.length > 1)
+        ? ml.SphericalGreatCircle(points.first).distanceTo(points.last)
+        : null;
+  }
+
+  ml.Marker _buildWaypointMarker(
+    Waypoint wp, {
+    required bool isSelected,
+    required bool isDragging,
+    required bool isDraggable,
+    required ml.Geographic point,
+    required Color primary,
+  }) {
+    return ml.Marker(
+      point: point,
+      size: const Size(32, 32),
+      child: MapMarkerGestures(
+        onTap: () => widget.onWaypointTap?.call(wp),
+        onPanStart: !isDraggable
+            ? null
+            : (details) {
+                final c = ml.MapController.maybeOf(context);
+                if (c == null) return;
+                setState(() {
+                  _draggingWaypointId = wp.id;
+                  _dragOffset = c.toScreenLocation(
+                    ml.Geographic(lon: wp.lon, lat: wp.lat),
+                  );
+                  _cachedWaypointMarkers = null;
+                });
+              },
+        onPanUpdate: !isDraggable
+            ? null
+            : (details) {
+                if (_draggingWaypointId != wp.id || _dragOffset == null) {
+                  return;
+                }
+                setState(() => _dragOffset = _dragOffset! + details.delta);
+              },
+        onPanEnd: !isDraggable
+            ? null
+            : (details) {
+                if (_draggingWaypointId != wp.id) return;
+                final c = ml.MapController.maybeOf(context);
+                final offset = _dragOffset;
+                _clearDrag();
+                if (c != null && offset != null) {
+                  widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset));
+                }
+              },
+        onPanCancel: !isDraggable
+            ? null
+            : () {
+                if (_draggingWaypointId == wp.id) _clearDrag();
+              },
+        child: AnimatedScale(
+          scale: (isSelected || isDragging) ? 1.0 : 0.875,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
+          child: _buildCircularMarker(
+            wp.icon,
+            color: primary,
+            selected: isSelected || isDragging,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<ml.Marker> _waypointMarkers(
+    ml.MapController? controller,
+    Color primary,
+  ) {
+    final waypoints = widget.trail.expand?.waypointsViaTrail;
+    if (!widget.showWaypoints || waypoints == null) return const [];
+
+    // A drag re-projects a fixed screen offset through the live camera, so
+    // its markers rebuild per frame. Only the static case caches.
+    final cached = _cachedWaypointMarkers;
+    if (_draggingWaypointId == null &&
+        cached != null &&
+        identical(waypoints, _cachedWaypoints) &&
+        _cachedSelectedId == widget.selectedWaypoint?.id &&
+        _cachedPrimary == primary) {
+      return cached;
+    }
+
+    // Drag handlers are registered only where dragging is actually wired up
+    // (the trail create/edit flow). Elsewhere they would take single-finger
+    // drags away from the map for nothing.
+    final isDraggable = widget.onWaypointDragEnd != null;
+    final markers = <ml.Marker>[
+      for (final wp in waypoints)
+        _buildWaypointMarker(
+          wp,
+          isSelected: widget.selectedWaypoint?.id == wp.id,
+          isDragging: _draggingWaypointId == wp.id,
+          isDraggable: isDraggable,
+          point:
+              (_draggingWaypointId == wp.id &&
+                  controller != null &&
+                  _dragOffset != null)
+              ? controller.toLngLat(_dragOffset!)
+              : ml.Geographic(lon: wp.lon, lat: wp.lat),
+          primary: primary,
+        ),
+    ];
+
+    if (_draggingWaypointId == null) {
+      _cachedWaypointMarkers = markers;
+      _cachedWaypoints = waypoints;
+      _cachedSelectedId = widget.selectedWaypoint?.id;
+      _cachedPrimary = primary;
+    } else {
+      _cachedWaypointMarkers = null;
+    }
+    return markers;
   }
 
   @override
@@ -296,97 +453,33 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
     final controller = ml.MapController.maybeOf(context);
     // Subscribe to camera changes so the start/finish nudge recomputes as the
     // user pans/zooms (the pins may cross the 36px threshold).
-    ml.MapCamera.maybeOf(context);
+    final camera = ml.MapCamera.maybeOf(context);
 
-    final markers = <ml.Marker>[];
+    _resolveEndpoints();
 
-    if (widget.showWaypoints &&
-        widget.trail.expand?.waypointsViaTrail != null) {
-      // Drag handlers are registered only where dragging is actually wired up
-      // (the trail create/edit flow). Elsewhere they would take single-finger
-      // drags away from the map for nothing.
-      final isDraggable = widget.onWaypointDragEnd != null;
+    final markers = <ml.Marker>[
+      ..._waypointMarkers(controller, Theme.of(context).primaryColor),
+    ];
 
-      for (final wp in widget.trail.expand!.waypointsViaTrail!) {
-        final isSelected = widget.selectedWaypoint?.id == wp.id;
-        final isDragging = _draggingWaypointId == wp.id;
-        final point = (isDragging && controller != null && _dragOffset != null)
-            ? controller.toLngLat(_dragOffset!)
-            : ml.Geographic(lon: wp.lon, lat: wp.lat);
-
-        markers.add(
-          ml.Marker(
-            point: point,
-            size: const Size(32, 32),
-            child: MapMarkerGestures(
-              onTap: () => widget.onWaypointTap?.call(wp),
-              onPanStart: !isDraggable
-                  ? null
-                  : (details) {
-                      final c = ml.MapController.maybeOf(context);
-                      if (c == null) return;
-                      setState(() {
-                        _draggingWaypointId = wp.id;
-                        _dragOffset = c.toScreenLocation(
-                          ml.Geographic(lon: wp.lon, lat: wp.lat),
-                        );
-                      });
-                    },
-              onPanUpdate: !isDraggable
-                  ? null
-                  : (details) {
-                      if (_draggingWaypointId != wp.id || _dragOffset == null) {
-                        return;
-                      }
-                      setState(
-                        () => _dragOffset = _dragOffset! + details.delta,
-                      );
-                    },
-              onPanEnd: !isDraggable
-                  ? null
-                  : (details) {
-                      if (_draggingWaypointId != wp.id) return;
-                      final c = ml.MapController.maybeOf(context);
-                      final offset = _dragOffset;
-                      _clearDrag();
-                      if (c != null && offset != null) {
-                        widget.onWaypointDragEnd?.call(wp, c.toLngLat(offset));
-                      }
-                    },
-              onPanCancel: !isDraggable
-                  ? null
-                  : () {
-                      if (_draggingWaypointId == wp.id) _clearDrag();
-                    },
-              child: AnimatedScale(
-                scale: (isSelected || isDragging) ? 1.0 : 0.875,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutBack,
-                child: _buildCircularMarker(
-                  wp.icon,
-                  color: Theme.of(context).primaryColor,
-                  selected: isSelected || isDragging,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    final points = widget.trail.expand?.gpx?.allPoints ?? const [];
-    if (points.isNotEmpty) {
+    final first = _firstPoint;
+    final last = _lastPoint;
+    if (first != null && last != null) {
       var startAlignment = Alignment.center;
       var endAlignment = Alignment.center;
 
-      if (points.length > 1 && controller != null) {
-        final offsets = controller.toScreenLocations([
-          points.first,
-          points.last,
-        ]);
-        final dx = offsets[0].dx - offsets[1].dx;
-        final dy = offsets[0].dy - offsets[1].dy;
-        if (math.sqrt(dx * dx + dy * dy) < 36) {
+      // Screen distance between the pins, from pure camera math rather than
+      // the two per-frame JNI projections this used to cost: MapLibre zoom is
+      // 512px-tile web mercator, so meters-per-logical-pixel at the camera
+      // center is (equator circumference / 512) * cos(lat) / 2^zoom. Using
+      // the camera-center latitude instead of the pins' is well within
+      // tolerance for a 36px overlap heuristic.
+      final meters = _endpointsMeters;
+      if (meters != null && camera != null) {
+        final metersPerPixel =
+            78271.51696 *
+            math.cos(camera.center.lat * math.pi / 180) /
+            math.pow(2, camera.zoom);
+        if (meters / metersPerPixel < 36) {
           startAlignment = const Alignment(1, 0);
           endAlignment = const Alignment(-1, 0);
         }
@@ -394,24 +487,18 @@ class _TrailMarkerLayerState extends State<TrailMarkerLayer> {
 
       markers.add(
         ml.Marker(
-          point: points.first,
+          point: first,
           size: const Size(28, 28),
           alignment: startAlignment,
-          child: _buildCircularMarker(
-            FontAwesomeIcons.bullseye,
-            color: Colors.greenAccent,
-          ),
+          child: _startPin,
         ),
       );
       markers.add(
         ml.Marker(
-          point: points.last,
+          point: last,
           size: const Size(28, 28),
           alignment: endAlignment,
-          child: _buildCircularMarker(
-            FontAwesomeIcons.flagCheckered,
-            color: Colors.redAccent,
-          ),
+          child: _endPin,
         ),
       );
     }

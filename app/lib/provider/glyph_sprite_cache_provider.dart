@@ -110,15 +110,57 @@ class GlyphSpriteCache extends _$GlyphSpriteCache {
       }
     }
 
-    await _runPooled(api, jobs, _maxConcurrentDownloads);
+    // Known-404 memo: a fontstack covers only a fraction of the 256 Unicode
+    // ranges, and a 404'd range used to be re-requested on EVERY session —
+    // ~1000 HTTP round-trips per app start forever. Once a URL has 404'd it
+    // is recorded here and never fetched again. Keyed by full URL, so a
+    // changed glyph server (different instance) naturally retries.
+    final missing = await _readMissingManifest(root);
+    final newMisses = <String>{};
+
+    await _runPooled(api, jobs, _maxConcurrentDownloads, missing, newMisses);
+    await _appendMissingManifest(root, newMisses);
     return paths;
   }
 
-  /// Download [job] unless its file already exists on disk (idempotent skip).
-  /// A missing range (404) or transient failure is swallowed best-effort —
-  /// not every fontstack covers every Unicode range, and a glyph miss must
-  /// not fail the whole warm.
-  Future<void> _download(Dio api, _DownloadJob job) async {
+  static String _missingManifestPath(String root) =>
+      p.join(root, 'glyphs', '.missing-urls.txt');
+
+  Future<Set<String>> _readMissingManifest(String root) async {
+    try {
+      final file = File(_missingManifestPath(root));
+      if (!await file.exists()) return <String>{};
+      return (await file.readAsLines())
+          .where((line) => line.isNotEmpty)
+          .toSet();
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
+  Future<void> _appendMissingManifest(String root, Set<String> urls) async {
+    if (urls.isEmpty) return;
+    try {
+      final file = File(_missingManifestPath(root));
+      await file.parent.create(recursive: true);
+      await file.writeAsString('${urls.join('\n')}\n', mode: FileMode.append);
+    } catch (_) {
+      // Best-effort — a failed manifest write only costs re-requests later.
+    }
+  }
+
+  /// Download [job] unless its file already exists on disk or its URL is a
+  /// memoized 404 (idempotent skip). A missing range (404) is recorded into
+  /// [newMisses]; transient failures are swallowed best-effort WITHOUT being
+  /// memoized, so they retry next session — not every fontstack covers every
+  /// Unicode range, and a glyph miss must not fail the whole warm.
+  Future<void> _download(
+    Dio api,
+    _DownloadJob job,
+    Set<String> missing,
+    Set<String> newMisses,
+  ) async {
+    if (missing.contains(job.url)) return;
     if (await File(job.localPath).exists()) return;
     final dir = Directory(p.dirname(job.localPath));
     if (!await dir.exists()) {
@@ -126,7 +168,10 @@ class GlyphSpriteCache extends _$GlyphSpriteCache {
     }
     try {
       await api.download(job.url, job.localPath);
-    } on DioException {
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        newMisses.add(job.url);
+      }
       // Best-effort: clean up any partial file so a later run retries cleanly.
       final partial = File(job.localPath);
       if (await partial.exists()) {
@@ -142,11 +187,13 @@ class GlyphSpriteCache extends _$GlyphSpriteCache {
     Dio api,
     List<_DownloadJob> jobs,
     int concurrency,
+    Set<String> missing,
+    Set<String> newMisses,
   ) async {
     final iterator = jobs.iterator;
     Future<void> worker() async {
       while (iterator.moveNext()) {
-        await _download(api, iterator.current);
+        await _download(api, iterator.current, missing, newMisses);
       }
     }
 

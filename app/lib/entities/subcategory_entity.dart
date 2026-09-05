@@ -56,8 +56,10 @@ extension SubcategoryEntityMapping on SubcategoryEntity {
     if (translationsJson != null) {
       final decoded = jsonDecode(translationsJson!) as Map<String, dynamic>;
       translations = decoded.map(
-        (k, v) =>
-            MapEntry(k, CategoryTranslation.fromJson(v as Map<String, dynamic>)),
+        (k, v) => MapEntry(
+          k,
+          CategoryTranslation.fromJson(v as Map<String, dynamic>),
+        ),
       );
     }
 

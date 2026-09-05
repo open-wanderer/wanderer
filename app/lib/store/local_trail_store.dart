@@ -271,9 +271,7 @@ bool isDrainDue(TrailEntity entity, DateTime now) {
 bool hasKeylessPendingWaypoint(
   List<({String id, String? localKey})> waypoints,
 ) {
-  return waypoints.any(
-    (w) => isLocalId(w.id) && w.localKey == null,
-  );
+  return waypoints.any((w) => isLocalId(w.id) && w.localKey == null);
 }
 
 /// Pure decision core of [recordDrainFailure], extracted so its
@@ -344,7 +342,7 @@ String saveNewLocalTrail(
   required Map<String, List<String>> waypointLocalPhotosByKey,
 }) {
   store.runInTransaction(TxMode.write, () {
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: store);
     entity.id = localId;
     entity.localId = localId;
     entity.owner = ownerAccountId;
@@ -463,7 +461,7 @@ LocalUpdateOutcome updateLocalTrail(
       return LocalUpdateOutcome.alreadyUploaded;
     }
 
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: store);
     entity.obxId = existing.obxId;
     entity.id = existing.id;
     entity.owner = existing.owner;
@@ -629,8 +627,8 @@ void applyNetworkEditToLocalRow(
 /// would erase every account's claim on the trail, and `photos` on a
 /// downloaded row holds LOCAL FILE PATHS written by `TrailDownloadService`,
 /// not server filenames, so overwriting it would strand the downloaded
-/// images (D-14a: nothing automatic ever spends bytes, and nothing automatic
-/// ever destroys already-spent ones).
+/// images: nothing automatic ever spends bytes, and nothing automatic ever
+/// destroys already-spent ones.
 ///
 /// `gpxData` is guarded: when the incoming `trail.expand?.gpxData` is null or
 /// empty, the existing row's `gpxData` is kept rather than blanking the
@@ -685,7 +683,7 @@ void applyServerTrailToLibraryRow(
     query.close();
     if (existing == null) return;
 
-    final entity = TrailEntity.fromModel(trail);
+    final entity = TrailEntity.fromModel(trail, store: store);
     entity.obxId = existing.obxId;
     entity.id = existing.id;
     entity.owner = existing.owner;
@@ -715,7 +713,7 @@ void applyServerTrailToLibraryRow(
 
     if (trail.expand?.waypointsViaTrail != null) {
       // Carry each existing child's downloaded photos onto its refreshed
-      // counterpart by id -- never touched over the network here (D-14a).
+      // counterpart by id -- never touched over the network here.
       final existingLocalPhotosById = {
         for (final w in existing.waypoints) w.id: w.localPhotos,
       };
@@ -1150,7 +1148,11 @@ List<Trail> readOwnLocalTrails(
     if (!isOwn && !isAuthoredByThisAccount) continue;
 
     try {
-      trails.add(entity.toModel());
+      // includeGpx: false — same list-surface rationale as
+      // trailLibraryProvider: these rows feed the profile own-trails cards,
+      // which render scalar columns only; a tap re-reads the full model via
+      // readOwnLocalTrail/trailProvider.
+      trails.add(entity.toModel(includeGpx: false));
     } catch (e, st) {
       debugPrint(
         'local_trail_store: readOwnLocalTrails skipping "${entity.id}" -- '

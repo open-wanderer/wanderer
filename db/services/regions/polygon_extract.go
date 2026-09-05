@@ -1,7 +1,7 @@
 // Package regions: this file writes a leaf region's GeoJSON polygon field
 // out to a unique temp .geojson file suitable for `pmtiles extract
-// --region=<file>`. See 29-RESEARCH.md Pattern 1 / Pitfall 4 — the CLI
-// requires a real local file path, not inline JSON or stdin.
+// --region=<file>` — the CLI requires a real local file path, not inline
+// JSON or stdin.
 package regions
 
 import (

@@ -17,7 +17,7 @@ part of 'trail_sync_provider.dart';
 /// The KEY is the local id, not the server `id` -- a trail mid-drain may
 /// still have no server id at all (pre-create) or one assigned moments ago
 /// (post-create, pre-waypoints), so only the local id is stable across the
-/// whole resume-from-step sequence (D-05).
+/// whole resume-from-step sequence.
 
 @ProviderFor(TrailSync)
 final trailSyncProvider = TrailSyncProvider._();
@@ -31,7 +31,7 @@ final trailSyncProvider = TrailSyncProvider._();
 /// The KEY is the local id, not the server `id` -- a trail mid-drain may
 /// still have no server id at all (pre-create) or one assigned moments ago
 /// (post-create, pre-waypoints), so only the local id is stable across the
-/// whole resume-from-step sequence (D-05).
+/// whole resume-from-step sequence.
 final class TrailSyncProvider
     extends $NotifierProvider<TrailSync, Set<String>> {
   /// The local ids of trails whose upload is currently draining, shared
@@ -43,7 +43,7 @@ final class TrailSyncProvider
   /// The KEY is the local id, not the server `id` -- a trail mid-drain may
   /// still have no server id at all (pre-create) or one assigned moments ago
   /// (post-create, pre-waypoints), so only the local id is stable across the
-  /// whole resume-from-step sequence (D-05).
+  /// whole resume-from-step sequence.
   TrailSyncProvider._()
     : super(
         from: null,
@@ -71,7 +71,7 @@ final class TrailSyncProvider
   }
 }
 
-String _$trailSyncHash() => r'367b876765e0346300827380c9f808c00a6ff626';
+String _$trailSyncHash() => r'2e7ac9bd1208e83add1c86d4e405f930644279b7';
 
 /// The local ids of trails whose upload is currently draining, shared
 /// across every trigger (app foreground, connectivity regained, cold
@@ -82,7 +82,7 @@ String _$trailSyncHash() => r'367b876765e0346300827380c9f808c00a6ff626';
 /// The KEY is the local id, not the server `id` -- a trail mid-drain may
 /// still have no server id at all (pre-create) or one assigned moments ago
 /// (post-create, pre-waypoints), so only the local id is stable across the
-/// whole resume-from-step sequence (D-05).
+/// whole resume-from-step sequence.
 
 abstract class _$TrailSync extends $Notifier<Set<String>> {
   Set<String> build();

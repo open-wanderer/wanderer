@@ -154,12 +154,12 @@ export default class GPX {
       centroid,
       boundingBox,
       distance: totalDistance,
-      // D-01: raw (unsmoothed), index-aligned with flatten() — one entry
+      // Raw (unsmoothed), index-aligned with flatten() — one entry
       // per point, first entry 0 — reserved for position interpolation
       // (the trail-edit crop slider). Since 2026-08-01 this is the same
       // accumulator as the reported `distance` above (both are
       // metrics.totalDistance), so the last entry here equals that total
-      // by construction — see the D-01 executable invariant in gpx.test.ts.
+      // by construction — see the executable invariant in gpx.test.ts.
       cumulativeDistance: metrics.cumulativeDistance,
       elevationGain: totalElevationGain,
       elevationLoss: totalElevationLoss,

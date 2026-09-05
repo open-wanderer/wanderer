@@ -29,8 +29,12 @@ int save(Store store, ActiveNavigationEntity entity) {
 /// before creating a fresh one.
 ActiveNavigationEntity? read(Store store) {
   try {
-    final all = store.box<ActiveNavigationEntity>().getAll();
-    return all.isEmpty ? null : all.first;
+    final query = store.box<ActiveNavigationEntity>().query().build();
+    try {
+      return query.findFirst();
+    } finally {
+      query.close();
+    }
   } catch (_) {
     return null;
   }

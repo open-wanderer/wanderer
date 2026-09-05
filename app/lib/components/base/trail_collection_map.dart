@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -19,6 +20,12 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 /// `_ListMap`, and `map_screen.dart` — screens that render N trails
 /// (or none) rather than a single trail's track.
 class TrailCollectionMap extends ConsumerStatefulWidget {
+  /// Set when this map is mounted inside a scrolling parent.
+  ///
+  /// Selects the Android platform-view composition mode — see the build site.
+  /// Init-only: it is read once, when the native view is created, so flipping
+  /// it on a live map has no effect.
+  final bool embedded;
   final ml.Geographic? initCenter;
   final double? initZoom;
   final bool disabled;
@@ -38,6 +45,7 @@ class TrailCollectionMap extends ConsumerStatefulWidget {
     this.initCenter,
     this.initZoom,
     this.disabled = false,
+    this.embedded = false,
     this.onMapCreated,
     this.onStyleLoaded,
     this.onMapEvent,
@@ -65,6 +73,11 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
   /// remounts the map — the live swap goes through [ml.MapController.setStyle]
   /// instead (mirrors `TrailMap`'s approach).
   String? _lastStyleJson;
+
+  /// Cached [ml.MapOptions] + the `disabled` value it was built for --
+  /// see the build-site comment.
+  ml.MapOptions? _mapOptions;
+  bool? _mapOptionsDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -105,8 +118,12 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
       return ColoredBox(color: Theme.of(context).colorScheme.surface);
     }
 
-    return ml.MapLibreMap(
-      options: ml.MapOptions(
+    // Cached on the `disabled` flip — see TrailMap's identical cache for why
+    // (MapOptions has no value equality; a fresh instance per build
+    // re-issues the plugin's option JNI setters on every rebuild).
+    if (_mapOptions == null || _mapOptionsDisabled != widget.disabled) {
+      _mapOptionsDisabled = widget.disabled;
+      _mapOptions = ml.MapOptions(
         initStyle: styleJson,
         initCenter: widget.initCenter ?? const ml.Geographic(lat: 0, lon: 0),
         initZoom: widget.initZoom ?? 3,
@@ -114,10 +131,17 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
             ? const ml.MapGestures.none()
             : const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
-        // See TrailMap for why texture mode is off and `hc` is pinned.
-        androidTextureMode: false,
-        androidMode: ml.AndroidPlatformViewMode.hc,
-      ),
+        // See TrailMap for why an interactive map takes SurfaceView + `hc`
+        // and an embedded one takes TextureView + `tlhc_hc`.
+        androidTextureMode: widget.embedded,
+        androidMode: widget.embedded
+            ? ml.AndroidPlatformViewMode.tlhc_hc
+            : ml.AndroidPlatformViewMode.hc,
+      );
+    }
+
+    return ml.MapLibreMap(
+      options: _mapOptions!,
       onMapCreated: (controller) {
         _controller = controller;
         widget.onMapCreated?.call(controller);
@@ -137,7 +161,8 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
       onEvent: (event) => widget.onMapEvent?.call(event),
       layers: widget.layers ?? const [],
       children:
-          widget.children ?? const [ml.MapScalebar(), WandererAttribution()],
+          widget.children ??
+          const [WandererMapScalebar(), WandererAttribution()],
     );
   }
 }

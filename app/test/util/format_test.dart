@@ -143,4 +143,123 @@ void main() {
       expect(formatBytes((2.4 * 1024 * 1024 * 1024).round()), '2.4 GB');
     });
   });
+
+  // -------------------------------------------------------------------------
+  // Mirrors web/src/lib/util/format_util.test.ts case for case. When one side
+  // gains a case, the other should gain it too — the two implementations only
+  // stay interchangeable as long as both suites agree.
+  // -------------------------------------------------------------------------
+
+  group('formatHtmlAsText', () {
+    test('returns an empty string for missing input', () {
+      expect(formatHtmlAsText(null), '');
+      expect(formatHtmlAsText(''), '');
+    });
+
+    test('strips inline markup but keeps the text', () {
+      expect(formatHtmlAsText('<p>a <strong>bold</strong> word</p>'),
+          'a bold word');
+    });
+
+    test('separates block elements by a blank line', () {
+      expect(formatHtmlAsText('<p>one</p><p>two</p>'), 'one\n\ntwo');
+      expect(formatHtmlAsText('<ul><li>one</li><li>two</li></ul>'), 'one\n\ntwo');
+    });
+
+    test('turns line breaks into single newlines', () {
+      expect(formatHtmlAsText('one<br>two<br />three'), 'one\ntwo\nthree');
+    });
+
+    test('keeps torn markup out of the output', () {
+      // What `summary.substring(0, bioMaxLength)` used to produce (web #1128)
+      expect(formatHtmlAsText('<p>text <strong>bold and it'),
+          'text bold and it');
+    });
+
+    test('survives attribute values containing angle brackets', () {
+      expect(
+        formatHtmlAsText('<a href="/x?a=1&b=2" title="a > b">link</a>'),
+        'link',
+      );
+    });
+
+    test('drops script and style content', () {
+      expect(
+        formatHtmlAsText("<p>keep</p><script>alert('x')</script>"),
+        'keep',
+      );
+      expect(formatHtmlAsText('<style>p { color: red; }</style>keep'), 'keep');
+    });
+
+    test('decodes named and numeric entities', () {
+      expect(formatHtmlAsText('a &amp; b'), 'a & b');
+      expect(formatHtmlAsText('&lt;p&gt;'), '<p>');
+      expect(
+        formatHtmlAsText('&quot;q&quot; &#39;a&#39; &#x27;b&#x27;'),
+        '"q" \'a\' \'b\'',
+      );
+      expect(formatHtmlAsText('caf&#233; &#x2014; open'), 'café — open');
+    });
+
+    test('decodes entities exactly once', () {
+      // The author wrote "&lt;p&gt;", which the editor stored as
+      // "&amp;lt;p&amp;gt;". Decoding twice would turn that back into a tag
+      // and lose it.
+      expect(formatHtmlAsText('<p>&amp;lt;p&amp;gt; stays</p>'),
+          '&lt;p&gt; stays');
+    });
+
+    test('leaves unknown entities alone', () {
+      expect(
+        formatHtmlAsText('&unknownentity; &#xZZ;'),
+        '&unknownentity; &#xZZ;',
+      );
+    });
+
+    test('collapses redundant whitespace', () {
+      expect(formatHtmlAsText('<p>a</p><p></p><p></p><p>b</p>'), 'a\n\nb');
+      expect(formatHtmlAsText('<p>  padded  </p>'), 'padded');
+      expect(formatHtmlAsText('a    b'), 'a  b');
+    });
+  });
+
+  group('formatHtmlAsTextPreview', () {
+    test('reports untruncated text unchanged', () {
+      final result = formatHtmlAsTextPreview('<p>short</p>', 100);
+
+      expect(result.text, 'short');
+      expect(result.truncated, isFalse);
+    });
+
+    test('truncates to the visible character count, not the HTML length', () {
+      // 30 characters of text behind far more than 30 characters of markup
+      final html = '<p><strong><em>${'a' * 30}</em></strong></p>';
+      final result = formatHtmlAsTextPreview(html, 10);
+
+      expect(result.text, 'a' * 10);
+      expect(result.truncated, isTrue);
+    });
+
+    test('counts code points so the cutoff never splits an astral character',
+        () {
+      final result = formatHtmlAsTextPreview('<p>🏔️🏔️🏔️</p>', 2);
+
+      expect(result.truncated, isTrue);
+      expect(result.text.runes.length, 2);
+      expect(result.text, '🏔️');
+    });
+
+    test('treats a boundary-length description as untruncated', () {
+      final result = formatHtmlAsTextPreview('<p>${'a' * 100}</p>', 100);
+
+      expect(result.truncated, isFalse);
+    });
+
+    test('handles missing descriptions', () {
+      final result = formatHtmlAsTextPreview(null, 100);
+
+      expect(result.text, '');
+      expect(result.truncated, isFalse);
+    });
+  });
 }

@@ -51,7 +51,16 @@ Future<Trail> fetchServerTrail(Dio api, String id) async {
     // and friends) — and a broad `catch` around this call would swallow it
     // and silently degrade to the offline cache, showing a stale trail with
     // no indication why.
-    final parsedGpx = parseGpxSafely(gpxResponse.data as String);
+    //
+    // compute(): a long trail's XML parse is tens of milliseconds of
+    // synchronous CPU, and this runs on every trail-detail open — off the
+    // UI thread it stops eating the open animation's frames. compute (not a
+    // raw Isolate.run closure): a closure captures its enclosing scope
+    // frame, which here can drag non-sendable objects into the isolate
+    // message; compute sends exactly the string. Throws propagate across
+    // the isolate boundary unchanged, so the error semantics above are
+    // preserved.
+    final parsedGpx = await compute(parseGpxSafely, gpxResponse.data as String);
 
     trail = trail.copyWith(
       expand: (trail.expand ?? const TrailExpand()).copyWith(
@@ -78,8 +87,8 @@ class TrailNotifier extends _$TrailNotifier {
 
       // The record and the GPX are both already in hand at this
       // point, so writing them into a downloaded row costs zero additional
-      // network traffic. Photos are deliberately not refreshed here (D-14a)
-      // -- that stays the explicit *Update* action's job (D-12a).
+      // network traffic. Photos are deliberately not refreshed here --
+      // that stays the explicit *Update* action's job.
       _refreshLibraryRow(trail);
 
       return trail;
@@ -142,9 +151,7 @@ class TrailNotifier extends _$TrailNotifier {
     try {
       return entity.toModel();
     } catch (e, st) {
-      debugPrint(
-        'TrailNotifier: cached trail "$id" failed to parse: $e\n$st',
-      );
+      debugPrint('TrailNotifier: cached trail "$id" failed to parse: $e\n$st');
       return null;
     }
   }

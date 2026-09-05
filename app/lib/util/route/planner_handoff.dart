@@ -1,5 +1,6 @@
 import 'dart:math' show sqrt;
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/util/gpx/conversion.dart' show serializeGpxToXml;
 import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/models/route_travel_bucket.dart';
 import 'package:wanderer/actions/import_trail_file.dart';
@@ -338,8 +340,10 @@ Future<Trail> buildDraftTrail(
   Duration? movingDuration,
 }) async {
   // Still produced: `expand.gpxData` is what `util/trail/form_data.dart` uploads
-  // as the trail's track file on save.
-  final xml = GpxWriter().asString(finalGpx);
+  // as the trail's track file on save. Serialized off the UI thread (compute,
+  // never a capturing closure — the enclosing scope holds a WidgetRef) — this
+  // runs at the recording Stop tap / planner Finish, over the full track.
+  final xml = await compute(serializeGpxToXml, finalGpx);
 
   Trail trail = await buildLocalTrail(
     ref,

@@ -46,19 +46,23 @@ class AppLocalizationsNl extends AppLocalizations {
   String get author => 'Auteur';
 
   @override
-  String get avatar => 'Profielfoto';
+  String get average_speed => 'Gem. Snelheid';
 
   @override
-  String get average_speed => 'Gem. Snelheid';
+  String get background_location_body =>
+      'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".';
+
+  @override
+  String get background_location_confirm => 'Open settings';
+
+  @override
+  String get background_location_title => 'Keep recording in the background';
 
   @override
   String get basic_info => 'Algemene informatie';
 
   @override
   String get before => 'Voor';
-
-  @override
-  String get behavior => 'Gedrag';
 
   @override
   String get by => 'door';
@@ -71,9 +75,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => 'Wagen';
 
   @override
   String card(num n) {
@@ -154,12 +155,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get creation_date => 'Aanmaakdatum';
 
   @override
-  String get crop => 'Bijsnijden';
-
-  @override
-  String get cross => 'Oversteken';
-
-  @override
   String get current_password => 'Huidig wachtwoord';
 
   @override
@@ -170,6 +165,9 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get delete => 'Verwijderen';
+
+  @override
+  String get not_now => 'Not now';
 
   @override
   String get open => 'Open';
@@ -204,9 +202,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get directions => 'Routebeschrijving';
-
-  @override
-  String get display => 'Tonen';
 
   @override
   String get distance => 'Afstand';
@@ -286,9 +281,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => 'Veerboot';
-
-  @override
   String get filter_tags => 'Filter tags';
 
   @override
@@ -314,12 +306,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get from_photos => 'Van Foto\'s';
 
   @override
-  String get heading => 'Titel';
-
-  @override
-  String get height => 'Hoogte';
-
-  @override
   String get help => 'Help';
 
   @override
@@ -327,9 +313,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get home => 'Home';
-
-  @override
-  String get hotel => 'Hotel';
 
   @override
   String get icon => 'Pictogram';
@@ -376,10 +359,15 @@ class AppLocalizationsNl extends AppLocalizations {
   String get center_on_my_location => 'Center on my location';
 
   @override
-  String get location_tracking_notification_title => 'Wanderer';
+  String get location_tracking_notification_title => 'wanderer';
 
   @override
   String get location_tracking_notification_text => 'Recording your trail';
+
+  @override
+  String location_tracking_notification_text_navigating(String trail) {
+    return 'Navigating $trail';
+  }
 
   @override
   String get login => 'Inloggen';
@@ -391,9 +379,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get longitude => 'Lengtegraad';
 
   @override
-  String get loop => 'Lus';
-
-  @override
   String get map => 'Kaart';
 
   @override
@@ -401,12 +386,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get moderate => 'Gemiddeld';
-
-  @override
-  String get more => 'Meer';
-
-  @override
-  String get mountain => 'Berg';
 
   @override
   String get my_account => 'Mijn Account';
@@ -421,9 +400,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => 'Nabij';
 
   @override
   String get new_password => 'Nieuw wachtwoord';
@@ -493,9 +469,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get or => 'of';
 
   @override
-  String get orientation => 'Oriëntatie';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -508,9 +481,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => 'Alinea';
 
   @override
   String get pause => 'Pause';
@@ -550,9 +520,6 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get print => 'Afdrukken';
-
-  @override
   String get privacy => 'Privacy';
 
   @override
@@ -565,16 +532,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get public => 'Openbaar';
 
   @override
-  String get radius => 'Straal';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => 'Registreren';
-
-  @override
-  String get required => 'Verplicht';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -592,9 +553,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Opname hervatten?';
-
-  @override
-  String get road => 'Weg';
 
   @override
   String route(num n) {
@@ -639,9 +597,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => 'geselecteerd';
 
   @override
   String get settings => 'Instellingen';
@@ -717,9 +672,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get show_on_map => 'Tonen op kaart';
 
   @override
-  String get shower => 'Douche';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -760,13 +712,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => 'Tabel';
-
-  @override
   String get tags => 'Labels';
-
-  @override
-  String get text => 'Tekst';
 
   @override
   String get theme_dark => 'Dark';
@@ -776,9 +722,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -823,13 +766,7 @@ class AppLocalizationsNl extends AppLocalizations {
       'Deze gebruikersnaam is al in gebruik. Probeer een andere naam.';
 
   @override
-  String get view => 'Weergave';
-
-  @override
   String get visibilty_status => 'Zichtbaarheid status';
-
-  @override
-  String get water => 'Water';
 
   @override
   String get web => 'Web';
@@ -847,9 +784,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => 'Breedte';
 
   @override
   String get wrong_username_or_password =>
@@ -936,9 +870,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get no_track_data => 'No track data';
 
   @override
-  String get offline => 'Offline';
-
-  @override
   String get available_offline => 'Available offline';
 
   @override
@@ -968,6 +899,12 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get no_bio_yet => 'No bio yet.';
+
+  @override
+  String get show_more => 'Show more';
+
+  @override
+  String get show_less => 'Show less';
 
   @override
   String get feed => 'Feed';
@@ -1117,6 +1054,12 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get regions_offline_unavailable_body =>
       'Connect to the internet to browse and manage downloadable regions.';
+
+  @override
+  String get regions_map_geometry_failed => 'Could not load region outline';
+
+  @override
+  String get regions_map_back_label => 'Back to regions';
 
   @override
   String regions_group_expand_label(String name) {

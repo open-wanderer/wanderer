@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,7 +69,7 @@ class ListCard extends ConsumerWidget {
                         aspectRatio: 16 / 9,
                         child: list.avatar?.isNotEmpty == true
                             ? Image(
-                                image: NetworkImage(avatarUrl!),
+                                image: CachedNetworkImageProvider(avatarUrl!),
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) =>
                                     _placeholder(context),

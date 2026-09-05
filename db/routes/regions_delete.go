@@ -19,7 +19,7 @@ import (
 //
 // Registered superuser-only (RequireSuperuserAuth) at a distinct path from
 // the /regions group in main.go, which is intentionally scoped to any
-// logged-in app user for the read-only catalog/download flow (D-06/D-07) —
+// logged-in app user for the read-only catalog/download flow —
 // deleting archives is an admin-only, destructive action and must not share
 // that weaker auth gate.
 //

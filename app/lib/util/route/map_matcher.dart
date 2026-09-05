@@ -360,7 +360,12 @@ class RouteMapMatcher {
     // jump once real evidence (fixes staying on the true leg) arrives.
     final continuation = isFirstFix
         ? null
-        : _findContinuation(scored, _committedAtd, groundDistance, plausibleStep);
+        : _findContinuation(
+            scored,
+            _committedAtd,
+            groundDistance,
+            plausibleStep,
+          );
 
     var kept = scored.take(topK).toList(growable: false);
     if (continuation != null &&
@@ -421,8 +426,7 @@ class RouteMapMatcher {
 
     final sameJump =
         _pendingJumpAtd != null &&
-        (globalBest.alongTrackMeters - _pendingJumpAtd!).abs() <=
-            plausibleStep;
+        (globalBest.alongTrackMeters - _pendingJumpAtd!).abs() <= plausibleStep;
     _pendingJumpAtd = globalBest.alongTrackMeters;
     _pendingJumpFixes = sameJump ? _pendingJumpFixes + 1 : 1;
 

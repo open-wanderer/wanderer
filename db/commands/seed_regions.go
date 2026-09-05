@@ -18,24 +18,24 @@ import (
 // at implementation time (2026-07-25) via Codeberg's Forgejo commits API
 // (GET https://codeberg.org/api/v1/repos/comaps/comaps/commits?limit=1&sha=main).
 // A concrete SHA is baked in — never the literal "main" — so a re-run of this
-// tool without --commit reproduces the exact same output (28-RESEARCH.md
-// Open Question 3). The same commit is fetched from GitHub's mirror (see
+// tool without --commit reproduces the exact same output. The same commit
+// is fetched from GitHub's mirror (see
 // baseURL below) rather than Codeberg directly — comaps/comaps is mirrored
 // to GitHub (github.com/comaps/comaps), and raw.githubusercontent.com serves
 // identical byte-for-byte content for the same commit with no observed rate
-// limiting. With only hierarchy.txt now fetched (D-12), a run is a single
+// limiting. With only hierarchy.txt now fetched, a run is a single
 // request either host could serve, but the GitHub mirror stays primary for
 // consistency with the commit's provenance.
 const defaultCommitHash = "2528fbb91977201cf6d16b1b01ebf27eea342e85"
 
 // commitHashPattern is the allow-list a --commit value must satisfy before it
-// is interpolated into the fetch URL (Threat T-28-03).
+// is interpolated into the fetch URL.
 var commitHashPattern = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
 // SeedRow is one flattened row of the JSON array seed_regions.go writes:
 // one entry per CoMaps hierarchy.txt node (group or leaf). Field tags match
 // byte-for-byte what the migration reader struct expects. It carries pure
-// hierarchy only — no geometry (SLIM-01, D-12): a leaf's polygon/bbox are
+// hierarchy only — no geometry: a leaf's polygon/bbox are
 // fetched on demand at runtime instead of being carried in this catalog.
 type SeedRow struct {
 	ComapsID       string `json:"comaps_id"`
@@ -48,7 +48,7 @@ type SeedRow struct {
 }
 
 // SeedCatalog is the top-level shape written to --out: the pinned commit
-// this catalog was generated from, recorded once (D-00b), plus every
+// this catalog was generated from, recorded once, plus every
 // flattened hierarchy row. Storing the commit inside the artifact rather
 // than as a separate shared Go const means a regeneration with a different
 // --commit can never silently desync the recorded provenance from the rows
@@ -60,17 +60,17 @@ type SeedCatalog struct {
 
 // SeedRegions returns the "seed-regions" Cobra command: a maintainer-run,
 // dev-time-only tool that fetches CoMaps' hierarchy.txt fresh from
-// comaps/comaps's GitHub mirror at a pinned commit (D-01 — nothing raw is
+// comaps/comaps's GitHub mirror at a pinned commit (nothing raw is
 // vendored into this repo, only this tool's flattened JSON output is ever
 // committed), converts it via ParseHierarchy, and writes the result to
 // --out as a SeedCatalog value. The commit to fetch is a CLI flag with a
-// baked-in default (D-02) so a maintainer can refresh the catalog ad hoc
+// baked-in default so a maintainer can refresh the catalog ad hoc
 // without editing source.
 //
-// The run issues exactly one HTTP request (D-12): with geometry no longer
+// The run issues exactly one HTTP request: with geometry no longer
 // carried in this catalog, there is nothing left to derive from a leaf's
 // .poly file, so the ~1,150-file scrape this tool used to perform is gone.
-// The output is plain, pretty-printed JSON (D-00a) — no gzip layer — since
+// The output is plain, pretty-printed JSON — no gzip layer — since
 // the pure-hierarchy catalog is small enough (~292 KB) to commit and review
 // directly; a maintainer refresh is now a reviewable diff rather than an
 // opaque compressed binary blob.
@@ -150,13 +150,13 @@ func SeedRegions() *cobra.Command {
 // 429 (rate limited) response before giving up. Codeberg's raw-file
 // endpoint enforces a tight per-window quota (observed: 250 requests /
 // 600s); this generator now issues only one request per run, but the
-// patient retry budget is kept per D-03 — the build path (plan 32-03) gets
-// its own tighter budget rather than reusing this one.
+// patient retry budget is kept — the build path gets its own tighter
+// budget rather than reusing this one.
 const maxFetchRetries = 10
 
 // fetch performs an HTTP GET against rawURL and reads at most maxBytes of
 // the response body, bounding memory use against an unexpectedly large
-// upstream response (Threat T-28-04). A 429 response is retried up to
+// upstream response. A 429 response is retried up to
 // maxFetchRetries times, sleeping for the duration named by the response's
 // Retry-After header (or a conservative default if absent) between
 // attempts. A non-200/429 status or a read error is returned as a

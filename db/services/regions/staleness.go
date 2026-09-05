@@ -11,7 +11,7 @@ import (
 //
 // This is a self-contained duplicate of the per-cell tile generator's
 // equivalent daily-build-date resolution logic — the region-archive build
-// path is parallel and independent (D-01/D-02), so this deliberately does
+// path is parallel and independent, so this deliberately does
 // NOT import or reference that sibling package. A ~12-line local copy is
 // the safer choice over reopening its source file.
 //
@@ -44,7 +44,7 @@ func urlExists(url string) bool {
 
 // needsVectorRebuild reports whether a region's vector archive should be
 // rebuilt because the Protomaps daily-build date advanced since the last
-// successful build (D-10). storedDate == "" (never built) naturally returns
+// successful build. storedDate == "" (never built) naturally returns
 // true since it always differs from a non-empty currentDate.
 func needsVectorRebuild(storedDate, currentDate string) bool {
 	return storedDate != currentDate
@@ -52,11 +52,11 @@ func needsVectorRebuild(storedDate, currentDate string) bool {
 
 // bboxChanged reports whether the region's config bbox differs from the
 // bbox stored on its region_archives record, used to gate DEM rebuilds
-// (D-11: DEM builds once, rebuilding only when the config bbox changes).
+// (DEM builds once, rebuilding only when the config bbox changes).
 //
 // The comparison source is now the bbox resolved from region_geometry
 // (via ResolveGeometry) rather than the seeded catalog record, since bbox
-// no longer lives on the regions record (D-12 consequence 3) — semantics
+// no longer lives on the regions record — semantics
 // and the exact-float64-equality rationale below are unchanged.
 //
 // Exact float64 equality is used (no epsilon) — both sides originate from

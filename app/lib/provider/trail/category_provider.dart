@@ -28,15 +28,31 @@ class CategoryNotifier extends _$CategoryNotifier {
 
       final items = categoryListResult.items;
 
-      // Overwrite all cached category rows on every successful fetch (no
+      // Refresh all cached category rows on every successful fetch (no
       // staleness tracking). Kept inside the try block so a failed fetch
       // leaves the prior cache intact. Both operations run in a single write
       // transaction so a mid-operation crash cannot leave the cache empty.
+      //
+      // Upserted by record id rather than removeAll + putMany: `id` is
+      // `@Unique(onConflict: replace)`, so a wholesale re-insert re-mints
+      // every ObjectBox id, and `TrailEntity.category` stores its target BY
+      // that id -- every stored trail's category relation resolved to null
+      // after what is otherwise a routine refresh. `categoryEntityForUpsert`
+      // reuses the existing row's id so the put UPDATES it. Only rows the
+      // server no longer lists are removed.
       final store = ref.read(objectBoxProvider);
       store.runInTransaction(TxMode.write, () {
         final box = store.box<CategoryEntity>();
-        box.removeAll();
-        box.putMany(items.map(CategoryEntity.fromModel).toList());
+        final incomingIds = items.map((c) => c.id).toSet();
+        final stale = box
+            .getAll()
+            .where((e) => !incomingIds.contains(e.id))
+            .map((e) => e.obxId)
+            .toList();
+        if (stale.isNotEmpty) box.removeMany(stale);
+        box.putMany([
+          for (final category in items) categoryEntityForUpsert(store, category),
+        ]);
       });
 
       return items;

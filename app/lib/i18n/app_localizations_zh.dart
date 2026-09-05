@@ -45,19 +45,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get author => '作者';
 
   @override
-  String get avatar => '头像';
+  String get average_speed => '平均速度';
 
   @override
-  String get average_speed => '平均速度';
+  String get background_location_body =>
+      'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".';
+
+  @override
+  String get background_location_confirm => 'Open settings';
+
+  @override
+  String get background_location_title => 'Keep recording in the background';
 
   @override
   String get basic_info => '基本信息';
 
   @override
   String get before => '之前';
-
-  @override
-  String get behavior => '行为';
 
   @override
   String get by => '由';
@@ -70,9 +74,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => '汽车';
 
   @override
   String card(num n) {
@@ -153,12 +154,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get creation_date => '创建日期';
 
   @override
-  String get crop => '裁剪';
-
-  @override
-  String get cross => '交叉点';
-
-  @override
   String get current_password => '当前密码';
 
   @override
@@ -169,6 +164,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get delete => '删除';
+
+  @override
+  String get not_now => 'Not now';
 
   @override
   String get open => 'Open';
@@ -202,9 +200,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get directions => '导航';
-
-  @override
-  String get display => '显示';
 
   @override
   String get distance => '距离';
@@ -284,9 +279,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => '轮渡';
-
-  @override
   String get filter_tags => '过滤标签';
 
   @override
@@ -312,12 +304,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get from_photos => '来自照片';
 
   @override
-  String get heading => '标题';
-
-  @override
-  String get height => '高度';
-
-  @override
   String get help => '帮助';
 
   @override
@@ -325,9 +311,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get home => '主页';
-
-  @override
-  String get hotel => '酒店';
 
   @override
   String get icon => '图标';
@@ -374,10 +357,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get center_on_my_location => 'Center on my location';
 
   @override
-  String get location_tracking_notification_title => 'Wanderer';
+  String get location_tracking_notification_title => 'wanderer';
 
   @override
   String get location_tracking_notification_text => 'Recording your trail';
+
+  @override
+  String location_tracking_notification_text_navigating(String trail) {
+    return 'Navigating $trail';
+  }
 
   @override
   String get login => '登录';
@@ -389,9 +377,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get longitude => '经度';
 
   @override
-  String get loop => '循环';
-
-  @override
   String get map => '地图';
 
   @override
@@ -399,12 +384,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get moderate => '中等';
-
-  @override
-  String get more => '更多';
-
-  @override
-  String get mountain => '山地';
 
   @override
   String get my_account => '我的账户';
@@ -419,9 +398,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => '附近';
 
   @override
   String get new_password => '新密码';
@@ -491,9 +467,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get or => '或';
 
   @override
-  String get orientation => '方向';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -506,9 +479,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => '段落';
 
   @override
   String get pause => 'Pause';
@@ -548,9 +518,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get print => '打印';
-
-  @override
   String get privacy => '隐私';
 
   @override
@@ -563,16 +530,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get public => '公开';
 
   @override
-  String get radius => '半径';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => '注册';
-
-  @override
-  String get required => '必填';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -590,9 +551,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => '恢复录制？';
-
-  @override
-  String get road => '道路';
 
   @override
   String route(num n) {
@@ -636,9 +594,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => '已选';
 
   @override
   String get settings => '设置';
@@ -707,9 +662,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get show_on_map => '地图中展示';
 
   @override
-  String get shower => '淋浴';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -750,13 +702,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => '表格';
-
-  @override
   String get tags => '标签';
-
-  @override
-  String get text => '文本';
 
   @override
   String get theme_dark => 'Dark';
@@ -766,9 +712,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -812,13 +755,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get username_not_unique => '此用户名已被使用。请尝试其他用户名。';
 
   @override
-  String get view => '查看';
-
-  @override
   String get visibilty_status => '可见状态';
-
-  @override
-  String get water => '水';
 
   @override
   String get web => 'Web';
@@ -836,9 +773,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => '宽度';
 
   @override
   String get wrong_username_or_password => '用户名或密码无效';
@@ -924,9 +858,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get no_track_data => 'No track data';
 
   @override
-  String get offline => 'Offline';
-
-  @override
   String get available_offline => 'Available offline';
 
   @override
@@ -956,6 +887,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get no_bio_yet => 'No bio yet.';
+
+  @override
+  String get show_more => 'Show more';
+
+  @override
+  String get show_less => 'Show less';
 
   @override
   String get feed => 'Feed';
@@ -1105,6 +1042,12 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get regions_offline_unavailable_body =>
       'Connect to the internet to browse and manage downloadable regions.';
+
+  @override
+  String get regions_map_geometry_failed => 'Could not load region outline';
+
+  @override
+  String get regions_map_back_label => 'Back to regions';
 
   @override
   String regions_group_expand_label(String name) {

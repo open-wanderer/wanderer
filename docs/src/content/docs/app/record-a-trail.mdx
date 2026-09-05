@@ -1,0 +1,42 @@
+---
+title: Record a trail
+description: Record a hike with GPS in the <span class="-tracking-[0.075em]">wanderer</span> app — even without a network connection
+---
+
+import PhoneGrid from '../../../components/phone_grid.astro';
+import newTrailShot from '../../../assets/guides/wanderer_app_new_trail.png';
+
+:::caution[Beta]
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in **beta**. Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your sole means of navigation during a hike — always carry a backup, such as a paper map and compass or a dedicated GPS device.
+:::
+
+<PhoneGrid src={newTrailShot} alt="The New Trail screen">
+
+Tap the **➕** button in the center of the bottom bar to open the **New Trail** screen. You can choose between three sources:
+
+- **Open trail planner** — draw a new route on the map ([Plan a route](/app/plan-a-route))
+- **Record trail** — track your live coordinates and log your journey in real time
+- **Import file** — upload GPX, KML, KMZ, TCX or FIT files directly from your device storage
+
+</PhoneGrid>
+
+## Recording
+
+Choose **Record trail** and pick a travel profile (hiking or one of the biking profiles). The app needs permission to access your location — including in the background, so the recording continues while your screen is off or you use other apps. A persistent notification shows that location tracking is active.
+
+While recording, the screen shows your track on the map along with live stats: distance, elevation gain and loss, speed, average speed, and time in motion. You can **pause** and **resume** at any time, and leave the recording screen — an active recording survives app restarts and can be resumed from where you left off.
+
+## Saving
+
+When you stop the recording, the **Save recording** options let you polish the track before it becomes a trail:
+
+- **Follow roads** — snap the recorded path to the nearest roads and trails
+- **Recalculate heights** — replace recorded GPS elevation with more accurate values from the map
+
+Afterwards, the trail editor opens where you can add a name, description, category, photos, and waypoints before saving.
+
+## Recording offline
+
+Recording works entirely without a network connection. The recording and the finished trail are stored on your device first and appear in your [Library](/app/offline-use). As soon as your instance is reachable again, the app uploads the trail automatically — the sync status chip on the trail shows the current state ("Waiting to upload", "Upload failed · Tap to retry").
+
+To also have a base map while recording offline, download the region beforehand — see [Offline use](/app/offline-use).

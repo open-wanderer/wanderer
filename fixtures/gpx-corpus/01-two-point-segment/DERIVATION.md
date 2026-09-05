@@ -3,11 +3,11 @@
 ## What this fixture is
 
 A single `<trkseg>` with exactly two track points, no elevation, no time. The minimal
-reproduction of CONV-01.
+reproduction of the segment-first-point defect.
 
 ## Defect pinned
 
-CONV-01: `gpx.ts`'s pre-fix `getTotals()` looped `for (let i = 1; i < pointLength; i++)`,
+`gpx.ts`'s pre-fix `getTotals()` looped `for (let i = 1; i < pointLength; i++)`,
 skipping index 0 of every segment. For a 2-point segment, `metrics.addAndFilter(point)` was
 therefore called exactly once, on the segment's second point (`b`). That call is
 `GpxMetricsComputation`'s *first-ever* invocation, which only initializes its internal anchors

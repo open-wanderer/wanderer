@@ -28,7 +28,8 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
       final data = response.data;
       if (data == null || data is! List) {
         throw Exception(
-            'Unexpected response shape from /user-subcategory-preference: $data');
+          'Unexpected response shape from /user-subcategory-preference: $data',
+        );
       }
       return data
           .map((e) => SubcategoryPreference.fromJson(e as Map<String, dynamic>))
@@ -41,10 +42,12 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
   /// Creates or updates a single subcategory preference. The server injects the
   /// owning `user` from the session — never send it.
   Future<void> upsert(String subcategoryId, bool visible) async {
-    await ref.read(apiProvider).put(
-      '/user-subcategory-preference',
-      data: {'subcategory': subcategoryId, 'visible': visible},
-    );
+    await ref
+        .read(apiProvider)
+        .put(
+          '/user-subcategory-preference',
+          data: {'subcategory': subcategoryId, 'visible': visible},
+        );
     ref.invalidateSelf();
   }
 
@@ -56,10 +59,15 @@ class SubcategoryPreferenceNotifier extends _$SubcategoryPreferenceNotifier {
     String categoryId,
     List<String> orderedSubcategoryIds,
   ) async {
-    await ref.read(apiProvider).post(
-      '/user-subcategory-preference/reorder',
-      data: {'category': categoryId, 'subcategories': orderedSubcategoryIds},
-    );
+    await ref
+        .read(apiProvider)
+        .post(
+          '/user-subcategory-preference/reorder',
+          data: {
+            'category': categoryId,
+            'subcategories': orderedSubcategoryIds,
+          },
+        );
     ref.invalidateSelf();
   }
 }

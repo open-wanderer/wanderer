@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart' as geo;
 import 'package:maplibre/maplibre.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/navigate_response.dart';
+import 'package:wanderer/services/tracelet_position_source.dart'
+    show hasUsableAltitude;
 
 part 'navigation_stats_provider.freezed.dart';
 part 'navigation_stats_provider.g.dart';
@@ -93,7 +95,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   /// Altitude noise-floor (metres). Only altitude deltas at or above this
   /// magnitude are accumulated as gain/loss, so per-fix GPS jitter does not
   /// inflate elevation totals. Tunable in one place.
-  static const _kAltitudeNoiseFloorMeters = 2.0;
+  /// Elevation deltas below this are drift, not climb. Public because the
+  /// gap backfill in `session_gap_backfill.dart` must accumulate by exactly
+  /// the same rule as the live path — two thresholds would make a resumed
+  /// session's elevation depend on where the app happened to be killed.
+  static const kAltitudeNoiseFloorMeters = 2.0;
 
   /// 1-second clock driving [NavigationStats.elapsed]. Independent of GPS
   /// cadence so the clock keeps ticking while the user stands still.
@@ -128,7 +134,10 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
   Geographic? _lastPoint;
 
   @override
-  NavigationStats build(NavigateResponse response, {NavigationStatsSeed? resume}) {
+  NavigationStats build(
+    NavigateResponse response, {
+    NavigationStatsSeed? resume,
+  }) {
     // Cancel the timer when the family entry is disposed.
     ref.onDispose(() => _ticker?.cancel());
 
@@ -142,7 +151,13 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     // Subtracting only `elapsed` while separately restoring `_pausedAccum`
     // would double-count paused time — this formula avoids that.
     _start = DateTime.now().subtract(resume.elapsed + resume.pausedAccum);
-    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    // A session resumed in the paused state starts with no ticker — the
+    // frozen↔unfrozen transitions own the timer's lifecycle (see
+    // [_applyFrozen]); a 1 Hz wakeup whose tick is a guaranteed no-op is
+    // pure battery waste over an hours-long pause.
+    if (!resume.isPaused) {
+      _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    }
     // Stationary state is NOT persisted/resumed here — it is re-derived
     // within seconds of session resume via tracelet's engine re-emitting a
     // SpeedMotionEvent once tracking restarts. Any stationary interval that
@@ -198,20 +213,32 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     // Elevation gain/loss with a noise-floor threshold. The
     // reference altitude is only updated when the threshold is crossed, so
     // small drifts never accumulate.
+    //
+    // A fix with no real altitude reading must never anchor the reference or
+    // be diffed against it — see [hasUsableAltitude], which owns that
+    // judgement (and explains why it is not simply an accuracy check).
+    // Anchoring on the fabricated 0 that TraceletPositionSource's seed fix
+    // carries would make the next genuine reading register as a single-step
+    // "gain" of the device's full absolute altitude. Skip such fixes for
+    // elevation purposes; the reference anchors on the first subsequent fix
+    // that does carry a real reading — the same rule computeTrailMetrics
+    // already applies to waypoints with no usable `ele`.
     var gain = state.elevationGainMeters;
     var loss = state.elevationLossMeters;
-    if (_lastAltitude != null) {
-      final delta = pos.altitude - _lastAltitude!;
-      if (delta.abs() >= _kAltitudeNoiseFloorMeters) {
-        if (delta > 0) {
-          gain += delta;
-        } else {
-          loss += -delta;
+    if (hasUsableAltitude(pos)) {
+      if (_lastAltitude != null) {
+        final delta = pos.altitude - _lastAltitude!;
+        if (delta.abs() >= kAltitudeNoiseFloorMeters) {
+          if (delta > 0) {
+            gain += delta;
+          } else {
+            loss += -delta;
+          }
+          _lastAltitude = pos.altitude;
         }
+      } else {
         _lastAltitude = pos.altitude;
       }
-    } else {
-      _lastAltitude = pos.altitude;
     }
 
     // Current speed: m/s → km/h, guarding NaN/negative.
@@ -290,6 +317,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
     if (nowFrozen) {
       _frozenSince = DateTime.now();
       state = state.copyWith(currentSpeedKmh: 0);
+      // Frozen ticks are guaranteed no-ops (see [_tick]) — stop the 1 Hz
+      // timer entirely instead of waking up to do nothing for the whole
+      // paused/stationary interval.
+      _ticker?.cancel();
+      _ticker = null;
     } else {
       if (_start != null) {
         _pausedAccum += DateTime.now().difference(_frozenSince!);
@@ -298,6 +330,11 @@ class NavigationStatsNotifier extends _$NavigationStatsNotifier {
       // Re-anchor so the frozen interval contributes no distance/elevation.
       _lastPoint = null;
       _lastAltitude = null;
+      // Restart the clock only for a session that has actually started —
+      // before the first fix, [onPosition] owns ticker creation.
+      if (_start != null) {
+        _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+      }
     }
   }
 }

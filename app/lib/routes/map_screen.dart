@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -282,6 +283,33 @@ class _MapScreenState extends ConsumerState<MapScreen>
   /// drag from the attached scroll position, so a non-scrollable child (which
   /// is what `AsyncLoader` substitutes on error — a bare `WandererError`) leaves
   /// the sheet frozen as well as showing a raw exception. Carries no retry CTA
+  /// The result sheet's no-matches state — extracted from the sheet list so
+  /// the list itself could become a `ListView.builder` (see the search-sheet
+  /// AsyncLoader below).
+  Widget _buildSheetEmptyState(BuildContext context) {
+    return Padding(
+      padding: EdgeInsetsGeometry.only(top: 64),
+      child: Column(
+        children: [
+          SvgPicture.asset(
+            "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
+            semanticsLabel: 'wanderer comment empty state',
+            height: 120,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context)!.no_trails_found,
+            style: Theme.of(context).textTheme.labelLarge!.copyWith(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// because the map takeover behind it already owns that affordance.
   Widget _buildSheetOfflineState(ScrollController scrollController) {
     final theme = Theme.of(context);
@@ -590,10 +618,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 right: 8,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
-                  children: const [ml.MapCompass(hideIfRotatedNorth: true)],
+                  children: const [
+                    WandererMapCompass(hideIfRotatedNorth: true),
+                  ],
                 ),
               ),
-              const ml.MapScalebar(
+              const WandererMapScalebar(
                 alignment: Alignment.topLeft,
                 padding: EdgeInsets.only(left: 24, top: 112),
               ),
@@ -757,7 +787,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           5,
                           (_) => TrailSearchResult.mock(),
                         ),
-                        builder: (trails) => ListView(
+                        // .builder, not children: the result list accumulates
+                        // across pages, and pre-constructing every row widget
+                        // on each sheet rebuild scaled with the whole result
+                        // set instead of the visible slice. Index 0 is the
+                        // header; the remainder is one row per trail (or the
+                        // single empty state).
+                        builder: (trails) => ListView.builder(
                           padding: EdgeInsets.fromLTRB(
                             16,
                             8,
@@ -765,8 +801,21 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             kBottomNavigationBarHeight + 16 + 32,
                           ),
                           controller: scrollController,
-                          children: [
-                            ValueListenableBuilder<double>(
+                          itemCount: 1 + (trails.isEmpty ? 1 : trails.length),
+                          itemBuilder: (context, index) {
+                            if (index > 0) {
+                              if (trails.isEmpty) {
+                                return _buildSheetEmptyState(context);
+                              }
+                              final t = trails[index - 1];
+                              return TrailCard(
+                                key: ValueKey(t.id),
+                                trail: t,
+                                onTrailSelect: () =>
+                                    context.push("/trail/${t.id}", extra: t),
+                              );
+                            }
+                            return ValueListenableBuilder<double>(
                               valueListenable: _sheetSize,
                               builder: (context, size, child) {
                                 final opacity = sheetHeaderOpacity(
@@ -831,46 +880,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                   ],
                                 );
                               },
-                            ),
-                            if (trails.isNotEmpty) ...{
-                              ...trails.map(
-                                (t) => TrailCard(
-                                  trail: t,
-                                  onTrailSelect: () =>
-                                      context.push("/trail/${t.id}", extra: t),
-                                ),
-                              ),
-                            } else ...{
-                              Padding(
-                                padding: EdgeInsetsGeometry.only(top: 64),
-                                child: Column(
-                                  children: [
-                                    SvgPicture.asset(
-                                      "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
-                                      semanticsLabel:
-                                          'wanderer comment empty state',
-                                      height: 120,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      AppLocalizations.of(
-                                        context,
-                                      )!.no_trails_found,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelLarge!
-                                          .copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.5),
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            },
-                          ],
+                            );
+                          },
                         ),
                       ),
               );

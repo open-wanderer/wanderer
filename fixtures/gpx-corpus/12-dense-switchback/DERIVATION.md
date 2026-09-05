@@ -16,16 +16,16 @@ Every other fixture in this corpus samples far more sparsely than a real GPS wat
 `10-realistic-track` has a mean hop of 44.8 m and a minimum hop of 39.39 m — **zero** hops
 anywhere near the 5 m distance-smoothing threshold. A real watch recording a switchback at a
 4-second sample interval produces hops around 4.27 m — an order of magnitude denser. No existing
-fixture could see the defect this quick task fixes (CONV-05's 5 m gate chord-shortcutting real
+fixture could see the defect this fixes (the 5 m gate chord-shortcutting real
 switchback geometry), because none of them sample densely enough for the gate to ever fire.
 
 This fixture closes that gap: every one of its 40 consecutive hops measures ~3.852 m, under the
 5 m gate, at the density class a real recording actually produces.
 
-## Defect pinned (CONV-05, superseded 2026-08-01)
+## Defect pinned (distance smoothing, since retired)
 
 The reported distance is now the raw accumulator (`totalDistance`), not the 5 m-gated smoothed
-accumulator (`totalDistanceSmoothed`) that CONV-05 originally required. This fixture is the
+accumulator (`totalDistanceSmoothed`) the corpus originally required. This fixture is the
 regression guard: if a future change silently re-introduces the 5 m gate on the reporting path,
 this fixture's expected distance (~154 m) would fail by ~77 m — impossible to miss.
 
@@ -90,7 +90,7 @@ because every hop is under 5 m, the superseded gate's anchor (`lastFilteredPoint
 only once every third point — one hop out of every three clears 5 m cumulatively from the
 still-unmoved anchor, while the other two are absorbed and lost. The gate loses just over half
 the track's real length (77.29 m reported vs. 154.08 m actual) — this is the concrete cost of the
-defect CONV-05's original form had, at the sampling density a real device actually produces.
+defect the 5 m gate had, at the sampling density a real device actually produces.
 
 **The corpus asserts 154.08415712669284 (the raw sum), not 77.292 (the gate's counterfactual).**
 

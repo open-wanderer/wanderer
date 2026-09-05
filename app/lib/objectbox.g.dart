@@ -768,7 +768,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(8, 5734302023385580278),
     name: 'LocalSettingsEntity',
-    lastPropertyId: const obx_int.IdUid(3, 3987020287664329095),
+    lastPropertyId: const obx_int.IdUid(4, 3385512587357651788),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -781,6 +781,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(2, 293543109978045611),
         name: 'themeMode',
         type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 3385512587357651788),
+        name: 'backgroundLocationAsked',
+        type: 1,
         flags: 0,
       ),
     ],
@@ -856,7 +862,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 8580051984298238879),
     name: 'ActiveNavigationEntity',
-    lastPropertyId: const obx_int.IdUid(18, 5891370304847306650),
+    lastPropertyId: const obx_int.IdUid(19, 8065206108951194476),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -953,6 +959,12 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(18, 5891370304847306650),
         name: 'recordingCosting',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 8065206108951194476),
+        name: 'navResponseJson',
         type: 9,
         flags: 0,
       ),
@@ -2150,9 +2162,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (LocalSettingsEntity object, fb.Builder fbb) {
         final themeModeOffset = fbb.writeString(object.themeMode);
-        fbb.startTable(4);
+        fbb.startTable(5);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, themeModeOffset);
+        fbb.addBool(3, object.backgroundLocationAsked);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -2162,8 +2175,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final themeModeParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
-        final object = LocalSettingsEntity(themeMode: themeModeParam)
-          ..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final backgroundLocationAskedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          10,
+          false,
+        );
+        final object = LocalSettingsEntity(
+          themeMode: themeModeParam,
+          backgroundLocationAsked: backgroundLocationAskedParam,
+        )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
       },
@@ -2273,7 +2294,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final recordingCostingOffset = object.recordingCosting == null
             ? null
             : fbb.writeString(object.recordingCosting!);
-        fbb.startTable(19);
+        final navResponseJsonOffset = object.navResponseJson == null
+            ? null
+            : fbb.writeString(object.navResponseJson!);
+        fbb.startTable(20);
         fbb.addInt64(0, object.obxId);
         fbb.addInt64(1, object.dbSessionType);
         fbb.addOffset(2, trailIdOffset);
@@ -2290,6 +2314,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(15, elevationsOffset);
         fbb.addOffset(16, timestampsUtcOffset);
         fbb.addOffset(17, recordingCostingOffset);
+        fbb.addOffset(18, navResponseJsonOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -2326,6 +2351,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fb.Int64Reader(),
           lazy: false,
         ).vTableGetNullable(buffer, rootOffset, 36);
+        final navResponseJsonParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 40);
         final distanceMetersParam = const fb.Float64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2376,6 +2404,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 breadcrumbPolyline: breadcrumbPolylineParam,
                 elevations: elevationsParam,
                 timestampsUtc: timestampsUtcParam,
+                navResponseJson: navResponseJsonParam,
                 distanceMeters: distanceMetersParam,
                 elevationGainMeters: elevationGainMetersParam,
                 elevationLossMeters: elevationLossMetersParam,
@@ -3208,6 +3237,10 @@ class LocalSettingsEntity_ {
   static final themeMode = obx.QueryStringProperty<LocalSettingsEntity>(
     _entities[6].properties[1],
   );
+
+  /// See [LocalSettingsEntity.backgroundLocationAsked].
+  static final backgroundLocationAsked =
+      obx.QueryBooleanProperty<LocalSettingsEntity>(_entities[6].properties[2]);
 }
 
 /// [SubcategoryEntity] entity fields to define ObjectBox queries.
@@ -3347,6 +3380,12 @@ class ActiveNavigationEntity_ {
   static final recordingCosting =
       obx.QueryStringProperty<ActiveNavigationEntity>(
         _entities[8].properties[15],
+      );
+
+  /// See [ActiveNavigationEntity.navResponseJson].
+  static final navResponseJson =
+      obx.QueryStringProperty<ActiveNavigationEntity>(
+        _entities[8].properties[16],
       );
 }
 

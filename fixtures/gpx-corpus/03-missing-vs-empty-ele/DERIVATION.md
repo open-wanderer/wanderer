@@ -7,11 +7,11 @@ Five track points at lat `47.000`..`47.004` (0.001 steps), lon `11.0`, with elev
 
 ## Defect pinned
 
-CONV-03: a missing or empty `<ele>` must be treated as "no data" (`undefined`), never coerced to
+A missing or empty `<ele>` must be treated as "no data" (`undefined`), never coerced to
 `0`. This fixture's third point is the parser landmine — `<ele></ele>` is present in the XML
 (not omitted), so any parser that unconditionally calls `double.parse`/`Number()` on the element
 text without an empty-string guard will either throw (Dart's `GpxReader`, confirmed in
-34-RESEARCH.md's "Pitfall 1" against the real installed `gpx: ^2.3.0` package —
+verified against the real installed `gpx: ^2.3.0` package —
 `FormatException: Invalid double`) or silently coerce to `0` (a naive `Number("")` call, which
 JavaScript evaluates to `0`, not `NaN`). `parseElevation()` (`gpx-metrics-computation.ts:15-24`)
 explicitly guards `typeof raw === 'string' && raw.trim() === ''` before the `Number(raw)` call to

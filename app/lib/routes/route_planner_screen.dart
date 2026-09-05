@@ -1,3 +1,4 @@
+import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -347,7 +348,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         // Top-right controls column hosts undo/redo; the search control
         // lives in the app-bar title (see _buildSearchBar) and the
         // auto-routing toggle lives in the Settings tab.
-        const ml.MapCompass(
+        const WandererMapCompass(
           hideIfRotatedNorth: true,
 
           padding: EdgeInsets.only(top: 236, right: 4),

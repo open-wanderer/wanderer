@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -219,9 +220,10 @@ class _DropdownPanel extends StatelessWidget {
                   leading: CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.grey.shade300,
-                    backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
-                        ? NetworkImage(actor.icon!)
-                        : NetworkImage(
+                    backgroundImage:
+                        actor.icon != null && actor.icon!.isNotEmpty
+                        ? CachedNetworkImageProvider(actor.icon!)
+                        : CachedNetworkImageProvider(
                             'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
                           ),
                   ),

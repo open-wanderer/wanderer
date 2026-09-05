@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -122,8 +123,11 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
           children: [
             for (var i = 0; i < _webPhotos.length; i++)
               _Thumbnail(
-                image: Image.network(
-                  widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ?? _webPhotos[i],
+                image: Image(
+                  image: CachedNetworkImageProvider(
+                    widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ??
+                        _webPhotos[i],
+                  ),
                   fit: BoxFit.cover,
                 ),
                 onRemove: widget.onWebPhotosChanged == null

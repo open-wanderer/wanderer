@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:wanderer/entities/active_navigation_entity.dart';
+import 'package:wanderer/actions/request_background_location.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/objectbox.g.dart';
@@ -47,6 +48,23 @@ NavigateResponse? readCachedNav(Store store, String trailId) {
   final json = entity.navCacheJson;
   if (json == null) return null;
 
+  try {
+    return NavigateResponse.fromJson(jsonDecode(json) as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Reads the route a `nav` session carried on its own row, or null when the
+/// row predates [ActiveNavigationEntity.navResponseJson] or its JSON is
+/// unusable.
+///
+/// Preferred over [readCachedNav] on resume: this copy exists for any trail
+/// that was navigated, where the trail cache exists only for one the account
+/// downloaded.
+NavigateResponse? readSessionNav(ActiveNavigationEntity row) {
+  final json = row.navResponseJson;
+  if (json == null || json.isEmpty) return null;
   try {
     return NavigateResponse.fromJson(jsonDecode(json) as Map<String, dynamic>);
   } catch (_) {
@@ -118,23 +136,41 @@ Future<void> launchNavigation({
       return;
     }
   }
-  // iOS: re-requesting when WhenInUse triggers the "Change to Always
-  // Allow?" prompt (requires NSLocationAlwaysAndWhenInUseUsageDescription).
-  // No-op on Android. Navigation proceeds either way if declined.
-  if (permission == LocationPermission.whileInUse && Platform.isIOS) {
-    permission = await Geolocator.requestPermission();
+  // Background location is what keeps tracking alive when the app is cleared
+  // from recents — tracelet stops on task removal without it. Shows Play's
+  // required disclosure before the system prompt on Android; navigation
+  // proceeds either way if declined.
+  if (context.mounted) {
+    permission = await requestBackgroundLocation(context, ref, permission);
   }
 
-  // Best-effort: seed the live marker with an already-warm fix from the
-  // singleton foreground stream (see `foreground_position_stream_provider`)
-  // so it doesn't sit blank through tracelet's own cold GPS acquisition in
-  // NavigationScreen. Short timeout and swallowed failure — unlike
-  // `_openRecorder`'s blocking fetch, a miss here must never delay or block
-  // starting navigation, since the tracelet fix will still arrive shortly.
-  final pos = await ref
-      .read(foregroundPositionStreamProvider.notifier)
-      .currentFix(timeout: const Duration(seconds: 3));
-  final Position? seedFix = pos == null ? null : seedPositionFrom(pos);
+  // Best-effort: seed the live marker so it doesn't sit blank through
+  // tracelet's own cold GPS acquisition in NavigationScreen. The OS's
+  // cached last-known position is the primary source — it returns near-
+  // instantly (no new GPS callback required), which is exactly what
+  // Geolocator's own docs recommend pairing with a live fix. Waiting on a
+  // brand-new tick from the foreground stream instead (the previous
+  // approach) fails far more often than it succeeds: a stationary device
+  // (the common case — read the trail, then tap Navigate) never produces a
+  // new callback at all under the stream's 10m distance filter, so that
+  // wait almost always just burned its timeout. The live-stream fallback
+  // below only matters when no cached position exists yet at all (e.g.
+  // location was never resolved on this device before). Swallowed failure
+  // either way — unlike `_openRecorder`'s blocking fetch, a miss here must
+  // never delay or block starting navigation, since the tracelet fix will
+  // still arrive shortly.
+  Position? seedFix;
+  try {
+    seedFix = await Geolocator.getLastKnownPosition();
+  } catch (_) {
+    seedFix = null;
+  }
+  if (seedFix == null) {
+    final pos = await ref
+        .read(foregroundPositionStreamProvider.notifier)
+        .currentFix(timeout: const Duration(seconds: 3));
+    seedFix = pos == null ? null : seedPositionFrom(pos);
+  }
 
   final gpx = trail.expand?.gpx;
   if (gpx == null) {

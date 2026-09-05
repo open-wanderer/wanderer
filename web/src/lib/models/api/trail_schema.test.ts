@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TrailCreateSchema, TrailUpdateSchema } from "./trail_schema";
 
-// WR-09 regression. `moving_duration` is advertised by three OpenAPI response
+// Regression: `moving_duration` is advertised by three OpenAPI response
 // schemas and carried on the `Trail` model, but was declared by neither Zod
 // request schema. A Zod object strips unknown keys by default, so a client
 // following the published contract had the field silently discarded with no
@@ -9,7 +9,7 @@ import { TrailCreateSchema, TrailUpdateSchema } from "./trail_schema";
 // the multipart `/trail/form` route (which bypasses Zod via
 // `uploadCreate`/`uploadUpdate`) happened to work, which is why the Flutter
 // app never noticed.
-describe("Trail request schemas - moving_duration (WR-09)", () => {
+describe("Trail request schemas - moving_duration", () => {
     const baseCreate = {
         name: "Test trail",
         public: true,

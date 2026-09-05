@@ -95,14 +95,33 @@ jobs:
       
       - name: Extract release notes
         id: changelog
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
         run: |
-          VERSION="${{ needs.publish.outputs.version }}"
-          # Clean 'v' from v0.12.0 for awk if your changelog uses 0.12.0
+          # Headings are written as "# v0.21.0" but may also appear without the
+          # leading v, so strip it from both sides before comparing.
           RAW_VER=${VERSION#v}
-          CHANGELOG=$(awk -v ver="$RAW_VER" 'BEGIN {in_section=0} /^# / {if (in_section) exit; if ($2 == ver) in_section=1} in_section {print}' CHANGELOG.md)
-          echo 'changelog<<EOF' >> $GITHUB_OUTPUT
-          printf "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          CHANGELOG=$(awk -v ver="$RAW_VER" '
+            BEGIN { in_section = 0 }
+            /^# / {
+              if (in_section) exit
+              heading = $2
+              sub(/^v/, "", heading)
+              if (heading == ver) in_section = 1
+            }
+            in_section { print }
+          ' CHANGELOG.md)
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "::error::No CHANGELOG.md section found for $RAW_VER"
+            exit 1
+          fi
+
+          {
+            echo 'changelog<<CHANGELOG_EOF'
+            printf '%s\n' "$CHANGELOG"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -114,3 +133,51 @@ jobs:
             plugin_dist/SHA256SUMS
           draft: false
           prerelease: false
+
+  sync-dev:
+    needs: [publish, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge main into a sync branch off dev
+        id: merge
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          BRANCH="sync/${VERSION}-into-dev"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin dev
+          git checkout -b "$BRANCH" origin/dev
+          git merge --no-edit origin/main
+          git push origin "$BRANCH"
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Create sync PR
+        id: cpr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          HEAD_BRANCH: ${{ steps.merge.outputs.branch }}
+        run: |
+          URL=$(gh pr create \
+            --base dev \
+            --head "$HEAD_BRANCH" \
+            --title "chore: sync ${VERSION} into dev" \
+            --body "Automated sync of the ${VERSION} release (version bump + tag) back into dev.")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge
+        run: gh pr merge --auto --merge "${{ steps.cpr.outputs.url }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

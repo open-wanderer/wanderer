@@ -23,6 +23,7 @@ import 'package:wanderer/provider/profile/profile_feed_provider.dart';
 import 'package:wanderer/provider/profile/profile_local_trail_count_provider.dart';
 import 'package:wanderer/provider/profile/profile_lists_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
+import 'package:wanderer/util/format.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String? handle;
@@ -338,22 +339,31 @@ class _BioSectionState extends State<_BioSection> {
       );
     }
 
-    final bioMaxLength = 150;
-    final truncated = summary.length > bioMaxLength && !_expanded;
+    const bioMaxLength = 150;
+    final preview = formatHtmlAsTextPreview(summary, bioMaxLength);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Html(
-            data: truncated
-                ? '${summary.substring(0, bioMaxLength)}…'
-                : summary,
-          ),
-          if (summary.length > bioMaxLength)
+          if (preview.truncated && !_expanded)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                '${preview.text}…',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            )
+          else
+            Html(data: summary),
+          if (preview.truncated)
             TextButton(
               onPressed: () => setState(() => _expanded = !_expanded),
-              child: Text(_expanded ? 'Show less' : 'Show more'),
+              child: Text(
+                _expanded
+                    ? AppLocalizations.of(context)!.show_less
+                    : AppLocalizations.of(context)!.show_more,
+              ),
             ),
         ],
       ),

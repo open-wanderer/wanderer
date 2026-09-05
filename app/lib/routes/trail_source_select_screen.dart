@@ -1,10 +1,10 @@
-import 'dart:io' show Platform;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:wanderer/actions/request_background_location.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
@@ -78,11 +78,12 @@ class _TrailSourceSelectScreenState
         return;
       }
     }
-    // iOS: re-requesting when WhenInUse triggers the "Change to Always
-    // Allow?" prompt (requires NSLocationAlwaysAndWhenInUseUsageDescription).
-    // No-op on Android. Recording proceeds either way if declined.
-    if (permission == LocationPermission.whileInUse && Platform.isIOS) {
-      permission = await Geolocator.requestPermission();
+    // Background location is what keeps tracking alive when the app is
+    // cleared from recents — tracelet stops on task removal without it. Shows
+    // Play's required disclosure before the system prompt on Android; recording
+    // proceeds either way if declined.
+    if (mounted) {
+      permission = await requestBackgroundLocation(context, ref, permission);
     }
 
     if (!mounted) return;

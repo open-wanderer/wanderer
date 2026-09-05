@@ -30,10 +30,12 @@ abstract class RegionHierarchyRow with _$RegionHierarchyRow {
     required String id,
     required String name,
     required RegionNodeKind kind,
+
     /// `""` for roots, never null — matches Go's `r.GetString("parent")`.
     required String parent,
     required String path,
     required int depth,
+
     /// Defaults to `0` (Pitfall 4): deliberate forward-compat guard so a
     /// row fetched before the backend's `sort_order` field ships (or from
     /// an out-of-order rollout) still parses instead of throwing.

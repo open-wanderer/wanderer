@@ -17,7 +17,7 @@ const TrailCreateSchema = z.object({
     elevation_gain: z.number({ coerce: true }).nonnegative().optional(),
     elevation_loss: z.number({ coerce: true }).nonnegative().optional(),
     duration: z.number({ coerce: true }).nonnegative().optional(),
-    // WR-09: three OpenAPI response schemas advertise `moving_duration` and the
+    // Three OpenAPI response schemas advertise `moving_duration` and the
     // `Trail` model carries it, but a Zod object strips unknown keys by default -
     // so a client following the published contract and POSTing/PATCHing
     // `moving_duration` through the JSON API had it silently discarded. Only the
@@ -48,7 +48,7 @@ const TrailUpdateSchema = z.object({
     elevation_gain: z.number({ coerce: true }).nonnegative().optional(),
     elevation_loss: z.number({ coerce: true }).nonnegative().optional(),
     duration: z.number({ coerce: true }).nonnegative().optional(),
-    // WR-09: three OpenAPI response schemas advertise `moving_duration` and the
+    // Three OpenAPI response schemas advertise `moving_duration` and the
     // `Trail` model carries it, but a Zod object strips unknown keys by default -
     // so a client following the published contract and POSTing/PATCHing
     // `moving_duration` through the JSON API had it silently discarded. Only the

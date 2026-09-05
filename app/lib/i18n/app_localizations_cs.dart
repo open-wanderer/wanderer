@@ -46,19 +46,23 @@ class AppLocalizationsCs extends AppLocalizations {
   String get author => 'Autor';
 
   @override
-  String get avatar => 'Avatar';
+  String get average_speed => 'Průměrná rychlost';
 
   @override
-  String get average_speed => 'Průměrná rychlost';
+  String get background_location_body =>
+      'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".';
+
+  @override
+  String get background_location_confirm => 'Open settings';
+
+  @override
+  String get background_location_title => 'Keep recording in the background';
 
   @override
   String get basic_info => 'Základní informace';
 
   @override
   String get before => 'Před';
-
-  @override
-  String get behavior => 'Chování';
 
   @override
   String get by => 'od';
@@ -71,9 +75,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get discard_trail_confirm => 'Discard this trail and its changes?';
-
-  @override
-  String get car => 'Auto';
 
   @override
   String card(num n) {
@@ -156,12 +157,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get creation_date => 'Datum vytvoření';
 
   @override
-  String get crop => 'Oříznout';
-
-  @override
-  String get cross => 'Křížek';
-
-  @override
   String get current_password => 'Současné heslo';
 
   @override
@@ -172,6 +167,9 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get delete => 'Vymazat';
+
+  @override
+  String get not_now => 'Not now';
 
   @override
   String get open => 'Open';
@@ -206,9 +204,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get directions => 'Navigovat';
-
-  @override
-  String get display => 'Zobrazit';
 
   @override
   String get distance => 'Vzdálenost';
@@ -288,9 +283,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
-  String get ferry => 'Přívoz';
-
-  @override
   String get filter_tags => 'Filtrovat podle štítků';
 
   @override
@@ -316,12 +308,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get from_photos => 'Z fotografií';
 
   @override
-  String get heading => 'Nadpis';
-
-  @override
-  String get height => 'Výška';
-
-  @override
   String get help => 'Nápověda';
 
   @override
@@ -329,9 +315,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get home => 'Hlavní stránka';
-
-  @override
-  String get hotel => 'Hotel';
 
   @override
   String get icon => 'Ikonka';
@@ -379,10 +362,15 @@ class AppLocalizationsCs extends AppLocalizations {
   String get center_on_my_location => 'Center on my location';
 
   @override
-  String get location_tracking_notification_title => 'Wanderer';
+  String get location_tracking_notification_title => 'wanderer';
 
   @override
   String get location_tracking_notification_text => 'Recording your trail';
+
+  @override
+  String location_tracking_notification_text_navigating(String trail) {
+    return 'Navigating $trail';
+  }
 
   @override
   String get login => 'Přihlásit se';
@@ -394,9 +382,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get longitude => 'Zeměpisná délka';
 
   @override
-  String get loop => 'Opakování';
-
-  @override
   String get map => 'Mapa';
 
   @override
@@ -404,12 +389,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get moderate => 'Středně náročné';
-
-  @override
-  String get more => 'Více';
-
-  @override
-  String get mountain => 'Hora';
 
   @override
   String get my_account => 'Můj účet';
@@ -424,9 +403,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get navigate => 'Navigate';
-
-  @override
-  String get near => 'Poblíž';
 
   @override
   String get new_password => 'Nové heslo';
@@ -496,9 +472,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get or => 'nebo';
 
   @override
-  String get orientation => 'Orientace';
-
-  @override
   String get own_trails_empty_body =>
       'Trails you record or save offline appear here, and upload automatically once you\'re back online.';
 
@@ -511,9 +484,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get trails_on_device => 'Trails (on device)';
-
-  @override
-  String get paragraph => 'Odstavec';
 
   @override
   String get pause => 'Pause';
@@ -553,9 +523,6 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get print => 'Vytisknout';
-
-  @override
   String get privacy => 'Soukromí';
 
   @override
@@ -568,16 +535,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String get public => 'Veřejné';
 
   @override
-  String get radius => 'Poloměr';
-
-  @override
   String get reached_end_of_trail => 'You\'ve reached the end of the trail.';
 
   @override
   String get register => 'Registrace';
-
-  @override
-  String get required => 'Vyžadováno';
 
   @override
   String get reorder_photos_hint => 'Long-press and drag to reorder photos.';
@@ -595,9 +556,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get resume_recording_prompt => 'Obnovit nahrávání?';
-
-  @override
-  String get road => 'Silnice';
 
   @override
   String route(num n) {
@@ -642,9 +600,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get select_date => 'Select date';
-
-  @override
-  String get selected => 'vybráno';
 
   @override
   String get settings => 'Nastavení';
@@ -717,9 +672,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get show_on_map => 'Zobrazit na mapě';
 
   @override
-  String get shower => 'Sprcha';
-
-  @override
   String signout_unsynced_warning(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -760,13 +712,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get sync_uploading => 'Uploading…';
 
   @override
-  String get table => 'Stůl';
-
-  @override
   String get tags => 'Štítky';
-
-  @override
-  String get text => 'Text';
 
   @override
   String get theme_dark => 'Dark';
@@ -776,9 +722,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get theme_system => 'Follow system';
-
-  @override
-  String get time => 'Time';
 
   @override
   String get time_in_motion => 'Time in Motion';
@@ -824,13 +767,7 @@ class AppLocalizationsCs extends AppLocalizations {
       'Toto uživatelské jméno je již obsazeno. Zkuste prosím jiné.';
 
   @override
-  String get view => 'Zobrazit';
-
-  @override
   String get visibilty_status => 'Stav viditelnosti';
-
-  @override
-  String get water => 'Voda';
 
   @override
   String get web => 'Web';
@@ -849,9 +786,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get welcome_to => 'Welcome to';
-
-  @override
-  String get width => 'Šířka';
 
   @override
   String get wrong_username_or_password =>
@@ -938,9 +872,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get no_track_data => 'No track data';
 
   @override
-  String get offline => 'Offline';
-
-  @override
   String get available_offline => 'Available offline';
 
   @override
@@ -970,6 +901,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get no_bio_yet => 'No bio yet.';
+
+  @override
+  String get show_more => 'Show more';
+
+  @override
+  String get show_less => 'Show less';
 
   @override
   String get feed => 'Feed';
@@ -1119,6 +1056,12 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String get regions_offline_unavailable_body =>
       'Connect to the internet to browse and manage downloadable regions.';
+
+  @override
+  String get regions_map_geometry_failed => 'Could not load region outline';
+
+  @override
+  String get regions_map_back_label => 'Back to regions';
 
   @override
   String regions_group_expand_label(String name) {

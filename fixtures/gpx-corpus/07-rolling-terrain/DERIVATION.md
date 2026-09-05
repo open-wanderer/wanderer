@@ -8,7 +8,7 @@ Six track points at `lat = 47 + i * 0.0009` for `i = 0..5` (each hop ~100 m apar
 
 ## Defect pinned
 
-CONV-04's noise-rejection guard: the discard rule (fixtures 05/06) must never fire when the
+The noise-rejection guard: the discard rule (fixtures 05/06) must never fire when the
 track genuinely moves horizontally between elevation swings — real rolling terrain (up-down-up-
 down with real forward travel) produces the identical elevation series as stationary
 GPS/altimeter noise, and only the horizontal-stillness check distinguishes them.

@@ -85,4 +85,59 @@ void main() {
       expect(text, isNot(contains('subcategory_id')));
     });
   });
+
+  group('TrailFilter.toFilterText offlineOnly clause', () {
+    test('flag off emits no id clause, even when ids are supplied', () {
+      final filter = _baseFilter();
+
+      final text = filter.toFilterText(offlineTrailIds: {'t1', 't2'});
+
+      expect(text, isNot(contains('id IN')));
+    });
+
+    test('flag on emits an id whitelist of the supplied ids', () {
+      final filter = _baseFilter().copyWith(offlineOnly: true);
+
+      final text = filter.toFilterText(offlineTrailIds: {'t1'});
+
+      expect(text, contains("id IN ['t1']"));
+    });
+
+    test('flag on with an empty set emits a clause that matches nothing', () {
+      final filter = _baseFilter().copyWith(offlineOnly: true);
+
+      // Not skipped: omitting the clause would silently widen the search to
+      // every trail, the opposite of what the chip asks for.
+      expect(filter.toFilterText(), contains("id IN ['']"));
+      expect(
+        filter.toFilterText(offlineTrailIds: const {}),
+        contains("id IN ['']"),
+      );
+    });
+
+    test('ids outside the id alphabet are dropped, not escaped', () {
+      final filter = _baseFilter().copyWith(offlineOnly: true);
+
+      // A corrupt or hostile local row must not be able to break out of the
+      // `id IN [...]` literal and inject filter syntax.
+      final text = filter.toFilterText(
+        offlineTrailIds: {"t1", "x'] OR public = TRUE OR id IN ['y"},
+      );
+
+      expect(text, contains("id IN ['t1']"));
+      expect(text, isNot(contains('public = TRUE')));
+    });
+
+    test('every supplied id survives when all are well-formed', () {
+      final filter = _baseFilter().copyWith(offlineOnly: true);
+
+      final text = filter.toFilterText(
+        offlineTrailIds: {'abc123', 'd-e_f', 'GHI789'},
+      );
+
+      for (final id in ['abc123', 'd-e_f', 'GHI789']) {
+        expect(text, contains("'$id'"));
+      }
+    });
+  });
 }
