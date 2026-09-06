@@ -3,6 +3,7 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/util/server_url.dart';
 
 part 'api_provider.g.dart';
 
@@ -94,8 +95,16 @@ class Api extends _$Api {
     return dio;
   }
 
+  /// Points the shared client at [baseUrl].
+  ///
+  /// Normalised first, so a bare host still yields a valid absolute URL —
+  /// Dio's `baseUrl` setter THROWS on a hostless value, which used to surface
+  /// as the instance picker refusing to close. A value that cannot be
+  /// normalised at all is passed through unchanged, so it fails loudly here
+  /// rather than being silently swallowed into an unusable client.
   void updateBaseUrl(String baseUrl) {
-    state.options.baseUrl = "$baseUrl/api/v1";
+    final normalized = normalizeServerUrl(baseUrl) ?? baseUrl;
+    state.options.baseUrl = "$normalized/api/v1";
   }
 
   /// Whether a real server URL has been applied yet. Until it has, no request

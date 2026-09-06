@@ -138,6 +138,31 @@ notes: Demo instance runs the `feature/app` code, so `/api/v1/health` DOES exist
    base URL on the NEXT cold start — after which the app is genuinely unreachable and
    the offline report is correct. Also poisons `getFileUrl` avatar/photo URLs.
 
+## Follow-up: Secondary Findings 2 and 3 fixed (2026-09-06)
+
+Both were fixed in their own commit, on top of the connectivity work.
+
+- Finding 2's user-visible face: the picker did not just mis-set the base URL, it
+  never closed. `Dio.options.baseUrl`'s setter THROWS
+  (`ArgumentError.value(..., 'Must be a valid URL on platforms other than Web')`,
+  dio/lib/src/options.dart:101) when `Uri.parse(value).host` is empty, so
+  `updateBaseUrl("wanderer.to/api/v1")` threw before `context.pop()` ran. The
+  selection had already been stored by then, leaving a selected server the client
+  was not pointed at.
+- New `app/lib/util/server_url.dart`: `normalizeServerUrl` (fills in https://,
+  strips trailing slashes, keeps port and subpath, null when still hostless) and
+  `serverUrlFromActorIri` (strips the `/api/v1/activitypub/user/` suffix the
+  backend builds IRIs with — db/util/activitypub.go:68 — keeping port AND subpath
+  prefix).
+- Call sites: server_selection_screen.dart uses the normalized URL for both the
+  stored selection and `updateBaseUrl`; models/user.dart derives `serverUrl` via
+  `serverUrlFromActorIri`; api_provider.dart's `updateBaseUrl` normalizes as a
+  choke-point defence. `Auth.build()` deliberately still reads the stored
+  `serverUrl` scalar: an install whose persisted value already lost its port
+  would need a re-login to recover, but no such install exists yet, so the
+  self-heal was not worth the extra code path.
+- 17 new tests; full suite 1121 passing.
+
 ## Evidence
 
 - timestamp: 2026-09-06T00:10:00Z

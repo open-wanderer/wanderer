@@ -363,6 +363,47 @@ void main() {
   });
 
   group('OnlineStatus api client', () {
+    test(
+      'updateBaseUrl accepts a bare host — Dio throws on a hostless baseUrl, '
+      'which is what left the instance picker refusing to close',
+      () {
+        final container = ProviderContainer(
+          overrides: [
+            cookieJarProvider.overrideWithValue(
+              PersistCookieJar(storage: _MemoryCookieStorage()),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        container.read(apiProvider.notifier).updateBaseUrl('wanderer.to');
+        expect(
+          container.read(apiProvider).options.baseUrl,
+          'https://wanderer.to/api/v1',
+        );
+      },
+    );
+
+    test('updateBaseUrl keeps a non-default port', () {
+      final container = ProviderContainer(
+        overrides: [
+          cookieJarProvider.overrideWithValue(
+            PersistCookieJar(storage: _MemoryCookieStorage()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container
+          .read(apiProvider.notifier)
+          .updateBaseUrl('https://example.com:8443');
+      expect(
+        container.read(apiProvider).options.baseUrl,
+        'https://example.com:8443/api/v1',
+      );
+      expect(container.read(apiProvider.notifier).isConfigured, isTrue);
+    });
+
     test('isConfigured flips once a real server URL is applied', () {
       final container = ProviderContainer(
         overrides: [

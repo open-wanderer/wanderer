@@ -7,6 +7,7 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/settings.dart';
+import 'package:wanderer/util/server_url.dart';
 
 part 'user.freezed.dart';
 part 'user.g.dart';
@@ -45,8 +46,13 @@ abstract class User with _$User, RecordFunctions implements IRecord {
       );
     }
 
-    final userIri = Uri.parse(expand!.actor!.iri);
-    final rootUri = Uri(scheme: userIri.scheme, host: userIri.host);
+    // Port and subpath prefix included: an instance on a non-default port or
+    // under a path prefix is unreachable without them (see serverUrlFromActorIri).
+    final iri = expand!.actor!.iri;
+    final rootUrl = serverUrlFromActorIri(iri);
+    if (rootUrl == null) {
+      throw Exception("Actor IRI is not an absolute http(s) URL: $iri");
+    }
 
     final entity = UserEntity(
       id: id,
@@ -60,7 +66,7 @@ abstract class User with _$User, RecordFunctions implements IRecord {
       updated: updated,
       avatar: avatar,
       iri: expand!.actor!.iri,
-      serverUrl: rootUri.toString(),
+      serverUrl: rootUrl,
     );
 
     if (expand?.settings != null) {
