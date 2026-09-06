@@ -176,10 +176,12 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalDistance := 0.0
 	totalDuration := 0.0
 	trails := len(r.GetStringSlice("trails"))
+	var remoteDoc map[string]any
 
 	if r.GetString("iri") != "" && !author.GetBool("is_local") {
 		doc, err := documentFromRemoteRecord(r, "lists")
 		if err == nil {
+			remoteDoc = doc
 			totalElevationGain = doc["elevation_gain"].(float64)
 			totalElevationLoss = doc["elevation_loss"].(float64)
 			totalDistance = doc["distance"].(float64)
@@ -205,6 +207,18 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 		domain = author.GetString("domain")
 	}
 
+	trailIDs := r.GetStringSlice("trails")
+	if len(trailIDs) == 0 && remoteDoc != nil {
+		if raw, ok := remoteDoc["trail_ids"].([]any); ok {
+			trailIDs = make([]string, 0, len(raw))
+			for _, item := range raw {
+				if id, ok := item.(string); ok && id != "" {
+					trailIDs = append(trailIDs, id)
+				}
+			}
+		}
+	}
+
 	document := map[string]any{
 		"id":             r.Id,
 		"author":         author.Id,
@@ -221,6 +235,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 		"public":         r.GetBool("public"),
 		"created":        r.GetDateTime("created").Time().Unix(),
 		"trails":         trails,
+		"trail_ids":      trailIDs,
 		"iri":            r.GetString("iri"),
 	}
 

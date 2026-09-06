@@ -343,7 +343,7 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 		},
 		"lists": {
 			SearchableAttributes: []string{"*"},
-			FilterableAttributes: []string{"author", "public", "shares"},
+			FilterableAttributes: []string{"id", "author", "public", "shares"},
 			SortableAttributes:   []string{"created", "name"},
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},

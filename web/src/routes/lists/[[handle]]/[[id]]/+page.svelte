@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { browser } from "$app/environment";
     import { page } from "$app/state";
     import ActorSearch from "$lib/components/actor_search.svelte";
     import type { DropdownItem } from "$lib/components/base/dropdown.svelte";
@@ -17,15 +18,17 @@
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
     import TrailInfoPanel from "$lib/components/trail/trail_info_panel.svelte";
     import { List, type ListFilter } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
+    import { Trail } from "$lib/models/trail";
     import {
         lists_delete,
+        lists_map_preview,
         lists_search_filter,
         lists_show,
     } from "$lib/stores/list_store";
-    import { trails_show } from "$lib/stores/trail_store";
+    import { trails_get_bounding_box, trails_show } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util.js";
+    import type { PreviewListBounds } from "$lib/util/list_map_preview_util";
     import * as M from "maplibre-gl";
 
     import { onMount, untrack } from "svelte";
@@ -69,12 +72,172 @@
     let loadAllListsOnNextBack = false;
 
     let userQuery = $state("");
+    let overviewFitKey = $state("");
+    let overviewTrails: Trail[] = $state([]);
+    let overviewPreviewKey = $state("");
+    let overviewPreviewRequest = 0;
 
     let selectedTrailIndex = $derived(selectedTrail ? 0 : null);
 
     let selectedTrailWaypoints = $derived(
         (selectedTrail as Trail | null)?.expand?.waypoints_via_trail,
     );
+
+    let mapTrails = $derived(
+        selectedTrail
+            ? [selectedTrail]
+            : (selectedList?.expand?.trails ?? overviewTrails),
+    );
+
+    function applyBounds(trail: Trail, bounds?: PreviewListBounds) {
+        if (!bounds) {
+            return;
+        }
+        trail.min_lat = bounds.min_lat;
+        trail.max_lat = bounds.max_lat;
+        trail.min_lon = bounds.min_lon;
+        trail.max_lon = bounds.max_lon;
+    }
+
+    function listIdFromOverviewTrail(trail: Trail) {
+        return trail.id?.split("#")[0] ?? trail.id;
+    }
+
+    async function refreshOverviewPreview(sourceLists: List[]) {
+        const listIds = sourceLists
+            .map((item) => item.id)
+            .filter((id): id is string => !!id);
+        const key = listIds.join(",");
+        if (key === overviewPreviewKey && overviewTrails.length > 0) {
+            return;
+        }
+        overviewPreviewKey = key;
+        const request = ++overviewPreviewRequest;
+
+        if (listIds.length === 0) {
+            overviewTrails = [];
+            return;
+        }
+
+        try {
+            const preview = await lists_map_preview(listIds);
+            if (request !== overviewPreviewRequest) {
+                return;
+            }
+            const nextTrails: Trail[] = [];
+
+            for (const listPreview of preview.lists) {
+                const list = sourceLists.find((item) => item.id === listPreview.id);
+                if (!list) {
+                    continue;
+                }
+
+                if (listPreview.trails.length === 0) {
+                    continue;
+                }
+
+                for (const geometry of listPreview.trails) {
+                    const hasPoint =
+                        geometry.lat != null &&
+                        geometry.lon != null &&
+                        !(geometry.lat === 0 && geometry.lon === 0);
+                    if (!geometry.polyline && !hasPoint) {
+                        continue;
+                    }
+
+                    const trail = new Trail(list.name, {
+                        id: `${list.id}#${geometry.id}`,
+                        lat: geometry.lat,
+                        lon: geometry.lon,
+                    });
+                    trail.polyline = geometry.polyline;
+                    trail.author = list.author;
+                    trail.min_lat = geometry.min_lat;
+                    trail.max_lat = geometry.max_lat;
+                    trail.min_lon = geometry.min_lon;
+                    trail.max_lon = geometry.max_lon;
+                    applyBounds(trail, listPreview.bounds);
+                    nextTrails.push(trail);
+                }
+            }
+
+            overviewTrails = nextTrails;
+        } catch {
+            if (request === overviewPreviewRequest) {
+                overviewTrails = [];
+            }
+        }
+    }
+
+    async function fitOverviewOrFallback() {
+        if (overviewTrails.length) {
+            mapWithElevation?.fitToBounds();
+            return;
+        }
+        try {
+            const bbox = await trails_get_bounding_box();
+            if (
+                bbox.has_trails ??
+                (bbox.min_lon != 0 ||
+                    bbox.max_lat != 0 ||
+                    bbox.max_lon != 0 ||
+                    bbox.min_lat != 0)
+            ) {
+                map?.fitBounds(
+                    [
+                        [bbox.min_lon, bbox.min_lat],
+                        [bbox.max_lon, bbox.max_lat],
+                    ],
+                    { animate: true, padding: 64, maxZoom: 12 },
+                );
+            }
+        } catch {
+            // Keep the default map view if the bounding box is unavailable.
+        }
+    }
+
+    $effect(() => {
+        if (!browser || selectedList || selectedTrail) {
+            return;
+        }
+        const sourceLists = lists;
+        untrack(() => {
+            void refreshOverviewPreview(sourceLists);
+        });
+    });
+
+    $effect(() => {
+        if (!browser) {
+            return;
+        }
+        if (selectedList || selectedTrail) {
+            overviewFitKey = "";
+            return;
+        }
+        if (!map) {
+            return;
+        }
+        const key = [
+            filter.q,
+            filter.author ?? "",
+            String(filter.public),
+            String(filter.shared),
+            filter.sort ?? "",
+            filter.sortOrder ?? "",
+            overviewPreviewKey,
+            String(overviewTrails.length),
+        ].join("|");
+        if (overviewTrails.length === 0 && loading) {
+            return;
+        }
+        if (overviewFitKey === key) {
+            return;
+        }
+        overviewFitKey = key;
+        untrack(() => {
+            fitOverviewOrFallback();
+        });
+    });
 
     onMount(() => {
         if (page.params.handle && page.params.id) {
@@ -123,11 +286,6 @@
             selectedTrail = null;
         } else if (selectedList) {
             selectedList = null;
-            map?.flyTo({
-                animate: true,
-                zoom: 1,
-                center: [0, 0],
-            });
         }
         if (loadAllListsOnNextBack) {
             await updateFilter(false);
@@ -176,6 +334,7 @@
     async function loadNextPage() {
         pagination.page += 1;
         const response = await lists_search_filter(filter, pagination.page);
+        overviewPreviewKey = "";
         lists = response.items;
         pagination.page = response.page;
         pagination.totalPages = response.totalPages;
@@ -187,15 +346,11 @@
         if ((selectedList || selectedTrail) && resetMap) {
             selectedList = null;
             selectedTrail = null;
-            map?.flyTo({
-                animate: true,
-                zoom: 1,
-                center: [0, 0],
-            });
         }
 
         pagination.page = 1;
         const response = await lists_search_filter(filter, pagination.page);
+        overviewPreviewKey = "";
         lists = response.items;
         pagination.page = response.page;
         pagination.totalPages = response.totalPages;
@@ -377,17 +532,30 @@
     </div>
     <div id="trail-map">
         <MapWithElevationMaplibre
-            trails={selectedTrail
-                ? [selectedTrail]
-                : (selectedList?.expand?.trails ?? [])}
+            trails={mapTrails}
             waypoints={selectedTrailWaypoints}
             bind:map
             bind:this={mapWithElevation}
             bind:markers
             activeTrail={selectedTrailIndex}
-            fitBounds="animate"
+            fitBounds={selectedList || selectedTrail ? "animate" : "off"}
+            clusterTrails={!selectedList && !selectedTrail}
+            onUnclusteredClick={(_, trail) => {
+                const listId = listIdFromOverviewTrail(trail);
+                const list = lists.find((item) => item.id === listId);
+                if (list) {
+                    setCurrentList(list);
+                }
+            }}
             onselect={(trail) => {
-                selectedTrail = trail;
+                if (selectedList && !selectedTrail) {
+                    selectTrail(trail);
+                }
+            }}
+            oninit={() => {
+                if (!selectedList && !selectedTrail) {
+                    fitOverviewOrFallback();
+                }
             }}
             showInfoPopup={true}
             showTerrain={true}

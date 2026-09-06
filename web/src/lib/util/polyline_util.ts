@@ -1,4 +1,4 @@
-import type { GeoJSON } from "geojson";
+import type { FeatureCollection } from "geojson";
 import { bbox } from "./geojson_util";
 
 
@@ -83,18 +83,17 @@ export function encodePolyline(coordinates: number[][], precision: number = 6) {
     return output;
 };
 
-function flipped(coords: number[][]) {
-    var flipped = [];
-    for (var i = 0; i < coords.length; i++) {
-        var coord = coords[i].slice();
-        flipped.push([coord[1], coord[0]]);
-    }
-    return flipped;
-}
+/**
+ * Trail polylines are encoded by the backend (db/util/polyline.go) as
+ * lat/lon pairs with precision 5; decodePolyline returns them as [lon, lat].
+ */
+export function polylineToGeoJSON(
+    str: string,
+    precision: number = 5,
+): FeatureCollection {
+    const coords = decodePolyline(str, precision);
 
-export function polylineToGeoJSON(str: string, precision: number = 6) {
-    var coords = decodePolyline(str, precision);
-    const geojson = {
+    const geojson: FeatureCollection = {
         type: "FeatureCollection",
         features: [
             {
@@ -102,12 +101,12 @@ export function polylineToGeoJSON(str: string, precision: number = 6) {
                 type: "Feature",
                 geometry: {
                     type: "LineString",
-                    coordinates: flipped(coords),
+                    coordinates: coords,
                 },
             }
         ]
 
-    } as GeoJSON;
+    };
     geojson.bbox = bbox(geojson)
 
     return geojson

@@ -28,6 +28,7 @@ export type ListSearchResult = {
     domain?: string,
     public: boolean;
     trails: number
+    trail_ids?: string[];
     shares?: string[];
     iri?: string;
 }
