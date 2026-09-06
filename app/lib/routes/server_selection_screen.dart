@@ -22,10 +22,33 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
   final _urlController = TextEditingController();
   String _searchQuery = "";
 
+  bool _prefilled = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _prefillFromSelection(
+      ref.read(serverSelectionProvider).value?.selectedServer,
+    );
+  }
+
   @override
   void dispose() {
     _urlController.dispose();
     super.dispose();
+  }
+
+  void _prefillFromSelection(ServerInstance? selected) {
+    if (_prefilled || selected == null) return;
+    final url = selected.url;
+    if (url.isEmpty) return;
+
+    _prefilled = true;
+    _urlController.value = TextEditingValue(
+      text: url,
+      selection: TextSelection.collapsed(offset: url.length),
+    );
   }
 
   /// Applies [server] as the selected instance and closes the picker.
@@ -56,6 +79,12 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     final theme = Theme.of(context);
     final severSelection = ref.watch(serverSelectionProvider);
     final l10n = AppLocalizations.of(context)!;
+
+    // Late-resolution fallback for the initState prefill. Listener callbacks
+    // run after the frame, so touching the controller here is safe.
+    ref.listen(serverSelectionProvider, (_, next) {
+      _prefillFromSelection(next.value?.selectedServer);
+    });
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.select_instance)),
