@@ -21,7 +21,13 @@ import (
 // inboxPathPattern matches the canonical local ActivityPub inbox path that the
 // trusted SvelteKit frontend forwards via X-Forwarded-Path. Anything else is
 // rejected before it can influence recipient lookup or signature verification.
-var inboxPathPattern = regexp.MustCompile(`^/api/v1/activitypub/user/[a-z0-9_]+/inbox$`)
+//
+// The username segment mirrors the users collection (pattern `^[\w][\w.\-]*$`,
+// 3-150 characters, ASCII), lowercased the same way ActorFromUser lowercases it
+// when minting the actor's inbox IRI. Dots and hyphens are therefore legal in a
+// local username and must be accepted here; because the first character class
+// excludes them, "." and ".." remain unmatchable.
+var inboxPathPattern = regexp.MustCompile(`^/api/v1/activitypub/user/[a-z0-9_][a-z0-9_.-]{2,149}/inbox$`)
 
 func ActivitypubActor(e *core.RequestEvent) error {
 	resource := e.Request.URL.Query().Get("resource")

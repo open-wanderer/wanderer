@@ -80,3 +80,52 @@ func TestActivitypubActivityProcessRejectsForgedForwardedPath(t *testing.T) {
 		})
 	}
 }
+
+func TestInboxPathPatternMatchesLocalUsernames(t *testing.T) {
+	// The users collection accepts `^[\w][\w.\-]*$` with 3-150 characters; the
+	// actor's inbox IRI is that username lowercased. Every spelling reachable
+	// that way has to survive the gate.
+	accepted := []string{
+		"alice",
+		"abc",
+		"user123456",
+		"_alice",
+		"9alice",
+		"al.ice",
+		"al-ice",
+		"a_b.c-d",
+		"first.last-1_2",
+		strings.Repeat("a", 150),
+	}
+	for _, username := range accepted {
+		t.Run("accept/"+username, func(t *testing.T) {
+			path := "/api/v1/activitypub/user/" + username + "/inbox"
+			if !inboxPathPattern.MatchString(path) {
+				t.Fatalf("expected %q to be accepted", path)
+			}
+		})
+	}
+
+	rejected := []string{
+		"ab",                     // shorter than the collection minimum
+		strings.Repeat("a", 151), // longer than the collection maximum
+		".alice",                 // a local username cannot start with a dot
+		"-alice",                 // ... nor with a hyphen
+		"..",                     // so traversal segments stay unmatchable
+		".",
+		"Alice",  // inbox IRIs are minted lowercase
+		"@alice", // handle spelling, never a canonical inbox path
+		"al ice",
+		"al%2Eice", // percent-encoding is never part of the stored inbox
+		"al:ice",
+		"al/ice",
+	}
+	for _, username := range rejected {
+		t.Run("reject/"+username, func(t *testing.T) {
+			path := "/api/v1/activitypub/user/" + username + "/inbox"
+			if inboxPathPattern.MatchString(path) {
+				t.Fatalf("expected %q to be rejected", path)
+			}
+		})
+	}
+}
