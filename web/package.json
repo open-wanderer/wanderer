@@ -18,7 +18,7 @@
     "@playwright/test": "^1.61.1",
     "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/enhanced-img": "^0.11.0",
-    "@sveltejs/kit": "^2.68.0",
+    "@sveltejs/kit": "^2.70.2",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tailwindcss/typography": "^0.5.20",
     "@types/canvas-confetti": "^1.9.0",
