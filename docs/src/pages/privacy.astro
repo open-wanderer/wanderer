@@ -1,0 +1,708 @@
+---
+import PageNav from "../components/page_nav.astro";
+import PageFooter from "../components/page_footer.astro";
+
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/600.css";
+
+const CONTACT = "info@openwanderer.com";
+
+const LAST_UPDATED = "6 September 2026";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy | wanderer</title>
+    <meta
+      name="description"
+      content="How the wanderer project handles data across the website, the mobile apps, self-hosted instances and federation."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Privacy Policy | wanderer" />
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+
+  <body>
+    <PageNav />
+
+    <main class="legal">
+      <header class="legal-head">
+        <h1>Privacy Policy</h1>
+        <p class="lede">
+          wanderer is self-hosted software. That changes who holds your data,
+          so this policy starts by saying who is responsible for what. The
+          rest follows from it.
+        </p>
+        <p class="updated">Last updated: {LAST_UPDATED}</p>
+      </header>
+
+      <section>
+        <h2>1. Who is responsible for what</h2>
+        <p>
+          Three separate parties can be involved when you use wanderer, and
+          they hold different data. Confusing them is the most common
+          misunderstanding about this project, so they are named first.
+        </p>
+        <dl class="parties">
+          <div>
+            <dt>The wanderer project</dt>
+            <dd>
+              Publishes this website, the documentation, and the wanderer
+              mobile apps in the App Store and Google Play. We operate no
+              account system for the app and receive none of your trails,
+              recordings, photos or account details.
+            </dd>
+          </div>
+          <div>
+            <dt>Your instance operator</dt>
+            <dd>
+              The app connects to a wanderer instance that <em>you</em> choose:
+              one you host yourself, one run by a community member, or a
+              company's. That operator stores your account and your content,
+              and is the data controller for it. Their privacy policy governs
+              that data, not this one.
+            </dd>
+          </div>
+          <div>
+            <dt>Other instances, through federation</dt>
+            <dd>
+              If your instance is connected to others, content you have marked
+              public can be copied to those instances and stored by their
+              operators. See <a href="#federation">section 8</a>.
+            </dd>
+          </div>
+        </dl>
+        <p>
+          Everything below distinguishes between data that stays on your
+          device, data that goes to your chosen instance, and the small number
+          of cases where something reaches a third party.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. This website</h2>
+        <p>
+          openwanderer.com serves documentation and information about the
+          project. It has no user accounts, no login, and no comment system.
+        </p>
+        <ul>
+          <li>
+            <strong>No analytics or tracking.</strong> The site runs no analytics,
+            no tracking pixels and no advertising, and sets no tracking cookies.
+          </li>
+          <li>
+            <strong>No third-party fonts or embeds.</strong> Fonts are served from
+            this site, not from a font CDN, so visiting a page does not disclose
+            your IP address to a third party.
+          </li>
+          <li>
+            <strong>Server logs.</strong> Our hosting provider records standard
+            request data (IP address, timestamp, requested URL, referrer and
+            user agent) to deliver the site and defend against abuse. These
+            logs are not combined with anything else and are not used to profile
+            visitors.
+          </li>
+          <li>
+            <strong>Links leave us.</strong> Pages link to GitHub, Discord and
+            other sites. Once you follow such a link, that site's own policy
+            applies.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. The app: data on your device</h2>
+        <p>
+          Most of what the app holds never leaves your phone unless you send it.
+          Stored locally are:
+        </p>
+        <ul>
+          <li>
+            Trails you have saved or downloaded, including their route geometry,
+            waypoints and photos.
+          </li>
+          <li>
+            Map regions you download for offline use, and the map tiles inside
+            them.
+          </li>
+          <li>
+            Recordings in progress, including the track recorded so far, so a
+            recording survives the app being closed.
+          </li>
+          <li>
+            Your session with your chosen instance, and app settings such as
+            theme and units.
+          </li>
+        </ul>
+        <p>
+          Uninstalling the app deletes all of it. Clearing the app's storage in
+          Android or iOS settings has the same effect.
+        </p>
+      </section>
+
+      <section>
+        <h2>4. The app: data sent to your instance</h2>
+        <p>
+          The app is a client for the instance you sign in to. What it sends
+          there is what you ask it to send: your account details and profile,
+          trails you create or save, recorded tracks you choose to save, photos
+          you attach, comments, lists and summit logs.
+        </p>
+        <p>
+          That instance stores this data under its own operator's control and
+          its own policy. If you host your instance yourself, that operator is
+          you. We have no access to it, cannot retrieve it, and cannot delete it
+          on your behalf.
+        </p>
+      </section>
+
+      <section id="location">
+        <h2>5. The app: location data</h2>
+        <p>
+          Location is the most sensitive thing the app handles, so it is set out
+          in full.
+        </p>
+        <ul>
+          <li>
+            <strong>When it is collected.</strong> Only while you are actively
+            recording a trail or navigating one. Both start on an explicit
+            action by you, and both run with a persistent notification that
+            stays visible for as long as they are running. The app does not
+            collect location at other times.
+          </li>
+          <li>
+            <strong>Background collection.</strong> Recording and navigation
+            continue when the screen is off, when another app is in front, and
+            when the app has been cleared from recent apps. This is why the app
+            asks for background location access. Without it, recording and
+            navigation stop as soon as the app is closed and the rest of the
+            trail is lost. Before that permission is requested, the app shows an
+            in-app explanation of what it is for.
+          </li>
+          <li>
+            <strong>Where it goes.</strong> The recorded track is written to your
+            device as you walk. It is transmitted to your instance only when you
+            choose to save the trail. If you discard a recording, it never
+            leaves the device.
+          </li>
+          <li>
+            <strong>What it is used for.</strong> Drawing your position on the
+            map, turn-by-turn guidance, and building the saved trail: its
+            track, distance, elevation gain and duration. Location is not used
+            for advertising, profiling or analytics, and is not sold or shared
+            with data brokers.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>6. The app: permissions</h2>
+        <dl class="parties">
+          <div>
+            <dt>Location (while using the app)</dt>
+            <dd>
+              Shows where you are on the map, and records or navigates a trail.
+            </dd>
+          </div>
+          <div>
+            <dt>Location (all the time / background)</dt>
+            <dd>
+              Keeps a recording or navigation session running when the app is
+              not in front. Optional: declining leaves the app working, but a
+              session ends when you close the app.
+            </dd>
+          </div>
+          <div>
+            <dt>Notifications</dt>
+            <dd>
+              Shows the persistent notification for a running recording or
+              navigation, and progress while a map region downloads. Without it
+              a session can run without being visible to you, which is why the
+              app asks.
+            </dd>
+          </div>
+          <div>
+            <dt>Photos and files</dt>
+            <dd>
+              Only when you attach a photo to a trail or import a GPX, KML or
+              similar file. The app reads what you pick and nothing else.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section>
+        <h2>7. The app: third parties</h2>
+        <p>
+          Besides the instance you choose, the app contacts very little. In
+          full:
+        </p>
+        <ul>
+          <li>
+            <strong>Avatar images (api.dicebear.com).</strong> When an account has
+            no profile picture, the app requests a generated placeholder from
+            DiceBear, sending the display name or username so the initials
+            match. No other account data is sent. Requests carry your IP address
+            to that service, as any web request does.
+          </li>
+          <li>
+            <strong>Map data and routing.</strong> Map tiles, search and route
+            calculation are served by your instance, using whichever providers
+            its operator has configured. Your instance operator's policy covers
+            that.
+          </li>
+          <li>
+            <strong>External map apps.</strong> If you tap to open a location in
+            another app such as Google Maps, Apple Maps or Organic Maps,
+            the coordinates are handed to that app. This only happens when you
+            tap it.
+          </li>
+          <li>
+            <strong>App stores.</strong> Downloads and updates go through Apple
+            and Google, who record their own data about installs. We receive
+            only aggregate statistics, never anything identifying you.
+          </li>
+        </ul>
+        <p class="callout">
+          The app contains no analytics SDK, no crash-reporting SDK, no
+          advertising SDK and no social-media SDK. There is nothing in it that
+          reports your behaviour back to us, because there is nowhere for it to
+          report to.
+        </p>
+      </section>
+
+      <section id="federation">
+        <h2>8. Federation: how public content travels</h2>
+        <p>
+          wanderer instances can connect to one another using ActivityPub, the
+          same protocol Mastodon uses. If your instance operator has connected
+          it to others, this affects where your content ends up, so it is worth
+          understanding before you post publicly.
+        </p>
+        <ul>
+          <li>
+            <strong>Trails, lists and summit logs federate only when public.</strong>
+            Marking one of these public is what makes it eligible to be copied to
+            connected instances. Content that is private or shared with specific
+            people is never sent this way.
+          </li>
+          <li>
+            <strong>Comments are the exception.</strong> A comment is delivered to
+            the people it concerns regardless of whether the trail it is on is
+            public or private: if you <code>@mention</code> a remote account, the
+            comment text is sent to that account's server, and a copy also goes to
+            the trail's author if their account is on another instance. The
+            receiving server can reject it, but by then the text has already left
+            your instance. In practice, this means a comment on a private trail can
+            still leave your instance if it mentions someone, or if the trail's
+            author is on a different one. Nothing about the trail itself travels
+            with the comment, neither its title nor its description nor its
+            location, only a reference to which trail it replies to.
+          </li>
+          <li>
+            <strong>Copies live on other servers.</strong> A federated copy is
+            stored by the operator of the receiving instance, under their
+            control and their policy. You remain the author, and editing rights
+            stay with your own instance.
+          </li>
+          <li>
+            <strong>Unpublishing is not deletion.</strong> Making a public trail
+            or list private again stops it from being sent onward, but no
+            deletion is sent, so copies already held by other instances stay
+            where they are. For trails specifically, this has a sharper
+            consequence: if
+            you make a trail private and delete it afterwards, no deletion signal
+            is sent either, because deletion itself is skipped for content that is
+            not currently public. If you want a deletion to reach instances that
+            already received the trail, delete it while it is still public rather
+            than unpublishing first.
+          </li>
+          <li>
+            <strong>Deletion is a request, not a guarantee.</strong> Deleting
+            public content sends a delete out to instances that received it.
+            Well-behaved instances honour it. An instance that is offline,
+            misconfigured or hostile may not. Treat anything published publicly
+            to a federated network as difficult to fully retract.
+          </li>
+          <li>
+            <strong>Departing accounts travel too.</strong> When an account is
+            deleted, its instance announces that to the instances following it,
+            and this one acts on such a notice by removing its copy of that
+            account along with the content of theirs it was holding. Your own
+            account leaving is announced the same way. See
+            <a href="#retention">section 12</a> for what that does and does not
+            cover. A notice is only ever accepted for the account that signed
+            it: another server cannot ask this one to delete somebody else.
+          </li>
+          <li>
+            <strong>Who you federate with is your operator's choice.</strong> If
+            you run your own instance, it is yours.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>9. Security and safeguards</h2>
+        <p>
+          This section states plainly what protects your data in transit and in
+          storage, and what does not. We would rather say this clearly than let
+          you assume more than the software provides.
+        </p>
+        <ul>
+          <li>
+            <strong>In transit.</strong> wanderer does not ship or run its own TLS
+            termination. Whether your instance is served over HTTPS is entirely
+            your instance operator's responsibility, and the app connects using
+            whatever scheme your instance's address uses. On Android, the app
+            itself blocks plaintext (cleartext) network traffic to everything
+            except a local loopback connection used for offline map tiles, so it
+            cannot be tricked into talking to a remote server over plain HTTP.
+          </li>
+          <li>
+            <strong>Between instances.</strong> Activities exchanged between
+            federated instances are signed with HTTP Signatures, so a receiving
+            instance can verify which server actually sent them. This
+            authenticates the sender. It does not encrypt the content: a signed
+            activity is still readable plaintext in transit, protected only by
+            whatever transport encryption (see above) is in place.
+          </li>
+          <li>
+            <strong>Passwords.</strong> Stored hashed by your instance's
+            authentication system, never in readable form.
+          </li>
+          <li>
+            <strong>Files.</strong> Photos, GPX files and avatars are served from
+            a direct URL. There is no additional access token guarding that URL.
+            An unguessable filename is the only thing standing between a link and
+            the file it points to, and anyone who has or guesses that link can
+            retrieve the file.
+          </li>
+          <li>
+            <strong>At rest.</strong> Content is not encrypted at rest by
+            wanderer. Whatever protection your data has on disk, whether that is
+            full-disk encryption, a secured server, or none at all, is your
+            instance operator's decision, not something this project provides.
+          </li>
+          <li>
+            <strong>On the device.</strong> As described in section 3, the local
+            database, downloaded map regions and your session are held inside the
+            app's own OS-managed sandbox and removed when you uninstall it.
+          </li>
+          <li>
+            <strong>In-app disclosures.</strong> Before background location is
+            requested the app shows an explanation of what it is for, and a
+            persistent notification stays visible for as long as recording or
+            navigation is running. See <a href="#location">section 5</a>. The app
+            contains no advertising or analytics SDKs, and location is never sold
+            or shared with data brokers.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>10. Demo instance</h2>
+        <p>
+          A public demo instance is linked from this site so people can try
+          wanderer without installing it. It is for evaluation only: accounts
+          and content on it may be reset or deleted at any time, without notice
+          and without backup. Do not put anything there you would mind losing or
+          anything you would mind others seeing.
+        </p>
+      </section>
+
+      <section>
+        <h2>11. Legal bases</h2>
+        <p>
+          Where the GDPR applies, we rely on the following legal bases for the
+          limited processing we carry out:
+        </p>
+        <ul>
+          <li>
+            <strong>Art. 6(1)(f), legitimate interests</strong> for serving this
+            website securely and keeping server logs to defend against abuse.
+          </li>
+          <li>
+            <strong>Art. 6(1)(a), consent</strong> for device permissions such as
+            location, background location and notifications, each of which you
+            grant and can withdraw in your device settings at any time.
+          </li>
+        </ul>
+        <p>
+          Processing carried out by your instance operator has its own legal
+          basis, which they are responsible for stating.
+        </p>
+      </section>
+
+      <section id="retention">
+        <h2>12. Retention and deletion</h2>
+        <ul>
+          <li>
+            <strong>On your device:</strong> kept until you delete the content or
+            uninstall the app.
+          </li>
+          <li>
+            <strong>On your instance:</strong> governed by your instance
+            operator's retention policy. Deleting your account removes your
+            login credentials, your public profile, and the content you
+            authored: your trails, lists, summit logs and the comments you left
+            on other people's trails. Comments you wrote go with the account
+            even where they sit under someone else's trail, so a thread you took
+            part in may read differently afterwards.
+          </li>
+          <li>
+            <strong>Activity records are not covered by account or content
+            deletion.</strong> Your instance keeps a record of the federation
+            activities it sent on your behalf, meaning the ActivityPub messages
+            announcing your public trails, lists and summit logs to connected
+            instances. These records embed a snapshot of the content as it was
+            when it was sent, including its description and location
+            coordinates where relevant, and neither deleting that content nor
+            deleting your account clears them. This record is also readable by
+            anyone who has or guesses its address, without needing to log in.
+          </li>
+          <li>
+            <strong>Federated copies:</strong> once a piece of public content has
+            reached another instance, whether as a live copy or as one of the
+            activity snapshots described above, removing it there depends on that
+            instance honouring a delete signal from yours. See
+            <a href="#federation">section 8</a>. Deleting a single trail, list or
+            summit log while your account still exists sends that signal for
+            that item. Deleting your whole account sends one signal for the
+            account itself rather than one per item, which asks receiving
+            instances to drop everything of yours; the individual items cannot
+            each announce their own removal, because your profile goes before
+            they do and there is no longer an identity to sign in your name. In
+            both cases the content is removed from your own instance regardless.
+            The account notice reaches the instances that follow you, which are
+            the only ones a departing account can still be addressed to, so an
+            instance that holds a copy without following you may never be told.
+          </li>
+          <li>
+            <strong>Website server logs:</strong> kept only as long as needed for
+            security and troubleshooting, then deleted.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>13. Your rights</h2>
+        <p>
+          Under the GDPR you have the right to access, rectify, erase, restrict
+          and port your data, to object to processing, and to complain to a
+          supervisory authority.
+        </p>
+        <p>
+          Direct these to whoever holds the data. For your account, trails,
+          photos and recordings, that is <strong>your instance operator</strong>.
+          We cannot act on data we do not hold. For this website, use the
+          contact details below.
+        </p>
+      </section>
+
+      <section>
+        <h2>14. Children</h2>
+        <p>
+          The app and this site are not directed at children and we do not
+          knowingly collect data from them. Age requirements for an account are
+          set by the instance you sign up to.
+        </p>
+      </section>
+
+      <section>
+        <h2>15. Changes</h2>
+        <p>
+          This policy may change as the software does. The date at the top
+          reflects the current version, and material changes will be noted in
+          the project changelog.
+        </p>
+      </section>
+
+      <section>
+        <h2>16. Contact</h2>
+        <p>
+          For questions about this policy or about data held by the project:
+        </p>
+        <address>
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
+        </address>
+        <p class="muted">
+          For data held on a wanderer instance you use, contact that instance's
+          operator instead. We have no access to it.
+        </p>
+      </section>
+    </main>
+
+    <PageFooter />
+  </body>
+</html>
+
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────────── */
+  /* Standalone pages are outside Starlight, so its `customCss` never loads
+     here and none of the tailwind.css variables exist. Declare the same design
+     tokens the other pages under src/pages do. page_footer.astro reads
+     --polar-night directly, and without it the footer renders transparent with
+     invisible white links. */
+  :root {
+    --polar-night: #242734;
+    --deep-void: #12141c;
+    --surface-dark: #1e2028;
+    --carbon: #262831;
+    --dusk-divide: #374151;
+    --summit-fog: #94a3b8;
+    --white: #ffffff;
+  }
+
+  body {
+    margin: 0;
+    background: var(--deep-void);
+    color: var(--white);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .legal {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: clamp(3rem, 8vw, 6rem) clamp(1.25rem, 5vw, 2.5rem) 6rem;
+  }
+
+  .legal-head {
+    padding-bottom: 2.5rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--dusk-divide);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--summit-fog);
+    margin: 0 0 0.75rem;
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 5vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin: 0 0 1rem;
+  }
+
+  .lede {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0 0 1.5rem;
+  }
+
+  .updated {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8125rem;
+    color: var(--summit-fog);
+    margin: 0;
+  }
+
+  section {
+    margin-bottom: 3rem;
+  }
+
+  h2 {
+    font-size: 1.375rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin: 0 0 1rem;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0 0 1rem;
+  }
+
+  ul {
+    margin: 0 0 1rem;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  li {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  strong {
+    color: var(--white);
+    font-weight: 600;
+  }
+
+  .parties {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin: 0 0 1.5rem;
+    padding: 0;
+  }
+
+  .parties > div {
+    border-left: 2px solid var(--dusk-divide);
+    padding-left: 1.125rem;
+  }
+
+  dt {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.375rem;
+    color: var(--white);
+  }
+
+  dd {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .callout {
+    border: 1px solid var(--dusk-divide);
+    border-radius: 8px;
+    background: var(--surface-dark);
+    padding: 1rem 1.125rem;
+    margin-top: 1.25rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  address {
+    font-style: normal;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 1rem;
+  }
+
+  .muted {
+    font-size: 0.9375rem;
+    color: var(--summit-fog);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  a:hover {
+    color: var(--white);
+  }
+</style>

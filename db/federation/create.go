@@ -412,13 +412,16 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
 
 	var err error
-	if strings.Contains(activity.Object.GetID().String(), "/api/v1/trail") {
+	switch util.ObjectKindFromIRI(activity.Object.GetID().String()) {
+	case util.ObjectKindTrail:
 		err = processCreateOrUpdateTrailActivity(activity, app, actor, recipient)
-	} else if strings.Contains(activity.Object.GetID().String(), "/api/v1/summit-log") {
+	case util.ObjectKindSummitLog:
 		err = processCreateOrUpdateSummitLogActivity(activity, app, actor)
-	} else if strings.Contains(activity.Object.GetID().String(), "/api/v1/list") {
+	case util.ObjectKindList:
 		err = processCreateOrUpdateListActivity(activity, app, actor, recipient)
-	} else {
+	default:
+		// Unchanged fallback: anything else is treated as a comment, which is
+		// what lets replies from other ActivityPub software be accepted.
 		err = processCreateOrUpdateCommentActivity(activity, app, actor)
 	}
 

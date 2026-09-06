@@ -1,10 +1,11 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
-	"strings"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
@@ -12,6 +13,62 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
+
+func ActorFollowerInboxes(app core.App, actor *core.Record) ([]string, error) {
+	if !actor.GetBool("is_local") {
+		return nil, nil
+	}
+
+	return followerInboxes(app, actor.Id)
+}
+
+func CreateActorDeleteActivity(app core.App, actor *core.Record, recipients []string) error {
+	if !actor.GetBool("is_local") {
+		// A remote actor being dropped locally is our own bookkeeping, not
+		// something to broadcast back out to the network.
+		return nil
+	}
+
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return fmt.Errorf("ORIGIN not set")
+	}
+
+	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
+	if err != nil {
+		return err
+	}
+
+	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
+
+	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
+	to := "https://www.w3.org/ns/activitystreams#Public"
+	cc := actor.GetString("iri") + "/followers"
+	object := actor.GetString("iri")
+
+	record := core.NewRecord(collection)
+	record.Set("id", recordId)
+	record.Set("iri", id)
+	record.Set("type", string(pub.DeleteType))
+	record.Set("to", to)
+	record.Set("cc", cc)
+	record.Set("object", object)
+	record.Set("actor", actor.GetString("iri"))
+	record.Set("published", time.Now())
+
+	err = app.Save(record)
+	if err != nil {
+		return err
+	}
+
+	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
+	activity.Actor = pub.IRI(object)
+	activity.To = pub.ItemCollection{pub.IRI(to)}
+	activity.CC = pub.ItemCollection{pub.IRI(cc)}
+	activity.Published = time.Now()
+
+	return PostActivity(app, actor, activity, recipients)
+}
 
 func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	if !r.GetBool("public") {
@@ -25,6 +82,12 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
+		// The author is gone too, so this trail was removed as part of that
+		// account's own cascade. There is no local actor left to attribute a
+		// Delete to; the account's own Delete(Actor) is what carries the news.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -82,6 +145,12 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
+		// The author is gone too, so this comment was removed as part of that
+		// account's own cascade. There is no local actor left to attribute a
+		// Delete to, so there is nothing to send.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -91,6 +160,10 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 
 	commentTrail, err := app.FindRecordById("trails", r.GetString("trail"))
 	if err != nil {
+		// The trail is gone too, so its own Delete already covers this comment.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -144,6 +217,12 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
+		// The author is gone too, so this summit log was removed as part of that
+		// account's own cascade. There is no local actor left to attribute a
+		// Delete to, so there is nothing to send.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -153,6 +232,10 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 
 	summitLogTrail, err := app.FindRecordById("trails", r.GetString("trail"))
 	if err != nil {
+		// The trail is gone too, so its own Delete already covers this log.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -215,6 +298,12 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
+		// The author is gone too, so this list was removed as part of that
+		// account's own cascade. There is no local actor left to attribute a
+		// Delete to; the account's own Delete(Actor) is what carries the news.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -272,14 +361,16 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	object := activity.Object.GetID().String()
 
 	var err error
-	switch {
-	case strings.Contains(object, "trail"):
+	switch util.ObjectKindFromIRI(object) {
+	case util.ObjectKindActor:
+		err = processDeleteActorActivity(app, actor, activity)
+	case util.ObjectKindTrail:
 		err = processDeleteTrailActivity(app, activity)
-	case strings.Contains(object, "comment"):
+	case util.ObjectKindComment:
 		err = processDeleteCommentActivity(app, actor, activity)
-	case strings.Contains(object, "summit-log"):
+	case util.ObjectKindSummitLog:
 		err = processDeleteSummitLogActivity(app, actor, activity)
-	case strings.Contains(object, "list"):
+	case util.ObjectKindList:
 		err = processDeleteListActivity(app, actor, activity)
 	}
 
@@ -288,6 +379,53 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	}
 
 	return nil
+}
+
+// processDeleteActorActivity handles a remote account telling us it has been
+// deleted, and removes our copy of it. Everything that account authored here is
+// carried away by the schema's cascade.
+//
+// This is the most dangerous activity we accept, because it destroys a whole
+// account's content rather than one record, so it is deliberately narrow: the
+// only thing it permits is an actor deleting *itself*.
+//
+// The authentication happened before we got here. ActivitypubActivityProcess
+// resolves the actor named in activity.Actor and verifies the request's HTTP
+// signature against that actor's public key, so the record handed to us is the
+// cryptographically authenticated sender and nobody else — an attacker cannot
+// name a victim as the Actor without holding the victim's private key.
+//
+// What remains is to make sure the sender is not asking us to delete somebody
+// other than itself, which is exactly the "delete a stranger's account by
+// asking" case. The object must therefore be the signer, compared both against
+// the IRI we authenticated and the one on the wire. Anything else is refused
+// and logged rather than acted on.
+func processDeleteActorActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	object := activity.Object.GetID().String()
+	signer := actor.GetString("iri")
+	claimed := activity.Actor.GetID().String()
+
+	if object == "" || signer == "" || claimed == "" || object != signer || object != claimed {
+		app.Logger().Warn(
+			"refused federated actor deletion naming an account other than the signer",
+			"object", object, "signer", signer, "claimed_actor", claimed,
+		)
+		return fmt.Errorf("refusing Delete of actor %q signed by %q: an actor may only delete itself", object, signer)
+	}
+
+	// A local account must never be removable by a federated message, whoever
+	// signed it. ProcessDeleteActivity already returns early for a local
+	// signer; this repeats the guarantee where the deletion actually happens,
+	// so it cannot be lost by a later change to the dispatch above.
+	if actor.GetBool("is_local") || util.IsLocalIRI(object) {
+		app.Logger().Warn(
+			"refused federated deletion of a local actor",
+			"object", object, "signer", signer,
+		)
+		return fmt.Errorf("refusing federated Delete of local actor %q", object)
+	}
+
+	return app.Delete(actor)
 }
 
 func processDeleteTrailActivity(app core.App, activity pub.Activity) error {

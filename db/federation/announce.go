@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"pocketbase/util"
-	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -112,11 +111,12 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 
 	object := activity.Object.GetID().String()
 
-	if strings.Contains(object, "/api/v1/trail") {
+	switch util.ObjectKindFromIRI(object) {
+	case util.ObjectKindTrail:
 		return processTrailAnnounceActivity(app, actor, activity)
-	} else if strings.Contains(object, "/api/v1/list") {
+	case util.ObjectKindList:
 		return processListAnnounceActivity(app, actor, activity)
-	} else {
+	default:
 		return fmt.Errorf("unknown announce type")
 	}
 
