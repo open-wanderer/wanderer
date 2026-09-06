@@ -123,11 +123,11 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
     return r
 }
 
-export async function uploadUpdate<T>(event: RequestEvent, collection: Collection) {
+export async function uploadUpdate<T>(event: RequestEvent, collection: Collection, formData?: FormData) {
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
-    const data = await event.request.formData();
+    const data = formData ?? await event.request.formData();
     if (!data.has('id')) {
         throw new Error("data has no id")
     }
