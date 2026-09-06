@@ -71,6 +71,45 @@ func UpdateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 	}
 }
 
+// OAuth2UsernameHandler assigns the username reported by the OAuth2 provider
+// to accounts created through OAuth2.
+//
+// PocketBase maps the provider username itself, but only when the raw value
+// already satisfies the users.username field. Providers whose usernames are
+// display names - OpenStreetMap, for instance - therefore end up with a
+// generated "usersNNNNNN" name. Sanitising the value first keeps the name the
+// user signed up with recognisable.
+func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+	return func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+		if !e.IsNewRecord || e.OAuth2User == nil {
+			return e.Next()
+		}
+
+		// a username submitted by the client takes precedence
+		if submitted, _ := e.CreateData["username"].(string); submitted != "" {
+			return e.Next()
+		}
+
+		username := util.SanitizeUsername(e.OAuth2User.Username)
+		if username == "" {
+			return e.Next()
+		}
+
+		username = util.UniqueUsername(e.App, username)
+		if username == "" {
+			// nothing free; let PocketBase generate a username instead
+			return e.Next()
+		}
+
+		if e.CreateData == nil {
+			e.CreateData = map[string]any{}
+		}
+		e.CreateData["username"] = username
+
+		return e.Next()
+	}
+}
+
 func createDefaultUserSettings(app core.App, userId string) error {
 	collection, err := app.FindCollectionByNameOrId("settings")
 	if err != nil {
