@@ -274,7 +274,7 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	var err error
 	switch {
 	case strings.Contains(object, "trail"):
-		err = processDeleteTrailActivity(app, activity)
+		err = processDeleteTrailActivity(app, actor, activity)
 	case strings.Contains(object, "comment"):
 		err = processDeleteCommentActivity(app, actor, activity)
 	case strings.Contains(object, "summit-log"):
@@ -290,12 +290,16 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	return nil
 }
 
-func processDeleteTrailActivity(app core.App, activity pub.Activity) error {
+func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
 		return err
+	}
+
+	if trail.GetString("author") != actor.Id {
+		return fmt.Errorf("actor is not trail author")
 	}
 
 	err = util.DeleteFromFeed(app, trail.Id)
@@ -346,6 +350,10 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 	list, err := app.FindFirstRecordByData("lists", "iri", object)
 	if err != nil {
 		return err
+	}
+
+	if list.GetString("author") != actor.Id {
+		return fmt.Errorf("actor is not list author")
 	}
 
 	err = util.DeleteFromFeed(app, list.Id)

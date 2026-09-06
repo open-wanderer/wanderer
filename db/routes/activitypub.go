@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -9,12 +10,24 @@ import (
 	"os"
 	"pocketbase/federation"
 	"pocketbase/util"
+	"regexp"
 	"strconv"
 	"strings"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// inboxPathPattern matches the canonical local ActivityPub inbox path that the
+// trusted SvelteKit frontend forwards via X-Forwarded-Path. Anything else is
+// rejected before it can influence recipient lookup or signature verification.
+//
+// The username segment mirrors the users collection (pattern `^[\w][\w.\-]*$`,
+// 3-150 characters, ASCII), lowercased the same way ActorFromUser lowercases it
+// when minting the actor's inbox IRI. Dots and hyphens are therefore legal in a
+// local username and must be accepted here; because the first character class
+// excludes them, "." and ".." remain unmatchable.
+var inboxPathPattern = regexp.MustCompile(`^/api/v1/activitypub/user/[a-z0-9_][a-z0-9_.-]{2,149}/inbox$`)
 
 func ActivitypubActor(e *core.RequestEvent) error {
 	resource := e.Request.URL.Query().Get("resource")
@@ -69,6 +82,25 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 		return fmt.Errorf("ORIGIN not set")
 	}
 
+	// This endpoint is internal: it may only be invoked by the trusted SvelteKit
+	// frontend, which authenticates the hop with a shared secret. Because both the
+	// recipient lookup and the HTTP-signature context are derived from the
+	// X-Forwarded-Path header (which only the frontend can set correctly), any
+	// caller that cannot present the secret must be rejected before that header is
+	// used. Fail closed if the secret is not configured.
+	secret := os.Getenv("POCKETBASE_PROXY_SECRET")
+	if secret == "" {
+		return e.UnauthorizedError("POCKETBASE_PROXY_SECRET not configured", nil)
+	}
+	if subtle.ConstantTimeCompare([]byte(e.Request.Header.Get("X-Internal-Secret")), []byte(secret)) != 1 {
+		return e.UnauthorizedError("Invalid internal secret", nil)
+	}
+
+	forwardedPath := e.Request.Header.Get("X-Forwarded-Path")
+	if !inboxPathPattern.MatchString(forwardedPath) {
+		return e.UnauthorizedError("Invalid forwarded path", nil)
+	}
+
 	body, err := io.ReadAll(e.Request.Body)
 	if err != nil {
 		return err
@@ -79,7 +111,7 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 		return err
 	}
 
-	inbox := fmt.Sprintf("%s%s", origin, e.Request.Header.Get("X-Forwarded-Path"))
+	inbox := fmt.Sprintf("%s%s", origin, forwardedPath)
 
 	recipient, err := e.App.FindFirstRecordByData("activitypub_actors", "inbox", inbox)
 	if err != nil {

@@ -728,8 +728,6 @@ func VerifySignature(app core.App, req *http.Request, publicKeyPem string) (bool
 	req.Header.Set("Host", url.Host)
 	req.Host = url.Host
 
-	app.Logger().Info(req.Header.Get("signature"))
-
 	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return false, err
