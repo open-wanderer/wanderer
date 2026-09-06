@@ -1,253 +1,364 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-06-10
+**Analysis Date:** 2026-09-06
 
 ## Tech Debt
 
-**FIT Parser Type Safety:**
-- Issue: Large monolithic FIT parser file (8,339 lines) lacks comprehensive TypeScript types. Comments indicate output types are "cumbersome to maintain" and use `any` type extensively.
-- Files: `web/src/lib/vendor/fit-parser/fit.ts`, `web/src/lib/vendor/fit-parser/fit_types.ts`, `web/src/lib/vendor/fit-parser/binary.ts`
-- Impact: Type safety reduced for fitness activity data parsing; potential runtime errors when processing non-standard FIT file structures
-- Fix approach: Either adopt Zod schema generation for FIT types or implement type guards for critical FIT message fields; consider using code generation tools to reduce maintenance burden
+### Federation Feature Lacks Test Coverage
 
-**Integration Secret Encryption Workaround:**
-- Issue: Secret encryption detection relies on heuristic check (`!util.CanDecryptSecret()`) rather than explicit flag, preventing proper key rotation
-- Files: `db/hooks/integrations.go` (lines 114-116)
-- Impact: Cannot safely rotate encryption keys; secrets marked as already-encrypted are detected by pattern matching, not by metadata
-- Fix approach: Add `encrypted_at` timestamp or `encryption_version` field to integration records; implement proper versioned encryption handling
+**Issue:** The entire federation module (`db/federation/`) contains 8 files (create.go, delete.go, follow.go, like.go, undo.go, announce.go, actor.go, activity.go) with zero test files. This is the core v1 feature described in CLAUDE.md but is untested.
 
-**Komoot Integration Photo Processing Incomplete:**
-- Issue: Komoot photos can contain location data but are not processed into waypoints
-- Files: `db/integrations/komoot/komoot.go` (line 437)
-- Impact: User location metadata from Komoot photos is discarded; trails imported from Komoot may miss location-tagged photo waypoints
-- Fix approach: Parse photo metadata from Komoot API responses and create waypoint entries for geotagged photos
+**Files:** 
+- `db/federation/create.go` (23,269 lines)
+- `db/federation/delete.go` (8,905 lines)
+- `db/federation/follow.go` (4,374 lines)
+- `db/federation/actor.go` (13,079 lines)
+- `db/federation/activity.go` (4,310 lines)
+- `db/federation/like.go` (2,853 lines)
+- `db/federation/undo.go` (5,418 lines)
+- `db/federation/announce.go` (6,648 lines)
 
-**Trail Edit Page Component Complexity:**
-- Issue: Large monolithic Svelte component (2,203 lines) handles form state, map interactions, file uploads, route editing, and validation
-- Files: `web/src/routes/trail/edit/[id]/+page.svelte`
-- Impact: Difficult to test, maintain, and reason about; high risk of regressions on form changes
-- Fix approach: Extract route editor logic to separate Riverpod provider; split form handling into smaller composed components; use Felte store for form state management
+**Impact:** ActivityPub instance federation logic—including activity creation, validation, and distribution—cannot be verified to work correctly. Private data could leak if is_public checks are bypassed. Remote instance incompatibilities discovered only in production.
 
-**Circular Store Dependencies:**
-- Issue: Trail store depends on summit log, tag, list, and waypoint stores; these stores may depend back on trail operations
-- Files: `web/src/lib/stores/trail_store.ts` (imports summit_log_store, tag_store, list_store, waypoint_store)
-- Impact: Difficult to test stores in isolation; potential for circular update loops during cascade operations
-- Fix approach: Centralize mutation logic in a service layer; use event-based updates rather than direct store imports
+**Fix approach:** Add integration tests covering:
+- Create activity fanout with is_public=false filtering
+- Delete activity cascades
+- Follow/Accept/Undo flows between instances
+- Announce (boost/share) validation and privacy checks
+- Error handling on unreachable remotes
+
+### Missing API Route Test Coverage
+
+**Issue:** Out of ~20 SvelteKit API routes in `web/src/routes/api/v1/`, only 5 have test files. Major operations (user, trail, comment, follow, like, settings, notification) lack automated verification.
+
+**Files:** 
+- Tested: `trail/bounding-box/server.test.ts`, `trail/convert/convert.test.ts`, `regions/[id]/download/server.test.ts`, `regions/[id]/download-dem/server.test.ts`, `regions/[id]/geometry/server.test.ts`
+- Untested: `user/+server.ts`, `trail/+server.ts`, `comment/+server.ts`, `follow/+server.ts`, `trail-like/+server.ts`, `settings/+server.ts`, `notification/+server.ts`, `list/+server.ts`, and 10+ others
+
+**Impact:** Request validation, error handling, and authorization logic in proxy endpoints are unverified. Breaking changes to PocketBase or business logic rules deploy without catching data corruption.
+
+**Fix approach:** Establish test stubs for CRUD endpoints, focusing on:
+- Zod schema validation (request bodies, query params)
+- Authorization checks (is user authenticated, can they edit)
+- Response shape and status codes
+- Error handling (400, 401, 403, 500)
+
+### Plugin System Insufficient Coverage
+
+**Issue:** Plugin OAuth, hooks, manifest parsing, and policy validation code has minimal test coverage. Critical auth flows in `db/pluginsystem/oauth.go` and `db/pluginsystem/manifest.go` are partially or untested.
+
+**Files:** 
+- `db/pluginsystem/oauth.go` (336 lines, no test file)
+- `db/pluginsystem/manifest.go` (not checked)
+- `db/pluginsystem/policy.go` (not checked)
+
+**Impact:** Plugin token refresh, OAuth redirect validation, and manifest validation could fail silently or introduce security holes (e.g., downgrade https→http, unsanitized redirect URIs).
+
+**Fix approach:** Add tests for:
+- OAuth state/verifier generation and validation
+- Redirect URI validation (https downgrade, path allowlist)
+- Token refresh retry logic
+- Manifest network policy enforcement
+
+### Large, Complex Screens Risk Bugs
+
+**Issue:** Two screens exceed 1500+ lines, making them difficult to understand, test, and maintain:
+
+**Files:** 
+- `app/lib/routes/navigation_screen.dart` (2,301 lines) — Recording mode, map interaction, stats display, sheet management, GPS lifecycle
+- `app/lib/routes/trail_create_screen.dart` (1,586 lines) — Form state, file uploads, waypoint editing, elevation profile, sync status
+
+**Impact:** Bugs hidden in massive component logic (especially around state mutation and lifecycle). Regression testing requires full E2E. Changes to one feature risk breaking another.
+
+**Fix approach:** Refactor into smaller, single-responsibility components:
+- Split navigation_screen into: RecordingSession, MapInteraction, StatsDisplay, GPSManager
+- Split trail_create_screen into: TrailForm, WaypointEditor, ElevationChart, FileUpload
+
+### FIT Parser CRC Checks Disabled
+
+**Issue:** File integrity checks are bypassed by default in the FIT parser vendor code.
+
+**Files:** 
+- `web/src/lib/vendor/fit-parser/fit_parser.ts` (lines 106-110, 125-131) — Header CRC and File CRC checks commented out with `// TODO: fix Header CRC check` and `// TODO: fix File CRC check`
+- `web/src/lib/vendor/fit-parser/binary.ts` (line 419) — Compressed header handling not implemented (`// TODO: handle compressed header`)
+
+**Impact:** Corrupted FIT files (from Garmin watches, etc.) are silently accepted and may produce incorrect GPS traces. No way to detect incomplete uploads or bit-flips.
+
+**Fix approach:** 
+- Implement CRC calculation for both header and file sections
+- Add compression support for record headers
+- Emit warnings (not errors) on CRC mismatch but allow force-import for user recovery
+
+### Panics in Critical Paths
+
+**Issue:** The backend has `panic()` calls in paths that should handle errors gracefully:
+
+**Files:** 
+- `db/util/safe_fetch.go:269` — `mustPrefixes()` panics on invalid IP CIDR blocks (acceptable at init-time only; but list is hardcoded, so should never panic)
+- `db/pluginsystem/oauth.go:332` — `randomURLToken()` panics if `rand.Read()` fails. This is called during OAuth flow setup; crashes the request instead of returning 500.
+
+**Impact:** OAuth token generation failure crashes the server request instead of returning an error response. Harmless at scale (entropy pool is always available) but poor error discipline.
+
+**Fix approach:** 
+- Change `randomURLToken()` to return `(string, error)` and wrap call sites with error handling
+- Return 500 Internal Server Error when token generation fails
 
 ## Known Bugs
 
-**Meilisearch Token Staleness:**
-- Symptoms: User gets logged out/in, but stale Meilisearch token persists in cookie; search becomes unavailable until page refresh
-- Files: `web/src/hooks.server.ts` (lines 84-117)
-- Trigger: Logout followed by login in same browser session
-- Workaround: Manual page refresh forces token refresh; could be triggered automatically on auth state change
+### Unverified Elevation Recording Fixes (Field Test Pending)
 
-**API Error Handling Generic Messages:**
-- Symptoms: Frontend catches `APIError` but logs generic `console.error(e)` without capturing full error context
-- Files: `web/src/routes/trail/edit/[id]/+page.svelte` (multiple catch blocks at lines 285, 456, 635, 804, etc.)
-- Trigger: Any API request failure during trail editing
-- Workaround: Check browser console for detailed error; implement error boundary with structured logging
+**Issue:** Two elevation-related fixes committed 2026-08-09 in recording mode are unverified in the field.
 
-**FIT File CRC Validation Disabled:**
-- Symptoms: FIT files with invalid CRC checksums are silently accepted
-- Files: `web/src/lib/vendor/fit-parser/fit_parser.ts` (lines 106, 127 marked with TODO comments)
-- Trigger: Import of corrupted FIT file
-- Workaround: Manual verification of file integrity before import; no automatic detection of corrupted data
+**Files:** 
+- `app/lib/components/trail/elevation_profile.dart` (line 69) — `buildElevationTrackPoints()` now requires a `List<Wpt>.of(breadcrumb)` copy per rebuild because the breadcrumb is identity-stable and gpx 2.3.0's `==` has no identity short-circuit
+- `app/lib/provider/navigation_stats_provider.dart` (line 228) — `hasUsableAltitude()` gate treats `altitude: 0, altitudeAccuracy: 0` as "no reading" to skip the synthetic seed fix
 
-**Waypoint Cluster Request Error Not Surfaced:**
-- Symptoms: Waypoint clustering can fail silently if clustering service is unavailable; user sees no error notification
-- Files: `web/src/routes/trail/edit/[id]/+page.svelte` (line 635-640)
-- Trigger: Clustering endpoint returns error
-- Workaround: Check network tab in browser DevTools; error is caught and partially logged
+**Symptoms:** 
+- Elevation profile stuck at zero for entire recording (may indicate `hasUsableAltitude` rejecting real fixes)
+- Empty elevation chart on imported trails or older recordings (deliberate removal of `?? 0` fallback)
+- Elevation gain jump on first GPS fix (seed fix no longer applied)
+
+**Workaround:** None. User confirmed on next hike (from 2026-08-09 memory entry).
+
+**Follow-up:** See `.planning/debug/recording-elevation-gain-jump.md` (unarchived, left open for this reason) for judgment calls and detailed trade-offs.
+
+### Dismissed Tracking Notification Does Not Re-Post
+
+**Issue:** Android 14+ allows users to swipe away the tracelet foreground-service notification while tracking continues. The notification does not return on its own, making live tracking appear dead.
+
+**Files:** 
+- Tracelet SDK integration (not directly in Wanderer source; SDK behavior)
+- App would need changes to `app/lib/provider/foreground_position_stream_provider.dart` or tracelet config to implement re-posting
+
+**Impact:** User loses the only signal that recording survived app being closed. Confusing UX: swipe to dismiss → app appears "stopped" but is still recording.
+
+**Workaround:** User must reopen app to verify recording status.
+
+**Fix approach:** (Deferred, complex) — Use `Tracelet.registerHeadlessTask()` + `onHeartbeat` event to re-call `setConfig()` every 15–60s, which should re-post the notification. Requires SDK behavior verification first (test whether `setConfig()` actually re-posts a dismissed notification).
 
 ## Security Considerations
 
-**HTML Content Injection in Maplibre Popups:**
-- Risk: Icon HTML is set via `.innerHTML` in maplibre utility functions; if icon data comes from user input, could allow XSS
-- Files: `web/src/lib/util/maplibre_util.ts` (lines 215, 221, 244)
-- Current mitigation: Icon data is generated programmatically (Font Awesome icons) and not from user input; hardcoded static icons
-- Recommendations: Use `.textContent` for user-provided data; add Content Security Policy header to prevent inline script execution
+### Content-Security-Policy Allows Inline Scripts
 
-**Integration Password Decryption at Sync Time:**
-- Risk: Komoot/Hammerhead passwords decrypted in memory during sync operations; if process crashes, key material may be in swap
-- Files: `db/integrations/komoot/komoot.go` (line 66), `db/integrations/hammerhead/hammerhead.go`
-- Current mitigation: Passwords encrypted at rest using `POCKETBASE_ENCRYPTION_KEY`
-- Recommendations: Use sealed boxes or ephemeral key derivation; implement zero-copy patterns for sensitive data; audit memory safety of Go crypto libraries
+**Issue:** Regions admin dashboard has loosened CSP to allow MapLibre functionality.
 
-**API Token Validation Missing Expiration:**
-- Risk: API tokens accepted without expiration check; compromised token remains valid indefinitely
-- Files: `web/src/hooks.server.ts` (line 62-75)
-- Current mitigation: Tokens start with `wanderer_key` prefix, allowing basic validation
-- Recommendations: Add token expiration timestamp; implement token revocation mechanism; rotate tokens on each use
+**Files:** 
+- `db/routes/regions_ui.go:54` — `script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com`
 
-**ActivityPub Actor Context Not Validated:**
-- Risk: Remote actor contexts accepted without schema validation; could inject malicious JSON-LD context
-- Files: `db/federation/create.go` (line 48), `db/federation/actor.go`
-- Current mitigation: Contexts fetched from remote servers and stored; no validation of schema structure
-- Recommendations: Validate actor context against ActivityPub spec; whitelist known context URLs; implement schema signing
+**Risk:** Potential XSS via maplibre.js or cached third-party scripts. The SPA does read the admin's JWT from localStorage (line 38 note says it's never embedded), but inline script execution + data attributes still pose attack surface.
+
+**Current mitigation:** 
+- Page contains no secrets or tokens
+- Privileged operations go through PocketBase JWT-validated REST API
+- `X-Frame-Options: DENY` prevents clickjacking
+- Admin JWT is runtime-read from localStorage, not embedded
+
+**Recommendations:** 
+- Audit maplibre 0.3.5 for known XSS bugs
+- Consider nonce-based CSP for inline scripts instead of blanket `'unsafe-inline'`
+- Monitor for newer maplibre versions that support stricter CSP
+
+### Connector HTTP Policy Validation
+
+**Issue:** Custom connector TLS configs allow private IPs and custom CAs, which could be exploited for SSRF if plugin manifests are not carefully vetted.
+
+**Files:** 
+- `db/util/safe_fetch.go:154-192` — `ConnectorHTTPClient()` applies `AllowPrivate` flag
+
+**Risk:** A malicious plugin manifest could declare connectors pointing to internal services (e.g., `127.0.0.1:8080`, `192.168.x.x` ranges) if `AllowPrivate: true`.
+
+**Current mitigation:** 
+- IP filtering in DialContext (lines 166-185) rejects loopback, link-local, multicast
+- Special-purpose IP prefixes blocked (lines 243-262: 0.0.0.0/8, 127.0.0.0/8, 192.0.0.0/24, etc.)
+- Manifest permissions model controls which connectors each plugin can use
+
+**Recommendations:** 
+- Audit plugin manifest loader for path traversal or injection in connector definitions
+- Log all connector requests (especially to private IPs) for audit trails
+- Consider plugin sandboxing or signing to prevent untrusted manifests
 
 ## Performance Bottlenecks
 
-**FIT Parser Global State:**
-- Problem: FIT parser uses global variables and mutable state during parsing; cannot parallelize multiple file parsing
-- Files: `web/src/lib/vendor/fit-parser/binary.ts` (line 493 TODO comment)
-- Cause: Parser architecture designed for single-threaded sequential parsing
-- Improvement path: Refactor parser to use immutable state machine; allow concurrent file parsing via Web Workers
+### Map Panning CPU Burn (Addressed, But History Preserved)
 
-**Trail Detailed Cache LRU Not Bounded by Memory:**
-- Problem: Cache can grow to 200+ Trail objects (with expanded waypoints, comments); no memory pressure release
-- Files: `web/src/lib/stores/trail_store.ts` (lines 92-121)
-- Cause: Simple size-based LRU eviction doesn't account for Trail object sizes
-- Improvement path: Implement memory-aware cache size limit; add cache metrics/telemetry; consider lazy-loading trail details
+**Issue:** (Resolved 2026-08-06) Map panning was consuming ~187% avg / 237% peak CPU (nearly two cores) due to `androidTextureMode: true` + `androidMode: tlhc_vd`.
 
-**Waypoint Clustering O(n²) for Large Trails:**
-- Problem: Waypoint clustering request sent for every trail edit operation; no debouncing or batching
-- Files: `web/src/routes/trail/edit/[id]/+page.svelte` (likely in waypoint change handlers)
-- Cause: Direct synchronous clustering calls without request batching
-- Improvement path: Debounce clustering requests; batch multiple waypoint changes into single request; cache clustering results
+**Files:** 
+- `app/lib/components/base/trail_map.dart` — MapOptions constructor (4 call sites)
 
-**Meilisearch Token Fetch on Every Request:**
-- Problem: Token cookie checked for every route navigation; can generate unnecessary backend requests
-- Files: `web/src/hooks.server.ts` (lines 99-117)
-- Cause: Cookie validation does not cache results in request context
-- Improvement path: Implement short-lived in-memory token cache per request; store token expiration in cookie
+**Fix:** Applied `androidTextureMode: false` + `androidMode: AndroidPlatformViewMode.hc` to all call sites.
 
-**Search Index Rebuild on Integration Sync:**
-- Problem: Komoot/Strava integration sync rebuilds entire Meilisearch index for user's trails
-- Files: `db/integrations/komoot/komoot.go`, `db/integrations/strava/strava.go`
-- Cause: Full re-index performed after each sync operation
-- Improvement path: Implement incremental search index updates; batch updates; use Meilisearch task queue
+**Remaining baseline:** `nderer.wanderer` platform thread at 33.7% (MapLibre's own render loop + gesture handling) is acceptable.
+
+**Why preserved:** Reference for future performance regressions if MapLibre or dependencies update.
+
+### GPS 100% Duty Cycle
+
+**Issue:** Foreground position stream has no `LocationSettings`, keeping GPS enabled full-time even when stationary.
+
+**Files:** 
+- `app/lib/provider/foreground_position_stream_provider.dart` — `getPositionStream()` call site
+
+**Impact:** ~2–3 mAh direct drain, but triggers ~80 WiFi scans per session (24% wall time), causing secondary heat from Play Services.
+
+**Fix approach:** Add `LocationSettings` with `accuracy: LocationAccuracy.best` and `timeInterval: 1000` (1s) + stationary mode config (e.g., `stationaryPeriodicInterval: 20s`).
+
+### Large Generated Files Slow IDE/Builds
+
+**Issue:** Several auto-generated files exceed 3000+ lines and slow IDE indexing, search, and build times:
+
+**Files:** 
+- `app/lib/vendor/tiptap_flutter/lib/src/editor/tiptap_bridge.dart` (1,334 lines, generated)
+- `app/lib/vendor/tiptap_flutter/lib/src/editor/tiptap_editor.dart` (1,226 lines, generated)
+- `app/lib/i18n/app_localizations.dart` (2,074 lines, generated)
+- `app/lib/models/trail.freezed.dart` (2,114 lines, generated)
+
+**Impact:** IDE lag when searching/refactoring. Builds include these in their dependency analysis unnecessarily.
+
+**Fix approach:** 
+- Ensure `build_runner` excludes generated files from analysis (check `analysis_options.yaml`)
+- Consider code splitting i18n (e.g., lazy-load per language) if file size continues growing
+- Verify freezed configuration generates minimal code (no unnecessary methods)
 
 ## Fragile Areas
 
-**Valhalla Route Caching with JSON Diff:**
-- Files: `web/src/lib/stores/valhalla_store.svelte.ts`
-- Why fragile: Undo/redo implemented using JSON diff/patch on GPX objects; if GPX structure changes, patches become invalid; deep clone overhead for every route change
-- Safe modification: Add unit tests for changeset generation and reversion; avoid structural changes to GPX model without migration; consider event sourcing alternative
-- Test coverage: No visible unit tests for Valhalla store operations
+### Riverpod Late-Final Rebuild Bug Pattern
 
-**IntegrationSecrets Encryption Pattern:**
-- Files: `db/hooks/integrations.go`
-- Why fragile: Encryption state detection via heuristic function call; if `CanDecryptSecret()` logic changes, could double-encrypt or fail to encrypt new secrets
-- Safe modification: Add integration tests for encryption/decryption round-trip; validate each secret field with explicit flag; implement migration to add encryption metadata
-- Test coverage: `db/tests/secrets_test.go` exists but scope unclear from file list
+**Issue:** Riverpod Notifier instances survive across rebuilds; only `build()` re-runs. A `late final` field assigned in `build()` throws `LateInitializationError` on the second rebuild.
 
-**Federation Activity Posting Without Retry:**
-- Files: `db/federation/create.go`, `db/federation/*.go`
-- Why fragile: Activities posted to remote followers without retry mechanism; if network hiccup occurs, followers don't receive activity
-- Safe modification: Implement activity queue with exponential backoff; add delivery status tracking; monitor failed deliveries
-- Test coverage: No visible federation integration tests
+**Files:** 
+- `app/lib/provider/trail/trail_filter_provider.dart` — Fixed 2026-07-30 (commit 33fad8a4), was `late final TrailFilterData defaultFilter`
 
-**Komoot Password Persistence Without Rotation:**
-- Files: `db/integrations/komoot/komoot.go`
-- Why fragile: Passwords stored encrypted but not rotatable; if master key leaks, all Komoot credentials compromised simultaneously
-- Safe modification: Implement key rotation with versioning; add password change detection to trigger re-encryption; audit decryption access
-- Test coverage: No visible Komoot integration tests
+**Safe modification:** Before adding a provider to `lib/util/account_scope_invalidation.dart`'s `accountScopedProviders`, grep the notifier for `late final` fields assigned in `build()`. Change to `late` (non-final) or nullable.
+
+**Test coverage:** When fixing this, verify regression test fails against old code (temporarily restore `late final` and re-run). A test passing both ways proves nothing.
+
+### iOS Build Requires Hand-Patched Swift Files
+
+**Issue:** Dev machine (2016 MacBookPro + Sonoma via OpenCore Legacy Patcher) is capped at Xcode 16.2 (Swift 6.0.3). Several Flutter plugins ship Swift 6.1 trailing commas in call argument lists, which Swift 6.0.3 rejects.
+
+**Files:** 
+- `~/.pub-cache/hosted/pub.dev/maplibre_ios-0.3.5/.../MapLibreViewFactory.swift:26` (hand-patched)
+- `~/.pub-cache/hosted/pub.dev/receive_sharing_intent-1.9.0/.../RSIShareViewController.swift:257` (hand-patched)
+- `~/.pub-cache/hosted/pub.dev/tracelet_ios-3.5.0/.../TraceletIosPlugin.swift:241, :285` (hand-patched)
+- `~/.pub-cache/hosted/pub.dev/maplibre_ios-0.3.5/lib/src/maplibre_ffi.g.dart` (73 call sites forced off objc_msgSend_stret for x86_64 simulator)
+
+**Risk:** `dart pub cache repair` or dependency bump silently reverts patches, causing build failures with "Unexpected ',' separator" in third-party Swift code.
+
+**Fix approach:** If iOS build fails with parser error:
+1. Re-scan every package in `app/pubspec.lock` for trailing commas before `)` (array literals are legal)
+2. Drop comma from function argument lists only
+3. Verify fix applies to both Swift and Dart code
+
+### iOS Share Extension Blocked
+
+**Issue:** Xcode App Groups setup requires an Apple Developer account, which is not available on the dev machine.
+
+**Files:** 
+- iOS target configuration (not directly in source)
+
+**Impact:** Share extension not yet built; cannot test "Share to Wanderer" flow.
+
+**Workaround:** None. Blocked until Apple Developer account is available.
 
 ## Scaling Limits
 
-**Trail Cache Memory Usage:**
-- Current capacity: 200 Trail objects with full expand (waypoints, summit logs, comments)
-- Limit: Approximately 50-100 MB depending on trail complexity; degrades performance at ~150+ concurrent users viewing different trails
-- Scaling path: Implement Redis-backed distributed cache; implement persistent trail cache in ObjectBox (Flutter) or similar; add cache warming strategies
+### Instance Federation Fanout Not Load-Tested
 
-**Meilisearch Index Size:**
-- Current capacity: Can index ~1 million trails on standard Meilisearch container (1GB RAM)
-- Limit: Beyond 2 million trails, indexing becomes slow; search latency increases
-- Scaling path: Shard index by region/user; implement read replicas; separate primary and search indexes
+**Issue:** The `db/federation/create.go` and related files implement activity fanout to all followed remote instances, but no load testing exists for 100+ federated instances or 1000+ trail objects per day.
 
-**ActivityPub Federation Inbox Processing:**
-- Current capacity: Sequential processing of incoming activities; typical batch size ~50 activities/second
-- Limit: Beyond ~500 concurrent followers, inbox processing falls behind; remote followers see delays
-- Scaling path: Implement activity queue with worker pool; add priority queues for critical activities (Undo/Delete); implement backpressure
+**Files:** 
+- `db/federation/create.go` (fanout logic)
+- `db/federation/activity.go` (activity construction)
 
-**WebSocket Connections for Real-time Updates:**
-- Current capacity: Not implemented; all updates require page refresh
-- Limit: Scalability concern for future real-time feed; estimated ~500 connections per server before exhaustion
-- Scaling path: Implement Svelte stores with PocketBase subscriptions; use Redis pub/sub for cross-server broadcasts; consider message queue (RabbitMQ)
+**Limit:** Unknown; likely acceptable for small numbers of instances but untested at scale. If one remote is slow or down, no retry queue exists (activities dropped if unreachable, per CLAUDE.md).
+
+**Scaling path:** 
+1. Add activity queue + retry mechanism with exponential backoff
+2. Implement activity delivery concurrency limits (e.g., max 5 concurrent fanouts)
+3. Monitor fanout latency and implement circuit breaker for consistently failing remotes
 
 ## Dependencies at Risk
 
-**FIT Parser Vendor Code:**
-- Risk: FIT parser is vendored with extensive TODO comments; no upstream maintenance visible
-- Impact: Security vulnerabilities in FIT parsing not patched; feature requests (e.g., compressed headers) unfulfilled
-- Migration plan: Evaluate fitgo (Go FIT parser) as alternative; implement only required FIT field parsing; consider custom parser for subset of fields
+### iOS Swift Trailing Comma Workaround Blocks Upgrades
 
-**Maplibre Elevation Profile Vendor Code:**
-- Risk: Elevation profile rendering is vendored; no upstream source visible
-- Impact: Performance issues, missing features not addressed
-- Migration plan: Evaluate Chart.js elevation rendering as alternative; implement custom elevation profile component using Canvas API
+**Risk:** Cannot upgrade maplibre_ios, receive_sharing_intent, or tracelet_ios without re-patching Swift files. Patch is temporary; long-term solution is upgrading to a macOS/Xcode version supporting Swift 6.1.
 
-**Vector Tile Dependencies (Beta):**
-- Risk: `vector_map_tiles` and `vector_tile_renderer` are `beta` versions from custom forks
-- Impact: API breaking changes expected; no guarantee of long-term support
-- Migration plan: Monitor upstream PMTiles/vector tile ecosystem for stable alternatives; plan for API migration every 6 months
+**Migration plan:** Upgrade dev machine to newer hardware or switch to arm64 Apple Silicon simulator (which uses different Objective-C calling convention and doesn't need the maplibre_ffi.g.dart patches).
 
-**Dio HTTP Client with Custom Fork Tracking:**
-- Risk: `flutter_map_marker_cluster` and other packages may depend on specific Dio versions
-- Impact: Dependency conflicts possible when updating Dio
-- Migration plan: Audit all transitive dependencies of Dio; test major version upgrades in isolated environment before merge
+### FIT Parser Vendor Code Lacks Maintenance
+
+**Risk:** `web/src/lib/vendor/fit-parser/` (8,339 lines) has multiple TODO comments and unfinished CRC/compression implementations. Upstream maintenance unknown.
+
+**Impact:** Cannot import certain Garmin file formats; data integrity not verified.
+
+**Migration plan:** 
+- Survey FIT parsing libraries in npm ecosystem (e.g., `fit-parser`, `garmin-fit`)
+- If none suitable, commit to finishing CRC + compression in current vendor fork
+- Add tests to prevent regression
 
 ## Missing Critical Features
 
-**Error Boundaries in Svelte Components:**
-- Problem: No global error boundary for critical operations (trail editing, map rendering); failures cascade
-- Blocks: Cannot safely recover from partial state corruption during complex operations
-- Recommendation: Implement `+error.svelte` error boundary pages for major routes; add ErrorBoundary component wrapper for complex sections
+### No Offline Sync Queue
 
-**Transaction Support for Trail Updates:**
-- Problem: Trail creation/update can create orphaned waypoints/comments if partial failure occurs
-- Blocks: Data consistency cannot be guaranteed; cannot safely retry failed operations
-- Recommendation: Implement PocketBase collection hooks for cascade operations; use database transactions where available
+**Issue:** Per CLAUDE.md constraint "Online-only: No offline sync buffer; if a remote instance is unreachable, the activity is dropped (existing behavior for user federation)". This is by design but creates data loss risk.
 
-**Search Index Synchronization:**
-- Problem: Trail updates in backend don't automatically trigger Meilisearch re-index; search results become stale
-- Blocks: Cannot rely on search results for real-time trail information
-- Recommendation: Implement PocketBase hook to queue Meilisearch updates; implement eventual consistency guarantees; add staleness detection in UI
+**Impact:** User publishes trail → federation fanout starts → Remote A is down → activity dropped → remote A never sees the trail. Manual admin intervention required to resync.
 
-**Activity Log/Audit Trail:**
-- Problem: No record of trail modifications, deletions, or federation activities; cannot audit user actions
-- Blocks: Cannot investigate disputes, security incidents, or data loss
-- Recommendation: Implement audit log collection; hook into PocketBase record events; implement log retention policy
+**Blocks:** None; this is accepted constraint for v1.
+
+### Notification Re-Posting Deferred
+
+**Issue:** Android 14+ dismissed tracking notification does not return, blocking full tracking UX. This is tracked in memory but deferred indefinitely.
+
+**Impact:** Users must manually reopen app to verify recording, missing the "set it and forget it" experience.
+
+**Blocks:** None; logged as known limitation.
 
 ## Test Coverage Gaps
 
-**Trail Store Mutations:**
-- What's not tested: Trail create/update/delete operations, cache invalidation, undo/redo stack behavior
-- Files: `web/src/lib/stores/trail_store.ts`
-- Risk: Regressions in store logic could cause silent data corruption or lost updates
-- Priority: High
+### No E2E Tests for Multi-Instance Federation
 
-**Valhalla Routing Integration:**
-- What's not tested: Route calculation, waypoint insertion/deletion, segment splitting, undo/redo
-- Files: `web/src/lib/stores/valhalla_store.svelte.ts`, `web/src/lib/components/trail/route_editor.svelte`
-- Risk: Complex route editing operations could produce invalid GPX; no validation of intermediate states
-- Priority: High
+**Issue:** The federation feature has no end-to-end tests that spin up two Wanderer instances, configure federation, and verify bidirectional content sync.
 
-**Integration Encryption/Decryption:**
-- What's not tested: Secret encryption round-trip, key rotation, partial encryption scenarios
-- Files: `db/hooks/integrations.go`, `db/integrations/komoot/komoot.go`, `db/integrations/strava/strava.go`
-- Risk: Encrypted secrets could become unrecoverable; migration operations could leak plaintext
-- Priority: High
+**Files:** 
+- `app/test/` — Mobile tests exist for trails/maps/recording but not federation
+- `web/` — No federation E2E tests
 
-**Federation Activity Posting:**
-- What's not tested: Activity creation, remote follower notification, error handling for failed deliveries
-- Files: `db/federation/create.go`, `db/federation/actor.go`, `db/routes/activitypub.go`
-- Risk: Activities silently fail to deliver; followers see stale data; mentions not properly propagated
-- Priority: Medium
+**Risk:** Instance federation flows (Follow, Accept, Create, Delete, Undo) are untested in integrated environment. Breaking changes discover only on production deployments.
 
-**Meilisearch Token Management:**
-- What's not tested: Token generation, expiration, staleness detection, refresh behavior
-- Files: `web/src/hooks.server.ts`, `db/routes/search_token.go`
-- Risk: Search becomes unavailable without user awareness; token leaks not detected
-- Priority: Medium
+**Priority:** High
 
-**E2E Test Coverage:**
-- What's not tested: Trail creation flow (only 3 e2e specs visible: user, list, index)
-- Files: `web/tests/playwright/e2e/`
-- Risk: Critical user journeys (trail import, editing, sharing) have no automated coverage
-- Priority: Medium
+**Fix approach:** Add Playwright E2E test that:
+1. Spin up two Docker containers with Wanderer instances
+2. Create admin accounts on each
+3. Execute Follow handshake between instance actors
+4. Publish trail on instance A → Verify appears on instance B
+5. Delete trail on instance A → Verify deleted on instance B
+
+### Mobile Trail Sync Provider Lacks Unit Tests
+
+**Issue:** `app/lib/provider/trail/trail_sync_provider.dart` and related sync logic have no isolated unit tests.
+
+**Files:** 
+- `app/lib/provider/trail/trail_sync_provider.dart` (not checked for tests)
+- `app/lib/store/local_trail_store.dart` (1,408 lines, complex state machine)
+
+**Risk:** Trail sync edge cases (partial uploads, conflict resolution, local-vs-server divergence) are untested. Regressions surface only in user reports.
+
+**Priority:** Medium
+
+### Plugin System Integration Tests Missing
+
+**Issue:** Plugin OAuth flows, manifest loading, and network policy enforcement lack integration tests.
+
+**Files:** 
+- `db/pluginsystem/` (OAuth, manifest, policy code untested)
+
+**Risk:** Plugin system cannot be confidently refactored or extended. Security issues (SSRF, token exposure) not caught.
+
+**Priority:** High (security-adjacent)
 
 ---
 
-*Concerns audit: 2026-06-10*
+*Concerns audit: 2026-09-06*

@@ -1,236 +1,256 @@
 # External Integrations
 
-**Analysis Date:** 2026-06-10
+**Analysis Date:** 2026-09-06
 
 ## APIs & External Services
 
-**Mapping & Geospatial:**
-- **Nominatim** (OpenStreetMap) - Geocoding and reverse geocoding
-  - SDK/Client: Native HTTP via `web/src/lib/server/nominatim.ts`
-  - Rate limiting: 1 request per second enforced
-  - Retry logic: Up to 2 retries on failure
-  - Default: `https://nominatim.openstreetmap.org`
-  - Config: `NOMINATIM_URL` environment variable
+**Geolocation & Geocoding:**
+- **Nominatim** (OpenStreetMap) - Forward and reverse geocoding
+  - SDK/Client: HTTP fetch via `web/src/lib/server/nominatim.ts`
+  - Configuration: `NOMINATIM_URL` env var (default: https://nominatim.openstreetmap.org)
+  - Rate limiting: 1 request per second enforced for public Nominatim
+  - Endpoints: `/search`, `/reverse`
+  - Used in: `web/src/routes/api/v1/geocoding/search/+server.ts`, `web/src/routes/api/v1/geocoding/reverse/+server.ts`
 
-- **Overpass API** (OpenStreetMap) - POI and geographic feature queries
-  - SDK/Client: Native HTTP via `web/src/lib/server/overpass.ts`
-  - Retry logic: Up to 2 retries on failure
-  - Default: `https://overpass-api.de`
-  - Config: `OVERPASS_API_URL` environment variable
+**Routing & Directions:**
+- **Valhalla** - Route planning, navigation, elevation profiles
+  - SDK/Client: HTTP POST via `web/src/lib/server/valhalla.ts`
+  - Configuration: `VALHALLA_URL` env var (default: https://valhalla1.openstreetmap.de)
+  - Endpoints used: `/route`, `/height`, `/trace_route`, `/locate`
+  - Used in: 
+    - `web/src/routes/api/v1/valhalla/route/+server.ts` - Route calculation
+    - `web/src/routes/api/v1/valhalla/height/+server.ts` - Elevation data
+    - `web/src/routes/api/v1/valhalla/navigate/+server.ts` - Turn-by-turn navigation
+    - `web/src/routes/api/v1/valhalla/trace-route/+server.ts` - Snap GPS trace to road network
+  - Mobile integration: `web/src/lib/stores/valhalla_store.svelte.ts` (fetch via `/api/v1/valhalla/*`)
 
-- **Valhalla** - Routing and turn-by-turn directions
-  - SDK/Client: Native HTTP via `web/src/lib/server/valhalla.ts`
-  - Config: `VALHALLA_URL` environment variable
-  - Optional: Can be self-hosted or omitted
-  - Example: `https://valhalla1.openstreetmap.de`
+**Map Data & Queries:**
+- **Overpass API** (OpenStreetMap) - OSM data queries
+  - SDK/Client: HTTP GET via `web/src/lib/server/overpass.ts`
+  - Configuration: `OVERPASS_API_URL` env var (default: https://overpass-api.de)
+  - Endpoint: `/api/interpreter`
+  - Used in: `web/src/routes/api/v1/overpass/interpreter/+server.ts`
+  - Layer integration: `web/src/lib/vendor/maplibre-layer-manager/overpass-layer.ts`
 
-**OSM Tiles:**
-- MapLibre GL compatible tile sources for map rendering
-- Used in both web and mobile applications
+**Map Tiles & Rendering:**
+- **OpenStreetMap Tile Servers** - Raster map tiles
+  - Configuration: Can be customized via map config
+  - Format: Standard XYZ tile URLs
+  - Used by: MapLibre GL for map rendering
+
+- **PMTiles** - Cloud-optimized vector tile format
+  - Tool: `pmtiles` binary (v1.28.0, downloaded in `db/Dockerfile`)
+  - Purpose: Archive and serve map tile data
+  - Location: `db/Dockerfile` (stages 2 and 4)
 
 ## Data Storage
 
-**Databases:**
-- **PocketBase** 0.38.0
-  - Type: Self-hosted BaaS (embedded SQLite or PostgreSQL-compatible)
-  - Connection: `PUBLIC_POCKETBASE_URL` (default: `http://localhost:8090`)
-  - Client: PocketBase JavaScript SDK v0.26.8 (`web/src/lib/pocketbase.ts`)
-  - Mobile client: Dio HTTP library with native PocketBase integration
-  - Collections: users, trails, waypoints, comments, lists, integrations, activitypub_actors, settings, summit_logs
-  - Authentication: Session-based via PocketBase AuthStore
-  - API Authentication: Bearer token with `wanderer_key` prefix for API access
+**Primary Database:**
+- **PocketBase** 0.38.0 - Self-hosted SQLite-based backend
+  - Connection: `MEILI_URL` (local service: http://search:7700 in Docker)
+  - Exposed URL: `PUBLIC_POCKETBASE_URL` env var
+  - Client libraries:
+    - Web: `pocketbase` npm package (v0.27.0 in `web/package.json`)
+    - Flutter: `pocketbase` pub package (implicitly via HTTP)
+  - Authentication: Session-based via cookies or API tokens (`wanderer_key_*`)
+  - Collections: trails, users, comments, summit_logs, waypoints, categories, tags, lists, regions, shares, notifications, summaries
+  - Location: `db/main.go`, `db/routes/`, `db/migrations/`
+  - Data persistence: `/pb_data/` volume in Docker
 
-**Search:**
-- **Meilisearch** v1.36.0
-  - Purpose: Full-text search indexing for trails, users, lists
-  - Connection: `MEILI_URL` (default: `http://search:7700`)
-  - Auth: Master key via `MEILI_MASTER_KEY` environment variable
-  - Client: Meilisearch JavaScript client v0.57.0 (`web/src/hooks.server.ts`)
-  - Search tokens: Per-user tokens generated via `/search/token` PocketBase endpoint
-  - Token caching: Browser cookie-based (`meilisearch_token`) with version tracking
-  - Indexed collections: Trails, Users, Lists, ActivityPub Actors (see `db/main.go` hooks)
+**Search Engine:**
+- **Meilisearch** v1.36.0 (or v1.11.3 in dev/prod)
+  - Connection: `MEILI_URL` env var (local service: http://search:7700 in Docker)
+  - Client: `meilisearch` npm package (v0.58.0)
+  - Authentication: `MEILI_MASTER_KEY` env var
+  - Indexes: trails, users, lists, comments, summit_logs, summaries, notifications
+  - Used in: `web/src/hooks.server.ts` for Meilisearch token generation
+  - Used by: Search stores (`web/src/lib/stores/search_store.ts`, `web/src/lib/stores/list_store.ts`, `web/src/lib/stores/profile_store.ts`)
+  - Encryption: Off (`MEILI_NO_ANALYTICS: "true"` in Docker compose)
+
+**Local Mobile Database:**
+- **ObjectBox** 5.3.1 - Local NoSQL database for Flutter
+  - Purpose: Offline storage on mobile devices
+  - Generated code: Via `objectbox_generator` (dev dependency)
+  - Used by: Flutter app for cached data, offline support
 
 **File Storage:**
-- **Local filesystem** - File upload directory mapped via Docker volume
-  - Path: `/app/uploads` in container
-  - Host mapping: `./data/uploads:/app/uploads` (docker-compose)
-  - Auth: Optional via `UPLOAD_USER` and `UPLOAD_PASSWORD` environment variables
-  - Usage: Trail GPX files, user avatars, photos, documents
-
-**Caching:**
-- **ObjectBox** 5.3.1 (Mobile only)
-  - Local NoSQL database for offline access
-  - Caches trails, user profiles, feeds
-  - Location: `app/lib/provider/objectbox_store_provider.dart`
+- **Local Filesystem** - File uploads
+  - Configuration: `UPLOAD_FOLDER` env var (default: /app/uploads)
+  - Optional HTTP auth: `UPLOAD_USER`, `UPLOAD_PASSWORD` env vars
+  - Endpoint: `web/src/routes/api/v1/file/upload/+server.ts`
+  - Served via: PocketBase file serving
+  - Docker volume: `./data/uploads:/app/uploads`
 
 ## Authentication & Identity
 
-**Primary Auth Provider:**
-- **PocketBase Built-in**
-  - Session-based authentication
-  - JWT tokens stored in browser/app local storage
-  - Cookie-based session management (`pb_auth` cookie)
-  - Per-user authentication guard via `isRouteProtected()` utility
+**Auth Provider:**
+- **PocketBase Built-in** - Self-hosted authentication
+  - Implementation: Session-based with cookies
+  - OAuth2 support: Configured via PocketBase UI
+  - API Token auth: `Authorization: Bearer wanderer_key_*` header support
+    - Verification: `web/src/hooks.server.ts` (lines 59-75)
+    - Token endpoint: `/auth/token` (POST)
+  - Logout: Cookie-based session termination
+  - Protected routes: Enforced in `web/src/routes/+layout.svelte` via `isRouteProtected()` utility
 
-**Third-Party OAuth Integrations (Backend Support):**
-- **Strava** - Fitness activity import
-  - Config: `db/routes/integration_strava.go`
-  - Tokens: Encrypted storage in PocketBase integrations collection
-  - Refresh token handling for continuous access
-  - Client credentials: Stored encrypted in `integration.strava` field
+**OAuth Providers (via PocketBase):**
+- Google
+- GitHub
+- Discord
+- Gitea (custom OAuth)
+- Others configurable through PocketBase admin panel
+- Client integrations: `web/src/lib/stores/user_store.ts` (auth methods retrieval)
+- OAuth icon retrieval: `${env.PUBLIC_POCKETBASE_URL}/_/images/oauth2/{provider}.svg`
 
-- **Komoot** - Trail data import
-  - Config: `db/routes/integration_komoot.go`
-  - Similar token handling to Strava
+## ActivityPub & Federation
 
-- **Hammerhead** - Cycling computer integration
-  - Config: `db/routes/integration_hammerhead.go`
+**Protocol:**
+- **ActivityPub** (W3C standard)
+  - Implementation: Custom Go hooks in PocketBase
+  - Types defined: `web/src/lib/models/activitypub/` (TypeScript client types)
+  - Core types: Actor, Activity, WebFinger responses
+  - Location: `db/federation/` (Go implementation)
 
-**Federation (ActivityPub):**
-- ActivityPub protocol support for federated social features
-- Actors stored in `activitypub_actors` PocketBase collection
-- HTTP signature verification for inbound requests
-- Profile follow, trail sharing, and comments federation
+**ActivityPub Services:**
+- **Instance Actor** - Federation entry point
+  - Type: `Application` actor
+  - Endpoint: `/.well-known/webfinger` for WebFinger queries
+  - Used for: Instance-to-instance follows and content sync
 
-## Monitoring & Observability
+**Supported Activities:**
+- `Create` - New content creation
+- `Update` - Content updates
+- `Delete` - Content deletion
+- `Follow` / `Accept` - Instance follows
+- `Undo` - Undo activities
 
-**Error Tracking:**
-- Not detected in codebase configuration
-- Uses native error handling via try/catch blocks
+**Content Types Federated:**
+- Public trails (is_public = true)
+- Public comments (is_public = true)
+- Public lists (is_public = true)
+- Public summit logs (is_public = true)
+- Waypoints (inherit trail privacy)
 
-**Logs:**
-- Backend: Go logger in `db/main.go`
-- Frontend: Console logging for development (no structured logging framework)
-- Docker healthchecks: HTTP endpoint probes with retry logic
-  - Web: `GET http://localhost:3000/`
-  - DB: `GET http://localhost:8090/health`
-  - Search: `GET http://localhost:7700/health`
-
-## CI/CD & Deployment
-
-**Hosting:**
-- **Docker Compose** - Production and development deployments
-- **Multi-container architecture:**
-  - Web service: Node.js 22 Alpine (port 3000)
-  - Database: Custom Go/PocketBase container (port 8090)
-  - Search: Meilisearch official image (port 7700)
-  - All services on shared `wanderer` Docker bridge network
-
-**Container Images:**
-- `flomp/wanderer-web` - Web frontend and SvelteKit backend
-- `flomp/wanderer-db` - PocketBase custom backend with Go integrations
-- `getmeili/meilisearch:v1.36.0` - Search engine
-
-**CI Pipeline:**
-- Not detected; likely external to codebase (GitHub Actions, etc.)
-
-**Mobile Distribution:**
-- Flutter app targets iOS 12+ and Android API 21+
-- Build outputs: APK (Android), IPA (iOS) via Flutter build system
-
-## Environment Configuration
-
-**Required Environment Variables:**
-
-Critical:
-- `POCKETBASE_ENCRYPTION_KEY` - Must be exactly 32 bytes long (enforced in `db/main.go`)
-- `MEILI_MASTER_KEY` - Recommended minimum 32 bytes
-- `MEILI_URL` - Meilisearch server URL
-- `PUBLIC_POCKETBASE_URL` - Backend database endpoint
-- `ORIGIN` - CORS origin (e.g., `http://localhost:3000`)
-
-Optional:
-- `PUBLIC_DISABLE_SIGNUP` - Disable registration (default: false)
-- `OVERPASS_API_URL` - Custom Overpass endpoint
-- `VALHALLA_URL` - Routing service endpoint
-- `NOMINATIM_URL` - Geocoding service endpoint
-- `PUBLIC_MAP_MAX_POLYLINES` - Performance limit (default: 100)
-- `UPLOAD_USER` / `UPLOAD_PASSWORD` - File upload authentication
-- `UPLOAD_FOLDER` - Upload directory path
-- `BODY_SIZE_LIMIT` - HTTP request size (default: Infinity in dev)
-
-**Secrets Location:**
-- Environment variables in Docker Compose `.env` files
-- Default credentials present in `docker-compose.yml` (change before production)
-- PocketBase encryption key: Must be externally provided
-- Meilisearch master key: Must be externally provided
-
-**Public Configuration:**
-- `PUBLIC_POCKETBASE_URL` - Published to client
-- `PUBLIC_DISABLE_SIGNUP` - Published to client
-- `PUBLIC_OVERPASS_API_URL` - Published to client
-- `PUBLIC_MAP_MAX_POLYLINES` - Published to client
-- Accessed via `$env/dynamic/public` in SvelteKit
+**Federation Flow:**
+- Initiated via mutual Follow between instances
+- Bidirectional sync of public content
+- Original ownership preserved (actor attribution)
+- Privacy enforcement: Private records (is_public = false) never federated
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- ActivityPub inbound activities (follow, create, like, announce, delete, undo)
-- Routes: `db/routes/activitypub.go`
-- HTTP signatures verified for authenticity
+- ActivityPub Federation Inbox
+  - Endpoint: `/inbox` (standard ActivityPub)
+  - Receives activities from remote instances
+  - Verification: HTTP Signature validation (go-fed/httpsig)
 
 **Outgoing:**
-- Trail creation/updates published to federated followers
-- Comments and likes propagated via ActivityPub
-- Profile follow requests sent to remote ActivityPub instances
-- Implementation: `db/federation/` directory
+- ActivityPub Federation Outbox
+  - Endpoint: `/outbox` (standard ActivityPub)
+  - Sends activities to remote instance inboxes
+  - Format: Standard ActivityPub JSON-LD
+  - Signing: HTTP Signature for authenticated delivery
 
-**API Webhooks:**
-- PocketBase subscriptions available but not heavily used in current codebase
-- Real-time capability present but not required for core features
+## Email
 
-## Data Flow
+**Email Services:**
+- Not detected in core codebase
+- PocketBase has email capabilities but not actively configured in provided compose files
 
-### Search Indexing Flow
+## Monitoring & Observability
 
-1. User/Trail/List/Actor created/updated in PocketBase
-2. Hook handler triggered: `CreateTrailHandler()`, `UpdateUserHandler()`, etc. (`db/main.go:90-100`)
-3. Meilisearch client indexes document via `db/hooks/` handlers
-4. Browser requests search token via `/search/token` endpoint
-5. Token cached client-side with version tracking
-6. Search queries sent to Meilisearch with user-scoped token
+**Error Tracking:**
+- Not detected (no Sentry, Rollbar, or DataDog integration)
+- Frontend error handling via `web/src/lib/util/api_util.ts` (local error objects)
 
-### Authentication Token Flow
+**Logs:**
+- Frontend: Browser console logging
+- Backend: Go standard logging (via pocketbase/pocketbase logging)
+- Approach: Direct stdout/stderr capture in Docker containers
 
-1. User logs in via PocketBase auth UI
-2. Session token stored in browser local storage
-3. PocketBase cookie set in response (`pb_auth`)
-4. Server hook validates token on each request (`web/src/hooks.server.ts:79-80`)
-5. API token auth supported via Bearer header for programmatic access (`web/src/hooks.server.ts:58-76`)
+## CI/CD & Deployment
 
-### Geocoding Flow
+**Hosting:**
+- **Docker-based** - Container orchestration
+- Development: `docker-compose.yml` (local development)
+- Dev deployment: `docker/docker-compose.dev.yml` (development environment)
+- Prod deployment: `docker/docker-compose.prod.yml` (production environment)
+- Container images:
+  - Web: `flomp/wanderer-web` or `ghcr.io/open-wanderer/wanderer-web`
+  - DB: `flomp/wanderer-db` or `ghcr.io/open-wanderer/wanderer-db`
+  - Search: `getmeili/meilisearch`
 
-1. User adds location or searches address on web frontend
-2. Request to Nominatim via server-side proxy (`web/src/lib/server/nominatim.ts`)
-3. Rate limiter enforces 1 request/second
-4. Response cached locally or in component state
-5. Map updated with coordinates
+**CI Pipeline:**
+- Not detected in config files provided
+- GitHub likely (based on org in compose files)
+- Build images: flomp/* (Docker Hub) or ghcr.io/open-wanderer/* (GitHub Container Registry)
 
-### Third-Party Integration Flow
+**Platform Support:**
+- Web: Node.js 22 Alpine
+- Mobile: iOS (Flutter), Android (Flutter)
+- Desktop: Not currently supported
 
-1. User initiates Strava/Komoot/Hammerhead integration
-2. OAuth flow redirects to service provider
-3. Authorization code exchanged for tokens at backend (`db/routes/integration_*.go`)
-4. Tokens encrypted and stored in PocketBase `integrations` collection
-5. Import endpoint fetches and syncs data periodically or on-demand
+## Environment Configuration
 
-## Domain-Specific Integrations
+**Required Env Vars (Web):**
+- `PUBLIC_POCKETBASE_URL` - Backend service URL
+- `MEILI_URL` - Meilisearch service URL
+- `MEILI_MASTER_KEY` - Meilisearch authentication
+- `ORIGIN` - Server origin for federation and links
 
-**Trail Data Sources:**
-- Strava API integration for activity import
-- Komoot API integration for trail data
-- Manual GPX file uploads via web and mobile
+**Required Env Vars (Database/Go):**
+- `MEILI_URL` - Meilisearch service URL
+- `MEILI_MASTER_KEY` - Meilisearch authentication
+- `POCKETBASE_ENCRYPTION_KEY` - Data encryption key
+- `ORIGIN` - Server origin
 
-**Map Rendering:**
-- MapLibre GL for vector tiles on web
-- Flutter Map with vector tile support on mobile
-- PMTiles format support for efficient tile serving
+**Optional Env Vars:**
+- `VALHALLA_URL` - Custom Valhalla service (uses default if not set)
+- `NOMINATIM_URL` - Custom Nominatim service (uses default if not set)
+- `OVERPASS_API_URL` - Custom Overpass API (uses default if not set)
+- `UPLOAD_FOLDER` - Custom upload directory
+- `UPLOAD_USER` / `UPLOAD_PASSWORD` - HTTP basic auth for uploads
+- `PUBLIC_DISABLE_SIGNUP` - Disable user registration
+- `PUBLIC_MAP_MAX_POLYLINES` - Map polyline limit
+- `BODY_SIZE_LIMIT` - Request body size limit
+- `REGION_ARCHIVE_CRON_SCHEDULE` - Archive regions schedule (commented out in compose)
 
-**Activity Publishing:**
-- ActivityPub federation for social features
-- Trail shares published to followers
-- Comments and interactions federated across instances
+**Secrets Location:**
+- Environment file (`.env` or Docker compose variables)
+- PocketBase encryption key required for data protection
+- Meilisearch master key required for search operations
+
+## Plugins & Extensions
+
+**Strava Integration:**
+- Location: `db/integrations/strava/` or `plugins/strava/`
+- Purpose: Sync trails from Strava
+- API: Strava v3 API
+- Migration note: Strava API host migration to https://www.api-v3.strava.com
+
+**Plugin System:**
+- Framework: Extism (Go SDK v1.7.1 in dependencies)
+- Purpose: WebAssembly-based plugin support in PocketBase
+- Routes: `db/routes/plugin_system_auth.go`, `db/routes/plugin_system_session_auth.go`
+
+## Data Integration Patterns
+
+**Trail Data Import:**
+- **GPX Files** - GPS trace import via `gpxgo` (Go) and `heic2any` for image conversion
+- **Third-party sources** - Strava integration
+- **Trace snapping** - Valhalla trace-route for GPS noise reduction
+
+**Search Indexing:**
+- Real-time indexing via Meilisearch
+- Tracks: trails, users, lists, comments, summit_logs, summaries, notifications
+- Filters: Public content, user-specific results
+
+**Geographic Features:**
+- Bounding box queries via MapLibre GL
+- Marker clustering via `supercluster` package
+- Polyline encoding via `go-polyline` (backend) and Turf.js (frontend)
 
 ---
 
-*Integration audit: 2026-06-10*
+*Integration audit: 2026-09-06*

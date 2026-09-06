@@ -1,426 +1,368 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-06-10
+**Analysis Date:** 2026-09-06
 
 ## Directory Layout
 
 ```
-wanderer/
-├── app/                          # Flutter mobile app
-│   └── lib/
-│       ├── components/           # Reusable Flutter widgets
-│       │   ├── base/            # Base widgets (buttons, dialogs, etc.)
-│       │   ├── map/             # Map-related components
-│       │   ├── profile/         # Profile UI components
-│       │   ├── trail/           # Trail detail/list components
-│       │   └── welcome/         # Welcome screen components
-│       ├── entities/            # Local database entities (ObjectBox)
-│       ├── i18n/                # Internationalization (Flutter)
-│       ├── models/              # Data models and converters
-│       │   └── converter/       # Entity converters (API ↔ local)
-│       ├── provider/            # Riverpod state management
-│       │   ├── profile/         # Profile-related providers
-│       │   ├── search/          # Search providers
-│       │   ├── trail/           # Trail-related providers
-│       │   └── welcome/         # Welcome screen providers
-│       ├── routes/              # Screen definitions (go_router)
-│       ├── services/            # Business logic services
-│       ├── theme/               # App theme configuration
-│       ├── util/                # Utility functions
-│       └── main.dart            # App entry point
-│
-├── db/                           # Go backend with PocketBase
-│   ├── main.go                  # Server initialization and setup
-│   ├── commands/                # CLI commands for admin tasks
-│   ├── federation/              # ActivityPub protocol implementation
-│   │   ├── actor.go
-│   │   ├── activity.go
-│   │   ├── follow.go
-│   │   ├── like.go
-│   │   └── ...
-│   ├── hooks/                   # Database event handlers (create/update/delete)
-│   │   ├── trails.go            # Trail events (sync to Meilisearch)
-│   │   ├── users.go             # User events (search indexing)
-│   │   ├── activitypub_actor.go # Actor sync
-│   │   └── ...
-│   ├── integrations/            # External service integrations
-│   │   ├── strava/              # Strava OAuth and sync
-│   │   ├── komoot/              # Komoot integration
-│   │   └── hammerhead/          # Hammerhead integration
-│   ├── migrations/              # Database schema (SQL)
-│   │   ├── initial_data/        # Seed data
-│   │   └── 1234567890_*.go      # Timestamped migrations
-│   ├── routes/                  # Custom HTTP endpoints
-│   │   ├── activitypub.go       # ActivityPub endpoints
-│   │   ├── remote_profile.go    # Profile fetching
-│   │   ├── map_cells.go         # Map tile serving
-│   │   └── ...
-│   ├── services/                # Business logic
-│   │   ├── tiles/               # Tile generation
-│   │   └── trailmerge/          # Trail merging algorithm
-│   ├── templates/               # Email templates
-│   ├── tests/                   # Go integration tests
-│   ├── util/                    # Utility functions
-│   └── pb_data/                 # PocketBase data directory (runtime)
-│
-├── web/                          # SvelteKit web frontend
+wanderer/                          # Monorepo root
+├── web/                           # SvelteKit frontend application
 │   ├── src/
-│   │   ├── routes/              # SvelteKit page routes (filesystem-based)
-│   │   │   ├── +layout.svelte   # Root layout
-│   │   │   ├── +page.svelte     # Home page
-│   │   │   ├── +page.ts         # Home page load function
-│   │   │   ├── profile/[handle]/ # Profile routes (dynamic segment)
-│   │   │   │   ├── +page.svelte
-│   │   │   │   ├── +page.ts
-│   │   │   │   ├── trails/      # Profile trails subroute
-│   │   │   │   ├── stats/       # Profile stats subroute
-│   │   │   │   └── users/[type]/ # Followers/following lists
-│   │   │   ├── trail/           # Trail routes
-│   │   │   │   ├── view/[handle]/[id]/ # Trail detail
-│   │   │   │   ├── edit/[id]/   # Trail editor
-│   │   │   │   └── ...
-│   │   │   ├── map/             # Map page
-│   │   │   ├── lists/           # Trail lists
-│   │   │   ├── search/          # Search results
-│   │   │   ├── settings/        # Settings pages
-│   │   │   │   ├── account/
-│   │   │   │   ├── profile/
-│   │   │   │   ├── integrations/
-│   │   │   │   ├── privacy/
-│   │   │   │   └── ...
-│   │   │   ├── auth/            # Authentication pages
-│   │   │   │   ├── login/
-│   │   │   │   ├── register/
-│   │   │   │   ├── reset/
-│   │   │   │   └── confirm-*/
-│   │   │   ├── api/v1/          # SvelteKit API routes (proxy/validation layer)
-│   │   │   │   ├── trail/
-│   │   │   │   │   ├── +server.ts # GET/POST trails
-│   │   │   │   │   ├── [id]/
-│   │   │   │   │   │   ├── +server.ts
-│   │   │   │   │   │   ├── comment/ # Trail comments
-│   │   │   │   │   │   └── file/ # Trail file upload
-│   │   │   │   │   ├── form/ # Trail form data (initial state)
-│   │   │   │   │   ├── bounding-box/ # Bbox search
-│   │   │   │   │   ├── filter/ # Advanced filtering
-│   │   │   │   │   └── ...
-│   │   │   │   ├── profile/[handle]/ # Profile endpoints
-│   │   │   │   ├── search/ # Search endpoints
-│   │   │   │   ├── user/ # User management
-│   │   │   │   ├── comment/ # Comments
-│   │   │   │   ├── category/ # Categories
-│   │   │   │   └── ...
-│   │   │   └── .well-known/ # ActivityPub webfinger
-│   │   │
+│   │   ├── routes/                # SvelteKit file-based routing (pages, API endpoints)
 │   │   ├── lib/
-│   │   │   ├── assets/          # Static assets (fonts, SVGs)
-│   │   │   │   ├── fonts/
-│   │   │   │   └── svgs/
-│   │   │   │       └── empty_states/ # No-data UI illustrations
-│   │   │   │
-│   │   │   ├── components/      # Reusable Svelte components (PascalCase)
-│   │   │   │   ├── base/        # Base UI components (Button, Modal, etc.)
-│   │   │   │   ├── trail/       # Trail-specific components
-│   │   │   │   ├── profile/     # Profile components
-│   │   │   │   ├── map/         # Map components
-│   │   │   │   ├── comment/     # Comment display/form
-│   │   │   │   ├── list/        # List UI components
-│   │   │   │   ├── 3D/          # Three.js/Threlte 3D components
-│   │   │   │   ├── notification/ # Toast/notification UI
-│   │   │   │   ├── empty_states/ # Empty state illustrations
-│   │   │   │   └── ...
-│   │   │   │
-│   │   │   ├── stores/          # Svelte stores (snake_case with _store suffix)
-│   │   │   │   ├── trail_store.ts # Trail operations and state
-│   │   │   │   ├── user_store.ts  # User/auth state
-│   │   │   │   ├── feed_store.ts  # Feed data
-│   │   │   │   ├── search_store.ts # Search state
-│   │   │   │   ├── profile_store.ts # Profile data
-│   │   │   │   └── ...
-│   │   │   │
-│   │   │   ├── models/          # TypeScript type definitions and classes
-│   │   │   │   ├── trail.ts     # Trail class with expand relations
-│   │   │   │   ├── user.ts      # User/Actor types
-│   │   │   │   ├── waypoint.ts  # Waypoint for trails
-│   │   │   │   ├── comment.ts   # Comment model
-│   │   │   │   ├── tag.ts       # Tag model
-│   │   │   │   ├── api/         # API-specific types and schemas
-│   │   │   │   │   └── base_schema.ts # Zod schemas (RecordListOptions, etc.)
-│   │   │   │   ├── activitypub/ # ActivityPub types
-│   │   │   │   ├── gpx/         # GPX parsing types
-│   │   │   │   └── ...
-│   │   │   │
-│   │   │   ├── util/            # Utility functions (snake_case with _util suffix)
-│   │   │   │   ├── api_util.ts  # Generic CRUD functions (list, show, create, etc.)
-│   │   │   │   ├── authorization_util.ts # Route protection checks
-│   │   │   │   ├── array_util.ts # Array helpers
-│   │   │   │   ├── date_util.ts # Date/time helpers
-│   │   │   │   ├── file_util.ts # File upload/download
-│   │   │   │   ├── icon_util.ts # Icon selection
-│   │   │   │   └── ...
-│   │   │   │
-│   │   │   ├── server/          # Server-only utilities (SSR)
-│   │   │   ├── config/          # Configuration constants
-│   │   │   ├── vendor/          # Third-party libraries (vendored)
-│   │   │   │   ├── exif-js/
-│   │   │   │   ├── fit-parser/
-│   │   │   │   ├── maplibre-*/  # MapLibre plugins
-│   │   │   │   └── ...
-│   │   │   ├── i18n/            # Internationalization
-│   │   │   │   └── locales/     # Translation JSON files
-│   │   │   └── pocketbase.ts    # PocketBase client singleton
-│   │   │
-│   │   └── css/
-│   │       ├── app.css          # Global styles
-│   │       ├── components.css   # Component-level styles
-│   │       └── theme.css        # Theme variables
-│   │
-│   ├── tests/
-│   │   └── playwright/          # E2E tests
-│   │       ├── pages/           # Page Object Models
-│   │       ├── *.setup.ts       # Setup/teardown
-│   │       └── *.spec.ts        # Test specs
-│   │
-│   ├── vite.config.ts           # Vite build configuration
-│   ├── svelte.config.js         # SvelteKit configuration
-│   ├── tsconfig.json            # TypeScript config
-│   ├── tailwind.config.js        # Tailwind CSS config
-│   ├── playwright.config.ts     # E2E test configuration
-│   └── package.json             # npm dependencies
+│   │   │   ├── components/        # Reusable Svelte UI components
+│   │   │   ├── stores/            # Reactive Svelte stores and data fetching
+│   │   │   ├── models/            # TypeScript domain models and types
+│   │   │   ├── util/              # Utility functions (arrays, dates, geospatial, etc.)
+│   │   │   ├── server/            # Server-only utilities (run on +server.ts)
+│   │   │   ├── assets/            # Images, SVGs, fonts
+│   │   │   ├── vendor/            # Vendored third-party code (MapLibre plugins, etc.)
+│   │   │   ├── i18n/              # Internationalization files
+│   │   │   ├── config/            # Configuration constants
+│   │   │   └── pocketbase.ts      # PocketBase client singleton
+│   │   └── css/                   # Global CSS and Tailwind
+│   ├── svelte.config.js           # SvelteKit configuration
+│   ├── tsconfig.json              # TypeScript configuration
+│   ├── tailwind.config.js         # Tailwind CSS configuration
+│   ├── vite.config.ts             # Vite bundler configuration
+│   └── package.json               # Dependencies
 │
-├── docs/                         # Documentation site (Astro)
-│   ├── astro.config.mjs
-│   ├── package.json
-│   └── src/
+├── db/                            # Go backend (PocketBase + custom services)
+│   ├── main.go                    # Entry point, PocketBase initialization
+│   ├── routes/                    # Custom API endpoints (Go http handlers)
+│   ├── hooks/                     # Event listeners on collection changes
+│   ├── federation/                # ActivityPub implementation
+│   ├── services/                  # Business logic services (regions, trail merging)
+│   ├── integrations/              # External API integrations (Strava, etc.)
+│   ├── plugins/                   # Plugin system and importers
+│   ├── pluginsystem/              # Plugin worker and execution
+│   ├── migrations/                # Database schema migrations
+│   ├── util/                      # Go utilities (geospatial, network, etc.)
+│   ├── templates/                 # Email templates for notifications
+│   ├── commands/                  # CLI commands
+│   ├── tests/                     # Backend tests
+│   ├── pb_data/                   # PocketBase runtime data (git-ignored)
+│   └── go.mod                     # Go module definition
 │
-├── search/                       # Meilisearch configuration (Docker)
-├── docker/                       # Docker build artifacts
-├── data/                         # Sample/test data
+├── app/                           # Flutter mobile application
+│   ├── lib/
+│   │   ├── main.dart              # App entry point
+│   │   ├── routes/                # Screen definitions (pages in mobile)
+│   │   ├── provider/              # Riverpod state management providers
+│   │   ├── components/            # Reusable Flutter widgets
+│   │   ├── entities/              # Dart model classes (freezed)
+│   │   ├── models/                # API model mappers and converters
+│   │   ├── services/              # Business logic services (GPS, sync, etc.)
+│   │   ├── store/                 # Local stores (ObjectBox, preferences)
+│   │   ├── actions/               # User-triggered actions
+│   │   ├── util/                  # Utility functions
+│   │   ├── theme/                 # UI theme and styling
+│   │   ├── i18n/                  # Internationalization
+│   │   └── vendor/                # Vendored code (GPX parser, etc.)
+│   ├── ios/                       # iOS platform-specific code
+│   ├── android/                   # Android platform-specific code
+│   ├── test/                      # Flutter tests
+│   ├── pubspec.yaml               # Flutter dependencies
+│   └── pubspec.lock               # Locked dependency versions
 │
-├── docker-compose.yml           # Multi-container orchestration
-├── Dockerfile                   # Web/backend container definitions
-├── CHANGELOG.md                 # Version history
-├── CLAUDE.md                    # Project instructions (this file)
-├── CONTRIBUTING.md              # Contribution guidelines
-├── README.md                    # Project overview
-└── Makefile                     # Development commands
+├── docs/                          # Astro documentation site
+│   ├── src/
+│   │   ├── pages/                 # Documentation pages (Markdown)
+│   │   ├── content/               # Content collection files
+│   │   ├── components/            # Reusable doc components (Astro)
+│   │   ├── assets/                # Images, stylesheets
+│   │   └── models/                # TypeScript types for content
+│   └── astro.config.mjs           # Astro configuration
+│
+├── docker/                        # Docker-related files
+├── plugins/                       # Plugin SDK and example plugins
+├── fixtures/                      # Test fixtures (GPX corpus, etc.)
+├── data/                          # Runtime data directories (git-ignored)
+├── docker-compose.yml             # Development environment setup
+├── .planning/                     # Planning and analysis documents
+├── .claude/                       # Claude-specific project config
+├── Makefile                       # Development convenience commands
+└── CLAUDE.md                      # Project documentation and conventions
 ```
 
 ## Directory Purposes
 
-**`app/lib/`:**
-- Purpose: Flutter mobile app source code
-- Contains: UI screens, state management (Riverpod), models, services, utilities
-- Key files: `main.dart` (entry point), `routes/` (screens), `provider/` (state)
-
-**`db/`:**
-- Purpose: Go backend with PocketBase
-- Contains: Custom routes, event hooks, integrations, database migrations, ActivityPub federation
-- Key files: `main.go` (server startup), `hooks/` (event handlers), `migrations/` (schema)
-
 **`web/src/routes/`:**
-- Purpose: SvelteKit filesystem-based routing
-- Contains: Page components (`.svelte`), page load functions (`.ts`), API endpoints (`/api/v1/`)
-- Pattern: `+page.svelte` (UI), `+page.ts` (load), `+layout.svelte` (nested layout), `+server.ts` (API)
-- Route segments: `[dynamic]` for single param, `[[optional]]` for optional param
-
-**`web/src/lib/stores/`:**
-- Purpose: Svelte reactive state management
-- Contains: Writable stores and async fetch functions with error handling
-- Naming: `{entity}_store.ts` with functions like `{entity}_index()`, `{entity}_show()`, `{entity}_create()`
-- Examples: `trail_store.ts` (trails CRUD), `user_store.ts` (auth), `feed_store.ts` (feed data)
+- Purpose: SvelteKit file-based routing — defines all web URLs and API endpoints
+- Contains: `+page.svelte` (pages), `+server.ts` (API routes), `+layout.svelte` (layouts), `+error.svelte` (error pages)
+- Key files: 
+  - `web/src/routes/+layout.svelte` — Root layout with auth guard, theme, navbar
+  - `web/src/routes/+page.ts` — Home page loader fetching feed and recommendations
+  - `web/src/routes/api/v1/trail/+server.ts` — Trail CRUD endpoints
+  - `web/src/routes/api/v1/activitypub/` — Federation endpoints
 
 **`web/src/lib/components/`:**
-- Purpose: Reusable Svelte UI components
-- Contains: PascalCase `.svelte` files organized by domain
-- Subdirs: `base/` (generic UI), `trail/` (trail-specific), `profile/` (profile UI), `map/` (map widgets), `3D/` (Three.js components)
+- Purpose: Reusable Svelte UI components organized by domain
+- Contains: `.svelte` files using SvelteKit 5 syntax
+- Subdirectories:
+  - `base/` — Low-level components (Button, Input, Toast, etc.)
+  - `trail/` — Trail-specific components (TrailCard, ElevationProfile, etc.)
+  - `map/` — Map-related components (MapContainer, Markers, etc.)
+  - `comment/` — Comment UI elements
+  - `settings/` — Settings page components
+  - `profile/` — User profile components
+- Naming: PascalCase (e.g., `TrailCard.svelte`, `NavigationBar.svelte`)
+
+**`web/src/lib/stores/`:**
+- Purpose: Svelte reactive stores and async data-fetching functions
+- Contains: `.ts` or `.svelte.ts` files defining writable stores and fetch logic
+- Pattern: Named exports; store + associated fetch functions in same file (e.g., `trail_store.ts` exports `trailsIndex` store and `trails_index()` fetch function)
+- Examples:
+  - `trail_store.ts` — Trail data store and fetching (`trails_index()`, `trails_show()`, `trails_create()`)
+  - `user_store.ts` — Current user store and auth operations (`login()`, `logout()`, `register()`)
+  - `feed_store.ts` — Feed items and fetching logic
+  - `search_store.ts` — Search results store
 
 **`web/src/lib/models/`:**
-- Purpose: TypeScript type definitions and data classes
-- Contains: Class definitions with constructor logic, type interfaces, expand relations
-- Examples: `Trail` class with expand field for nested relations; `User` interface for actor data
-- Subdirs: `api/` (Zod schemas for validation), `activitypub/` (ActivityPub types), `gpx/` (GPX parsing)
+- Purpose: TypeScript domain models and API types
+- Contains: TypeScript class definitions, interfaces, Zod schemas
+- Key files:
+  - `trail.ts` — Trail class with expand fields for relations
+  - `user.ts` — User entity
+  - `waypoint.ts` — Waypoint class
+  - `comment.ts` — Comment entity
+  - `activitypub/actor.ts` — ActivityPub Actor type
+  - `api/` — Request/response schemas using Zod
+- Pattern: Classes with optional `expand` field for lazy-loaded relations
 
 **`web/src/lib/util/`:**
-- Purpose: Shared utility functions and helpers
-- Naming: `{purpose}_util.ts` (e.g., `api_util.ts`, `date_util.ts`, `file_util.ts`)
-- Contents: Verb-first function names (e.g., `range()`, `isToday()`, `getIconForLocation()`)
+- Purpose: Utility and helper functions
+- Naming: snake_case suffixed by domain (e.g., `array_util.ts`, `date_util.ts`, `geospatial_util.ts`)
+- Key files:
+  - `api_util.ts` — Generic CRUD functions, error handling
+  - `authorization_util.ts` — Auth checks
+  - `array_util.ts` — Array manipulation
+  - `date_util.ts` — Date helpers
+  - `gpx_util.ts` — GPX parsing
+  - `polyline_util.ts` — Polyline encoding/decoding
+  - `maplibre_util.ts` — Map utilities
 
-**`web/src/lib/vendor/`:**
-- Purpose: Vendored third-party libraries (included in source, not npm)
-- Contains: Modified versions of maplibre plugins, custom QR code renderer, chart.js wrapper
-
-**`db/hooks/`:**
-- Purpose: Database event handlers
-- Contains: PocketBase event listeners for create/update/delete on collections
-- Pattern: `{collection}.go` with handler functions called by `main.go` via `.BindFunc()`
-- Key hooks: `CreateTrailHandler` (sync to Meilisearch), `UpdateUserHandler` (search index update)
-
-**`db/migrations/`:**
-- Purpose: Database schema definitions
-- Contains: Go migration files with SQL statements, executed on startup
-- Naming: `{timestamp}_{description}.go` (e.g., `1742167033_init_meilisearch.go`)
+**`web/src/lib/server/`:**
+- Purpose: Server-only utilities running in `+server.ts` and `+page.server.ts`
+- Key files:
+  - `category_preference_filter.ts` — Filter builder for user's category preferences
+- Accessed via `import { ... } from '$lib/server/...'` only in server context
 
 **`db/routes/`:**
-- Purpose: Custom HTTP endpoints beyond CRUD
-- Contains: Go request handlers for special operations (ActivityPub, remote profile, map cells, etc.)
+- Purpose: Custom Go HTTP handlers for API endpoints beyond PocketBase CRUD
+- Naming: `{entity}_{operation}.go` or descriptive name
+- Key files:
+  - `activitypub.go` — Federation endpoints setup
+  - `plugin_system.go` — Plugin system endpoints
+  - `trail_merge_routes.go` — Trail merging logic
+  - `regions_*.go` — Offline region management
+  - `remote_*.go` — Remote instance fetching
+- Pattern: Each file registers routes in `init()` that hook into PocketBase's router
 
-**`app/lib/provider/`:**
-- Purpose: Riverpod state management providers
-- Contains: Code-generated providers (`*.g.dart` files) with dependency injection
-- Key providers: `apiProvider` (HTTP client), `authProvider` (auth state), `routerProvider` (navigation)
+**`db/hooks/`:**
+- Purpose: Event listeners triggered on collection changes (CRUD operations)
+- Naming: `{collection_name}.go`
+- Key files:
+  - `trails.go` — Trail creation/update/delete hooks (indexing, federation fanout)
+  - `users.go` — User events (Meilisearch indexing)
+  - `comments.go` — Comment federation
+  - `follow.go` — Follow/unfollow logic
+  - `activitypub_actor.go` — Actor lifecycle
+- Pattern: `OnRecordAfterCreateSuccess()`, `OnRecordAfterUpdateSuccess()` bindings
+
+**`db/federation/`:**
+- Purpose: ActivityPub protocol implementation
+- Key files:
+  - `actor.go` — Instance actor management
+  - `activity.go` — Generic activity handling, signature verification, delivery
+  - `create.go` — Create activity generation and fanout
+  - `update.go` — Update activity generation
+  - `delete.go` — Delete activity generation
+  - `follow.go` — Follow/accept/undo logic
+  - `like.go` — Like activity handling
+- Pattern: Receive incoming activities at inbox endpoints, verify signatures, process and store locally
+
+**`db/services/`:**
+- Purpose: Specialized domain-specific services
+- Subdirectories:
+  - `regions/` — Offline map region management (download, sync, PMTiles)
+  - `trailmerge/` — Trail deduplication and merging logic
+
+**`db/migrations/`:**
+- Purpose: Database schema migrations managed by PocketBase
+- Files: Numbered SQL files (e.g., `1694000000_create_trails.sql`)
+- Pattern: Auto-run on startup; define tables, indexes, foreign keys
+- Subdirectory: `initial_data/` for seed data
 
 **`app/lib/routes/`:**
-- Purpose: Flutter screen definitions
-- Naming: `{screen_name}_screen.dart` (e.g., `profile_screen.dart`, `trail_detail_screen.dart`)
+- Purpose: Flutter screen/page definitions (analogous to web routes)
+- Naming: `{feature}_screen.dart`
+- Examples:
+  - `home_screen.dart` — Home/feed page
+  - `map_screen.dart` — Map view
+  - `trail_detail_screen.dart` — Trail detail view
+  - `trail_create_screen.dart` — Trail creation form
+- Pattern: `StatelessWidget` or `ConsumerWidget` (Riverpod); navigated via `GoRouter`
 
-**`app/lib/entities/`:**
-- Purpose: ObjectBox local database entities
-- Contains: Entity classes for offline storage
-- Examples: `TrailEntity`, `WaypointEntity`, `UserEntity`
+**`app/lib/provider/`:**
+- Purpose: Riverpod providers for state management and async data fetching
+- Naming: `{entity}_provider.dart` for main providers, subdirectories for grouped providers
+- Subdirectories:
+  - `trail/` — Trail-related providers
+  - `profile/` — User profile providers
+  - `search/` — Search providers
+  - `region/` — Offline region providers
+- Pattern: `final trailProvider = FutureProvider<Trail>((ref) => ...)` or async `AsyncNotifier`
+
+**`app/lib/services/`:**
+- Purpose: Business logic and platform services
+- Key files:
+  - `tile_proxy_server.dart` — Local HTTP server for offline map tiles
+  - `tracelet_position_source.dart` — GPS position stream
+  - `trail_download_service.dart` — Offline trail caching
+  - `session_gap_backfill.dart` — Fill gaps when resuming recording
+
+**`app/lib/store/`:**
+- Purpose: Local persistent storage and app-level state
+- Key files:
+  - `local_trail_store.dart` — ObjectBox queries for local trails
+  - `local_photo_store.dart` — Photo metadata storage
+  - `active_navigation_store.dart` — Current navigation state
+  - `current_account.dart` — Current logged-in user
+- Pattern: Wrapper around ObjectBox ORM or SharedPreferences
+
+**`docs/src/pages/`:**
+- Purpose: User-facing documentation in Markdown
+- Pattern: Astro pages auto-converted from `.md` files to HTML
+- Examples: Installation guides, API docs, FAQ
 
 ## Key File Locations
 
 **Entry Points:**
-
-| File | Purpose |
-|------|---------|
-| `web/src/routes/+layout.svelte` | Root layout, auth guard, navigation |
-| `web/src/routes/+page.svelte` | Home page (home feed + recommendations) |
-| `app/lib/main.dart` | Mobile app initialization |
-| `db/main.go` | Backend server startup |
+- Web: `web/src/routes/+layout.svelte` — Root layout and auth guard
+- Web API: `web/src/routes/api/v1/` — All backend endpoints accessible to frontend
+- Backend: `db/main.go` — PocketBase initialization and server startup
+- Mobile: `app/lib/main.dart` — Flutter app initialization
 
 **Configuration:**
-
-| File | Purpose |
-|------|---------|
-| `web/vite.config.ts` | Vite bundler, plugins, test config |
-| `web/svelte.config.js` | SvelteKit framework config (Node.js adapter) |
-| `web/tsconfig.json` | TypeScript strict mode and compiler options |
-| `web/tailwind.config.js` | Tailwind CSS design tokens |
-| `app/pubspec.yaml` | Flutter dependencies |
-| `docker-compose.yml` | Service orchestration (web, db, meilisearch) |
+- Web TypeScript: `web/tsconfig.json` — Strict mode, path aliases
+- Web styling: `web/tailwind.config.js` — Tailwind setup; `web/src/css/app.css` — Global styles
+- Backend: `db/main.go` — Environment variable verification, Meilisearch initialization
+- Mobile: `app/pubspec.yaml` — Flutter SDK version, dependencies, localization
 
 **Core Logic:**
-
-| File | Purpose |
-|------|---------|
-| `web/src/lib/stores/trail_store.ts` | Trail CRUD operations and search |
-| `web/src/lib/util/api_util.ts` | Generic API functions (list, show, create, update, delete) |
-| `web/src/lib/models/trail.ts` | Trail data class with expand relations |
-| `db/routes/activitypub.go` | ActivityPub webfinger and actor endpoints |
-| `db/hooks/trails.go` | Trail event handlers (Meilisearch sync) |
+- Frontend state: `web/src/lib/stores/` — All data fetching and reactive state
+- Backend services: `db/routes/`, `db/hooks/`, `db/services/` — Business logic
+- Backend federation: `db/federation/` — ActivityPub implementation
+- Mobile state: `app/lib/provider/` — Riverpod providers for async data
 
 **Testing:**
-
-| File | Purpose |
-|------|---------|
-| `web/playwright.config.ts` | E2E test configuration |
-| `web/tests/playwright/` | Playwright test specs |
-| `web/tests/playwright/pages/` | Page Object Models |
+- Web unit tests: `web/src/lib/**/*.test.ts` or `**/*.spec.ts`
+- Web E2E: `web/e2e/` (if exists) or `web/tests/` with Playwright config in `web/playwright.config.ts`
+- Backend tests: `db/tests/` — Go test files
+- Mobile tests: `app/test/` — Flutter/Dart tests
 
 ## Naming Conventions
 
 **Files:**
-- **Svelte components:** PascalCase (e.g., `TrailCard.svelte`, `Scene.svelte`, `NavBar.svelte`)
-- **Svelte pages/routes:** SvelteKit convention (`+page.svelte`, `+layout.svelte`, `+server.ts`, `+error.svelte`)
-- **Utilities:** snake_case with `_util` suffix (e.g., `api_util.ts`, `date_util.ts`, `authorization_util.ts`)
-- **Stores:** snake_case with `_store` suffix (e.g., `trail_store.ts`, `user_store.ts`, `search_store.ts`)
-- **Models:** snake_case (e.g., `trail.ts`, `user.ts`, `waypoint.ts`)
-- **Go files:** snake_case (e.g., `activitypub.go`, `remote_profile.go`)
-- **Dart files:** snake_case (e.g., `trail_detail_screen.dart`, `auth_provider.dart`)
-- **Test files:** `*.spec.ts`, `*.setup.ts`, `*.teardown.ts` (Playwright)
+- Svelte components: PascalCase (e.g., `TrailCard.svelte`, `NavigationBar.svelte`)
+- TypeScript modules: snake_case (e.g., `trail_store.ts`, `api_util.ts`, `authorization_util.ts`)
+- Utilities: snake_case with suffix indicating domain (e.g., `array_util.ts`, `date_util.ts`, `geospatial_util.ts`)
+- Store files: snake_case with `_store` suffix (e.g., `trail_store.ts`, `user_store.ts`, `feed_store.ts`)
+- Model files: snake_case (e.g., `trail.ts`, `user.ts`, `category.ts`)
+- API schemas: `{entity}_schema.ts` (e.g., `trail_schema.ts`, `user_schema.ts`)
+- Routes: SvelteKit convention — `+page.svelte`, `+server.ts`, `+layout.svelte`, `+error.svelte`, `[param]` for dynamic segments
+- Go files: snake_case (e.g., `trail_merge_routes.go`, `activitypub_actor.go`)
+- Flutter screens: `{feature}_screen.dart` (e.g., `home_screen.dart`, `trail_detail_screen.dart`)
+- Flutter providers: `{entity}_provider.dart` (e.g., `trail_provider.dart`, `auth_provider.dart`)
 
 **Directories:**
-- **Feature domains:** lowercase (e.g., `trail/`, `profile/`, `map/`, `search/`)
-- **Generic ui:** lowercase (e.g., `base/`, `empty_states/`, `notification/`)
-- **Internal structure:** `lib/` (shared), `routes/` (pages), `models/` (types), `stores/` (state)
+- Web components: `web/src/lib/components/{feature}/` — Organized by feature/domain
+- Web stores: `web/src/lib/stores/` — Flat structure, one store per entity typically
+- Web utilities: `web/src/lib/util/` — Flat structure with domain suffix
+- API routes: `web/src/routes/api/v1/{entity}/` — RESTful path structure
+- Backend services: `db/services/{domain}/` — Grouped by concern
 
 **Functions:**
-- **Verb-first utilities:** `range()`, `isToday()`, `getIconForLocation()`, `dateExistsInList()`
-- **Store operations:** `{entity}_{operation}()` (e.g., `trails_index()`, `trails_show()`, `trails_create()`, `trails_delete()`)
-- **Handler functions:** HTTP method names (e.g., `GET`, `POST`, `PUT`, `DELETE`, `PATCH`)
-- **Event handlers:** `{noun}{Event}()` (e.g., `CreateTrailHandler()`, `UpdateUserHandler()`)
+- camelCase for all function names
+- Store fetch functions: `{entity}_{operation}` (e.g., `trails_index()`, `users_create()`, `profile_fetch()`)
+- Utility functions: verb-first or domain-focused (e.g., `range()`, `isToday()`, `dateExistsInList()`, `isSameDay()`)
+- Handler functions in routes: HTTP method names (`GET`, `PUT`, `POST`, `DELETE`, `PATCH`)
 
 **Variables:**
-- **camelCase:** All variables and properties (e.g., `currentUser`, `trailId`, `isLoading`)
-- **Boolean prefix:** `is` (e.g., `isValid`, `isLoading`, `isRouteProtected`)
-- **Constants:** `const` with CONSTANT_CASE or camelCase (e.g., `const privateRoutes = [...]`, `const MAP_MAX_POLYLINES = 100`)
+- camelCase for all variable names
+- Boolean prefix: `is` or `has` (e.g., `isToday`, `isRouteProtected`, `hasError`)
+- Readonly arrays: explicitly typed `ReadonlyArray<T>` (e.g., `ReadonlyArray<number>`)
+- Constants: `const CONSTANT_NAME` at module level (e.g., `const privateRoutes = [...]`)
 
 **Types:**
-- **PascalCase:** All types and interfaces (e.g., `Trail`, `User`, `Waypoint`, `TrailFilter`, `APIError`)
-- **Enums:** lowercase values (e.g., `Collection.trails`, `Language.en`)
+- PascalCase for all types and interfaces (e.g., `Trail`, `User`, `TrailCreateSchema`)
+- Enum values: lowercase snake_case (e.g., `Collection.users`, `Language.en`)
+- Classes: PascalCase (e.g., `Trail`, `User`, `Settings`, `IndexPage`)
 
 ## Where to Add New Code
 
-**New Feature (e.g., "summit logs"):**
-
-1. **Web Frontend:**
-   - Add page: `web/src/routes/summit-log/view/[handle]/[id]/+page.svelte`
-   - Add store: `web/src/lib/stores/summit_log_store.ts` with `summit_logs_index()`, `summit_logs_show()`, etc.
-   - Add model: `web/src/lib/models/summit_log.ts` with class definition
-   - Add API route: `web/src/routes/api/v1/summit-log/+server.ts` (proxy to backend)
-   - Add components: `web/src/lib/components/summit_log/` with UI components
-
-2. **Mobile Frontend:**
-   - Add screen: `app/lib/routes/summit_log_screen.dart`
-   - Add provider: `app/lib/provider/summit_log/` with Riverpod providers
-   - Add model: `app/lib/models/` and entity in `app/lib/entities/`
-   - Add components: `app/lib/components/summit_log/`
-
-3. **Backend:**
-   - Add migration: `db/migrations/{timestamp}_created_summit_logs.go` (schema)
-   - Add routes: `db/routes/summit_logs.go` (custom endpoints if needed beyond CRUD)
-   - Add hooks: `db/hooks/summit_logs.go` (Meilisearch sync, validations)
-   - Add models/types in Go code (if custom business logic)
+**New Feature (Trail-related example):**
+- Primary code: `web/src/lib/stores/trail_store.ts` — Add new fetch function, extend `Trail` model if needed
+- Component: `web/src/lib/components/trail/` — Add new component for the feature
+- API route: `web/src/routes/api/v1/trail/` — Add `+server.ts` handler or subpath
+- Backend: `db/routes/` — Extend or create route handler; `db/hooks/trails.go` — Add hook if reacting to changes
+- Tests: `web/src/lib/stores/trail_store.test.ts` — Unit tests for store functions
+- Mobile: `app/lib/provider/trail/` — Add Riverpod provider, `app/lib/routes/` — Add screen
 
 **New Component/Module:**
+- Implementation: `web/src/lib/components/{feature}/{ComponentName}.svelte` — Svelte component
+- Types: `web/src/lib/models/{entity}.ts` — Model class if introducing new entity
+- Utilities: `web/src/lib/util/{domain}_util.ts` — Helper functions for component
+- Stories/tests: Co-locate `.test.ts` or documentation
 
-- **Shared utilities:** `web/src/lib/util/{purpose}_util.ts`
-- **Shared models:** `web/src/lib/models/{entity}.ts`
-- **UI components:** `web/src/lib/components/{domain}/{ComponentName}.svelte`
-- **Mobile components:** `app/lib/components/{domain}/` with `.dart` files
+**Utilities:**
+- Shared helpers: `web/src/lib/util/` — Create `{domain}_util.ts`, export named functions
+- Backend utilities: `db/util/` — Create `.go` file with helper functions
+- Mobile utilities: `app/lib/util/{domain}/` — Dart utilities organized by domain
 
-**Integration with Third-Party Service:**
+**Backend Business Logic:**
+- Custom endpoints: `db/routes/{entity}_{operation}.go` — Register in PocketBase router
+- Event hooks: `db/hooks/{collection_name}.go` — Add listener to collection lifecycle
+- Services: `db/services/{domain}/` — Create service for complex multi-step logic
+- Migrations: `db/migrations/{timestamp}_{description}.sql` — Add schema changes
 
-- Create folder: `db/integrations/{service}/` (e.g., `db/integrations/komoot/`)
-- Implement OAuth flow and sync logic
-- Add routes in `db/routes/{service}_*.go`
-- Add settings/configuration page in `web/src/routes/settings/integrations/`
-- Add mobile screen in `app/lib/routes/` for service setup
+**Internationalization:**
+- Web: `web/src/lib/i18n/locales/` — Add translation keys to locale files
+- Mobile: `app/lib/i18n/` — Add strings to Flutter localization files
 
 ## Special Directories
 
 **`web/src/lib/vendor/`:**
-- Purpose: Vendored third-party libraries
-- Generated: No (manually maintained)
-- Committed: Yes (included in source for reliability)
-- Usage: Import directly like `import { ... } from '$lib/vendor/...'`
+- Purpose: Vendored third-party code (not from npm)
+- Generated: No (manually copied)
+- Committed: Yes
+- Examples: MapLibre plugin variants, custom adapters, compatibility shims
+- Rationale: For code patches or unavailable packages
+
+**`web/src/lib/assets/`:**
+- Purpose: Static images, SVGs, fonts
+- Generated: No
+- Committed: Yes
+- Subdirectories: `fonts/`, `svgs/` (with `logos/`, `pois/`, `empty_states/`), `images/`
 
 **`db/pb_data/`:**
-- Purpose: PocketBase runtime data (SQLite database, uploads, logs)
-- Generated: Yes (created at runtime by PocketBase)
-- Committed: No (in `.gitignore`; data only)
-- Usage: Not directly accessed; accessed via PocketBase API
+- Purpose: PocketBase runtime data (SQLite database, uploaded files)
+- Generated: Yes (auto-created on startup)
+- Committed: No (in `.gitignore`)
+- Structure: `pb_data/storage/` for file uploads, `pb_data/` contains `.db` file
 
-**`web/tests/playwright/`:**
-- Purpose: E2E tests
-- Generated: No (written manually)
+**`app/ios/` and `app/android/`:**
+- Purpose: Native platform-specific code
+- Generated: Partially (managed by Flutter)
 - Committed: Yes
-- Usage: Run with `npm run test:playwright`
+- Content: Gradle configuration, Xcode project, platform channels, native permissions
 
-**`db/migrations/`:**
-- Purpose: Database schema definitions
-- Generated: No (written manually when schema changes)
-- Committed: Yes
-- Usage: Auto-applied on server startup via PocketBase
-
-**`.planning/codebase/`:**
-- Purpose: GSD codebase analysis documents
-- Generated: Yes (by GSD tools)
-- Committed: Yes
-- Usage: Referenced by GSD planning and execution phases
+**`data/uploads/`:**
+- Purpose: Server-side storage for file uploads (trail photos, etc.)
+- Generated: Yes (created on first upload)
+- Committed: No (in `.gitignore`)
 
 ---
 
-*Structure analysis: 2026-06-10*
+*Structure analysis: 2026-09-06*

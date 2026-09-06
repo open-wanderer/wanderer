@@ -1,175 +1,138 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-06-10
+**Analysis Date:** 2026-09-06
 
-## Test Framework
+## Test Framework Overview
 
-**Web (TypeScript/Svelte):**
+This monorepo uses different testing frameworks per platform:
 
-**E2E Testing:**
-- Runner: Playwright 1.58.2
-- Config: `web/playwright.config.ts`
-- Scope: Full application flow testing (login, navigation, API calls)
-- Run Command: `npm run test:integration`
+| Platform | Unit Testing | E2E Testing | Config File | Test Command |
+|----------|--------------|------------|-------------|--------------|
+| **Web (SvelteKit/TypeScript)** | Vitest | Playwright | `web/vite.config.ts`, `web/playwright.config.ts` | `npm run test:unit`, `npm run test:integration` |
+| **Go Backend** | Go testing pkg | (Manual/E2E) | (none) | `go test ./...` |
+| **Flutter/Dart App** | flutter_test | (Integration tests) | `app/pubspec.yaml` | `flutter test` |
+| **Docs (Astro)** | (none configured) | (none configured) | (none) | N/A |
 
-**Unit Testing:**
-- Runner: Vitest 4.1.4 (via Vite)
-- Config: Declared in `web/vite.config.ts` with pattern `src/**/*.{test,spec}.{js,ts}`
-- Assertion Library: Not configured (uses Vitest defaults or Playwright assertions for E2E)
-- Run Command: `npm run test:unit`
+## Web (TypeScript/SvelteKit)
 
-**Combined:**
-- Run all tests: `npm test` (runs both integration and unit)
+### Test Framework Configuration
 
-**Mobile (Dart/Flutter):**
+**Vitest (Unit Tests):**
+- Framework: Vitest 4.1.9
+- Config location: `web/vite.config.ts`
+- Test pattern: `src/**/*.{test,spec}.{js,ts}`
+- Run: `npm run test:unit` (with `--passWithNoTests` flag)
 
-**Unit Testing:**
-- Framework: `flutter_test` (built-in to Flutter SDK)
-- Test file location: `app/test/models/` (co-located in test directory)
-- Assertion Library: Dart's built-in `expect()` from `flutter_test`
-- Example: `app/test/models/feed_item_test.dart`
+**Playwright (E2E Tests):**
+- Framework: Playwright 1.61.1
+- Config location: `web/playwright.config.ts`
+- Test directory: `web/tests/playwright/`
+- Base URL: `http://localhost:3000`
+- Run: `npm run test:integration`
 
-## Test File Organization
-
-**Web E2E:**
-- Location: `web/tests/playwright/e2e/`
-- Structure:
-  ```
-  tests/playwright/
-  ├── auth.setup.ts          # Setup phase: user registration/login
-  ├── auth.teardown.ts       # Teardown phase: cleanup
-  ├── pages/                 # Page Object Pattern
-  │   └── index_page.ts
-  ├── e2e/                   # Test suites
-  │   ├── index/
-  │   │   └── index.spec.ts
-  │   ├── list/
-  │   │   └── list.spec.ts
-  │   ├── user/
-  │   │   └── user.spec.ts
-  ├── fixtures/              # Test data (e.g., avatar.webp image)
-  ```
-
-**Web Unit:**
-- Location: `src/**/*.{test,spec}.ts` (co-located with source files)
-- Not currently populated in codebase
-
-**Dart:**
-- Location: `app/test/models/` (separate test directory)
-- Naming: `{module}_test.dart` (e.g., `feed_item_test.dart`)
-
-## Test Structure
-
-**Playwright E2E Test Suite (from `index.spec.ts`):**
+**Configuration Details from `web/playwright.config.ts`:**
 ```typescript
-import { expect, test } from '@playwright/test';
-import { IndexPage } from '../../pages/index_page';
-
-test('index page does not show error', async ({ page }) => {
-  const indexPage = new IndexPage(page);
-  await indexPage.goto()
-  await indexPage.hasNoError()
-});
-
-test('location search works', async ({ page }) => {
-  const indexPage = new IndexPage(page);
-  await indexPage.goto()
-  await indexPage.search()
+export default defineConfig({
+  testDir: './tests/playwright',
+  fullyParallel: false,  // Disabled to prevent auth conflicts
+  forbidOnly: !!process.env.CI,  // Fail if test.only left in code
+  retries: process.env.CI ? 2 : 0,  // Retry on CI only
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+  use: {
+    baseURL: "http://localhost:3000",
+    trace: 'on-first-retry',
+  },
+  projects: [
+    { name: 'setup', testMatch: /.*\.setup\.ts/ },
+    {
+      name: 'teardown',
+      testMatch: /.*\.teardown\.ts/,
+      dependencies: ['chromium'],
+      use: { storageState: 'playwright/.auth/user.json' }
+    },
+    {
+      name: 'chromium',
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/user.json' }
+    },
+  ],
 });
 ```
 
-**Patterns:**
-- Each test is a single `test()` call with description and async handler
-- Page Object Pattern for reusable test logic (see `IndexPage` class)
-- Setup/teardown handled by Playwright's phase system (`auth.setup.ts` runs before tests)
-- No test grouping (no `describe()` blocks observed)
+### Unit Test Structure (Vitest)
 
-**Flutter/Dart Test Suite (from `feed_item_test.dart`):**
-```dart
-void main() {
-  group('FeedItem.fromJson', () {
-    test('type "trail" returns FeedItemTrail with TrailSearchResult', () {
-      final json = {
-        'id': 'feed-1',
-        'actor': 'actor-1',
-        'type': 'trail',
-        'created': '2024-01-01 00:00:00.000Z',
-        'expand': {
-          'item': _minimalTrailJson(),
-        },
-      };
+**File Location:**
+- Co-located with source files
+- Naming: `*.test.ts` or `*.spec.ts`
+- Example: `web/src/lib/stores/plugin_store.test.ts` (tests `plugin_store.ts`)
 
-      final result = FeedItem.fromJson(json);
+**Test Organization:**
+- Use `describe()` for test suites
+- Use `it()` for individual tests
+- Use `expect()` for assertions
 
-      expect(result, isA<FeedItemTrail>());
-      final trailItem = result as FeedItemTrail;
-      expect(trailItem.id, 'feed-1');
-      expect(trailItem.actor, 'actor-1');
-    });
-
-    test('absent expand.item throws FormatException', () {
-      final json = {
-        'id': 'feed-3',
-        'actor': 'actor-1',
-        'type': 'trail',
-        'created': '2024-01-01 00:00:00.000Z',
-        'expand': <String, dynamic>{},
-      };
-
-      expect(() => FeedItem.fromJson(json), throwsA(isA<FormatException>()));
-    });
-  });
-}
-```
-
-**Patterns:**
-- Tests organized in `group()` for related functionality
-- Factory constructors tested for correct parsing and error handling
-- Minimal test data created via helper functions (e.g., `_minimalTrailJson()`)
-- Matchers for type checking and exception verification (e.g., `isA<T>()`, `throwsA()`)
-
-## Mocking
-
-**Playwright E2E:**
-- No explicit mocking library used
-- Real API calls made to running backend during tests
-- Authentication handled via `playwright/.auth/user.json` (persistent storage state)
-- Response waiting: `page.waitForResponse()` for API responses
-- URL waiting: `page.waitForURL()` for navigation confirmation
-
-**Example (from `index_page.ts`):**
+**Example from `web/src/lib/stores/plugin_store.test.ts`:**
 ```typescript
-async search() {
-  const responsePromise = this.page.waitForResponse(resp =>
-    resp.url().includes('/api/v1/search/multi') && resp.status() === 200
-  );
-  
-  await this.page.locator('input[name="q"]').fill('Munich');
-  await responsePromise;
-  
-  await this.page.locator('.menu-item').first().click();
-  await this.page.waitForURL(/\/map\?lat=.*&lon=.*/);
-}
+import { describe, expect, it } from "vitest";
+import { externalHttpUrl, plugins_index } from "./plugin_store";
+
+describe("externalHttpUrl", () => {
+    it("accepts absolute HTTP(S) URLs", () => {
+        expect(externalHttpUrl("https://example.com/donate")).toBe(
+            "https://example.com/donate",
+        );
+    });
+
+    it("rejects URLs without a scheme", () => {
+        expect(externalHttpUrl("example.com/donate")).toBeUndefined();
+    });
+
+    it("rejects unsafe schemes and non-string values", () => {
+        expect(externalHttpUrl("javascript:alert(1)")).toBeUndefined();
+        expect(externalHttpUrl({ url: "https://example.com" })).toBeUndefined();
+    });
+});
+
+describe("plugins_index", () => {
+    it("maps and sanitizes optional plugin metadata", async () => {
+        const plugin: Record<string, any> = {
+            id: "example",
+            type: "trails",
+            name: "Example",
+            version: "1.0.0",
+            // ... more fields
+        };
+
+        const items = await plugins_index(async () =>
+            new Response(JSON.stringify({ items: [plugin] }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+            }),
+        );
+
+        expect(items[0].homepageUrl).toBe("https://example.com/plugin");
+        expect(items[0].information).toBeUndefined();
+    });
+});
 ```
 
-**Dart Unit Tests:**
-- No mocking library explicitly imported in `feed_item_test.dart`
-- Focuses on factory deserialization testing, not service mocking
-- Uses built-in `expect()` for assertions and exception matching
+### E2E Test Structure (Playwright)
 
-## Fixtures and Factories
+**File Location:**
+- `web/tests/playwright/` directory
+- Setup/teardown: `auth.setup.ts`, `auth.teardown.ts`
+- Page objects: `pages/*.ts`
+- Test specs: `e2e/**/*.spec.ts`
 
-**Playwright Test Data:**
-- Location: `web/tests/playwright/fixtures/`
-- Current data: `avatar.webp` image file for test assertions
-- Strategy: Minimal fixtures; mostly API-driven test setup via register/login flow
+**Test Organization:**
 
-**Playwright Fixture Code Pattern:**
-- Auth setup in `auth.setup.ts` creates a test user via register API
-- Saves auth state to `playwright/.auth/user.json`
-- Teardown in `auth.teardown.ts` cleans up test session
+**1. Setup Phase (`auth.setup.ts`):**
+- Creates authenticated session for test runs
+- Fills login form and navigates to register if needed
+- Stores auth state in `playwright/.auth/user.json` for reuse
 
-**Example Setup (from `auth.setup.ts`):**
+**Example from `web/tests/playwright/auth.setup.ts`:**
 ```typescript
 import { test as setup } from '@playwright/test';
 
@@ -179,138 +142,44 @@ setup('create user', async ({ page }) => {
     await page.goto('/login', { waitUntil: 'networkidle' });
     await page.locator('input[name="username"]').fill('Test');
     await page.locator('input[name="password"]').fill('password');
-    
     const loginPromise = page.waitForResponse('**/api/v1/auth/login')
     await page.getByRole('button', { name: 'Login' }).click();
     const response = await loginPromise;
 
-    // ... handle response/register if needed ...
+    let responseJson;
+    try {
+        responseJson = await response.json();
+    } catch (e) {
+        if (e instanceof Error && e.message.includes("No resource with given identifier found")) {
+            console.error("Already logged in!")
+        } else {
+            throw e
+        }
+    }
+
+    if (responseJson?.message === "Failed to authenticate.") {
+        // Register flow
+        await page.goto('/register', { waitUntil: 'networkidle' });
+        await page.locator('input[name="username"]').fill('Test');
+        await page.locator('input[name="email"]').fill('test@test.de');
+        await page.locator('input[name="password"]').fill('password');
+        await page.locator('#submit').click();
+    }
 
     await page.waitForURL('/');
     await page.context().storageState({ path: authFile });
 });
 ```
 
-**Dart Test Fixtures:**
-- Helper functions for minimal JSON: `_minimalTrailJson()`, `_minimalListJson()`
-- Lightweight factories creating just required fields
-- Data-driven by test case; no separate fixture files
+**2. Page Objects:**
+- Encapsulate UI element selectors and common actions
+- Class-based pattern with Locator properties
+- Methods for user interactions
 
-**Example (from `feed_item_test.dart`):**
-```dart
-Map<String, dynamic> _minimalTrailJson() => {
-  'id': 'trail-1',
-  'author': 'user-1',
-  'author_name': 'Alice',
-  'author_avatar': 'avatar.jpg',
-  'name': 'Test Trail',
-  // ... other required fields ...
-};
-
-// Used in test:
-final json = {
-  'id': 'feed-1',
-  'actor': 'actor-1',
-  'type': 'trail',
-  'created': '2024-01-01 00:00:00.000Z',
-  'expand': {
-    'item': _minimalTrailJson(),
-  },
-};
-```
-
-## Coverage
-
-**Web (TypeScript/Svelte):**
-- Requirements: No coverage target enforced
-- Unit tests minimal; primarily E2E coverage
-- Coverage tool available (Playwright HTML reports) but not actively generated
-
-**Dart (Flutter):**
-- Requirements: No coverage target enforced
-- Single test file covers model deserialization
-- Coverage command: `flutter test --coverage` (standard Flutter command; not observed in scripts)
-
-## Test Types
-
-**Web E2E Tests:**
-- **Scope:** Full user flows from UI interaction to API response
-- **Approach:**
-  - Page Object Pattern for reusable component selectors
-  - Setup/teardown phases for auth state management
-  - Response waiting for async operations
-  - URL/navigation assertions
-- **Current Coverage:**
-  - Index page: error checking, location search
-  - User page: profile viewing
-  - List page: list operations
-- **Example (index.spec.ts):**
-  ```typescript
-  test('index page does not show error', async ({ page }) => {
-    const indexPage = new IndexPage(page);
-    await indexPage.goto()
-    await indexPage.hasNoError()
-  });
-  ```
-
-**Web Unit Tests:**
-- **Scope:** Currently not populated in codebase
-- **Approach:** When added, will use Vitest with `src/**/*.{test,spec}.ts` pattern
-- **Potential targets:** Utility functions, store logic, form validation
-
-**Dart Unit Tests:**
-- **Scope:** Model factory constructors and JSON deserialization
-- **Approach:**
-  - Test factory methods (e.g., `FeedItem.fromJson()`)
-  - Verify type matching and field assignment
-  - Test error handling for malformed JSON
-- **Current Coverage (feed_item_test.dart):**
-  - Trail feed items: correct deserialization to `FeedItemTrail` type
-  - List feed items: correct deserialization to `FeedItemList` type
-  - Missing expand.item: throws `FormatException` (defensive contract)
-  - Unknown types: throws `UnsupportedError`
-
-## Configuration Details
-
-**Playwright Config (web/playwright.config.ts):**
-- Test directory: `./tests/playwright`
-- Parallel execution: Disabled by default (`fullyParallel: false`) to prevent auth conflicts
-- CI behavior: Retries 2 times, workers = 1 (sequential), forbid `test.only`
-- Development: No retries, default worker count (parallel)
-- Reporter: HTML report
-- Base URL: `http://localhost:3000`
-- Trace collection: On first retry
-- Projects: Setup phase, chromium browser, teardown phase
-- Storage state: `playwright/.auth/user.json` for persistent auth
-
-**Vite Config (web/vite.config.ts):**
-- Unit test pattern: `src/**/*.{test,spec}.{js,ts}`
-- Pass with no tests: `--passWithNoTests` flag
-- No coverage configuration present
-
-**Dart Test Setup:**
-- Framework: Built-in `flutter_test`
-- Run command: `flutter test` (standard; not in pubspec scripts)
-- Generate coverage: `flutter test --coverage` (manual)
-
-## Common Patterns
-
-**Playwright - Async/Network Waiting:**
+**Example from `web/tests/playwright/pages/index_page.ts`:**
 ```typescript
-// Wait for API response before continuing
-const responsePromise = this.page.waitForResponse(resp =>
-  resp.url().includes('/api/v1/endpoint') && resp.status() === 200
-);
+import { expect, type Locator, type Page } from '@playwright/test';
 
-await this.page.locator('button').click();
-await responsePromise;
-
-// Or wait for navigation
-await this.page.waitForURL(/\/route\?param=value/);
-```
-
-**Playwright - Page Object Methods:**
-```typescript
 export class IndexPage {
   readonly page: Page;
   readonly error: Locator;
@@ -324,67 +193,432 @@ export class IndexPage {
     await this.page.goto('/', { waitUntil: 'networkidle' });
   }
 
+  async search() {
+    // Start waiting for response before triggering the search
+    const responsePromise = this.page.waitForResponse(resp =>
+      resp.url().includes('/api/v1/search/multi') && resp.status() === 200
+    );
+    
+    await this.page.locator('input[name="q"]').fill('Munich');
+    await responsePromise;
+    
+    await this.page.locator('.menu-item').first().click();
+    await this.page.waitForURL(/\/map\?lat=.*&lon=.*/);
+  }
+
   async hasNoError() {
     await expect(this.error).toHaveCount(0);
   }
 }
 ```
 
-**Dart - Model Testing with Factory Methods:**
-```dart
-test('type "trail" returns FeedItemTrail with TrailSearchResult', () {
-  final json = {
-    'id': 'feed-1',
-    'actor': 'actor-1',
-    'type': 'trail',
-    'created': '2024-01-01 00:00:00.000Z',
-    'expand': {
-      'item': _minimalTrailJson(),
-    },
-  };
+**3. Test Specs:**
+- Import and use Page Objects
+- Inherit authenticated session from setup
+- Use Playwright's `test` and `expect` APIs
 
-  final result = FeedItem.fromJson(json);
+**Example from `web/tests/playwright/e2e/user/user.spec.ts`:**
+```typescript
+import { test, expect } from '@playwright/test';
 
-  expect(result, isA<FeedItemTrail>());
-  final trailItem = result as FeedItemTrail;
-  expect(trailItem.id, 'feed-1');
+test('logs the user out', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.getByLabel('Open user menu').click();
+    await page.locator(".menu .menu-item").filter({ hasText: "Logout" }).click();
+
+    await page.waitForURL('/');
+    
+    const cookies = await page.context().cookies();
+    const pbAuthCookie = cookies.find(cookie => cookie.name === 'pb_auth');
+    expect(pbAuthCookie).toBeFalsy();
 });
 ```
 
-**Dart - Exception Testing:**
-```dart
-test('absent expand.item throws FormatException', () {
-  final json = {
-    'id': 'feed-3',
-    'actor': 'actor-1',
-    'type': 'trail',
-    'created': '2024-01-01 00:00:00.000Z',
-    'expand': <String, dynamic>{},
-  };
+## Go Backend
 
-  expect(() => FeedItem.fromJson(json), throwsA(isA<FormatException>()));
+### Test Framework
+
+**Framework:** Go `testing` package (built-in)
+- No external test framework
+- Standard `*_test.go` file naming convention
+- Run: `go test ./...` (or package-specific)
+
+### Test File Location
+
+- Co-located with source files in same package
+- Naming: `*_test.go` suffix
+- Examples: `db/pluginsystem/manager_test.go`, `db/routes/plugin_system_test.go`, `db/util/category_test.go`
+
+### Test Structure
+
+**Table-Driven Tests (Common Pattern):**
+- Define test cases as struct slices
+- Loop through cases with `t.Run()` for sub-tests
+- Enables testing multiple scenarios in one function
+
+**Example from `db/util/category_test.go`:**
+```go
+package util
+
+import "testing"
+
+func TestParseCategoryTranslations(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   types.JSONRaw
+        wantErr bool
+        want    map[string]CategoryTranslation
+    }{
+        {
+            name:  "valid base locale",
+            input: types.JSONRaw(`{"de": {"name": "Wandern", "short_name": "WAND"}}`),
+            want:  map[string]CategoryTranslation{"de": {Name: "Wandern", ShortName: "WAND"}},
+        },
+        {
+            name:  "null is nil without error",
+            input: types.JSONRaw(`null`),
+            want:  nil,
+        },
+        {
+            name:    "region locale rejected",
+            input:   types.JSONRaw(`{"pt-BR": {"name": "Caminhada"}}`),
+            wantErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParseCategoryTranslations(tt.input)
+            if tt.wantErr {
+                if err == nil {
+                    t.Fatal("ParseCategoryTranslations() error = nil, want error")
+                }
+                return
+            }
+            if err != nil {
+                t.Fatalf("ParseCategoryTranslations() error = %v", err)
+            }
+            // Assert result matches expected
+        })
+    }
+}
+```
+
+**Sub-tests with `t.Run()`:**
+- Groups related test cases within a function
+- Better output organization and selective running
+
+**Example from `db/util/category_test.go`:**
+```go
+func TestNormalizeCategoryName(t *testing.T) {
+    t.Run("WhitespaceAndSeparators", func(t *testing.T) {
+        for _, value := range []string{"E-Bike", "E Bike", "e-bike"} {
+            if got := NormalizeCategoryName(value); got != "e bike" {
+                t.Fatalf("NormalizeCategoryName(%q) = %q, want %q", value, got, "e bike")
+            }
+        }
+    })
+
+    t.Run("AccentFolding", func(t *testing.T) {
+        for _, value := range []string{"Canoë", "Canoe"} {
+            if got := NormalizeCategoryName(value); got != "canoe" {
+                t.Fatalf("NormalizeCategoryName(%q) = %q, want %q", value, got, "canoe")
+            }
+        }
+    })
+
+    t.Run("SeparatorsNotRemoved", func(t *testing.T) {
+        if got := NormalizeCategoryName("EBike"); got != "ebike" {
+            t.Fatalf("NormalizeCategoryName(%q) = %q, want %q", "EBike", got, "ebike")
+        }
+    })
+}
+```
+
+### Assertion Pattern
+
+- Direct if/condition checks (no assertion library)
+- Use `t.Fatal()` to stop test immediately on failure
+- Use `t.Fatalf()` for formatted failure messages
+- Use `t.Error()` to log failure but continue
+- Use `t.Run()` for sub-test grouping
+
+**Example from `db/pluginsystem/manager_test.go`:**
+```go
+func TestPluginIssueRecordID(t *testing.T) {
+    valid := pluginIssueRecordID(LocalPluginIssue{ID: "komoot", Dir: "/plugins/komoot"})
+    if valid != "komoot" {
+        t.Fatalf("pluginIssueRecordID(valid) = %q, want komoot", valid)
+    }
+
+    first := pluginIssueRecordID(LocalPluginIssue{ID: "@@@", Dir: "/plugins/@@@"})
+    second := pluginIssueRecordID(LocalPluginIssue{ID: "***", Dir: "/plugins/***"})
+    if first == second {
+        t.Fatalf("invalid plugin issue ids collided: %q", first)
+    }
+}
+```
+
+## Flutter/Dart App
+
+### Test Framework
+
+**Framework:** `flutter_test` (Flutter's built-in testing package)
+- Part of Flutter SDK (comes with Flutter)
+- Config: `app/pubspec.yaml` dev_dependencies
+- Linting: `flutter_lints` and `riverpod_lint` (in `analysis_options.yaml`)
+- Run: `flutter test` or `flutter test test/`
+
+### Test File Location
+
+- Directory: `app/test/` (mirroring `app/lib/` structure)
+- Naming: `*_test.dart` suffix
+- Examples:
+  - `app/test/store/local_trail_store_test.dart`
+  - `app/test/util/format_test.dart`
+  - `app/test/provider/online_status_provider_test.dart`
+
+### Test Structure
+
+**Organization with `group()` and `test()`:**
+- Use `group()` for test suites (organize related tests)
+- Use `test()` for individual test cases
+- Use `expect()` for assertions
+
+**Example from `app/test/util/format_test.dart`:**
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/util/format.dart';
+
+void main() {
+  group('formatDistance', () => {
+    test('metric (default) formats meters >= 1000 as km', () => {
+      expect(formatDistance(1000), '1.00 km');
+    });
+
+    test('imperial converts meters to miles (×0.000621371)', () => {
+      expect(formatDistance(1000, unit: 'imperial'), '0.62 mi');
+    });
+  });
+
+  group('formatElevation', () => {
+    test('metric (default) formats meters with m suffix', () => {
+      expect(formatElevation(100), '100 m');
+    });
+
+    test('imperial converts meters to feet (×3.28084)', () => {
+      expect(formatElevation(100, unit: 'imperial'), '328 ft');
+    });
+  });
+
+  group('formatSpeed', () => {
+    test('null returns "-"', () => {
+      expect(formatSpeed(null), '-');
+    });
+
+    test('metric (default) formats to one decimal with km/h suffix', () => {
+      expect(formatSpeed(12.34), '12.3 km/h');
+    });
+  });
+}
+```
+
+### Async Testing
+
+**Using `async` / `await`:**
+- Dart's `test()` function accepts async callbacks
+- Return `Future` from test or use `await` for async operations
+
+**Example pattern:**
+```dart
+test('async operation', () async {
+  // Setup
+  final result = await someAsyncFunction();
+  
+  // Assert
+  expect(result, expectedValue);
 });
 ```
 
-## What to Test
+### Riverpod Provider Testing
 
-**E2E Priority:**
-- Critical user flows: authentication, core CRUD operations, navigation
-- Integration points: API responses, real-time updates, error handling
-- UI assertions: error messages, data display, loading states
+**Testing Riverpod Providers:**
+- Use `flutter_test`'s `WidgetTester` for integration
+- Or use container directly for unit tests (if testing pure Dart providers)
+- Example: `app/test/provider/online_status_provider_test.dart`
 
-**Unit Priority:**
-- Utility functions with complex logic
-- Data transformations (serialization/deserialization)
-- Error boundaries and validation schemas
-- Store operations with side effects
+## Mocking & Fixtures
 
-**What NOT to Test:**
-- Third-party library behavior
-- Trivial getters/setters
-- UI rendering without business logic
-- Code that's already tested at E2E layer
+### TypeScript/Vitest
+
+**Mocking Pattern:**
+- Use Vitest's built-in mocking (via Vitest)
+- Mock HTTP responses using async functions as fetch replacements
+
+**Example from `web/src/lib/stores/plugin_store.test.ts`:**
+```typescript
+it("maps and sanitizes optional plugin metadata", async () => {
+    const plugin: Record<string, any> = { /* plugin data */ };
+
+    // Mock fetch by providing a test function
+    const items = await plugins_index(async () =>
+        new Response(JSON.stringify({ items: [plugin] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+        }),
+    );
+
+    expect(items[0].homepageUrl).toBe("https://example.com/plugin");
+});
+```
+
+### Playwright E2E
+
+**Mocking/Waiting Patterns:**
+- Wait for network responses before assertions
+- Intercept responses with `waitForResponse()`
+
+**Example from `web/tests/playwright/pages/index_page.ts`:**
+```typescript
+async search() {
+    // Start waiting for response BEFORE triggering action
+    const responsePromise = this.page.waitForResponse(resp =>
+      resp.url().includes('/api/v1/search/multi') && resp.status() === 200
+    );
+    
+    // Trigger action that causes the response
+    await this.page.locator('input[name="q"]').fill('Munich');
+    
+    // Wait for response to complete
+    await responsePromise;
+    
+    // Proceed with UI interactions
+    await this.page.locator('.menu-item').first().click();
+}
+```
+
+### Go Tests
+
+**Fixtures/Test Data:**
+- Inline in test functions using struct literals
+- Example: `LocalPluginIssue{ID: "komoot", Dir: "/plugins/komoot"}`
+
+**Test Helpers:**
+- Utility functions for common test setup (if reused)
+- Typically package-level functions (lowercase, unexported)
+
+### Flutter Tests
+
+**Fixtures (Test Data):**
+- Create test objects directly in test code
+- Use Riverpod's `ProviderContainer` for provider testing if needed
+
+**Example pattern:**
+```dart
+test('format distance with mock trail', () {
+  final trail = Trail(
+    id: 'test-123',
+    distance: 1000,
+    // ... other fields
+  );
+  
+  expect(formatDistance(trail.distance), '1.00 km');
+});
+```
+
+## Coverage
+
+### Web (TypeScript)
+
+**Coverage Requirements:** Not enforced (none detected)
+- Vitest can generate coverage with `--coverage` flag
+- No coverage config file in repo
+- No CI coverage checks configured
+
+### Go
+
+**Coverage:** Not configured
+- Can be run with `go test -cover ./...`
+- No coverage target enforced
+
+### Flutter
+
+**Coverage:** Not configured
+- `flutter test` can generate coverage
+- No coverage target enforced
+
+## Test Types
+
+### Web
+
+**Unit Tests (Vitest):**
+- Scope: Individual functions/stores (`plugin_store.ts`, etc.)
+- Approach: Test pure functions and store logic in isolation
+- Location: `web/src/lib/stores/*.test.ts`, `web/src/lib/util/*.test.ts`
+
+**E2E Tests (Playwright):**
+- Scope: Full user workflows (login, search, navigation)
+- Approach: Browser automation with page objects
+- Setup: Shared authentication via `auth.setup.ts`
+- Location: `web/tests/playwright/e2e/**/*.spec.ts`
+
+### Go
+
+**Unit Tests:**
+- Scope: Package-level functions (utility functions, services)
+- Approach: Table-driven tests with assertions
+- Location: `db/**/*_test.go` (same directory as source)
+
+### Flutter
+
+**Unit Tests:**
+- Scope: Utility functions, formatters, calculations
+- Approach: Test pure functions with various inputs
+- Location: `app/test/util/*_test.dart`, `app/test/models/*_test.dart`
+
+**Provider Tests (Riverpod):**
+- Scope: Provider logic without UI
+- Approach: Unit tests for async providers
+- Location: `app/test/provider/*_test.dart`
+
+**Integration Tests:**
+- Not formally configured (though `flutter test` can run widget tests)
+- Widget tests would use `WidgetTester` and material testing utilities
+
+## Test Runs
+
+### Web
+
+**All Tests:**
+```bash
+npm run test              # Runs unit + integration
+npm run test:unit         # Vitest only
+npm run test:integration  # Playwright only
+```
+
+**Development:**
+```bash
+# Watch mode for unit tests
+npx vitest --watch
+```
+
+### Go
+
+```bash
+go test ./...             # All packages
+go test -v ./db/routes   # Verbose single package
+go test -run TestName     # Specific test
+```
+
+### Flutter
+
+```bash
+flutter test              # All tests
+flutter test test/util/   # Specific directory
+flutter test -v           # Verbose output
+```
 
 ---
 
-*Testing analysis: 2026-06-10*
+*Testing analysis: 2026-09-06*
