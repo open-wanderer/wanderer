@@ -17,6 +17,27 @@ part 'api_provider.g.dart';
 /// like a genuine connection error.
 const String kUnconfiguredApiHost = 'unknown-server.local';
 
+/// Whether [uri] addresses the configured Wanderer backend — the only traffic
+/// that says anything about that backend's reachability.
+///
+/// This client is shared by more than the API: it also warms the map
+/// glyph/sprite cache, whose URLs come from `/map/style-sources` and default to
+/// a THIRD-PARTY host (`protomaps.github.io`) unless the operator sets
+/// `MAP_ASSETS_URL`. That warm is ~1000 requests on a fresh install
+/// (`glyph_sprite_cache_provider.dart`), and without this gate a single dropped
+/// connection anywhere in that burst — throttling, a carrier NAT, a slow link —
+/// flipped the whole app offline while the backend was perfectly reachable.
+///
+/// Compared by host alone: a differing port or path still addresses the same
+/// server. Traffic issued while the client is still on [kUnconfiguredApiHost]
+/// is excluded too — those requests are meaningless (the host does not
+/// resolve), which is the whole point of the placeholder.
+bool isBackendRequest(Dio dio, Uri uri) {
+  final baseHost = Uri.parse(dio.options.baseUrl).host;
+  if (baseHost.isEmpty || baseHost == kUnconfiguredApiHost) return false;
+  return uri.host == baseHost;
+}
+
 @Riverpod(keepAlive: true)
 class Api extends _$Api {
   @override
@@ -38,33 +59,32 @@ class Api extends _$Api {
     );
     dio.interceptors.add(CookieManager(cookieJar));
 
-    // Feeds `onlineStatusProvider` from every request this shared client
-    // makes. The notifier is resolved lazily inside each closure body (never
-    // here, at build time) — resolving it during `Api.build()` would
-    // re-enter `OnlineStatus` mid-build. Interceptor callbacks run in the
-    // async request pipeline, outside the widget build phase, so this cannot
-    // trip Riverpod's debug "modified a provider while the widget tree was
-    // building" guard. `handler.next(...)` is always called so the response
-    // or error still reaches its original caller.
+    // Feeds `onlineStatusProvider` from every request this shared client makes
+    // TO THE CONFIGURED BACKEND — see [isBackendRequest] for why third-party
+    // traffic on this same client must never move the status. The notifier is
+    // resolved lazily inside each closure body (never here, at build time) —
+    // resolving it during `Api.build()` would re-enter `OnlineStatus`
+    // mid-build. Interceptor callbacks run in the async request pipeline,
+    // outside the widget build phase, so this cannot trip Riverpod's debug
+    // "modified a provider while the widget tree was building" guard.
+    // `handler.next(...)` is always called so the response or error still
+    // reaches its original caller.
     dio.interceptors.add(
       InterceptorsWrapper(
         onResponse: (response, handler) {
-          ref.read(onlineStatusProvider.notifier).markOnline();
+          if (isBackendRequest(dio, response.requestOptions.uri)) {
+            ref.read(onlineStatusProvider.notifier).markOnline();
+          }
           handler.next(response);
         },
         onError: (err, handler) {
-          // A failure against the placeholder host says nothing about
-          // connectivity (see [kUnconfiguredApiHost]) — leave the status alone
-          // rather than reporting offline.
-          if (err.requestOptions.uri.host == kUnconfiguredApiHost) {
-            handler.next(err);
-            return;
-          }
-          final notifier = ref.read(onlineStatusProvider.notifier);
-          if (isConnectionFailure(err)) {
-            notifier.markOffline();
-          } else {
-            notifier.markOnline();
+          if (isBackendRequest(dio, err.requestOptions.uri)) {
+            final notifier = ref.read(onlineStatusProvider.notifier);
+            if (isConnectionFailure(err)) {
+              notifier.markOffline();
+            } else {
+              notifier.markOnline();
+            }
           }
           handler.next(err);
         },
