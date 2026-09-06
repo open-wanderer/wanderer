@@ -126,13 +126,26 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
 	// 1. Get Actor to build the IRI
 	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
-	if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
-		return nil, err
-	}
 	if actor == nil {
+		// No actor available at all — no cache, and the live lookup itself
+		// failed (e.g. remote instance unreachable, unknown handle). We can't
+		// construct the IRI, but a previously-synced trail may still exist
+		// locally under this exact ID, so fall back to a plain local lookup
+		// instead of failing the whole request. Skip this fallback for a
+		// private-profile error so the caller's 404 handling still applies.
+		if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
+			if local, localErr := e.App.FindRecordById("trails", trailID); localErr == nil {
+				return local, nil
+			}
+		}
 		return nil, err
 	}
 
+	// Actor is non-nil even though err may be set: federation.GetActorByHandle
+	// (via assembleActor) returns a previously-cached actor record alongside a
+	// transport error when a background refresh of stale actor data fails.
+	// That cached actor's IRI is still usable to look up the local trail, so
+	// use it instead of discarding it and 500ing the whole request.
 	actorURL, _ := url.Parse(actor.GetString("iri"))
 	iri := fmt.Sprintf("%s://%s/api/v1/trail/%s", actorURL.Scheme, actorURL.Host, trailID)
 
@@ -140,6 +153,14 @@ func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handl
 	existing, _ := e.App.FindFirstRecordByFilter("trails", "iri={:iri}||id={:id}", dbx.Params{"id": trailID, "iri": iri})
 	if existing != nil {
 		return existing, nil
+	}
+
+	// No cached copy of this trail exists locally. If the actor fetch failed
+	// for a real (non-private) reason, there's nothing usable to fall back to
+	// — surface the original error rather than fabricating a shell that a
+	// subsequent sync attempt would just fail on again.
+	if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
+		return nil, err
 	}
 
 	// 3. Not found? Return a new Shell
