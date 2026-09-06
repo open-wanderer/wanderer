@@ -1,6 +1,8 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
@@ -82,6 +84,12 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
+		// The author is gone too, so this comment was removed as part of that
+		// account's own cascade. There is no local actor left to attribute a
+		// Delete to, so there is nothing to send.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -91,6 +99,10 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 
 	commentTrail, err := app.FindRecordById("trails", r.GetString("trail"))
 	if err != nil {
+		// The trail is gone too, so its own Delete already covers this comment.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -144,6 +156,12 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 
 	author, err := app.FindRecordById("activitypub_actors", r.GetString("author"))
 	if err != nil {
+		// The author is gone too, so this summit log was removed as part of that
+		// account's own cascade. There is no local actor left to attribute a
+		// Delete to, so there is nothing to send.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
@@ -153,6 +171,10 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 
 	summitLogTrail, err := app.FindRecordById("trails", r.GetString("trail"))
 	if err != nil {
+		// The trail is gone too, so its own Delete already covers this log.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 

@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/federation"
@@ -85,15 +87,22 @@ func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 	}
 }
 
-func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
-	return func(e *core.RecordRequestEvent) error {
-		err := e.Next()
-		if err != nil {
-			return err
-		}
-
+// DeleteSummitLogHandler runs on OnRecordAfterDeleteSuccess rather than on the
+// delete request, so that summit logs removed by a cascade — when their trail is
+// deleted, or when their author's account is — also retract their federated
+// copies. Inside a transaction these hooks are deferred until after it commits,
+// so the record is already gone by the time this runs and an error here cannot
+// roll the deletion back.
+func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
 		trail, err := e.App.FindRecordById("trails", e.Record.GetString("trail"))
 		if err != nil {
+			// The trail is gone too, so this summit log was removed as part of
+			// that trail's own cascade. There is nothing left to reindex, and
+			// the trail's delete activity already covers what federated.
+			if errors.Is(err, sql.ErrNoRows) {
+				return e.Next()
+			}
 			return err
 		}
 
@@ -105,6 +114,6 @@ func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 		if err != nil {
 			return err
 		}
-		return nil
+		return e.Next()
 	}
 }
