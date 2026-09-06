@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"pocketbase/util"
-	"strings"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
@@ -294,14 +293,14 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 	object := activity.Object.GetID().String()
 
 	var err error
-	switch {
-	case strings.Contains(object, "trail"):
+	switch util.ObjectKindFromIRI(object) {
+	case util.ObjectKindTrail:
 		err = processDeleteTrailActivity(app, activity)
-	case strings.Contains(object, "comment"):
+	case util.ObjectKindComment:
 		err = processDeleteCommentActivity(app, actor, activity)
-	case strings.Contains(object, "summit-log"):
+	case util.ObjectKindSummitLog:
 		err = processDeleteSummitLogActivity(app, actor, activity)
-	case strings.Contains(object, "list"):
+	case util.ObjectKindList:
 		err = processDeleteListActivity(app, actor, activity)
 	}
 
