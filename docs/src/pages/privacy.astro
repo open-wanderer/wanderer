@@ -10,7 +10,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 
 const CONTACT = "info@openwanderer.com";
 
-const LAST_UPDATED = "5 September 2026";
+const LAST_UPDATED = "6 September 2026";
 ---
 
 <html lang="en">
@@ -286,10 +286,23 @@ const LAST_UPDATED = "5 September 2026";
         </p>
         <ul>
           <li>
-            <strong>Only public content federates.</strong> Trails, comments,
-            lists and summit logs you have marked public can be copied to
+            <strong>Trails, lists and summit logs federate only when public.</strong>
+            Marking one of these public is what makes it eligible to be copied to
             connected instances. Content that is private or shared with specific
-            people is never sent.
+            people is never sent this way.
+          </li>
+          <li>
+            <strong>Comments are the exception.</strong> A comment is delivered to
+            the people it concerns regardless of whether the trail it is on is
+            public or private: if you <code>@mention</code> a remote account, the
+            comment text is sent to that account's server, and a copy also goes to
+            the trail's author if their account is on another instance. The
+            receiving server can reject it, but by then the text has already left
+            your instance. In practice, this means a comment on a private trail can
+            still leave your instance if it mentions someone, or if the trail's
+            author is on a different one. Nothing about the trail itself travels
+            with the comment, neither its title nor its description nor its
+            location, only a reference to which trail it replies to.
           </li>
           <li>
             <strong>Copies live on other servers.</strong> A federated copy is
@@ -298,11 +311,33 @@ const LAST_UPDATED = "5 September 2026";
             stay with your own instance.
           </li>
           <li>
-            <strong>Deletion is a request, not a guarantee.</strong> Deleting or
-            unpublishing content sends a delete out to instances that received
-            it. Well-behaved instances honour it. An instance that is offline,
+            <strong>Unpublishing is not deletion.</strong> Making a public trail
+            or list private again stops it from being sent onward, but no
+            deletion is sent, so copies already held by other instances stay
+            where they are. For trails specifically, this has a sharper
+            consequence: if
+            you make a trail private and delete it afterwards, no deletion signal
+            is sent either, because deletion itself is skipped for content that is
+            not currently public. If you want a deletion to reach instances that
+            already received the trail, delete it while it is still public rather
+            than unpublishing first.
+          </li>
+          <li>
+            <strong>Deletion is a request, not a guarantee.</strong> Deleting
+            public content sends a delete out to instances that received it.
+            Well-behaved instances honour it. An instance that is offline,
             misconfigured or hostile may not. Treat anything published publicly
             to a federated network as difficult to fully retract.
+          </li>
+          <li>
+            <strong>Departing accounts travel too.</strong> When an account is
+            deleted, its instance announces that to the instances following it,
+            and this one acts on such a notice by removing its copy of that
+            account along with the content of theirs it was holding. Your own
+            account leaving is announced the same way. See
+            <a href="#retention">section 12</a> for what that does and does not
+            cover. A notice is only ever accepted for the account that signed
+            it: another server cannot ask this one to delete somebody else.
           </li>
           <li>
             <strong>Who you federate with is your operator's choice.</strong> If
@@ -312,7 +347,65 @@ const LAST_UPDATED = "5 September 2026";
       </section>
 
       <section>
-        <h2>9. Demo instance</h2>
+        <h2>9. Security and safeguards</h2>
+        <p>
+          This section states plainly what protects your data in transit and in
+          storage, and what does not. We would rather say this clearly than let
+          you assume more than the software provides.
+        </p>
+        <ul>
+          <li>
+            <strong>In transit.</strong> wanderer does not ship or run its own TLS
+            termination. Whether your instance is served over HTTPS is entirely
+            your instance operator's responsibility, and the app connects using
+            whatever scheme your instance's address uses. On Android, the app
+            itself blocks plaintext (cleartext) network traffic to everything
+            except a local loopback connection used for offline map tiles, so it
+            cannot be tricked into talking to a remote server over plain HTTP.
+          </li>
+          <li>
+            <strong>Between instances.</strong> Activities exchanged between
+            federated instances are signed with HTTP Signatures, so a receiving
+            instance can verify which server actually sent them. This
+            authenticates the sender. It does not encrypt the content: a signed
+            activity is still readable plaintext in transit, protected only by
+            whatever transport encryption (see above) is in place.
+          </li>
+          <li>
+            <strong>Passwords.</strong> Stored hashed by your instance's
+            authentication system, never in readable form.
+          </li>
+          <li>
+            <strong>Files.</strong> Photos, GPX files and avatars are served from
+            a direct URL. There is no additional access token guarding that URL.
+            An unguessable filename is the only thing standing between a link and
+            the file it points to, and anyone who has or guesses that link can
+            retrieve the file.
+          </li>
+          <li>
+            <strong>At rest.</strong> Content is not encrypted at rest by
+            wanderer. Whatever protection your data has on disk, whether that is
+            full-disk encryption, a secured server, or none at all, is your
+            instance operator's decision, not something this project provides.
+          </li>
+          <li>
+            <strong>On the device.</strong> As described in section 3, the local
+            database, downloaded map regions and your session are held inside the
+            app's own OS-managed sandbox and removed when you uninstall it.
+          </li>
+          <li>
+            <strong>In-app disclosures.</strong> Before background location is
+            requested the app shows an explanation of what it is for, and a
+            persistent notification stays visible for as long as recording or
+            navigation is running. See <a href="#location">section 5</a>. The app
+            contains no advertising or analytics SDKs, and location is never sold
+            or shared with data brokers.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>10. Demo instance</h2>
         <p>
           A public demo instance is linked from this site so people can try
           wanderer without installing it. It is for evaluation only: accounts
@@ -323,7 +416,7 @@ const LAST_UPDATED = "5 September 2026";
       </section>
 
       <section>
-        <h2>10. Legal bases</h2>
+        <h2>11. Legal bases</h2>
         <p>
           Where the GDPR applies, we rely on the following legal bases for the
           limited processing we carry out:
@@ -345,8 +438,8 @@ const LAST_UPDATED = "5 September 2026";
         </p>
       </section>
 
-      <section>
-        <h2>11. Retention and deletion</h2>
+      <section id="retention">
+        <h2>12. Retention and deletion</h2>
         <ul>
           <li>
             <strong>On your device:</strong> kept until you delete the content or
@@ -354,13 +447,40 @@ const LAST_UPDATED = "5 September 2026";
           </li>
           <li>
             <strong>On your instance:</strong> governed by your instance
-            operator's retention policy. Deleting your account there is the way
-            to remove it.
+            operator's retention policy. Deleting your account removes your
+            login credentials, your public profile, and the content you
+            authored: your trails, lists, summit logs and the comments you left
+            on other people's trails. Comments you wrote go with the account
+            even where they sit under someone else's trail, so a thread you took
+            part in may read differently afterwards.
           </li>
           <li>
-            <strong>Federated copies:</strong> see <a href="#federation"
-              >section 8</a
-            >.
+            <strong>Activity records are not covered by account or content
+            deletion.</strong> Your instance keeps a record of the federation
+            activities it sent on your behalf, meaning the ActivityPub messages
+            announcing your public trails, lists and summit logs to connected
+            instances. These records embed a snapshot of the content as it was
+            when it was sent, including its description and location
+            coordinates where relevant, and neither deleting that content nor
+            deleting your account clears them. This record is also readable by
+            anyone who has or guesses its address, without needing to log in.
+          </li>
+          <li>
+            <strong>Federated copies:</strong> once a piece of public content has
+            reached another instance, whether as a live copy or as one of the
+            activity snapshots described above, removing it there depends on that
+            instance honouring a delete signal from yours. See
+            <a href="#federation">section 8</a>. Deleting a single trail, list or
+            summit log while your account still exists sends that signal for
+            that item. Deleting your whole account sends one signal for the
+            account itself rather than one per item, which asks receiving
+            instances to drop everything of yours; the individual items cannot
+            each announce their own removal, because your profile goes before
+            they do and there is no longer an identity to sign in your name. In
+            both cases the content is removed from your own instance regardless.
+            The account notice reaches the instances that follow you, which are
+            the only ones a departing account can still be addressed to, so an
+            instance that holds a copy without following you may never be told.
           </li>
           <li>
             <strong>Website server logs:</strong> kept only as long as needed for
@@ -370,7 +490,7 @@ const LAST_UPDATED = "5 September 2026";
       </section>
 
       <section>
-        <h2>12. Your rights</h2>
+        <h2>13. Your rights</h2>
         <p>
           Under the GDPR you have the right to access, rectify, erase, restrict
           and port your data, to object to processing, and to complain to a
@@ -385,7 +505,7 @@ const LAST_UPDATED = "5 September 2026";
       </section>
 
       <section>
-        <h2>13. Children</h2>
+        <h2>14. Children</h2>
         <p>
           The app and this site are not directed at children and we do not
           knowingly collect data from them. Age requirements for an account are
@@ -394,7 +514,7 @@ const LAST_UPDATED = "5 September 2026";
       </section>
 
       <section>
-        <h2>14. Changes</h2>
+        <h2>15. Changes</h2>
         <p>
           This policy may change as the software does. The date at the top
           reflects the current version, and material changes will be noted in
@@ -403,7 +523,7 @@ const LAST_UPDATED = "5 September 2026";
       </section>
 
       <section>
-        <h2>15. Contact</h2>
+        <h2>16. Contact</h2>
         <p>
           For questions about this policy or about data held by the project:
         </p>
