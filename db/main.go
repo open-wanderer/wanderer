@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
+	"github.com/pocketbase/pocketbase/tools/auth"
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
@@ -67,6 +69,8 @@ func main() {
 
 	setupCommands(app)
 
+	configureOIDCScopes()
+
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -77,6 +81,42 @@ func initializeMeilisearch() meilisearch.ServiceManager {
 		os.Getenv("MEILI_URL"),
 		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
 	)
+}
+
+// configureOIDCScopes overrides the scopes requested by the oidc, oidc2 and
+// oidc3 providers with the comma separated list in OIDC_SCOPES.
+//
+// PocketBase asks every OIDC provider for "openid", "profile" and "email".
+// Not all providers accept those: OpenStreetMap, for instance, rejects the
+// authorization request outright rather than ignoring the unknown scopes, so
+// login fails before the user ever sees a consent screen. Such providers need
+// their own scope list ("openid,read_prefs" in the OSM case).
+func configureOIDCScopes() {
+	raw := os.Getenv("OIDC_SCOPES")
+	if raw == "" {
+		return
+	}
+
+	scopes := []string{}
+	for _, scope := range strings.Split(raw, ",") {
+		if scope = strings.TrimSpace(scope); scope != "" {
+			scopes = append(scopes, scope)
+		}
+	}
+
+	if len(scopes) == 0 {
+		return
+	}
+
+	factory := func() auth.Provider {
+		provider := auth.NewOIDCProvider()
+		provider.SetScopes(scopes)
+		return provider
+	}
+
+	for _, name := range []string{"oidc", "oidc2", "oidc3"} {
+		auth.Providers[name] = factory
+	}
 }
 
 func registerMigrations(app *pocketbase.PocketBase) {
