@@ -15,7 +15,15 @@ import { CrosshairPlugin } from "chartjs-plugin-crosshair";
 
 import { haversineDistance } from "$lib/models/gpx/utils";
 import type { Waypoint } from "$lib/models/waypoint";
-import { formatTimeHHMM } from "$lib/util/format_util";
+import { formatDistance, formatTimeHHMM } from "$lib/util/format_util";
+import {
+    applyElevationWaypointHighlight,
+    focusWaypoint,
+    getWaypointPopupMedia,
+    revokeWaypointPopupMedia,
+    waypointHasPopupMedia,
+    type WaypointPopupMedia,
+} from "$lib/util/waypoint_map_util";
 import { haversineCumulatedDistanceWgs84, smoothElevations } from "./tools";
 
 const FEET_PER_METER = 3.28084;
@@ -689,35 +697,8 @@ export class ElevationProfile {
             plugins: [
                 {
                     id: "waypointPlugin",
-                    afterDraw: (chart, args, options) => {
-                        const waypointContainer = document.getElementById("waypoint-container") as HTMLDivElement;
-                        waypointContainer.innerHTML = ""; // Clear previous ticks
-
-                        const xScale = chart.scales.x; // Get X-axis scale
-                        const chartRect = chart.canvas.getBoundingClientRect(); // Canvas position
-
-                        this.waypointPositions.forEach((position: number, index: number) => {
-
-                            const xPos = xScale.getPixelForValue(position); // X-axis pixel for tick
-
-                            // Create custom HTML tick
-                            const wpDiv = document.createElement("div");
-                            wpDiv.className = "wp-marker absolute -translate-x-1/2 w-6 aspect-square bg-background-inverse rounded-full flex justify-center items-center text-content-inverse cursor-pointer hover:scale-110";
-                            wpDiv.style.left = `${xPos}px`; // Position horizontally
-                            wpDiv.style.top = `8px`; // Position horizontally
-
-                            // Add custom HTML content (e.g., icon + label)
-                            const tooltipDiv = document.createElement("div");
-                            tooltipDiv.className = "tooltip";
-                            tooltipDiv.dataset.title = this.waypoints[index]?.name ?? "?";
-                            const iconEl = document.createElement("i");
-                            const safeIcon = this.waypoints.at(index)?.icon ?? "circle";
-                            iconEl.className = `fa fa-${/^[a-z0-9-]+$/.test(safeIcon) ? safeIcon : "circle"}`;
-                            tooltipDiv.appendChild(iconEl);
-                            wpDiv.appendChild(tooltipDiv);
-
-                            waypointContainer.appendChild(wpDiv); // Add to container
-                        });
+                    afterDraw: (chart) => {
+                        this.syncWaypointMarkers(chart);
                     }
                 },
                 {
@@ -906,6 +887,120 @@ export class ElevationProfile {
         this.chart.update();
     }
 
+    private syncWaypointMarkers(chart: {
+        scales: Record<string, { getPixelForValue: (value: number) => number }>;
+    }) {
+        const waypointContainer = document.getElementById("waypoint-container");
+        if (!waypointContainer) {
+            return;
+        }
+
+        const xScale = chart.scales.x;
+        const signature = this.waypoints
+            .map(
+                (waypoint) =>
+                    `${waypoint.id ?? ""}:${waypoint.icon ?? ""}:${waypoint.name ?? ""}:${(waypoint.photos ?? []).join("|")}:${waypoint._photos?.length ?? 0}:${waypoint.lat},${waypoint.lon}`,
+            )
+            .join(",");
+
+        if (
+            waypointContainer.dataset.signature === signature &&
+            waypointContainer.childElementCount === this.waypointPositions.length
+        ) {
+            this.waypointPositions.forEach((position, index) => {
+                const marker = waypointContainer.children[index] as HTMLElement;
+                marker.style.left = `${xScale.getPixelForValue(position)}px`;
+            });
+            return;
+        }
+
+        for (const child of Array.from(waypointContainer.children)) {
+            const ownedMedia = (
+                child as HTMLElement & { _waypointMedia?: WaypointPopupMedia[] }
+            )._waypointMedia;
+            if (ownedMedia) {
+                revokeWaypointPopupMedia(ownedMedia);
+            }
+        }
+
+        waypointContainer.dataset.signature = signature;
+        waypointContainer.innerHTML = "";
+
+        this.waypointPositions.forEach((position, index) => {
+            const waypoint = this.waypoints[index];
+            const marker = document.createElement("div") as HTMLElement & {
+                _waypointMedia?: WaypointPopupMedia[];
+            };
+            marker.className =
+                "wp-marker absolute -translate-x-1/2 w-6 aspect-square bg-background-inverse rounded-full flex justify-center items-center text-content-inverse cursor-pointer z-20";
+            if (waypoint?.id) {
+                marker.dataset.waypointId = waypoint.id;
+            }
+            marker.style.left = `${xScale.getPixelForValue(position)}px`;
+            marker.style.top = "8px";
+
+            const iconEl = document.createElement("i");
+            const safeIcon = waypoint?.icon ?? "circle";
+            iconEl.className = `fa fa-${/^[a-z0-9-]+$/.test(safeIcon) ? safeIcon : "circle"}`;
+            marker.appendChild(iconEl);
+
+            if (waypoint && waypointHasPopupMedia(waypoint)) {
+                const thumb = document.createElement("img");
+                thumb.className = "wp-marker-thumb";
+                thumb.alt = waypoint.name || "";
+                marker.appendChild(thumb);
+
+                const loadThumb = () => {
+                    if (marker.dataset.thumbLoaded === "1") {
+                        return;
+                    }
+                    const allMedia = getWaypointPopupMedia(waypoint, "100x0");
+                    const first = allMedia[0];
+                    revokeWaypointPopupMedia(allMedia.slice(1));
+                    if (!first) {
+                        return;
+                    }
+                    marker.dataset.thumbLoaded = "1";
+                    if (first.video) {
+                        const video = document.createElement("video");
+                        video.className = "wp-marker-thumb";
+                        video.src = first.url;
+                        video.muted = true;
+                        video.loop = true;
+                        video.playsInline = true;
+                        thumb.replaceWith(video);
+                        marker.addEventListener("mouseenter", () => video.play());
+                        marker.addEventListener("mouseleave", () => video.pause());
+                    } else {
+                        thumb.src = first.url;
+                    }
+                    marker._waypointMedia = [first];
+                };
+                marker.addEventListener("mouseenter", loadThumb);
+            } else {
+                const label = waypoint?.name?.length
+                    ? waypoint.name
+                    : typeof waypoint?.distance_from_start === "number"
+                      ? formatDistance(waypoint.distance_from_start)
+                      : "";
+                if (label) {
+                    marker.classList.add("tooltip");
+                    marker.dataset.title = label;
+                }
+            }
+
+            marker.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                focusWaypoint(waypoint, "profile");
+            });
+
+            waypointContainer.appendChild(marker);
+        });
+
+        applyElevationWaypointHighlight();
+    }
+
     async setData(data: GeoJsonObject, waypoints?: Waypoint[]) {
         // Concatenates the positions that may come from multiple LineStrings or MultiLineString
         const { positions, times } = geoJsonObjectToPositionsAndTimes(data);
@@ -962,7 +1057,7 @@ export class ElevationProfile {
                 if (distance < minDistances[waypointIndex]) {
                     minDistances[waypointIndex] = distance;
                     this.waypointPositions[waypointIndex] = this.cumulatedDistanceAdjustedUnit[i];
-                    waypoint.distance_from_start = this.cumulatedDistanceAdjustedUnit[i] * 1000;
+                    waypoint.distance_from_start = this.cumulatedDistance[i];
                 }
             });
 

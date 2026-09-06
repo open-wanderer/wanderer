@@ -11,6 +11,10 @@
         createPopupFromTrail,
         FontawesomeMarker,
     } from "$lib/util/maplibre_util";
+    import {
+        WAYPOINT_FOCUS_EVENT,
+        type WaypointFocusDetail,
+    } from "$lib/util/waypoint_map_util";
     import { decodePolyline } from "$lib/util/polyline_util";
     import type { ElevationProfileControl } from "$lib/vendor/maplibre-elevation-profile/elevationprofile-control";
     import { FullscreenControl } from "$lib/vendor/maplibre-fullscreen/fullscreen-control";
@@ -847,6 +851,26 @@
         markers = [];
     }
 
+    function handleWaypointFocus(event: Event) {
+        const detail = (event as CustomEvent<WaypointFocusDetail>).detail;
+        if (!detail?.waypointId) {
+            return;
+        }
+
+        if (detail.source === "profile") {
+            const marker = markers.find(
+                (item) => item.getElement().id === detail.waypointId,
+            );
+            if (marker && !marker.getPopup()?.isOpen()) {
+                marker.togglePopup();
+            }
+        }
+
+        if (Number.isFinite(detail.lat) && Number.isFinite(detail.lon)) {
+            epc?.moveCrosshair(detail.lat, detail.lon);
+        }
+    }
+
     function toggleEpcTheme() {
         if ($theme == "dark") {
             epc?.toggleTheme({
@@ -872,6 +896,7 @@
     let geolocateControl: M.GeolocateControl;
 
     onMount(async () => {
+        document.addEventListener(WAYPOINT_FOCUS_EVENT, handleWaypointFocus);
         const initialState = {
             lng: 0,
             lat: 0,
@@ -1065,6 +1090,9 @@
     }
 
     onDestroy(() => {
+        if (typeof document !== "undefined") {
+            document.removeEventListener(WAYPOINT_FOCUS_EVENT, handleWaypointFocus);
+        }
         map?.remove();
     });
 
@@ -1137,6 +1165,22 @@
 
     :global(.maplibregl-popup-content) {
         @apply bg-background rounded-md shadow-xl p-0 overflow-hidden pr-5;
+    }
+
+    :global(.waypoint-popup) {
+        @apply cursor-pointer;
+    }
+
+    :global(.waypoint-popup-photos) {
+        @apply mb-2 grid grid-cols-1 gap-1;
+    }
+
+    :global(.waypoint-popup-photos.multiple) {
+        @apply grid-cols-2;
+    }
+
+    :global(.waypoint-popup-media) {
+        @apply h-24 w-full rounded-md object-cover;
     }
 
     :global(.maplibregl-popup-close-button) {
