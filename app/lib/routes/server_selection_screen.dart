@@ -30,6 +30,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
 
     _prefillFromSelection(
       ref.read(serverSelectionProvider).value?.selectedServer,
+      notify: false,
     );
   }
 
@@ -39,7 +40,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     super.dispose();
   }
 
-  void _prefillFromSelection(ServerInstance? selected) {
+  void _prefillFromSelection(ServerInstance? selected, {required bool notify}) {
     if (_prefilled || selected == null) return;
     final url = selected.url;
     if (url.isEmpty) return;
@@ -49,6 +50,8 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
       text: url,
       selection: TextSelection.collapsed(offset: url.length),
     );
+    _searchQuery = url;
+    if (notify) setState(() {});
   }
 
   /// Applies [server] as the selected instance and closes the picker.
@@ -83,7 +86,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     // Late-resolution fallback for the initState prefill. Listener callbacks
     // run after the frame, so touching the controller here is safe.
     ref.listen(serverSelectionProvider, (_, next) {
-      _prefillFromSelection(next.value?.selectedServer);
+      _prefillFromSelection(next.value?.selectedServer, notify: true);
     });
 
     return Scaffold(

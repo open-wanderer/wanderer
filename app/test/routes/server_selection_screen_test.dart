@@ -11,19 +11,23 @@ import 'package:wanderer/routes/server_selection_screen.dart';
 /// wanderer.to/server/servers.json in `build()`. An empty instance list keeps
 /// the list body free of `CachedNetworkImageProvider` rows.
 class _StubServerSelection extends ServerSelectionNotifier {
-  _StubServerSelection(this.selected);
+  _StubServerSelection(this.selected, this.available);
 
   final ServerInstance? selected;
+  final List<ServerInstance> available;
 
   @override
-  Future<ServerState> build() async => ServerState(const [], selected);
+  Future<ServerState> build() async => ServerState(available, selected);
 }
 
-Widget _harness(ServerInstance? selected) {
+Widget _harness(
+  ServerInstance? selected, {
+  List<ServerInstance> available = const [],
+}) {
   return ProviderScope(
     overrides: [
       serverSelectionProvider.overrideWith(
-        () => _StubServerSelection(selected),
+        () => _StubServerSelection(selected, available),
       ),
     ],
     child: const MaterialApp(
@@ -61,17 +65,22 @@ void main() {
     expect(field.controller!.text, isEmpty);
   });
 
-  testWidgets(
-    'the prefill does not filter the list — typing is what starts a search',
-    (tester) async {
-      await tester.pumpWidget(
-        _harness(const ServerInstance(url: 'https://self.hosted.example')),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('the prefill seeds the list filter as well as the field', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        const ServerInstance(url: 'https://self.hosted.example'),
+        available: const [
+          ServerInstance(name: 'Wanderer', url: 'https://wanderer.to'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      // The "no servers match" branch is gated on a non-empty search query, so
-      // seeing it here would mean the prefill had been treated as a search.
-      expect(find.textContaining('No servers'), findsNothing);
-    },
-  );
+    // The "no servers match" branch is gated on a non-empty search query, so
+    // reaching it proves the prefilled URL was applied as the filter — and it
+    // is the branch offering the custom-URL button.
+    expect(find.textContaining('No servers match'), findsOneWidget);
+  });
 }
