@@ -1,6 +1,7 @@
 <script lang="ts">
     import ConfirmModal from "$lib/components/confirm_modal.svelte";
     import PluginCard from "$lib/components/settings/plugins/plugin_card.svelte";
+    import PluginInfoModal from "$lib/components/settings/plugins/plugin_info_modal.svelte";
     import PluginInstanceSettingsModal from "$lib/components/settings/plugins/plugin_instance_settings_modal.svelte";
     import type { Category } from "$lib/models/category.js";
     import type { PluginInstance } from "$lib/models/plugin_instance.js";
@@ -15,9 +16,13 @@
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import {
         pluginDescription as localizedPluginDescription,
+        pluginInformation as localizedPluginInformation,
         pluginTitle as localizedPluginTitle,
     } from "$lib/util/plugin_i18n";
-    import { translatePluginError } from "$lib/util/plugin_error_i18n";
+    import {
+        pluginSetupErrorKey,
+        translatePluginError,
+    } from "$lib/util/plugin_error_i18n";
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { theme } from "$lib/stores/theme_store";
@@ -34,8 +39,10 @@
     let subcategories: Subcategory[] = $state(untrack(() => data.subcategories ?? []));
 
     let pluginSettingsModal: PluginInstanceSettingsModal | undefined = $state();
+    let pluginInfoModal: PluginInfoModal | undefined = $state();
     let categoryRemapConfirmModal: ConfirmModal | undefined = $state();
     let selectedPlugin: PluginProvider | undefined = $state();
+    let infoPlugin: PluginProvider | undefined = $state();
     let pendingCategoryRemap:
         | {
               instanceId: string;
@@ -419,6 +426,12 @@
         pluginSettingsModal?.openModal();
     }
 
+    async function openPluginInfo(plugin: PluginProvider) {
+        infoPlugin = plugin;
+        await tick();
+        pluginInfoModal?.openModal();
+    }
+
     function pluginLogo(plugin: PluginProvider) {
         if (currentTheme === "dark" && plugin.iconDark) {
             return plugin.iconDark;
@@ -434,6 +447,10 @@
         return localizedPluginDescription(plugin, $locale);
     }
 
+    function pluginInformation(plugin: PluginProvider) {
+        return localizedPluginInformation(plugin, $locale);
+    }
+
     function pluginTypeTitle(type: PluginProvider["type"]) {
         return $_(`plugin-type-${type}`);
     }
@@ -442,11 +459,21 @@
         return $_(`plugin-type-${type}-description`);
     }
 
+    function pluginSetupError(plugin: PluginProvider) {
+        if (plugin.status !== "error") {
+            return "";
+        }
+        return plugin.error || $_(pluginSetupErrorKey(plugin.setupErrorCode));
+    }
+
     function pluginCardError(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
     ) {
-        if (plugin.status != "available") {
+        if (plugin.status === "error") {
+            return pluginSetupError(plugin);
+        }
+        if (plugin.status !== "available") {
             return plugin.error ?? "";
         }
         return instanceError(instance);
@@ -520,6 +547,7 @@
                         active={instance?.enabled ?? false}
                         lastSyncAt={instance?.last_sync_at}
                         error={pluginCardError(plugin, instance)}
+                        oninfo={() => openPluginInfo(plugin)}
                         onclick={() => openPluginSettings(plugin)}
                         ontoggle={(value) => onPluginToggle(plugin, instance, value)}
                     ></PluginCard>
@@ -528,6 +556,23 @@
         </section>
         {/each}
     </div>
+{/if}
+
+{#if infoPlugin}
+    {#key infoPlugin.id}
+        <PluginInfoModal
+            bind:this={pluginInfoModal}
+            pluginId={infoPlugin.id}
+            title={pluginTitle(infoPlugin)}
+            information={pluginInformation(infoPlugin)}
+            version={infoPlugin.version}
+            homepageUrl={infoPlugin.homepageUrl}
+            donationUrl={infoPlugin.donationUrl}
+            img={pluginLogo(infoPlugin)}
+            status={infoPlugin.status}
+            error={pluginSetupError(infoPlugin)}
+        ></PluginInfoModal>
+    {/key}
 {/if}
 
 {#if pendingCategoryRemap}

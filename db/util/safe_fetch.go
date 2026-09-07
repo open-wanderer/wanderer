@@ -61,6 +61,10 @@ func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFe
 		SetTimeout(60*time.Second).
 		SetAllowedSchemes("http", "https").
 		SetAllowedPorts(80, 443).
+		// safeurl's built-in blocklist covers NAT64, 6to4 and Teredo, but not the
+		// deprecated IPv4-compatible form (RFC 4291), which embeds an IPv4 the
+		// same way: ::7f00:1 is 127.0.0.1.
+		SetBlockedIPsCIDR("::/96").
 		EnableIPv6(true).
 		AllowSendingCredentials(false).
 		SetCheckRedirect(publicMediaRedirectPolicy).
@@ -215,20 +219,37 @@ func connectorIPAllowed(ip net.IP, allowPrivate bool) bool {
 	if !ok {
 		return false
 	}
+	// The literal address and the IPv4 it may embed are both subject to the policy.
+	for _, candidate := range policyCandidates(addr) {
+		if isReservedAddr(candidate) {
+			return false
+		}
+		if candidate.IsPrivate() && !allowPrivate {
+			return false
+		}
+	}
+	return true
+}
+
+// policyCandidates returns every address that must clear the IP policy before a
+// dial is allowed: the literal address, plus any IPv4 it embeds via an IPv6
+// transition mechanism. Both are unmapped, since netip's IsPrivate and friends
+// do not see through the 4-in-6 form.
+func policyCandidates(addr netip.Addr) []netip.Addr {
+	return []netip.Addr{addr.Unmap(), unwrapTransitionIP(addr)}
+}
+
+// isReservedAddr reports whether addr belongs to a range that must never be
+// dialled, regardless of any allow-private escape hatch.
+func isReservedAddr(addr netip.Addr) bool {
 	if addr.Is4In6() {
 		addr = addr.Unmap()
 	}
 	if addr.IsLoopback() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() ||
 		addr.IsMulticast() || addr.IsUnspecified() {
-		return false
+		return true
 	}
-	if isSpecialPurposeIP(addr) {
-		return false
-	}
-	if addr.IsPrivate() {
-		return allowPrivate
-	}
-	return true
+	return isSpecialPurposeIP(addr)
 }
 
 func isSpecialPurposeIP(addr netip.Addr) bool {
@@ -240,6 +261,42 @@ func isSpecialPurposeIP(addr netip.Addr) bool {
 	return false
 }
 
+// unwrapTransitionIP returns the IPv4 address embedded in an IPv6 transition
+// address, or addr unchanged when nothing is embedded. The transition families
+// themselves are also listed in specialPurposePrefixes; unwrapping additionally
+// covers the network-specific NAT64 prefixes (RFC 6052 permits /32 through /64),
+// which cannot be enumerated.
+func unwrapTransitionIP(addr netip.Addr) netip.Addr {
+	addr = addr.Unmap()
+	if !addr.Is6() {
+		return addr
+	}
+	b := addr.As16()
+
+	switch {
+	// NAT64 well-known prefix 64:ff9b::/96 (RFC 6052)
+	case nat64WellKnown.Contains(addr):
+		return netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]})
+	// 6to4 2002::/16 (RFC 3056) — IPv4 sits in bytes 2..5
+	case sixToFour.Contains(addr):
+		return netip.AddrFrom4([4]byte{b[2], b[3], b[4], b[5]})
+	// Teredo 2001::/32 (RFC 4380) — client IPv4 is the last 4 bytes, XOR 0xff
+	case teredo.Contains(addr):
+		return netip.AddrFrom4([4]byte{b[12] ^ 0xff, b[13] ^ 0xff, b[14] ^ 0xff, b[15] ^ 0xff})
+	// IPv4-compatible ::a.b.c.d (deprecated by RFC 4291)
+	case ipv4Compatible.Contains(addr) && !addr.IsUnspecified() && !addr.IsLoopback():
+		return netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]})
+	}
+	return addr
+}
+
+var (
+	nat64WellKnown = netip.MustParsePrefix("64:ff9b::/96")
+	sixToFour      = netip.MustParsePrefix("2002::/16")
+	teredo         = netip.MustParsePrefix("2001::/32")
+	ipv4Compatible = netip.MustParsePrefix("::/96")
+)
+
 var specialPurposePrefixes = mustPrefixes(
 	"0.0.0.0/8",
 	"100.64.0.0/10",
@@ -247,6 +304,7 @@ var specialPurposePrefixes = mustPrefixes(
 	"169.254.0.0/16",
 	"192.0.0.0/24",
 	"192.0.2.0/24",
+	"192.88.99.0/24",
 	"198.18.0.0/15",
 	"198.51.100.0/24",
 	"203.0.113.0/24",
@@ -254,9 +312,13 @@ var specialPurposePrefixes = mustPrefixes(
 	"240.0.0.0/4",
 	"::/128",
 	"::1/128",
+	"::/96",
 	"64:ff9b::/96",
+	"64:ff9b:1::/48",
 	"100::/64",
+	"2001::/32",
 	"2001:db8::/32",
+	"2002::/16",
 	"fe80::/10",
 	"ff00::/8",
 )
