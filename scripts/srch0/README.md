@@ -1,9 +1,16 @@
 # SRCH0: Suchbestand prüfen und weiterentwickeln
 
-SRCH0 hält beobachtetes Verhalten fest und untersucht ausgewählte fachliche
-Eigenschaften unabhängig davon. Ein grüner Bestandstest bedeutet nicht, dass
-die Suche korrekt ist. Die [Befunde](BEFUNDE.md) erklären bestätigte Fehler,
-Redundanzen, offene Produktfragen und die Grenzen der Prüfung.
+SRCH0 verlangt fachlich korrektes Suchverhalten. Historische Beobachtungen
+helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
+Jede verletzte geprüfte Eigenschaft lässt den Test scheitern; Ausnahmen für
+bekannte Fehler sind verboten. Die [Befunde](BEFUNDE.md) sind Merge-Blocker.
+
+Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
+entstehen getrennt auf `fix/srch0-findings`. Solange der von SRCH0 geprüfte
+Produktstand die Fehler enthält, müssen die betroffenen Tests rot bleiben.
+SRCH0 darf erst nach Integration der Fixes und erfolgreichen fachlichen
+Prüfungen gemergt werden. Ein grüner Lauf in einer kombinierten Prüfkopie
+ersetzt diese Abnahme des tatsächlichen SRCH0-Branchstands nicht.
 
 Die Baseline ist `e9b7a8cade980002acbcf2e2f5b2a083934f29d2` vom 7. September
 2026, direkt aus dem aktualisierten `origin/dev`. Die
@@ -29,7 +36,7 @@ make srch0-browser
 | --- | --- |
 | `srch0-check` | Schema, Digests, Inventar, konkrete Abdeckung und Negativtests der Schutzregeln |
 | `srch0-unit` | Go-Projektion/Mutation/Token/Startup sowie Web-State/Compiler/API und fachliche Proben |
-| `srch0-engine` | echte Suche und unabhängige Eigenschaften auf beiden Engines; zusätzlich API und echte Mutationsaufträge |
+| `srch0-engine` | echte Suche und unabhängige Eigenschaften auf beiden Engines; zusätzlich API, echte Mutationsaufträge und aktuelle Unknown-Projektionen |
 | `srch0-browser` | URL, Storage, Snapshot und History in der echten SvelteKit-App |
 
 Einzelne Schichten lassen sich getrennt ausführen:
@@ -50,7 +57,8 @@ Engineberichte stehen standardmässig in `/tmp/wanderer-srch0-reports`,
 Web-/Browserberichte in `web/test-results`. `SRCH0_REPORT_DIR` überschreibt
 das Berichtsverzeichnis der Engine und fachlichen Web-Proben. Berichte binden
 das Manifest und den Änderungsdigest. Der SRCH0-Workflow lädt Engine- und
-Browserberichte hoch; die normalen Go-/Web-Jobs führen die Unit-Tests aus. Der
+Browserberichte hoch; sein Korpusjob sowie die normalen Go-/Web-Jobs führen
+die Unit-Tests aus. Der
 separate Docs-Workflow baut geänderte Dokumentation und erzeugt vorher die im
 Checkout noch fehlende OpenAPI-Datei. Er startet keine Engine-Matrix.
 
@@ -113,14 +121,22 @@ Standardtext.
 | `go-mutation`, `go-search-token`, `go-startup` | Registrierte Hooks und Routen ausführen, Suchaufträge beziehungsweise kontrollierte Startup-Zwischenstände beobachten. |
 | `browser` | In der echten SvelteKit-App navigieren und URL, Storage und History mit synthetischen externen Diensten beobachten. |
 
+Der eingefrorene Referenzindex enthält historische Projektionen. Seine
+Schwierigkeitswerte `0` prüfen den Transport von `0` nach `easy`, nicht die
+Richtigkeit der damaligen Ableitung aus fehlenden PB-Werten. Dafür verlangen
+`PROJECTION-008/010` unabhängig `null` aus den aktuellen PB-Projektoren und
+materialisieren diese Aufträge auf beiden Engines; die Web-DTO-Prüfung
+verlangt daraus Unknown ohne erfundene Schwierigkeitsstufe.
+
 Die folgenden Adaptergrenzen erläutern die Aussagekraft dieser Methoden;
 ein Methodentext ersetzt keinen ausführbaren Fall.
 
 ## Eine Produktkorrektur prüfen
 
-Für eine Korrektur bleiben die historischen Basisfälle unverändert. Gemeinsam
-mit dem Produktcode erhält `changes.json` pro betroffenem Fall eine vollständige
-Ersatzbeobachtung unter `observed`, gebunden an dessen `basis_digest`. Alle
+Für eine Korrektur bleiben die historischen Basisfälle unverändert. Der
+Testbranch erhält in `changes.json` pro betroffenem Fall eine vollständige
+korrekte Ersatzbeobachtung unter `observed`, gebunden an dessen `basis_digest`.
+Diese Erwartung gilt bereits vor Integration des separaten Produktfixes. Alle
 Adapter verwenden diesen Ersatz im Speicher; die ursprüngliche Beobachtung
 bleibt unter `baseline_observed` zugänglich.
 
@@ -235,10 +251,10 @@ Gründe: Principal-Grenzen, Präferenzen, Anfrageform, Mehrfachsuche, Fehler und
 Startup. Die vollständige Suchmatrix läuft direkt gegen beide Engines;
 API-Transport und Startup-Zustände werden gezielt zusätzlich geprüft.
 
-Startup wird mit kontrollierten HTTP-Zwischenstufen beobachtet. Ein expliziter
-Abschluss wartet die gestartete Hintergrundarbeit ab. Die API-Suite spielt
-diese Indexzustände separat nach. Das beweist keine vollständige gleichzeitige
-Startsequenz zweier Produktprozesse und keine allgemeine Readinessgarantie.
+Startup wird mit kontrollierten HTTP-Zwischenstufen geprüft. Suchbereitschaft
+vor erfolgreich abgeschlossenen Tasks ist ein Testfehler. Die API-Suite prüft
+den vollständigen Ready-Endzustand. Fehlerweitergabe und Wiederaufnahme eines
+abgebrochenen Erstaufbaus werden zusätzlich getestet.
 
 Die CI-Codepfade bleiben wegen indirekter Suchabhängigkeiten bewusst breit;
 ein Cache vorbereiteter Testdatenbank-Vorlagen bleibt als optionale
@@ -247,10 +263,12 @@ Laufzeitoptimierung zurückgestellt.
 ## Befunde weiterverfolgen
 
 [BEFUNDE.md](BEFUNDE.md) ist die fachliche Lesefassung. Die Web-Proben erzeugen
-`srch0-plausibility.json`; bekannte Verletzungen werden als `bekannter_befund`,
-erfüllte Eigenschaften als `erfüllt` berichtet. Eine neue, nicht eingeordnete
-Abweichung lässt die Prüfung scheitern. Die bekannten Befunde sind somit
-sichtbar, obwohl die neutrale Bestandsaufnahme insgesamt bestehen kann.
+`srch0-plausibility.json`; jede verletzte Eigenschaft ist ein fehlgeschlagener
+Test, unabhängig davon, ob der Fehler schon bekannt war. Ein Fix muss diese
+Prüfung bestehen; die Rückkehr des alten Fehlers muss sie wieder scheitern
+lassen. Go prüft korrekte Projektionen, Freigaben und aktualisierte Metadaten
+unabhängig von den historischen Goldens. Vollständigkeits- und Startuptests
+dürfen fehlende Treffer oder vorzeitig verfügbare Teilindizes nicht akzeptieren.
 
 Die Kürzel in `successor_refs` sind Planungsreferenzen. Ihre Dokumente liegen
 nicht in diesem Branch; sie sind weder tote Links noch eine Voraussetzung,

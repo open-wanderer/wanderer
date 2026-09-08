@@ -30,8 +30,13 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
       - run: npm ci --prefix web
       - run: make srch0-check
+      - name: Require correct product behavior without known-error exceptions
+        run: make srch0-unit
       - name: Check golden evolution against the PR base
         if: github.event_name == 'pull_request'
         env:

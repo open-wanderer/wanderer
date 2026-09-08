@@ -53,8 +53,7 @@ func TestSRCH0Mutation(t *testing.T) {
 			}
 			before := m.Snapshot()
 			firstMutation := len(m.Calls())
-			// Use the application's actual registry, including the absence of
-			// direct tag -> trail and actor -> trail index update hooks.
+			// Exercise the application's actual registry and saved relations.
 			setupEventHandlers(&pocketbase.PocketBase{App: app}, m.Client)
 			for _, v := range c.Input["operations"].([]any) {
 				x := v.(map[string]any)
@@ -133,6 +132,14 @@ func TestSRCH0Mutation(t *testing.T) {
 					values[p["collection"].(string)+"/"+p["id"].(string)] = fields
 				}
 				got["database"] = values
+			}
+			assertSRCH0CurrentIndex(t, app, m, before)
+			for _, operation := range c.Input["operations"].([]any) {
+				x := operation.(map[string]any)
+				if x["action"] == "save" && (x["collection"] == "activitypub_actors" || x["collection"] == "tags" || x["collection"] == "categories") {
+					assertSRCH0NewMetadataDocumentsComplete(t, m, before)
+					assertSRCH0CurrentIndex(t, app, m, m.Snapshot())
+				}
 			}
 			srch0.Assert(t, c, got, c.Observed["mutation_state"])
 			m.AssertRealMaterialization(t, c)

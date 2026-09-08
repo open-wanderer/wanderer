@@ -34,6 +34,11 @@ for (const fixture of cases<BrowserInput, BrowserObservation>(['browser'])) {
         }, fixture.input.storage);
         await page.goto(fixture.input.url);
         await expect.poll(() => searches.length).toBeGreaterThan(0);
+        for (const search of searches) {
+            expect(search.options.sort, 'Gespeicherte Sortwerte dürfen keine ungültigen Engine-Aufträge erzeugen').toEqual([
+                expect.stringMatching(/^(name|distance|duration|difficulty|elevation_gain|elevation_loss|like_count|created|date):(asc|desc)$/),
+            ]);
+        }
 
         if (fixture.input.navigation === 'history-back') {
             // Use a real application link: SvelteKit invokes beforeNavigate,

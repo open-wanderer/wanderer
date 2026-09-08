@@ -43,15 +43,16 @@ function uploadRequest(event: RequestEvent, input: ApiInput) {
     };
 }
 
-export async function observeAPI(context: Context, input: ApiInput, source: Dataset) {
+export async function observeAPI(context: Context, input: ApiInput, source: Dataset, engine?: unknown) {
     const requests: JsonRecord[] = [];
     const responses: unknown[] = input.search_ids
         ? [{ hits: input.search_ids.map(id => source.trails.find(trail => trail.id === id)) }]
         : [...(input.responses ?? [emptySearch])];
-    const ms = {
+    const ms = engine ?? {
         index: (index: string) => ({ search: async (q: string, options: unknown) => {
             requests.push({ index, q, options });
-            return responses.shift() ?? emptySearch;
+            const response = responses.shift() as JsonRecord | undefined;
+            return (response?.results as unknown[] | undefined)?.[0] ?? response ?? emptySearch;
         } }),
         multiSearch: async (body: JsonRecord) => { requests.push(body); return responses.shift() ?? { results: [{ hits: [] }] }; },
     };

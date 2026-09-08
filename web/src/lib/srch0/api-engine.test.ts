@@ -1,12 +1,14 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { Meilisearch, type MultiSearchParams, type SearchParams, type SearchResponse } from 'meilisearch';
-import { cases, dataset, label } from '../../../tests/srch0/fixtures';
+import { cases, dataset, label, readJSON } from '../../../tests/srch0/fixtures';
 import { POST as proxy } from '../../routes/api/v1/search/[index]/+server';
 import { POST as multi } from '../../routes/api/v1/search/multi/+server';
-import { assertSearchPlausibility, normalizeResult } from '../../../../scripts/srch0/engine-results.mjs';
-import { isAPIIntegrationCase } from '../../../../scripts/srch0/selection.mjs';
+import { assertSearchPlausibility, normalizeResult, eligibleDocuments } from '../../../../scripts/srch0/engine-results.mjs';
+import { API_SEARCH_CASES, API_STARTUP_CASES, API_COMPLETENESS_CASES } from '../../../../scripts/srch0/selection.mjs';
+import { generateScaleDataset } from '../../../../scripts/srch0/dataset-generator.mjs';
+import { observeAPI } from '../../../tests/srch0/api-adapter';
 import { apiEvent, routeError } from '../../../tests/srch0/api-context';
-import type { JsonRecord } from '../../../tests/srch0/types';
+import type { Dataset, JsonRecord } from '../../../tests/srch0/types';
 
 type Order = Record<string, unknown>;
 type EngineInput =
@@ -14,14 +16,13 @@ type EngineInput =
     | { adapter: 'engine-multi'; request: MultiSearchParams; proxy_request?: MultiSearchParams; orders?: Order[] };
 type EngineResponse = SearchResponse<JsonRecord> & { results: SearchResponse<JsonRecord>[] };
 interface StartupInput { adapter: 'go-startup'; indexes: string; empty_source: boolean }
-interface StartupStage { phase: string; document_counts: Record<string, number> }
-interface StartupObservation { mutation_state: { availability: StartupStage[] }; startup_api: unknown }
+interface StartupObservation { mutation_state: { document_counts: Record<string, number> }; startup_api: unknown }
 
 const profile = process.env.SRCH0_MEILI_PROFILE;
 
 describe.skipIf(!profile)('SRCH0 real engine through SvelteKit API and tenant principal', () => {
     afterEach(() => vi.unstubAllEnvs());
-    for (const fixture of cases<EngineInput>(['search']).filter(isAPIIntegrationCase)) {
+    for (const fixture of cases<EngineInput>(['search']).filter(fixture => fixture.case_id in API_SEARCH_CASES)) {
         it(`${label(fixture)} active_profile=${profile}`, async () => {
             vi.stubEnv('TZ', fixture.context.timezone);
             const token = process.env[`SRCH0_MEILI_${fixture.context.principal.toUpperCase()}_TOKEN`];
@@ -59,7 +60,80 @@ describe.skipIf(!profile)('SRCH0 real engine through SvelteKit API and tenant pr
     }
 });
 
-describe.skipIf(!profile)('SRCH0 API reachability in recorded startup index states', () => {
+describe.skipIf(!profile)('SRCH0 vollständige Produktabfragen gegen die echte Engine', () => {
+    let replacedTrails = false;
+    const admin = () => new Meilisearch({ host: process.env.SRCH0_MEILI_URL!, apiKey: process.env.SRCH0_MEILI_KEY });
+    async function replaceTrails(trails: object[]) {
+        const target = admin().index('trails');
+        expect((await target.deleteAllDocuments().waitTask({ timeout: 30000, interval: 10 })).status).toBe('succeeded');
+        for (let offset = 0; offset < trails.length; offset += 1000) {
+            expect((await target.addDocuments(trails.slice(offset, offset + 1000)).waitTask({ timeout: 30000, interval: 10 })).status).toBe('succeeded');
+        }
+    }
+    afterEach(async () => {
+        if (replacedTrails) await replaceTrails(dataset().trails);
+        replacedTrails = false;
+        vi.restoreAllMocks();
+    });
+    for (const fixture of cases<EngineInput>(['search']).filter(fixture => fixture.case_id in API_COMPLETENESS_CASES)) {
+        it(`${label(fixture)} active_profile=${profile} complete_consumer`, async () => {
+            expect(process.env.SRCH0_MEILI_DISPOSABLE).toBe('true');
+            const token = process.env[`SRCH0_MEILI_${fixture.context.principal.toUpperCase()}_TOKEN`];
+            expect(token).toBeTruthy();
+            const ms = new Meilisearch({ host: process.env.SRCH0_MEILI_URL!, apiKey: token });
+            let actual;
+            if (fixture.case_id === 'SRCH0-SEARCH-117') {
+                const source = dataset();
+                const match = source.trails.find(trail => trail.id === 'duplicate-21')!;
+                const firstPage = await ms.index('trails').search('', { attributesToRetrieve: ['id'] });
+                expect(firstPage.hits.length).toBeLessThan(eligibleDocuments(source, 'trails', fixture.context.principal).length);
+                const response = await observeAPI(fixture.context, {
+                    adapter: 'api-upload', trail: { name: 'Synthetic upload', distance: match.distance, elevation_gain: match.elevation_gain,
+                        elevation_loss: match.elevation_loss, lat: match._geo.lat, lon: match._geo.lng, tags: [], photos: [], expand: {} },
+                }, source, ms);
+                expect(response).toMatchObject({ status: 400, result: { duplicate_id: match.id } });
+                actual = { status: response.status, result: response.result };
+
+                // Welcher Treffer ausserhalb der ersten Seite liegt, bestimmt
+                // die Engine. Weit getrennte Distanzen verhindern, dass bereits
+                // ein anderer Kandidat als fachlich gleiches Duplikat gilt.
+                const candidates = source.trails.filter(trail => trail.id.startsWith('duplicate-'))
+                    .map((trail, i) => ({ ...trail, distance: 1000000 + i * 1000 }));
+                replacedTrails = true;
+                await replaceTrails(candidates);
+                const page = await ms.index('trails').search('', { attributesToRetrieve: ['id'] });
+                const ids = new Set(page.hits.map(hit => hit.id));
+                const omitted = candidates.find(trail => !ids.has(trail.id));
+                expect(omitted, 'Ein eindeutiger Duplikatkandidat muss ausserhalb der ersten Seite liegen').toBeDefined();
+                const later = await observeAPI(fixture.context, {
+                    adapter: 'api-upload', trail: { name: 'Synthetic later duplicate', distance: omitted!.distance,
+                        elevation_gain: omitted!.elevation_gain, elevation_loss: omitted!.elevation_loss,
+                        lat: omitted!._geo.lat, lon: omitted!._geo.lng, tags: [], photos: [], expand: {} },
+                }, { ...source, trails: candidates }, ms);
+                expect(later).toMatchObject({ status: 400, result: { duplicate_id: omitted!.id } });
+            } else {
+                const source = generateScaleDataset(dataset(), readJSON(fixture.dataset_ref)) as Dataset;
+                replacedTrails = true;
+                await replaceTrails(source.trails);
+                const cap = (await admin().index('trails').getSettings()).pagination!.maxTotalHits!;
+                expect(source.trails.length).toBeGreaterThan(cap);
+                const response = await observeAPI(fixture.context, {
+                    adapter: 'api-cluster', body: { southWest: { lat: -85, lng: -180 }, northEast: { lat: 85, lng: 180 }, zoom: 0 },
+                }, source, ms);
+                expect(response.status).toBe(200);
+                const body = response.response as { totalHits: number; features: { properties: { point_count: number } }[] };
+                const represented = body.features.reduce((sum, feature) => sum + feature.properties.point_count, 0);
+                const visible = eligibleDocuments(source, 'trails', fixture.context.principal).length;
+                expect(body.totalHits).toBe(visible);
+                expect(represented).toBe(visible);
+                actual = { status: response.status, total: body.totalHits, represented };
+            }
+            expect(actual).toEqual(fixture.observed.api_result);
+        }, 120000);
+    }
+});
+
+describe.skipIf(!profile)('SRCH0 API nach vollständig abgeschlossenem Startup', () => {
     const indexes = ['trails', 'lists', 'actors'] as const;
     let didMutate = false;
     const admin = () => new Meilisearch({ host: process.env.SRCH0_MEILI_URL!, apiKey: process.env.SRCH0_MEILI_KEY });
@@ -81,7 +155,7 @@ describe.skipIf(!profile)('SRCH0 API reachability in recorded startup index stat
         for (const index of indexes) await materialize(index, source[index]);
     });
 
-    for (const fixture of cases<StartupInput, StartupObservation>(['mutation']).filter(isAPIIntegrationCase)) {
+    for (const fixture of cases<StartupInput, StartupObservation>(['mutation']).filter(fixture => fixture.case_id in API_STARTUP_CASES)) {
         it(`${label(fixture)} active_profile=${profile} startup_api`, async () => {
             vi.stubEnv('TZ', fixture.context.timezone);
             // The engine runner owns this disposable service. This suite changes
@@ -99,32 +173,21 @@ describe.skipIf(!profile)('SRCH0 API reachability in recorded startup index stat
             if (fixture.input.empty_source) for (const index of indexes) rebuild[index] = [];
             const staged: Record<string, object[]> = Object.fromEntries(indexes.map(index => [index, fixture.input.indexes === 'existing' ? [{ id: 'prior' }] : []]));
             const ms = new Meilisearch({ host: process.env.SRCH0_MEILI_URL!, apiKey: process.env.SRCH0_MEILI_ANONYMOUS_TOKEN });
-            const actual = [];
             didMutate = true;
 
-            // Go separately runs and pauses the real serve hook to observe the
-            // phases. Here each recorded state is materialized to qualify search
-            // through the actual API and tenant-scoped engine. Test setup waits
-            // are not runtime task barriers or a concurrent process-start claim.
-            for (const stage of fixture.observed.mutation_state.availability) {
-                const counts: Record<string, number> = {};
-                for (const index of indexes) {
-                    await materialize(index, staged[index]);
-                    counts[index] = (await admin().index(index).getStats()).numberOfDocuments;
-                }
-                expect(counts, `${fixture.case_id}: ${stage.phase}`).toEqual(stage.document_counts);
-                const event = apiEvent({ principal: 'anonymous', ms,
-                    body: { q: '', options: { attributesToRetrieve: ['id'], sort: ['created:asc'], hitsPerPage: 25, page: 1 } } });
-                const response = await proxy(event);
-                const result = await response.json() as SearchResponse<{ id: string }>;
-                actual.push({ phase: stage.phase, status: response.status, hit_ids: result.hits.map(hit => hit.id).sort(), total: result.totalHits });
-
-                // Phase observations are made before submission, so only the
-                // next phase incorporates the current operation's materialization.
-                const [method, path] = stage.phase.split(' ');
-                const index = path.split('/')[2];
-                staged[index] = method === 'DELETE' ? [] : rebuild[index];
+            // Go verifies that the real serve hook cannot open search before
+            // completion. This API check then qualifies only its ready state.
+            const counts: Record<string, number> = {};
+            for (const index of indexes) {
+                await materialize(index, fixture.input.indexes === 'existing' ? staged[index] : rebuild[index]);
+                counts[index] = (await admin().index(index).getStats()).numberOfDocuments;
             }
+            expect(counts).toEqual(fixture.observed.mutation_state.document_counts);
+            const event = apiEvent({ principal: 'anonymous', ms,
+                body: { q: '', options: { attributesToRetrieve: ['id'], sort: ['created:asc'], hitsPerPage: 25, page: 1 } } });
+            const response = await proxy(event);
+            const result = await response.json() as SearchResponse<{ id: string }>;
+            const actual = [{ phase: 'ready', status: response.status, hit_ids: result.hits.map(hit => hit.id).sort(), total: result.totalHits }];
             expect(actual).toEqual(fixture.observed.startup_api);
         }, 30000);
     }

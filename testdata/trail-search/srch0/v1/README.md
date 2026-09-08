@@ -10,7 +10,7 @@ Bestandsanker: `e9b7a8cade980002acbcf2e2f5b2a083934f29d2` · 2026-09-07 · 280 F
 2. In der betroffenen Gruppe stehen gemeinsame Metadaten einmal, Eingabe und Beobachtung vollständig beim jeweiligen Fall.
 3. Die [Anleitung](../../../../scripts/srch0/README.md) ordnet Adapter und Solländerungen ein. Generierte Dateidigests stehen im [Manifest](manifest.json).
 
-**Ein grüner Bestandstest ist kein Beweis fachlicher Richtigkeit.** Unabhängige Plausibilitätsprüfungen und ausdrücklich ausgewiesene Befunde ergänzen die Beobachtungen.
+**Bekannte fachliche Fehler sind Merge-Blocker.** Historische Beobachtungen erlauben keine grünen Tests bei verletzten Eigenschaften. Tests und korrekte Sollwerte liegen auf SRCH0, Produktfixes auf einem separaten Branch.
 
 ## Fallgruppen
 

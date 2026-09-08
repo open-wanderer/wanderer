@@ -9,8 +9,6 @@ import (
 	"net/http/httptest"
 	"pocketbase/internal/srch0"
 	"pocketbase/util"
-	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -67,29 +65,14 @@ func TestSRCH0Projection(t *testing.T) {
 			include, _ := c.Input["include_shares"].(bool)
 			m := srch0.NewMeili(t)
 			if c.Input["projection_diagnostic"] == true {
-				status := "formed"
-				func() {
-					defer func() {
-						if problem := recover(); problem != nil {
-							status = "unexpected-panic"
-							if bounds, ok := problem.(runtime.Error); ok && strings.Contains(bounds.Error(), "index out of range [-1]") {
-								status = "panic"
-							}
-						}
-					}()
-					if err := util.IndexTrails(app, []*core.Record{r}, m.Client); err != nil {
-						status = "error"
-					}
-				}()
-				// This is an observed defect, not a positive product guarantee.
-				// A reviewed change can replace the diagnostic with "formed"
-				// without changing this original input or legitimizing the panic.
-				if status == "formed" {
-					t.Log("Fachliche Prüfung erfüllt: Der regulär gespeicherte Trail lässt sich projizieren.")
-				} else if status == "panic" {
-					t.Log("Fachlicher Fehler bestätigt: Der regulär gespeicherte Trail verursacht bei Thumbnail -1 einen negativen Arrayzugriff.")
+				if err := util.IndexTrails(app, []*core.Record{r}, m.Client); err != nil {
+					t.Fatal("Gespeicherter Trail muss projektierbar sein:", err)
 				}
-				srch0.Assert(t, c, map[string]any{"schema_validation": "accepted", "projection_status": status}, c.Observed["diagnostics"])
+				got := m.Snapshot()["trails"].(map[string]any)[r.Id].(map[string]any)
+				if got["thumbnail"] != r.GetStringSlice("photos")[0] {
+					t.Fatalf("Ungültiger Thumbnailindex muss auf das erste vorhandene Foto zurückfallen: %v", got["thumbnail"])
+				}
+				srch0.Assert(t, c, map[string]any{"schema_validation": "accepted", "projection_status": "formed"}, c.Observed["diagnostics"])
 				return
 			}
 			var err error
@@ -129,20 +112,22 @@ func TestSRCH0Projection(t *testing.T) {
 			default:
 				t.Fatalf("unsupported projector %s", kind)
 			}
-			if defensive && err != nil {
-				srch0.Assert(t, c, map[string]any{"validation": validationStatus, "projection": "error", "difficulty_is_number": false}, c.Observed["diagnostics"])
-				return
-			}
 			if err != nil {
 				t.Fatal(err)
 			}
 			got := m.Snapshot()[index].(map[string]any)[r.Id].(map[string]any)
+			if kind == "trails" {
+				known := map[string]float64{"easy": 0, "moderate": 1, "difficult": 2}
+				value, exists := got["difficulty"]
+				want, isKnown := known[r.GetString("difficulty")]
+				if !exists || (isKnown && value != want) || (!isKnown && value != nil) {
+					t.Fatalf("Difficulty muss bekannt unverändert und unbekannt explizit null sein: source=%q, index=%v", r.GetString("difficulty"), value)
+				}
+			}
 			if kind == "lists" {
 				got["iri"] = iri
 			}
 			if defensive {
-				// Invalid source enums are a defensive boundary, not a commitment to the
-				// arbitrary numeric fallback produced for a record that cannot be saved.
 				_, numeric := got["difficulty"].(float64)
 				srch0.Assert(t, c, map[string]any{"validation": validationStatus, "projection": "formed", "difficulty_is_number": numeric}, c.Observed["diagnostics"])
 			} else {
@@ -159,6 +144,11 @@ func TestSRCH0Projection(t *testing.T) {
 						t.Errorf("profile field %s missing", f)
 					}
 				}
+			}
+			if c.ID == "SRCH0-PROJECTION-008" || c.ID == "SRCH0-PROJECTION-010" {
+				// Die aktuelle PB-Projektion muss auch in beiden echten Engines
+				// unbekannt bleiben; der historische Referenzindex ist kein Beleg dafür.
+				m.AssertRealMaterialization(t, c)
 			}
 		})
 	}

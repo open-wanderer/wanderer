@@ -8,7 +8,7 @@ export function renderMatrix({ manifest, cases }) {
     '1. Die [fachliche Bewertung](../../../../scripts/srch0/BEFUNDE.md) erklärt Fehler und offene Produktfragen.',
     '2. In der betroffenen Gruppe stehen gemeinsame Metadaten einmal, Eingabe und Beobachtung vollständig beim jeweiligen Fall.',
     '3. Die [Anleitung](../../../../scripts/srch0/README.md) ordnet Adapter und Solländerungen ein. Generierte Dateidigests stehen im [Manifest](manifest.json).', '',
-    '**Ein grüner Bestandstest ist kein Beweis fachlicher Richtigkeit.** Unabhängige Plausibilitätsprüfungen und ausdrücklich ausgewiesene Befunde ergänzen die Beobachtungen.', '',
+    '**Bekannte fachliche Fehler sind Merge-Blocker.** Historische Beobachtungen erlauben keine grünen Tests bei verletzten Eigenschaften. Tests und korrekte Sollwerte liegen auf SRCH0, Produktfixes auf einem separaten Branch.', '',
     '## Fallgruppen', '',
     '| Gruppe | Fälle | Consumer |', '| --- | ---: | --- |',
     ...groups.map(group => `| [${group.path}](${group.path}) | ${group.cases.length} | ${[...new Set(group.cases.map(({ fixture }) => fixture.context.consumer))].join(', ')} |`), '',

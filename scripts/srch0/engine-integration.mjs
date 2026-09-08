@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { readJSON } from './corpus.mjs';
-import { API_CASE_IDS } from './selection.mjs';
+import { API_CASE_IDS, PROJECTION_ENGINE_CASE_IDS } from './selection.mjs';
 
 export function reportEntry(corpus, caseID, profile, suite, status, diff) {
     const record = corpus.cases.find(({ fixture }) => fixture.case_id === caseID);
@@ -71,12 +71,13 @@ export async function runIntegrations(engine, corpus, output) {
     for (const [suite, command, args, cwd] of [
         ['api', 'npm', ['run', 'test:unit', '--', '--run', 'src/lib/srch0/api-engine.test.ts', '--reporter=json', `--outputFile=${apiReportPath}`], new URL('../../web', import.meta.url)],
         ['mutation', 'go', ['test', '.', '-run', 'TestSRCH0Mutation', '-count=1', '-json'], new URL('../../db', import.meta.url)],
+        ['projection', 'go', ['test', '.', '-run', `^TestSRCH0Projection$/^(${PROJECTION_ENGINE_CASE_IDS.join('|')})$`, '-count=1', '-json'], new URL('../../db', import.meta.url)],
     ]) {
         const { exitCode, transcript } = await run(command, args, cwd, environment);
         const cases = suite === 'api' ? apiResults(apiReportPath) : mutationResults(transcript);
         const entries = cases.map(result => reportEntry(corpus, result.caseID, engine.profile, suite, result.status, result.diff));
         results.push(...entries);
-        const required = (suite === 'mutation'
+        const required = (suite === 'projection' ? [...PROJECTION_ENGINE_CASE_IDS] : suite === 'mutation'
             ? corpus.cases.filter(({ fixture }) => fixture.input.adapter === 'go-mutation').map(({ fixture }) => fixture.case_id)
             : [...API_CASE_IDS]).sort();
         const executed = entries.map(entry => entry.case_id).sort();

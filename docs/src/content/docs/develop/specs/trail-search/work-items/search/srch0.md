@@ -4,12 +4,12 @@ description: Reproduzierbare Bestandsaufnahme, unabhängige Plausibilitätsprüf
 editUrl: false
 sidebar:
   order: 1
-  badge: Review
+  badge: Blockiert
 spec:
   id: SRCH0
   kind: work-item
   status: reviewable
-  deliveryStatus: validating
+  deliveryStatus: blocked
   capability: FOUNDATION
   productSlice: search-foundation
   exposure: internal
@@ -26,9 +26,14 @@ SRCH0 beschreibt das Suchverhalten am Commit
 UI-Prototyp und die übrigen Spezifikationen des früheren Spec-Branches sind
 nicht Bestandteil dieser Implementierung.
 
-Ein erfolgreicher Bestandstest zeigt, dass eine Beobachtung reproduzierbar
-ist. Er beweist keine fachliche Richtigkeit. Deshalb unterscheidet SRCH0 drei
-Dinge:
+SRCH0 darf bei fachlich falschen geprüften Ergebnissen nicht grün sein. Die
+Tests werden auf `feat/srch0` verschärft; Produktkorrekturen entstehen separat
+auf `fix/srch0-findings`. Die offenen Fehler blockieren den Merge von SRCH0.
+Bis der geprüfte Branchstand die Fixes enthält, müssen seine betroffenen
+Tests rot bleiben. Ein kombinierter Testlauf aus beiden Branches dient der
+Fixprüfung und macht den ungefixten SRCH0-Stand nicht mergebar.
+
+Der Korpus unterscheidet drei Dinge:
 
 1. **Historische Beobachtung:** Was erzeugte die Baseline bei einer konkreten
    Eingabe? Dieser Wert steht im unveränderten Basisfall unter `observed`.
@@ -39,10 +44,9 @@ Dinge:
    Eigenschaft, etwa Sichtbarkeit, gültige Koordinaten oder eine konsistente
    Sortierung? Diese Prüfung liest keine erwartete Treffermenge aus `observed`.
 
-Bekannte Verstösse werden ausdrücklich als Befunde berichtet. Sie werden
-nicht durch einen grünen Snapshottest zu erwünschtem Produktverhalten. Neue,
-nicht eingeordnete Verletzungen der geprüften Eigenschaften lassen den Test
-scheitern. Eine Korrektur darf die Eigenschaft unmittelbar erfüllen.
+Jede Verletzung einer geprüften Eigenschaft lässt den Test scheitern. Es gibt
+keine Ausnahme für bekannte Verstösse. Historische Beobachtungen sind weder
+eine fachliche Freigabe noch ein Ersatz für korrekte aktive Erwartungen.
 
 SRCH0 führt keine neuen Suchfunktionen und keine Korrektur der gefundenen
 Produktfehler ein. Die einzige produktive Testnaht erlaubt es, den bereits
@@ -79,11 +83,11 @@ Go-Tokenfällen. Sie erzeugt keine zweite handgeschriebene Kopie dieser Regeln.
 Eine separate Sichtbarkeitsprüfung vergleicht Treffer und Counts mit den
 Beziehungen im synthetischen Quelldataset.
 
-Startup-Evidenz verbindet zwei Tests: Go pausiert die echten HTTP-Aufträge und
-prüft die registrierte Tokenroute; die API-Suite materialisiert die so
-erfassten Zwischenzustände in Meilisearch und führt den Suchhandler aus.
-Dies belegt leere und teilweise aufgebaute Suchzustände. Es ist kein
-End-to-End-Test zweier gleichzeitig startender Produktprozesse.
+Startup-Evidenz verbindet zwei Tests: Go pausiert die echten HTTP-Aufträge
+und verlangt, dass Suchbereitschaft erst nach erfolgreichem Abschluss
+hergestellt wird. Die API-Suite prüft den vollständigen Ready-Endzustand.
+Eine erfolgreiche Suchantwort während eines Teilaufbaus ist kein akzeptiertes
+Golden. Fehler- und Wiederanlauffälle ergänzen die normalen Starts.
 
 ## Fachliche Bewertung
 
@@ -95,14 +99,15 @@ vorhandenem Foto ist im Produktionsschema speicherbar und bringt den
 Projektor zum Absturz.
 
 Die Clusterabfrage erreicht beim grossen Dataset die Indexgrenze von 1'000
-Treffern; die Duplikatprüfung erhält höchstens 20 sichtbare Trails zur anschliessenden Duplikatprüfung. Damit sind diese
-Abfragen keine vollständige Aufzählung aller geeigneten Trails. SRCH0 hält
-Anzahl und Eignung fest, ohne die zufällig ausgewählten oder ausgelassenen
-IDs als Vertrag zu behandeln.
+Treffern; die Duplikatprüfung untersucht nur die erste Engineantwort mit
+höchstens 20 Trails. Strikte Produktprüfungen verlangen eine vollständige
+Clustergrundlage und das Finden eines passenden Duplikats auch nach dieser
+ersten Antwort. Eine dokumentierte Begrenzung darf diese Tests nicht bestehen
+lassen.
 
 Die doppelte `_geoRadius`-Klausel ist eine Redundanz ohne belegten Unterschied
-in der Treffermenge. Die Interpretation eines Enddatums als ganzer Kalendertag
-bleibt eine Produktentscheidung. Bei nichtleerem Suchtext steht die
+in der Treffermenge. Das Enddatum umfasst den ganzen lokalen Kalendertag;
+Tests prüfen dies auch an Tagen mit Zeitumstellung. Bei nichtleerem Suchtext steht die
 Attributrelevanz vor der expliziten Sortierung; ein eigener Fall demonstriert
 den Konflikt mit weit auseinanderliegenden Distanzen.
 
@@ -154,8 +159,9 @@ ein zusätzlicher Nachweis; das Feld steuert keine Ausführung oder Freigabe.
 
 ## Erwartungen gezielt ändern
 
-Eine veröffentlichte Beobachtung wird nicht überschrieben. Produktkorrekturen
-ändern den Code und ergänzen einen Eintrag in `changes.json` mit:
+Eine veröffentlichte Beobachtung wird nicht überschrieben. Der SRCH0-Testbranch
+verlangt die korrekte Erwartung bereits vor Integration der separat
+entwickelten Produktkorrektur. Dazu ergänzt er `changes.json` mit:
 
 - einer eindeutigen Änderungs-ID und der betroffenen `case_id`;
 - `basis_digest`: SHA-256 des kanonischen expandierten Basisfalls;
@@ -239,9 +245,10 @@ Die Anleitung in `scripts/srch0/README.md` beschreibt Voraussetzungen,
 Einzelläufe und Reports. Jeder Ausführungsbericht bindet das Manifest und die
 aktiven Änderungen. Testbefehle schreiben keine beobachteten Werte neu.
 
-Der SRCH0-Workflow prüft das Korpus und vergleicht veröffentlichte Fälle mit
-der PR-Basis. Die bestehenden Go- und Web-Workflows führen die Unit-Tests aus;
-der SRCH0-Workflow wiederholt sie nicht. Engine-/API- und Browserjobs laufen
+Der SRCH0-Workflow prüft das Korpus, die strikten Go-/Web-Tests und die
+veröffentlichten Fälle gegenüber der PR-Basis. Damit kann ein reiner
+Strukturcheck nicht als fachliche SRCH0-Abnahme erscheinen. Die normalen Go-
+und Web-Workflows führen ihre vollständigen Tests weiterhin aus. Engine-/API- und Browserjobs laufen
 bei Änderungen an den relevanten Code- und Korpuspfaden. Reine Änderungen
 an der allgemeinen Dokumentation starten keine Engine-Matrix. Ein separater
 Docs-Workflow führt den Dokumentationsbuild aus und erkennt dabei auch
@@ -267,5 +274,6 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | --- | --- | --- |
 | 2026-09-07 | Frischer Branch direkt auf aktualisiertem `origin/dev` | SRCH0 übernimmt keinen UI-Prototyp und keine weiteren Spec-Änderungen |
 | 2026-09-08 | Beobachtung, Solländerung und Plausibilität getrennt auswerten | Reproduzierbarkeit darf Fehler weder legitimieren noch ihre Korrektur blockieren |
+| 2026-09-08 | Bekannte Fehler lassen SRCH0 rot und blockieren seinen Merge; Produktfixes entstehen auf einem separaten Branch | Historische Beobachtungen und Fehlerausnahmen sind keine zulässige fachliche Abnahme |
 | 2026-09-08 | Produktionsmigrationen, unabhängiges Inventar und kleine Adapter | Die Tests sollen reale Zustände abbilden und überprüfbar bleiben |
 | 2026-09-08 | Dokumentation bleibt Deutsch | Vorgabe für diesen Branch |

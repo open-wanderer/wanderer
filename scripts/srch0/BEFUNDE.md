@@ -1,14 +1,15 @@
-# SRCH0: fachliche Bewertung des Suchbestands
+# SRCH0: fachliche Fehler und Merge-Blocker
 
 Stand: 8. September 2026. Geprüfte Produktbaseline:
 `e9b7a8cade980002acbcf2e2f5b2a083934f29d2`.
 
-Die ursprüngliche Umsetzung beschrieb überwiegend, was die Suche gerade tut.
-Damit war fachliche Richtigkeit nicht belegt. Die Überarbeitung ergänzt echte
-Datenbankmigrationen, unabhängig formulierte Eigenschaften und gezielte
-Gegenbeispiele. Die folgende Bewertung unterscheidet Fehler von Redundanzen,
-Produktfragen und erfüllten Eigenschaften. Sie ist keine vollständige Prüfung
-aller möglichen Suchanfragen.
+Die Tests auf `feat/srch0` verlangen korrekte Ergebnisse und müssen gegen
+den bisherigen Produktcode rot bleiben. Bekannte Fehler sind keine erlaubten
+Abweichungen. Produktkorrekturen entstehen separat auf `fix/srch0-findings`;
+erst nach deren Integration und erfolgreichem Lauf des tatsächlichen
+SRCH0-Branchstands ist SRCH0 mergebar. Historische Goldens dürfen diesen
+Nachweis nicht ersetzen. Ein kombinierter Prüfbaum dient nur zur Prüfung
+der getrennt entwickelten Tests und Fixes.
 
 ## Bestätigte Fehler
 
@@ -20,22 +21,26 @@ aller möglichen Suchanfragen.
 | Feldauswahl erreicht die Engine nicht | Der allgemeine Suchhelper legt `attributesToRetrieve` ausserhalb von `options` ab. Der Proxy reicht nur `options` weiter. Die vom Helper beabsichtigte Auswahl wird ignoriert. | `SRCH0-P-RETRIEVAL`; echter Requestbuilder und Proxycode |
 | Negativer Thumbnailindex verursacht Panic | Das echte Produktionsschema akzeptiert `thumbnail=-1` bei vorhandenem, tatsächlich hochgeladenem JPEG. Der Projektor prüft nur die obere Grenze und greift auf `photos[-1]` zu. Ein speicherbarer Record bringt die Projektion zum Absturz. | `SRCH0-PROJECTION-021`; `db/srch0_projection_test.go` |
 | Löschen eines Shares entfernt weitere Freigaben aus dem Suchindex | Alice und Bob haben je einen Share auf denselben Trail. Nach Löschen von Alices Share existiert Bobs Datenbankfreigabe weiterhin; der Hook schreibt dennoch `shares=[]` in den Suchindex. Bob verliert damit diesen Suchzugang. | `SRCH0-MUTATION-005`; echte Datenbankprobe und materialisierte Engineaufträge |
-| Geänderte Metadaten bleiben im Trailindex alt | Änderungen an Actor, Tag oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Suchtext und angezeigte Metadaten können veralten. | `SRCH0-MUTATION-007/008/009`; echte Hooks und Datenbankproben |
+| Geänderte Metadaten bleiben im Trailindex alt | Änderungen an Actor, Tag oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Zusätzlich dürfen Metadatenupdates bei fehlenden Einträgen keine unvollständigen Treffer erzeugen. | `SRCH0-MUTATION-007/008/009`; echte Hooks und Datenbankproben |
+| Fehlende oder ungültige Schwierigkeit wird erfunden | Go projiziert Unknown als `0`/leicht; die Web-Konvertierung weist sonstige Rohwerte teilweise als schwierig aus. Unknown muss ohne erfundene Stufe erhalten bleiben. | strikte Go-Projektions- und Web-DTO-Prüfungen |
+| Ungültige gespeicherte Sortwerte erreichen die Engine | Rohe Storagewerte werden als Sortkey und Richtung übernommen. | strikte Compiler- und Browserprüfungen |
+| Ungültige Actor-Suchparameter werden falsch behandelt | Fehlendes `q` wird zu HTTP 500; `limit` erreicht den SDK-Auftrag als String. | strikte Actor-Parameterprüfungen |
 
-Diese Fehler sind erfasst, aber in diesem SRCH0-Branch nicht produktiv
-korrigiert. Die [Anleitung](README.md#eine-produktkorrektur-prüfen) zeigt, wie
-eine Korrektur mit einer gezielten Solländerung geprüft wird, ohne die
-historische Beobachtung zu überschreiben.
+Die Produktfixes gehören ausschliesslich auf den separaten Bugfix-Branch.
+SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
+Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
+Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)
+beschreibt den Vergleich mit der historischen Beobachtung.
 
-## Belegte Grenzen und offene Produktfragen
+## Weitere geprüfte Eigenschaften und Grenzen
 
 | Einordnung | Beobachtung | Aussagegrenze |
 | --- | --- | --- |
-| Unvollständige Clusterresultate | Der Generator materialisiert tatsächlich 10'001 Trails. Bei `maxTotalHits=1000` liefert die Clusterabfrage nur 1'000 davon. | Keine vollständige Clustergrundlage für diesen Bestand; die beliebigen ersten/letzten IDs sind kein Vertrag. Fälle `SRCH0-SEARCH-129/130`. |
-| Unvollständige Duplikatkandidaten | Der Uploadhelper sucht ohne explizites Limit. Im Referenzfall liefert die Engine 20 von 47 für Alice sichtbaren Trails; nur diese 20 erreichen die anschliessende Duplikatheuristik. | Ein zur Distanz-/Geoheuristik passender Trail kann damit ungeprüft bleiben. Welcher ausgelassen wird, ist ohne Sortierung nicht zugesagt; „genau ID X an Position 21“ wäre ein falsches Golden. Fall `SRCH0-SEARCH-117`. |
-| Startup-Verfügbarkeit | Normale Starts löschen und befüllen die live verwendeten Indizes asynchron neu. Tokenroute und Suche können währenddessen erreichbar sein. | Leere und teilweise gefüllte Zustände sind reproduzierbar. Die Tests behaupten keinen vollständigen gleichzeitigen Start zweier Produktprozesse. Fälle `SRCH0-MUTATION-090` bis `093`. |
+| Merge-Blocker: unvollständige Clusterresultate | Der Generator materialisiert tatsächlich 10'001 Trails. Bei `maxTotalHits=1000` liefert die bisherige Clusterabfrage nur 1'000 davon. | Produktprüfungen verlangen die vollständige sichtbare Clustergrundlage. Ein Engine-Cap darf kein erfolgreiches unvollständiges Produktresultat ergeben. Fälle `SRCH0-SEARCH-129/130`, `completeness.test.ts`. |
+| Merge-Blocker: unvollständige Duplikatprüfung | Der bisherige Uploadhelper untersucht nur die erste Engineantwort mit höchstens 20 Trails. | Eine kontrollierte Probe legt das passende Duplikat in eine spätere Antwort und verlangt dessen Erkennung. Die echte API-/Engineprüfung ergänzt diesen Nachweis. `SRCH0-SEARCH-117`, `completeness.test.ts`. |
+| Merge-Blocker: Startup-Verfügbarkeit | Normale Starts löschen und befüllen die live verwendeten Indizes asynchron neu. Tokenroute und Suche können währenddessen erreichbar sein. | Strikte Tests verlangen den Erhalt vorhandener Daten, terminal erfolgreiche Initialisierung vor Suchbereitschaft, Fehlerweitergabe und Wiederaufnahme abgebrochener Erstinitialisierung. Fälle `SRCH0-MUTATION-090` bis `093`. |
 | Redundanz | Derselbe `_geoRadius` wird zweimal per AND verknüpft. | Logisch dieselbe Treffermenge; kein belegter Ergebnisfehler allein durch die Wiederholung. `SRCH0-P-GEO-DUPLICATE`, `SRCH0-COMPILER-016`. |
-| Enddatum als Produktfrage | Ein Enddatum `2026-09-07` wird zu einer inklusiven Grenze am Tagesbeginn. Der lokale Mittag dieses Tages liegt dahinter. | Falls die UI den ganzen ausgewählten Tag meint, ist das falsch. Diese Semantik und die Zeitzone müssen fachlich festgelegt werden. `SRCH0-P-DATE-END`; zusätzlich normale Tages- und DST-Fälle. |
+| Merge-Blocker: Enddatum | Ein Enddatum `2026-09-07` wird bisher zu einer inklusiven Grenze am Tagesbeginn. Der lokale Mittag liegt dahinter. | Das ganze lokale Kalenderdatum muss eingeschlossen sein, auch an 23-/25-Stunden-Tagen. Diese Zielsemantik war bereits im Spec festgelegt. `SRCH0-P-DATE-END` und strikte Kalender-/DST-Prüfungen. |
 | Ranking ist keine globale numerische Sortierung | Bei `q=Alice` und `distance:asc` steht ein Treffer mit Autorname „Alice Aurora“ und Distanz 4'242 vor einem Treffer mit Alice im Trailnamen und Distanz 36. | Die konfigurierte Attributrelevanz kommt vor der Sortierregel. Kein Enginefehler; eine UI-Zusage rein aufsteigender Distanz wäre damit nicht erfüllt. `SRCH0-SEARCH-131`. |
 | Föderierte Listenprojektion | Ein unvollständiger Remote-Listenrecord liest Aggregate live aus der Origininstanz. | Abhängigkeit von fremder Verfügbarkeit und fremden Aggregaten; der Fall allein beweist keinen unzulässigen Datenabfluss. |
 
@@ -53,17 +58,17 @@ Treffer noch den Tenant-Filterstring. Geprüft werden:
 - monotone numerische Sortierung bei leerem Suchtext; und
 - Ergebnismengen, die beim Verengen eines Bereichs nicht wachsen.
 
-Diese Eigenschaften erfüllen die ausgeführten Fälle auf beiden Engineprofilen.
+Die ursprüngliche Enginequalifikation erfüllt diese allgemeinen Eigenschaften.
+Die fachlichen Blocker werden zusätzlich gegen den aktuellen Produktcode
+geprüft und sind dadurch nicht freigegeben.
 Die Access-Matrix umfasst drei Principals und zehn konkrete Kontexte. Das
 ersetzt keine Prüfung beliebiger ACL-Ausdrücke, gleichzeitiger Mutationen,
 aller Föderationszustände oder bösartiger Freitexteingaben.
 
-Die Web-Proben formulieren die gewünschte Eigenschaft direkt. Ein bereits
-bekannter, eng definierter Verstoss wird als `bekannter_befund` berichtet;
-eine erfüllte Eigenschaft als `erfüllt`. Andere Verstösse schlagen fehl.
-Beide Ergebnisse können die neutrale Bestandssuite bestehen, haben aber eine
-unterschiedliche fachliche Bedeutung. Goldens mit bekannten Fehlern bleiben
-bis zur ausdrücklich erklärten Solländerung separat sichtbar.
+Die Web-Proben formulieren die gewünschte Eigenschaft direkt. Jeder Verstoss
+schlägt fehl; der frühere `knownViolation`-Ausweg ist entfernt. Go prüft die
+fachlichen Eigenschaften ebenfalls vor dem Goldenvergleich. Die ursprüngliche
+Beobachtung bleibt historische Evidenz und kann keinen Fehler freigeben.
 
 ## Korrigierte Annahmen der ersten Testfassung
 
@@ -97,7 +102,7 @@ make srch0-engine
 make srch0-browser
 ```
 
-`web/test-results/srch0-plausibility.json` enthält die sechs direkten
+`web/test-results/srch0-plausibility.json` enthält die direkten
 Web-Proben. Die Engineberichte enthalten profilgebundene Ergebnisse und die
 tatsächlichen Datasetgrössen. Go meldet Datenbankvalidierung, Mutation und
 Projektionsdiagnosen bei den jeweiligen Fällen. Alle Berichte sind zusammen

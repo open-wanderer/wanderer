@@ -76,6 +76,16 @@ func (m *Meili) serve(w http.ResponseWriter, r *http.Request) {
 		if m.Documents[index] == nil {
 			m.Documents[index] = map[string]Object{}
 		}
+		if r.Method == "GET" && len(parts) == 4 {
+			document, exists := m.Documents[index][parts[3]]
+			if !exists {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, `{"message":"missing document","code":"document_not_found","type":"invalid_request"}`)
+			} else {
+				_ = json.NewEncoder(w).Encode(document)
+			}
+			return
+		}
 		if r.Method == "DELETE" {
 			if m.FailDelete {
 				w.WriteHeader(400)

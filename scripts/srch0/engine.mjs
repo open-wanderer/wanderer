@@ -36,7 +36,7 @@ for (const version of versions) {
             const entry = reportEntry(corpus, fixture.case_id, engine.profile, 'engine', 'passed');
             try {
                 const actual = await engine.execute(fixture);
-                const { api_diagnostics: _apiDiagnostics, ...observed } = fixture.observed;
+                const { api_diagnostics: _apiDiagnostics, api_result: _apiResult, ...observed } = fixture.observed;
                 const difference = structuralDiff(actual, observed);
                 if (difference) throw Object.assign(new Error('Golden differs from observed baseline'), { difference });
                 entry.tenant_fixture = engine.tenantEvidence[fixture.context.principal];

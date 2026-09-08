@@ -170,7 +170,7 @@ export class Engine {
             assert.ok(duplicateCandidates.length >= 21, 'Upload capacity case requires at least 21 eligible candidates');
             const response = await this.request('/indexes/trails/search', 'POST', { q: '' }, this.tenant('alice'));
             const hits = new Set(response.body.hits.map(hit => hit.id));
-            assert.equal(response.body.limit, 20, 'Upload helper omits an explicit limit');
+            assert.equal(response.body.limit, 20, 'Die historische Anfrage ohne Limit verwendet die erste Seite');
             assert.ok(duplicateCandidates.some(document => !hits.has(document.id)), 'The default page cannot inspect every eligible duplicate candidate');
         }
     }

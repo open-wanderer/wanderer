@@ -1,46 +1,64 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"pocketbase/internal/srch0"
+	"pocketbase/util"
+	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/router"
+	"github.com/spf13/cobra"
 )
 
+func srch0StartupApp(t *testing.T, empty bool) core.App {
+	t.Helper()
+	d := srch0.Data(t)
+	for _, collection := range []string{"trails", "lists", "trail_share", "trail_like", "list_share"} {
+		kept := []srch0.Object{}
+		for _, record := range d.Records[collection] {
+			if collection == "trails" && (record["id"] == "public-alpine" || record["id"] == "public-lake") || collection == "lists" && record["id"] == "list-local" {
+				kept = append(kept, record)
+			}
+		}
+		d.Records[collection] = kept
+	}
+	if empty {
+		for _, collection := range []string{"trails", "lists", "activitypub_actors"} {
+			d.Records[collection] = nil
+		}
+	}
+	return srch0.App(t, d)
+}
+
+func srch0StartupRouter(app core.App) *router.Router[*core.RequestEvent] {
+	return router.NewRouter(func(w http.ResponseWriter, r *http.Request) (*core.RequestEvent, router.EventCleanupFunc) {
+		event := &core.RequestEvent{App: app}
+		event.Request, event.Response = r, w
+		return event, nil
+	})
+}
+
 func TestSRCH0Startup(t *testing.T) {
-	// initPlugins resolves its directory relative to the working directory.
-	// Keep startup discovery inside a synthetic directory as well as a temp DB.
 	t.Chdir(t.TempDir())
 	for _, c := range srch0.Cases(t, "mutation", "go-startup") {
 		t.Run(c.ID, func(t *testing.T) {
-			d := srch0.Data(t)
-			// Take a closed relational subset of the shared dataset, or its empty
-			// boundary. No developer database or remote origin is consulted.
-			for _, collection := range []string{"trails", "lists", "trail_share", "trail_like", "list_share"} {
-				kept := []srch0.Object{}
-				for _, r := range d.Records[collection] {
-					if collection == "trails" && (r["id"] == "public-alpine" || r["id"] == "public-lake") || collection == "lists" && r["id"] == "list-local" {
-						kept = append(kept, r)
-					}
-				}
-				d.Records[collection] = kept
-			}
-			if c.Input["empty_source"] == true {
-				for _, collection := range []string{"trails", "lists", "activitypub_actors"} {
-					d.Records[collection] = nil
-				}
-			}
-			app := srch0.App(t, d)
+			app := srch0StartupApp(t, c.Input["empty_source"] == true)
 			m := srch0.NewMeili(t)
 			m.Missing = c.Input["indexes"] == "missing"
 			m.FailDelete = c.Input["fail_delete"] == true
@@ -49,81 +67,61 @@ func TestSRCH0Startup(t *testing.T) {
 					m.Documents[index]["prior"] = srch0.Object{"id": "prior"}
 				}
 			}
-			type phase struct {
-				request srch0.Request
-				resume  chan struct{}
-			}
-			phases := make(chan phase)
-			cancel := make(chan struct{})
+			before := m.Snapshot()
+			var opened atomic.Bool
+			availability := []any{}
 			m.Before = func(req srch0.Request) {
 				if !strings.Contains(req.Path, "/documents") {
 					return
 				}
-				p := phase{req, make(chan struct{})}
-				select {
-				case phases <- p:
-				case <-cancel:
-					return
+				if req.Method == "DELETE" {
+					t.Errorf("startup must not delete existing search data: %s", req.Path)
 				}
-				select {
-				case <-p.resume:
-				case <-cancel:
-					return
+				if opened.Load() {
+					t.Errorf("search became ready before startup document task: %s %s", req.Method, req.Path)
 				}
+				counts := map[string]int{}
+				for index, documents := range m.Snapshot() {
+					counts[index] = len(documents.(map[string]any))
+				}
+				availability = append(availability, map[string]any{"phase": req.Method + " " + req.Path, "search_ready": opened.Load(), "document_counts": counts})
 			}
 			var jobs sync.WaitGroup
 			background := func(task func()) {
 				jobs.Add(1)
 				go func() { defer jobs.Done(); task() }()
 			}
-			// The injected launcher preserves the real goroutine but gives this
-			// test an explicit completion boundary before the temporary DB closes.
-			defer func() {
-				close(cancel)
-				if !awaitSRCH0Background(&jobs) {
-					t.Error("startup jobs did not stop before database cleanup")
-				}
-			}()
-			r := router.NewRouter(func(w http.ResponseWriter, r *http.Request) (*core.RequestEvent, router.EventCleanupFunc) {
-				e := &core.RequestEvent{App: app}
-				e.Request = r
-				e.Response = w
-				return e, nil
-			})
-			se := &core.ServeEvent{App: app, Router: r}
-			opened := false
-			h := hook.Hook[*core.ServeEvent]{}
-			h.BindFunc(onBeforeServeHandlerWithBackground(m.Client, background))
-			if err := h.Trigger(se, func(*core.ServeEvent) error { opened = true; return nil }); err != nil {
-				t.Fatal(err)
+			routes := srch0StartupRouter(app)
+			handler := hook.Hook[*core.ServeEvent]{}
+			handler.BindFunc(onBeforeServeHandlerWithBackground(m.Client, background))
+			err := handler.Trigger(&core.ServeEvent{App: app, Router: routes}, func(*core.ServeEvent) error { opened.Store(true); return nil })
+			if !awaitSRCH0Background(&jobs) {
+				t.Fatal("startup job did not finish")
 			}
-			mux, err := r.BuildMux()
 			if err != nil {
 				t.Fatal(err)
 			}
-			availability := []any{}
-			wantPhases := c.Observed["mutation_state"].(map[string]any)["availability"].([]any)
-			for range wantPhases {
-				var p phase
-				select {
-				case p = <-phases:
-				case <-time.After(5 * time.Second):
-					t.Fatal("startup stopped before declared phase")
-				}
-				response := httptest.NewRecorder()
-				mux.ServeHTTP(response, httptest.NewRequest("GET", "/search/token", nil))
-				counts := map[string]int{}
-				for index, v := range m.Snapshot() {
-					counts[index] = len(v.(map[string]any))
-				}
-				availability = append(availability, map[string]any{"phase": p.request.Method + " " + p.request.Path, "search_token_status": response.Code, "document_counts": counts})
-				close(p.resume)
+			after := m.Snapshot()
+			if !m.Missing && !reflect.DeepEqual(before, after) {
+				t.Error("normal startup changed existing index documents")
 			}
-			if !awaitSRCH0Background(&jobs) {
-				t.Fatal("startup produced an unobserved phase or did not complete")
+			if m.Missing {
+				for index, count := range map[string]int{"trails": 2, "lists": 1, "actors": 3} {
+					if len(after[index].(map[string]any)) != count {
+						t.Errorf("%s is incomplete at readiness", index)
+					}
+				}
 			}
-			// Settings iteration is a Go map: only per-index configuration and the
-			// ordered document rebuild are stable. Task UIDs are never a golden.
+			mux, err := routes.BuildMux()
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, httptest.NewRequest("GET", "/search/token", nil))
+			if response.Code != http.StatusOK {
+				t.Errorf("ready search token status=%d", response.Code)
+			}
+
 			settings := map[string]any{}
 			rebuild := []string{}
 			waits := 0
@@ -137,6 +135,13 @@ func TestSRCH0Startup(t *testing.T) {
 				if strings.HasPrefix(req.Path, "/tasks/") {
 					waits++
 				}
+			}
+			wantWaits := 3
+			if m.Missing {
+				wantWaits = 9
+			}
+			if waits != wantWaits {
+				t.Errorf("startup must await every creation/settings/document task: got %d, want %d", waits, wantWaits)
 			}
 			for index, name := range map[string]string{"trails": "trails-legacy-v0", "lists": "lists-legacy-v0", "actors": "legacy-actor-v0"} {
 				var profile struct {
@@ -154,8 +159,178 @@ func TestSRCH0Startup(t *testing.T) {
 				}
 				srch0.Assert(t, c, actual, want)
 			}
-			got := map[string]any{"serve_next_called": opened, "settings_match_profiles": len(settings) == 3, "terminal_task_reads": waits, "rebuild_requests": rebuild, "availability": availability}
+			readyCounts := map[string]int{}
+			for index, documents := range after {
+				readyCounts[index] = len(documents.(map[string]any))
+			}
+			got := map[string]any{"serve_next_called": opened.Load(), "search_token_status": response.Code, "document_counts": readyCounts, "settings_match_profiles": len(settings) == 3, "terminal_task_reads": waits, "rebuild_requests": rebuild, "availability": availability}
 			srch0.Assert(t, c, got, c.Observed["mutation_state"])
+		})
+	}
+}
+
+type srch0StartupFault struct {
+	path   string
+	status int
+	body   string
+	once   sync.Once
+}
+
+func (fault *srch0StartupFault) RoundTrip(request *http.Request) (*http.Response, error) {
+	reject := false
+	if request.URL.Path == fault.path {
+		fault.once.Do(func() { reject = true })
+	}
+	if !reject {
+		return http.DefaultTransport.RoundTrip(request)
+	}
+	return &http.Response{StatusCode: fault.status, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(fault.body)), Request: request}, nil
+}
+
+func TestSRCH0StartupRejectsFailedInitialization(t *testing.T) {
+	t.Chdir(t.TempDir())
+	for _, fault := range []struct {
+		name, path string
+		status     int
+		body       string
+	}{
+		{"lookup-permission", "/indexes/trails", 403, `{"message":"denied","code":"invalid_api_key","type":"auth"}`},
+		{"settings-submission", "/indexes/trails/settings", 400, `{"message":"invalid settings","code":"invalid_settings_ranking_rules","type":"invalid_request"}`},
+		{"terminal-task-failure", "/tasks/1", 200, `{"uid":1,"status":"failed","type":"indexCreation","error":{"message":"rejected","code":"invalid_document_id"}}`},
+		{"document-submission", "/indexes/trails/documents", 400, `{"message":"invalid document","code":"invalid_document_id","type":"invalid_request"}`},
+	} {
+		t.Run(fault.name, func(t *testing.T) {
+			app := srch0StartupApp(t, false)
+			m := srch0.NewMeili(t)
+			m.Missing = true
+			client := meilisearch.New(m.Server.URL, meilisearch.WithCustomClient(&http.Client{Transport: &srch0StartupFault{path: fault.path, status: fault.status, body: fault.body}}))
+			var jobs sync.WaitGroup
+			background := func(task func()) { jobs.Add(1); go func() { defer jobs.Done(); task() }() }
+			opened := false
+			handler := hook.Hook[*core.ServeEvent]{}
+			handler.BindFunc(onBeforeServeHandlerWithBackground(client, background))
+			err := handler.Trigger(&core.ServeEvent{App: app, Router: srch0StartupRouter(app)}, func(*core.ServeEvent) error { opened = true; return nil })
+			if !awaitSRCH0Background(&jobs) {
+				t.Fatal("failed startup kept retrying in background")
+			}
+			if err == nil || opened {
+				t.Errorf("initialization failure must prevent serve: err=%v, opened=%v", err, opened)
+			}
+		})
+	}
+}
+
+func TestSRCH0StartupResumesInterruptedInitialization(t *testing.T) {
+	t.Chdir(t.TempDir())
+	app := srch0StartupApp(t, false)
+	m := srch0.NewMeili(t)
+	m.Missing = true
+	client := meilisearch.New(m.Server.URL, meilisearch.WithCustomClient(&http.Client{Transport: &srch0StartupFault{
+		path: "/indexes/trails/documents", status: 400,
+		body: `{"message":"interrupted first fill","code":"invalid_document_id","type":"invalid_request"}`,
+	}}))
+	run := func() (bool, error) {
+		var jobs sync.WaitGroup
+		background := func(task func()) { jobs.Add(1); go func() { defer jobs.Done(); task() }() }
+		opened := false
+		handler := hook.Hook[*core.ServeEvent]{}
+		handler.BindFunc(onBeforeServeHandlerWithBackground(client, background))
+		err := handler.Trigger(&core.ServeEvent{App: app, Router: srch0StartupRouter(app)}, func(*core.ServeEvent) error { opened = true; return nil })
+		if !awaitSRCH0Background(&jobs) {
+			t.Fatal("startup job did not finish")
+		}
+		return opened, err
+	}
+	if opened, err := run(); err == nil || opened {
+		t.Errorf("interrupted initialization became ready: err=%v, opened=%v", err, opened)
+	}
+	// The indexes now exist, but their failed first fill is not a ready state.
+	// A new startup must finish them, rather than accepting mere index existence.
+	m.Missing = false
+	if opened, err := run(); err != nil || !opened {
+		t.Fatalf("retry did not become ready: err=%v, opened=%v", err, opened)
+	}
+	for index, count := range map[string]int{"trails": 2, "lists": 1, "actors": 3} {
+		if got := len(m.Snapshot()[index].(map[string]any)); got != count {
+			t.Errorf("retry left %s incomplete: got %d, want %d", index, got, count)
+		}
+		if _, err := os.Stat(filepath.Join(app.DataDir(), ".search-initializing-"+index)); !os.IsNotExist(err) {
+			t.Errorf("completed %s initialization retained its pending marker: %v", index, err)
+		}
+	}
+}
+
+func TestSRCH0SearchIndexRepairCommand(t *testing.T) {
+	for _, scenario := range []struct{ name, refusal string }{
+		{"existing", ""},
+		{"missing", "existing trails index"},
+		{"unfinished", "unfinished initialization"},
+		{"invalid-timeout", "timeout must be positive"},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			app := srch0StartupApp(t, false)
+			m := srch0.NewMeili(t)
+			m.Missing = scenario.name == "missing"
+			if scenario.name == "existing" {
+				trails, _ := app.FindAllRecords("trails")
+				lists, _ := app.FindAllRecords("lists")
+				actors, _ := app.FindAllRecords("activitypub_actors")
+				for _, err := range []error{util.IndexTrails(app, trails, m.Client), util.IndexLists(app, lists, m.Client), util.IndexActors(actors, m.Client)} {
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				m.ClearCalls()
+			}
+			t.Setenv("MEILI_URL", m.Server.URL)
+			t.Setenv("MEILI_MASTER_KEY", "")
+			if scenario.name == "unfinished" {
+				if err := os.WriteFile(filepath.Join(app.DataDir(), ".search-initializing-trails"), []byte("trails\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var output bytes.Buffer
+			root := &cobra.Command{Use: "wanderer", SilenceUsage: true, SilenceErrors: true}
+			root.SetOut(&output)
+			root.SetErr(&output)
+			args := []string{"search-index", "repair"}
+			if scenario.name == "invalid-timeout" {
+				args = append(args, "--timeout=0s")
+			}
+			root.SetArgs(args)
+			setupCommands(&pocketbase.PocketBase{App: app, RootCmd: root})
+			err := root.Execute()
+			if scenario.refusal != "" {
+				if err == nil || !strings.Contains(err.Error(), scenario.refusal) {
+					t.Fatalf("repair should refuse %s: %v", scenario.name, err)
+				}
+				for _, request := range m.Calls() {
+					if strings.Contains(request.Path, "/documents") {
+						t.Error("refused repair submitted a document mutation")
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for index, want := range map[string]int{"trails": 2, "lists": 1, "actors": 3} {
+				if got := len(m.Snapshot()[index].(map[string]any)); got != want {
+					t.Errorf("repair command did not process %s: got %d, want %d", index, got, want)
+				}
+			}
+			if !strings.Contains(output.String(), "erfolgreich repariert") {
+				t.Error("repair did not report successful completion")
+			}
+			mutations := 0
+			for _, request := range m.Calls() {
+				if strings.Contains(request.Path, "/documents") && (request.Method == "PUT" || request.Method == "POST") {
+					mutations++
+				}
+			}
+			if mutations == 0 {
+				t.Error("repair command did not invoke metadata repair")
+			}
 		})
 	}
 }
