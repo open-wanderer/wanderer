@@ -1,0 +1,128 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "upload-duplicate"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/trail/upload/+server.ts",
+      "symbol": "PUT / findDuplicate"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-083",
+      "input": {
+        "adapter": "api-upload",
+        "trail": {
+          "name": "Synthetic upload",
+          "distance": 4242,
+          "elevation_gain": 30,
+          "elevation_loss": 30,
+          "lat": 47,
+          "lon": 8,
+          "tags": [],
+          "photos": [],
+          "expand": {}
+        },
+        "search_ids": ["duplicate-01","duplicate-02","duplicate-03","duplicate-04","duplicate-05","duplicate-06","duplicate-07","duplicate-08","duplicate-09","duplicate-10","duplicate-11","duplicate-12","duplicate-13","duplicate-14","duplicate-15","duplicate-16","duplicate-17","duplicate-18","duplicate-19","duplicate-20"]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {}
+          }
+        ],
+        "status": 200,
+        "result": {
+          "id": "created-synthetic"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","duplicate-position-21"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-084",
+      "input": {
+        "adapter": "api-upload",
+        "trail": {
+          "name": "Synthetic upload",
+          "distance": 4242,
+          "elevation_gain": 30,
+          "elevation_loss": 30,
+          "lat": 47,
+          "lon": 8,
+          "tags": [],
+          "photos": [],
+          "expand": {}
+        },
+        "search_ids": ["duplicate-21"]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {}
+          }
+        ],
+        "status": 400,
+        "result": {
+          "duplicate_id": "duplicate-21",
+          "duplicate_name": "Upload exact match",
+          "duplicate_domain": "Alice Aurora"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Production PUT/findDuplicate evaluates distance/elevation/geo and returns id, name and author_name/domain for the matching dataset document. Together with the engine defaultlimit case this executes all eight read fields.",
+        "coverage": ["positive","duplicate-found"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-085",
+      "input": {
+        "adapter": "api-upload",
+        "trail": {
+          "name": "Synthetic upload",
+          "distance": 4242,
+          "elevation_gain": 30,
+          "elevation_loss": 30,
+          "lat": 47,
+          "lon": 8,
+          "tags": [],
+          "photos": [],
+          "expand": {}
+        },
+        "search_ids": []
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {}
+          }
+        ],
+        "status": 200,
+        "result": {
+          "id": "created-synthetic"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","no-visible-duplicate"]
+      }
+    }
+  ]
+}

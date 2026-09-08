@@ -1,0 +1,1001 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-list"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "symbol": "trails_search_filter"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-001",
+      "input": {
+        "adapter": "list-search",
+        "filter": {},
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","default-filter"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-002",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "q": "  ridge  walk "
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "  ridge  walk ",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","raw-query"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-003",
+      "context": {
+        "principal": "anonymous"
+      },
+      "input": {
+        "adapter": "list-search",
+        "filter": {},
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = undefined) OR shares = undefined)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","anonymous-browser-scope"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-004",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "category": ["hiking"]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND (category_id IN ['hiking'])",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","parent"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-005",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "category": ["hiking"],
+          "subcategory": ["alpine"]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND (subcategory_id IN ['alpine'])",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","same-parent"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-006",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "category": ["cycling"],
+          "subcategory": ["alpine"]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND (category_id IN ['cycling'] OR subcategory_id IN ['alpine'])",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","different-parent"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-007",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "subcategory": ["__no_subcategory__:hiking"]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND ((category_id = 'hiking' AND subcategory_id IS NULL))",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","no-child"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-008",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "subcategory": ["unknown"]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND (subcategory_id IN ['unknown'])",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","unknown-child"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-009",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "tags": ["scenic","water"]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND (tags = 'scenic' OR tags = 'water')",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","tags-or"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-010",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "liked": true
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND likes = alice",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","liked"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-011",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "liked": false
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","liked-neutral"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-012",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "completed": true
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND completed = true",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","completed-true"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-013",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "completed": false
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND completed = false",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","completed-false"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-014",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "startDate": "2026-03-29",
+          "endDate": "2026-03-29"
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND date >= 1774742400 AND date <= 1774742400",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["boundary","dst","inclusive-day-start"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-015",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "endDate": "2026-09-07"
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND date <= 1788739200",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["boundary","end-date"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-016",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "near": {
+            "lat": 46,
+            "lon": 7,
+            "radius": 2000
+          }
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND _geoRadius(46, 7, 2000) AND _geoRadius(46, 7, 2000)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["boundary","duplicate-geo"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-017",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "near": {
+            "lat": 0,
+            "lon": 7,
+            "radius": 2000
+          }
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["boundary","zero-lat"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-018",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "near": {
+            "lat": 46,
+            "lon": 0,
+            "radius": 2000
+          }
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["boundary","zero-lon"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-019",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "difficulty": [0,2]
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","difficulty-subset"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-020",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "difficulty": []
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","difficulty-empty"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-021",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "author": "bob"
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND author = bob AND ((public = TRUE) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","author"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-022",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "public": false,
+          "private": true,
+          "shared": false
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (public = FALSE AND author = alice AND NOT shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","visibility"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-023",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "distanceMin": 10.9,
+          "distanceMax": 99.1
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 10 AND elevation_gain >= 0 AND elevation_loss >= 0 AND distance <= 100 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","floor-ceil","distance"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-024",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "elevationGainMin": 10.9,
+          "elevationGainMax": 99.1
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 10 AND elevation_loss >= 0 AND elevation_gain <= 100 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","floor-ceil","elevationGain"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-025",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "elevationLossMin": 10.9,
+          "elevationLossMax": 99.1
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 10 AND elevation_loss <= 100 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","floor-ceil","elevationLoss"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-026",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "distanceMin": 100,
+          "distanceMax": 10
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 100 AND elevation_gain >= 0 AND elevation_loss >= 0 AND distance <= 10 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","raw-inverted-range"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-045",
+      "input": {
+        "adapter": "list-search",
+        "filter": {
+          "sort": "unknown",
+          "sortOrder": "raw"
+        },
+        "page": 1,
+        "per_page": 25
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["unknown:desc"],
+                "hitsPerPage": 25,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["negative","raw-sort"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-046",
+      "input": {
+        "adapter": "list-search",
+        "filter": {},
+        "page": 1,
+        "per_page": 2
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 2,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","pagination"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-047",
+      "input": {
+        "adapter": "list-search",
+        "filter": {},
+        "page": 2,
+        "per_page": 2
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 2,
+                "page": 2
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","pagination"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-048",
+      "input": {
+        "adapter": "list-search",
+        "filter": {},
+        "page": 99,
+        "per_page": 2
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:asc"],
+                "hitsPerPage": 2,
+                "page": 99
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","pagination"]
+      }
+    }
+  ]
+}

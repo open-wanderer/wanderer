@@ -8,12 +8,16 @@ on:
       - 'db/**'
       - 'plugins/**'
       - 'Makefile'
+      - 'testdata/trail-search/srch0/**'
+      - 'scripts/srch0/**'
   pull_request:
     paths:
       - '.github/**'
       - 'db/**'
       - 'plugins/**'
       - 'Makefile'
+      - 'testdata/trail-search/srch0/**'
+      - 'scripts/srch0/**'
 
 jobs:
   db-test:

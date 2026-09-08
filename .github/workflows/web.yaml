@@ -6,10 +6,14 @@ on:
     paths:
       - '.github/**'
       - 'web/**'
+      - 'testdata/trail-search/srch0/**'
+      - 'scripts/srch0/**'
   pull_request:
     paths:
       - '.github/**'
       - 'web/**'
+      - 'testdata/trail-search/srch0/**'
+      - 'scripts/srch0/**'
 
 jobs:
   test:

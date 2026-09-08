@@ -1,0 +1,8 @@
+{
+  "schema_version": "wanderer.srch0.dataset/v1",
+  "revision": 1,
+  "extends": "datasets/reference.json",
+  "generator": "wanderer.srch0.scale/v1",
+  "count": 10001,
+  "template_id": "public-alpine"
+}

@@ -1,0 +1,380 @@
+{
+  "family": "mutation",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "database",
+    "consumer": "startup-index-initialization"
+  },
+  "code": [
+    {
+      "path": "db/main.go",
+      "symbol": "onBeforeServeHandler"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initData"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchDocuments"
+    },
+    {
+      "path": "web/src/routes/api/v1/search/[index]/+server.ts",
+      "symbol": "POST"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-MUTATION-090",
+      "input": {
+        "adapter": "go-startup",
+        "indexes": "existing",
+        "empty_source": false,
+        "fail_delete": false
+      },
+      "observed": {
+        "mutation_state": {
+          "serve_next_called": true,
+          "settings_match_profiles": true,
+          "terminal_task_reads": 0,
+          "rebuild_requests": ["DELETE /indexes/trails/documents","POST /indexes/trails/documents","DELETE /indexes/lists/documents","POST /indexes/lists/documents","DELETE /indexes/actors/documents","POST /indexes/actors/documents"],
+          "availability": [
+            {
+              "phase": "DELETE /indexes/trails/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 1,
+                "lists": 1,
+                "actors": 1
+              }
+            },
+            {
+              "phase": "POST /indexes/trails/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 0,
+                "lists": 1,
+                "actors": 1
+              }
+            },
+            {
+              "phase": "DELETE /indexes/lists/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 1,
+                "actors": 1
+              }
+            },
+            {
+              "phase": "POST /indexes/lists/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 0,
+                "actors": 1
+              }
+            },
+            {
+              "phase": "DELETE /indexes/actors/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 1,
+                "actors": 1
+              }
+            },
+            {
+              "phase": "POST /indexes/actors/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 1,
+                "actors": 0
+              }
+            }
+          ]
+        },
+        "startup_api": [
+          {
+            "phase": "DELETE /indexes/trails/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          },
+          {
+            "phase": "POST /indexes/trails/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          },
+          {
+            "phase": "DELETE /indexes/lists/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          },
+          {
+            "phase": "POST /indexes/lists/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          },
+          {
+            "phase": "DELETE /indexes/actors/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          },
+          {
+            "phase": "POST /indexes/actors/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX0"],
+      "evidence": {
+        "coverage": ["positive","startup","request-availability","startup-api"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-091",
+      "input": {
+        "adapter": "go-startup",
+        "indexes": "missing",
+        "empty_source": false,
+        "fail_delete": false
+      },
+      "observed": {
+        "mutation_state": {
+          "serve_next_called": true,
+          "settings_match_profiles": true,
+          "terminal_task_reads": 3,
+          "rebuild_requests": ["DELETE /indexes/trails/documents","POST /indexes/trails/documents","DELETE /indexes/lists/documents","POST /indexes/lists/documents","DELETE /indexes/actors/documents","POST /indexes/actors/documents"],
+          "availability": [
+            {
+              "phase": "DELETE /indexes/trails/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 0,
+                "lists": 0,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "POST /indexes/trails/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 0,
+                "lists": 0,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "DELETE /indexes/lists/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 0,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "POST /indexes/lists/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 0,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "DELETE /indexes/actors/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 1,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "POST /indexes/actors/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 2,
+                "lists": 1,
+                "actors": 0
+              }
+            }
+          ]
+        },
+        "startup_api": [
+          {
+            "phase": "DELETE /indexes/trails/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          },
+          {
+            "phase": "POST /indexes/trails/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          },
+          {
+            "phase": "DELETE /indexes/lists/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          },
+          {
+            "phase": "POST /indexes/lists/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          },
+          {
+            "phase": "DELETE /indexes/actors/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          },
+          {
+            "phase": "POST /indexes/actors/documents",
+            "status": 200,
+            "hit_ids": ["public-alpine","public-lake"],
+            "total": 2
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX0"],
+      "evidence": {
+        "coverage": ["positive","startup","request-availability","startup-api"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-092",
+      "input": {
+        "adapter": "go-startup",
+        "indexes": "empty",
+        "empty_source": true,
+        "fail_delete": false
+      },
+      "observed": {
+        "mutation_state": {
+          "serve_next_called": true,
+          "settings_match_profiles": true,
+          "terminal_task_reads": 0,
+          "rebuild_requests": ["DELETE /indexes/trails/documents","DELETE /indexes/lists/documents","DELETE /indexes/actors/documents"],
+          "availability": [
+            {
+              "phase": "DELETE /indexes/trails/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 0,
+                "lists": 0,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "DELETE /indexes/lists/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 0,
+                "lists": 0,
+                "actors": 0
+              }
+            },
+            {
+              "phase": "DELETE /indexes/actors/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 0,
+                "lists": 0,
+                "actors": 0
+              }
+            }
+          ]
+        },
+        "startup_api": [
+          {
+            "phase": "DELETE /indexes/trails/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          },
+          {
+            "phase": "DELETE /indexes/lists/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          },
+          {
+            "phase": "DELETE /indexes/actors/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX0"],
+      "evidence": {
+        "coverage": ["boundary","startup","request-availability","startup-api"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-093",
+      "input": {
+        "adapter": "go-startup",
+        "indexes": "existing",
+        "empty_source": false,
+        "fail_delete": true
+      },
+      "observed": {
+        "mutation_state": {
+          "serve_next_called": true,
+          "settings_match_profiles": true,
+          "terminal_task_reads": 0,
+          "rebuild_requests": ["DELETE /indexes/trails/documents"],
+          "availability": [
+            {
+              "phase": "DELETE /indexes/trails/documents",
+              "search_token_status": 200,
+              "document_counts": {
+                "trails": 1,
+                "lists": 1,
+                "actors": 1
+              }
+            }
+          ]
+        },
+        "startup_api": [
+          {
+            "phase": "DELETE /indexes/trails/documents",
+            "status": 200,
+            "hit_ids": [],
+            "total": 0
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX0"],
+      "evidence": {
+        "coverage": ["negative","startup","request-availability","startup-api"]
+      }
+    }
+  ]
+}

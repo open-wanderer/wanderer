@@ -1,0 +1,730 @@
+{
+  "family": "projection",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "database",
+    "consumer": "projector-trails"
+  },
+  "code": [
+    {
+      "path": "db/util/meilisearch.go",
+      "symbol": "documentFromTrailRecord"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-PROJECTION-001",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "profile": "profiles/trails-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 2,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice","bob"],
+          "like_count": 2
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-002",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-lake",
+        "include_shares": true,
+        "profile": "profiles/trails-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "public-lake",
+          "author": "bob",
+          "author_name": "Bob Birch",
+          "author_avatar": "",
+          "name": "Silver Lake",
+          "description": "Obsidian boardwalk",
+          "location": "Ticino",
+          "distance": 9.99,
+          "elevation_gain": 99.99,
+          "elevation_loss": 89.99,
+          "duration": 3820,
+          "difficulty": 1,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": null,
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": false,
+          "date": 1781481600,
+          "created": 1767225622,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["water","scenic"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice"],
+          "like_count": 1
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-003",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "private-alice",
+        "include_shares": true,
+        "profile": "profiles/trails-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "private-alice",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Alice private",
+          "description": "Synthetic reference trail",
+          "location": "Reference valley",
+          "distance": 34,
+          "elevation_gain": 124,
+          "elevation_loss": 104,
+          "duration": 3840,
+          "difficulty": 0,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": false,
+          "date": 1781481600,
+          "created": 1767225624,
+          "public": false,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": [],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": [],
+          "like_count": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-004",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "shared-alice",
+        "include_shares": true,
+        "profile": "profiles/trails-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "shared-alice",
+          "author": "bob",
+          "author_name": "Bob Birch",
+          "author_avatar": "",
+          "name": "Shared with Alice",
+          "description": "Synthetic reference trail",
+          "location": "Reference valley",
+          "distance": 36,
+          "elevation_gain": 126,
+          "elevation_loss": 106,
+          "duration": 3860,
+          "difficulty": 0,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": false,
+          "date": 1781481600,
+          "created": 1767225626,
+          "public": false,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": [],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": ["alice"],
+          "likes": [],
+          "like_count": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-005",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "remote-public",
+        "include_shares": true,
+        "profile": "profiles/trails-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "remote-public",
+          "author": "remote",
+          "author_name": "Remote Cedar",
+          "author_avatar": "",
+          "name": "Remote public",
+          "description": "Synthetic reference trail",
+          "location": "Reference valley",
+          "distance": 38,
+          "elevation_gain": 128,
+          "elevation_loss": 108,
+          "duration": 3880,
+          "difficulty": 0,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": true,
+          "federated_category_name": "Hiking",
+          "federated_subcategory_name": "",
+          "completed": false,
+          "date": 1781481600,
+          "created": 1767225628,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": [],
+          "polyline": "",
+          "domain": "remote.invalid",
+          "iri": "https://remote.invalid/trails/remote-public",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": [],
+          "like_count": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-006",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "difficulty": "moderate"
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 1,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice","bob"],
+          "like_count": 2
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","difficulty"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-007",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "difficulty": "difficult"
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 2,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice","bob"],
+          "like_count": 2
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","difficulty"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-008",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "difficulty": ""
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 0,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice","bob"],
+          "like_count": 2
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "coverage": ["negative","difficulty"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-009",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "difficulty": "unknown"
+        },
+        "record_boundary": "defensive"
+      },
+      "observed": {
+        "diagnostics": {
+          "validation": "rejected",
+          "projection": "formed",
+          "difficulty_is_number": true
+        }
+      },
+      "stability": "non_contract",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "method": "Defensiver Test mit echtem Migrationsschema: Die Persistenzvalidierung weist den unbekannten Difficulty-Selectwert ab. Ein bewusst ungespeicherter Record erreicht den Projektor; geprüft wird nur eine numerische Ausgabeform, kein fachlicher Fallbackwert.",
+        "coverage": ["negative","difficulty","defensive-source"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-010",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "difficulty": null
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 0,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice","bob"],
+          "like_count": 2
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "coverage": ["boundary","difficulty"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-011",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": false
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 2,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","partial-update"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-012",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "photos": ["first.jpg","second.jpg"],
+          "thumbnail": 9
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "public-alpine",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "name": "Edelweiss Summit",
+          "description": "Granite traverse",
+          "location": "Glarus",
+          "distance": 10.5,
+          "elevation_gain": 100.5,
+          "elevation_loss": 90.5,
+          "duration": 3810,
+          "difficulty": 2,
+          "category": "Hiking",
+          "category_id": "hiking",
+          "category_icon": "person-hiking",
+          "subcategory_id": "alpine",
+          "is_federated": false,
+          "federated_category_name": "",
+          "federated_subcategory_name": "",
+          "completed": true,
+          "date": 1781481600,
+          "created": 1767225621,
+          "public": true,
+          "thumbnail": "first.jpg",
+          "gpx": "",
+          "tags": ["scenic","forest"],
+          "polyline": "",
+          "domain": "",
+          "iri": "",
+          "min_lat": 46.99,
+          "max_lat": 47.01,
+          "min_lon": 7.99,
+          "max_lon": 8.01,
+          "bounding_box_diagonal": 2700,
+          "_geo": {
+            "lat": 47,
+            "lng": 8
+          },
+          "shares": [],
+          "likes": ["alice","bob"],
+          "like_count": 2
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","thumbnail"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-021",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "trails",
+        "record_id": "public-alpine",
+        "include_shares": true,
+        "set": {
+          "photos": ["first.jpg"],
+          "thumbnail": -1
+        },
+        "projection_diagnostic": true
+      },
+      "observed": {
+        "diagnostics": {
+          "schema_validation": "accepted",
+          "projection_status": "panic"
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX1"],
+      "evidence": {
+        "method": "Echtes Migrationsschema und tatsächlich hochgeladenes synthetisches JPEG: Der negative Thumbnailindex -1 wird regulär gespeichert. Der reale Projektor führt anschliessend einen negativen Arrayzugriff aus. Geprüft wird eine stabile Ergebnisdiagnose; eine getrennt begründete Änderung darf sie auf formed ändern, ohne den Basisfall umzuschreiben.",
+        "coverage": ["negative","boundary","thumbnail","validated-source","projection-panic"]
+      }
+    }
+  ]
+}

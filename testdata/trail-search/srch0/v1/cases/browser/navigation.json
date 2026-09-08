@@ -1,0 +1,510 @@
+{
+  "family": "browser",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-list-browser"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/trails/+page.svelte",
+      "symbol": "restoreStoredFilter / snapshot / paginate"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-BROWSER-001",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails",
+        "storage": {}
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=1",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","browser-list-default"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-002",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails?q=ignored&sort=distance",
+        "storage": {
+          "trailListFilter": "{\"q\":\"stored\",\"sort\":\"distance\"}"
+        }
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?q=ignored&sort=distance&page=1",
+          "filter": {
+            "q": "stored",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "distance",
+            "sortOrder": "+"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","ignored-url-storage"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-003",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails?category=hiking&category=cycling",
+        "storage": {
+          "trailListFilter": "{\"q\":\"discarded\"}",
+          "sort": "name",
+          "sort_order": "-"
+        }
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?category=hiking&category=cycling&page=1",
+          "filter": {
+            "q": "",
+            "category": ["hiking"],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "name",
+            "sortOrder": "-"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","url-storage-precedence"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-004",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails",
+        "storage": {
+          "trailListFilter": "{broken"
+        }
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=1",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","malformed-storage"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-005",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails?page=2&page=9",
+        "storage": {}
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=2",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","duplicate-page-key"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-006",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails?listPage=4",
+        "storage": {}
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?listPage=4&page=1",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","separate-page-key"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-007",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails",
+        "storage": {
+          "paginationItems": "25"
+        }
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=1",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 24
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","cards-bucket"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-008",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails",
+        "storage": {
+          "paginationItems": "12",
+          "displayOption": "table"
+        }
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=1",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 10
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","table-bucket"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-009",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails",
+        "storage": {
+          "sort": "unknown",
+          "sort_order": "raw"
+        }
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=1",
+          "filter": {
+            "q": "",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "unknown",
+            "sortOrder": "raw"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "coverage": ["negative","raw-sort"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-010",
+      "input": {
+        "adapter": "browser",
+        "url": "/trails?page=2",
+        "storage": {
+          "trailListFilter": "{\"q\":\"snapshot\"}"
+        },
+        "navigation": "history-back"
+      },
+      "observed": {
+        "browser_state": {
+          "url": "/trails?page=1",
+          "filter": {
+            "q": "snapshot",
+            "category": [],
+            "subcategory": [],
+            "tags": [],
+            "difficulty": [0,1,2],
+            "author": "",
+            "public": true,
+            "shared": true,
+            "liked": false,
+            "private": true,
+            "near": {
+              "radius": 2000
+            },
+            "distanceMin": 0,
+            "distanceMax": 20000,
+            "distanceLimit": 20000,
+            "elevationGainMin": 0,
+            "elevationGainMax": 4000,
+            "elevationGainLimit": 4000,
+            "elevationLossMin": 0,
+            "elevationLossMax": 4000,
+            "elevationLossLimit": 4000,
+            "sort": "created",
+            "sortOrder": "+"
+          },
+          "page_size": 25
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","snapshot","history","navigation"]
+      }
+    },
+    {
+      "case_id": "SRCH0-BROWSER-011",
+      "context": {
+        "surface": "map",
+        "consumer": "map-browser"
+      },
+      "input": {
+        "adapter": "browser",
+        "url": "/map?lat=46&lon=7",
+        "storage": {}
+      },
+      "observed": {
+        "browser_state": {
+          "url_path": "/map",
+          "query_keys": ["br_lat","br_lon","lat","lon","tl_lat","tl_lon"],
+          "sort": "created:desc"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/map/+page.svelte",
+            "symbol": "searchTrails"
+          }
+        ],
+        "method": "Actual MapLibre lifecycle and SvelteKit navigation; bounds keys are recorded, viewport-derived coordinate decimals are not a stable golden. Offline empty map style.",
+        "coverage": ["positive","map","map-list","cluster"]
+      }
+    }
+  ]
+}

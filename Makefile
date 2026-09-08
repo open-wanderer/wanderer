@@ -22,6 +22,26 @@ db-build-docker: db-build
 
 ## Web
 
+## SRCH0 observed search baseline
+
+.PHONY: srch0-check
+srch0-check:
+	node scripts/srch0/manifest.mjs
+	node --test scripts/srch0/*.test.mjs
+
+.PHONY: srch0-unit
+srch0-unit:
+	cd db && go test -count=1 ./... -run SRCH0
+	cd web && npm run test:unit -- --run src/lib/srch0
+
+.PHONY: srch0-engine
+srch0-engine:
+	node scripts/srch0/engine.mjs --integration $(SRCH0_ENGINE_ARGS)
+
+.PHONY: srch0-browser
+srch0-browser:
+	cd web && npx playwright test --config=playwright.srch0.config.ts
+
 .PHONY: web-install
 web-install:
 	cd web && npm install

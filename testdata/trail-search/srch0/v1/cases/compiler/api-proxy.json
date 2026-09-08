@@ -1,0 +1,325 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {
+      "user_category_preferences": [
+        {
+          "category": "cycling",
+          "visible": false
+        }
+      ],
+      "user_subcategory_preferences": [
+        {
+          "subcategory": "alpine",
+          "visible": false
+        }
+      ]
+    },
+    "surface": "list",
+    "consumer": "search-proxy"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/search/[index]/+server.ts",
+      "symbol": "POST"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-054",
+      "input": {
+        "adapter": "api-proxy",
+        "body": {
+          "q": "ridge",
+          "options": {
+            "filter": "public = TRUE",
+            "limit": 3
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "ridge",
+            "options": {
+              "filter": ["public = TRUE","(category_id IS NULL OR category_id NOT IN ['cycling'])","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"],
+              "limit": 3
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","preferences"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-055",
+      "context": {
+        "consumer": "map-id-details"
+      },
+      "input": {
+        "adapter": "api-proxy",
+        "body": {
+          "q": "",
+          "options": {
+            "filter": "id IN ['public-alpine']"
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {
+              "filter": "id IN ['public-alpine']"
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","detail-preference-bypass"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-056",
+      "context": {
+        "principal": "anonymous",
+        "preferences": {}
+      },
+      "input": {
+        "adapter": "api-proxy",
+        "params": {
+          "index": "unknown"
+        },
+        "body": {
+          "q": "",
+          "options": {
+            "sort": ["unknown:asc"]
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "unknown",
+            "q": "",
+            "options": {
+              "sort": ["unknown:asc"]
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","free-proxy-input"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-057",
+      "context": {
+        "principal": "anonymous",
+        "preferences": {}
+      },
+      "input": {
+        "adapter": "api-proxy",
+        "params": {
+          "index": "trails"
+        },
+        "body": {
+          "q": "",
+          "options": {
+            "filter": "unknown = 1"
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {
+              "filter": "unknown = 1"
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","free-proxy-input"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-058",
+      "context": {
+        "principal": "anonymous",
+        "preferences": {}
+      },
+      "input": {
+        "adapter": "api-proxy",
+        "params": {
+          "index": "trails"
+        },
+        "body": {
+          "q": "",
+          "options": {
+            "attributesToRetrieve": ["*"]
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {
+              "attributesToRetrieve": ["*"]
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","free-proxy-input"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-059",
+      "context": {
+        "consumer": "multi-search-proxy"
+      },
+      "input": {
+        "adapter": "api-multi",
+        "body": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "filter": "public = TRUE"
+            },
+            {
+              "indexUid": "lists",
+              "q": ""
+            }
+          ],
+          "federation": {
+            "limit": 3
+          }
+        },
+        "responses": [
+          {
+            "results": [
+              {
+                "hits": [],
+                "page": 1,
+                "hitsPerPage": 25,
+                "totalPages": 0,
+                "totalHits": 0
+              },
+              {
+                "hits": [],
+                "page": 1,
+                "hitsPerPage": 25,
+                "totalPages": 0,
+                "totalHits": 0
+              }
+            ]
+          }
+        ]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "queries": [
+              {
+                "indexUid": "trails",
+                "q": "",
+                "filter": ["public = TRUE","(category_id IS NULL OR category_id NOT IN ['cycling'])","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"]
+              },
+              {
+                "indexUid": "lists",
+                "q": ""
+              }
+            ]
+          }
+        ],
+        "status": 200,
+        "response": {
+          "results": [
+            {
+              "hits": [],
+              "page": 1,
+              "hitsPerPage": 25,
+              "totalPages": 0,
+              "totalHits": 0
+            },
+            {
+              "hits": [],
+              "page": 1,
+              "hitsPerPage": 25,
+              "totalPages": 0,
+              "totalHits": 0
+            }
+          ]
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/search/multi/+server.ts",
+            "symbol": "POST"
+          }
+        ],
+        "coverage": ["boundary","preferences","discard-extra-fields"]
+      }
+    }
+  ]
+}

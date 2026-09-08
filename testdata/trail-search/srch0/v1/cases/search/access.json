@@ -1,0 +1,1238 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-list"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "symbol": "trails_search_filter"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-011",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'public-alpine'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "0e2202bf8a00a9bcbca092f4505261ef32752c8d7aca68ff103983a8ed9a21db"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: public-alpine.",
+        "coverage": ["positive","access","access-public-alpine"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-012",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: private-alice.",
+        "coverage": ["positive","access","access-private-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-013",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-bob'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: private-bob.",
+        "coverage": ["positive","access","access-private-bob"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-014",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'shared-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: shared-alice.",
+        "coverage": ["positive","access","access-shared-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-015",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'revoked-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: revoked-alice.",
+        "coverage": ["negative","access","access-revoked-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-016",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-public'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["remote-public"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "6b0cf93fba4900dabec68813a7ddc8ea20656b972cac468daace5d296165bb04"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: remote-public.",
+        "coverage": ["positive","access","access-remote-public"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-017",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-private'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: remote-private.",
+        "coverage": ["positive","access","access-remote-private"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-018",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-shared'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: remote-shared.",
+        "coverage": ["positive","access","access-remote-shared"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-019",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'unverified-public'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["unverified-public"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "acc2f4d30247f2ea8a8acd7e40426ba8b6eef59bfdc53c51533b7a53b361dbb1"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: unverified-public.",
+        "coverage": ["positive","access","access-unverified-public"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-020",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'deleted-trail'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope anonymous: deleted-trail.",
+        "coverage": ["negative","access","access-deleted-trail"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-021",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'public-alpine'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "0e2202bf8a00a9bcbca092f4505261ef32752c8d7aca68ff103983a8ed9a21db"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: public-alpine.",
+        "coverage": ["positive","access","access-public-alpine"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-022",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["private-alice"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "36fec7bb5a550b72e80884894a857b444361452c0830aaeb26577a79786f0e9a"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: private-alice.",
+        "coverage": ["positive","access","access-private-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-023",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-bob'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: private-bob.",
+        "coverage": ["positive","access","access-private-bob"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-024",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'shared-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["shared-alice"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "7bf3c5f6c1e44cd0429d21523cb74795c6d385816b8bc7ec29a7d1b488f6d2c8"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: shared-alice.",
+        "coverage": ["positive","access","access-shared-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-025",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'revoked-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: revoked-alice.",
+        "coverage": ["negative","access","access-revoked-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-026",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-public'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["remote-public"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "6b0cf93fba4900dabec68813a7ddc8ea20656b972cac468daace5d296165bb04"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: remote-public.",
+        "coverage": ["positive","access","access-remote-public"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-027",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-private'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: remote-private.",
+        "coverage": ["positive","access","access-remote-private"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-028",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-shared'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["remote-shared"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "0179636f2ce760cbfe779722e6909159b4653f9a59db2264e6a17b2dec1b7abd"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: remote-shared.",
+        "coverage": ["positive","access","access-remote-shared"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-029",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'unverified-public'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["unverified-public"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "acc2f4d30247f2ea8a8acd7e40426ba8b6eef59bfdc53c51533b7a53b361dbb1"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: unverified-public.",
+        "coverage": ["positive","access","access-unverified-public"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-030",
+      "context": {
+        "principal": "alice"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'deleted-trail'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope alice: deleted-trail.",
+        "coverage": ["negative","access","access-deleted-trail"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-031",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'public-alpine'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "0e2202bf8a00a9bcbca092f4505261ef32752c8d7aca68ff103983a8ed9a21db"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: public-alpine.",
+        "coverage": ["positive","access","access-public-alpine"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-032",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: private-alice.",
+        "coverage": ["positive","access","access-private-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-033",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-bob'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["private-bob"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "25b14a8e70ed4d011e5d26f013bbbfee3a5dc9703097fe01d8bb47ed1ecc3147"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: private-bob.",
+        "coverage": ["positive","access","access-private-bob"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-034",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'shared-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["shared-alice"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "7bf3c5f6c1e44cd0429d21523cb74795c6d385816b8bc7ec29a7d1b488f6d2c8"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: shared-alice.",
+        "coverage": ["positive","access","access-shared-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-035",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'revoked-alice'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["revoked-alice"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "99b1784ca301cf23e4aac9758a4fa214c630065c010d7b32c774b788965d0e61"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: revoked-alice.",
+        "coverage": ["negative","access","access-revoked-alice"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-036",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-public'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["remote-public"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "6b0cf93fba4900dabec68813a7ddc8ea20656b972cac468daace5d296165bb04"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: remote-public.",
+        "coverage": ["positive","access","access-remote-public"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-037",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-private'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: remote-private.",
+        "coverage": ["positive","access","access-remote-private"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-038",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'remote-shared'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: remote-shared.",
+        "coverage": ["positive","access","access-remote-shared"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-039",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'unverified-public'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["unverified-public"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "acc2f4d30247f2ea8a8acd7e40426ba8b6eef59bfdc53c51533b7a53b361dbb1"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: unverified-public.",
+        "coverage": ["positive","access","access-unverified-public"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-040",
+      "context": {
+        "principal": "bob"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'deleted-trail'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tenant scope bob: deleted-trail.",
+        "coverage": ["negative","access","access-deleted-trail"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-041",
+      "context": {
+        "surface": "detail",
+        "consumer": "search-proxy"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id = 'private-bob'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Link share does not expand anonymous search universe.",
+        "coverage": ["negative","link-share-search-scope"]
+      }
+    }
+  ]
+}

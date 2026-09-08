@@ -1,0 +1,118 @@
+{
+  "schema_version": "wanderer.srch0.profile/v1",
+  "profile_id": "trails-legacy-v0",
+  "baseline_commit": "e9b7a8cade980002acbcf2e2f5b2a083934f29d2",
+  "index_uid": "trails",
+  "primary_key": "id",
+  "settings": {
+    "searchableAttributes": [
+      "author_name",
+      "name",
+      "description",
+      "location",
+      "tags"
+    ],
+    "filterableAttributes": [
+      "id",
+      "_geo",
+      "author",
+      "category_id",
+      "subcategory_id",
+      "is_federated",
+      "completed",
+      "date",
+      "difficulty",
+      "distance",
+      "elevation_gain",
+      "elevation_loss",
+      "likes",
+      "public",
+      "shares",
+      "tags",
+      "min_lat",
+      "max_lat",
+      "min_lon",
+      "max_lon",
+      "bounding_box_diagonal"
+    ],
+    "sortableAttributes": [
+      "author",
+      "created",
+      "date",
+      "difficulty",
+      "distance",
+      "duration",
+      "elevation_gain",
+      "elevation_loss",
+      "like_count",
+      "name",
+      "min_lat",
+      "max_lat",
+      "min_lon",
+      "max_lon"
+    ],
+    "rankingRules": [
+      "words",
+      "typo",
+      "proximity",
+      "attribute",
+      "sort",
+      "exactness"
+    ]
+  },
+  "document_fields": [
+    "id",
+    "author",
+    "author_name",
+    "author_avatar",
+    "name",
+    "description",
+    "location",
+    "distance",
+    "elevation_gain",
+    "elevation_loss",
+    "duration",
+    "difficulty",
+    "category",
+    "category_id",
+    "category_icon",
+    "subcategory_id",
+    "is_federated",
+    "federated_category_name",
+    "federated_subcategory_name",
+    "completed",
+    "date",
+    "created",
+    "public",
+    "thumbnail",
+    "gpx",
+    "tags",
+    "polyline",
+    "domain",
+    "iri",
+    "min_lat",
+    "max_lat",
+    "min_lon",
+    "max_lon",
+    "bounding_box_diagonal",
+    "_geo",
+    "shares",
+    "likes",
+    "like_count"
+  ],
+  "engine_versions": [
+    "1.11.3",
+    "1.36.0"
+  ],
+  "evidence": [
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/util/meilisearch.go",
+      "symbol": "documentFromTrailRecord"
+    }
+  ],
+  "revision": 1
+}

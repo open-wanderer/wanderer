@@ -1,0 +1,32 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/docs.yml'
+      - 'docs/**'
+      - 'web/openapi.config.js'
+      - 'web/scripts/generate-openapi.js'
+  push:
+    branches: [main, dev]
+    paths:
+      - '.github/workflows/docs.yml'
+      - 'docs/**'
+      - 'web/openapi.config.js'
+      - 'web/scripts/generate-openapi.js'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --prefix web
+      - run: npm run openapi:generate --prefix web
+      - run: npm ci --prefix docs
+      - run: npm run build --prefix docs

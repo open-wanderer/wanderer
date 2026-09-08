@@ -1,0 +1,123 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/scale-10001.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "map",
+    "consumer": "map-cluster"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/search/trails/cluster/+server.ts",
+      "symbol": "POST"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-129",
+      "input": {
+        "adapter": "engine-multi",
+        "request": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "filter": ["max_lat >= 46 AND min_lat <= 48 AND max_lon >= 7 AND min_lon <= 9"],
+              "attributesToRetrieve": ["id","_geo","bounding_box_diagonal"],
+              "limit": 10000
+            }
+          ]
+        },
+        "orders": [
+          {
+            "eligibility_only": true
+          }
+        ]
+      },
+      "observed": {
+        "results": [
+          {
+            "total": 1000,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 10000,
+            "returned": 1000,
+            "document_fields": ["_geo","bounding_box_diagonal","id"]
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "With 10001 indexed trails and maxTotalHits=1000, a cluster limit of 10000 returns only 1000; no specific returned IDs are asserted.",
+        "coverage": ["boundary","scale-10001","cluster-limit"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-130",
+      "context": {
+        "surface": "list",
+        "consumer": "trail-list"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 11,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "total": 1000,
+          "page": 11,
+          "total_pages": 10,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "hit_groups": []
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/trail_store.ts",
+            "symbol": "trails_search_filter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Page 11 at size 100 is empty because pagination cannot pass maxTotalHits=1000.",
+        "coverage": ["negative","scale-pagination-limit"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,180 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-list"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "symbol": "trails_search_filter"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-104",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id IN ['public-alpine','public-lake','public-cycle','range-below','range-on']",
+          "sort": ["created:asc"],
+          "hitsPerPage": 2,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"]
+          ],
+          "total": 5,
+          "page": 1,
+          "total_pages": 3,
+          "hits_per_page": 2,
+          "offset": null,
+          "limit": null,
+          "returned": 2,
+          "documents_sha256": "c70580ddd4bd8865823e8583a6c48d5f0f8edc4dbf673381e7e4a1e70b430434"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Page 1 with size two.",
+        "coverage": ["boundary","page-1","pagination"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-105",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id IN ['public-alpine','public-lake','public-cycle','range-below','range-on']",
+          "sort": ["created:asc"],
+          "hitsPerPage": 2,
+          "page": 2,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-cycle"],
+            ["range-below"]
+          ],
+          "total": 5,
+          "page": 2,
+          "total_pages": 3,
+          "hits_per_page": 2,
+          "offset": null,
+          "limit": null,
+          "returned": 2,
+          "documents_sha256": "a1da930f1e6703a480eecba47791da494c4ebc816f054896abf1796a7f5f0012"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Page 2 with size two.",
+        "coverage": ["boundary","page-2","pagination"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-106",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id IN ['public-alpine','public-lake','public-cycle','range-below','range-on']",
+          "sort": ["created:asc"],
+          "hitsPerPage": 2,
+          "page": 3,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["range-on"]
+          ],
+          "total": 5,
+          "page": 3,
+          "total_pages": 3,
+          "hits_per_page": 2,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "f3a69214fa86bbe5e200bed3bc99d56520c201f203d0d8b7a03efa0251d3677f"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Page 3 with size two.",
+        "coverage": ["boundary","page-3","pagination"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-107",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "id IN ['public-alpine','public-lake','public-cycle','range-below','range-on']",
+          "sort": ["created:asc"],
+          "hitsPerPage": 2,
+          "page": 99,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 5,
+          "page": 99,
+          "total_pages": 3,
+          "hits_per_page": 2,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Page 99 with size two.",
+        "coverage": ["negative","page-99","pagination"]
+      }
+    }
+  ]
+}

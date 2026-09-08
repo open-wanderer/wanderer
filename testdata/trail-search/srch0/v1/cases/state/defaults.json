@@ -1,0 +1,291 @@
+{
+  "family": "state",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "list-defaults"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/trails/+page.ts",
+      "symbol": "load"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-STATE-001",
+      "input": {
+        "adapter": "route-load",
+        "url": "/trails"
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","defaults"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-002",
+      "context": {
+        "surface": "map",
+        "consumer": "map-defaults"
+      },
+      "input": {
+        "adapter": "route-load",
+        "url": "/map"
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "-"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/map/+page.ts",
+            "symbol": "load"
+          }
+        ],
+        "coverage": ["positive","defaults"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-003",
+      "context": {
+        "principal": "alice",
+        "consumer": "trail-list"
+      },
+      "input": {
+        "adapter": "route-load",
+        "url": "/trails?q=ignored&sort=distance&page=9&page=2"
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","ignored-query","duplicate-page"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-004",
+      "context": {
+        "principal": "alice",
+        "consumer": "trail-list"
+      },
+      "input": {
+        "adapter": "route-load",
+        "url": "/trails?author=bob&category=H%C3%ADking&category=cycling&subcategory=ALPINE&subcategory=road"
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": ["hiking"],
+          "subcategory": ["alpine"],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "bob",
+          "public": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","url-normalization","first-query-key"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-005",
+      "context": {
+        "principal": "alice",
+        "consumer": "trail-list"
+      },
+      "input": {
+        "adapter": "route-load",
+        "url": "/trails?category=unknown&subcategory=unknown"
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","unknown-taxonomy"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-006",
+      "context": {
+        "principal": "alice",
+        "surface": "map",
+        "consumer": "map-defaults"
+      },
+      "input": {
+        "adapter": "route-load",
+        "limits": {
+          "max_distance": 900,
+          "max_elevation_gain": 800,
+          "max_elevation_loss": 700
+        }
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 900,
+          "distanceLimit": 900,
+          "elevationGainMin": 0,
+          "elevationGainMax": 800,
+          "elevationGainLimit": 800,
+          "elevationLossMin": 0,
+          "elevationLossMax": 700,
+          "elevationLossLimit": 800,
+          "sort": "created",
+          "sortOrder": "-"
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/map/+page.ts",
+            "symbol": "load"
+          }
+        ],
+        "coverage": ["boundary","asymmetric-limits"]
+      }
+    }
+  ]
+}

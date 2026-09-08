@@ -1,0 +1,954 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "profile",
+    "consumer": "profile-trails"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/search/actor/+server.ts",
+      "symbol": "GET"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-108",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND author = alice",
+          "sort": ["created:desc"],
+          "hitsPerPage": 25,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["tie-a","tie-b"],
+            ["no-category"],
+            ["antimeridian-west"],
+            ["antimeridian-east"],
+            ["range-limit"],
+            ["range-above"],
+            ["range-on"],
+            ["range-below"],
+            ["dst-after"],
+            ["dst-before"],
+            ["date-end"],
+            ["date-midnight"],
+            ["zero-lon"],
+            ["zero-lat"],
+            ["difficulty-unknown"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["private-alice"],
+            ["public-cycle"],
+            ["public-alpine"],
+            ["duplicate-21"],
+            ["duplicate-20"],
+            ["duplicate-19"],
+            ["duplicate-18"]
+          ],
+          "total": 42,
+          "page": 1,
+          "total_pages": 2,
+          "hits_per_page": 25,
+          "offset": null,
+          "limit": null,
+          "returned": 25,
+          "documents_sha256": "08333a4033fb68adec9f1eb2bf7cbfce3c954929d87fd6555c713fe5d0b70559"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/trail_store.ts",
+            "symbol": "trails_search_filter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Profile exact actor filter.",
+        "coverage": ["positive","profile-author"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-109",
+      "context": {
+        "surface": "home",
+        "consumer": "recommendation"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "limit": 1
+        },
+        "order": {
+          "eligibility_only": true
+        }
+      },
+      "observed": {
+        "result": {
+          "total": 47,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 1,
+          "returned": 1,
+          "document_fields": ["_geo","author","author_avatar","author_name","bounding_box_diagonal","category","category_icon","category_id","completed","created","date","description","difficulty","distance","domain","duration","elevation_gain","elevation_loss","federated_category_name","federated_subcategory_name","gpx","id","iri","is_federated","like_count","likes","location","max_lat","max_lon","min_lat","min_lon","name","polyline","public","shares","subcategory_id","tags","thumbnail"]
+        }
+      },
+      "stability": "non_contract",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/recommend/+server.ts",
+            "symbol": "recommend"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "The recommendation count query checks visibility, total and shape without choosing a particular first hit.",
+        "coverage": ["positive","recommendation-eligibility"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-110",
+      "context": {
+        "surface": "lists",
+        "consumer": "list-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "lists",
+        "request": {
+          "q": "",
+          "sort": ["created:asc"],
+          "hitsPerPage": 30,
+          "page": 1
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["list-local"],
+            ["list-private"],
+            ["list-remote-stub"]
+          ],
+          "total": 3,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 30,
+          "offset": null,
+          "limit": null,
+          "returned": 3,
+          "documents_sha256": "2ccee37264fde26d4c6e039dc80f7196e4ab65a13d75e6f64d9f9ab3c06f863e"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/list_store.ts",
+            "symbol": "lists_search_filter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "List search tenant shared aggregate.",
+        "coverage": ["positive","lists-tenant"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-111",
+      "context": {
+        "principal": "anonymous",
+        "surface": "lists",
+        "consumer": "list-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "lists",
+        "request": {
+          "q": "",
+          "sort": ["name:asc"],
+          "hitsPerPage": 30,
+          "page": 1
+        },
+        "order": {
+          "tie_fields": ["name"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["list-local"],
+            ["list-remote-stub"]
+          ],
+          "total": 2,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 30,
+          "offset": null,
+          "limit": null,
+          "returned": 2,
+          "documents_sha256": "90bf57207c0a3f0660ff1e2b1b8b31876e6ed8647d4cc3c19efafed028b817be"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/list_store.ts",
+            "symbol": "lists_search_filter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Anonymous lists excludes private shares.",
+        "coverage": ["negative","lists-anonymous"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-112",
+      "context": {
+        "surface": "actor-picker",
+        "consumer": "actor-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "actors",
+        "request": {
+          "q": "Alice",
+          "limit": 3
+        },
+        "order": {}
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["alice"]
+          ],
+          "total": 1,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 3,
+          "returned": 1,
+          "documents_sha256": "06c6a6727861d0c39867a75e401dd10cce7c3863adc1a32fdebdbcc844c52acc"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Authenticated actor self-included.",
+        "coverage": ["positive","actor-self-included"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-113",
+      "context": {
+        "surface": "actor-picker",
+        "consumer": "actor-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "actors",
+        "request": {
+          "q": "Alice",
+          "filter": "id != alice",
+          "limit": 3
+        },
+        "order": {}
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 3,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Authenticated actor self-excluded.",
+        "coverage": ["negative","actor-self-excluded"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-114",
+      "context": {
+        "surface": "actor-picker",
+        "consumer": "actor-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "actors",
+        "request": {
+          "q": "Bob",
+          "limit": 3
+        },
+        "order": {}
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["bob"]
+          ],
+          "total": 1,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 3,
+          "returned": 1,
+          "documents_sha256": "7c610e6e1c234e223a924e63c69937163062467798300bb5ae1a1e0d54f937a2"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Authenticated actor local-lookup.",
+        "coverage": ["positive","actor-local-lookup"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-115",
+      "context": {
+        "surface": "actor-picker",
+        "consumer": "actor-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "actors",
+        "request": {
+          "q": "",
+          "filter": "id != alice",
+          "limit": 3
+        },
+        "order": {}
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["bob","remote"]
+          ],
+          "total": 2,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 3,
+          "returned": 2,
+          "documents_sha256": "6fb045143b82e28e0a068ed6c95d11ac3bfe32b055bedbae049d47220162a8e7"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Authenticated actor other-lookup.",
+        "coverage": ["positive","actor-other-lookup"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-116",
+      "context": {
+        "principal": "anonymous",
+        "surface": "actor-picker",
+        "consumer": "actor-search"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "actors",
+        "request": {
+          "q": "",
+          "limit": 3
+        },
+        "order": {}
+      },
+      "observed": {
+        "diagnostics": {
+          "status": 403,
+          "category": "invalid_api_key"
+        },
+        "api_diagnostics": {
+          "status": 500,
+          "category": "invalid_api_key"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "web/src/routes/api/v1/search/[index]/+server.ts",
+            "symbol": "POST"
+          }
+        ],
+        "method": "The anonymous tenant cannot search actors: engine 403, proxy 500 because SDK response.status is ignored.",
+        "coverage": ["negative","actor-anonymous-tenant"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-117",
+      "context": {
+        "surface": "upload",
+        "consumer": "upload-duplicate"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": ""
+        },
+        "order": {
+          "eligibility_only": true
+        },
+        "duplicate_match": {
+          "id": "duplicate-21",
+          "fields": ["id","name","author_name","domain","distance","elevation_gain","elevation_loss","_geo"]
+        }
+      },
+      "observed": {
+        "result": {
+          "total": 47,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 20,
+          "returned": 20,
+          "document_fields": ["_geo","author","author_avatar","author_name","bounding_box_diagonal","category","category_icon","category_id","completed","created","date","description","difficulty","distance","domain","duration","elevation_gain","elevation_loss","federated_category_name","federated_subcategory_name","gpx","id","iri","is_federated","like_count","likes","location","max_lat","max_lon","min_lat","min_lon","name","polyline","public","shares","subcategory_id","tags","thumbnail"]
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/upload/+server.ts",
+            "symbol": "findDuplicate"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "The upload query uses empty q, offset 0 and the default limit 20; eligible trails can be omitted without any particular omitted ID being guaranteed.",
+        "coverage": ["boundary","duplicate-limit-20","duplicate-position-21"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-118",
+      "context": {
+        "principal": "bob",
+        "surface": "upload",
+        "consumer": "upload-duplicate"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": ""
+        },
+        "order": {
+          "eligibility_only": true
+        }
+      },
+      "observed": {
+        "result": {
+          "total": 26,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 20,
+          "returned": 20,
+          "document_fields": ["_geo","author","author_avatar","author_name","bounding_box_diagonal","category","category_icon","category_id","completed","created","date","description","difficulty","distance","domain","duration","elevation_gain","elevation_loss","federated_category_name","federated_subcategory_name","gpx","id","iri","is_federated","like_count","likes","location","max_lat","max_lon","min_lat","min_lon","name","polyline","public","shares","subcategory_id","tags","thumbnail"]
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/upload/+server.ts",
+            "symbol": "findDuplicate"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Bob's upload query excludes Alice's private trails; the unsorted page checks eligibility, count and field shape.",
+        "coverage": ["negative","duplicate-tenant"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-119",
+      "context": {
+        "principal": "anonymous",
+        "surface": "map",
+        "consumer": "map-cluster"
+      },
+      "input": {
+        "adapter": "engine-multi",
+        "request": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "filter": ["max_lat >= 46 AND min_lat <= 48 AND max_lon >= 7 AND min_lon <= 9","distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]"],
+              "attributesToRetrieve": ["id","_geo","bounding_box_diagonal"],
+              "limit": 10000
+            }
+          ]
+        },
+        "orders": [
+          {}
+        ]
+      },
+      "observed": {
+        "results": [
+          {
+            "hit_groups": [
+              ["date-end","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","dst-after","dst-before","no-category","public-alpine","public-cycle","public-lake","range-above","range-below","range-limit","range-on","remote-public","tie-a","tie-b","unverified-public"]
+            ],
+            "total": 19,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 10000,
+            "returned": 19,
+            "documents_sha256": "fc1ba0c670dc3a65189682206820a508e96fa4d3464cb85fd660b9070f637f24"
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/search/trails/cluster/+server.ts",
+            "symbol": "POST"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Map cluster summary request.",
+        "coverage": ["positive","cluster-summary"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-120",
+      "context": {
+        "principal": "anonymous",
+        "surface": "map",
+        "consumer": "map-id-details"
+      },
+      "input": {
+        "adapter": "engine-multi",
+        "request": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "filter": ["id IN ['public-alpine','private-bob']"],
+              "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo","polyline"],
+              "hitsPerPage": 100
+            }
+          ]
+        },
+        "orders": [
+          {}
+        ]
+      },
+      "observed": {
+        "results": [
+          {
+            "hit_groups": [
+              ["public-alpine"]
+            ],
+            "total": 1,
+            "page": 1,
+            "total_pages": 1,
+            "hits_per_page": 100,
+            "offset": null,
+            "limit": null,
+            "returned": 1,
+            "documents_sha256": "516b29f3f0c457d00199faf1462115e16fa7e61e95312208bfa162d61ae90e27"
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/trail_store.ts",
+            "symbol": "trails_search_bounding_box"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Map detail multi-search ID batch.",
+        "coverage": ["boundary","multi-details-tenant"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-121",
+      "context": {
+        "principal": "anonymous",
+        "surface": "home",
+        "consumer": "multi-search-proxy"
+      },
+      "input": {
+        "adapter": "engine-multi",
+        "request": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+              "q": "",
+              "limit": 3
+            },
+            {
+              "indexUid": "lists",
+              "q": "",
+              "limit": 3
+            }
+          ]
+        },
+        "orders": [
+          {
+            "eligibility_only": true
+          },
+          {}
+        ]
+      },
+      "observed": {
+        "results": [
+          {
+            "total": 23,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 3,
+            "returned": 3,
+            "document_fields": ["_geo","author","author_avatar","author_name","bounding_box_diagonal","category","category_icon","category_id","completed","created","date","description","difficulty","distance","domain","duration","elevation_gain","elevation_loss","federated_category_name","federated_subcategory_name","gpx","id","iri","is_federated","like_count","location","name","public","shares","subcategory_id","tags","thumbnail"]
+          },
+          {
+            "hit_groups": [
+              ["list-local","list-remote-stub"]
+            ],
+            "total": 2,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 3,
+            "returned": 2,
+            "documents_sha256": "90bf57207c0a3f0660ff1e2b1b8b31876e6ed8647d4cc3c19efafed028b817be"
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/search_store.ts",
+            "symbol": "searchMulti"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Home multi-search combines trails and lists; the truncated unsorted trail sample checks eligibility, count and field shape.",
+        "coverage": ["positive","multi-search"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-122",
+      "context": {
+        "surface": "map",
+        "consumer": "trail-bounding-box"
+      },
+      "input": {
+        "adapter": "engine-multi",
+        "request": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+              "sort": ["min_lat:asc"],
+              "limit": 1
+            },
+            {
+              "indexUid": "trails",
+              "q": "",
+              "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+              "sort": ["max_lat:desc"],
+              "limit": 1
+            },
+            {
+              "indexUid": "trails",
+              "q": "",
+              "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+              "sort": ["min_lon:asc"],
+              "limit": 1
+            },
+            {
+              "indexUid": "trails",
+              "q": "",
+              "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+              "sort": ["max_lon:desc"],
+              "limit": 1
+            }
+          ]
+        },
+        "orders": [
+          {},
+          {},
+          {},
+          {}
+        ]
+      },
+      "observed": {
+        "results": [
+          {
+            "hit_groups": [],
+            "total": 47,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "documents_sha256": "48ca176671782a09a88c3a9b9f85b523a08b2d9db8a19e2ef38d184faa343b7f",
+            "documents": [
+              {
+                "min_lat": 0,
+                "max_lat": 0,
+                "min_lon": 8,
+                "max_lon": 8
+              }
+            ]
+          },
+          {
+            "hit_groups": [],
+            "total": 47,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "documents_sha256": "e42520465a354141a920b2798664a567a0d4239571b582c6fc63e8ea200fc74f",
+            "documents": [
+              {
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01
+              }
+            ]
+          },
+          {
+            "hit_groups": [],
+            "total": 47,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "documents_sha256": "c31138653b6566b6ff8b89aee808e3641f78925e438f4a67d218f58041b2d585",
+            "documents": [
+              {
+                "min_lat": 4,
+                "max_lat": 6,
+                "min_lon": -180,
+                "max_lon": -179
+              }
+            ]
+          },
+          {
+            "hit_groups": [],
+            "total": 47,
+            "page": null,
+            "total_pages": null,
+            "hits_per_page": null,
+            "offset": 0,
+            "limit": 1,
+            "returned": 1,
+            "documents_sha256": "528fd19aecd2070d9be3365b853eba25f89aaedf1c47f2948110b34c561d20d9",
+            "documents": [
+              {
+                "min_lat": 4,
+                "max_lat": 6,
+                "min_lon": 179,
+                "max_lon": 180
+              }
+            ]
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/bounding-box/+server.ts",
+            "symbol": "GET"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Bounding box four independent extrema queries.",
+        "coverage": ["boundary","bounding-box-extrema"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-123",
+      "context": {
+        "surface": "list-editor",
+        "consumer": "list-edit-trail-picker"
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "author = alice OR public = true",
+          "limit": 3
+        },
+        "order": {
+          "eligibility_only": true
+        }
+      },
+      "observed": {
+        "result": {
+          "total": 45,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 3,
+          "returned": 3,
+          "document_fields": ["_geo","author","author_avatar","author_name","bounding_box_diagonal","category","category_icon","category_id","completed","created","date","description","difficulty","distance","domain","duration","elevation_gain","elevation_loss","federated_category_name","federated_subcategory_name","gpx","id","iri","is_federated","like_count","likes","location","max_lat","max_lon","min_lat","min_lon","name","polyline","public","shares","subcategory_id","tags","thumbnail"]
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/search_store.ts",
+            "symbol": "searchTrails"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "The generic list-editor helper leaves retrieval outside options; its truncated unsorted sample checks eligibility, count and field shape.",
+        "coverage": ["boundary","generic-retrieval","SRCH0-GAP-DTO-001"]
+      }
+    }
+  ]
+}

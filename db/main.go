@@ -164,10 +164,14 @@ func setupCommands(app *pocketbase.PocketBase) {
 }
 
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
+	return onBeforeServeHandlerWithBackground(client, runInBackground)
+}
+
+func onBeforeServeHandlerWithBackground(client meilisearch.ServiceManager, background func(func())) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
 		registerRoutes(se, client)
 		registerCronJobs(se.App, client)
-		initData(se.App, client)
+		initDataWithBackground(se.App, client, background)
 
 		return se.Next()
 	}
@@ -227,17 +231,21 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 	})
 }
 
-func initData(app core.App, client meilisearch.ServiceManager) error {
+func runInBackground(task func()) {
+	go task()
+}
+
+func initDataWithBackground(app core.App, client meilisearch.ServiceManager, background func(func())) error {
 	initCategories(app)
 	if err := util.SeedDefaultSubcategories(app); err != nil {
 		return err
 	}
 	initPlugins(app)
 	initMeilisearchConfig(client)
-	go func() {
+	background(func() {
 		backfillPolylines(app)
 		initMeilisearchDocuments(app, client)
-	}()
+	})
 	return nil
 }
 

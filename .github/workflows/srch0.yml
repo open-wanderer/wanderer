@@ -1,0 +1,87 @@
+name: SRCH0 Suchbestand
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/srch0.yml'
+      - 'db/**'
+      - 'web/**'
+      - 'scripts/srch0/**'
+      - 'testdata/trail-search/srch0/**'
+      - 'Makefile'
+  push:
+    branches: [main, dev]
+    paths:
+      - '.github/workflows/srch0.yml'
+      - 'db/**'
+      - 'web/**'
+      - 'scripts/srch0/**'
+      - 'testdata/trail-search/srch0/**'
+      - 'Makefile'
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --prefix web
+      - run: make srch0-check
+      - name: Check golden evolution against the PR base
+        if: github.event_name == 'pull_request'
+        env:
+          SRCH0_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$SRCH0_BASE_REF"
+          node scripts/srch0/manifest.mjs --base-ref "$SRCH0_BASE_REF"
+
+  engine-and-api:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        meilisearch: ['1.11.3', '1.36.0']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+      - run: npm ci --prefix web
+      - run: node scripts/srch0/manifest.mjs
+      - name: Execute bound engine, mutation and API cases
+        env:
+          SRCH0_REPORT_DIR: ${{ runner.temp }}/srch0-reports
+          SRCH0_ENGINE_VERSION: ${{ matrix.meilisearch }}
+        run: node scripts/srch0/engine.mjs --version "$SRCH0_ENGINE_VERSION" --integration
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: srch0-engine-${{ matrix.meilisearch }}
+          path: ${{ runner.temp }}/srch0-reports
+          if-no-files-found: error
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm ci --prefix web
+      - run: node scripts/srch0/manifest.mjs
+      - run: npx --prefix web playwright install --with-deps chromium
+      - run: make srch0-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: srch0-browser
+          path: web/test-results
+          if-no-files-found: error

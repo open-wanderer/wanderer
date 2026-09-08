@@ -1,0 +1,50 @@
+{
+  "schema_version": "wanderer.srch0.profile/v1",
+  "profile_id": "legacy-actor-v0",
+  "baseline_commit": "e9b7a8cade980002acbcf2e2f5b2a083934f29d2",
+  "index_uid": "actors",
+  "primary_key": "id",
+  "settings": {
+    "searchableAttributes": [
+      "username",
+      "preferred_username",
+      "domain"
+    ],
+    "filterableAttributes": [
+      "id"
+    ],
+    "sortableAttributes": [],
+    "rankingRules": [
+      "words",
+      "typo",
+      "proximity",
+      "attribute",
+      "sort",
+      "exactness"
+    ]
+  },
+  "document_fields": [
+    "id",
+    "username",
+    "preferred_username",
+    "domain",
+    "iri",
+    "icon",
+    "is_local"
+  ],
+  "engine_versions": [
+    "1.11.3",
+    "1.36.0"
+  ],
+  "evidence": [
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/util/meilisearch.go",
+      "symbol": "documentFromActorRecord"
+    }
+  ],
+  "revision": 1
+}

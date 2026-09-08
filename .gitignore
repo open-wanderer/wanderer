@@ -12,6 +12,9 @@ build*.sh
 start*.*
 
 data*/
+!testdata/trail-search/srch0/v1/cases/**/*.json
+!testdata/trail-search/srch0/v1/datasets/
+!testdata/trail-search/srch0/v1/datasets/**
 
 plugins/*/dist/
 plugin_dist/

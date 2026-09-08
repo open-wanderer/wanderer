@@ -1,0 +1,735 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-list"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "symbol": "trails_search_filter"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-042",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (category_id IN ['hiking'])",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["range-limit"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 21,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 21,
+          "documents_sha256": "e97293d10875a05ee1d627853c4d3cee9b79f635b9ee6c6034f73d583e103913"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Selecting a parent category includes its subcategories.",
+        "coverage": ["positive","taxonomy-parent"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-043",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (subcategory_id IN ['alpine'])",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["range-limit"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 16,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 16,
+          "documents_sha256": "bcbb9fd539e8769dce318157eb8da269ca2c9ed2f65e4ca547fdc1e7c9c0cf1b"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Selecting alpine narrows results to that child.",
+        "coverage": ["positive","taxonomy-child"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-044",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (subcategory_id IN ['alpine','stroll'])",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["range-limit"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 20,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 20,
+          "documents_sha256": "ac83c7c97a02b893f7b35bb6dd8657bda55973fb277885d0f90775807436b4e3"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Children alpine and stroll of the same parent form an OR group.",
+        "coverage": ["positive","taxonomy-same-parent"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-045",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((category_id IN ['hiking'] OR subcategory_id IN ['road']))",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"],
+            ["public-cycle"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["range-limit"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 22,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 22,
+          "documents_sha256": "68ca9e25b896011639fce3ea4e87d2b75e7a05aa3d98b0579d15f287c1c8a990"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "A hiking parent and a cycling child form separate OR branches.",
+        "coverage": ["positive","taxonomy-other-parent"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-046",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((category_id = 'hiking' AND subcategory_id IS NULL))",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-lake"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "120a54729907246f2ecb79a8cb6f3af85b726ba79ed6536bbed9bd6277773d37"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "The no-child branch matches hiking trails whose subcategory is null.",
+        "coverage": ["positive","taxonomy-no-child"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-047",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (category_id IN ['absent'])",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "An unknown category ID has no hits.",
+        "coverage": ["negative","taxonomy-unknown"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-048",
+      "context": {
+        "principal": "alice",
+        "preferences": {
+          "hidden_categories": ["cycling"],
+          "hidden_subcategories": []
+        }
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": ["distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]","(category_id IS NULL OR category_id NOT IN ['cycling'])"],
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        },
+        "proxy_request": {
+          "q": "",
+          "options": {
+            "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+            "sort": ["created:asc"],
+            "hitsPerPage": 100,
+            "page": 1,
+            "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+          }
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["duplicate-01"],
+            ["duplicate-02"],
+            ["duplicate-03"],
+            ["duplicate-04"],
+            ["duplicate-05"],
+            ["duplicate-06"],
+            ["duplicate-07"],
+            ["duplicate-08"],
+            ["duplicate-09"],
+            ["duplicate-10"],
+            ["duplicate-11"],
+            ["duplicate-12"],
+            ["duplicate-13"],
+            ["duplicate-14"],
+            ["duplicate-15"],
+            ["duplicate-16"],
+            ["duplicate-17"],
+            ["duplicate-18"],
+            ["duplicate-19"],
+            ["duplicate-20"],
+            ["duplicate-21"],
+            ["public-alpine"],
+            ["public-lake"],
+            ["private-alice"],
+            ["shared-alice"],
+            ["remote-public"],
+            ["remote-shared"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["range-limit"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["no-category"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 46,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 46,
+          "documents_sha256": "566e77c6e4da18e7090796bee0826ca764c3f01cdd4bb6e4544842408ed6c9c2"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/server/category_preference_filter.ts",
+            "symbol": "withTrailPreferenceMeiliFilter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Actor hidden category excludes cycling.",
+        "coverage": ["positive","taxonomy-preference"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-049",
+      "context": {
+        "principal": "alice",
+        "preferences": {
+          "hidden_categories": [],
+          "hidden_subcategories": ["alpine"]
+        }
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": ["distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"],
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        },
+        "proxy_request": {
+          "q": "",
+          "options": {
+            "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+            "sort": ["created:asc"],
+            "hitsPerPage": 100,
+            "page": 1,
+            "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+          }
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-lake"],
+            ["public-cycle"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["no-category"]
+          ],
+          "total": 7,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 7,
+          "documents_sha256": "145c89e2f24da5dad26be173ce51d2b925eebbbc53e0dd93227cd5a2d2bf92be"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/server/category_preference_filter.ts",
+            "symbol": "withTrailPreferenceMeiliFilter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "Actor hidden subcategory excludes alpine.",
+        "coverage": ["positive","taxonomy-child-preference"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-050",
+      "context": {
+        "principal": "alice",
+        "preferences": {
+          "hidden_categories": ["cycling"],
+          "hidden_subcategories": []
+        }
+      },
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": ["id IN ['public-cycle']"],
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        },
+        "proxy_request": {
+          "q": "",
+          "options": {
+            "filter": ["id IN ['public-cycle']"],
+            "sort": ["created:asc"],
+            "hitsPerPage": 100,
+            "page": 1,
+            "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+          }
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-cycle"]
+          ],
+          "total": 1,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 1,
+          "documents_sha256": "ea0efde6f048132c0771dfc15adfd3ff940ff534882bcf3c5dc793fc6202377a"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/server/category_preference_filter.ts",
+            "symbol": "withTrailPreferenceMeiliFilter"
+          },
+          {
+            "path": "db/main.go",
+            "symbol": "initMeilisearchConfig"
+          },
+          {
+            "path": "db/routes/search_token.go",
+            "symbol": "SearchToken"
+          }
+        ],
+        "method": "ID detail query bypasses category preference.",
+        "coverage": ["boundary","taxonomy-detail-bypass"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-051",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND tags = 'scenic'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"]
+          ],
+          "total": 2,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 2,
+          "documents_sha256": "c70580ddd4bd8865823e8583a6c48d5f0f8edc4dbf673381e7e4a1e70b430434"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Selecting scenic matches trails with that tag.",
+        "coverage": ["positive","tags-one"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-052",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (tags = 'water' OR tags = 'forest')",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"]
+          ],
+          "total": 2,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 2,
+          "documents_sha256": "c70580ddd4bd8865823e8583a6c48d5f0f8edc4dbf673381e7e4a1e70b430434"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Selected water and forest tags form an OR group.",
+        "coverage": ["positive","tags-multiple"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-053",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND (tags = 'water' OR tags = 'forest') AND category_id = 'hiking'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"]
+          ],
+          "total": 2,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 2,
+          "documents_sha256": "c70580ddd4bd8865823e8583a6c48d5f0f8edc4dbf673381e7e4a1e70b430434"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Tag alternatives are ANDed with the hiking category.",
+        "coverage": ["positive","tags-and-group"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-054",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND tags = 'absent'",
+          "sort": ["created:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [],
+          "total": 0,
+          "page": 1,
+          "total_pages": 0,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 0,
+          "documents_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "An unknown tag has no hits.",
+        "coverage": ["negative","tags-unknown"]
+      }
+    }
+  ]
+}

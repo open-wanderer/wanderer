@@ -1,0 +1,913 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-list"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "symbol": "trails_search_filter"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-086",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["name:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["name"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["public-cycle"],
+            ["date-end"],
+            ["date-midnight"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["difficulty-unknown"],
+            ["dst-after"],
+            ["dst-before"],
+            ["public-alpine"],
+            ["no-category"],
+            ["range-above"],
+            ["range-below"],
+            ["range-limit"],
+            ["range-on"],
+            ["tie-a","tie-b"],
+            ["remote-public"],
+            ["public-lake"],
+            ["unverified-public"],
+            ["zero-lat"],
+            ["zero-lon"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort name asc.",
+        "coverage": ["positive","sort-name-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-087",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["name:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["name"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["zero-lon"],
+            ["zero-lat"],
+            ["unverified-public"],
+            ["public-lake"],
+            ["remote-public"],
+            ["tie-a","tie-b"],
+            ["range-on"],
+            ["range-limit"],
+            ["range-below"],
+            ["range-above"],
+            ["no-category"],
+            ["public-alpine"],
+            ["dst-before"],
+            ["dst-after"],
+            ["difficulty-unknown"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["date-midnight"],
+            ["date-end"],
+            ["public-cycle"],
+            ["antimeridian-west"],
+            ["antimeridian-east"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort name desc.",
+        "coverage": ["positive","sort-name-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-088",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["distance:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["distance"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-lake","range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["public-alpine"],
+            ["public-cycle"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end","tie-a","tie-b"],
+            ["dst-before"],
+            ["dst-after"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["no-category"],
+            ["range-limit"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort distance asc.",
+        "coverage": ["positive","sort-distance-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-089",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["distance:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["distance"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["range-limit"],
+            ["no-category"],
+            ["antimeridian-west"],
+            ["antimeridian-east"],
+            ["dst-after"],
+            ["dst-before"],
+            ["date-end","tie-a","tie-b"],
+            ["date-midnight"],
+            ["zero-lon"],
+            ["zero-lat"],
+            ["difficulty-unknown"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["unverified-public"],
+            ["remote-public"],
+            ["public-cycle"],
+            ["public-alpine"],
+            ["range-above"],
+            ["range-on"],
+            ["public-lake","range-below"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort distance desc.",
+        "coverage": ["positive","sort-distance-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-090",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["duration:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["duration"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"],
+            ["public-cycle"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["range-limit"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["no-category"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort duration asc.",
+        "coverage": ["positive","sort-duration-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-091",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["duration:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["duration"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["tie-a","tie-b"],
+            ["no-category"],
+            ["antimeridian-west"],
+            ["antimeridian-east"],
+            ["range-limit"],
+            ["range-above"],
+            ["range-on"],
+            ["range-below"],
+            ["dst-after"],
+            ["dst-before"],
+            ["date-end"],
+            ["date-midnight"],
+            ["zero-lon"],
+            ["zero-lat"],
+            ["difficulty-unknown"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["unverified-public"],
+            ["remote-public"],
+            ["public-cycle"],
+            ["public-lake"],
+            ["public-alpine"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort duration desc.",
+        "coverage": ["positive","sort-duration-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-092",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["difficulty:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["difficulty"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["antimeridian-east","antimeridian-west","date-end","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","dst-after","dst-before","no-category","public-cycle","range-above","range-below","range-limit","range-on","remote-public","unverified-public","zero-lat","zero-lon"],
+            ["public-lake","tie-a","tie-b"],
+            ["public-alpine"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort difficulty asc.",
+        "coverage": ["positive","sort-difficulty-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-093",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["difficulty:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["difficulty"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake","tie-a","tie-b"],
+            ["antimeridian-east","antimeridian-west","date-end","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","dst-after","dst-before","no-category","public-cycle","range-above","range-below","range-limit","range-on","remote-public","unverified-public","zero-lat","zero-lon"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort difficulty desc.",
+        "coverage": ["positive","sort-difficulty-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-094",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["elevation_gain:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["elevation_gain"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-lake","range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["public-alpine"],
+            ["public-cycle"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["no-category"],
+            ["tie-a","tie-b"],
+            ["range-limit"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort elevation_gain asc.",
+        "coverage": ["positive","sort-elevation_gain-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-095",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["elevation_gain:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["elevation_gain"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["range-limit"],
+            ["tie-a","tie-b"],
+            ["no-category"],
+            ["antimeridian-west"],
+            ["antimeridian-east"],
+            ["dst-after"],
+            ["dst-before"],
+            ["date-end"],
+            ["date-midnight"],
+            ["zero-lon"],
+            ["zero-lat"],
+            ["difficulty-unknown"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["unverified-public"],
+            ["remote-public"],
+            ["public-cycle"],
+            ["public-alpine"],
+            ["range-above"],
+            ["range-on"],
+            ["public-lake","range-below"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort elevation_gain desc.",
+        "coverage": ["positive","sort-elevation_gain-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-096",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["elevation_loss:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["elevation_loss"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-lake","range-below"],
+            ["range-on"],
+            ["range-above"],
+            ["public-alpine"],
+            ["public-cycle"],
+            ["remote-public"],
+            ["unverified-public"],
+            ["difficulty-missing"],
+            ["difficulty-empty"],
+            ["difficulty-unknown"],
+            ["zero-lat"],
+            ["zero-lon"],
+            ["date-midnight"],
+            ["date-end"],
+            ["dst-before"],
+            ["dst-after"],
+            ["antimeridian-east"],
+            ["antimeridian-west"],
+            ["no-category"],
+            ["tie-a","tie-b"],
+            ["range-limit"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort elevation_loss asc.",
+        "coverage": ["positive","sort-elevation_loss-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-097",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["elevation_loss:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["elevation_loss"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["range-limit"],
+            ["tie-a","tie-b"],
+            ["no-category"],
+            ["antimeridian-west"],
+            ["antimeridian-east"],
+            ["dst-after"],
+            ["dst-before"],
+            ["date-end"],
+            ["date-midnight"],
+            ["zero-lon"],
+            ["zero-lat"],
+            ["difficulty-unknown"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["unverified-public"],
+            ["remote-public"],
+            ["public-cycle"],
+            ["public-alpine"],
+            ["range-above"],
+            ["range-on"],
+            ["public-lake","range-below"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort elevation_loss desc.",
+        "coverage": ["positive","sort-elevation_loss-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-098",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["like_count:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["like_count"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["antimeridian-east","antimeridian-west","date-end","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","dst-after","dst-before","no-category","public-cycle","range-above","range-below","range-limit","range-on","remote-public","tie-a","tie-b","unverified-public","zero-lat","zero-lon"],
+            ["public-lake"],
+            ["public-alpine"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort like_count asc.",
+        "coverage": ["positive","sort-like_count-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-099",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["like_count:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["like_count"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"],
+            ["public-lake"],
+            ["antimeridian-east","antimeridian-west","date-end","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","dst-after","dst-before","no-category","public-cycle","range-above","range-below","range-limit","range-on","remote-public","tie-a","tie-b","unverified-public","zero-lat","zero-lon"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort like_count desc.",
+        "coverage": ["positive","sort-like_count-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-101",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["created:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["created"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["tie-a","tie-b"],
+            ["no-category"],
+            ["antimeridian-west"],
+            ["antimeridian-east"],
+            ["range-limit"],
+            ["range-above"],
+            ["range-on"],
+            ["range-below"],
+            ["dst-after"],
+            ["dst-before"],
+            ["date-end"],
+            ["date-midnight"],
+            ["zero-lon"],
+            ["zero-lat"],
+            ["difficulty-unknown"],
+            ["difficulty-empty"],
+            ["difficulty-missing"],
+            ["unverified-public"],
+            ["remote-public"],
+            ["public-cycle"],
+            ["public-lake"],
+            ["public-alpine"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort created desc.",
+        "coverage": ["positive","sort-created-desc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-102",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["date:asc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["date"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["dst-before"],
+            ["dst-after"],
+            ["antimeridian-east","antimeridian-west","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","no-category","public-alpine","public-cycle","public-lake","range-above","range-below","range-limit","range-on","remote-public","unverified-public","zero-lat","zero-lon"],
+            ["date-end"],
+            ["tie-a","tie-b"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort date asc.",
+        "coverage": ["positive","sort-date-asc","sort-ties"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-103",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2]",
+          "sort": ["date:desc"],
+          "hitsPerPage": 100,
+          "page": 1,
+          "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+        },
+        "order": {
+          "tie_fields": ["date"]
+        }
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["tie-a","tie-b"],
+            ["date-end"],
+            ["antimeridian-east","antimeridian-west","date-midnight","difficulty-empty","difficulty-missing","difficulty-unknown","no-category","public-alpine","public-cycle","public-lake","range-above","range-below","range-limit","range-on","remote-public","unverified-public","zero-lat","zero-lon"],
+            ["dst-after"],
+            ["dst-before"]
+          ],
+          "total": 23,
+          "page": 1,
+          "total_pages": 1,
+          "hits_per_page": 100,
+          "offset": null,
+          "limit": null,
+          "returned": 23,
+          "documents_sha256": "7913fe4f8b15d883e214c007aaf75fe8d52099312edf38b163b4cd021d725e58"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Visible sort date desc.",
+        "coverage": ["positive","sort-date-desc","sort-ties"]
+      }
+    }
+  ]
+}

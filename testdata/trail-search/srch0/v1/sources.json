@@ -1,0 +1,94 @@
+{
+  "schema_version": "wanderer.srch0.sources/v1",
+  "commit": "e9b7a8cade980002acbcf2e2f5b2a083934f29d2",
+  "files": [
+    {
+      "path": "db/main.go",
+      "sha256": "cd77bf7d91fcb449ea35ec0b8e38543f39284d2fa596288e366bc2a0e4b3e79f"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "sha256": "82eb02928d4b75ee4acd1c791c7397007d251988c174659e865fdb395ea9c782"
+    },
+    {
+      "path": "db/util/meilisearch.go",
+      "sha256": "80100f47fe0e1cb9e25fc990fbc28f7a2d1d049dd8c7b2bc517d87496e342381"
+    },
+    {
+      "path": "web/src/lib/server/category_preference_filter.ts",
+      "sha256": "f7d566a96f5a6af671d85b3ddbe47ac9a7d76786a2027968892f281d08833485"
+    },
+    {
+      "path": "web/src/lib/stores/list_store.ts",
+      "sha256": "4f82d326cb7af1853ca17431451d8fd50fbd74069e63ef919205a35b689fe2fc"
+    },
+    {
+      "path": "web/src/lib/stores/search_store.ts",
+      "sha256": "43f2c19e97643a0ef8c346f5ae28ce916e58adc2508a6500c2914a6dee091541"
+    },
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "sha256": "43047a109a2d6214b05555584e17376ee20913d72fdbf93e7596959954f97f7e"
+    },
+    {
+      "path": "web/src/lib/util/trail_filter_util.ts",
+      "sha256": "a1a061c3ea7fe91bbfa74afbe0c06d9e0d08870ffb9bea0cf30db54aac64db38"
+    },
+    {
+      "path": "web/src/routes/api/v1/profile/[handle]/lists/+server.ts",
+      "sha256": "83e4bc515946be65623be35743776a609a41a26c52dca493cee87929e1518d6d"
+    },
+    {
+      "path": "web/src/routes/api/v1/profile/[handle]/trails/+server.ts",
+      "sha256": "2aeb29ca3a94f92cd41ba3e150c10ecf34c54eaf19e78033e9ca4566eb7deed5"
+    },
+    {
+      "path": "web/src/routes/api/v1/search/[index]/+server.ts",
+      "sha256": "6fc9d7fe2546674b730be21f0db964e83aa6205290a2a11f984607d325db5c75"
+    },
+    {
+      "path": "web/src/routes/api/v1/search/actor/+server.ts",
+      "sha256": "fbfc4a205e28c6986e49d7fce9549088d8512cab2e7b5e94ba981fd2bd8a86e9"
+    },
+    {
+      "path": "web/src/routes/api/v1/search/multi/+server.ts",
+      "sha256": "6c74346ef09032d7d2c8c23317595c5dbb5225ca74bca9ea11bb9131db7156f2"
+    },
+    {
+      "path": "web/src/routes/api/v1/search/trails/cluster/+server.ts",
+      "sha256": "6ae73de0693c5ef7e32c379394536e7c4ee3092abe3157ecbd594df322db9e77"
+    },
+    {
+      "path": "web/src/routes/api/v1/trail/bounding-box/+server.ts",
+      "sha256": "a0d9b8b8dd3fac53616e8af286339678475698db4e0fa10478bfd0a8163c7548"
+    },
+    {
+      "path": "web/src/routes/api/v1/trail/filter/+server.ts",
+      "sha256": "55f6552e3f144419c2ab8e80cb7eae17437a5ae644306b673b077edbb1c204dd"
+    },
+    {
+      "path": "web/src/routes/api/v1/trail/recommend/+server.ts",
+      "sha256": "af4ec584329eee386d9301b10744ee4c1ce0b769e058da1d770d7d721a1bc0bf"
+    },
+    {
+      "path": "web/src/routes/api/v1/trail/upload/+server.ts",
+      "sha256": "4396c877b9a3701a080bec3396f968604be4b2a8794dab05ea436aabb2bbfe6b"
+    },
+    {
+      "path": "web/src/routes/map/+page.svelte",
+      "sha256": "da9dce96f202fe56b986225309dcd6be82b4b1a6b21bd1ba4271971483dac619"
+    },
+    {
+      "path": "web/src/routes/map/+page.ts",
+      "sha256": "9f93ae874da4b94b660ed43e1e6876963189f249f621f3d29395535ace7c51b3"
+    },
+    {
+      "path": "web/src/routes/trails/+page.svelte",
+      "sha256": "2a394baee0cd2cf6ef342e5e796bf7df5d9e28cf9fa1aa788e499c799877c2d8"
+    },
+    {
+      "path": "web/src/routes/trails/+page.ts",
+      "sha256": "92f45b408922072d39f59345deca00b26625969220d09a642d910b03e8f0668c"
+    }
+  ]
+}

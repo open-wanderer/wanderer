@@ -1,0 +1,212 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "trail-dto"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/trail_store.ts",
+      "symbol": "searchResultToTrailList"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-075",
+      "input": {
+        "adapter": "trail-dto",
+        "ids": ["difficulty-missing","difficulty-empty","difficulty-unknown"],
+        "fields": ["id","difficulty"]
+      },
+      "observed": {
+        "dto": [
+          {
+            "id": "difficulty-missing",
+            "difficulty": "easy"
+          },
+          {
+            "id": "difficulty-empty",
+            "difficulty": "easy"
+          },
+          {
+            "id": "difficulty-unknown",
+            "difficulty": "easy"
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "coverage": ["boundary","unknown-projection-display"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-076",
+      "input": {
+        "adapter": "trail-dto",
+        "ids": ["public-alpine"],
+        "hit_overrides": {
+          "public-alpine": {
+            "difficulty": "unknown"
+          }
+        },
+        "omit_fields": [],
+        "fields": ["id","difficulty"]
+      },
+      "observed": {
+        "dto": [
+          {
+            "id": "public-alpine",
+            "difficulty": "difficult"
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "coverage": ["negative","raw-difficulty-display"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-077",
+      "input": {
+        "adapter": "trail-dto",
+        "ids": ["public-alpine"],
+        "hit_overrides": {
+          "public-alpine": {
+            "difficulty": ""
+          }
+        },
+        "omit_fields": [],
+        "fields": ["id","difficulty"]
+      },
+      "observed": {
+        "dto": [
+          {
+            "id": "public-alpine",
+            "difficulty": "easy"
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "coverage": ["negative","raw-difficulty-display"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-078",
+      "input": {
+        "adapter": "trail-dto",
+        "ids": ["public-alpine"],
+        "hit_overrides": {
+          "public-alpine": {}
+        },
+        "omit_fields": ["difficulty"],
+        "fields": ["id","difficulty"]
+      },
+      "observed": {
+        "dto": [
+          {
+            "id": "public-alpine",
+            "difficulty": "difficult"
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "coverage": ["negative","raw-difficulty-display"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-079",
+      "input": {
+        "adapter": "trail-dto",
+        "ids": ["public-alpine"]
+      },
+      "observed": {
+        "dto": [
+          {
+            "collectionId": "trails",
+            "collectionName": "trails",
+            "updated": "2026-01-01T00:00:21.000Z",
+            "author": "Alice Aurora",
+            "name": "Edelweiss Summit",
+            "photos": [],
+            "public": true,
+            "completed": true,
+            "summit_logs": [],
+            "waypoints": [],
+            "tags": ["scenic","forest"],
+            "category": "hiking",
+            "subcategory": "alpine",
+            "created": "2026-01-01T00:00:21.000Z",
+            "date": "2026-06-15T00:00:00.000Z",
+            "description": "Granite traverse",
+            "difficulty": "difficult",
+            "distance": 10.5,
+            "duration": 3810,
+            "elevation_gain": 100.5,
+            "elevation_loss": 90.5,
+            "id": "public-alpine",
+            "lat": 47,
+            "lon": 8,
+            "location": "Glarus",
+            "gpx": "",
+            "polyline": "",
+            "bounding_box_diagonal": 2700,
+            "domain": "",
+            "iri": "",
+            "thumbnail": 0,
+            "like_count": 2,
+            "expand": {
+              "category": {
+                "id": "hiking",
+                "name": "Hiking",
+                "icon": "person-hiking"
+              },
+              "subcategory": {
+                "id": "alpine",
+                "name": "Alpine",
+                "category": "hiking"
+              },
+              "author": {
+                "collectionId": "activitypub_actors",
+                "is_local": true,
+                "id": "alice",
+                "icon": "",
+                "preferred_username": "Alice Aurora",
+                "domain": ""
+              },
+              "trail_share_via_trail": []
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","full-dto","relation-expansion"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-080",
+      "input": {
+        "adapter": "trail-dto",
+        "ids": []
+      },
+      "observed": {
+        "dto": []
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","empty-dto"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,2317 @@
+{
+  "family": "mutation",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "database",
+    "consumer": "pocketbase-mutation"
+  },
+  "code": [
+    {
+      "path": "db/main.go",
+      "symbol": "setupEventHandlers"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-MUTATION-001",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-shared"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "trails",
+            "id": "remote-shared",
+            "set": {
+              "public": true,
+              "name": "Updated remote shared",
+              "difficulty": "unknown"
+            }
+          }
+        ],
+        "record_boundary": "defensive"
+      },
+      "observed": {
+        "diagnostics": {
+          "validation": "rejected",
+          "engine_requests": 0,
+          "persisted": false
+        }
+      },
+      "stability": "non_contract",
+      "successor_refs": ["SRCH2"],
+      "evidence": {
+        "method": "Defensiver Persistenztest mit realen Migrationen: Der unbekannte Selectwert wird vor dem Update abgewiesen. Es entsteht kein Meilisearch-Auftrag und der gespeicherte Trail bleibt unverändert.",
+        "coverage": ["positive","core-update","visibility","difficulty","defensive-source"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-002",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [],
+        "operations": [
+          {
+            "action": "create",
+            "collection": "trails",
+            "id": "remote-created",
+            "source_id": "remote-public",
+            "set": {
+              "iri": ""
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {},
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "create",
+              "collection": "trails",
+              "id": "remote-created",
+              "source_id": "remote-public",
+              "set": {
+                "iri": ""
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "POST",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-created",
+                  "author": "remote",
+                  "author_name": "Remote Cedar",
+                  "author_avatar": "",
+                  "name": "Remote public",
+                  "description": "Synthetic reference trail",
+                  "location": "Reference valley",
+                  "distance": 38,
+                  "elevation_gain": 128,
+                  "elevation_loss": 108,
+                  "duration": 3880,
+                  "difficulty": 0,
+                  "category": "Hiking",
+                  "category_id": "hiking",
+                  "category_icon": "person-hiking",
+                  "subcategory_id": "alpine",
+                  "is_federated": true,
+                  "federated_category_name": "Hiking",
+                  "federated_subcategory_name": "",
+                  "completed": false,
+                  "date": 1781481600,
+                  "created": 1767225628,
+                  "public": true,
+                  "thumbnail": "",
+                  "gpx": "",
+                  "tags": [],
+                  "polyline": "",
+                  "domain": "remote.invalid",
+                  "iri": "https://wanderer.invalid/api/v1/trail/remote-created",
+                  "min_lat": 47,
+                  "max_lat": 47,
+                  "min_lon": 8,
+                  "max_lon": 8,
+                  "bounding_box_diagonal": 0,
+                  "_geo": {
+                    "lat": 47,
+                    "lng": 8
+                  },
+                  "shares": [],
+                  "likes": [],
+                  "like_count": 0
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {
+              "remote-created": {
+                "id": "remote-created",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote public",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 38,
+                "elevation_gain": 128,
+                "elevation_loss": 108,
+                "duration": 3880,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "Hiking",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225628,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://wanderer.invalid/api/v1/trail/remote-created",
+                "min_lat": 47,
+                "max_lat": 47,
+                "min_lon": 8,
+                "max_lon": 8,
+                "bounding_box_diagonal": 0,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","create"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-003",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-public"
+          }
+        ],
+        "operations": [
+          {
+            "action": "delete",
+            "collection": "trails",
+            "id": "remote-public"
+          }
+        ],
+        "extra_records": [
+          {
+            "collection": "feed",
+            "values": {
+              "id": "feedremote",
+              "item": "remote-public",
+              "actor": "remote",
+              "type": "trail"
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "remote-public": {
+                "id": "remote-public",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote public",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 38,
+                "elevation_gain": 128,
+                "elevation_loss": 108,
+                "duration": 3880,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "Hiking",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225628,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-public",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "delete",
+              "collection": "trails",
+              "id": "remote-public"
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "DELETE",
+              "path": "/indexes/trails/documents/remote-public",
+              "body": null
+            },
+            {
+              "method": "GET",
+              "path": "/tasks/{task_uid}",
+              "body": null
+            }
+          ],
+          "after": {
+            "trails": {},
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Der synthetische Feed-Vorzustand enthält die vom realen Schema verlangten Felder actor und type.",
+        "coverage": ["positive","delete"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-004",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-public"
+          }
+        ],
+        "operations": [
+          {
+            "action": "create",
+            "collection": "trail_like",
+            "id": "likeremote",
+            "set": {
+              "trail": "remote-public",
+              "actor": "remote"
+            }
+          },
+          {
+            "action": "delete",
+            "collection": "trail_like",
+            "id": "likeremote"
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "remote-public": {
+                "id": "remote-public",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote public",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 38,
+                "elevation_gain": 128,
+                "elevation_loss": 108,
+                "duration": 3880,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "Hiking",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225628,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-public",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "create",
+              "collection": "trail_like",
+              "id": "likeremote",
+              "set": {
+                "trail": "remote-public",
+                "actor": "remote"
+              }
+            },
+            {
+              "action": "delete",
+              "collection": "trail_like",
+              "id": "likeremote"
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-public",
+                  "like_count": 1,
+                  "likes": ["remote"]
+                }
+              ]
+            },
+            {
+              "method": "PUT",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-public",
+                  "like_count": 0,
+                  "likes": []
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {
+              "remote-public": {
+                "id": "remote-public",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote public",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 38,
+                "elevation_gain": 128,
+                "elevation_loss": 108,
+                "duration": 3880,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "Hiking",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225628,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-public",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","likes","relation-removal"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-005",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-shared"
+          }
+        ],
+        "operations": [
+          {
+            "action": "share-delete",
+            "collection": "trail_share",
+            "id": "share002"
+          }
+        ],
+        "extra_records": [
+          {
+            "collection": "trail_share",
+            "values": {
+              "id": "share099",
+              "trail": "remote-shared",
+              "actor": "bob",
+              "permission": "view"
+            }
+          }
+        ],
+        "database_probes": [
+          {
+            "collection": "trail_share",
+            "id": "share099",
+            "fields": ["actor","trail"]
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "remote-shared": {
+                "id": "remote-shared",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote shared",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 40,
+                "elevation_gain": 130,
+                "elevation_loss": 110,
+                "duration": 3900,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225630,
+                "public": false,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-shared",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": ["alice","bob"],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "share-delete",
+              "collection": "trail_share",
+              "id": "share002"
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-shared",
+                  "shares": []
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {
+              "remote-shared": {
+                "id": "remote-shared",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote shared",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 40,
+                "elevation_gain": 130,
+                "elevation_loss": 110,
+                "duration": 3900,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225630,
+                "public": false,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-shared",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "database": {
+            "trail_share/share099": {
+              "actor": "bob",
+              "trail": "remote-shared"
+            }
+          }
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SEC-VIS-0"],
+      "evidence": {
+        "method": "Der zweite Share besitzt die im realen Schema verpflichtende Berechtigung view.",
+        "coverage": ["negative","shares","revoked"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-006",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-shared"
+          }
+        ],
+        "operations": [
+          {
+            "action": "share-create",
+            "collection": "trail_share",
+            "id": "share099",
+            "set": {
+              "trail": "remote-shared",
+              "actor": "bob",
+              "permission": "view"
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "remote-shared": {
+                "id": "remote-shared",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote shared",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 40,
+                "elevation_gain": 130,
+                "elevation_loss": 110,
+                "duration": 3900,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225630,
+                "public": false,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-shared",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": ["alice"],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "share-create",
+              "collection": "trail_share",
+              "id": "share099",
+              "set": {
+                "trail": "remote-shared",
+                "actor": "bob",
+                "permission": "view"
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-shared",
+                  "shares": ["alice","bob"]
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {
+              "remote-shared": {
+                "id": "remote-shared",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote shared",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 40,
+                "elevation_gain": 130,
+                "elevation_loss": 110,
+                "duration": 3900,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225630,
+                "public": false,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-shared",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": ["alice","bob"],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","shares"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-007",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "public-alpine"
+          },
+          {
+            "collection": "activitypub_actors",
+            "id": "alice"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "activitypub_actors",
+            "id": "alice",
+            "set": {
+              "preferred_username": "Alice Changed"
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {
+              "alice": {
+                "id": "alice",
+                "username": "alice",
+                "preferred_username": "Alice Aurora",
+                "domain": "",
+                "iri": "https://wanderer.invalid/actors/alice",
+                "icon": "",
+                "is_local": true
+              }
+            }
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "activitypub_actors",
+              "id": "alice",
+              "set": {
+                "preferred_username": "Alice Changed"
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/actors/documents",
+              "body": {
+                "id": "alice",
+                "username": "alice",
+                "preferred_username": "Alice Changed",
+                "domain": "",
+                "iri": "https://wanderer.invalid/actors/alice",
+                "icon": "",
+                "is_local": true
+              }
+            }
+          ],
+          "after": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {
+              "alice": {
+                "id": "alice",
+                "username": "alice",
+                "preferred_username": "Alice Changed",
+                "domain": "",
+                "iri": "https://wanderer.invalid/actors/alice",
+                "icon": "",
+                "is_local": true
+              }
+            }
+          }
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX1"],
+      "evidence": {
+        "coverage": ["negative","actor","denormalization"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-008",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "public-alpine"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "tags",
+            "id": "scenic",
+            "set": {
+              "name": "panorama"
+            }
+          }
+        ],
+        "database_probes": [
+          {
+            "collection": "tags",
+            "id": "scenic",
+            "fields": ["name"]
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "tags",
+              "id": "scenic",
+              "set": {
+                "name": "panorama"
+              }
+            }
+          ],
+          "engine_requests": [],
+          "after": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "database": {
+            "tags/scenic": {
+              "name": "panorama"
+            }
+          }
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX1"],
+      "evidence": {
+        "coverage": ["negative","tags","denormalization"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-009",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "public-alpine"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "categories",
+            "id": "hiking",
+            "set": {
+              "icon": "mountain"
+            }
+          }
+        ],
+        "database_probes": [
+          {
+            "collection": "categories",
+            "id": "hiking",
+            "fields": ["icon"]
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "categories",
+              "id": "hiking",
+              "set": {
+                "icon": "mountain"
+              }
+            }
+          ],
+          "engine_requests": [],
+          "after": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "database": {
+            "categories/hiking": {
+              "icon": "mountain"
+            }
+          }
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX1"],
+      "evidence": {
+        "coverage": ["negative","taxonomy","denormalization"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-010",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "public-alpine"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "subcategories",
+            "id": "alpine",
+            "set": {
+              "icon": "mountain"
+            }
+          }
+        ],
+        "database_probes": [
+          {
+            "collection": "subcategories",
+            "id": "alpine",
+            "fields": ["icon"]
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "subcategories",
+              "id": "alpine",
+              "set": {
+                "icon": "mountain"
+              }
+            }
+          ],
+          "engine_requests": [],
+          "after": {
+            "trails": {
+              "public-alpine": {
+                "id": "public-alpine",
+                "author": "alice",
+                "author_name": "Alice Aurora",
+                "author_avatar": "",
+                "name": "Edelweiss Summit",
+                "description": "Granite traverse",
+                "location": "Glarus",
+                "distance": 10.5,
+                "elevation_gain": 100.5,
+                "elevation_loss": 90.5,
+                "duration": 3810,
+                "difficulty": 2,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": false,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": true,
+                "date": 1781481600,
+                "created": 1767225621,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic","forest"],
+                "polyline": "",
+                "domain": "",
+                "iri": "",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": ["alice","bob"],
+                "like_count": 2
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "database": {
+            "subcategories/alpine": {
+              "icon": "mountain"
+            }
+          }
+        }
+      },
+      "stability": "known_gap",
+      "successor_refs": ["IDX1"],
+      "evidence": {
+        "coverage": ["negative","taxonomy","denormalization"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-011",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [],
+        "operations": [
+          {
+            "action": "create",
+            "collection": "activitypub_actors",
+            "id": "remote-new",
+            "source_id": "remote",
+            "set": {
+              "username": "remote-new",
+              "preferred_username": "Remote Fir",
+              "iri": "https://remote.invalid/actors/remote-new",
+              "inbox": "https://remote.invalid/actors/remote-new/inbox"
+            }
+          },
+          {
+            "action": "delete",
+            "collection": "activitypub_actors",
+            "id": "remote-new"
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {},
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "create",
+              "collection": "activitypub_actors",
+              "id": "remote-new",
+              "source_id": "remote",
+              "set": {
+                "username": "remote-new",
+                "preferred_username": "Remote Fir",
+                "iri": "https://remote.invalid/actors/remote-new",
+                "inbox": "https://remote.invalid/actors/remote-new/inbox"
+              }
+            },
+            {
+              "action": "delete",
+              "collection": "activitypub_actors",
+              "id": "remote-new"
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "POST",
+              "path": "/indexes/actors/documents",
+              "body": [
+                {
+                  "id": "remote-new",
+                  "username": "remote-new",
+                  "preferred_username": "Remote Fir",
+                  "domain": "remote.invalid",
+                  "iri": "https://remote.invalid/actors/remote-new",
+                  "icon": "",
+                  "is_local": false
+                }
+              ]
+            },
+            {
+              "method": "DELETE",
+              "path": "/indexes/actors/documents/remote-new",
+              "body": null
+            },
+            {
+              "method": "GET",
+              "path": "/tasks/{task_uid}",
+              "body": null
+            }
+          ],
+          "after": {
+            "trails": {},
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Der zusätzliche Remote-Actor besitzt einen eigenen Handle und eigene URLs, damit der reale Unique-Index auf preferred_username/domain eingehalten wird.",
+        "coverage": ["boundary","actor-create-delete"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-012",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "lists",
+            "id": "list-private"
+          }
+        ],
+        "operations": [
+          {
+            "action": "share-delete",
+            "collection": "list_share",
+            "id": "listshare001"
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {},
+            "lists": {
+              "list-private": {
+                "id": "list-private",
+                "author": "bob",
+                "author_name": "Bob Birch",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Private collection",
+                "description": "Shared list",
+                "elevation_gain": 125,
+                "elevation_loss": 105,
+                "distance": 35,
+                "duration": 3850,
+                "domain": "",
+                "public": false,
+                "created": 1767312000,
+                "trails": 1,
+                "iri": "",
+                "shares": ["alice"]
+              }
+            },
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "share-delete",
+              "collection": "list_share",
+              "id": "listshare001"
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/lists/documents",
+              "body": [
+                {
+                  "id": "list-private",
+                  "shares": []
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {},
+            "lists": {
+              "list-private": {
+                "id": "list-private",
+                "author": "bob",
+                "author_name": "Bob Birch",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Private collection",
+                "description": "Shared list",
+                "elevation_gain": 125,
+                "elevation_loss": 105,
+                "distance": 35,
+                "duration": 3850,
+                "domain": "",
+                "public": false,
+                "created": 1767312000,
+                "trails": 1,
+                "iri": "",
+                "shares": []
+              }
+            },
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","list-share"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-013",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [],
+        "operations": [
+          {
+            "action": "create",
+            "collection": "lists",
+            "id": "list-created",
+            "source_id": "list-private",
+            "set": {
+              "iri": ""
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {},
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "create",
+              "collection": "lists",
+              "id": "list-created",
+              "source_id": "list-private",
+              "set": {
+                "iri": ""
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "POST",
+              "path": "/indexes/lists/documents",
+              "body": [
+                {
+                  "id": "list-created",
+                  "author": "bob",
+                  "author_name": "Bob Birch",
+                  "author_avatar": "",
+                  "avatar": "",
+                  "name": "Private collection",
+                  "description": "Shared list",
+                  "elevation_gain": 125,
+                  "elevation_loss": 105,
+                  "distance": 35,
+                  "duration": 3850,
+                  "domain": "",
+                  "public": false,
+                  "created": 1767312000,
+                  "trails": 1,
+                  "iri": "https://wanderer.invalid/api/v1/list/list-created",
+                  "shares": []
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {},
+            "lists": {
+              "list-created": {
+                "id": "list-created",
+                "author": "bob",
+                "author_name": "Bob Birch",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Private collection",
+                "description": "Shared list",
+                "elevation_gain": 125,
+                "elevation_loss": 105,
+                "distance": 35,
+                "duration": 3850,
+                "domain": "",
+                "public": false,
+                "created": 1767312000,
+                "trails": 1,
+                "iri": "https://wanderer.invalid/api/v1/list/list-created",
+                "shares": []
+              }
+            },
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","list-create"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-014",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "lists",
+            "id": "list-private"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "lists",
+            "id": "list-private",
+            "set": {
+              "name": "Updated collection"
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {},
+            "lists": {
+              "list-private": {
+                "id": "list-private",
+                "author": "bob",
+                "author_name": "Bob Birch",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Private collection",
+                "description": "Shared list",
+                "elevation_gain": 125,
+                "elevation_loss": 105,
+                "distance": 35,
+                "duration": 3850,
+                "domain": "",
+                "public": false,
+                "created": 1767312000,
+                "trails": 1,
+                "iri": "",
+                "shares": ["alice"]
+              }
+            },
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "lists",
+              "id": "list-private",
+              "set": {
+                "name": "Updated collection"
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/lists/documents",
+              "body": {
+                "id": "list-private",
+                "author": "bob",
+                "author_name": "Bob Birch",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Updated collection",
+                "description": "Shared list",
+                "elevation_gain": 125,
+                "elevation_loss": 105,
+                "distance": 35,
+                "duration": 3850,
+                "domain": "",
+                "public": false,
+                "created": 1767312000,
+                "trails": 1,
+                "iri": ""
+              }
+            }
+          ],
+          "after": {
+            "trails": {},
+            "lists": {
+              "list-private": {
+                "id": "list-private",
+                "author": "bob",
+                "author_name": "Bob Birch",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Updated collection",
+                "description": "Shared list",
+                "elevation_gain": 125,
+                "elevation_loss": 105,
+                "distance": 35,
+                "duration": 3850,
+                "domain": "",
+                "public": false,
+                "created": 1767312000,
+                "trails": 1,
+                "iri": "",
+                "shares": ["alice"]
+              }
+            },
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","list-update","partial-update"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-015",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "lists",
+            "id": "list-materialized-remote"
+          }
+        ],
+        "operations": [
+          {
+            "action": "delete",
+            "collection": "lists",
+            "id": "list-materialized-remote"
+          }
+        ],
+        "extra_records": [
+          {
+            "collection": "lists",
+            "values": {
+              "id": "list-materialized-remote",
+              "author": "remote",
+              "name": "Local collection",
+              "description": "Materialized local list",
+              "public": true,
+              "created": "2026-01-01T00:00:00.000Z",
+              "avatar": "",
+              "iri": "",
+              "trails": ["public-alpine","public-lake"]
+            }
+          },
+          {
+            "collection": "feed",
+            "values": {
+              "id": "feedlist",
+              "item": "list-materialized-remote",
+              "actor": "remote",
+              "type": "list"
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {},
+            "lists": {
+              "list-materialized-remote": {
+                "id": "list-materialized-remote",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "avatar": "",
+                "name": "Local collection",
+                "description": "Materialized local list",
+                "elevation_gain": 200.49,
+                "elevation_loss": 180.49,
+                "distance": 20.490000000000002,
+                "duration": 7630,
+                "domain": "remote.invalid",
+                "public": true,
+                "created": 1767225600,
+                "trails": 2,
+                "iri": "",
+                "shares": []
+              }
+            },
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "delete",
+              "collection": "lists",
+              "id": "list-materialized-remote"
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "DELETE",
+              "path": "/indexes/lists/documents/list-materialized-remote",
+              "body": null
+            }
+          ],
+          "after": {
+            "trails": {},
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Der synthetische Feed-Vorzustand enthält die vom realen Schema verlangten Felder actor und type.",
+        "coverage": ["boundary","list-delete"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-016",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-public"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "trails",
+            "id": "remote-public",
+            "set": {
+              "category": "cycling",
+              "subcategory": "road",
+              "tags": ["scenic"]
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "remote-public": {
+                "id": "remote-public",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote public",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 38,
+                "elevation_gain": 128,
+                "elevation_loss": 108,
+                "duration": 3880,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "Hiking",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225628,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-public",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "trails",
+              "id": "remote-public",
+              "set": {
+                "category": "cycling",
+                "subcategory": "road",
+                "tags": ["scenic"]
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-public",
+                  "author": "remote",
+                  "author_name": "Remote Cedar",
+                  "author_avatar": "",
+                  "name": "Remote public",
+                  "description": "Synthetic reference trail",
+                  "location": "Reference valley",
+                  "distance": 38,
+                  "elevation_gain": 128,
+                  "elevation_loss": 108,
+                  "duration": 3880,
+                  "difficulty": 0,
+                  "category": "Cycling",
+                  "category_id": "cycling",
+                  "category_icon": "bicycle",
+                  "subcategory_id": "road",
+                  "is_federated": true,
+                  "federated_category_name": "Hiking",
+                  "federated_subcategory_name": "",
+                  "completed": false,
+                  "date": 1781481600,
+                  "created": 1767225628,
+                  "public": true,
+                  "thumbnail": "",
+                  "gpx": "",
+                  "tags": ["scenic"],
+                  "polyline": "",
+                  "domain": "remote.invalid",
+                  "iri": "https://remote.invalid/trails/remote-public",
+                  "min_lat": 46.99,
+                  "max_lat": 47.01,
+                  "min_lon": 7.99,
+                  "max_lon": 8.01,
+                  "bounding_box_diagonal": 2700,
+                  "_geo": {
+                    "lat": 47,
+                    "lng": 8
+                  }
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {
+              "remote-public": {
+                "id": "remote-public",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote public",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 38,
+                "elevation_gain": 128,
+                "elevation_loss": 108,
+                "duration": 3880,
+                "difficulty": 0,
+                "category": "Cycling",
+                "category_id": "cycling",
+                "category_icon": "bicycle",
+                "subcategory_id": "road",
+                "is_federated": true,
+                "federated_category_name": "Hiking",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225628,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": ["scenic"],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-public",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": [],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","taxonomy","tags"]
+      }
+    },
+    {
+      "case_id": "SRCH0-MUTATION-017",
+      "input": {
+        "adapter": "go-mutation",
+        "seed": [
+          {
+            "collection": "trails",
+            "id": "remote-shared"
+          }
+        ],
+        "operations": [
+          {
+            "action": "save",
+            "collection": "trails",
+            "id": "remote-shared",
+            "set": {
+              "public": true,
+              "name": "Updated remote shared",
+              "difficulty": ""
+            }
+          }
+        ]
+      },
+      "observed": {
+        "mutation_state": {
+          "before": {
+            "trails": {
+              "remote-shared": {
+                "id": "remote-shared",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Remote shared",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 40,
+                "elevation_gain": 130,
+                "elevation_loss": 110,
+                "duration": 3900,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225630,
+                "public": false,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-shared",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": ["alice"],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          },
+          "mutation": [
+            {
+              "action": "save",
+              "collection": "trails",
+              "id": "remote-shared",
+              "set": {
+                "public": true,
+                "name": "Updated remote shared",
+                "difficulty": ""
+              }
+            }
+          ],
+          "engine_requests": [
+            {
+              "method": "PUT",
+              "path": "/indexes/trails/documents",
+              "body": [
+                {
+                  "id": "remote-shared",
+                  "author": "remote",
+                  "author_name": "Remote Cedar",
+                  "author_avatar": "",
+                  "name": "Updated remote shared",
+                  "description": "Synthetic reference trail",
+                  "location": "Reference valley",
+                  "distance": 40,
+                  "elevation_gain": 130,
+                  "elevation_loss": 110,
+                  "duration": 3900,
+                  "difficulty": 0,
+                  "category": "Hiking",
+                  "category_id": "hiking",
+                  "category_icon": "person-hiking",
+                  "subcategory_id": "alpine",
+                  "is_federated": true,
+                  "federated_category_name": "",
+                  "federated_subcategory_name": "",
+                  "completed": false,
+                  "date": 1781481600,
+                  "created": 1767225630,
+                  "public": true,
+                  "thumbnail": "",
+                  "gpx": "",
+                  "tags": [],
+                  "polyline": "",
+                  "domain": "remote.invalid",
+                  "iri": "https://remote.invalid/trails/remote-shared",
+                  "min_lat": 46.99,
+                  "max_lat": 47.01,
+                  "min_lon": 7.99,
+                  "max_lon": 8.01,
+                  "bounding_box_diagonal": 2700,
+                  "_geo": {
+                    "lat": 47,
+                    "lng": 8
+                  }
+                }
+              ]
+            }
+          ],
+          "after": {
+            "trails": {
+              "remote-shared": {
+                "id": "remote-shared",
+                "author": "remote",
+                "author_name": "Remote Cedar",
+                "author_avatar": "",
+                "name": "Updated remote shared",
+                "description": "Synthetic reference trail",
+                "location": "Reference valley",
+                "distance": 40,
+                "elevation_gain": 130,
+                "elevation_loss": 110,
+                "duration": 3900,
+                "difficulty": 0,
+                "category": "Hiking",
+                "category_id": "hiking",
+                "category_icon": "person-hiking",
+                "subcategory_id": "alpine",
+                "is_federated": true,
+                "federated_category_name": "",
+                "federated_subcategory_name": "",
+                "completed": false,
+                "date": 1781481600,
+                "created": 1767225630,
+                "public": true,
+                "thumbnail": "",
+                "gpx": "",
+                "tags": [],
+                "polyline": "",
+                "domain": "remote.invalid",
+                "iri": "https://remote.invalid/trails/remote-shared",
+                "min_lat": 46.99,
+                "max_lat": 47.01,
+                "min_lon": 7.99,
+                "max_lon": 8.01,
+                "bounding_box_diagonal": 2700,
+                "_geo": {
+                  "lat": 47,
+                  "lng": 8
+                },
+                "shares": ["alice"],
+                "likes": [],
+                "like_count": 0
+              }
+            },
+            "lists": {},
+            "actors": {}
+          }
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "Reales Migrationsschema und normale Record-Speicherung: Name und Sichtbarkeit werden geändert; ein leerer, optionaler Difficultywert wird zugelassen. Aufgezeichnet werden Hook-Payload und materialisierter Zustand.",
+        "coverage": ["positive","core-update","visibility","difficulty"]
+      }
+    }
+  ]
+}

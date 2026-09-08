@@ -1,0 +1,343 @@
+{
+  "schema_version": "wanderer.srch0.inventory/v1",
+  "families": {
+    "state": {
+      "minimum": 3,
+      "coverage": ["positive","negative","boundary"]
+    },
+    "projection": {
+      "minimum": 3,
+      "coverage": ["positive","negative","boundary"]
+    },
+    "compiler": {
+      "minimum": 3,
+      "coverage": ["positive","negative","boundary"]
+    },
+    "search": {
+      "minimum": 3,
+      "coverage": ["positive","negative","boundary"]
+    },
+    "mutation": {
+      "minimum": 3,
+      "coverage": ["positive","negative","boundary"]
+    },
+    "browser": {
+      "minimum": 3,
+      "coverage": ["positive","negative","boundary"]
+    }
+  },
+  "consumers": [
+    {
+      "id": "actor-search",
+      "description": "Authentifizierte Actorsuche",
+      "source": "web/src/routes/api/v1/search/actor/+server.ts"
+    },
+    {
+      "id": "filter-sanitizer",
+      "description": "Typ- und Grenzprüfung gespeicherter Filter",
+      "source": "web/src/lib/util/trail_filter_util.ts"
+    },
+    {
+      "id": "homepage-global-search",
+      "description": "Globale Suche der Startseite",
+      "source": "web/src/routes/+page.svelte"
+    },
+    {
+      "id": "list-defaults",
+      "description": "Defaultfilter und URL der Trail-Liste",
+      "source": "web/src/routes/trails/+page.ts"
+    },
+    {
+      "id": "list-edit-trail-picker",
+      "description": "Trailauswahl beim Bearbeiten einer Liste",
+      "source": "web/src/lib/stores/search_store.ts"
+    },
+    {
+      "id": "list-search",
+      "description": "Suche nach Listen",
+      "source": "web/src/lib/stores/list_store.ts"
+    },
+    {
+      "id": "map-browser",
+      "description": "Navigation und Karten-URL",
+      "source": "web/src/routes/map/+page.svelte"
+    },
+    {
+      "id": "map-cluster",
+      "description": "Clusterauftrag und Kartenpunkte",
+      "source": "web/src/routes/api/v1/search/trails/cluster/+server.ts"
+    },
+    {
+      "id": "map-defaults",
+      "description": "Defaultfilter der Karte",
+      "source": "web/src/routes/map/+page.ts"
+    },
+    {
+      "id": "map-global-search",
+      "description": "Globale Suche der Karte",
+      "source": "web/src/routes/map/+page.svelte"
+    },
+    {
+      "id": "map-id-details",
+      "description": "Detailabfragen für sichtbare Kartenobjekte",
+      "source": "web/src/lib/stores/trail_store.ts"
+    },
+    {
+      "id": "map-list",
+      "description": "Trefferliste im Kartenausschnitt",
+      "source": "web/src/lib/stores/trail_store.ts"
+    },
+    {
+      "id": "multi-search-proxy",
+      "description": "Bekannte gebündelte Suchaufträge",
+      "source": "web/src/routes/api/v1/search/multi/+server.ts"
+    },
+    {
+      "id": "pocketbase-mutation",
+      "description": "Suchprojektion nach Datenbankänderungen",
+      "source": "db/main.go"
+    },
+    {
+      "id": "profile-lists",
+      "description": "Listen eines Profils",
+      "source": "web/src/routes/api/v1/profile/[handle]/lists/+server.ts"
+    },
+    {
+      "id": "profile-trails",
+      "description": "Trails eines Profils",
+      "source": "web/src/routes/api/v1/profile/[handle]/trails/+server.ts"
+    },
+    {
+      "id": "projector-actors",
+      "description": "Actorprojektion",
+      "source": "db/util/meilisearch.go"
+    },
+    {
+      "id": "projector-lists",
+      "description": "Lokale und materialisierte Listenprojektion",
+      "source": "db/util/meilisearch.go"
+    },
+    {
+      "id": "projector-remote-lists",
+      "description": "Listenaggregate vom entfernten Ursprung",
+      "source": "db/util/meilisearch.go"
+    },
+    {
+      "id": "projector-trails",
+      "description": "Trailprojektion",
+      "source": "db/util/meilisearch.go"
+    },
+    {
+      "id": "recommendation",
+      "description": "Empfehlungsanfrage",
+      "source": "web/src/routes/api/v1/trail/recommend/+server.ts"
+    },
+    {
+      "id": "search-proxy",
+      "description": "Allgemeiner Suchproxy einschließlich negativer Freiformeingaben",
+      "source": "web/src/routes/api/v1/search/[index]/+server.ts"
+    },
+    {
+      "id": "search-token",
+      "description": "Principal und Suchberechtigungen",
+      "source": "db/routes/search_token.go"
+    },
+    {
+      "id": "startup-index-initialization",
+      "description": "Indexinitialisierung beim Serverstart",
+      "source": "db/main.go"
+    },
+    {
+      "id": "trail-bounding-box",
+      "description": "Räumliche Ausdehnung sichtbarer Trails",
+      "source": "web/src/routes/api/v1/trail/bounding-box/+server.ts"
+    },
+    {
+      "id": "trail-dto",
+      "description": "Umwandlung eines Suchtreffers in ein Trailobjekt",
+      "source": "web/src/lib/stores/trail_store.ts"
+    },
+    {
+      "id": "trail-filter-values",
+      "description": "Grenzwerte des Filterpanels",
+      "source": "web/src/routes/api/v1/trail/filter/+server.ts"
+    },
+    {
+      "id": "trail-list",
+      "description": "Suchauftrag der Trail-Liste",
+      "source": "web/src/lib/stores/trail_store.ts"
+    },
+    {
+      "id": "trail-list-browser",
+      "description": "URL, Storage und History der Trail-Liste",
+      "source": "web/src/routes/trails/+page.svelte"
+    },
+    {
+      "id": "upload-duplicate",
+      "description": "Duplikatprüfung beim Upload",
+      "source": "web/src/routes/api/v1/trail/upload/+server.ts"
+    }
+  ],
+  "obligations": {
+    "state": {
+      "defaults": ["defaults"],
+      "url-normalization": ["url-normalization"],
+      "unknown-taxonomy": ["unknown-taxonomy"],
+      "wrong-types": ["wrong-types"],
+      "min-greater-max": ["min-greater-max"],
+      "asymmetric-limits": ["asymmetric-limits"]
+    },
+    "compiler": {
+      "parent": ["parent"],
+      "same-parent": ["same-parent"],
+      "different-parent": ["different-parent"],
+      "no-child": ["no-child"],
+      "unknown-child": ["unknown-child"],
+      "tags-or": ["tags-or"],
+      "liked": ["liked"],
+      "liked-neutral": ["liked-neutral"],
+      "completed-true": ["completed-true"],
+      "completed-false": ["completed-false"],
+      "dst": ["dst"],
+      "end-date": ["end-date"],
+      "duplicate-geo": ["duplicate-geo"],
+      "zero-lat": ["zero-lat"],
+      "zero-lon": ["zero-lon"],
+      "difficulty-subset": ["difficulty-subset"],
+      "difficulty-empty": ["difficulty-empty"],
+      "author": ["author"],
+      "visibility": ["visibility"],
+      "floor-ceil": ["floor-ceil"],
+      "raw-inverted-range": ["raw-inverted-range"],
+      "raw-sort": ["raw-sort"],
+      "retrieval-outside-options": ["retrieval-outside-options"],
+      "multi-search": ["multi-search"],
+      "antimeridian": ["antimeridian"],
+      "preferences": ["preferences"],
+      "detail-preference-bypass": ["detail-preference-bypass"],
+      "self-true": ["self-true"],
+      "self-false": ["self-false"],
+      "remote-handle": ["remote-handle"],
+      "profile-preferences": ["profile-preferences"],
+      "profile-replaces-filter": ["profile-replaces-filter"],
+      "recommend-eligibility": ["recommend-eligibility"],
+      "anonymous-bounds": ["anonymous-bounds"],
+      "empty-bounds": ["empty-bounds"],
+      "cluster-cap": ["cluster-cap"],
+      "invalid-cluster-input": ["invalid-cluster-input"],
+      "full-dto": ["full-dto"],
+      "duplicate-position-21": ["duplicate-position-21"],
+      "duplicate-found": ["duplicate-found"],
+      "no-visible-duplicate": ["no-visible-duplicate"]
+    },
+    "search": {
+      "text-empty": ["text-empty"],
+      "text-author_name": ["text-author_name"],
+      "text-name": ["text-name"],
+      "text-description": ["text-description"],
+      "text-location": ["text-location"],
+      "text-tags": ["text-tags"],
+      "text-multiple": ["text-multiple"],
+      "text-ranking-tie": ["text-ranking-tie"],
+      "link-share-search-scope": ["link-share-search-scope"],
+      "taxonomy-parent": ["taxonomy-parent"],
+      "taxonomy-child": ["taxonomy-child"],
+      "taxonomy-same-parent": ["taxonomy-same-parent"],
+      "taxonomy-other-parent": ["taxonomy-other-parent"],
+      "taxonomy-no-child": ["taxonomy-no-child"],
+      "taxonomy-unknown": ["taxonomy-unknown"],
+      "taxonomy-preference": ["taxonomy-preference"],
+      "taxonomy-child-preference": ["taxonomy-child-preference"],
+      "tags-one": ["tags-one"],
+      "tags-multiple": ["tags-multiple"],
+      "tags-and-group": ["tags-and-group"],
+      "liked-neutral": ["liked-neutral"],
+      "liked-active": ["liked-active"],
+      "completed-true": ["completed-true"],
+      "completed-false": ["completed-false"],
+      "completed-omitted": ["completed-omitted"],
+      "range-distance": ["range-distance"],
+      "range-distance-open-max": ["range-distance-open-max"],
+      "range-distance-reversed": ["range-distance-reversed"],
+      "range-elevation_gain": ["range-elevation_gain"],
+      "range-elevation_gain-open-max": ["range-elevation_gain-open-max"],
+      "range-elevation_gain-reversed": ["range-elevation_gain-reversed"],
+      "range-elevation_loss": ["range-elevation_loss"],
+      "range-elevation_loss-open-max": ["range-elevation_loss-open-max"],
+      "range-elevation_loss-reversed": ["range-elevation_loss-reversed"],
+      "range-combined": ["range-combined"],
+      "date-start": ["date-start"],
+      "date-end-midnight": ["date-end-midnight"],
+      "date-end-of-day": ["date-end-of-day"],
+      "date-dst": ["date-dst"],
+      "difficulty-0": ["difficulty-0"],
+      "difficulty-1": ["difficulty-1"],
+      "difficulty-2": ["difficulty-2"],
+      "difficulty-default": ["difficulty-default"],
+      "difficulty-subset": ["difficulty-subset"],
+      "geo-radius": ["geo-radius"],
+      "geo-bounds": ["geo-bounds"],
+      "geo-antimeridian": ["geo-antimeridian"],
+      "pagination": ["pagination"],
+      "actor-self-included": ["actor-self-included"],
+      "actor-self-excluded": ["actor-self-excluded"],
+      "actor-anonymous-tenant": ["actor-anonymous-tenant"],
+      "duplicate-limit-20": ["duplicate-limit-20"],
+      "duplicate-tenant": ["duplicate-tenant"],
+      "cluster-summary": ["cluster-summary"],
+      "scale-10001": ["scale-10001"],
+      "negative-unknown-index": ["negative-unknown-index"],
+      "negative-unknown-filter": ["negative-unknown-filter"],
+      "negative-unknown-sort": ["negative-unknown-sort"],
+      "negative-free-retrieval": ["negative-free-retrieval"]
+    },
+    "projection": {
+      "relations": ["relations"],
+      "difficulty": ["difficulty"],
+      "partial-update": ["partial-update"],
+      "thumbnail": ["thumbnail"],
+      "remote-live-aggregate": ["remote-live-aggregate"],
+      "actor": ["actor"],
+      "negative-thumbnail": ["thumbnail","validated-source","projection-panic"]
+    },
+    "mutation": {
+      "core-update": ["core-update"],
+      "visibility": ["visibility"],
+      "create": ["create"],
+      "delete": ["delete"],
+      "shares": ["shares"],
+      "revoked": ["revoked"],
+      "likes": ["likes"],
+      "actor": ["actor"],
+      "tags": ["tags"],
+      "taxonomy": ["taxonomy"],
+      "tenant-scope": ["tenant-scope"],
+      "startup": ["startup"],
+      "request-availability": ["request-availability"],
+      "startup-api": ["startup-api"],
+      "list-create": ["list-create"],
+      "list-update": ["list-update"],
+      "list-delete": ["list-delete"]
+    },
+    "browser": {
+      "browser-list-default": ["browser-list-default"],
+      "ignored-url-storage": ["ignored-url-storage"],
+      "url-storage-precedence": ["url-storage-precedence"],
+      "malformed-storage": ["malformed-storage"],
+      "duplicate-page-key": ["duplicate-page-key"],
+      "separate-page-key": ["separate-page-key"],
+      "cards-bucket": ["cards-bucket"],
+      "table-bucket": ["table-bucket"],
+      "raw-sort": ["raw-sort"],
+      "snapshot": ["snapshot"],
+      "history": ["history"],
+      "navigation": ["navigation"],
+      "map": ["map"]
+    }
+  },
+  "access": {
+    "principals": ["anonymous","alice","bob"],
+    "targets": ["public-alpine","private-alice","private-bob","shared-alice","revoked-alice","remote-public","remote-private","remote-shared","unverified-public","deleted-trail"]
+  },
+  "sort_keys": ["name","distance","duration","difficulty","elevation_gain","elevation_loss","like_count","created","date"]
+}

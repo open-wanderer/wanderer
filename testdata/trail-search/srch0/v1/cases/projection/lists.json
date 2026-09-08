@@ -1,0 +1,255 @@
+{
+  "family": "projection",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "database",
+    "consumer": "projector-lists"
+  },
+  "code": [
+    {
+      "path": "db/util/meilisearch.go",
+      "symbol": "documentFromListRecord"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-PROJECTION-013",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "lists",
+        "record_id": "list-local",
+        "include_shares": true,
+        "profile": "profiles/lists-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "list-local",
+          "author": "alice",
+          "author_name": "Alice Aurora",
+          "author_avatar": "",
+          "avatar": "",
+          "name": "Local collection",
+          "description": "Materialized local list",
+          "elevation_gain": 200.49,
+          "elevation_loss": 180.49,
+          "distance": 20.490000000000002,
+          "duration": 7630,
+          "domain": "",
+          "public": true,
+          "created": 1767225600,
+          "trails": 2,
+          "iri": "",
+          "shares": []
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-014",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "lists",
+        "record_id": "list-private",
+        "include_shares": true,
+        "profile": "profiles/lists-legacy-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "list-private",
+          "author": "bob",
+          "author_name": "Bob Birch",
+          "author_avatar": "",
+          "avatar": "",
+          "name": "Private collection",
+          "description": "Shared list",
+          "elevation_gain": 125,
+          "elevation_loss": 105,
+          "distance": 35,
+          "duration": 3850,
+          "domain": "",
+          "public": false,
+          "created": 1767312000,
+          "trails": 1,
+          "iri": "",
+          "shares": ["alice"]
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","relations"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-015",
+      "context": {
+        "consumer": "projector-remote-lists"
+      },
+      "input": {
+        "adapter": "go-projection",
+        "collection": "lists",
+        "record_id": "list-remote-stub",
+        "include_shares": true,
+        "remote": {
+          "status": 200,
+          "body": {
+            "hits": [
+              {
+                "elevation_gain": 700,
+                "elevation_loss": 650,
+                "distance": 42,
+                "duration": 9000,
+                "trails": 3
+              }
+            ]
+          }
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "list-remote-stub",
+          "author": "remote",
+          "author_name": "Remote Cedar",
+          "author_avatar": "",
+          "avatar": "",
+          "name": "Remote stub",
+          "description": "Origin aggregate",
+          "elevation_gain": 700,
+          "elevation_loss": 650,
+          "distance": 42,
+          "duration": 9000,
+          "domain": "remote.invalid",
+          "public": true,
+          "created": 1767398400,
+          "trails": 3,
+          "iri": "https://remote.invalid/lists/list-remote-stub",
+          "shares": []
+        },
+        "remote_requests": [
+          {
+            "method": "POST",
+            "path": "/api/v1/search/lists",
+            "body": {
+              "q": "list-remote-stub"
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SEC-VIS-0"],
+      "evidence": {
+        "coverage": ["positive","remote-live-aggregate"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-016",
+      "context": {
+        "consumer": "projector-remote-lists"
+      },
+      "input": {
+        "adapter": "go-projection",
+        "collection": "lists",
+        "record_id": "list-remote-stub",
+        "include_shares": true,
+        "remote": {
+          "status": 404,
+          "body": {}
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "list-remote-stub",
+          "author": "remote",
+          "author_name": "Remote Cedar",
+          "author_avatar": "",
+          "avatar": "",
+          "name": "Remote stub",
+          "description": "Origin aggregate",
+          "elevation_gain": 0,
+          "elevation_loss": 0,
+          "distance": 0,
+          "duration": 0,
+          "domain": "remote.invalid",
+          "public": true,
+          "created": 1767398400,
+          "trails": 0,
+          "iri": "https://remote.invalid/lists/list-remote-stub",
+          "shares": []
+        },
+        "remote_requests": [
+          {
+            "method": "POST",
+            "path": "/api/v1/search/lists",
+            "body": {
+              "q": "list-remote-stub"
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SEC-VIS-0"],
+      "evidence": {
+        "coverage": ["negative","remote-live-aggregate"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-017",
+      "context": {
+        "consumer": "projector-remote-lists"
+      },
+      "input": {
+        "adapter": "go-projection",
+        "collection": "lists",
+        "record_id": "list-remote-stub",
+        "include_shares": true,
+        "remote": {
+          "status": 200,
+          "body": {
+            "hits": []
+          }
+        }
+      },
+      "observed": {
+        "projection": {
+          "id": "list-remote-stub",
+          "author": "remote",
+          "author_name": "Remote Cedar",
+          "author_avatar": "",
+          "avatar": "",
+          "name": "Remote stub",
+          "description": "Origin aggregate",
+          "elevation_gain": 0,
+          "elevation_loss": 0,
+          "distance": 0,
+          "duration": 0,
+          "domain": "remote.invalid",
+          "public": true,
+          "created": 1767398400,
+          "trails": 0,
+          "iri": "https://remote.invalid/lists/list-remote-stub",
+          "shares": []
+        },
+        "remote_requests": [
+          {
+            "method": "POST",
+            "path": "/api/v1/search/lists",
+            "body": {
+              "q": "list-remote-stub"
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SEC-VIS-0"],
+      "evidence": {
+        "coverage": ["negative","remote-live-aggregate"]
+      }
+    }
+  ]
+}

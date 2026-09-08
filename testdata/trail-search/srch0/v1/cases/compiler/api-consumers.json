@@ -1,0 +1,461 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {
+      "user_category_preferences": [
+        {
+          "category": "cycling",
+          "visible": false
+        }
+      ],
+      "user_subcategory_preferences": [
+        {
+          "subcategory": "alpine",
+          "visible": false
+        }
+      ]
+    },
+    "surface": "list",
+    "consumer": "profile-trails"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/trail/recommend/+server.ts",
+      "symbol": "GET"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-066",
+      "input": {
+        "adapter": "api-profile-trails",
+        "params": {
+          "handle": "alice"
+        },
+        "body": {
+          "q": "ridge",
+          "options": {
+            "filter": "completed = true",
+            "limit": 3
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "ridge",
+            "options": {
+              "filter": ["completed = true","author = alice","(category_id IS NULL OR category_id NOT IN ['cycling'])","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"],
+              "limit": 3
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/profile/[handle]/trails/+server.ts",
+            "symbol": "POST"
+          }
+        ],
+        "coverage": ["positive","profile-preferences"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-067",
+      "context": {
+        "preferences": {},
+        "consumer": "profile-lists"
+      },
+      "input": {
+        "adapter": "api-profile-lists",
+        "params": {
+          "handle": "alice"
+        },
+        "body": {
+          "q": "",
+          "options": {
+            "filter": "public = true",
+            "limit": 3
+          }
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "lists",
+            "q": "",
+            "options": {
+              "filter": "author = alice",
+              "limit": 3
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/profile/[handle]/lists/+server.ts",
+            "symbol": "POST"
+          }
+        ],
+        "coverage": ["boundary","profile-replaces-filter"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-068",
+      "context": {
+        "consumer": "recommendation"
+      },
+      "input": {
+        "adapter": "api-recommendation",
+        "url": "/api/v1/trail/recommend?size=2",
+        "random": 0.5,
+        "responses": [
+          {
+            "estimatedTotalHits": 5
+          },
+          {
+            "hits": [],
+            "page": 1,
+            "hitsPerPage": 25,
+            "totalPages": 0,
+            "totalHits": 0
+          }
+        ]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {
+              "limit": 1,
+              "filter": ["(category_id IS NULL OR category_id NOT IN ['cycling'])","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"]
+            }
+          },
+          {
+            "index": "trails",
+            "q": "",
+            "options": {
+              "limit": 2,
+              "offset": 2,
+              "filter": ["(category_id IS NULL OR category_id NOT IN ['cycling'])","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"]
+            }
+          }
+        ],
+        "status": 200,
+        "response": []
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","recommend-eligibility"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-069",
+      "context": {
+        "preferences": {},
+        "consumer": "recommendation"
+      },
+      "input": {
+        "adapter": "api-recommendation",
+        "url": "/api/v1/trail/recommend?size=0",
+        "responses": [
+          {
+            "estimatedTotalHits": 5
+          }
+        ]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "trails",
+            "q": "",
+            "options": {
+              "limit": 1
+            }
+          }
+        ],
+        "status": 200,
+        "response": []
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","zero-size"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-070",
+      "context": {
+        "principal": "anonymous",
+        "preferences": {},
+        "consumer": "trail-bounding-box"
+      },
+      "input": {
+        "adapter": "api-bounds"
+      },
+      "observed": {
+        "engine_requests": [],
+        "status": 200,
+        "response": {
+          "max_lat": 0,
+          "min_lat": 0,
+          "max_lon": 0,
+          "min_lon": 0,
+          "has_trails": false
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/bounding-box/+server.ts",
+            "symbol": "GET"
+          }
+        ],
+        "coverage": ["boundary","anonymous-bounds"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-071",
+      "context": {
+        "preferences": {},
+        "consumer": "trail-bounding-box"
+      },
+      "input": {
+        "adapter": "api-bounds",
+        "responses": [
+          {
+            "results": [
+              {
+                "hits": []
+              },
+              {
+                "hits": []
+              },
+              {
+                "hits": []
+              },
+              {
+                "hits": []
+              }
+            ]
+          }
+        ]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "queries": [
+              {
+                "indexUid": "trails",
+                "q": "",
+                "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+                "sort": ["min_lat:asc"],
+                "limit": 1
+              },
+              {
+                "indexUid": "trails",
+                "q": "",
+                "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+                "sort": ["max_lat:desc"],
+                "limit": 1
+              },
+              {
+                "indexUid": "trails",
+                "q": "",
+                "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+                "sort": ["min_lon:asc"],
+                "limit": 1
+              },
+              {
+                "indexUid": "trails",
+                "q": "",
+                "attributesToRetrieve": ["min_lat","max_lat","min_lon","max_lon"],
+                "sort": ["max_lon:desc"],
+                "limit": 1
+              }
+            ]
+          }
+        ],
+        "status": 200,
+        "response": {
+          "min_lat": 0,
+          "max_lat": 0,
+          "min_lon": 0,
+          "max_lon": 0,
+          "has_trails": false
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/bounding-box/+server.ts",
+            "symbol": "GET"
+          }
+        ],
+        "coverage": ["negative","empty-bounds"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-072",
+      "context": {
+        "consumer": "map-cluster"
+      },
+      "input": {
+        "adapter": "api-cluster",
+        "body": {
+          "southWest": {
+            "lat": 45,
+            "lng": 6
+          },
+          "northEast": {
+            "lat": 48,
+            "lng": 9
+          },
+          "zoom": 12,
+          "filterText": "completed = true",
+          "q": "ridge"
+        },
+        "responses": [
+          {
+            "results": [
+              {
+                "hits": [],
+                "estimatedTotalHits": 0
+              }
+            ]
+          }
+        ]
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "queries": [
+              {
+                "indexUid": "trails",
+                "q": "ridge",
+                "filter": ["max_lat >= 45 AND min_lat <= 48 AND max_lon >= 6 AND min_lon <= 9","completed = true","(category_id IS NULL OR category_id NOT IN ['cycling'])","(subcategory_id IS NULL OR subcategory_id NOT IN ['alpine'])"],
+                "attributesToRetrieve": ["id","_geo","bounding_box_diagonal"],
+                "limit": 10000
+              }
+            ]
+          }
+        ],
+        "status": 200,
+        "response": {
+          "type": "FeatureCollection",
+          "features": [],
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/search/trails/cluster/+server.ts",
+            "symbol": "POST"
+          }
+        ],
+        "coverage": ["positive","cluster-cap","preferences"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-073",
+      "context": {
+        "preferences": {},
+        "consumer": "map-cluster"
+      },
+      "input": {
+        "adapter": "api-cluster",
+        "body": {
+          "southWest": {
+            "lat": 45,
+            "lng": 6
+          },
+          "northEast": {
+            "lat": 48,
+            "lng": 9
+          },
+          "zoom": "12",
+          "filterText": "completed = true",
+          "q": "ridge"
+        }
+      },
+      "observed": {
+        "engine_requests": [],
+        "diagnostics": {
+          "status": 400
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/search/trails/cluster/+server.ts",
+            "symbol": "POST"
+          }
+        ],
+        "coverage": ["negative","invalid-cluster-input"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-074",
+      "context": {
+        "principal": "anonymous",
+        "preferences": {},
+        "consumer": "trail-filter-values"
+      },
+      "input": {
+        "adapter": "api-filter-values"
+      },
+      "observed": {
+        "engine_requests": [],
+        "status": 200,
+        "response": {
+          "min_distance": 0,
+          "max_distance": 20000,
+          "min_elevation_gain": 0,
+          "max_elevation_gain": 4000,
+          "min_elevation_loss": 0,
+          "max_elevation_loss": 4000
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/routes/api/v1/trail/filter/+server.ts",
+            "symbol": "GET"
+          }
+        ],
+        "coverage": ["boundary","anonymous-fixed-limits"]
+      }
+    }
+  ]
+}

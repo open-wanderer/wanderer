@@ -1,0 +1,92 @@
+{
+  "family": "projection",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "database",
+    "consumer": "projector-actors"
+  },
+  "code": [
+    {
+      "path": "db/util/meilisearch.go",
+      "symbol": "documentFromActorRecord"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-PROJECTION-018",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "activitypub_actors",
+        "record_id": "alice",
+        "profile": "profiles/legacy-actor-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "alice",
+          "username": "alice",
+          "preferred_username": "Alice Aurora",
+          "domain": "",
+          "iri": "https://wanderer.invalid/actors/alice",
+          "icon": "",
+          "is_local": true
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","actor"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-019",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "activitypub_actors",
+        "record_id": "bob",
+        "profile": "profiles/legacy-actor-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "bob",
+          "username": "bob",
+          "preferred_username": "Bob Birch",
+          "domain": "",
+          "iri": "https://wanderer.invalid/actors/bob",
+          "icon": "",
+          "is_local": true
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","actor"]
+      }
+    },
+    {
+      "case_id": "SRCH0-PROJECTION-020",
+      "input": {
+        "adapter": "go-projection",
+        "collection": "activitypub_actors",
+        "record_id": "remote",
+        "profile": "profiles/legacy-actor-v0.json"
+      },
+      "observed": {
+        "projection": {
+          "id": "remote",
+          "username": "remote",
+          "preferred_username": "Remote Cedar",
+          "domain": "remote.invalid",
+          "iri": "https://remote.invalid/actors/remote",
+          "icon": "",
+          "is_local": false
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","actor"]
+      }
+    }
+  ]
+}

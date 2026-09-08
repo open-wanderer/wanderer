@@ -1,0 +1,250 @@
+{
+  "family": "state",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "filter-sanitizer"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/util/trail_filter_util.ts",
+      "symbol": "sanitizeTrailFilter"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-STATE-007",
+      "input": {
+        "adapter": "sanitize",
+        "candidate": {
+          "q": 7,
+          "distanceMin": "12",
+          "difficulty": ["unknown"],
+          "category": "hiking",
+          "sort": "unknown",
+          "sortOrder": "desc"
+        }
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","wrong-types"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-008",
+      "input": {
+        "adapter": "sanitize",
+        "candidate": {
+          "distanceMin": 123,
+          "distanceMax": 12,
+          "elevationGainMin": 9000,
+          "elevationGainMax": 10,
+          "elevationLossMin": 25,
+          "elevationLossMax": -2
+        }
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 12,
+          "distanceMax": 12,
+          "distanceLimit": 20000,
+          "elevationGainMin": 10,
+          "elevationGainMax": 10,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 0,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","min-greater-max","clamp"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-009",
+      "input": {
+        "adapter": "sanitize",
+        "candidate": {
+          "difficulty": ["easy","moderate","difficult",null,7,0],
+          "category": ["hiking",4],
+          "tags": ["scenic",false],
+          "near": {
+            "lat": 0,
+            "lon": 0,
+            "radius": -1
+          }
+        }
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": ["hiking"],
+          "subcategory": [],
+          "tags": ["scenic"],
+          "difficulty": [0,1,2,0],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "lat": 0,
+            "lon": 0,
+            "radius": 1
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","legacy-difficulty","zero-coordinates"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-010",
+      "input": {
+        "adapter": "sanitize",
+        "candidate": null
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": true,
+          "shared": true,
+          "liked": false,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "+"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","null-storage"]
+      }
+    },
+    {
+      "case_id": "SRCH0-STATE-011",
+      "input": {
+        "adapter": "sanitize",
+        "candidate": {
+          "completed": false,
+          "liked": true,
+          "startDate": "2026-03-29",
+          "endDate": "invalid",
+          "public": false,
+          "sortOrder": "-"
+        }
+      },
+      "observed": {
+        "legacy_state": {
+          "q": "",
+          "category": [],
+          "subcategory": [],
+          "tags": [],
+          "difficulty": [0,1,2],
+          "author": "",
+          "public": false,
+          "shared": true,
+          "liked": true,
+          "private": true,
+          "near": {
+            "radius": 2000
+          },
+          "distanceMin": 0,
+          "distanceMax": 20000,
+          "distanceLimit": 20000,
+          "elevationGainMin": 0,
+          "elevationGainMax": 4000,
+          "elevationGainLimit": 4000,
+          "elevationLossMin": 0,
+          "elevationLossMax": 4000,
+          "elevationLossLimit": 4000,
+          "sort": "created",
+          "sortOrder": "-",
+          "completed": false,
+          "startDate": "2026-03-29",
+          "endDate": "invalid"
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","date-preservation"]
+      }
+    }
+  ]
+}

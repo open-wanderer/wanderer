@@ -1,0 +1,384 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "list-edit-trail-picker"
+  },
+  "code": [
+    {
+      "path": "web/src/lib/stores/search_store.ts",
+      "symbol": "searchMulti"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-049",
+      "input": {
+        "adapter": "generic-search",
+        "q": "ridge",
+        "options": {
+          "limit": 10
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "ridge",
+              "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+              "options": {
+                "limit": 10
+              }
+            }
+          }
+        ]
+      },
+      "stability": "known_gap",
+      "successor_refs": ["SRCH-COMP"],
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/search_store.ts",
+            "symbol": "searchTrails"
+          }
+        ],
+        "coverage": ["boundary","retrieval-outside-options"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-050",
+      "context": {
+        "consumer": "homepage-global-search"
+      },
+      "input": {
+        "adapter": "global-multi",
+        "options": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "limit": 3,
+              "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+            },
+            {
+              "indexUid": "lists",
+              "q": "",
+              "limit": 3
+            },
+            {
+              "indexUid": "locations",
+              "q": "",
+              "limit": 3
+            }
+          ]
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/multi",
+            "body": {
+              "queries": [
+                {
+                  "indexUid": "trails",
+                  "q": "",
+                  "limit": 3,
+                  "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+                },
+                {
+                  "indexUid": "lists",
+                  "q": "",
+                  "limit": 3
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","multi-search","locations-dispatch"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-051",
+      "context": {
+        "consumer": "map-global-search"
+      },
+      "input": {
+        "adapter": "global-multi",
+        "options": {
+          "queries": [
+            {
+              "indexUid": "trails",
+              "q": "",
+              "limit": 3,
+              "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+            },
+            {
+              "indexUid": "lists",
+              "q": "",
+              "limit": 3
+            },
+            {
+              "indexUid": "locations",
+              "q": "",
+              "limit": 3
+            }
+          ]
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/multi",
+            "body": {
+              "queries": [
+                {
+                  "indexUid": "trails",
+                  "q": "",
+                  "limit": 3,
+                  "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"]
+                },
+                {
+                  "indexUid": "lists",
+                  "q": "",
+                  "limit": 3
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","multi-search","locations-dispatch"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-052",
+      "context": {
+        "surface": "map",
+        "consumer": "map-list"
+      },
+      "input": {
+        "adapter": "map-search",
+        "filter": {
+          "near": {
+            "lat": 46,
+            "lon": 7,
+            "radius": 500
+          }
+        },
+        "north_east": {
+          "lat": 48,
+          "lng": 9
+        },
+        "south_west": {
+          "lat": 45,
+          "lng": 6
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND max_lat >= 45 AND min_lat <= 48 AND max_lon >= 6 AND min_lon <= 9",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:desc"],
+                "hitsPerPage": 50,
+                "page": 1
+              }
+            }
+          },
+          {
+            "url": "/api/v1/search/trails/cluster",
+            "body": {
+              "southWest": {
+                "lat": 45,
+                "lng": 6
+              },
+              "northEast": {
+                "lat": 48,
+                "lng": 9
+              },
+              "zoom": 11,
+              "q": "",
+              "filterText": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)"
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/trail_store.ts",
+            "symbol": "trails_search_filter"
+          }
+        ],
+        "coverage": ["boundary","bounds","map-ignores-radius"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-053",
+      "context": {
+        "surface": "map",
+        "consumer": "map-list"
+      },
+      "input": {
+        "adapter": "map-search",
+        "filter": {
+          "near": {
+            "lat": 46,
+            "lon": 7,
+            "radius": 500
+          }
+        },
+        "north_east": {
+          "lat": 48,
+          "lng": -170
+        },
+        "south_west": {
+          "lat": 45,
+          "lng": 170
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/trails",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice) AND max_lat >= 45 AND min_lat <= 48 AND (max_lon >= 170 OR min_lon <= -170)",
+                "attributesToRetrieve": ["id","author","author_name","author_avatar","name","description","location","distance","elevation_gain","elevation_loss","duration","difficulty","category","category_id","category_icon","subcategory_id","is_federated","federated_category_name","federated_subcategory_name","completed","date","created","public","thumbnail","domain","gpx","tags","like_count","shares","iri","bounding_box_diagonal","_geo"],
+                "sort": ["created:desc"],
+                "hitsPerPage": 50,
+                "page": 1
+              }
+            }
+          },
+          {
+            "url": "/api/v1/search/trails/cluster",
+            "body": {
+              "southWest": {
+                "lat": 45,
+                "lng": 170
+              },
+              "northEast": {
+                "lat": 48,
+                "lng": -170
+              },
+              "zoom": 11,
+              "q": "",
+              "filterText": "distance >= 0 AND elevation_gain >= 0 AND elevation_loss >= 0 AND difficulty IN [0,1,2] AND ((public = TRUE OR author = alice) OR shares = alice)"
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/trail_store.ts",
+            "symbol": "trails_search_filter"
+          }
+        ],
+        "coverage": ["boundary","antimeridian","map-ignores-radius"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-081",
+      "context": {
+        "consumer": "list-search"
+      },
+      "input": {
+        "adapter": "list-index-search",
+        "filter": {
+          "q": "",
+          "sort": "name",
+          "sortOrder": "+"
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/lists",
+            "body": {
+              "q": "",
+              "options": {
+                "filter": "",
+                "sort": ["name:asc"],
+                "hitsPerPage": 30,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/list_store.ts",
+            "symbol": "lists_search_filter"
+          }
+        ],
+        "coverage": ["positive","list-index"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-082",
+      "context": {
+        "consumer": "list-search"
+      },
+      "input": {
+        "adapter": "list-index-search",
+        "filter": {
+          "q": "lake",
+          "author": "alice",
+          "public": true,
+          "shared": true,
+          "sort": "created",
+          "sortOrder": "-"
+        }
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "url": "/api/v1/search/lists",
+            "body": {
+              "q": "lake",
+              "options": {
+                "filter": "author = alice AND ((public = true OR author = alice) OR shares = alice)",
+                "sort": ["created:desc"],
+                "hitsPerPage": 30,
+                "page": 1
+              }
+            }
+          }
+        ]
+      },
+      "stability": "preserve",
+      "evidence": {
+        "code": [
+          {
+            "path": "web/src/lib/stores/list_store.ts",
+            "symbol": "lists_search_filter"
+          }
+        ],
+        "coverage": ["positive","list-index"]
+      }
+    }
+  ]
+}

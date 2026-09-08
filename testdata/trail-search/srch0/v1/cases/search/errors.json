@@ -1,0 +1,167 @@
+{
+  "family": "search",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "anonymous",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "api",
+    "consumer": "search-proxy"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/search/[index]/+server.ts",
+      "symbol": "POST"
+    },
+    {
+      "path": "db/main.go",
+      "symbol": "initMeilisearchConfig"
+    },
+    {
+      "path": "db/routes/search_token.go",
+      "symbol": "SearchToken"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-SEARCH-124",
+      "input": {
+        "adapter": "engine-search",
+        "index": "unknown",
+        "request": {
+          "q": ""
+        },
+        "order": {}
+      },
+      "observed": {
+        "diagnostics": {
+          "status": 403,
+          "category": "invalid_api_key"
+        },
+        "api_diagnostics": {
+          "status": 500,
+          "category": "invalid_api_key"
+        }
+      },
+      "stability": "non_contract",
+      "evidence": {
+        "method": "The unknown index is outside the tenant scope: engine 403, proxy 500 because SDK response.status is ignored.",
+        "coverage": ["negative","negative-unknown-index"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-125",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "filter": "not_a_field = true"
+        },
+        "order": {}
+      },
+      "observed": {
+        "diagnostics": {
+          "status": 400,
+          "category": "invalid_search_filter"
+        },
+        "api_diagnostics": {
+          "status": 500,
+          "category": "invalid_search_filter"
+        }
+      },
+      "stability": "non_contract",
+      "evidence": {
+        "method": "An unsupported filter field produces engine 400 and proxy 500 because SDK response.status is ignored.",
+        "coverage": ["negative","negative-unknown-filter"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-126",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "sort": ["not_a_sort:asc"]
+        },
+        "order": {}
+      },
+      "observed": {
+        "diagnostics": {
+          "status": 400,
+          "category": "invalid_search_sort"
+        },
+        "api_diagnostics": {
+          "status": 500,
+          "category": "invalid_search_sort"
+        }
+      },
+      "stability": "non_contract",
+      "evidence": {
+        "method": "An unknown sort key produces engine 400 and proxy 500 because SDK response.status is ignored.",
+        "coverage": ["negative","negative-unknown-sort"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-127",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "",
+          "sort": ["name:invalid"]
+        },
+        "order": {}
+      },
+      "observed": {
+        "diagnostics": {
+          "status": 400,
+          "category": "invalid_search_sort"
+        },
+        "api_diagnostics": {
+          "status": 500,
+          "category": "invalid_search_sort"
+        }
+      },
+      "stability": "non_contract",
+      "evidence": {
+        "method": "An invalid sort direction produces engine 400 and proxy 500 because SDK response.status is ignored.",
+        "coverage": ["negative","negative-unknown-direction"]
+      }
+    },
+    {
+      "case_id": "SRCH0-SEARCH-128",
+      "input": {
+        "adapter": "engine-search",
+        "index": "trails",
+        "request": {
+          "q": "Edelweiss",
+          "attributesToRetrieve": ["id","gpx","not_a_field"]
+        },
+        "order": {}
+      },
+      "observed": {
+        "result": {
+          "hit_groups": [
+            ["public-alpine"]
+          ],
+          "total": 1,
+          "page": null,
+          "total_pages": null,
+          "hits_per_page": null,
+          "offset": 0,
+          "limit": 20,
+          "returned": 1,
+          "documents_sha256": "dab479735aad74054b08201d448982fd42f9e8d0b8ab7108473e59e21b87f93a"
+        }
+      },
+      "stability": "non_contract",
+      "evidence": {
+        "method": "An explicit retrieval list returns id and gpx and silently omits the unknown field.",
+        "coverage": ["negative","negative-free-retrieval"]
+      }
+    }
+  ]
+}

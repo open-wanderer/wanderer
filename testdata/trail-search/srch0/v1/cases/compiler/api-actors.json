@@ -1,0 +1,194 @@
+{
+  "family": "compiler",
+  "dataset_ref": "datasets/reference.json",
+  "context": {
+    "principal": "alice",
+    "locale": "en",
+    "timezone": "Europe/Zurich",
+    "preferences": {},
+    "surface": "list",
+    "consumer": "actor-search"
+  },
+  "code": [
+    {
+      "path": "web/src/routes/api/v1/search/actor/+server.ts",
+      "symbol": "GET"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "SRCH0-COMPILER-060",
+      "input": {
+        "adapter": "api-actor",
+        "url": "/api/v1/search/actor?q=ali&includeSelf=true"
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "actors",
+            "q": "ali",
+            "options": {
+              "filter": "",
+              "limit": 3
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","self-true"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-061",
+      "input": {
+        "adapter": "api-actor",
+        "url": "/api/v1/search/actor?q=ali&includeSelf=false"
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "actors",
+            "q": "ali",
+            "options": {
+              "filter": "id != alice",
+              "limit": 3
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["positive","self-false"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-062",
+      "input": {
+        "adapter": "api-actor",
+        "url": "/api/v1/search/actor?q=bob&limit=7"
+      },
+      "observed": {
+        "engine_requests": [
+          {
+            "index": "actors",
+            "q": "bob",
+            "options": {
+              "filter": "",
+              "limit": "7"
+            }
+          }
+        ],
+        "status": 200,
+        "response": {
+          "hits": [],
+          "page": 1,
+          "hitsPerPage": 25,
+          "totalPages": 0,
+          "totalHits": 0
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","limit-string"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-063",
+      "context": {
+        "principal": "anonymous"
+      },
+      "input": {
+        "adapter": "api-actor",
+        "url": "/api/v1/search/actor?q=ali"
+      },
+      "observed": {
+        "engine_requests": [],
+        "diagnostics": {
+          "status": 401
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["negative","actor-rejection"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-064",
+      "input": {
+        "adapter": "api-actor",
+        "url": "/api/v1/search/actor"
+      },
+      "observed": {
+        "engine_requests": [],
+        "diagnostics": {
+          "status": 500,
+          "cause_status": 404
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "method": "At bound baseline GET throws missing-q 404 inside its try; handleError wraps this HttpError in a 500 response. Capture records stable status categories only.",
+        "coverage": ["negative","actor-rejection"]
+      }
+    },
+    {
+      "case_id": "SRCH0-COMPILER-065",
+      "input": {
+        "adapter": "api-actor",
+        "url": "/api/v1/search/actor?q=@remote@remote.example",
+        "actor": {
+          "id": "remote",
+          "domain": "remote.example",
+          "is_local": false,
+          "preferred_username": "remote",
+          "username": "Remote",
+          "iri": "https://remote.example/actors/remote",
+          "icon": ""
+        }
+      },
+      "observed": {
+        "engine_requests": [],
+        "status": 200,
+        "response": {
+          "hits": [
+            {
+              "id": "remote",
+              "domain": "remote.example",
+              "is_local": false,
+              "preferred_username": "remote",
+              "username": "Remote",
+              "iri": "https://remote.example/actors/remote",
+              "icon": ""
+            }
+          ],
+          "query": "@remote@remote.example",
+          "estimatedTotalHits": 1,
+          "totalHits": 1,
+          "totalPages": 1,
+          "page": 1
+        }
+      },
+      "stability": "preserve",
+      "evidence": {
+        "coverage": ["boundary","remote-handle"]
+      }
+    }
+  ]
+}
