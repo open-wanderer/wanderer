@@ -6,11 +6,20 @@ Jede verletzte geprüfte Eigenschaft lässt den Test scheitern; Ausnahmen für
 bekannte Fehler sind verboten. Die [Befunde](BEFUNDE.md) sind Merge-Blocker.
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
-entstehen getrennt auf `fix/srch0-findings`. Solange der von SRCH0 geprüfte
+werden in zwei getrennten PRs behandelt:
+
+- `fix/srch0-findings` korrigiert die übrigen belegten Suchfehler.
+- `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
+  bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
+  Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
+
+Beide Produkt-PRs sind Merge-Blocker für SRCH0. Solange der von SRCH0 geprüfte
 Produktstand die Fehler enthält, müssen die betroffenen Tests rot bleiben.
-SRCH0 darf erst nach Integration der Fixes und erfolgreichen fachlichen
-Prüfungen gemergt werden. Ein grüner Lauf in einer kombinierten Prüfkopie
-ersetzt diese Abnahme des tatsächlichen SRCH0-Branchstands nicht.
+SRCH0 darf erst nach Integration beider Pakete und erfolgreichen fachlichen
+Prüfungen seines tatsächlichen Branchstands gemergt werden. Der bisherige grüne
+Lauf in einer kombinierten Prüfkopie enthielt auch das Startup-Paket; er belegt
+keinen grünen SRCH0-Lauf mit den übrigen Korrekturen allein und ersetzt diese
+Abnahme nicht.
 
 Die Baseline ist `e9b7a8cade980002acbcf2e2f5b2a083934f29d2` vom 7. September
 2026, direkt aus dem aktualisierten `origin/dev`. Die

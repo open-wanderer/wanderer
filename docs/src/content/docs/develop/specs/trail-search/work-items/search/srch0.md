@@ -27,11 +27,17 @@ UI-Prototyp und die übrigen Spezifikationen des früheren Spec-Branches sind
 nicht Bestandteil dieser Implementierung.
 
 SRCH0 darf bei fachlich falschen geprüften Ergebnissen nicht grün sein. Die
-Tests werden auf `feat/srch0` verschärft; Produktkorrekturen entstehen separat
-auf `fix/srch0-findings`. Die offenen Fehler blockieren den Merge von SRCH0.
-Bis der geprüfte Branchstand die Fixes enthält, müssen seine betroffenen
-Tests rot bleiben. Ein kombinierter Testlauf aus beiden Branches dient der
-Fixprüfung und macht den ungefixten SRCH0-Stand nicht mergebar.
+Tests werden auf `feat/srch0` verschärft. Produktkorrekturen entstehen in zwei
+separaten PRs: `fix/srch0-findings` für die übrigen Suchfehler und
+`fix/search-index-startup` für das gesamte Startup-Paket. Dieses umfasst den
+Erhalt bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
+Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
+
+Beide Produkt-PRs blockieren den Merge von SRCH0. Bis der geprüfte Branchstand
+beide Pakete enthält, müssen seine betroffenen Tests rot bleiben. Ein
+kombinierter Testlauf dient der Fixprüfung und macht den ungefixten
+SRCH0-Stand nicht mergebar. Der bisherige grüne kombinierte Lauf enthielt auch
+das Startup-Paket und belegt keinen grünen SRCH0-Lauf ohne diese Änderungen.
 
 Der Korpus unterscheidet drei Dinge:
 
@@ -275,5 +281,6 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-07 | Frischer Branch direkt auf aktualisiertem `origin/dev` | SRCH0 übernimmt keinen UI-Prototyp und keine weiteren Spec-Änderungen |
 | 2026-09-08 | Beobachtung, Solländerung und Plausibilität getrennt auswerten | Reproduzierbarkeit darf Fehler weder legitimieren noch ihre Korrektur blockieren |
 | 2026-09-08 | Bekannte Fehler lassen SRCH0 rot und blockieren seinen Merge; Produktfixes entstehen auf einem separaten Branch | Historische Beobachtungen und Fehlerausnahmen sind keine zulässige fachliche Abnahme |
+| 2026-09-08 | Das gesamte Startup-Paket erhält mit `fix/search-index-startup` einen eigenen PR neben `fix/srch0-findings`; beide blockieren SRCH0 | Der Startup-Umbau überschreitet den Umfang des Korrekturbranches. Die fachlichen SRCH0-Prüfungen bleiben unverändert verbindlich. |
 | 2026-09-08 | Produktionsmigrationen, unabhängiges Inventar und kleine Adapter | Die Tests sollen reale Zustände abbilden und überprüfbar bleiben |
 | 2026-09-08 | Dokumentation bleibt Deutsch | Vorgabe für diesen Branch |

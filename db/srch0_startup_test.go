@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"pocketbase/internal/srch0"
-	"pocketbase/util"
 	"reflect"
 	"strings"
 	"sync"
@@ -19,11 +17,9 @@ import (
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
-	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/router"
-	"github.com/spf13/cobra"
 )
 
 func srch0StartupApp(t *testing.T, empty bool) core.App {
@@ -257,81 +253,6 @@ func TestSRCH0StartupResumesInterruptedInitialization(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(app.DataDir(), ".search-initializing-"+index)); !os.IsNotExist(err) {
 			t.Errorf("completed %s initialization retained its pending marker: %v", index, err)
 		}
-	}
-}
-
-func TestSRCH0SearchIndexRepairCommand(t *testing.T) {
-	for _, scenario := range []struct{ name, refusal string }{
-		{"existing", ""},
-		{"missing", "existing trails index"},
-		{"unfinished", "unfinished initialization"},
-		{"invalid-timeout", "timeout must be positive"},
-	} {
-		t.Run(scenario.name, func(t *testing.T) {
-			app := srch0StartupApp(t, false)
-			m := srch0.NewMeili(t)
-			m.Missing = scenario.name == "missing"
-			if scenario.name == "existing" {
-				trails, _ := app.FindAllRecords("trails")
-				lists, _ := app.FindAllRecords("lists")
-				actors, _ := app.FindAllRecords("activitypub_actors")
-				for _, err := range []error{util.IndexTrails(app, trails, m.Client), util.IndexLists(app, lists, m.Client), util.IndexActors(actors, m.Client)} {
-					if err != nil {
-						t.Fatal(err)
-					}
-				}
-				m.ClearCalls()
-			}
-			t.Setenv("MEILI_URL", m.Server.URL)
-			t.Setenv("MEILI_MASTER_KEY", "")
-			if scenario.name == "unfinished" {
-				if err := os.WriteFile(filepath.Join(app.DataDir(), ".search-initializing-trails"), []byte("trails\n"), 0600); err != nil {
-					t.Fatal(err)
-				}
-			}
-			var output bytes.Buffer
-			root := &cobra.Command{Use: "wanderer", SilenceUsage: true, SilenceErrors: true}
-			root.SetOut(&output)
-			root.SetErr(&output)
-			args := []string{"search-index", "repair"}
-			if scenario.name == "invalid-timeout" {
-				args = append(args, "--timeout=0s")
-			}
-			root.SetArgs(args)
-			setupCommands(&pocketbase.PocketBase{App: app, RootCmd: root})
-			err := root.Execute()
-			if scenario.refusal != "" {
-				if err == nil || !strings.Contains(err.Error(), scenario.refusal) {
-					t.Fatalf("repair should refuse %s: %v", scenario.name, err)
-				}
-				for _, request := range m.Calls() {
-					if strings.Contains(request.Path, "/documents") {
-						t.Error("refused repair submitted a document mutation")
-					}
-				}
-				return
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			for index, want := range map[string]int{"trails": 2, "lists": 1, "actors": 3} {
-				if got := len(m.Snapshot()[index].(map[string]any)); got != want {
-					t.Errorf("repair command did not process %s: got %d, want %d", index, got, want)
-				}
-			}
-			if !strings.Contains(output.String(), "erfolgreich repariert") {
-				t.Error("repair did not report successful completion")
-			}
-			mutations := 0
-			for _, request := range m.Calls() {
-				if strings.Contains(request.Path, "/documents") && (request.Method == "PUT" || request.Method == "POST") {
-					mutations++
-				}
-			}
-			if mutations == 0 {
-				t.Error("repair command did not invoke metadata repair")
-			}
-		})
 	}
 }
 

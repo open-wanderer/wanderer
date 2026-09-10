@@ -5,11 +5,15 @@ Stand: 8. September 2026. Geprüfte Produktbaseline:
 
 Die Tests auf `feat/srch0` verlangen korrekte Ergebnisse und müssen gegen
 den bisherigen Produktcode rot bleiben. Bekannte Fehler sind keine erlaubten
-Abweichungen. Produktkorrekturen entstehen separat auf `fix/srch0-findings`;
-erst nach deren Integration und erfolgreichem Lauf des tatsächlichen
-SRCH0-Branchstands ist SRCH0 mergebar. Historische Goldens dürfen diesen
-Nachweis nicht ersetzen. Ein kombinierter Prüfbaum dient nur zur Prüfung
-der getrennt entwickelten Tests und Fixes.
+Abweichungen. Produktkorrekturen entstehen in zwei separaten PRs:
+`fix/srch0-findings` für die übrigen Suchfehler und
+`fix/search-index-startup` für das gesamte Startup-Paket einschliesslich
+Indexerhalt, synchroner Initialisierung, Fehlerweitergabe, Wiederaufnahme und
+Reparaturbefehl. Beide PRs bleiben Merge-Blocker. Erst nach Integration beider
+Pakete und erfolgreichem Lauf des tatsächlichen SRCH0-Branchstands ist SRCH0
+mergebar. Historische Goldens dürfen diesen Nachweis nicht ersetzen. Der
+bisherige grüne kombinierte Prüfbaum enthielt beide Pakete; sein Ergebnis gilt
+nicht für den Korrekturbranch ohne Startup-Paket.
 
 ## Bestätigte Fehler
 
@@ -26,7 +30,7 @@ der getrennt entwickelten Tests und Fixes.
 | Ungültige gespeicherte Sortwerte erreichen die Engine | Rohe Storagewerte werden als Sortkey und Richtung übernommen. | strikte Compiler- und Browserprüfungen |
 | Ungültige Actor-Suchparameter werden falsch behandelt | Fehlendes `q` wird zu HTTP 500; `limit` erreicht den SDK-Auftrag als String. | strikte Actor-Parameterprüfungen |
 
-Die Produktfixes gehören ausschliesslich auf den separaten Bugfix-Branch.
+Die Produktfixes gehören ausschliesslich auf die beiden separaten Produktbranches.
 SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
 Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
 Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)
@@ -38,7 +42,7 @@ beschreibt den Vergleich mit der historischen Beobachtung.
 | --- | --- | --- |
 | Merge-Blocker: unvollständige Clusterresultate | Der Generator materialisiert tatsächlich 10'001 Trails. Bei `maxTotalHits=1000` liefert die bisherige Clusterabfrage nur 1'000 davon. | Produktprüfungen verlangen die vollständige sichtbare Clustergrundlage. Ein Engine-Cap darf kein erfolgreiches unvollständiges Produktresultat ergeben. Fälle `SRCH0-SEARCH-129/130`, `completeness.test.ts`. |
 | Merge-Blocker: unvollständige Duplikatprüfung | Der bisherige Uploadhelper untersucht nur die erste Engineantwort mit höchstens 20 Trails. | Eine kontrollierte Probe legt das passende Duplikat in eine spätere Antwort und verlangt dessen Erkennung. Die echte API-/Engineprüfung ergänzt diesen Nachweis. `SRCH0-SEARCH-117`, `completeness.test.ts`. |
-| Merge-Blocker: Startup-Verfügbarkeit | Normale Starts löschen und befüllen die live verwendeten Indizes asynchron neu. Tokenroute und Suche können währenddessen erreichbar sein. | Strikte Tests verlangen den Erhalt vorhandener Daten, terminal erfolgreiche Initialisierung vor Suchbereitschaft, Fehlerweitergabe und Wiederaufnahme abgebrochener Erstinitialisierung. Fälle `SRCH0-MUTATION-090` bis `093`. |
+| Merge-Blocker: Startup-Verfügbarkeit | Normale Starts löschen und befüllen die live verwendeten Indizes asynchron neu. Tokenroute und Suche können währenddessen erreichbar sein. Das gesamte Startup-Paket wird im eigenen PR auf `fix/search-index-startup` behandelt. | Strikte Tests bleiben in SRCH0 und verlangen den Erhalt vorhandener Daten, terminal erfolgreiche Initialisierung vor Suchbereitschaft, Fehlerweitergabe und Wiederaufnahme abgebrochener Erstinitialisierung. Fälle `SRCH0-MUTATION-090` bis `093`. Die Auslagerung erlaubt keine Fehlerausnahme. |
 | Redundanz | Derselbe `_geoRadius` wird zweimal per AND verknüpft. | Logisch dieselbe Treffermenge; kein belegter Ergebnisfehler allein durch die Wiederholung. `SRCH0-P-GEO-DUPLICATE`, `SRCH0-COMPILER-016`. |
 | Merge-Blocker: Enddatum | Ein Enddatum `2026-09-07` wird bisher zu einer inklusiven Grenze am Tagesbeginn. Der lokale Mittag liegt dahinter. | Das ganze lokale Kalenderdatum muss eingeschlossen sein, auch an 23-/25-Stunden-Tagen. Diese Zielsemantik war bereits im Spec festgelegt. `SRCH0-P-DATE-END` und strikte Kalender-/DST-Prüfungen. |
 | Ranking ist keine globale numerische Sortierung | Bei `q=Alice` und `distance:asc` steht ein Treffer mit Autorname „Alice Aurora“ und Distanz 4'242 vor einem Treffer mit Alice im Trailnamen und Distanz 36. | Die konfigurierte Attributrelevanz kommt vor der Sortierregel. Kein Enginefehler; eine UI-Zusage rein aufsteigender Distanz wäre damit nicht erfüllt. `SRCH0-SEARCH-131`. |
