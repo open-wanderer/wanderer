@@ -367,6 +367,7 @@
   "list-public-warning": "All trails in this list will become public.",
   "list-saved-successfully": "List saved successfully",
   "list-share-warning": "Sharing a list automatically shares all trails contained in it.",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Added trails will be shared with everyone that has access to this list.",
   "location": "Location",
   "login": "Login",

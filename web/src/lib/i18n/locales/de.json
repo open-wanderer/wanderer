@@ -367,6 +367,7 @@
   "list-public-warning": "Alle Routen in dieser Liste werden veröffentlicht.",
   "list-saved-successfully": "Liste gespeichert",
   "list-share-warning": "Durch das Teilen einer Liste werden automatisch alle darin enthaltenen Routen freigegeben.",
+  "list-share-access-info": "Beim Teilen einer Liste erhalten Personen auf dieser Instanz auch Zugriff auf deine privaten Routen darin. Personen auf anderen Instanzen können nur öffentliche Routen sehen.",
   "list-share-warning-update": "Hinzugefügte Routen werden mit allen geteilt, die Zugriff auf diese Liste haben.",
   "location": "Standort",
   "login": "Login",
