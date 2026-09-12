@@ -1,5 +1,6 @@
 import type { Trail } from "$lib/models/trail";
 import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
+import { applyGpxToTrailForm } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -9,6 +10,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *     summary: Update trail with file upload
  *     description: >
  *       Updates a trail with file upload (GPX/photos) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
+ *       A `gpx` part replaces the track: the file is converted to GPX (FIT, KML, KMZ and TCX are accepted) and `distance`, `duration`, `elevation_gain`, `elevation_loss`, `lat` and `lon` are derived from it unless the request sets them explicitly. `bounding_box_diagonal` and `polyline` are always recomputed.
  *     tags:
  *       - Trails
  *     parameters:
@@ -31,15 +33,17 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *             schema:
  *               $ref: '#/components/schemas/Trail'
  *       400:
- *         description: Bad Request (invalid id, or body `id` differs from the path)
+ *         description: Bad Request (invalid id, body `id` differs from the path, or the `gpx` file cannot be parsed)
  *       404:
  *         description: Not Found
  *       500:
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    try {        
-        const r = await uploadUpdate<Trail>(event, Collection.trails)
+    try {
+        const data = await event.request.formData();
+        await applyGpxToTrailForm(data, true, event.fetch);
+        const r = await uploadUpdate<Trail>(event, Collection.trails, data)
         enrichRecord(r);
         return json(r);
     } catch (e) {

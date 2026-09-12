@@ -123,14 +123,14 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
     return r
 }
 
-export async function uploadUpdate<T>(event: RequestEvent, collection: Collection) {
+export async function uploadUpdate<T>(event: RequestEvent, collection: Collection, data?: FormData) {
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
-    const data = await event.request.formData();
+    data ??= await event.request.formData();
 
     // The path is authoritative. An id in the body is optional but must
     // agree with it, so a client cannot address one record and update another.
