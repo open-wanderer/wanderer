@@ -14,6 +14,29 @@ import { handleError } from '$lib/util/api_util'
 
 const SEARCH_TOKEN_VERSION = 1;
 
+function isApiRequest(url: URL) {
+  return url.pathname.startsWith("/api/");
+}
+
+const apiErrorsAsJson: Handle = async ({ event, resolve }) => {
+  if (!isApiRequest(event.url)) {
+    return resolve(event);
+  }
+
+  if (event.route.id === null) {
+    return json({ message: "not_found" }, { status: 404 });
+  }
+
+  const response = await resolve(event);
+  if (response.status === 405) {
+    return json({ message: "method_not_allowed" }, {
+      status: 405,
+      headers: { allow: response.headers.get("allow") ?? "" },
+    });
+  }
+  return response;
+}
+
 function csrf(allowedPaths: string[]): Handle {
   return async ({ event, resolve }) => {
     const { request, url } = event;
@@ -28,7 +51,7 @@ function csrf(allowedPaths: string[]): Handle {
 
     if (forbidden) {
       const message = `Cross-site ${request.method} form submissions are forbidden`;
-      if (request.headers.get("accept") === "application/json") {
+      if (isApiRequest(url) || request.headers.get("accept") === "application/json") {
         return json({ message }, { status: 403 });
       }
       return text(message, { status: 403 });
@@ -191,4 +214,4 @@ const removeLinkFromHeaders: Handle =
   }
 
 
-export const handle = sequence(csrf(['/api/v1']), auth, removeLinkFromHeaders)
+export const handle = sequence(apiErrorsAsJson, csrf(['/api/v1']), auth, removeLinkFromHeaders)
