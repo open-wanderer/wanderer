@@ -11,12 +11,23 @@ import (
 // of a private object, but that check lives in the browser only; the
 // trail_share / list_share endpoints and the announce federation accept the
 // record regardless. The receiving instance would then store the private
-// object as a public one. This guard enforces the rule on the server.
+// object as a public one. Enforce the rule when creating or updating shares.
 
 // crossInstanceShareForbidden reports whether sharing object with actor must
 // be rejected: the actor lives on another instance and the object is private.
 func crossInstanceShareForbidden(object, actor *core.Record) bool {
 	return !actor.GetBool("is_local") && !object.GetBool("public")
+}
+
+// UpdateShareHandler validates the new recipient after the target guard.
+// Unlike creation, updating a share does not announce it.
+func UpdateShareHandler(objectCollection, objectField string) func(*core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		if err := ensureShareAllowed(e, objectCollection, objectField); err != nil {
+			return err
+		}
+		return e.Next()
+	}
 }
 
 // ensureShareAllowed rejects a share request of a private object with a remote
