@@ -1,13 +1,12 @@
-import type { SummitLog } from "$lib/models/summit_log";
-import { Collection, upload } from "$lib/util/api_util";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
-
 /**
  * @swagger
  * /api/v1/summit-log/{id}/file:
  *   post:
  *     summary: Upload summit log file
- *     description: Uploads a file (photo or GPX) for a summit log
+ *     deprecated: true
+ *     description: >
+ *       Deprecated alias of `POST /api/v1/summit-log/form/{id}`, which accepts the same multipart body and is the endpoint to use.
+ *       Kept for compatibility; behaves exactly like the form endpoint.
  *     tags:
  *       - Summit Logs
  *     parameters:
@@ -21,14 +20,10 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *       content:
  *         multipart/form-data:
  *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
+ *             $ref: '#/components/schemas/SummitLogUpdateInput'
  *     responses:
  *       200:
- *         description: File uploaded, summit log updated
+ *         description: Summit log updated
  *         content:
  *           application/json:
  *             schema:
@@ -40,11 +35,4 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *       500:
  *         description: Internal Server Error
  */
-export async function POST(event: RequestEvent) {
-    try {
-        const r = await upload<SummitLog>(event, Collection.summit_logs);
-        return json(r);
-    } catch (e: any) {
-        throw error(e.status, e)
-    }
-}
+export { POST } from "../../form/[id]/+server";

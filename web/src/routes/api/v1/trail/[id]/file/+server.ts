@@ -1,13 +1,12 @@
-import type { Trail } from "$lib/models/trail";
-import { Collection, upload } from "$lib/util/api_util";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
-
 /**
  * @swagger
  * /api/v1/trail/{id}/file:
  *   post:
  *     summary: Upload trail file
- *     description: Uploads a file for a trail
+ *     deprecated: true
+ *     description: >
+ *       Deprecated alias of `POST /api/v1/trail/form/{id}`, which accepts the same multipart body and is the endpoint to use.
+ *       Kept for compatibility; behaves exactly like the form endpoint.
  *     tags:
  *       - Trails
  *     parameters:
@@ -21,14 +20,10 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *       content:
  *         multipart/form-data:
  *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
+ *             $ref: '#/components/schemas/TrailUpdateInput'
  *     responses:
  *       200:
- *         description: File uploaded
+ *         description: Trail updated
  *         content:
  *           application/json:
  *             schema:
@@ -40,12 +35,4 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *       500:
  *         description: Internal Server Error
  */
-export async function POST(event: RequestEvent) {
-    try {
-        const r = await upload<Trail>(event, Collection.trails);
-
-        return json(r);
-    } catch (e: any) {
-        throw error(e.status, e)
-    }
-}
+export { POST } from "../../form/[id]/+server";

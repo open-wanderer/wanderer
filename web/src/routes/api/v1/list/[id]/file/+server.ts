@@ -1,13 +1,12 @@
-import { Collection, handleError, upload } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
-import type { List } from "$lib/models/list";
-
 /**
  * @swagger
  * /api/v1/list/{id}/file:
  *   post:
  *     summary: Upload list file
- *     description: Uploads a file (cover image) for a list
+ *     deprecated: true
+ *     description: >
+ *       Deprecated alias of `POST /api/v1/list/form/{id}`, which accepts the same multipart body and is the endpoint to use.
+ *       Kept for compatibility; behaves exactly like the form endpoint.
  *     tags:
  *       - Lists
  *     parameters:
@@ -21,14 +20,10 @@ import type { List } from "$lib/models/list";
  *       content:
  *         multipart/form-data:
  *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
+ *             $ref: '#/components/schemas/ListUpdateInput'
  *     responses:
  *       200:
- *         description: File uploaded, list updated
+ *         description: List updated
  *         content:
  *           application/json:
  *             schema:
@@ -40,11 +35,4 @@ import type { List } from "$lib/models/list";
  *       500:
  *         description: Internal Server Error
  */
-export async function POST(event: RequestEvent) {
-    try {
-        const r = await upload<List>(event, Collection.lists);
-        return json(r);
-    } catch (e: any) {
-        return handleError(e)
-    }
-}
+export { POST } from "../../form/[id]/+server";
