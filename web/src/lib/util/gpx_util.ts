@@ -134,9 +134,10 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
     return gpx.toString();
 }
 
-const derivedTrailFields = ["distance", "duration", "elevation_gain", "elevation_loss", "lat", "lon"] as const;
+export const trailGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss", "lat", "lon"] as const;
+export const summitLogGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss"] as const;
 
-export async function applyGpxToTrailForm(data: FormData, correctElevation: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function applyGpxToForm(data: FormData, fields: readonly (typeof trailGpxFields)[number][], correctElevation: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const file = data.get("gpx");
     if (!(file instanceof Blob) || file.size === 0) {
         return;
@@ -157,7 +158,7 @@ export async function applyGpxToTrailForm(data: FormData, correctElevation: bool
         data.set("gpx", gpxFile, name);
     }
 
-    for (const field of derivedTrailFields) {
+    for (const field of fields) {
         if (!data.has(field) && trail[field] !== undefined) {
             data.set(field, String(trail[field]));
         }

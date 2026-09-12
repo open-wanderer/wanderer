@@ -1,6 +1,6 @@
 import type { Trail } from "$lib/models/trail";
 import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
-import { applyGpxToTrailForm } from "$lib/util/gpx_util";
+import { applyGpxToForm, trailGpxFields } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -42,7 +42,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function POST(event: RequestEvent) {
     try {
         const data = await event.request.formData();
-        await applyGpxToTrailForm(data, true, event.fetch);
+        await applyGpxToForm(data, trailGpxFields, true, event.fetch);
         const r = await uploadUpdate<Trail>(event, Collection.trails, data)
         enrichRecord(r);
         return json(r);
