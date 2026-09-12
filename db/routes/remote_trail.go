@@ -131,9 +131,11 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 				if _, alreadySyncing := trailSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
 					urlCopy := *e.Request.URL
 					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
+					// Sync hooks and remote data must not mutate the response record.
+					syncRecord := record.Fresh()
 					go func() {
 						defer trailSyncing.Delete(iri)
-						performFullSync(e.App, bgCtx, &urlCopy, record)
+						performFullSync(e.App, bgCtx, &urlCopy, syncRecord)
 					}()
 				}
 			}
