@@ -242,9 +242,16 @@ Plugins may provide optional UI metadata through `manifest.metadata`:
 | `displayName` | Human-facing provider name shown in the UI. Falls back to manifest `name`. |
 | `displayNames` | Optional localized provider names keyed by locale, e.g. `de` or `de-CH`. Falls back to `displayName` and `name`. |
 | `descriptions` | Optional localized plugin descriptions keyed by locale. Falls back to manifest `description`. |
+| `information` | Optional localized, longer plugin information keyed by locale for the settings info modal. Falls back to the localized description. Plain text may contain line breaks. |
+| `homepageUrl` | Optional HTTP(S) link to the plugin or provider homepage. |
+| `donationUrl` | Optional HTTP(S) link to a donation or project-support page, for example for an open-source project. |
 | `providerCategories` | Optional metadata for provider-owned category values. The settings UI uses `providerCategories.*.labels` for localized category mapping labels. |
 | `icons.light` | Light-theme icon path inside the plugin bundle. |
 | `icons.dark` | Dark-theme icon path inside the plugin bundle. |
+
+UI metadata is optional and non-fatal. Invalid localized values are ignored,
+and external links are shown only when the frontend can parse them as absolute
+HTTP(S) URLs.
 
 Config schema fields may also localize plugin-owned UI text. The simple
 `label` and `description` strings remain valid fallbacks; optional `labels`

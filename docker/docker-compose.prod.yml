@@ -25,6 +25,7 @@ services:
       MEILI_URL: http://search:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
       POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY:?}
+      POCKETBASE_PROXY_SECRET: ${POCKETBASE_PROXY_SECRET:?}
       ORIGIN: ${ORIGIN:?}
     restart: unless-stopped
     volumes:
@@ -47,6 +48,7 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?}
       ORIGIN: ${ORIGIN:?}
       BODY_SIZE_LIMIT: Infinity
+      POCKETBASE_PROXY_SECRET: ${POCKETBASE_PROXY_SECRET:?}
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
       UPLOAD_FOLDER: /app/uploads

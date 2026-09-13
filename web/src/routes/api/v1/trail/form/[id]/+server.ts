@@ -7,7 +7,8 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * /api/v1/trail/form/{id}:
  *   post:
  *     summary: Update trail with file upload
- *     description: Updates a trail with file upload (GPX/photos) and date normalization
+ *     description: >
+ *       Updates a trail with file upload (GPX/photos) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
  *     tags:
  *       - Trails
  *     parameters:
@@ -30,7 +31,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *             schema:
  *               $ref: '#/components/schemas/Trail'
  *       400:
- *         description: Bad Request
+ *         description: Bad Request (invalid id, or body `id` differs from the path)
  *       404:
  *         description: Not Found
  *       500:

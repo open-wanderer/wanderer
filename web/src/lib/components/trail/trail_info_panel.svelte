@@ -71,6 +71,7 @@
     } from "$lib/stores/trail_store";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
+    import { withShareToken } from "$lib/util/url_util";
 
     interface Props {
         initTrail: Trail;
@@ -175,7 +176,12 @@
     }
 
     async function toggleMapFullScreen() {
-        goto(`/map/trail/${handle}/${trail.id!}`);
+        goto(
+            withShareToken(
+                `/map/trail/${handle}/${trail.id!}`,
+                page.url.searchParams,
+            ),
+        );
     }
 
     async function fetchComments() {
@@ -336,8 +342,14 @@
     }
 
     async function markTrailAsCompleted() {
-        trail.completed = true;
-        const updatedTrail: Trail = { ...trail };
+        const oldestSummitLogDate = $summitLogs
+            .map((log) => log.date)
+            .sort()[0];
+        const updatedTrail: Trail = {
+            ...trail,
+            completed: true,
+            completed_at: trail.completed_at || oldestSummitLogDate,
+        };
         await trails_update(trail, updatedTrail);
     }
 
@@ -504,7 +516,6 @@
                             onclick={trail.photos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
-                            autoplay
                             loop
                             src={photo}
                         ></video>

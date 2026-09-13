@@ -101,6 +101,40 @@ func TestWaypointsIncludeFrontImage(t *testing.T) {
 	if points[0].Photos[0].ExternalID != "48446190" || points[0].Photos[0].Source.URL != "https://example.test/image.jpg" {
 		t.Fatalf("unexpected waypoint photo: %#v", points[0].Photos[0])
 	}
+	if points[0].Photos[0].Filename != "komoot-waypoint-48446190.jpg" {
+		t.Fatalf("unexpected waypoint photo filename: %q", points[0].Photos[0].Filename)
+	}
+}
+
+func TestTourPhotoFilenamesIdentifySource(t *testing.T) {
+	t.Run("cover with id", func(t *testing.T) {
+		tour := &detailedTour{Embedded: detailedTourEmbedded{CoverImages: coverImages{Embedded: imagesEmbedded{Items: []imageItem{{
+			ID:  flexibleID("123"),
+			Src: "https://example.test/cover.jpg",
+		}}}}}}
+		got := photos(tour, nil)
+		if len(got) != 1 || got[0].Filename != "komoot-cover-123.jpg" {
+			t.Fatalf("unexpected cover photos: %#v", got)
+		}
+	})
+
+	t.Run("cover without id", func(t *testing.T) {
+		tour := &detailedTour{Embedded: detailedTourEmbedded{CoverImages: coverImages{Embedded: imagesEmbedded{Items: []imageItem{{
+			Src: "https://example.test/cover.jpg",
+		}}}}}}
+		got := photos(tour, nil)
+		if len(got) != 1 || got[0].Filename != "komoot-cover.jpg" {
+			t.Fatalf("unexpected cover photos: %#v", got)
+		}
+	})
+
+	t.Run("map image", func(t *testing.T) {
+		tour := &detailedTour{MapImage: mapImage{Src: "https://example.test/map.jpg"}}
+		got := photos(tour, nil)
+		if len(got) != 1 || got[0].Filename != "komoot-map.jpg" {
+			t.Fatalf("unexpected map photos: %#v", got)
+		}
+	})
 }
 
 func TestWaypointPhotosDeduplicateFrontImage(t *testing.T) {
