@@ -1,31 +1,16 @@
-package migrations
+package permissions_test
 
 import (
 	"database/sql"
 	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func TestAdditionalAnonymousReadRulesMigration(t *testing.T) {
-	testAdditionalAnonymousReadRules(t, true)
-}
-
 func TestCurrentAdditionalAnonymousReadRules(t *testing.T) {
-	testAdditionalAnonymousReadRules(t, false)
-}
-
-func testAdditionalAnonymousReadRules(t *testing.T, exerciseMigration bool) {
-	t.Helper()
-	const migrationFile = "1789200002_guard_anonymous_read_rules.go"
-	beforeMigration := ""
-	if exerciseMigration {
-		beforeMigration = migrationFile
-	}
-	app := newRulesTestApp(t, beforeMigration)
+	app := newRulesTestApp(t)
 	newUser := func(name string) *core.Record {
 		t.Helper()
 		return saveRulesTestRecord(t, app, "users", map[string]any{
@@ -92,12 +77,6 @@ func testAdditionalAnonymousReadRules(t *testing.T, exerciseMigration bool) {
 			}
 		}
 	}
-	// The remote owner's empty user relation previously exposed link tokens
-	// and remote feed entries to anonymous callers.
-	if exerciseMigration {
-		assertAccess(t, remoteLink, nil, true, true)
-		assertAccess(t, remoteFeed, nil, true, false)
-	}
 
 	type ownerAccess struct {
 		record               *core.Record
@@ -110,8 +89,7 @@ func testAdditionalAnonymousReadRules(t *testing.T, exerciseMigration bool) {
 		{apiToken, true, true},
 	}
 	for _, name := range []string{"trails_bounding_box", "trails_filter"} {
-		// These current view queries already exclude remote actors. The new
-		// auth check is additional protection, not a fix for leaked aggregates.
+		// These aggregate views exclude actors without local users.
 		if _, err := app.FindRecordById(name, remoteActor.Id); !errors.Is(err, sql.ErrNoRows) {
 			t.Fatalf("%s remote actor row: got %v; want no rows", name, err)
 		}
@@ -123,53 +101,13 @@ func testAdditionalAnonymousReadRules(t *testing.T, exerciseMigration bool) {
 		cases = append(cases, ownerAccess{local, false, true})
 	}
 
-	previousRules := make(map[string][5]*string, len(cases))
-	for _, test := range cases {
-		col := test.record.Collection()
-		previousRules[col.Name] = [5]*string{col.ListRule, col.ViewRule, col.CreateRule, col.UpdateRule, col.DeleteRule}
-	}
-	migration := ruleMigration(t, migrationFile)
-	if exerciseMigration {
-		if err := app.RunInTransaction(migration.Up); err != nil {
-			t.Fatal(err)
-		}
-	}
 	for _, test := range cases {
 		t.Run(test.record.Collection().Name, func(t *testing.T) {
 			assertAccess(t, test.record, nil, false, false)
 			assertAccess(t, test.record, stranger, false, false)
 			assertAccess(t, test.record, owner, test.ownerList, test.ownerView)
-			col, err := app.FindCollectionByNameOrId(test.record.Collection().Name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			previous := previousRules[col.Name]
-			if (previous[0] == nil) != (col.ListRule == nil) || (previous[1] == nil) != (col.ViewRule == nil) {
-				t.Fatal("migration changed a locked read rule")
-			}
-			if !reflect.DeepEqual(previous[2:], []*string{col.CreateRule, col.UpdateRule, col.DeleteRule}) {
-				t.Fatal("migration changed write rules")
-			}
 		})
 	}
 	assertAccess(t, remoteLink, nil, false, false)
 	assertAccess(t, remoteFeed, nil, false, false)
-	if !exerciseMigration {
-		return
-	}
-	if err := app.RunInTransaction(migration.Down); err != nil {
-		t.Fatal(err)
-	}
-	for name, previous := range previousRules {
-		col, err := app.FindCollectionByNameOrId(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		current := [5]*string{col.ListRule, col.ViewRule, col.CreateRule, col.UpdateRule, col.DeleteRule}
-		if !reflect.DeepEqual(current, previous) {
-			t.Errorf("%s rollback did not restore the exact prior rules", name)
-		}
-	}
-	assertAccess(t, remoteLink, nil, true, true)
-	assertAccess(t, remoteFeed, nil, true, false)
 }

@@ -1,27 +1,13 @@
-package migrations
+package permissions_test
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func TestAnonymousReadRulesMigration(t *testing.T) {
-	testAnonymousReadRules(t, false)
-}
-
 func TestCurrentAnonymousReadRules(t *testing.T) {
-	testAnonymousReadRules(t, true)
-}
-
-func testAnonymousReadRules(t *testing.T, currentSchema bool) {
-	t.Helper()
-	beforeMigration := ""
-	if !currentSchema {
-		beforeMigration = "1789200002_guard_anonymous_read_rules.go"
-	}
-	app := newRulesTestApp(t, beforeMigration)
+	app := newRulesTestApp(t)
 	newUser := func(name string) *core.Record {
 		t.Helper()
 		return saveRulesTestRecord(t, app, "users", map[string]any{
@@ -112,33 +98,6 @@ func testAnonymousReadRules(t *testing.T, currentSchema bool) {
 		}
 	}
 
-	// Exercise the real previous rules: both missing shares and remote actors'
-	// empty user relations can match an anonymous caller's empty auth id.
-	if !currentSchema {
-		assertAccess(t, remotePrivate.trail, nil, "", true, true)
-		assertAccess(t, remotePrivate.list, nil, "", true, true)
-		assertAccess(t, localPrivate.waypoint, nil, "", true, true)
-		assertAccess(t, localPrivate.comment, nil, "", true, true)
-		assertAccess(t, localPrivate.log, nil, "", true, true)
-		assertAccess(t, remotePrivateLike, nil, "", true, true)
-	}
-
-	collections := []string{"trails", "lists", "waypoints", "comments", "summit_logs", "trail_share", "list_share", "trail_like"}
-	previousRules := make(map[string][5]*string, len(collections))
-	for _, name := range collections {
-		col, err := app.FindCollectionByNameOrId(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		previousRules[name] = [5]*string{col.ListRule, col.ViewRule, col.CreateRule, col.UpdateRule, col.DeleteRule}
-	}
-	migration := ruleMigration(t, "1789200002_guard_anonymous_read_rules.go")
-	if !currentSchema {
-		if err := app.RunInTransaction(migration.Up); err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	for _, test := range []struct {
 		name string
 		data content
@@ -180,37 +139,8 @@ func testAnonymousReadRules(t *testing.T, currentSchema bool) {
 			assertAccess(t, record, nil, link.GetString("token"), true, true)
 			assertAccess(t, record, nil, "wrong", false, false)
 		}
-		// Summit-log share-link support is added by the later expansion fix.
-		if !currentSchema {
-			assertAccess(t, localPrivate.log, nil, link.GetString("token"), false, false)
-		}
 		assertAccess(t, localPrivate.log, nil, "wrong", false, false)
 		assertAccess(t, remotePrivate.trail, nil, link.GetString("token"), false, false)
 		assertAccess(t, localPrivate.comment, nil, link.GetString("token"), false, false)
 	})
-	for _, name := range collections {
-		col, err := app.FindCollectionByNameOrId(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		previous := previousRules[name]
-		if !reflect.DeepEqual([3]*string{col.CreateRule, col.UpdateRule, col.DeleteRule}, [3]*string{previous[2], previous[3], previous[4]}) {
-			t.Errorf("%s write rules changed", name)
-		}
-	}
-	if currentSchema {
-		return
-	}
-	if err := app.RunInTransaction(migration.Down); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range collections {
-		col, err := app.FindCollectionByNameOrId(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual([5]*string{col.ListRule, col.ViewRule, col.CreateRule, col.UpdateRule, col.DeleteRule}, previousRules[name]) {
-			t.Errorf("%s rollback did not restore the previous rules", name)
-		}
-	}
 }

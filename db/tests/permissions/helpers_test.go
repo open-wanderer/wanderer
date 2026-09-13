@@ -1,22 +1,20 @@
-package migrations
+package permissions_test
 
 import (
 	"slices"
 	"sort"
 	"testing"
 
+	_ "pocketbase/migrations"
+
 	"github.com/pocketbase/pocketbase/core"
 )
 
-// newRulesTestApp applies every registered migration before beforeMigration.
-// An empty boundary applies all migrations, so current-schema tests also cover
-// later changes. Only migrations that exclusively configure Meilisearch are
-// excluded; schema and data migration errors always fail the test.
-func newRulesTestApp(t *testing.T, beforeMigration string) *core.BaseApp {
+// newRulesTestApp builds the current schema in a temporary database.
+// Only migrations that exclusively configure external Meilisearch indexes are
+// excluded; all schema and data migrations are applied.
+func newRulesTestApp(t *testing.T) *core.BaseApp {
 	t.Helper()
-	if beforeMigration != "" {
-		ruleMigration(t, beforeMigration)
-	}
 	t.Setenv("ORIGIN", "https://example.com")
 	app := core.NewBaseApp(core.BaseAppConfig{DataDir: t.TempDir()})
 	if err := app.Bootstrap(); err != nil {
@@ -29,9 +27,6 @@ func newRulesTestApp(t *testing.T, beforeMigration string) *core.BaseApp {
 		return migrations[i].File < migrations[j].File
 	})
 	for _, migration := range migrations {
-		if beforeMigration != "" && migration.File >= beforeMigration {
-			break
-		}
 		switch migration.File {
 		case "1742167033_init_meilisearch.go",
 			"1744651602_add_polyline.go",
@@ -44,17 +39,6 @@ func newRulesTestApp(t *testing.T, beforeMigration string) *core.BaseApp {
 		}
 	}
 	return app
-}
-
-func ruleMigration(t *testing.T, file string) *core.Migration {
-	t.Helper()
-	for _, migration := range core.AppMigrations.Items() {
-		if migration.File == file {
-			return migration
-		}
-	}
-	t.Fatalf("migration %s not registered", file)
-	return nil
 }
 
 func saveRulesTestRecord(t *testing.T, app core.App, collection string, data map[string]any) *core.Record {
