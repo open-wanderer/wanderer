@@ -7,7 +7,8 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * /api/v1/summit-log/form/{id}:
  *   post:
  *     summary: Update summit log with file upload
- *     description: Updates a summit log with file upload (photos/GPX) and date normalization
+ *     description: >
+ *       Updates a summit log with file upload (photos/GPX) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
  *     tags:
  *       - Summit Logs
  *     parameters:
@@ -30,7 +31,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *             schema:
  *               $ref: '#/components/schemas/SummitLog'
  *       400:
- *         description: Bad Request
+ *         description: Bad Request (invalid id, or body `id` differs from the path)
  *       404:
  *         description: Not Found
  *       500:
