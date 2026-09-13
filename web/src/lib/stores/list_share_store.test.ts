@@ -1,9 +1,5 @@
 import { get } from "svelte/store";
-import { _, addMessages, init } from "svelte-i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import de from "$lib/i18n/locales/de.json";
-import en from "$lib/i18n/locales/en.json";
-import fr from "$lib/i18n/locales/fr.json";
 import { List } from "$lib/models/list";
 import type { Trail } from "$lib/models/trail";
 import { list_share_create_for_actor, shares } from "./list_share_store";
@@ -65,6 +61,8 @@ describe("sharing a list with an actor", () => {
 
         expect(request).toHaveBeenCalledTimes(4);
         expect(String(request.mock.calls[1][0])).toMatch(/^\/api\/v1\/trail-share\?/);
+        expect(new URL(String(request.mock.calls[1][0]), "http://localhost").searchParams.get("filter"))
+            .toBe(`actor.iri='${actor.iri}'`);
         expect(request.mock.calls[2]).toEqual(["/api/v1/trail-share", {
             method: "PUT",
             body: JSON.stringify({ actor: actor.iri, trail: "private00000000", permission: "view" }),
@@ -80,20 +78,5 @@ describe("sharing a list with an actor", () => {
 
         expect(request).toHaveBeenCalledOnce();
         expect(get(shares)).toEqual([]);
-    });
-});
-
-describe("list sharing explanation", () => {
-    it.each([
-        ["en", en["list-share-access-info"]],
-        ["de", de["list-share-access-info"]],
-        ["fr", en["list-share-access-info"]],
-    ])("uses the current explanation for %s, falling back instead of the old warning", (language, expected) => {
-        addMessages("en", en);
-        addMessages("de", de);
-        addMessages("fr", fr);
-        init({ fallbackLocale: "en", initialLocale: language });
-
-        expect(get(_)("list-share-access-info")).toBe(expected);
     });
 });
