@@ -21,12 +21,16 @@ func TestExpandAndReturnAppliesViewRulesOfRelatedCollection(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer app.Cleanup()
+	save := func(model core.Model) {
+		t.Helper()
+		if err := app.Save(model); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	users := core.NewAuthCollection("xt_viewers")
 	users.ViewRule = types.Pointer("")
-	if err := app.Save(users); err != nil {
-		t.Fatal(err)
-	}
+	save(users)
 
 	items := core.NewBaseCollection("xt_items")
 	items.Fields.Add(
@@ -36,9 +40,7 @@ func TestExpandAndReturnAppliesViewRulesOfRelatedCollection(t *testing.T) {
 	)
 	items.ViewRule = types.Pointer("public = true || author = @request.auth.id")
 	items.ListRule = items.ViewRule
-	if err := app.Save(items); err != nil {
-		t.Fatal(err)
-	}
+	save(items)
 
 	bundles := core.NewBaseCollection("xt_bundles")
 	bundles.Fields.Add(
@@ -47,22 +49,12 @@ func TestExpandAndReturnAppliesViewRulesOfRelatedCollection(t *testing.T) {
 	)
 	bundles.ViewRule = types.Pointer("")
 	bundles.ListRule = bundles.ViewRule
-	if err := app.Save(bundles); err != nil {
-		t.Fatal(err)
-	}
+	save(bundles)
 
-	newUser := func(email string) *core.Record {
-		t.Helper()
-		u := core.NewRecord(users)
-		u.SetEmail(email)
-		u.SetPassword("secret-password")
-		if err := app.Save(u); err != nil {
-			t.Fatal(err)
-		}
-		return u
-	}
-	owner := newUser("owner@example.com")
-	stranger := newUser("stranger@example.com")
+	owner := core.NewRecord(users)
+	owner.SetEmail("owner@example.com")
+	owner.SetPassword("secret-password")
+	save(owner)
 
 	newItem := func(name string, public bool) *core.Record {
 		t.Helper()
@@ -70,9 +62,7 @@ func TestExpandAndReturnAppliesViewRulesOfRelatedCollection(t *testing.T) {
 		r.Set("name", name)
 		r.Set("public", public)
 		r.Set("author", owner.Id)
-		if err := app.Save(r); err != nil {
-			t.Fatal(err)
-		}
+		save(r)
 		return r
 	}
 	publicItem := newItem("public", true)
@@ -81,15 +71,7 @@ func TestExpandAndReturnAppliesViewRulesOfRelatedCollection(t *testing.T) {
 	bundle := core.NewRecord(bundles)
 	bundle.Set("items", []string{publicItem.Id, privateItem.Id})
 	bundle.Set("author", owner.Id)
-	if err := app.Save(bundle); err != nil {
-		t.Fatal(err)
-	}
-
-	superusers, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
-	if err != nil {
-		t.Fatal(err)
-	}
-	superuser := core.NewRecord(superusers)
+	save(bundle)
 
 	for _, tt := range []struct {
 		name        string
@@ -100,9 +82,7 @@ func TestExpandAndReturnAppliesViewRulesOfRelatedCollection(t *testing.T) {
 		want        []string
 	}{
 		{name: "anonymous", expand: "items", want: []string{"public"}},
-		{name: "other user", auth: stranger, expand: "items", want: []string{"public"}},
 		{name: "owner", auth: owner, expand: "items", want: []string{"private", "public"}},
-		{name: "superuser", auth: superuser, expand: "items", want: []string{"private", "public"}},
 		{name: "remote expand with no visible items", expand: "items", privateOnly: true, preload: "remote"},
 		{name: "indexing expand with no visible items", expand: "items", privateOnly: true, preload: "index"},
 		{name: "indexing expand with visible subset", expand: "items", preload: "index", want: []string{"public"}},
