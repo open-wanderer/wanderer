@@ -2,28 +2,84 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Wanderer needs camera access so you can take a new profile photo.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Wanderer needs access to your photo library so you can choose a profile avatar.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Your location is shown on the map to help you navigate trails.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Wanderer needs your location at all times to continue navigation when the screen locks.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<!-- PROXY-03: narrowly-scoped ATS exception so MapLibre Native's
-	     NSURLSession tile fetches can reach the in-app loopback tile proxy
-	     over http://127.0.0.1:<port>. Both mechanisms below are added
-	     deliberately (community evidence on which single key is strictly
-	     required is mixed); the exception stays loopback-only and never
-	     becomes an app-wide insecure-loads allowance (threat T-25.1-01).
-	     No local-network permission prompt is introduced since loopback
-	     traffic never reaches the LAN. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>wanderer</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Trail file</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.topografix.gpx</string>
+				<string>com.google.earth.kml</string>
+				<string>com.google.earth.kmz</string>
+				<string>public.xml</string>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>wanderer</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ShareMedia-$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wanderer</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FLTEnableFlutterGPU</key>
+	<true/>
+	<key>FLTEnableImpeller</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>osmandmaps</string>
+		<string>mapsme</string>
+		<string>magicearth</string>
+		<string>szn-mapy</string>
+		<string>here-location</string>
+		<string>waze</string>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
@@ -42,28 +98,16 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Wanderer</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>wanderer</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Wanderer needs camera access so you can take a new profile photo.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Wanderer needs your location at all times to continue navigation when the screen locks.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is shown on the map to help you navigate trails.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Wanderer uses motion and barometer sensors to show which way you are facing, keep your recorded track accurate between GPS fixes, and measure elevation gain.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Wanderer needs access to your photo library so you can choose a profile avatar.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -87,10 +131,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>FLTEnableImpeller</key>
-	<true/>
-	<key>FLTEnableFlutterGPU</key>
-	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -107,62 +151,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<!-- Custom URL scheme the Share Extension uses to hand files to the app
-	     (required by receive_sharing_intent). -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>ShareMedia-$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-			</array>
-		</dict>
-		<!-- Callback scheme for flutter_web_auth_2: catches the OAuth redirect
-		     relayed from the web app's /login/redirect page. -->
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>wanderer</string>
-			</array>
-		</dict>
-	</array>
-	<!-- Required so canLaunchUrl() can probe map apps for directions; iOS
-	     rejects canOpenURL for any scheme not listed here (50 entry cap).
-	     Must stay in sync with probeUrl in lib/util/map_app.dart. Apple Maps
-	     is absent on purpose — it is reached via a maps.apple.com universal
-	     link and is always installed. -->
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>comgooglemaps</string>
-		<string>osmandmaps</string>
-		<string>mapsme</string>
-		<string>magicearth</string>
-		<string>szn-mapy</string>
-		<string>here-location</string>
-		<string>waze</string>
-	</array>
-	<!-- Offer Wanderer as an "Open in" target for trail files. -->
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Trail file</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.topografix.gpx</string>
-				<string>com.google.earth.kml</string>
-				<string>com.google.earth.kmz</string>
-				<string>public.xml</string>
-				<string>public.data</string>
-			</array>
-		</dict>
 	</array>
 </dict>
 </plist>
