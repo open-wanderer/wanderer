@@ -439,13 +439,19 @@ The backend then:
 2. Invokes the plugin with `action=import`.
 3. Resolves every ID individually through Immich `assetsByID` and `/api/assets/{id}`.
 4. Uses `photoFromAsset` to create an original or preview `sdk.Photo` according to `importSize`.
-5. Passes the photos and concrete target from `importAssetPluginPhotosToTarget` to `importer.ImportPhotoAssets`.
+5. Passes the photos and concrete target from `importAssetPluginPhotosToTarget` to `importer.ImportPhotoAssetsWithOmissions`.
 6. Chooses `copy` or `link_private` through `photoAssetStorageMode`; public trails always use `copy`.
 7. Creates the asset or reuses one with the same external identity through `util.CreatePhotoAsset`.
 8. Creates the idempotent target link through `LinkAssetToPhotoTargets`.
-9. Returns `{ imported, omitted }`, where `imported` contains asset records and external IDs and `omitted` contains provider IDs with reasons; the frontend derives the new photo URLs from the imported records.
+9. Returns `{ imported, omitted }`, where `imported` contains asset records and external IDs and `omitted` includes provider omissions and host download/storage failures. Technical failures after a partial import are logged with their original error; the API retains safe omission reasons.
 
-Before any plugin call, all import routes trim and stably deduplicate `assetIds` and reject more than 200 unique IDs. The host validates the exact `photos`/`omittedAssetIds` partition before persistence. Manual imports call `assetPluginPhotoImportLimits(..., false)`, so configured per-target photo limits are not enforced for an explicit user selection. In `copy` mode, global importer safety budgets still permit at most 20 fetched media items and 200 MiB per `ImportPhotoAssets` call, at most 50 MiB per item, and any tighter manifest limit. The direct `import-to-target` path uses one such call; the clustered trail import uses a separate call for every cluster.
+The frontend rejects an explicitly requested import with no successful photos. Partial results remain attached; callers collect omissions and display one warning per save. Both trail creation and updates retain completed attachments when a later step fails, so retrying does not upload successful local files again. A newly created photo waypoint is removed only after checking that it has no saved photo links; existing waypoints and partial successes are retained.
+
+Summit-log saves retain the persisted log even when a later photo operation fails. Their error carries `savedSummitLog`, `remainingAttachments`, and any `remainingPhotos`, allowing the editor to keep the saved ID, date, text, GPX, and completed photos while preserving unfinished selections. A successfully stored GPX is consumed before attaching photos. The trail save coordinator records completed summit logs immediately, including when a later child operation fails. Retrying either a new or an existing trail therefore updates the saved log instead of creating another one and does not resend successful GPX or photo uploads. The standalone summit-log modal waits for the save callback and stays open after failure with the same saved state.
+
+Before any plugin call, all import routes trim and stably deduplicate `assetIds` and reject more than 200 unique IDs. The host validates the exact `photos`/`omittedAssetIds` partition before persistence. Manual imports call `assetPluginPhotoImportLimits(..., false)`, so configured per-target photo limits are not enforced for an explicit user selection. In `copy` mode, the importer has a 500 MiB media budget per call, at most 50 MiB per item, and any tighter manifest limit. The direct `import-to-target` path uses one such call; the clustered trail import uses a separate call for every cluster.
+
+Copy imports and publication use the same `DefaultPluginMaxImportMediaBytes` value, but track separate budgets for their respective operations.
 
 ### 7.7 Photo waypoints in the trail editor
 
@@ -502,7 +508,7 @@ The maintenance page uses `GET /plugins/assets/maintenance/trails` and `POST /pl
 5. A new spatial cluster creates a camera waypoint through `assetPluginWaypointForCluster`.
 6. Standalone clusters without coordinates are linked directly to the trail.
 7. When limits are enforced, `limitAssetPluginWaypointClusters` preserves existing-waypoint clusters and standalone photos but limits the number of newly created spatial waypoints to `maxWaypoints`.
-8. If photo import fails after a waypoint was created, that waypoint is deleted. A newly created waypoint is also deleted when import produces no asset records.
+8. A newly created waypoint is deleted when import produces no asset records, including a failed import with no successful photos. A waypoint with successfully imported photos is retained when a later photo fails, and those partial results are returned.
 
 `assetPluginWaypointForCluster` calls the same provider-independent `resolveWaypointName` function as the frontend clustering route. `createAssetPluginWaypoint` stores the resolved name, an empty description, coordinates, `icon=camera`, author, and trail. `assetPluginDistanceFromStart` copies the cumulative distance of the nearest track point.
 
@@ -542,19 +548,25 @@ A private URL or connector reference without an expiry may be retained without a
 
 Remote retrieval requires the asset plugin to remain installed, the user's instance to remain enabled, and its authentication to remain valid.
 
-### 7.15 Materialization before or after publication
+### 7.15 Materialization before publication
 
 Private provider media must not make anonymous viewing depend on private provider credentials. wanderer covers both transitions.
 
-When a trail becomes public:
+When a saved trail changes from private to public:
 
-1. `MaterializePrivateRemoteAssetLinksAfterPublish` detects `false -> true`.
-2. After the update it asynchronously starts `MaterializePrivateRemotePluginAssetsForTrail`.
-3. The service gathers all trail, waypoint, and summit-log assets and materializes owned `link_private` photos.
+1. `MaterializePrivateRemoteAssetLinksBeforePublish` runs synchronously before the update is persisted, indexed, or announced through federation. Ordinary edits to an already-public trail skip the materialization queries and downloads.
+2. `MaterializePrivateRemotePluginAssetsForTrail` gathers all trail, waypoint, and summit-log assets, including photos contributed by other authors, and materializes their `link_private` photos using each asset owner's connector.
+3. The record hook creates a two-minute child context and keeps it active through the materialization and final trail database save. The service uses the caller's context without creating another timeout. Request cancellation is propagated through the BFF and PocketBase update hooks when supplied by the HTTP runtime.
+4. Publication has a separate 500 MiB media budget, with at most 50 MiB per photo or a tighter manifest limit. Failed fetches consume their reserved allowance; internal media retries can transfer additional bytes, so this is not a network traffic quota. Expiration or an exhausted total budget rejects publication with `asset_publish_limit_reached`, directing the user to download linked photos in plugin settings first. Cancellation also rejects publication.
+5. A photo exceeding its individual size limit rejects publication with `asset_publish_photo_too_large`. The UI asks the user to remove the oversized photo or use a smaller version. Downloading it through plugin settings cannot bypass the same per-photo limit and is not suggested for this error.
+6. Remote download errors update the remote status and reject the save with `asset_publish_failed`; a private trail stays private. Local file/storage errors, size-limit failures, and exhausted request budgets do not label the source as inaccessible. Genuine remote error statuses are restored after a surrounding transaction rolls back.
+7. Retrying the save processes any remaining remote photos. Already-public trails left incomplete by older builds can be materialized explicitly from plugin settings; editing their description does not depend on Immich being reachable.
+
+The publication check is bound only to updates: a new trail has no existing asset links. Link creation on public trails is guarded separately. Materialization does not open an additional transaction, but callers that already run inside a transaction retain their existing locking behavior. The overall deadline bounds server work; it does not guarantee cancellation for every reverse-proxy or browser disconnect, because the HTTP adapter may not signal a disconnect after receiving the request body.
 
 When a remote asset is linked to an already public trail:
 
-1. `MaterializePrivateRemoteAssetOnPublicLink("trail"|"waypoint"|"summit_log")` determines the related trail.
+1. `MaterializePrivateRemoteAssetOnPublicLink` determines the related trail for a trail, waypoint, or summit-log link. Its record hook also covers internal link creation.
 2. Materialization runs synchronously before link insertion when that trail is public.
 3. A failed download rejects the link with `400 Bad Request`.
 
@@ -659,7 +671,8 @@ Immich declares only paths below `/api`, the `api_key` authentication context, a
 | Plugin thumbnail | At most 8 MiB. |
 | Thumbnail cache | 24 hours, 512 entries, 64 MiB, least-recently-used-style eviction. |
 | Individual medium | 50 MiB by default, additionally bounded by the manifest. |
-| Copy import budget | 20 fetched media items and 200 MiB per import operation. |
+| Copy import budget | 500 MiB of media per import operation; configured per-target photo limits apply to automatic imports. |
+| Publication budget | Separate 500 MiB media allowance for one private-to-public transition; the record hook's two-minute deadline includes the final database save. |
 | Automatic trail photos | Default 20. |
 | Automatic waypoint photos | Default 5 per target. |
 | Summit-log photo limit | Host default 20; not enforced by the current manual asset plugin import and no automatic summit-log target flow exists. |
@@ -890,7 +903,7 @@ The cursor implementation in `db/routes/plugin_system_asset_cursor.go` provides 
 | `MaterializeRemotePluginAssetsForUser` | Optionally restricts to public links and materializes assets in batches. |
 | `RepairRemotePluginAssetsForUser` | Retests problematic sources and updates status. |
 | `DeleteRemotePluginAssetsForUser` | Deletes matching remote records with progress reporting. |
-| `MaterializePrivateRemotePluginAssetsForTrail` | Materializes every owned private remote photo attached to a trail. |
+| `MaterializePrivateRemotePluginAssetsForTrail` | Materializes all linked private remote photos, including contributions by other authors and waypoint/summit-log photos. |
 | `EnsurePublicTrailSafeAssetLink` | Materializes when necessary and creates the link only afterward. |
 | `MaterializePrivateRemotePluginAssetForPublicLink` | Resolves the target trail and delegates only when `public=true`. |
 | `MaterializeRemotePluginAsset` | Fetches media, stores the file, and changes storage mode to `copy`. |
@@ -912,7 +925,7 @@ The cursor implementation in `db/routes/plugin_system_asset_cursor.go` provides 
 | `AssetFile` | `db/routes/assets.go` | Authorizes retrieval, redirects local files, or streams and marks remote media. |
 | `newRemotePluginAssetsJob` | `db/routes/assets.go` | Creates a cryptographic job ID, removes old jobs, and enforces the per-user limit. |
 | `updateRemotePluginAssetsJob`, `remotePluginAssetsJobSnapshot` | `db/routes/assets.go` | Synchronize mutation and return a defensive copy of in-memory job state. |
-| `MaterializePrivateRemoteAssetLinksAfterPublish` | `db/hooks/trails.go` | Starts materialization after a private-to-public transition. |
+| `MaterializePrivateRemoteAssetLinksBeforePublish` | `db/hooks/trails.go` | Materializes linked remote photos on a private-to-public transition; failures reject publication. |
 | `MaterializePrivateRemoteAssetOnPublicLink` | `db/hooks/trails.go` | Materializes synchronously before linking to an already public trail. |
 | `preventAssetPluginDisableWithRemoteLinks` | `db/hooks/plugin_instances.go` | Rejects `enabled: true -> false` while remote links remain. |
 | `preventAssetPluginDeleteWithRemoteLinks` | `db/hooks/plugin_instances.go` | Rejects instance deletion under the same condition. |
@@ -1013,7 +1026,7 @@ Changes to this stack should run at least the Go tests for `plugins/immich`, `db
 - Provider candidate scans have weak snapshot consistency. Immich page changes caused by deletion or EXIF date edits can skip an item across calls, while duplicate results are removed by provider identity.
 - Immich resolves selected import IDs sequentially with one metadata request per ID.
 - Remote jobs and the thumbnail cache are process-local and are neither persisted nor shared between backend instances.
-- Publication materialization runs asynchronously after a trail update. During that interval, the file endpoint refuses remaining `link_private` assets on public trails.
+- Publication materialization runs synchronously on a private-to-public transition, with a two-minute deadline and a 500 MiB media budget. Already-public trails with legacy remote links require explicit materialization from plugin settings; their remaining `link_private` assets cannot be served anonymously.
 - Manual plugin endpoints require trail ownership, while the internal library supports edit shares.
 - Auto-attach requires a complete GPX time span; geometry without timestamps is insufficient.
 - `maxWaypoints<=0` currently means unlimited in `limitAssetPluginWaypointClusters`, although the manifest field is presented as a maximum.

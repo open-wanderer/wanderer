@@ -14,6 +14,14 @@ export interface AssetPluginLink {
     assetIds: string[];
 }
 
+export interface AssetImportOmission {
+    pluginId: string;
+    assetId: string;
+    reason: string;
+}
+
+export type AssetImportOmissionHandler = (omissions: AssetImportOmission[]) => void;
+
 interface AssetPluginImportResult {
     asset?: Asset;
 }
@@ -29,7 +37,14 @@ interface AssetAttachmentInput {
     pluginLinks?: AssetPluginLink[];
     target: AssetTarget;
     existingPhotos?: string[];
+    onOmitted?: AssetImportOmissionHandler;
     f?: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response>;
+}
+
+export interface CompletedAssetAttachments {
+    files: boolean;
+    assetIds: boolean;
+    pluginLinks: AssetPluginLink[];
 }
 
 const generatedAssetKinds = new WeakMap<File, string>();
@@ -136,33 +151,51 @@ export async function assets_import_plugin_links(
     links: AssetPluginLink[] | undefined,
     target: AssetTarget,
     f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+    onOmitted?: AssetImportOmissionHandler,
 ): Promise<Asset[]> {
     if (!links?.length || !target.trail) {
         return [];
     }
 
     const assets: Asset[] = [];
-    for (const link of links) {
-        if (!link.assetIds.length) {
-            continue;
+    const completedPluginLinks: AssetPluginLink[] = [];
+    try {
+        for (const link of links) {
+            if (!link.assetIds.length) {
+                continue;
+            }
+            const plugin = encodeURIComponent(link.pluginId);
+            const r = await f(`/api/v1/plugins/assets/${plugin}/import-to-target`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    trailId: target.trail,
+                    waypointId: target.waypoint,
+                    summitLogId: target.summit_log,
+                    assetIds: link.assetIds,
+                }),
+            });
+            if (!r.ok) {
+                const response = await r.json();
+                throw new APIError(r.status, response.message, response.detail);
+            }
+            const response: AssetPluginImportResponse = await r.json();
+            const imported = (response.imported ?? [])
+                .map((result) => result.asset)
+                .filter((asset): asset is Asset => Boolean(asset));
+            if (!imported.length) {
+                throw new APIError(422, "asset_import_failed", { omitted: response.omitted ?? [] });
+            }
+            assets.push(...imported);
+            completedPluginLinks.push(link);
+            if (response.omitted?.length) {
+                onOmitted?.(response.omitted.map((omission) => ({ ...omission, pluginId: link.pluginId })));
+            }
         }
-        const plugin = encodeURIComponent(link.pluginId);
-        const r = await f(`/api/v1/plugins/assets/${plugin}/import-to-target`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                trailId: target.trail,
-                waypointId: target.waypoint,
-                summitLogId: target.summit_log,
-                assetIds: link.assetIds,
-            }),
-        });
-        if (!r.ok) {
-            const response = await r.json();
-            throw new APIError(r.status, response.message, response.detail);
-        }
-        const response: AssetPluginImportResponse = await r.json();
-        assets.push(...(response.imported ?? []).map((result) => result.asset).filter((asset): asset is Asset => Boolean(asset)));
+    } catch (cause) {
+        const error = cause instanceof APIError ? cause : new APIError(502, "asset_import_failed", { cause });
+        error.detail = { ...error.detail, completedPluginLinks, importedAssets: assets };
+        throw error;
     }
     return assets;
 }
@@ -182,9 +215,20 @@ export async function assets_attach_to_target(input: AssetAttachmentInput): Prom
         photos.push(...assets.map(asset_photo_url));
     };
 
-    appendAssets(await assets_create(input.files ?? [], input.target, f));
-    appendAssets(await assets_link(input.assetIds, input.target, f));
-    appendAssets(await assets_import_plugin_links(input.pluginLinks, input.target, f));
+    const completedAttachments: CompletedAssetAttachments = { files: false, assetIds: false, pluginLinks: [] };
+    try {
+        appendAssets(await assets_create(input.files ?? [], input.target, f));
+        completedAttachments.files = true;
+        appendAssets(await assets_link(input.assetIds, input.target, f));
+        completedAttachments.assetIds = true;
+        appendAssets(await assets_import_plugin_links(input.pluginLinks, input.target, f, input.onOmitted));
+    } catch (cause) {
+        const error = cause instanceof APIError ? cause : new APIError(502, "asset_import_failed", { cause });
+        completedAttachments.pluginLinks = error.detail?.completedPluginLinks ?? [];
+        appendAssets(error.detail?.importedAssets ?? []);
+        error.detail = { ...error.detail, completedAttachments, attachedPhotos: uniquePhotoURLs(photos) };
+        throw error;
+    }
 
     return uniquePhotoURLs(photos);
 }

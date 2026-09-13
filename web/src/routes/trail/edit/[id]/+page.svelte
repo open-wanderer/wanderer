@@ -46,8 +46,10 @@
         trail,
         trails_create,
         trails_update,
+        trailSaveErrorKey,
     } from "$lib/stores/trail_store.js";
-    import { markGeneratedAssetFile } from "$lib/stores/asset_store";
+    import { markGeneratedAssetFile, type AssetImportOmission } from "$lib/stores/asset_store";
+    import { APIError } from "$lib/util/api_util";
 
     import {
         valhallaStore,
@@ -361,6 +363,8 @@
             }
             publishConfirmed = false;
             loading = true;
+            let importOmissions: AssetImportOmission[] = [];
+            const onOmitted = (omissions: AssetImportOmission[]) => { importOmissions = omissions; };
             try {
                 const htmlForm = document.getElementById(
                     "trail-form",
@@ -424,6 +428,9 @@
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        undefined,
+                        onOmitted,
                     );
                     createdTrail.completed_at = completionDateValue(
                         createdTrail.completed_at,
@@ -437,6 +444,8 @@
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        onOmitted,
                     );
                     updatedTrail.completed_at = completionDateValue(
                         updatedTrail.completed_at,
@@ -448,17 +457,42 @@
                 pendingTrailPhotoCandidates = [];
 
                 show_toast({
-                    type: "success",
-                    icon: "check",
-                    text: $_("trail-saved-successfully"),
-                });
+                    type: importOmissions.length ? "warning" : "success",
+                    icon: importOmissions.length ? "exclamation-triangle" : "check",
+                    text: importOmissions.length
+                        ? $_("asset-import-partial-warning", { values: { n: importOmissions.length } })
+                        : $_("trail-saved-successfully"),
+                }, importOmissions.length ? 8000 : undefined);
             } catch (e) {
                 console.error(e);
 
+                const savedTrail = e instanceof APIError
+                    ? e.detail?.savedTrail as Trail | undefined
+                    : undefined;
+                if (savedTrail?.id) {
+                    form.id = savedTrail.id;
+                    trail.set(savedTrail);
+                    savedAtLeastOnce = true;
+                }
+                // Store operations reconcile saved waypoint IDs and photos into
+                // this form, retaining failed selections for the next attempt.
+                setFields(form);
+                pendingTrailPhotoCandidates = pendingTrailPhotoCandidates.filter((candidate) =>
+                    candidate.source === "wanderer"
+                        ? form._assetLinks?.includes(candidate.assetId)
+                        : form._assetPluginLinks?.some((link) =>
+                            link.pluginId === (candidate.pluginId ?? candidate.providerId) &&
+                            link.assetIds.includes(candidate.assetId),
+                        ),
+                );
+
+                const omittedText = importOmissions.length
+                    ? ` ${$_("asset-import-partial-warning", { values: { n: importOmissions.length } })}`
+                    : "";
                 show_toast({
                     type: "error",
                     icon: "close",
-                    text: $_("error-saving-trail"),
+                    text: `${$_(trailSaveErrorKey(e))}${omittedText}`,
                 });
             } finally {
                 loading = false;

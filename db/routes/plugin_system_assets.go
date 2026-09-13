@@ -172,10 +172,7 @@ type pluginAssetLibraryOutput struct {
 	Error         *pluginsystem.PluginError `json:"error,omitempty"`
 }
 
-type pluginAssetOmission struct {
-	AssetID string `json:"assetId"`
-	Reason  string `json:"reason"`
-}
+type pluginAssetOmission = importer.PhotoAssetOmission
 
 type pluginAssetSearchStats struct {
 	ScannedItems int `json:"scannedItems,omitempty"`
@@ -1265,16 +1262,20 @@ func autoAttachAssetPluginForTrail(ctx context.Context, app core.App, userID str
 	sort.SliceStable(photos, func(i, j int) bool {
 		return rank[strings.TrimSpace(photos[i].ExternalID)] < rank[strings.TrimSpace(photos[j].ExternalID)]
 	})
-	results, err := importAssetPluginPhotosForTrail(ctx, app, userID, plugin, auth, config, pluginAssetLibraryOutput{Photos: photos}, pluginAssetLibraryRequest{
+	results, hostOmitted, err := importAssetPluginPhotosForTrail(ctx, app, userID, plugin, auth, config, pluginAssetLibraryOutput{Photos: photos}, pluginAssetLibraryRequest{
 		PluginID: plugin.Manifest.ID,
 		Action:   "import",
 		TrailID:  trailID,
 		AssetIDs: filteredAssetIDs,
 	}, "", true)
-	if err != nil {
+	if err != nil && len(results) == 0 {
 		return pluginAssetAutoAttachOutcome{}, err
 	}
-	return pluginAssetAutoAttachOutcome{Imported: len(results), Omitted: omitted}, nil
+	if err != nil {
+		app.Logger().Warn("asset auto-attach partially completed", "plugin", plugin.Manifest.ID, "trail", trailID, "imported", len(results), "error", err)
+	}
+	response := assetPluginImportResponse(pluginAssetLibraryOutput{Photos: photos, OmittedAssets: omitted}, results, hostOmitted)
+	return pluginAssetAutoAttachOutcome{Imported: len(response.Imported), Omitted: response.Omitted}, nil
 }
 
 func validateAssetPluginCandidateBatch(output pluginAssetLibraryOutput, limits pluginAssetSearchLimits) error {
@@ -1987,11 +1988,36 @@ func assetLibraryCandidateTime(value string) time.Time {
 }
 
 func importAssetPluginPhotos(e *core.RequestEvent, plugin pluginsystem.LocalPlugin, instance *core.Record, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest, waypointID string) error {
-	results, err := importAssetPluginPhotosForTrail(e.Request.Context(), e.App, e.Auth.Id, plugin, auth, config, output, data, waypointID, false)
-	if err != nil {
+	results, omitted, err := importAssetPluginPhotosForTrail(e.Request.Context(), e.App, e.Auth.Id, plugin, auth, config, output, data, waypointID, false)
+	if err != nil && len(results) == 0 {
 		return err
 	}
-	return e.JSON(http.StatusOK, pluginAssetImportResponse{Imported: results, Omitted: append([]pluginAssetOmission{}, output.OmittedAssets...)})
+	if err != nil {
+		e.App.Logger().Warn("asset import partially completed", "plugin", plugin.Manifest.ID, "trail", data.TrailID, "waypoint", waypointID, "imported", len(results), "error", err)
+	}
+	return e.JSON(http.StatusOK, assetPluginImportResponse(output, results, omitted))
+}
+
+// Account for every requested photo, including work left unfinished after a
+// storage error. Successful records remain visible to clients on partial imports.
+func assetPluginImportResponse(output pluginAssetLibraryOutput, results []pluginAssetImportResult, omitted []pluginAssetOmission) pluginAssetImportResponse {
+	response := pluginAssetImportResponse{
+		Imported: append([]pluginAssetImportResult{}, results...),
+		Omitted:  append(append([]pluginAssetOmission{}, output.OmittedAssets...), omitted...),
+	}
+	accounted := make(map[string]bool, len(results)+len(response.Omitted))
+	for _, result := range results {
+		accounted[result.AssetID] = true
+	}
+	for _, omission := range response.Omitted {
+		accounted[omission.AssetID] = true
+	}
+	for _, photo := range output.Photos {
+		if !accounted[photo.ExternalID] {
+			response.Omitted = append(response.Omitted, pluginAssetOmission{AssetID: photo.ExternalID, Reason: "photo could not be imported"})
+		}
+	}
+	return response
 }
 
 func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.LocalPlugin, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest) error {
@@ -2003,7 +2029,7 @@ func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.L
 		return err
 	}
 	hostConfig := pluginhost.HostConfig(config)
-	records, err := importer.ImportPhotoAssets(e.Request.Context(), e.App, output.Photos, importer.Options{
+	records, omitted, err := importer.ImportPhotoAssetsWithOmissions(e.Request.Context(), e.App, output.Photos, importer.Options{
 		UserID:      e.Auth.Id,
 		ActorID:     actor.Id,
 		PhotoMode:   util.ConfigString(hostConfig, "photoMode"),
@@ -2017,8 +2043,11 @@ func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.L
 		SummitLog:   data.SummitLogID,
 		PublicTrail: trailIsPublic(e.App, data.TrailID),
 	})
-	if err != nil {
+	if err != nil && len(records) == 0 {
 		return err
+	}
+	if err != nil {
+		e.App.Logger().Warn("asset target import partially completed", "plugin", plugin.Manifest.ID, "trail", data.TrailID, "waypoint", data.WaypointID, "summit_log", data.SummitLogID, "imported", len(records), "error", err)
 	}
 	results := make([]pluginAssetImportResult, 0, len(records))
 	var waypoint *core.Record
@@ -2030,16 +2059,16 @@ func importAssetPluginPhotosToTarget(e *core.RequestEvent, plugin pluginsystem.L
 		result.AssetID = record.GetString("external_id")
 		results = append(results, result)
 	}
-	return e.JSON(http.StatusOK, pluginAssetImportResponse{Imported: results, Omitted: append([]pluginAssetOmission{}, output.OmittedAssets...)})
+	return e.JSON(http.StatusOK, assetPluginImportResponse(output, results, omitted))
 }
 
-func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID string, plugin pluginsystem.LocalPlugin, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest, waypointID string, enforceLimits bool) ([]pluginAssetImportResult, error) {
+func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID string, plugin pluginsystem.LocalPlugin, auth map[string]any, config map[string]any, output pluginAssetLibraryOutput, data pluginAssetLibraryRequest, waypointID string, enforceLimits bool) ([]pluginAssetImportResult, []pluginAssetOmission, error) {
 	if len(output.Photos) == 0 {
-		return []pluginAssetImportResult{}, nil
+		return []pluginAssetImportResult{}, nil, nil
 	}
 	actor, err := app.FindFirstRecordByData("activitypub_actors", "user", userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	hostConfig := pluginhost.HostConfig(config)
 	opts := importer.Options{
@@ -2052,21 +2081,18 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 		Auth:        auth,
 	}
 	if waypointID != "" {
-		records, err := importer.ImportPhotoAssets(ctx, app, output.Photos, opts, importer.PhotoAssetTarget{
+		records, omitted, err := importer.ImportPhotoAssetsWithOmissions(ctx, app, output.Photos, opts, importer.PhotoAssetTarget{
 			Trail:       data.TrailID,
 			Waypoint:    waypointID,
 			PublicTrail: trailIsPublic(app, data.TrailID),
 		})
-		if err != nil {
-			return nil, err
-		}
 		results := make([]pluginAssetImportResult, 0, len(records))
 		waypoint, _ := app.FindRecordById("waypoints", waypointID)
 		for _, record := range records {
 			result := pluginAssetImportResult{AssetID: record.GetString("external_id"), Asset: record, Waypoint: waypoint}
 			results = append(results, result)
 		}
-		return results, nil
+		return results, omitted, err
 	}
 
 	trackPoints := []pluginAssetTrackPoint{}
@@ -2080,13 +2106,14 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 	}
 	clusters, photosByClusterID, mergeSettings, err := assetPluginPhotoClusters(app, data.TrailID, output.Photos)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if enforceLimits {
 		clusters = limitAssetPluginWaypointClusters(clusters, assetPluginMaxWaypoints(config))
 	}
 
 	results := make([]pluginAssetImportResult, 0, len(output.Photos))
+	omitted := []pluginAssetOmission{}
 	for _, cluster := range clusters {
 		photos := assetPluginPhotosForCluster(cluster.Photos, photosByClusterID)
 		if len(photos) == 0 {
@@ -2102,24 +2129,20 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 			var err error
 			waypoint, createdWaypoint, err = assetPluginWaypointForCluster(ctx, app, actor.Id, data.TrailID, cluster, trackPoints, mergeSettings)
 			if err != nil {
-				return nil, err
+				return results, omitted, err
 			}
 			target.Waypoint = waypoint.Id
 		}
-		records, err := importer.ImportPhotoAssets(ctx, app, photos, opts, target)
-		if err != nil {
-			if createdWaypoint {
-				if deleteErr := app.Delete(waypoint); deleteErr != nil {
-					app.Logger().Warn("failed to delete asset plugin waypoint after photo import error", "waypoint", waypoint.Id, "error", deleteErr)
-				}
-			}
-			return nil, err
-		}
+		records, skipped, err := importer.ImportPhotoAssetsWithOmissions(ctx, app, photos, opts, target)
+		omitted = append(omitted, skipped...)
 		if len(records) == 0 {
 			if createdWaypoint {
 				if deleteErr := app.Delete(waypoint); deleteErr != nil {
-					return nil, deleteErr
+					return results, omitted, deleteErr
 				}
+			}
+			if err != nil {
+				return results, omitted, err
 			}
 			continue
 		}
@@ -2128,8 +2151,11 @@ func importAssetPluginPhotosForTrail(ctx context.Context, app core.App, userID s
 			result.Asset = record
 			results = append(results, result)
 		}
+		if err != nil {
+			return results, omitted, err
+		}
 	}
-	return results, nil
+	return results, omitted, nil
 }
 
 func assetPluginPhotoImportLimits(hostConfig map[string]any, enforce bool) *importer.PhotoImportLimits {

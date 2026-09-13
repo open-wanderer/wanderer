@@ -26,7 +26,7 @@
         onexif?: (src: string, coordinates?: GPSCoordinates) => void | Promise<void>;
         onassetplugin?: () => void;
         assetPluginPreviews?: AssetPluginPreview[];
-        onassetplugindelete?: (assetId: string) => void;
+        onassetplugindelete?: (assetId: string, pluginId?: string) => void;
     }
 
     let {
@@ -299,11 +299,11 @@
                 ></PhotoCard>
             </div>
         {/each}
-        {#each assetPluginPreviews as preview (preview.assetId)}
+        {#each assetPluginPreviews as preview (`${preview.pluginId ?? "wanderer"}:${preview.assetId}`)}
             <div class="relative shrink-0 grow-0 basis-auto">
                 <PhotoCard
                     src={assetThumbnailURL(preview)}
-                    ondelete={() => onassetplugindelete?.(preview.assetId)}
+                    ondelete={() => onassetplugindelete?.(preview.assetId, preview.pluginId)}
                     showThumbnailControls={false}
                     showExifControls={false}
                 ></PhotoCard>

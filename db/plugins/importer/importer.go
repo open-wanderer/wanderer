@@ -61,58 +61,86 @@ type PhotoAssetTarget struct {
 	PublicTrail bool
 }
 
+type PhotoAssetOmission struct {
+	AssetID string `json:"assetId"`
+	Reason  string `json:"reason"`
+}
+
 func ImportPhotoAssets(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, target PhotoAssetTarget) ([]*core.Record, error) {
 	return importPhotoAssets(ctx, app, photos, opts, target, &pluginMediaBudget{})
+}
+
+// ImportPhotoAssetsWithOmissions reports skipped downloads as well as successful
+// records so a manual import cannot silently succeed without importing photos.
+func ImportPhotoAssetsWithOmissions(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, target PhotoAssetTarget) ([]*core.Record, []PhotoAssetOmission, error) {
+	return importPhotoAssetsWithOmissions(ctx, app, photos, opts, target, &pluginMediaBudget{})
 }
 
 // importPhotoAssets shares a single byte budget across the whole trail import.
 // Per-target item limits are applied independently so trail photos cannot starve
 // waypoint photos out of their configured allowance.
 func importPhotoAssets(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, target PhotoAssetTarget, mediaBudget *pluginMediaBudget) ([]*core.Record, error) {
+	records, _, err := importPhotoAssetsWithOmissions(ctx, app, photos, opts, target, mediaBudget)
+	return records, err
+}
+
+func importPhotoAssetsWithOmissions(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, target PhotoAssetTarget, mediaBudget *pluginMediaBudget) ([]*core.Record, []PhotoAssetOmission, error) {
+	omitted := []PhotoAssetOmission{}
 	if len(photos) == 0 {
-		return []*core.Record{}, nil
+		return []*core.Record{}, omitted, nil
 	}
 	limit := opts.maxPhotosForAssetTarget(target)
 	if limit > 0 && len(photos) > limit {
 		app.Logger().Warn("skipping plugin photos because target photo limit was reached", "limit", limit, "skipped", len(photos)-limit)
+		for _, photo := range photos[limit:] {
+			omitted = append(omitted, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "photo limit reached"})
+		}
 		photos = photos[:limit]
 	}
 	allowedMimeTypes, err := photoAssetMimeTypes(app)
 	if err != nil {
-		return nil, err
+		return nil, omitted, err
 	}
 	records := make([]*core.Record, 0, len(photos))
 	for _, photo := range photos {
 		if err := ctx.Err(); err != nil {
-			return records, err
+			return records, omitted, err
 		}
 		input := photoAssetInput(opts, target, photo)
 		if input.StorageMode == "copy" {
 			maxBytes := mediaBudget.remainingBytes()
 			if maxBytes <= 0 {
 				app.Logger().Warn("skipping plugin photo because aggregate media byte limit was reached", "external_id", photo.ExternalID, "limit", util.DefaultPluginMaxImportMediaBytes)
+				omitted = append(omitted, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "photo import byte limit reached"})
 				continue
 			}
 			file, bytesRead, err := fetchPhotoFileForAsset(ctx, photo, opts, maxBytes, allowedMimeTypes)
 			if err != nil {
 				app.Logger().Warn("skipping plugin photo", "external_id", photo.ExternalID, "error", err)
+				// Provider errors can contain signed URLs or credentials; keep
+				// the detailed error in the server log, not in the API response.
+				omitted = append(omitted, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "photo download failed; check the server connection and media permissions"})
 				continue
 			}
 			input.File = file
 			if input.File == nil {
+				omitted = append(omitted, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "photo download returned no file"})
 				continue
 			}
 			mediaBudget.add(bytesRead)
 		}
 		record, err := util.CreatePhotoAsset(app, input)
 		if err != nil {
-			return records, err
+			omitted = append(omitted, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "photo could not be stored"})
+			return records, omitted, err
 		}
 		if record != nil {
 			records = append(records, record)
+		} else {
+			omitted = append(omitted, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "photo could not be imported"})
 		}
 	}
-	return records, nil
+	return records, omitted, nil
 }
 
 func photoAssetInput(opts Options, target PhotoAssetTarget, photo pluginsystem.Photo) util.PhotoAssetInput {

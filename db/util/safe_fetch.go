@@ -367,13 +367,15 @@ func mustPrefixes(values ...string) []netip.Prefix {
 	return prefixes
 }
 
+var ErrPluginMediaTooLarge = errors.New("response exceeds maximum size")
+
 func ReadBoundedForPlugin(reader io.Reader, maxBytes int64) ([]byte, error) {
 	body, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
 	if err != nil {
 		return nil, err
 	}
 	if int64(len(body)) > maxBytes {
-		return nil, fmt.Errorf("response exceeds maximum size")
+		return nil, ErrPluginMediaTooLarge
 	}
 	return body, nil
 }

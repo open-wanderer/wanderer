@@ -110,7 +110,15 @@ export async function update<T>(event: RequestEvent, schema: ZodSchema, collecti
     const data = await event.request.json();
     const safeData = schema.parse(data);
 
-    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, safeData, safeSearchParams)
+    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, safeData, {
+        ...safeSearchParams,
+        ...(collection === Collection.trails ? {
+            fetch: event.fetch,
+            signal: event.request.signal,
+            // The SDK otherwise replaces the caller's signal for auto-cancellation.
+            requestKey: null,
+        } : {}),
+    })
 
     return r
 }
@@ -146,7 +154,14 @@ export async function uploadUpdate<T>(event: RequestEvent, collection: Collectio
         });
     }
 
-    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data, safeSearchParams)
+    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data, {
+        ...safeSearchParams,
+        ...(collection === Collection.trails ? {
+            fetch: event.fetch,
+            signal: event.request.signal,
+            requestKey: null,
+        } : {}),
+    })
 
     return r
 }

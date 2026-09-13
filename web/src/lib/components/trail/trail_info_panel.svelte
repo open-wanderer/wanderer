@@ -34,6 +34,8 @@
     import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { APIError } from "$lib/util/api_util";
+    import type { AssetImportOmission } from "$lib/stores/asset_store";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
     import { onMount, untrack } from "svelte";
@@ -68,6 +70,7 @@
     import {
         trails_update,
         trails_update_metadata,
+        trailSaveErrorKey,
     } from "$lib/stores/trail_store";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
@@ -292,31 +295,62 @@
         summitLogModal.openModal();
     }
 
-    async function saveSummitLog(log: SummitLog) {
+    async function saveSummitLog(log: SummitLog): Promise<boolean> {
         summitLogCreateLoading = true;
-        if (log.id) {
-            let oldLogIndex = $summitLogs.findIndex((l) => l.id === log.id);
-            if (oldLogIndex < 0) {
-                return;
+        const omissions: AssetImportOmission[] = [];
+        const onOmitted = (items: AssetImportOmission[]) => { omissions.push(...items); };
+        let failed = false;
+        try {
+            if (log.id) {
+                let oldLogIndex = $summitLogs.findIndex((l) => l.id === log.id);
+                if (oldLogIndex < 0) {
+                    return false;
+                }
+                const updatedLog = await summit_logs_update(
+                    $summitLogs[oldLogIndex],
+                    log,
+                    onOmitted,
+                );
+                $summitLogs[oldLogIndex] = updatedLog;
+            } else {
+                log.trail = trail.id;
+                const newLog = await summit_logs_create(log, undefined, undefined, onOmitted);
+                summitLogs.set([...$summitLogs, newLog]);
+                if (
+                    $summitLogs.length == 1 &&
+                    trail.author == $currentUser?.actor &&
+                    !trail.completed
+                ) {
+                    markTrailAsCompletedModal.openModal();
+                }
             }
-            const updatedLog = await summit_logs_update(
-                $summitLogs[oldLogIndex],
-                log,
-            );
-            $summitLogs[oldLogIndex] = updatedLog;
-        } else {
-            log.trail = trail.id;
-            const newLog = await summit_logs_create(log);
-            summitLogs.set([...$summitLogs, newLog]);
-            if (
-                $summitLogs.length == 1 &&
-                trail.author == $currentUser?.actor &&
-                !trail.completed
-            ) {
-                markTrailAsCompletedModal.openModal();
+            return true;
+        } catch (error) {
+            failed = true;
+            const saved = error instanceof APIError ? error.detail?.savedSummitLog as SummitLog | undefined : undefined;
+            if (saved?.id) {
+                summitLogs.set([
+                    ...$summitLogs.filter((entry) => entry.id !== saved.id),
+                    saved,
+                ]);
+            }
+            const errorKey = trailSaveErrorKey(error);
+            const errorText = $_(errorKey === "error-saving-trail" ? "error-saving-summit-log" : errorKey);
+            const omittedText = omissions.length
+                ? ` ${$_("asset-import-partial-warning", { values: { n: omissions.length } })}`
+                : "";
+            show_toast({ type: "error", icon: "close", text: `${errorText}${omittedText}` });
+            return false;
+        } finally {
+            summitLogCreateLoading = false;
+            if (omissions.length && !failed) {
+                show_toast({
+                    type: "warning",
+                    icon: "exclamation-triangle",
+                    text: $_("asset-import-partial-warning", { values: { n: omissions.length } }),
+                }, 8000);
             }
         }
-        summitLogCreateLoading = false;
     }
 
     function beforeConfirmModalOpen(currentSummitLog: SummitLog) {
