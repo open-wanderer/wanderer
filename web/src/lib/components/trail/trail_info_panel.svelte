@@ -522,7 +522,6 @@
                             onclick={trailPhotos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
-                            autoplay
                             loop
                             src={photo}
                         ></video>
