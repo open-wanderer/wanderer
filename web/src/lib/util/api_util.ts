@@ -1,4 +1,4 @@
-import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { error, isHttpError, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodSchema } from "zod";
 import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
@@ -124,16 +124,25 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
 }
 
 export async function uploadUpdate<T>(event: RequestEvent, collection: Collection) {
+    const params = event.params
+    const safeParams = RecordIdSchema.parse(params);
+
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
     const data = await event.request.formData();
-    if (!data.has('id')) {
-        throw new Error("data has no id")
+
+    // The path is authoritative. An id in the body is optional but must
+    // agree with it, so a client cannot address one record and update another.
+    const bodyId = data.get('id');
+    if (bodyId !== null && bodyId !== safeParams.id) {
+        throw new ClientResponseError({
+            status: 400,
+            response: { message: "id_mismatch", expected: safeParams.id },
+        });
     }
 
-
-    const r = await event.locals.pb.collection(Collection[collection]).update<T>(data.get('id')!.toString(), data, safeSearchParams)
+    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data, safeSearchParams)
 
     return r
 }
@@ -159,7 +168,9 @@ export async function remove(event: RequestEvent, collection: Collection) {
 }
 
 export function handleError(e: any) {
-    if (e instanceof ZodError) {
+    if (isHttpError(e)) {
+        throw e;
+    } else if (e instanceof ZodError) {
         return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
         return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })

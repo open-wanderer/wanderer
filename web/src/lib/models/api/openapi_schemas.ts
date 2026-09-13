@@ -354,6 +354,7 @@
  *         - name
  *         - author
  *         - public
+ *         - completed
  *       properties:
  *         id:
  *           type: string
@@ -373,6 +374,11 @@
  *           format: date
  *         public:
  *           type: boolean
+ *         completed:
+ *           type: boolean
+ *         completed_at:
+ *           type: string
+ *           format: date-time
  *         difficulty:
  *           type: string
  *           enum: [easy, moderate, difficult]
@@ -432,6 +438,7 @@
  *         - name
  *         - author
  *         - public
+ *         - completed
  *       properties:
  *         id:
  *           type: string
@@ -451,6 +458,11 @@
  *           format: date
  *         public:
  *           type: boolean
+ *         completed:
+ *           type: boolean
+ *         completed_at:
+ *           type: string
+ *           format: date-time
  *         difficulty:
  *           type: string
  *           enum: [easy, moderate, difficult]
@@ -506,6 +518,11 @@
  *           format: date
  *         public:
  *           type: boolean
+ *         completed:
+ *           type: boolean
+ *         completed_at:
+ *           type: string
+ *           format: date-time
  *         difficulty:
  *           type: string
  *           enum: [easy, moderate, difficult]
@@ -640,6 +657,23 @@
  *         updated:
  *           type: string
  *           format: date-time
+ *
+ *     StatisticActivity:
+ *       allOf:
+ *         - $ref: '#/components/schemas/SummitLog'
+ *         - type: object
+ *           required:
+ *             - source
+ *             - collectionId
+ *             - collectionName
+ *           properties:
+ *             source:
+ *               type: string
+ *               enum: [summit_log, completed_trail]
+ *             collectionId:
+ *               type: string
+ *             collectionName:
+ *               type: string
  *
  *     SummitLogInput:
  *       type: object

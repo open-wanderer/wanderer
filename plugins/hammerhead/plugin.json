@@ -4,7 +4,7 @@
   "type": "trails",
   "name": "Hammerhead",
   "description": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "runtime": {
     "type": "wasm",
     "entrypoint": "plugin.wasm"
@@ -98,9 +98,9 @@
       },
       "description": "Ignore routes and activities before this date.",
       "descriptions": {
-        "de": "Wenn Ihr Hammerhead Konto bereits mit anderen Trail-Datenbanken wie komoot oder Strava synchronisiert ist, kann die zusätzliche Synchronisierung Ihrer Hammerhead-Daten zu Duplikaten führen. Um dies zu vermeiden, können Sie unten ein Startdatum festlegen, sodass nur Aktivitäten synchronisiert werden, die nach diesem Datum aufgezeichnet wurden.",
-        "en": "If your hammerhead account is already synced with other trail databases, such as komoot or Strava, start syncing your Hammerhead data may result in duplicates. To avoid this, you can set an start date below, meaning only activities recorded after this date will be synced.",
-        "no": "Hvis Hammerhead-kontoen din allerede er synkronisert med andre stidatabaser, som Komoot eller Strava, kan synkronisering av Hammerhead-data føre til duplikater. For å unngå dette kan du angi en startdato nedenfor, slik at bare aktiviteter registrert etter denne datoen vil bli synkronisert."
+        "de": "Wenn dein Konto viele Routen und Aktivitäten enthält, können zahlreiche API-Anfragen dazu führen, dass Hammerhead den Zugriff vorübergehend einschränkt. Lege ein Startdatum fest, um die Importmenge zu reduzieren; dann werden nur Inhalte nach diesem Datum synchronisiert.",
+        "en": "If your account contains many routes and activities, a large number of API requests may cause Hammerhead to temporarily restrict access. Set a start date to reduce the import volume so that only content after that date is synchronized.",
+        "no": "Hvis kontoen din inneholder mange ruter og aktiviteter, kan et stort antall API-forespørsler føre til at Hammerhead midlertidig begrenser tilgangen. Angi en startdato for å redusere importmengden, slik at bare innhold etter denne datoen synkroniseres."
       }
     }
   ],
@@ -115,6 +115,11 @@
       "en": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
       "no": "Synkroniserer Hammerhead-turene dine med Wanderer med jevne mellomrom."
     },
+    "information": {
+      "de": "Dieses Plugin verbindet wanderer mit deinem Hammerhead-Konto. Es importiert geplante Routen und abgeschlossene Aktivitäten und kann in wanderer erstellte Routen an Hammerhead senden. Neue und aktualisierte Inhalte werden bei den regelmäßig ausgeführten Synchronisierungsläufen importiert. Ein Startdatum begrenzt die Importmenge und reduziert das Risiko, dass Hammerhead den Zugriff wegen zu vieler API-Anfragen vorübergehend einschränkt.",
+      "en": "This plugin connects wanderer with your Hammerhead account. It imports planned routes and completed activities, and can send routes created in wanderer to Hammerhead. New and updated content is imported during the regularly scheduled synchronization runs. A start date limits the import volume and reduces the risk of Hammerhead temporarily restricting access because of too many API requests."
+    },
+    "homepageUrl": "https://dashboard.hammerhead.io/",
     "icons": {
       "light": "icon.svg",
       "dark": "icon_dark.svg"

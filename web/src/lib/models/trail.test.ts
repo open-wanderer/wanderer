@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TrailCreateSchema } from "./api/trail_schema";
 import { SummitLog } from "./summit_log";
 import {
     Trail,
@@ -22,6 +23,7 @@ describe("Trail.from", () => {
         expect(duplicate.duration).toBe(original.duration);
         expect(duplicate.elevation_gain).toBe(original.elevation_gain);
         expect(duplicate.elevation_loss).toBe(original.elevation_loss);
+        expect(duplicate.completed_at).toBe(original.completed_at);
         expect(duplicate.expand?.gpx_data).toBe(original.expand?.gpx_data);
         expect(duplicate.photos).toEqual([]);
         expect(duplicate.expand?.summit_logs_via_trail).toEqual([]);
@@ -91,6 +93,16 @@ describe("Trail.from", () => {
     });
 });
 
+describe("TrailCreateSchema", () => {
+    it("accepts PocketBase date-time values", () => {
+        const result = TrailCreateSchema.shape.completed_at.safeParse(
+            "2026-08-10 10:30:00.000Z",
+        );
+
+        expect(result.success).toBe(true);
+    });
+});
+
 function originalTrail() {
     const sourceActor = "sourceactor1234";
 
@@ -125,6 +137,7 @@ function originalTrail() {
         description: "A readable trail from another user.",
         difficulty: "difficult",
         completed: true,
+        completed_at: "2025-06-14T00:00:00.000Z",
         distance: 12.5,
         duration: 7800,
         elevation_gain: 980,

@@ -12,6 +12,16 @@ const reconnectErrorCodes = new Set(["invalid_grant", "unauthorized"]);
 const unavailableErrorCodes = new Set(["provider_unavailable", "temporary_unavailable"]);
 const internalErrorCodes = new Set(["internal_error", "plugin_error"]);
 
+const pluginSetupErrorKeys = new Map<string, string>([
+    ["manifest_missing", "plugin-setup-error-manifest-missing"],
+    ["manifest_unreadable", "plugin-setup-error-manifest-unreadable"],
+    ["manifest_invalid", "plugin-setup-error-manifest-invalid"],
+    ["runtime_entrypoint_invalid", "plugin-setup-error-runtime-entrypoint-invalid"],
+    ["runtime_entrypoint_missing", "plugin-setup-error-runtime-entrypoint-missing"],
+    ["runtime_entrypoint_unreadable", "plugin-setup-error-runtime-entrypoint-unreadable"],
+    ["setup_failed", "plugin-setup-error-details"],
+]);
+
 const authErrorHints = [
     "auth_failed",
     "login failed",
@@ -41,6 +51,15 @@ export function translatePluginError(code?: string, message?: string): string {
     }
 
     return message?.trim() || get(_)("plugin-setup-error");
+}
+
+// Setup error codes come from plugin discovery and are deliberately mapped
+// through an allowlist so backend diagnostics never become user-facing text.
+export function pluginSetupErrorKey(code: unknown): string {
+    if (typeof code !== "string") {
+        return "plugin-setup-error-details";
+    }
+    return pluginSetupErrorKeys.get(code) ?? "plugin-setup-error-details";
 }
 
 export function translatePluginAPIError(error: unknown, fallback: string): string {
