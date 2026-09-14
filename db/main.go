@@ -83,40 +83,48 @@ func initializeMeilisearch() meilisearch.ServiceManager {
 	)
 }
 
+// oidcScopesEnv maps each OIDC provider slot to the environment variable that
+// overrides its scopes.
+var oidcScopesEnv = map[string]string{
+	"oidc":  "OIDC_SCOPES",
+	"oidc2": "OIDC2_SCOPES",
+	"oidc3": "OIDC3_SCOPES",
+}
+
 // configureOIDCScopes overrides the scopes requested by the oidc, oidc2 and
-// oidc3 providers with the comma separated list in OIDC_SCOPES.
+// oidc3 providers with the comma separated list in OIDC_SCOPES, OIDC2_SCOPES
+// and OIDC3_SCOPES respectively. A slot without an override keeps the
+// PocketBase defaults.
 //
 // PocketBase asks every OIDC provider for "openid", "profile" and "email".
 // Not all providers accept those: OpenStreetMap, for instance, rejects the
 // authorization request outright rather than ignoring the unknown scopes, so
 // login fails before the user ever sees a consent screen. Such providers need
-// their own scope list ("openid,read_prefs" in the OSM case).
+// their own scope list ("openid" in the OSM case).
 func configureOIDCScopes() {
-	raw := os.Getenv("OIDC_SCOPES")
-	if raw == "" {
-		return
-	}
+	for name, env := range oidcScopesEnv {
+		scopes := parseScopes(os.Getenv(env))
+		if len(scopes) == 0 {
+			continue
+		}
 
+		auth.Providers[name] = func() auth.Provider {
+			provider := auth.NewOIDCProvider()
+			provider.SetScopes(scopes)
+			return provider
+		}
+	}
+}
+
+// parseScopes splits a comma separated scope list, dropping empty entries.
+func parseScopes(raw string) []string {
 	scopes := []string{}
 	for _, scope := range strings.Split(raw, ",") {
 		if scope = strings.TrimSpace(scope); scope != "" {
 			scopes = append(scopes, scope)
 		}
 	}
-
-	if len(scopes) == 0 {
-		return
-	}
-
-	factory := func() auth.Provider {
-		provider := auth.NewOIDCProvider()
-		provider.SetScopes(scopes)
-		return provider
-	}
-
-	for _, name := range []string{"oidc", "oidc2", "oidc3"} {
-		auth.Providers[name] = factory
-	}
+	return scopes
 }
 
 func registerMigrations(app *pocketbase.PocketBase) {

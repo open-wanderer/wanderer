@@ -25,20 +25,20 @@ In the tab `OAuth2`, add your provider and fill in the Client ID and Client Secr
 
 <span class="-tracking-[0.075em]">wanderer</span> requests the scopes `openid`, `profile` and `email` from every OIDC provider. Some providers reject an authorization request that contains scopes they do not know, instead of ignoring them, and the login then fails before the consent screen appears.
 
-For those providers set `OIDC_SCOPES` on the `db` service to the list they expect. The list applies to the `oidc`, `oidc2` and `oidc3` providers.
+For those providers set the scope list on the `db` service, using the variable for the slot the provider is configured in: `OIDC_SCOPES` for `oidc`, `OIDC2_SCOPES` for `oidc2` and `OIDC3_SCOPES` for `oidc3`. Slots without an override keep the default scopes, so other OIDC providers are not affected.
 
 #### OpenStreetMap
 
-OSM accepts neither `profile` nor `email`, so it needs:
+OSM accepts neither `profile` nor `email`. `openid` is enough for login. If OSM is configured as `oidc`:
 
 ```yaml
 services:
   db:
     environment:
-      OIDC_SCOPES: "openid,read_prefs"
+      OIDC_SCOPES: "openid"
 ```
 
-Accounts created through OSM currently get a generated username such as `users729068` rather than the OSM display name, because display names may contain characters the `username` field does not allow.
+Accounts created through OSM may receive a generated username such as `users729068` when the OSM display name cannot be used as the `username`, for example because it contains characters the field does not allow or is already taken.
 
 ### Disable password authentication
 

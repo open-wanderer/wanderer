@@ -12,38 +12,74 @@ func TestConfigureOIDCScopes(t *testing.T) {
 
 	scenarios := []struct {
 		name     string
-		env      string
-		expected []string
+		env      map[string]string
+		expected map[string][]string
 	}{
 		{
-			name:     "unset leaves the provider defaults alone",
-			env:      "",
-			expected: defaultScopes,
+			name: "unset leaves the provider defaults alone",
+			env:  map[string]string{},
+			expected: map[string][]string{
+				"oidc":  defaultScopes,
+				"oidc2": defaultScopes,
+				"oidc3": defaultScopes,
+			},
 		},
 		{
-			name:     "single scope",
-			env:      "openid",
-			expected: []string{"openid"},
+			name: "single scope",
+			env:  map[string]string{"OIDC_SCOPES": "openid"},
+			expected: map[string][]string{
+				"oidc":  {"openid"},
+				"oidc2": defaultScopes,
+				"oidc3": defaultScopes,
+			},
 		},
 		{
-			name:     "comma separated list",
-			env:      "openid,read_prefs",
-			expected: []string{"openid", "read_prefs"},
+			name: "comma separated list",
+			env:  map[string]string{"OIDC2_SCOPES": "openid,read_prefs"},
+			expected: map[string][]string{
+				"oidc":  defaultScopes,
+				"oidc2": {"openid", "read_prefs"},
+				"oidc3": defaultScopes,
+			},
 		},
 		{
-			name:     "surrounding whitespace is ignored",
-			env:      " openid , read_prefs ",
-			expected: []string{"openid", "read_prefs"},
+			name: "surrounding whitespace is ignored",
+			env:  map[string]string{"OIDC3_SCOPES": " openid , read_prefs "},
+			expected: map[string][]string{
+				"oidc":  defaultScopes,
+				"oidc2": defaultScopes,
+				"oidc3": {"openid", "read_prefs"},
+			},
 		},
 		{
-			name:     "empty entries are dropped",
-			env:      "openid,,read_prefs,",
-			expected: []string{"openid", "read_prefs"},
+			name: "empty entries are dropped",
+			env:  map[string]string{"OIDC_SCOPES": "openid,,read_prefs,"},
+			expected: map[string][]string{
+				"oidc":  {"openid", "read_prefs"},
+				"oidc2": defaultScopes,
+				"oidc3": defaultScopes,
+			},
 		},
 		{
-			name:     "only separators leaves the provider defaults alone",
-			env:      ",, ,",
-			expected: defaultScopes,
+			name: "only separators leaves the provider defaults alone",
+			env:  map[string]string{"OIDC_SCOPES": ",, ,"},
+			expected: map[string][]string{
+				"oidc":  defaultScopes,
+				"oidc2": defaultScopes,
+				"oidc3": defaultScopes,
+			},
+		},
+		{
+			name: "each slot gets its own scopes",
+			env: map[string]string{
+				"OIDC_SCOPES":  "openid",
+				"OIDC3_SCOPES": "openid,profile",
+			},
+			expected: map[string][]string{
+				"oidc":  {"openid"},
+				"oidc2": defaultScopes,
+				"oidc3": {"openid", "profile"},
+			},
 		},
 	}
 
@@ -52,19 +88,21 @@ func TestConfigureOIDCScopes(t *testing.T) {
 			// restore the stock factories so each scenario starts from the defaults
 			original := auth.Providers["oidc"]
 			t.Cleanup(func() {
-				for _, name := range []string{"oidc", "oidc2", "oidc3"} {
+				for name := range oidcScopesEnv {
 					auth.Providers[name] = original
 				}
 			})
 
-			t.Setenv("OIDC_SCOPES", s.env)
+			for _, env := range oidcScopesEnv {
+				t.Setenv(env, s.env[env])
+			}
 
 			configureOIDCScopes()
 
-			for _, name := range []string{"oidc", "oidc2", "oidc3"} {
+			for name, expected := range s.expected {
 				scopes := auth.Providers[name]().Scopes()
-				if !slices.Equal(scopes, s.expected) {
-					t.Fatalf("%s: expected scopes %v, got %v", name, s.expected, scopes)
+				if !slices.Equal(scopes, expected) {
+					t.Fatalf("%s: expected scopes %v, got %v", name, expected, scopes)
 				}
 			}
 		})
