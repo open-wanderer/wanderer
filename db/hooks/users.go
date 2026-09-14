@@ -81,30 +81,43 @@ func UpdateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 // user signed up with recognisable.
 func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) error {
 	return func(e *core.RecordAuthWithOAuth2RequestEvent) error {
-		if !e.IsNewRecord || e.OAuth2User == nil {
+		if !e.IsNewRecord || e.OAuth2User == nil || e.Collection == nil {
 			return e.Next()
 		}
 
-		// a username submitted by the client takes precedence
-		if submitted, _ := e.CreateData["username"].(string); submitted != "" {
+		// PocketBase only assigns the provider username when the collection
+		// maps it, so respect a disabled or redirected mapping
+		mapped := e.Collection.OAuth2.MappedFields.Username
+		if mapped == "" {
 			return e.Next()
 		}
 
-		username := util.SanitizeUsername(e.OAuth2User.Username)
+		// a value submitted by the client takes precedence
+		if _, ok := e.CreateData[mapped]; ok {
+			return e.Next()
+		}
+
+		field, ok := e.Collection.Fields.GetByName(mapped).(*core.TextField)
+		if !ok {
+			return e.Next()
+		}
+
+		// only rewrite a value the mapped field would reject
+		username := e.OAuth2User.Username
+		if field.ValidatePlainValue(username) != nil {
+			username = util.SanitizeUsername(username, field.Min, field.Max)
+		}
+
+		username = util.UniqueUsername(e.App, e.Collection, field, username)
 		if username == "" {
+			// nothing usable; leave the provider value to PocketBase
 			return e.Next()
 		}
 
-		username = util.UniqueUsername(e.App, username)
-		if username == "" {
-			// nothing free; let PocketBase generate a username instead
-			return e.Next()
-		}
-
-		if e.CreateData == nil {
-			e.CreateData = map[string]any{}
-		}
-		e.CreateData["username"] = username
+		// only the provider value is replaced: PocketBase still validates it and
+		// checks it is free inside the create transaction, and generates a
+		// username if it is not
+		e.OAuth2User.Username = username
 
 		return e.Next()
 	}

@@ -8,21 +8,20 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
+	"github.com/pocketbase/pocketbase/tools/inflector"
 	"golang.org/x/text/unicode/norm"
 )
 
-const (
-	usernameMinLength = 3
-	usernameMaxLength = 150
-	// how many suffixed variants to try before giving up on a name
-	usernameMaxAttempts = 50
-)
+// how many suffixed variants to try before giving up on a name
+const usernameMaxAttempts = 50
 
 var (
-	// characters the users.username field does not accept
+	// characters the default users.username pattern does not accept
 	usernameDisallowed = regexp.MustCompile(`[^\w.\-]+`)
-	// the field additionally requires the first character to be a word character
+	// the default pattern additionally requires the first character to be a word character
 	usernameLeading = regexp.MustCompile(`^[.\-]+`)
 	// characters that expand to more than one letter when transliterated
 	usernameExpansions = strings.NewReplacer(
@@ -57,18 +56,17 @@ func transliterate(raw string) string {
 }
 
 // SanitizeUsername converts a username coming from an OAuth2 provider into a
-// value the users.username field accepts: word characters, dots and dashes,
-// starting with a word character, between 3 and 150 characters long.
+// value the default users.username pattern accepts: word characters, dots and
+// dashes, starting with a word character. The result is truncated to
+// maxLength (when > 0) and padded with underscores up to minLength.
 //
 // Accented Latin characters are transliterated first, so "Karl Dörfinger"
 // becomes "Karl_Doerfinger". Remaining disallowed characters are replaced with
 // underscores, which keeps names such as "Jane Doe" recognisable as "Jane_Doe".
-// Names that are too short are padded with underscores.
 //
 // Returns an empty string when nothing usable remains. Callers should then
-// leave the username unset and let PocketBase generate one, rather than
-// submitting a value the field will reject.
-func SanitizeUsername(raw string) string {
+// leave the username alone and let PocketBase generate one.
+func SanitizeUsername(raw string, minLength, maxLength int) string {
 	username := usernameDisallowed.ReplaceAllString(transliterate(strings.TrimSpace(raw)), "_")
 	username = usernameLeading.ReplaceAllString(username, "")
 
@@ -81,36 +79,64 @@ func SanitizeUsername(raw string) string {
 		return ""
 	}
 
-	if len(username) > usernameMaxLength {
-		username = username[:usernameMaxLength]
+	// the sanitised value is ASCII only, so byte and character lengths match
+	if maxLength > 0 && len(username) > maxLength {
+		username = username[:maxLength]
 	}
 
-	for len(username) < usernameMinLength {
+	for len(username) < minLength {
 		username += "_"
 	}
 
 	return username
 }
 
-// UniqueUsername returns username, or the first free variant of it suffixed
-// with "_2", "_3" and so on.
+// UniqueUsername returns username, or the first variant of it suffixed with
+// "_2", "_3" and so on, that passes the field's validation and is not taken yet.
 //
-// Returns an empty string when no free variant was found within
-// usernameMaxAttempts, so that callers can fall back to a generated username
-// instead of submitting a value that would collide with the unique index.
-func UniqueUsername(app core.App, username string) string {
+// Uniqueness is checked the same way PocketBase checks it for the OAuth2
+// username mapping: against the field's single column unique index, honouring
+// its collation, so "alice" counts as taken when "Alice" exists.
+//
+// Returns an empty string when no usable variant was found within
+// usernameMaxAttempts, so that callers can fall back to PocketBase's own
+// handling instead.
+func UniqueUsername(app core.App, collection *core.Collection, field *core.TextField, username string) string {
+	if username == "" {
+		return ""
+	}
+
+	index, hasUnique := dbutils.FindSingleColumnUniqueIndex(collection.Indexes, field.GetName())
+	column := inflector.Columnify(field.GetName())
+
 	for attempt := 1; attempt <= usernameMaxAttempts; attempt++ {
 		candidate := username
 
 		if attempt > 1 {
 			suffix := "_" + strconv.Itoa(attempt)
-			if len(candidate)+len(suffix) > usernameMaxLength {
-				candidate = candidate[:usernameMaxLength-len(suffix)]
+			if field.Max > len(suffix) && len(candidate)+len(suffix) > field.Max {
+				candidate = candidate[:field.Max-len(suffix)]
 			}
 			candidate += suffix
 		}
 
-		_, err := app.FindFirstRecordByData("users", "username", candidate)
+		if field.ValidatePlainValue(candidate) != nil {
+			continue
+		}
+
+		if !hasUnique {
+			return candidate
+		}
+
+		var expr dbx.Expression
+		if strings.EqualFold(index.Columns[0].Collate, "nocase") {
+			expr = dbx.NewExp("[["+column+"]] = {:username} COLLATE NOCASE", dbx.Params{"username": candidate})
+		} else {
+			expr = dbx.HashExp{column: candidate}
+		}
+
+		var exists int
+		err := app.RecordQuery(collection).Select("(1)").AndWhere(expr).Limit(1).Row(&exists)
 
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
