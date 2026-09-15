@@ -4,7 +4,7 @@ import { haversineDistance } from "$lib/models/gpx/utils";
 import type { Trail } from "$lib/models/trail";
 import type { Waypoint } from "$lib/models/waypoint";
 import { theme } from "$lib/stores/theme_store";
-import M from "maplibre-gl";
+import * as M from "maplibre-gl";
 import { _ } from "svelte-i18n";
 import { get } from "svelte/store";
 import { handleFromRecordWithIRI } from "./activitypub_util";
@@ -84,7 +84,7 @@ export function createMarkerFromWaypoint(waypoint: Waypoint, onDragEnd?: (marker
 
 export function createAnchorMarker(lat: number, lon: number,
     onDeleteClick: () => void, onLoopClick: () => void,
-    onDragStart: (event: Event) => void, onDragEnd: (event: Event) => void): FontawesomeMarker {
+    onDragStart: (event: M.MarkerDragEvent) => void, onDragEnd: (event: M.MarkerDragEvent) => void): FontawesomeMarker {
 
     const anchorElement = document.createElement("span")
     anchorElement.className = "route-anchor cursor-pointer flex items-center justify-center rounded-full w-6 h-6 border border-black bg-primary text-white"

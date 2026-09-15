@@ -25,6 +25,7 @@ class Trail {
     date?: string;
     public: boolean;
     completed: boolean;
+    completed_at?: string;
     distance?: number;
     elevation_gain?: number;
     elevation_loss?: number;
@@ -76,6 +77,7 @@ class Trail {
             date?: string,
             public?: boolean,
             completed?: boolean,
+            completed_at?: string,
             distance?: number,
             elevation_gain?: number,
             elevation_loss?: number,
@@ -107,6 +109,7 @@ class Trail {
         this.date = params?.date ?? new Date().toISOString().split('T')[0];
         this.public = params?.public ?? false
         this.completed = params?.completed ?? false,
+        this.completed_at = params?.completed_at;
         this.distance = params?.distance ?? 0;
         this.elevation_gain = params?.elevation_gain ?? 0;
         this.elevation_loss = params?.elevation_loss ?? 0;
@@ -146,6 +149,7 @@ class Trail {
             description: orig.description,
             difficulty: orig.difficulty,
             completed: orig.completed,
+            completed_at: orig.completed_at,
             distance: orig.distance,
             duration: orig.duration,
             moving_duration: orig.moving_duration,
