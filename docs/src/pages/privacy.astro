@@ -331,13 +331,14 @@ const LAST_UPDATED = "6 September 2026";
           </li>
           <li>
             <strong>Departing accounts travel too.</strong> When an account is
-            deleted, its instance announces that to the instances following it,
-            and this one acts on such a notice by removing its copy of that
-            account along with the content of theirs it was holding. Your own
-            account leaving is announced the same way. See
-            <a href="#retention">section 12</a> for what that does and does not
-            cover. A notice is only ever accepted for the account that signed
-            it: another server cannot ask this one to delete somebody else.
+            deleted, its instance announces that to the other instances it has
+            reason to believe hold something of that account, and this one acts
+            on such a notice by removing its copy of that account along with the
+            content of theirs it was holding. Your own account leaving is
+            announced the same way. See <a href="#retention">section 12</a> for
+            who is told and what that does and does not cover. A notice is only
+            ever accepted for the account that signed it: another server cannot
+            ask this one to delete somebody else.
           </li>
           <li>
             <strong>Who you federate with is your operator's choice.</strong> If
@@ -448,9 +449,9 @@ const LAST_UPDATED = "6 September 2026";
           <li>
             <strong>On your instance:</strong> governed by your instance
             operator's retention policy. Deleting your account removes your
-            login credentials, your public profile, and the content you
-            authored: your trails, lists, summit logs and the comments you left
-            on other people's trails. Comments you wrote go with the account
+            login credentials and API tokens, your public profile, and the
+            content you authored: your trails, lists, summit logs and the
+            comments you left on other people's trails. Comments you wrote go with the account
             even where they sit under someone else's trail, so a thread you took
             part in may read differently afterwards.
           </li>
@@ -478,9 +479,18 @@ const LAST_UPDATED = "6 September 2026";
             each announce their own removal, because your profile goes before
             they do and there is no longer an identity to sign in your name. In
             both cases the content is removed from your own instance regardless.
-            The account notice reaches the instances that follow you, which are
-            the only ones a departing account can still be addressed to, so an
-            instance that holds a copy without following you may never be told.
+            The account notice is sent once your account has actually been
+            removed, and it goes to every instance yours has reason to believe
+            holds something of yours: the accounts that follow you and those you
+            follow, the authors of trails you commented on, logged or liked and
+            the accounts that did so on your trails, the other side of every
+            trail or list share you were part of, and every account one of your
+            posts was addressed to directly, such as someone you mentioned. Two
+            kinds of holder fall outside that and may never be told: an instance
+            that received your content while one of its accounts followed you
+            and has since unfollowed, and one that obtained a copy some other
+            way, for instance by fetching it from your instance directly.
+            Nothing about either remains on your instance to address a notice to.
           </li>
           <li>
             <strong>Website server logs:</strong> kept only as long as needed for
