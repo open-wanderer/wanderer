@@ -366,6 +366,7 @@
   "list-not-shared": "No compartido con ninguno",
   "list-public-warning": "Todas las rutas en esta lista serán públicas.",
   "list-saved-successfully": "Lista guardada con éxito",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Las rutas añadidas serán compartidas con todos los usuarios que tienen acceso a esta lista.",
   "location": "Ubicación",
   "login": "Acceso",

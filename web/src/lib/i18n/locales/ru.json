@@ -366,6 +366,7 @@
   "list-not-shared": "Нет общего доступа",
   "list-public-warning": "Все треки в списке станут публичными.",
   "list-saved-successfully": "Список сохранён",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Новые треки будут доступны всем, у кого есть доступ к списку.",
   "location": "Местоположение",
   "login": "Войти",
