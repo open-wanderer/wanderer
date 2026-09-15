@@ -366,7 +366,6 @@
   "list-not-shared": "No compartido con ninguno",
   "list-public-warning": "Todas las rutas en esta lista serán públicas.",
   "list-saved-successfully": "Lista guardada con éxito",
-  "list-share-warning": "Compartir una lista automáticamente comparte todas las rutas que contiene.",
   "list-share-warning-update": "Las rutas añadidas serán compartidas con todos los usuarios que tienen acceso a esta lista.",
   "location": "Ubicación",
   "login": "Acceso",
