@@ -224,6 +224,7 @@ export default class GPX {
       let data = null, error = null;
       xml2js.parseString(sanitizedGPX, {
         explicitArray: false,
+        tagNameProcessors: [(name: string) => name.replace(/^[^:]+:/, "")],
         attrValueProcessors: [(str: string) => {
           if (str.length && !isNaN(Number(str))) {
             return Number.isInteger(Number(str)) ? parseInt(String(str), 10) : parseFloat(String(str));

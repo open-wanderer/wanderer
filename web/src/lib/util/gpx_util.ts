@@ -136,6 +136,7 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
 
 export const trailGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss", "lat", "lon"] as const;
 export const summitLogGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss"] as const;
+const positionFields: readonly string[] = ["lat", "lon"];
 
 export async function applyGpxToForm(data: FormData, fields: readonly (typeof trailGpxFields)[number][], correctElevation: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const file = data.get("gpx");
@@ -143,11 +144,13 @@ export async function applyGpxToForm(data: FormData, fields: readonly (typeof tr
         return;
     }
 
-    const { gpxData, gpxFile } = await fromFile(file);
-
+    let gpxFile: Blob;
+    let gpx: GPX;
     let trail: Trail;
     try {
-        trail = (await gpx2trail(gpxData, undefined, correctElevation, f)).trail;
+        const converted = await fromFile(file);
+        gpxFile = converted.gpxFile;
+        ({ gpx, trail } = await gpx2trail(converted.gpxData, undefined, correctElevation, f));
     } catch (e) {
         console.error(e);
         throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } });
@@ -158,7 +161,14 @@ export async function applyGpxToForm(data: FormData, fields: readonly (typeof tr
         data.set("gpx", gpxFile, name);
     }
 
+    // Statistics are computed from track points only. A route-only file
+    // (<rte>/<rtept>) yields zeros, which must not replace the stored values.
+    const hasTrackPoints = gpx.trk?.some((trk) => trk.trkseg?.some((seg) => (seg.trkpt?.length ?? 0) > 0)) ?? false;
+
     for (const field of fields) {
+        if (!hasTrackPoints && !positionFields.includes(field)) {
+            continue;
+        }
         if (!data.has(field) && trail[field] !== undefined) {
             data.set(field, String(trail[field]));
         }
