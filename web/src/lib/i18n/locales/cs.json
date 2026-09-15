@@ -366,7 +366,7 @@
   "list-not-shared": "Není s nikým sdíleno",
   "list-public-warning": "Všechny trasy v tomto seznamu budou veřejné.",
   "list-saved-successfully": "Seznam byl úspěšně uložen",
-  "list-share-warning": "Sdílením seznamu se automaticky i sdílí všechny trasy, které jsou v něm obsaženy.",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Přidané trasy budou sdíleny se všemi, kteří mají přístup do tohoto seznamu.",
   "location": "Poloha",
   "login": "Přihlásit se",
