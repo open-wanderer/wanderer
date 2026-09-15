@@ -10,6 +10,7 @@ import (
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
@@ -22,6 +23,22 @@ func ActorDeleteRecipients(app core.App, actor *core.Record) ([]string, error) {
 	}
 
 	return actorDeleteInboxes(app, actor.Id, actor.GetString("iri"))
+}
+
+// DeleteActorActivities removes every activity record the actor produced:
+// the Create/Update/Delete/Announce rows that embed snapshots of its content
+// and are listed on its public outbox. Nothing references these rows through
+// a relation, so the cascade does not reach them. Call this after
+// ActorDeleteRecipients, which reads its audience back from these rows, and
+// inside the deleting transaction, so a rollback restores them.
+func DeleteActorActivities(app core.App, actorIRI string) error {
+	if actorIRI == "" {
+		return nil
+	}
+	_, err := app.DB().
+		Delete("activitypub_activities", dbx.HashExp{"actor": actorIRI}).
+		Execute()
+	return err
 }
 
 func CreateActorDeleteActivity(app core.App, actor *core.Record, recipients []string) error {

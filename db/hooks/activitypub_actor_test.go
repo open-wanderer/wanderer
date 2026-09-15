@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -160,7 +161,7 @@ func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 		&core.TextField{Name: "iri"},
 		&core.TextField{Name: "type"},
 		&core.TextField{Name: "to"},
-		&core.TextField{Name: "cc"},
+		&core.JSONField{Name: "cc"},
 		&core.TextField{Name: "object"},
 		&core.TextField{Name: "actor"},
 		&core.TextField{Name: "published"},
@@ -250,6 +251,36 @@ func newDepartingActor(t *testing.T, app *pbtests.TestApp, inbox *inboxCounter) 
 	return owner, actor
 }
 
+// recordActivity stores an outgoing activity of actorIRI the way create.go
+// does, cc'd to the given inboxes.
+func recordActivity(t *testing.T, app *pbtests.TestApp, actorIRI, typ string, cc ...string) *core.Record {
+	t.Helper()
+
+	activities, err := app.FindCollectionByNameOrId("activitypub_activities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := core.NewRecord(activities)
+	r.Set("iri", "https://local.example/api/v1/activitypub/activity/"+security.RandomString(8))
+	r.Set("actor", actorIRI)
+	r.Set("type", typ)
+	r.Set("cc", cc)
+	if err := app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func countActivitiesOf(t *testing.T, app *pbtests.TestApp, actorIRI string) int {
+	t.Helper()
+
+	records, err := app.FindRecordsByFilter("activitypub_activities", "actor = {:iri}", "", 0, 0, dbx.Params{"iri": actorIRI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(records)
+}
+
 func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 	t.Run("RolledBackDeletionReachesNoInbox", func(t *testing.T) {
 		app := setupActorDeleteHooksTestApp(t)
@@ -266,6 +297,7 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 		if err := app.Save(blocker); err != nil {
 			t.Fatal(err)
 		}
+		recordActivity(t, app, actor.GetString("iri"), "Create")
 
 		if err := app.Delete(owner); err == nil {
 			t.Fatal("expected the delete to be blocked by the sibling's required reference, got nil")
@@ -273,6 +305,9 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 
 		if _, err := app.FindRecordById("activitypub_actors", actor.Id); err != nil {
 			t.Fatalf("expected the actor to survive the rolled-back delete: %v", err)
+		}
+		if got := countActivitiesOf(t, app, actor.GetString("iri")); got != 1 {
+			t.Fatalf("expected the actor's activity record to survive the rolled-back delete, found %d", got)
 		}
 
 		if got := inbox.waitForHits(1, 500*time.Millisecond); got != 0 {
@@ -286,6 +321,10 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 
 		owner, actor := newDepartingActor(t, app, inbox)
 		iri := actor.GetString("iri")
+		otherIRI := "https://local.example/api/v1/activitypub/user/dave"
+		recordActivity(t, app, iri, "Create")
+		recordActivity(t, app, iri, "Update")
+		recordActivity(t, app, otherIRI, "Create")
 
 		if err := app.Delete(owner); err != nil {
 			t.Fatalf("expected the delete to succeed, got %v", err)
@@ -294,11 +333,19 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 		if _, err := app.FindRecordById("activitypub_actors", actor.Id); err == nil {
 			t.Fatal("expected the actor to be gone")
 		}
+		if got := countActivitiesOf(t, app, otherIRI); got != 1 {
+			t.Fatalf("another actor's activity record must be untouched, found %d", got)
+		}
 
 		if got := inbox.waitForHits(1, 5*time.Second); got != 1 {
 			t.Fatalf("expected exactly one delivery to the follower, got %d", got)
 		}
 
+		// The content snapshots are gone; the deletion notice is the one
+		// record left in the departed actor's name.
+		if got := countActivitiesOf(t, app, iri); got != 1 {
+			t.Fatalf("expected only the deletion notice to remain for the deleted actor, found %d record(s)", got)
+		}
 		announcement, err := app.FindFirstRecordByData("activitypub_activities", "object", iri)
 		if err != nil {
 			t.Fatalf("expected a persisted announcement naming the deleted actor: %v", err)
@@ -308,6 +355,41 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 		}
 		if got := announcement.GetString("actor"); got != iri {
 			t.Fatalf("announcement signed as %q, want the deleted actor %q", got, iri)
+		}
+	})
+
+	// The audience is read back from the activity records, so the purge has
+	// to wait until it has been collected: someone known only from a cc must
+	// still be told.
+	t.Run("RecordedRecipientToldDespitePurge", func(t *testing.T) {
+		app := setupActorDeleteHooksTestApp(t)
+		followerInbox := newInboxCounter(t)
+		mentionedInbox := newInboxCounter(t)
+
+		owner, actor := newDepartingActor(t, app, followerInbox)
+
+		actorsCollection, err := app.FindCollectionByNameOrId("activitypub_actors")
+		if err != nil {
+			t.Fatal(err)
+		}
+		mentioned := core.NewRecord(actorsCollection)
+		mentioned.Set("iri", "https://remote.example/api/v1/activitypub/user/carol")
+		mentioned.Set("inbox", mentionedInbox.url())
+		mentioned.Set("is_local", false)
+		if err := app.Save(mentioned); err != nil {
+			t.Fatal(err)
+		}
+		recordActivity(t, app, actor.GetString("iri"), "Create", mentionedInbox.url())
+
+		if err := app.Delete(owner); err != nil {
+			t.Fatalf("expected the delete to succeed, got %v", err)
+		}
+
+		if got := mentionedInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the mentioned actor, got %d", got)
+		}
+		if got := followerInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the follower, got %d", got)
 		}
 	})
 }

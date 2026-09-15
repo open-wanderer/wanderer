@@ -456,15 +456,20 @@ const LAST_UPDATED = "6 September 2026";
             part in may read differently afterwards.
           </li>
           <li>
-            <strong>Activity records are not covered by account or content
+            <strong>Activity records outlive content deletion, but not account
             deletion.</strong> Your instance keeps a record of the federation
             activities it sent on your behalf, meaning the ActivityPub messages
-            announcing your public trails, lists and summit logs to connected
-            instances. These records embed a snapshot of the content as it was
+            announcing your trails, lists, summit logs and comments to connected
+            instances; comments are recorded even when the trail they sit on is
+            private. These records embed a snapshot of the content as it was
             when it was sent, including its description and location
-            coordinates where relevant, and neither deleting that content nor
-            deleting your account clears them. This record is also readable by
-            anyone who has or guesses its address, without needing to log in.
+            coordinates where relevant, and deleting the content does not clear
+            them. They can be read without logging in, and each account's
+            records are listed at a public address, its ActivityPub outbox, so
+            nothing has to be guessed. Deleting your account does remove them:
+            every record made in your name goes with the account, and the only
+            one written afterwards is the deletion notice itself, which carries
+            your former account address and nothing else.
           </li>
           <li>
             <strong>Federated copies:</strong> once a piece of public content has
