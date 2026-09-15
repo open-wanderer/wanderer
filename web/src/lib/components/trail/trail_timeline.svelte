@@ -2,6 +2,7 @@
     import type { Trail } from "$lib/models/trail";
     import { getFileURL, isVideoURL } from "$lib/util/file_util";
     import { formatDistance } from "$lib/util/format_util";
+    import { waypointAnchorId } from "$lib/util/waypoint_map_util";
     import { _ } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
 
@@ -40,7 +41,10 @@
             {/if}
         </div>
 
-        <div class="border border-input-border rounded-xl overflow-hidden">
+        <div
+            id={waypointAnchorId(wp.id)}
+            class="border border-input-border rounded-xl overflow-hidden"
+        >
             {#if wp.photos.length}
                 <PhotoGallery
                     photos={wp.photos.map((p) => getFileURL(wp, p))}
