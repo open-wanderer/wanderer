@@ -12,7 +12,6 @@ import (
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -69,7 +68,6 @@ func isDegradableSyncError(err error) bool {
 func RemoteTrailGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
 	trailID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 
 	var record *core.Record
 	var err error
@@ -161,7 +159,7 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 		return e.ForbiddenError("forbidden", err)
 	}
 
-	return expandAndReturn(e, record, expandQuery)
+	return expandAndReturn(e, record)
 }
 
 func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
@@ -518,11 +516,4 @@ func downloadFile(ctx context.Context, origin, col, id, name string) (*filesyste
 
 	data, _ := io.ReadAll(res.Body)
 	return filesystem.NewFileFromBytes(data, name)
-}
-
-func expandAndReturn(e *core.RequestEvent, record *core.Record, query string) error {
-	if query != "" {
-		e.App.ExpandRecord(record, strings.Split(query, ","), nil)
-	}
-	return e.JSON(http.StatusOK, record)
 }

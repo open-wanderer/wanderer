@@ -20,7 +20,6 @@ import (
 func RemoteListGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
 	listID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 
 	var record *core.Record
 	var err error
@@ -104,7 +103,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 		return e.ForbiddenError("forbidden", err)
 	}
 
-	return expandAndReturn(e, record, expandQuery)
+	return expandAndReturn(e, record)
 }
 
 func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
