@@ -87,6 +87,8 @@ func registerMigrations(app *pocketbase.PocketBase) {
 }
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
+	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2UsernameHandler())
+
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
 	app.OnRecordAfterUpdateSuccess("users").BindFunc(hooks.UpdateUserHandler(client))
 
