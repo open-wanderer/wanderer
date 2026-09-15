@@ -21,7 +21,7 @@ func ActorDeleteRecipients(app core.App, actor *core.Record) ([]string, error) {
 		return nil, nil
 	}
 
-	return actorDeleteInboxes(app, actor.Id)
+	return actorDeleteInboxes(app, actor.Id, actor.GetString("iri"))
 }
 
 func CreateActorDeleteActivity(app core.App, actor *core.Record, recipients []string) error {

@@ -39,7 +39,7 @@ func followerInboxes(app core.App, actorId string) ([]string, error) {
 //   - authors of remote trails it commented on, logged a summit on, or liked
 //   - remote actors who commented on, logged a summit on, or liked its trails
 //   - the other party of every trail or list share it is involved in
-func actorDeleteInboxes(app core.App, actorId string) ([]string, error) {
+func actorDeleteInboxes(app core.App, actorId string, actorIRI string) ([]string, error) {
 	rows, err := app.DB().NewQuery(`
 		SELECT aa.inbox
 		FROM follows f
@@ -110,7 +110,12 @@ func actorDeleteInboxes(app core.App, actorId string) ([]string, error) {
 		INNER JOIN lists li ON ls.list = li.id
 		INNER JOIN activitypub_actors aa ON aa.id = li.author
 		WHERE ls.actor = {:actor} AND aa.is_local = 0 AND aa.inbox != ''
-	`).Bind(dbx.Params{"actor": actorId}).Rows()
+		UNION
+		SELECT aa.inbox
+		FROM activitypub_activities ac, json_each(ac.cc) recipient
+		INNER JOIN activitypub_actors aa ON aa.inbox = recipient.value
+		WHERE ac.actor = {:iri} AND ac.type IN ('Create', 'Update') AND aa.is_local = 0 AND aa.inbox != ''
+	`).Bind(dbx.Params{"actor": actorId, "iri": actorIRI}).Rows()
 	if err != nil {
 		return nil, err
 	}

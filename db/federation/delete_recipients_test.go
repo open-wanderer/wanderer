@@ -12,7 +12,8 @@ import (
 // comments, summit logs, likes, shares and outgoing follows are delivered
 // straight to one remote inbox, so an actor who never followed the departing
 // account still holds a record tied to it and has to hear that it is gone.
-// Mentions are an accepted gap: they are parsed from text, not stored.
+// Mentioned actors leave no relation row, but the inboxes every Create/Update
+// went out to are recorded on the activity, so they are read back from there.
 
 type recipientsFixture struct {
 	app    *pbtests.TestApp
@@ -97,7 +98,35 @@ func setupRecipientsTestApp(t *testing.T) *recipientsFixture {
 		t.Fatal(err)
 	}
 
+	activities := core.NewBaseCollection("activitypub_activities")
+	activities.Fields.Add(
+		&core.TextField{Name: "actor"},
+		&core.TextField{Name: "type"},
+		&core.JSONField{Name: "cc"},
+	)
+	if err := app.Save(activities); err != nil {
+		t.Fatal(err)
+	}
+
 	return &recipientsFixture{app: app, actors: actors, trails: trails, lists: lists}
+}
+
+// activity records an outgoing activity of actor the way create.go does: the
+// actor's IRI, the activity type and the inboxes it was cc'd to.
+func (f *recipientsFixture) activity(t *testing.T, actor *core.Record, typ string, cc ...string) {
+	t.Helper()
+
+	c, err := f.app.FindCollectionByNameOrId("activitypub_activities")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := core.NewRecord(c)
+	r.Set("actor", actor.GetString("iri"))
+	r.Set("type", typ)
+	r.Set("cc", cc)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (f *recipientsFixture) actor(t *testing.T, name string, local bool) *core.Record {
@@ -400,6 +429,83 @@ func TestActorDeleteRecipients(t *testing.T) {
 		assertRecipients(t, got)
 	})
 
+	// The reviewer's repro: Alice comments on Bob's local trail and mentions
+	// Carol on another instance. Carol got the comment through the mention
+	// alone, so she has to hear that Alice is gone.
+	t.Run("MentionedActorFromRecordedAudience", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		localAuthor := f.actor(t, "bob", true)
+		mentioned := f.actor(t, "carol", false)
+		f.contentOn(t, "comments", departing, f.trail(t, localAuthor))
+		f.activity(t, departing, "Create", mentioned.GetString("inbox"), localAuthor.GetString("inbox"))
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, mentioned)
+	})
+
+	// An edit can mention someone the original did not; both audiences hold
+	// a copy.
+	t.Run("RecordedUpdateAudienceIncluded", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		first := f.actor(t, "carol", false)
+		later := f.actor(t, "erin", false)
+		f.activity(t, departing, "Create", first.GetString("inbox"))
+		f.activity(t, departing, "Update", later.GetString("inbox"))
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, first, later)
+	})
+
+	// cc also carries the actor's own followers collection and, for local
+	// mentions, local inboxes; neither is a remote actor to notify. Values
+	// that match no known actor are not posted to blindly.
+	t.Run("RecordedAudienceOnlyKnownRemoteInboxes", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		local := f.actor(t, "bob", true)
+		f.activity(t, departing, "Create",
+			departing.GetString("iri")+"/followers",
+			local.GetString("inbox"),
+			"https://remote.example/api/v1/activitypub/user/unknown/inbox",
+		)
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got)
+	})
+
+	// Other actors' audiences and non-content activities say nothing about
+	// who holds the departing account's content.
+	t.Run("OtherActivitiesRecordedAudienceExcluded", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		other := f.actor(t, "bob", true)
+		mentioned := f.actor(t, "carol", false)
+		f.activity(t, other, "Create", mentioned.GetString("inbox"))
+		f.activity(t, departing, "Delete", mentioned.GetString("inbox"))
+		f.activity(t, departing, "Announce", mentioned.GetString("inbox"))
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got)
+	})
+
 	t.Run("UnionIsDeduplicated", func(t *testing.T) {
 		f := setupRecipientsTestApp(t)
 
@@ -413,6 +519,7 @@ func TestActorDeleteRecipients(t *testing.T) {
 		f.actorOn(t, "trail_like", "trail", departing, trail)
 		f.actorOn(t, "trail_share", "trail", both, f.trail(t, departing))
 		f.actorOn(t, "list_share", "list", both, f.list(t, departing))
+		f.activity(t, departing, "Create", both.GetString("inbox"))
 
 		got, err := ActorDeleteRecipients(f.app, departing)
 		if err != nil {
