@@ -88,9 +88,6 @@ func TestCurrentAnonymousWriteRules(t *testing.T) {
 			{"update", fresh.Collection().UpdateRule, wantUpdate},
 			{"delete", fresh.Collection().DeleteRule, wantDelete},
 		} {
-			if check.rule == nil {
-				continue
-			}
 			// Update rules that also constrain @request.body get an unchanged body.
 			body := map[string]any{"seen": true}
 			got, err := app.CanAccessRecord(fresh, &core.RequestInfo{Auth: auth, Body: body}, check.rule)
@@ -126,11 +123,22 @@ func TestCurrentAnonymousWriteRules(t *testing.T) {
 		}
 	})
 	t.Run("owner keeps write access", func(t *testing.T) {
-		for _, record := range []*core.Record{
-			local.trail, local.list, local.comment, local.trailShare, local.listShare,
-			local.link, local.like, local.follow, settings, apiToken,
+		for _, test := range []struct {
+			record                 *core.Record
+			wantUpdate, wantDelete bool
+		}{
+			{local.trail, true, true},
+			{local.list, true, true},
+			{local.comment, true, true},
+			{local.trailShare, true, true},
+			{local.listShare, true, true},
+			{local.link, true, true},
+			{local.like, false, true},
+			{local.follow, true, true},
+			{settings, true, false},
+			{apiToken, false, true},
 		} {
-			assertWrite(t, record, owner, true, true)
+			assertWrite(t, test.record, owner, test.wantUpdate, test.wantDelete)
 		}
 	})
 	t.Run("edit share recipient can update but not delete", func(t *testing.T) {
