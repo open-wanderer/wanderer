@@ -32,7 +32,6 @@ var remoteListSyncAssetExpandPaths = []string{
 func RemoteListGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
 	listID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 
 	var record *core.Record
 	var err error
@@ -89,9 +88,11 @@ func RemoteListGet(e *core.RequestEvent) error {
 				if _, alreadySyncing := listSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
 					urlCopy := *e.Request.URL
 					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
+					// Sync hooks and remote data must not mutate the response record.
+					syncRecord := record.Fresh()
 					go func() {
 						defer listSyncing.Delete(iri)
-						performFullListSync(e.App, bgCtx, &urlCopy, record)
+						performFullListSync(e.App, bgCtx, &urlCopy, syncRecord)
 					}()
 				}
 			}
@@ -114,7 +115,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 		return e.ForbiddenError("forbidden", err)
 	}
 
-	return expandAndReturn(e, record, expandQuery)
+	return expandAndReturn(e, record)
 }
 
 func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
@@ -185,7 +186,7 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 		return localList, nil
 	}
 
-	client := util.SafeHTTPClient()
+	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
@@ -262,6 +263,7 @@ func syncListMetadata(record *core.Record, data map[string]any) {
 	delete(data, "author")
 	delete(data, "iri")
 
+	stripLocalSyncFields(data)
 	record.Load(data)
 }
 

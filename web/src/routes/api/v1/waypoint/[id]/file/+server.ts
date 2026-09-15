@@ -1,5 +1,3 @@
-import type { Waypoint } from "$lib/models/waypoint";
-import { Collection, handleError, upload } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -7,7 +5,10 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * /api/v1/waypoint/{id}/file:
  *   post:
  *     summary: Upload waypoint file
- *     description: Uploads a file (photo) for a waypoint
+ *     deprecated: true
+ *     description: >
+ *       This endpoint no longer accepts photo uploads and returns 400 `waypoint_photos_form_field_removed`.
+ *       Upload and attach photos through `PUT /api/v1/assets` with the `waypoint` target field.
  *     tags:
  *       - Waypoints
  *     parameters:
@@ -16,35 +17,15 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *         required: true
  *         schema:
  *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
  *     responses:
- *       200:
- *         description: File uploaded, waypoint updated
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Waypoint'
  *       400:
- *         description: Bad Request
- *       404:
- *         description: Not Found
- *       500:
- *         description: Internal Server Error
+ *         description: Photo uploads through this endpoint have been removed
+ *       401:
+ *         description: Unauthorized
  */
 export async function POST(event: RequestEvent) {
-    try {
-        const r = await upload<Waypoint>(event, Collection.waypoints);
-        return json(r);
-    } catch (e: any) {
-        return handleError(e);
+    if (!event.locals.user) {
+        return json({ message: "Unauthorized" }, { status: 401 });
     }
+    return json({ message: "waypoint_photos_form_field_removed" }, { status: 400 });
 }

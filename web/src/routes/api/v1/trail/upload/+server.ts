@@ -40,10 +40,16 @@ import { ClientResponseError } from "pocketbase";
  *               $ref: '#/components/schemas/Trail'
  *       400:
  *         description: Bad Request - Invalid or empty GPX file
+ *       401:
+ *         description: Unauthorized
  *       500:
  *         description: Internal Server Error
  */
 export async function PUT(event: RequestEvent) {
+    if (!event.locals.user) {
+        return json({ message: "Unauthorized" }, { status: 401 });
+    }
+
     try {
         const data = await event.request.formData();
 
