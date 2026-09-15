@@ -366,6 +366,7 @@
   "list-not-shared": "Ikke delt med noen",
   "list-public-warning": "Alle stier i denne listen vil bli offentlige.",
   "list-saved-successfully": "Liste lagret",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Tillagte stier vil bli delt med alle som har tilgang til denne listen.",
   "location": "Plassering",
   "login": "Logg inn",
