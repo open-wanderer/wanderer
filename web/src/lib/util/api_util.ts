@@ -147,11 +147,32 @@ export async function uploadUpdate<T>(event: RequestEvent, collection: Collectio
     return r
 }
 
-export async function upload<T>(event: RequestEvent, collection: Collection) {
+/**
+ * Rejects a multipart body that carries none of the collection's file fields.
+ *
+ * PocketBase silently drops multipart parts whose name does not match a
+ * collection field, which would turn a misnamed part into a 200 no-op.
+ * Accepts the field itself as well as PocketBase's "+"/"-" modifiers.
+ */
+export function assertFileField(data: FormData, fileFields: readonly string[]) {
+    const hasFileField = [...data.keys()].some((key) =>
+        fileFields.some((field) => key === field || key === `${field}+` || key === `${field}-`)
+    );
+    if (!hasFileField) {
+        throw new ClientResponseError({
+            status: 400,
+            response: { message: "missing_file", expected: fileFields },
+        });
+    }
+}
+
+export async function upload<T>(event: RequestEvent, collection: Collection, fileFields: readonly string[]) {
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
     const data = await event.request.formData();
+
+    assertFileField(data, fileFields);
 
     const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data)
 
