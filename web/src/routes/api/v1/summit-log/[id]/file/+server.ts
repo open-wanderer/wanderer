@@ -2,7 +2,7 @@ import { assertFileField, handleError } from "$lib/util/api_util";
 import type { RequestEvent } from "@sveltejs/kit";
 import { POST as formPOST } from "../../form/[id]/+server";
 
-const fileFields = ["gpx", "photos"] as const;
+const fileFields = ["gpx"] as const;
 
 /**
  * @swagger
@@ -12,8 +12,9 @@ const fileFields = ["gpx", "photos"] as const;
  *     deprecated: true
  *     description: >
  *       Deprecated alias of `POST /api/v1/summit-log/form/{id}`, which accepts the same multipart body and is the endpoint to use.
- *       Kept for compatibility; behaves like the form endpoint, except that a body without a `gpx` or `photos` part
+ *       Kept for compatibility; behaves like the form endpoint, except that a body without a `gpx` part
  *       (PocketBase's `+`/`-` modifiers are accepted) is rejected with 400 `missing_file` instead of being applied as a no-op.
+ *       Upload and attach photos through `PUT /api/v1/assets` with the `summit_log` target field.
  *     tags:
  *       - Summit Logs
  *     parameters:
@@ -36,7 +37,7 @@ const fileFields = ["gpx", "photos"] as const;
  *             schema:
  *               $ref: '#/components/schemas/SummitLog'
  *       400:
- *         description: Bad Request (no `gpx` or `photos` part in the body, invalid id, or body `id` differs from the path)
+ *         description: Bad Request (no `gpx` part in the body, invalid id, or body `id` differs from the path)
  *       404:
  *         description: Not Found
  *       500:

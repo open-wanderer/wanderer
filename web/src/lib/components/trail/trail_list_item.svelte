@@ -39,10 +39,10 @@
     }: Props = $props();
 
     let thumbnail = $derived(
-        trail.photos.length
+        (trail.photos ?? []).length
             ? getFileURL(
                   trail,
-                  trail.photos.at(trail.thumbnail ?? 0) ?? trail.photos[0],
+                  (trail.photos ?? []).at(trail.thumbnail ?? 0) ?? (trail.photos ?? [])[0],
                   "600x0",
               )
             : $theme === "light"

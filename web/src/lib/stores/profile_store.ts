@@ -115,7 +115,7 @@ export async function profile_trails_index(handle: string, filter: TrailFilter, 
 
 export async function profile_stats_index(handle: string, filter: SummitLogFilter, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const searchParams = new URLSearchParams({
-        expand: "trail.category,trail.subcategory,trail.subcategory.category,author",
+        expand: "trail.category,trail.subcategory,trail.subcategory.category,author,summit_log_assets_via_summit_log.asset",
         sort: "+date",
     });
     if (filter.startDate) {

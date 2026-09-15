@@ -12,6 +12,7 @@ import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { summit_logs_create, summit_logs_delete, summit_logs_update } from "./summit_log_store";
+import { assets_attach_to_target, assets_delete_removed, assets_set_trail_thumbnail, has_asset_attachments, type CompletedAssetAttachments, type AssetImportOmission, type AssetImportOmissionHandler } from "./asset_store";
 import { categories } from "./category_store";
 import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
@@ -21,7 +22,7 @@ import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,tags",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -325,7 +326,7 @@ export async function trails_search_bounding_box(
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
         ...(handle ? { handle } : {}),
         ...(share ? { share } : {})
     }), {
@@ -368,7 +369,11 @@ export async function trails_show(id: string, handle?: string, share?: string, l
     return response as Trail;
 }
 
-export async function trails_create(trail: Trail, photos: File[], gpx: File | Blob | null, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, user?: AuthRecord) {
+export async function trails_create(trail: Trail, photos: File[], gpx: File | Blob | null, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, user?: AuthRecord, onOmitted?: AssetImportOmissionHandler) {
+    return reportTrailAssetImports((report) => createTrailWithAssets(trail, photos, gpx, f, user, report), onOmitted);
+}
+
+async function createTrailWithAssets(trail: Trail, photos: File[], gpx: File | Blob | null, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response>, user: AuthRecord | undefined, onOmitted: AssetImportOmissionHandler) {
     user ??= get(currentUser)
     if (!user) {
         throw Error("Unauthenticated")
@@ -385,18 +390,14 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["expand", "photos", "_duplicatePhotoSource"])
+    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "_assetPluginLinks"])
 
     if (gpx) {
         formData.set("gpx", gpx);
     }
 
-    for (const photo of photos) {
-        formData.append("photos", photo)
-    }
-
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     }), {
         method: 'PUT',
         body: formData,
@@ -409,83 +410,228 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
 
     let model: Trail = await r.json();
 
-    const createdSummitLogs: SummitLog[] = [];
-    for (const summitLog of trail.expand?.summit_logs_via_trail ?? []) {
-        summitLog.trail = model.id!;
-        createdSummitLogs.push(await summit_logs_create(summitLog, f));
-    }
+    try {
+        try {
+            model.photos = await assets_attach_to_target({
+                files: photos,
+                assetIds: trail._assetLinks,
+                pluginLinks: trail._assetPluginLinks,
+                target: { trail: model.id },
+                existingPhotos: model.photos,
+                onOmitted,
+                f,
+            });
+        } catch (error) {
+            rememberPartialTrailAttachments(model, trail, photos, error);
+            throw error;
+        }
+        trail.id = model.id;
+        trail.photos = [...model.photos];
+        trail._assetLinks = undefined;
+        trail._assetPluginLinks = undefined;
+        photos.splice(0);
+        model.expand ??= {};
 
-    const createdWaypoints: Waypoint[] = [];
-    for (const wp of trail.expand?.waypoints_via_trail ?? []) {
-        wp.trail = model.id!;
-        createdWaypoints.push(await waypoints_create({
-            ...wp,
-            marker: undefined,
-        }, f, user));
-    }
+        for (const summitLog of trail.expand?.summit_logs_via_trail ?? []) {
+            summitLog.trail = model.id!;
+            try {
+                const savedLog = await summit_logs_create(summitLog, f, user, onOmitted);
+                rememberSavedSummitLog(model, savedLog);
+            } catch (error) {
+                rememberPartiallySavedSummitLog(model, error);
+                throw error;
+            }
+        }
 
-    if (!model.expand) {
-        model.expand = {};
-    }
+        for (const wp of trail.expand?.waypoints_via_trail ?? []) {
+            wp.trail = model.id!;
+            try {
+                const savedWaypoint = await waypoints_create({ ...wp, marker: undefined }, f, user, onOmitted);
+                rememberSavedWaypoint(model, wp, savedWaypoint, true);
+            } catch (error) {
+                rememberPartiallySavedWaypoint(model, wp, error);
+                throw error;
+            }
+        }
 
-    if (createdSummitLogs.length) {
-        model.expand.summit_logs_via_trail = [
-            ...(model.expand.summit_logs_via_trail ?? []),
-            ...createdSummitLogs,
-        ];
-    }
-
-    if (createdWaypoints.length) {
-        model.expand.waypoints_via_trail = [
-            ...(model.expand.waypoints_via_trail ?? []),
-            ...createdWaypoints,
-        ];
+        const refreshed = await f(`/api/v1/trail/${model.id}?` + new URLSearchParams({
+            expand: "category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
+        }));
+        if (refreshed.ok) {
+            model = await refreshed.json();
+        }
+        await assets_set_trail_thumbnail(model.id!, model.photos?.at(trail.thumbnail ?? 0), f);
+        model = await trails_show(model.id!, undefined, undefined, false, f);
+    } catch (error) {
+        // The trail already exists, even when a later photo or waypoint request
+        // fails. Let the editor retry against its ID instead of creating it again.
+        const failure = error instanceof APIError
+            ? error
+            : new APIError(500, error instanceof Error ? error.message : "error-saving-trail");
+        failure.detail = { ...failure.detail, savedTrail: model };
+        throw failure;
     }
 
     return model;
 
 }
 
-export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: File[], gpx?: File | Blob | null, exclude?: (keyof Trail)[]) {
+async function reportTrailAssetImports<T>(save: (report: AssetImportOmissionHandler) => Promise<T>, onOmitted?: AssetImportOmissionHandler): Promise<T> {
+    const omissions: AssetImportOmission[] = [];
+    try {
+        return await save((items) => omissions.push(...items));
+    } finally {
+        if (omissions.length) onOmitted?.(omissions);
+    }
+}
+
+function rememberPartialTrailAttachments(baseline: Trail, pending: Trail, files: File[] | undefined, error: unknown) {
+    if (!(error instanceof APIError) || !error.detail?.completedAttachments) return;
+    rememberCompletedTrailAttachments(baseline, pending, files, error.detail.completedAttachments, error.detail.attachedPhotos ?? []);
+}
+
+function rememberCompletedTrailAttachments(baseline: Trail, pending: Trail, files: File[] | undefined, completed: CompletedAssetAttachments, attachedPhotos: string[]) {
+    if (completed.files) files?.splice(0);
+    if (completed.assetIds) pending._assetLinks = undefined;
+    pending._assetPluginLinks = pending._assetPluginLinks?.map((link) => ({
+        ...link,
+        assetIds: link.assetIds.filter((assetId) => !completed.pluginLinks.some(
+            (savedLink) => savedLink.pluginId === link.pluginId && savedLink.assetIds.includes(assetId),
+        )),
+    })).filter((link) => link.assetIds.length);
+    baseline.photos = [...new Set([...(baseline.photos ?? []), ...attachedPhotos])];
+    pending.photos = [...new Set([...(pending.photos ?? []), ...attachedPhotos])];
+}
+
+export function trailSaveErrorKey(error: unknown): string {
+    const codes = new Set([
+        "asset_import_failed",
+        "asset_import_partial_failure",
+        "asset_import_cleanup_failed",
+        "asset_publish_failed",
+        "asset_publish_limit_reached",
+        "asset_publish_photo_too_large",
+    ]);
+    return error instanceof APIError && codes.has(error.message)
+        ? error.message
+        : "error-saving-trail";
+}
+
+function rememberPartiallySavedWaypoint(baseline: Trail, pending: Waypoint, error: unknown) {
+    const saved = error instanceof APIError ? error.detail?.savedWaypoint as Waypoint | undefined : undefined;
+    if (saved?.id) {
+        rememberSavedWaypoint(baseline, pending, saved, false);
+        if (error instanceof APIError && error.detail?.remainingAttachments) {
+            Object.assign(pending, error.detail.remainingAttachments);
+        }
+        if (error instanceof APIError && Array.isArray(error.detail?.remainingPhotos)) {
+            pending.photos = [...error.detail.remainingPhotos];
+        }
+    }
+}
+
+function rememberSavedWaypoint(baseline: Trail, pending: Waypoint, saved: Waypoint, complete: boolean) {
+    const marker = pending.marker;
+    if (complete) {
+        Object.assign(pending, saved, { marker });
+        delete pending._photos;
+        delete pending._assetLinks;
+        delete pending._assetPluginLinks;
+        delete pending._assetCandidates;
+    } else {
+        // Keep the failed selection available for retry while protecting photos
+        // that the server already attached from being treated as removals.
+        pending.id = saved.id;
+        pending.photos = [...new Set([...(pending.photos ?? []), ...(saved.photos ?? [])])];
+    }
+    const persisted = complete ? { ...pending } : { ...saved, marker };
+    persisted.photos = [...(persisted.photos ?? [])];
+    baseline.expand ??= {};
+    baseline.expand.waypoints_via_trail = [
+        ...(baseline.expand.waypoints_via_trail ?? []).filter((waypoint) => waypoint.id !== saved.id),
+        persisted,
+    ];
+}
+
+function rememberSavedSummitLog(baseline: Trail, saved: SummitLog) {
+    baseline.expand ??= {};
+    baseline.expand.summit_logs_via_trail = [
+        ...(baseline.expand.summit_logs_via_trail ?? []).filter((log) => log.id !== saved.id),
+        { ...saved, photos: [...saved.photos], expand: saved.expand ? { ...saved.expand } : undefined },
+    ];
+}
+
+function rememberPartiallySavedSummitLog(baseline: Trail, error: unknown) {
+    const saved = error instanceof APIError ? error.detail?.savedSummitLog as SummitLog | undefined : undefined;
+    if (saved?.id) rememberSavedSummitLog(baseline, saved);
+}
+
+export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: File[], gpx?: File | Blob | null, exclude?: (keyof Trail)[], onOmitted?: AssetImportOmissionHandler) {
+    return reportTrailAssetImports((report) => updateTrailWithAssets(oldTrail, newTrail, photos, gpx, exclude, report), onOmitted);
+}
+
+async function updateTrailWithAssets(oldTrail: Trail, newTrail: Trail, photos: File[] | undefined, gpx: File | Blob | null | undefined, exclude: (keyof Trail)[] | undefined, onOmitted: AssetImportOmissionHandler) {
     newTrail.author = oldTrail.author
 
     const waypointUpdates = compareObjectArrays<Waypoint>(oldTrail.expand?.waypoints_via_trail ?? [], newTrail.expand?.waypoints_via_trail ?? []);
 
     for (const addedWaypoint of waypointUpdates.added) {
         addedWaypoint.trail = newTrail.id!
-        const model = await waypoints_create({
-            ...addedWaypoint,
-            marker: undefined,
-        },);
+        try {
+            const model = await waypoints_create({ ...addedWaypoint, marker: undefined }, undefined, undefined, onOmitted);
+            rememberSavedWaypoint(oldTrail, addedWaypoint, model, true);
+        } catch (error) {
+            rememberPartiallySavedWaypoint(oldTrail, addedWaypoint, error);
+            throw error;
+        }
     }
 
     for (const updatedWaypoint of waypointUpdates.updated) {
         const oldWaypoint = oldTrail.expand?.waypoints_via_trail?.find(w => w.id == updatedWaypoint.id);
-        const model = await waypoints_update(oldWaypoint!, {
-            ...updatedWaypoint,
-            marker: undefined,
-        });
+        try {
+            const model = await waypoints_update(oldWaypoint!, { ...updatedWaypoint, marker: undefined }, onOmitted);
+            rememberSavedWaypoint(oldTrail, updatedWaypoint, model, true);
+        } catch (error) {
+            rememberPartiallySavedWaypoint(oldTrail, updatedWaypoint, error);
+            throw error;
+        }
     }
 
     for (const deletedWaypoint of waypointUpdates.deleted) {
-        const success = await waypoints_delete(deletedWaypoint);
+        await waypoints_delete(deletedWaypoint);
+        oldTrail.expand!.waypoints_via_trail = oldTrail.expand!.waypoints_via_trail!
+            .filter((waypoint) => waypoint.id !== deletedWaypoint.id);
     }
 
     const summitLogUpdates = compareObjectArrays<SummitLog>(oldTrail.expand?.summit_logs_via_trail ?? [], newTrail.expand?.summit_logs_via_trail ?? []);
 
     for (const summitLog of summitLogUpdates.added) {
         summitLog.trail = newTrail.id!
-        const model = await summit_logs_create(summitLog);
+        try {
+            const model = await summit_logs_create(summitLog, undefined, undefined, onOmitted);
+            rememberSavedSummitLog(oldTrail, model);
+        } catch (error) {
+            rememberPartiallySavedSummitLog(oldTrail, error);
+            throw error;
+        }
     }
 
     for (const updatedSummitLog of summitLogUpdates.updated) {
         const oldSummitLog = oldTrail.expand?.summit_logs_via_trail?.find(w => w.id == updatedSummitLog.id);
 
-        const model = await summit_logs_update(oldSummitLog!, updatedSummitLog);
+        try {
+            const model = await summit_logs_update(oldSummitLog!, updatedSummitLog, onOmitted);
+            rememberSavedSummitLog(oldTrail, model);
+        } catch (error) {
+            rememberPartiallySavedSummitLog(oldTrail, error);
+            throw error;
+        }
     }
 
     for (const deletedSummitLog of summitLogUpdates.deleted) {
-        const success = await summit_logs_delete(deletedSummitLog);
+        await summit_logs_delete(deletedSummitLog);
+        oldTrail.expand!.summit_logs_via_trail = oldTrail.expand!.summit_logs_via_trail!
+            .filter((log) => log.id !== deletedSummitLog.id);
     }
 
     const tagUpdates = compareObjectArrays<Tag>(oldTrail.expand?.tags ?? [], newTrail.expand?.tags ?? []);
@@ -503,27 +649,14 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
         newTrail.tags = newTrail.tags.filter(t => t != tag.id);
     }
 
-    const formData = objectToFormData(newTrail, ["expand", ...(exclude ?? [])])
+    const formData = objectToFormData(newTrail, ["expand", "photos", "_assetLinks", "_assetPluginLinks", ...(exclude ?? [])])
 
     if (gpx) {
         formData.append("gpx", gpx);
     }
 
-    if (photos) {
-        for (const photo of photos) {
-            formData.append("photos+", photo)
-        }
-    }
-
-    const deletedPhotos = oldTrail.photos.filter(oldPhoto => !newTrail.photos.find(newPhoto => newPhoto === oldPhoto));
-
-    for (const deletedPhoto of deletedPhotos) {
-        formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));
-    }
-
-
     const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,trail_assets_via_trail.asset,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags",
     });
 
     let r = await fetch(updateUrl, {
@@ -538,6 +671,45 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     let model: Trail = await r.json();
+
+    const photoSelectionChanged = !stringArraysEqual(oldTrail.photos, newTrail.photos);
+    const shouldRefreshTrail = has_asset_attachments({
+        files: photos,
+        assetIds: newTrail._assetLinks,
+        pluginLinks: newTrail._assetPluginLinks,
+    });
+    try {
+        model.photos = await assets_attach_to_target({
+            files: photos,
+            assetIds: newTrail._assetLinks,
+            pluginLinks: newTrail._assetPluginLinks,
+            target: { trail: model.id },
+            existingPhotos: newTrail.photos,
+            onOmitted,
+        });
+    } catch (error) {
+        rememberPartialTrailAttachments(oldTrail, newTrail, photos, error);
+        throw error;
+    }
+    // Keep completed uploads consumed even if deleting old photos or refreshing
+    // the trail fails afterwards. A retry must only send unfinished selections.
+    rememberCompletedTrailAttachments(oldTrail, newTrail, photos, {
+        files: true,
+        assetIds: true,
+        pluginLinks: newTrail._assetPluginLinks ?? [],
+    }, model.photos);
+    await assets_delete_removed(oldTrail.photos, newTrail.photos, { trail: newTrail.id! });
+    oldTrail.photos = [...newTrail.photos];
+    if (shouldRefreshTrail) {
+        model = await trails_show(model.id!, undefined, undefined, true);
+    }
+    const thumbnailChanged = newTrail.thumbnail !== undefined && oldTrail.thumbnail !== newTrail.thumbnail;
+    const assetSelectionChanged = photoSelectionChanged || shouldRefreshTrail;
+    const thumbnailCandidates = model.photos ?? newTrail.photos;
+    if (thumbnailCandidates !== undefined && (thumbnailChanged || assetSelectionChanged)) {
+        await assets_set_trail_thumbnail(model.id!, thumbnailCandidates.at(newTrail.thumbnail ?? 0));
+    }
+    model = await trails_show(model.id!, undefined, undefined, true);
 
     for (const log of model.expand?.summit_logs_via_trail ?? []) {
         if (!log.expand) {
@@ -947,4 +1119,14 @@ function compareObjectArrays<T extends { id?: string }>(oldArray: T[], newArray:
         updated: updatedObjects,
         unchanged: unchangedObjects,
     };
+}
+
+function stringArraysEqual(left?: string[], right?: string[]) {
+    if (left === right) {
+        return true;
+    }
+    if (!left || !right || left.length !== right.length) {
+        return false;
+    }
+    return left.every((value, index) => value === right[index]);
 }

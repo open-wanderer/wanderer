@@ -48,20 +48,23 @@ web-build-docker:
 plugins-test:
 	cd plugins/sdk && go test ./...
 	cd plugins/hammerhead && go test ./...
+	cd plugins/immich && go test ./...
 	cd plugins/komoot && go test ./...
 	cd plugins/strava && go test ./...
 
 .PHONY: plugins-build
 plugins-build:
 	cd plugins/hammerhead && XDG_CACHE_HOME=$${XDG_CACHE_HOME:-/tmp/wanderer-tinygo-cache} make build
+	cd plugins/immich && XDG_CACHE_HOME=$${XDG_CACHE_HOME:-/tmp/wanderer-tinygo-cache} make build
 	cd plugins/komoot && XDG_CACHE_HOME=$${XDG_CACHE_HOME:-/tmp/wanderer-tinygo-cache} make build
 	cd plugins/strava && XDG_CACHE_HOME=$${XDG_CACHE_HOME:-/tmp/wanderer-tinygo-cache} make build
 
 .PHONY: plugins-install-local
 plugins-install-local: plugins-build
 	mkdir -p data/plugins
-	rm -rf data/plugins/hammerhead data/plugins/komoot data/plugins/strava
+	rm -rf data/plugins/hammerhead data/plugins/immich data/plugins/komoot data/plugins/strava
 	cp -a plugins/hammerhead/dist/hammerhead data/plugins/
+	cp -a plugins/immich/dist/immich data/plugins/
 	cp -a plugins/komoot/dist/komoot data/plugins/
 	cp -a plugins/strava/dist/strava data/plugins/
 
@@ -70,6 +73,7 @@ plugins-package: plugins-build
 	rm -rf plugin_dist
 	mkdir -p plugin_dist
 	tar -C plugins/hammerhead/dist -czf plugin_dist/wanderer-plugin-hammerhead.tar.gz hammerhead
+	tar -C plugins/immich/dist -czf plugin_dist/wanderer-plugin-immich.tar.gz immich
 	tar -C plugins/komoot/dist -czf plugin_dist/wanderer-plugin-komoot.tar.gz komoot
 	tar -C plugins/strava/dist -czf plugin_dist/wanderer-plugin-strava.tar.gz strava
 	cd plugin_dist && sha256sum *.tar.gz > SHA256SUMS

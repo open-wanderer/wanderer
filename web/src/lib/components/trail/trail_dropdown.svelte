@@ -16,7 +16,7 @@
     } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import { getFileURL, saveAs } from "$lib/util/file_util";
+    import { getFileURL, photoExportFilename, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
@@ -38,7 +38,7 @@
         type Merge,
     } from "$lib/stores/trail_merge_store.svelte";
     import TrailMergeModal from "./trail_merge_modal.svelte";
-    import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
+    import type { MergeSelection, MergeSettings } from "./trail_merge_types";
     import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
     import { trail_merge } from "$lib/stores/trail_merge_api";
     import { hasSendCapablePlugin } from "$lib/stores/plugin_store";
@@ -814,8 +814,9 @@
                             const photoBlob = await fetch(photoURL).then(
                                 (response) => response.blob(),
                             );
-                            const photoData = new File([photoBlob], photo);
-                            photoFolder?.file(photo, photoData, {
+                            const photoName = photoExportFilename(photo);
+                            const photoData = new File([photoBlob], photoName);
+                            photoFolder?.file(photoName, photoData, {
                                 base64: true,
                             });
                         }

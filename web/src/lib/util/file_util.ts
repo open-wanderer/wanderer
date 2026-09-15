@@ -4,10 +4,36 @@ export function getFileURL(record: { [key: string]: any; }, filename?: string, t
         return "";
     }
     if (isURL(filename)) {
-        return filename;
+        return thumb && isWandererFileURL(filename) ? withFileURLParam(filename, "thumb", thumb) : filename;
+    }
+    if (filename.startsWith('/')) {
+        return thumb ? withFileURLParam(filename, "thumb", thumb) : filename;
     }
 
     return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumb ? '?thumb=' + thumb : ''}`
+}
+
+export function photoExportFilename(photo: string): string {
+    try {
+        const url = new URL(photo, typeof window === "undefined" ? "http://localhost" : window.location.origin);
+        return decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "photo");
+    } catch {
+        return photo.split("/").filter(Boolean).pop() ?? "photo";
+    }
+}
+
+function withFileURLParam(url: string, key: string, value: string) {
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}${new URLSearchParams({ [key]: value })}`;
+}
+
+function isWandererFileURL(url: string) {
+    try {
+        const pathname = new URL(url, "http://localhost").pathname;
+        return pathname.startsWith("/api/v1/files/") || /^\/api\/v1\/assets\/[^/]+\/file$/.test(pathname);
+    } catch {
+        return false;
+    }
 }
 
 export function isURL(value: string) {

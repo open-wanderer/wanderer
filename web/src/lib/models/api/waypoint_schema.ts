@@ -11,7 +11,6 @@ const WaypointCreateSchema = z.object({
     distance_from_start: z.number({ coerce: true }).min(0).optional(),
     icon: z.enum(icons).optional(),
     author: z.string().length(15),
-    photos: z.array(z.string()).default([]),
     trail: z.string().length(15).optional()
 }) satisfies ZodType<Partial<Waypoint>>
 
@@ -22,9 +21,6 @@ const WaypointUpdateSchema = z.object({
     lon: z.number({ coerce: true }).min(-180).max(180).optional(),
     distance_from_start: z.number({ coerce: true }).min(0).optional(),
     icon: z.enum(icons).default("circle").optional(),
-    photos: z.array(z.string()).optional(),
-    "photos-": z.string().optional(),
-    "photos+": z.string().optional(),
 }) satisfies ZodType<Partial<Waypoint>>
 
 export { WaypointCreateSchema, WaypointUpdateSchema };

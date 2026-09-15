@@ -2,14 +2,13 @@
     import emptyStateUploadDark from "$lib/assets/svgs/empty_states/empty_state_upload_dark.svg";
     import emptyStateUploadLight from "$lib/assets/svgs/empty_states/empty_state_upload_light.svg";
     import Button from "$lib/components/base/button.svelte";
-    import { } from "$lib/components/settings/upload_dialog.svelte";
     import TrailExportModal from "$lib/components/trail/trail_export_modal.svelte";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { fetchGPX, trails_index, trails_upload } from "$lib/stores/trail_store";
     import { processUploadQueue, uploadStore, type Upload } from "$lib/stores/upload_store.svelte";
     import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL, saveAs } from "$lib/util/file_util";
+    import { getFileURL, photoExportFilename, saveAs } from "$lib/util/file_util";
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
@@ -101,8 +100,9 @@
                         const photoBlob = await fetch(photoURL).then(
                             (response) => response.blob(),
                         );
-                        const photoData = new File([photoBlob], photo);
-                        photoFolder?.file(photo, photoData, { base64: true });
+                        const photoName = photoExportFilename(photo);
+                        const photoData = new File([photoBlob], photoName);
+                        photoFolder?.file(photoName, photoData, { base64: true });
                     }
                 }
                 if (exportSettings.summitLog) {
@@ -128,6 +128,7 @@
             });
         }
     }
+
 </script>
 
 <svelte:head>

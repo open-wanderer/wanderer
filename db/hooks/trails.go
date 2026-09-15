@@ -1,16 +1,20 @@
 package hooks
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"pocketbase/federation"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 	"time"
 
 	"github.com/go-ap/activitypub"
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -137,6 +141,118 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		}
 
 		return nil
+	}
+}
+
+// MaterializePrivateRemoteAssetLinksBeforePublish must run before the trail is
+// persisted: public readers and federation must only see locally stored photos.
+// Existing public trails are repaired explicitly through plugin settings.
+func MaterializePrivateRemoteAssetLinksBeforePublish(app core.App) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		if !e.Record.Original().GetBool("public") && e.Record.GetBool("public") {
+			originalContext := e.Context
+			ctx, cancel := context.WithTimeout(originalContext, assetservice.TrailMaterializationTimeout)
+			defer cancel()
+			e.Context = ctx
+			defer func() { e.Context = originalContext }()
+			if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(e.Context, e.App, e.Record.Id); err != nil {
+				restoreRemoteAssetStatusesAfterRollback(app, e.App, err)
+				return trailPublicationError(err)
+			}
+			if err := e.Context.Err(); err != nil {
+				return trailPublicationError(err)
+			}
+			if err := e.Next(); err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					return trailPublicationError(err)
+				}
+				return err
+			}
+			return nil
+		}
+		return e.Next()
+	}
+}
+
+func trailPublicationError(err error) error {
+	code := "asset_publish_failed"
+	if errors.Is(err, assetservice.ErrTrailMaterializationBudget) || errors.Is(err, context.DeadlineExceeded) {
+		code = "asset_publish_limit_reached"
+	} else if errors.Is(err, util.ErrPluginMediaTooLarge) {
+		code = "asset_publish_photo_too_large"
+	}
+	apiErr := apis.NewBadRequestError(code, err)
+	// PocketBase sentence-cases messages; preserve the public error code.
+	apiErr.Message = code
+	return apiErr
+}
+
+func restoreRemoteAssetStatusesAfterRollback(app, txApp core.App, materializeErr error) {
+	var failures *assetservice.MaterializationError
+	if txApp.TxInfo() == nil || !errors.As(materializeErr, &failures) || len(failures.RemoteFailures) == 0 {
+		return
+	}
+	txApp.TxInfo().OnComplete(func(txErr error) error {
+		if txErr == nil {
+			return nil
+		}
+		for assetID, cause := range failures.RemoteFailures {
+			asset, err := app.FindRecordById("assets", assetID)
+			if err != nil || asset.GetString("storage_mode") != "link_private" {
+				continue
+			}
+			if err := assetservice.MarkAssetRemoteStatus(app, asset, assetservice.RemoteStatusForError(cause), cause); err != nil {
+				app.Logger().Warn("failed to restore remote asset status after rollback", "asset", assetID, "error", err)
+			}
+		}
+		return nil
+	})
+}
+
+// MaterializePrivateRemoteAssetOnPublicLink materializes a private remote plugin
+// photo when it is linked to an already-public trail. A link can be created
+// without saving the trail, so it would otherwise stay link_private with a dead
+// /api/v1/assets/{id}/file URL for public/federated consumers (the file endpoint
+// serves 404 for link_private assets on public trails).
+func MaterializePrivateRemoteAssetOnPublicLink(app core.App, targetField string) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		assetID := e.Record.GetString("asset")
+		targetID := e.Record.GetString(targetField)
+
+		trailID, err := util.TrailIDForLinkTarget(e.App, targetField, targetID)
+		if err != nil {
+			return err
+		}
+		if trailID == "" {
+			return e.Next()
+		}
+
+		trail, err := e.App.FindRecordById("trails", trailID)
+		if err != nil {
+			return err
+		}
+		if trail.GetBool("public") {
+			if err := assetservice.MaterializePrivateRemotePluginAssetForPublicLink(e.Context, e.App, targetField, targetID, assetID); err != nil {
+				restoreRemoteAssetStatusesAfterRollback(app, e.App, err)
+				return apis.NewBadRequestError("Could not link remote photo because it could not be downloaded. Please download or remove the photo first.", err)
+			}
+		}
+		return e.Next()
+	}
+}
+
+func DeleteTrailAssetCleanupHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		assetIDs, err := util.AssetIDsForTrail(e.App, e.Record.Id)
+		if err != nil {
+			return err
+		}
+
+		if err := e.Next(); err != nil {
+			return err
+		}
+
+		return util.DeleteAssetsIfOrphanedByAuthor(e.App, assetIDs, e.Record.GetString("author"))
 	}
 }
 

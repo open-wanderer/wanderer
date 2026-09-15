@@ -8,7 +8,7 @@
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import { browser } from "$app/environment";
-    import PhotoGallery from "../photo_gallery.svelte";
+    import PhotoGallery from "../photo/photo_gallery.svelte";
 
     interface Props {
         waypoint: Waypoint;
@@ -22,23 +22,29 @@
 
     let imgSrc: string[] = $state([]);
     $effect(() => {
-        if (waypoint.photos?.length) {
-            imgSrc = waypoint.photos
-                .filter((_, i) => i < 3)
-                .reverse()
-                .map((p) => getFileURL(waypoint, p));
-        } else if (waypoint._photos?.length && browser) {
+        const persistedPhotos = (waypoint.photos ?? [])
+            .map((p) => getFileURL(waypoint, p));
+        const assetPluginPhotos = (waypoint._assetCandidates ?? [])
+            .flatMap((candidate) => {
+                if (!candidate.pluginId) {
+                    return [];
+                }
+                const plugin = encodeURIComponent(candidate.pluginId);
+                return `/api/v1/plugins/assets/${plugin}/thumbnail/${encodeURIComponent(candidate.assetId)}`;
+            });
+        const immediatePhotos = [...persistedPhotos, ...assetPluginPhotos];
+
+        imgSrc = immediatePhotos.slice(-3).reverse();
+
+        if (waypoint._photos?.length && browser) {
             Promise.all(
                 waypoint._photos
-                    .filter((_, i) => i < 3)
                     .map(async (f) => {
                         return await readAsDataURLAsync(f);
                     }),
             ).then((v) => {
-                imgSrc = v;
+                imgSrc = [...immediatePhotos, ...v].slice(-3).reverse();
             });
-        } else {
-            imgSrc = [];
         }
     });
 
@@ -88,13 +94,15 @@
             {/each}
         </button>
     {/if}
-    <div class="basis-full">
-        <div class="flex justify-between items-center mb-2">
-            <h5>
+    <div class="min-w-0 flex-1">
+        <div class="flex min-w-0 items-center justify-between gap-3 mb-2">
+            <h5 class="min-w-0 flex-1 truncate">
                 <i class="fa fa-{waypoint.icon} mr-2"></i>{waypoint.name}
             </h5>
             {#if mode == "edit"}
-                <Dropdown items={dropdownItems} {onchange}></Dropdown>
+                <div class="shrink-0">
+                    <Dropdown items={dropdownItems} {onchange}></Dropdown>
+                </div>
             {/if}
         </div>
 

@@ -13,6 +13,7 @@ import (
 
 	"pocketbase/plugins/importer"
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 	"pocketbase/services/trailmerge"
 	"pocketbase/util"
 )
@@ -21,6 +22,7 @@ const (
 	defaultPluginSyncBatchLimit                = 50
 	defaultPluginSyncMaxBatches                = 100
 	defaultPluginProviderCategoryBackfillLimit = 10
+	maxConcurrentPluginAssetAutoAttach         = 4
 )
 
 var syncCapabilityDescriptors = []syncCapabilityDescriptor{
@@ -37,6 +39,8 @@ var syncCapabilityDescriptors = []syncCapabilityDescriptor{
 		Version:        "v1",
 	},
 }
+
+var pluginAssetAutoAttachSlots = make(chan struct{}, maxConcurrentPluginAssetAutoAttach)
 
 type syncCapabilityDescriptor struct {
 	OptionKey      string
@@ -68,6 +72,7 @@ type pluginSystemDetailInput struct {
 	Instance pluginsystem.InstanceRef  `json:"instance"`
 	Auth     map[string]any            `json:"auth,omitempty"`
 	Options  map[string]any            `json:"options,omitempty"`
+	Limits   pluginSystemSyncLimits    `json:"limits,omitempty"`
 	Summary  pluginsystem.TrailSummary `json:"summary"`
 }
 
@@ -161,9 +166,9 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
 		return nil, err
 	}
-	config := effectivePluginConfig(app, plugin.Manifest.ID, instance)
-	pluginConfig := pluginRuntimeConfig(config)
-	hostConfig := pluginHostConfig(config)
+	config := pluginhost.EffectiveConfig(app, plugin.Manifest.ID, instance)
+	pluginConfig := pluginhost.RuntimeConfig(config)
+	hostConfig := pluginhost.HostConfig(config)
 	defaultPublic := userDefaultPublic(app, instance.GetString("user"))
 	createSummitLog := boolOption(hostConfig, "createSummitLogForCompleted", true)
 	runtime, err := pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
@@ -174,7 +179,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	sessions := &pluginSyncRuntimeSession{
 		runtime: runtime,
 		plugin:  plugin,
-		policy:  pluginInstancePolicy(plugin, config).WithHostAuth(auth),
+		policy:  pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 	}
 	if err := sessions.open(ctx); err != nil {
 		setPluginInstanceStatusForError(app, instance, err)
@@ -282,6 +287,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	state := map[string]any{}
 	hasMore := true
 	policy := sessions.policy
+	limits := pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit}
 	providerCategoryBackfillsRemaining := 0
 	if hasUsableCategoryMapping(categoryMapping(hostConfig)) {
 		providerCategoryBackfillsRemaining = defaultPluginProviderCategoryBackfillLimit
@@ -295,13 +301,13 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			Auth:    pluginsystem.PluginInputAuth(plugin, auth),
 			State:   state,
 			Options: pluginConfig,
-			Limits:  pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit},
+			Limits:  limits,
 		}
 		inputBytes, err := json.Marshal(input)
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes)
+		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +356,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				result.Skipped++
 				if providerCategoryBackfillsRemaining > 0 {
 					ref := providerCategoryBackfillCandidatesByProvider[summary.Source.Provider][summary.Source.ExternalID]
-					attempted, err := backfillProviderCategoryDuringSync(ctx, app, sessions, plugin, detailCapability, instance, auth, pluginConfig, summary, ref)
+					attempted, err := backfillProviderCategoryDuringSync(ctx, app, sessions, plugin, detailCapability, instance, auth, pluginConfig, limits, summary, ref)
 					if err != nil {
 						return nil, err
 					}
@@ -360,7 +366,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				}
 				continue
 			}
-			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
+			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, limits, summary)
 			if err != nil {
 				result.Skipped++
 				app.Logger().Warn("skipping plugin item after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
@@ -372,11 +378,14 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				continue
 			}
 			applyHostPolicy(&item, hostConfig)
+			photoLimits := pluginPhotoImportLimits(hostConfig)
 			imported, err := importer.ImportTrail(ctx, app, item, importer.Options{
 				UserID:                      instance.GetString("user"),
 				ActorID:                     actor.Id,
 				DefaultPublic:               defaultPublic,
 				CreateSummitLogForCompleted: createSummitLog,
+				PhotoMode:                   util.ConfigString(hostConfig, "photoMode"),
+				PhotoLimits:                 &photoLimits,
 				CategoryMapping:             categoryMapping(hostConfig),
 				Manifest:                    plugin.Manifest,
 				Policy:                      policy,
@@ -388,12 +397,29 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			if imported.Created {
 				result.Imported++
 				app.Logger().Info("imported plugin trail", "provider", item.Source.Provider, "external_id", item.Source.ExternalID, "trail", imported.TrailID)
+				// Run auto-merge first (synchronously) so asset auto-attach
+				// targets the surviving trail. Attaching concurrently would race
+				// the merge, which deletes the source trail and its waypoints.
+				attachTrailID := imported.TrailID
 				if autoMergeEnabled(hostConfig) {
 					settings := trailmerge.DefaultPluginAutoMergeSettings()
 					settings.Enabled = true
-					if err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, imported.TrailID, settings); err != nil {
+					mergedTrailID, err := trailmerge.TryAutoMergeImportedTrail(app, client, ctx, actor, imported.TrailID, settings)
+					if err != nil {
 						app.Logger().Warn("unable to auto-merge imported plugin trail", "provider", item.Source.Provider, "external_id", item.Source.ExternalID, "trail", imported.TrailID, "error", err)
+					} else {
+						attachTrailID = mergedTrailID
 					}
+				}
+				autoAttachUserID := instance.GetString("user")
+				autoAttachProvider := item.Source.Provider
+				if err := startBoundedPluginAssetAutoAttach(ctx, pluginAssetAutoAttachSlots, func() {
+					if err := AutoAttachAssetPluginsForTrail(context.Background(), app, autoAttachUserID, attachTrailID, autoAttachProvider); err != nil {
+						app.Logger().Warn("unable to auto-attach asset plugin photos to imported trail", "provider", autoAttachProvider, "trail", attachTrailID, "error", err)
+					}
+				}); err != nil {
+					app.Logger().Warn("skipping asset plugin auto-attach while plugin sync is stopping", "provider", autoAttachProvider, "trail", attachTrailID, "error", err)
+					return nil, err
 				}
 			}
 			if imported.Skipped {
@@ -411,6 +437,22 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		return nil, fmt.Errorf("sync stopped after %d batches", defaultPluginSyncMaxBatches)
 	}
 	return result, nil
+}
+
+func startBoundedPluginAssetAutoAttach(ctx context.Context, slots chan struct{}, task func()) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case slots <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	go func() {
+		defer func() { <-slots }()
+		task()
+	}()
+	return nil
 }
 
 func providerCategoryBackfillCandidatesForSync(app core.App, userID string, provider string, externalIDs []string, limit int) (map[string]*core.Record, error) {
@@ -456,12 +498,12 @@ func providerCategoryBackfillCandidatesForSync(app core.App, userID string, prov
 	return candidates, nil
 }
 
-func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessions *pluginSyncRuntimeSession, plugin pluginsystem.LocalPlugin, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary, ref *core.Record) (bool, error) {
+func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessions *pluginSyncRuntimeSession, plugin pluginsystem.LocalPlugin, detailCapability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, limits pluginSystemSyncLimits, summary pluginsystem.TrailSummary, ref *core.Record) (bool, error) {
 	if ref == nil {
 		return false, nil
 	}
 
-	item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
+	item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, limits, summary)
 	if err != nil {
 		app.Logger().Warn("skipping provider category backfill after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
 		if pluginsystem.IsRuntimeSessionFatalError(err) {
@@ -480,7 +522,7 @@ func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessi
 	return true, nil
 }
 
-func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, summary pluginsystem.TrailSummary) (pluginsystem.TrailImport, error) {
+func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plugin pluginsystem.LocalPlugin, capability pluginsystem.CapabilityManifest, instance *core.Record, auth map[string]any, pluginConfig map[string]any, limits pluginSystemSyncLimits, summary pluginsystem.TrailSummary) (pluginsystem.TrailImport, error) {
 	input := pluginSystemDetailInput{
 		Instance: pluginsystem.InstanceRef{
 			ID:       instance.Id,
@@ -488,13 +530,14 @@ func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plug
 		},
 		Auth:    pluginsystem.PluginInputAuth(plugin, auth),
 		Options: pluginConfig,
+		Limits:  limits,
 		Summary: summary,
 	}
 	inputBytes, err := json.Marshal(input)
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
-	outputBytes, err := session.Call(ctx, capability.Export, inputBytes)
+	outputBytes, err := session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 16})
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}

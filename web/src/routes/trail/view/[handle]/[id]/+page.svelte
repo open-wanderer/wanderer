@@ -35,5 +35,7 @@
         initTrail={data.trail}
         mode="overview"
         handle={page.params.handle!}
+        assetPluginIds={data.assetPluginIds}
+        assetPluginProviders={data.assetPluginProviders}
     ></TrailInfoPanel>
 {/if}

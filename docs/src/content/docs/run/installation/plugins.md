@@ -16,6 +16,8 @@ Install each extracted bundle as a direct child directory of `data/plugins`:
 ```text
 data/plugins/strava/plugin.json
 data/plugins/strava/plugin.wasm
+data/plugins/immich/plugin.json
+data/plugins/immich/plugin.wasm
 ```
 
 wanderer discovers plugins from `data/plugins/<plugin-id>/plugin.json`. After
@@ -57,3 +59,27 @@ access or custom CAs for plugin bundles and endpoints you trust.
 
 Provider plugin connector CAs are configured per connector when a plugin
 supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.
+
+## Self-hosted asset plugins
+
+Asset plugins such as Immich commonly connect to self-hosted services. Those
+plugins use a configured connector in the plugin manifest. The plugin can
+declare that a connector supports private-network access, storage redirects, or
+custom TLS, but the actual trust decision is made in wanderer configuration.
+
+For Immich, review the connector settings before enabling the plugin:
+
+| Setting | Meaning |
+| --- | --- |
+| Base URL | The Immich server URL that wanderer should contact. |
+| Private network access | Allows wanderer to reach private IP ranges for this connector. Enable only for trusted self-hosted endpoints. |
+| Custom CA | Trusts a custom certificate authority for this connector if the plugin permits it. |
+| Storage redirects | Allows media downloads to follow redirects to configured storage origins when the plugin permits it. |
+
+If Immich is only reachable from the server running wanderer, make sure the
+backend container can resolve and reach that URL. Browser access from your
+desktop is not enough; the backend performs all provider and media requests.
+Private-network access, custom CAs, and storage redirect origins require a fixed
+administrator-configured connector base URL. When the base URL is instead taken
+from a user's Immich plugin setting, wanderer enforces public-network access and
+system TLS and does not allow storage redirects.

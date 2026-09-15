@@ -11,6 +11,19 @@ Plugin installation and self-hosted connector trust settings are administrator
 tasks. See [Plugin installation](/run/installation/plugins) for runtime bundle
 and connector details.
 
+## Plugin Types
+
+The plugin settings page groups plugins by type:
+
+| Type | Purpose |
+| --- | --- |
+| Trails | Sync or send trails, routes, and activities from external providers. |
+| Assets | Find and import media assets, such as geotagged photos, from external libraries. |
+
+Trail plugins usually run in the background after they are enabled. Asset
+plugins are also available while editing trails and waypoints, where they can
+suggest matching photos based on time and location.
+
 ## Strava Plugin
 
 :::caution[A Strava subscription is required]
@@ -77,6 +90,61 @@ The Hammerhead plugin requires your Hammerhead account details:
 3. Choose whether you want to sync planned tours, completed tours, or both.
 4. (Optional) Set an "ignore trails before" date to avoid syncing duplicates if your Hammerhead account is already connected to other services.
 5. Save the settings and toggle the plugin on. It will become active immediately after a successful login.
+
+## Immich Plugin
+
+The Immich plugin is an asset plugin. It searches your Immich library for
+geotagged photos that match a trail or waypoint and imports the selected photos
+as wanderer photo assets.
+
+Before configuring the plugin, create an API key in Immich:
+
+1. Open Immich in your browser.
+2. Go to your account settings.
+3. Create an API key and copy it.
+
+Grant only these Immich permissions to the key:
+
+| Permission | Used for |
+| --- | --- |
+| `user.read` | Validating the API key and resolving your Immich user for "Only my photos". |
+| `asset.read` | Searching geotagged photos and reading selected asset metadata. |
+| `asset.view` | Loading thumbnail previews. |
+| `asset.download` | Downloading the original file when wanderer imports or materializes a photo. |
+
+The plugin does not need write, delete, upload, album, library, or admin
+permissions.
+
+Then configure wanderer:
+
+1. Open the plugins page in wanderer settings.
+2. Open the Immich plugin settings.
+3. Enter the Immich server URL and API key.
+4. Adjust the search window, search radius, maximum waypoints, and "Only my photos" setting if needed.
+5. Choose the photo mode.
+6. Save the settings and toggle the plugin on.
+
+Photo modes:
+
+| Mode | Meaning |
+| --- | --- |
+| Store photos in wanderer | Downloads selected photos into wanderer immediately. |
+| Link remote references (private trails only) | Keeps a private link to the Immich asset and fetches the file on demand. When the trail is made public, the photo is copied into wanderer, because a remote link cannot be served to anonymous viewers. |
+
+When an asset plugin is enabled, wanderer can suggest matching photos in these
+places:
+
+- after importing a completed trail or uploading a time-stamped GPX track, if automatic attachment is enabled
+- while editing a trail, to create photo waypoints from matching photos
+- while editing a waypoint with coordinates, to attach matching photos
+
+Automatically imported photo waypoints are merged using the trail category's
+waypoint merge radius. New waypoint names are resolved from nearby OpenStreetMap
+points of interest via Overpass, falling back to Nominatim reverse geocoding
+and finally the photo coordinate.
+
+If you disable an asset plugin while linked remote photos still exist, wanderer
+asks whether it should download or delete those linked photos first.
 
 :::note
 This page still describes provider setup at a high level. Provider-specific details depend on the installed plugin's manifest and capabilities.

@@ -58,12 +58,16 @@
 
     let trailsOnMap: Trail[] = $state([]);
 
+    const ClientTrailCreateSchema = TrailCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
+    });
+
     const ClientListCreateSchema = ListCreateSchema.extend({
         _photos: z.array(z.instanceof(File)).optional(),
         avatar: z.string().or(z.instanceof(File)).optional(),
         expand: z
             .object({
-                trails: z.array(TrailCreateSchema).optional(),
+                trails: z.array(ClientTrailCreateSchema).optional(),
                 list_share_via_list: z
                     .array(
                         z.object({
@@ -359,11 +363,11 @@
                     <div class="shrink-0">
                         <img
                             class="h-12 w-12 object-cover rounded-xl"
-                            src={trail.photos.length
+                            src={(trail.photos ?? []).length
                                 ? getFileURL(
                                       trail,
-                                      trail.photos.at(trail.thumbnail ?? 0) ??
-                                          trail.photos[0],
+                                      (trail.photos ?? []).at(trail.thumbnail ?? 0) ??
+                                          (trail.photos ?? [])[0],
                                   )
                                 : $theme === "light"
                                   ? emptyStateTrailLight

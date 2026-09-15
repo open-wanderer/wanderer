@@ -16,7 +16,7 @@
         trailCategoryKey,
     } from "$lib/util/category_util";
     import { _, locale } from "svelte-i18n";
-    import PhotoGallery from "../photo_gallery.svelte";
+    import PhotoGallery from "../photo/photo_gallery.svelte";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
 
     interface Props {

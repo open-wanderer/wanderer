@@ -2,6 +2,7 @@ import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
 import { TrailCreateSchema } from '$lib/models/api/trail_schema';
 import type { Trail } from '$lib/models/trail';
 import { withTrailPreferencePocketBaseFilter } from '$lib/server/category_preference_filter';
+import { enrichTrailListResponse, enrichTrailResponse, withTrailAssetExpands } from '$lib/server/trail_response_util';
 import { Collection, create, handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
@@ -51,7 +52,7 @@ export async function GET(event: RequestEvent) {
             event,
             safeSearchParams.filter,
         );
-        const listOptions = { ...opts, filter };
+        const listOptions = withTrailAssetExpands({ ...opts, filter });
         const r = (perPage ?? 0) < 0
             ? {
                   items: await event.locals.pb
@@ -70,17 +71,7 @@ export async function GET(event: RequestEvent) {
             r.totalItems = r.items.length;
         }
 
-        for (const t of r.items) {
-            if (!t.author || !event.locals.pb.authStore.record) {
-                continue;
-            }
-            if (!t.expand) {
-                t.expand = {} as any
-            }
-
-            t.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
-        }
-        return json(r)
+        return json(enrichTrailListResponse(r))
     } catch (e: any) {
         return handleError(e);
     }
@@ -122,8 +113,5 @@ export async function PUT(event: RequestEvent) {
 }
 
 function enrichRecord(r: Trail) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
+    enrichTrailResponse(r);
 }
