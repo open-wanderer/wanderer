@@ -366,6 +366,7 @@
   "list-not-shared": "Nikomu nie udostępniony",
   "list-public-warning": "Wszystkie szlaki na tej liście staną się publiczne.",
   "list-saved-successfully": "Lista poprawnie zapisana",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Dodane szlaki zostaną udostępnione każdemu, kto ma dostęp do tej listy.",
   "location": "Lokalizacja",
   "login": "Zaloguj się",
