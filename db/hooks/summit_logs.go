@@ -1,6 +1,8 @@
 package hooks
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/federation"
@@ -85,19 +87,25 @@ func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 	}
 }
 
-func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
-	return func(e *core.RecordRequestEvent) error {
-		err := e.Next()
-		if err != nil {
-			return err
-		}
-
+// DeleteSummitLogHandler runs on OnRecordAfterDeleteSuccess rather than on the
+// delete request, so that summit logs removed by a cascade — when their trail is
+// deleted, or when their author's account is — also retract their federated
+// copies. Inside a transaction these hooks are deferred until after it commits,
+// so the record is already gone by the time this runs and an error here cannot
+// roll the deletion back.
+func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
 		trail, err := e.App.FindRecordById("trails", e.Record.GetString("trail"))
-		if err != nil {
-			return err
-		}
-
-		if err := util.IndexTrails(e.App, []*core.Record{trail}, client); err != nil {
+		switch {
+		case err == nil:
+			if err := util.IndexTrails(e.App, []*core.Record{trail}, client); err != nil {
+				return err
+			}
+		case errors.Is(err, sql.ErrNoRows):
+			// The trail went first and took this log with it. Nothing is left
+			// to reindex, but the log's own followers still have to be told;
+			// CreateSummitLogDeleteActivity handles the missing trail.
+		default:
 			return err
 		}
 
@@ -105,6 +113,6 @@ func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 		if err != nil {
 			return err
 		}
-		return nil
+		return e.Next()
 	}
 }
