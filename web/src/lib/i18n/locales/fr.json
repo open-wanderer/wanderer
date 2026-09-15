@@ -366,6 +366,7 @@
   "list-not-shared": "Non partagé avec quiconque",
   "list-public-warning": "Tous les itinéraires de cette liste seront publics.",
   "list-saved-successfully": "Liste enregistrée avec succès",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Les itinéraires ajoutés seront partagés avec toutes les personnes qui ont accès à cette liste.",
   "location": "Localisation",
   "login": "Connexion",
