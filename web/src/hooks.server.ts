@@ -11,31 +11,9 @@ import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
 import { handleError } from '$lib/util/api_util'
+import { apiErrorsAsJson, isApiRequest } from '$lib/server/api_errors'
 
 const SEARCH_TOKEN_VERSION = 1;
-
-function isApiRequest(url: URL) {
-  return url.pathname.startsWith("/api/");
-}
-
-const apiErrorsAsJson: Handle = async ({ event, resolve }) => {
-  if (!isApiRequest(event.url)) {
-    return resolve(event);
-  }
-
-  if (event.route.id === null) {
-    return json({ message: "not_found" }, { status: 404 });
-  }
-
-  const response = await resolve(event);
-  if (response.status === 405) {
-    return json({ message: "method_not_allowed" }, {
-      status: 405,
-      headers: { allow: response.headers.get("allow") ?? "" },
-    });
-  }
-  return response;
-}
 
 function csrf(allowedPaths: string[]): Handle {
   return async ({ event, resolve }) => {
