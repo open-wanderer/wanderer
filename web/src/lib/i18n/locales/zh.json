@@ -366,6 +366,7 @@
   "list-not-shared": "未与任何人分享",
   "list-public-warning": "此列表中的所有轨迹都将被公开。",
   "list-saved-successfully": "列表保存成功",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "添加的路线将与所有可访问此列表的人分享",
   "location": "地点",
   "login": "登录",

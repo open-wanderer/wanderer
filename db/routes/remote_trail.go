@@ -12,7 +12,6 @@ import (
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -69,7 +68,6 @@ func isDegradableSyncError(err error) bool {
 func RemoteTrailGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
 	trailID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 
 	var record *core.Record
 	var err error
@@ -133,9 +131,11 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 				if _, alreadySyncing := trailSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
 					urlCopy := *e.Request.URL
 					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
+					// Sync hooks and remote data must not mutate the response record.
+					syncRecord := record.Fresh()
 					go func() {
 						defer trailSyncing.Delete(iri)
-						performFullSync(e.App, bgCtx, &urlCopy, record)
+						performFullSync(e.App, bgCtx, &urlCopy, syncRecord)
 					}()
 				}
 			}
@@ -159,7 +159,7 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 		return e.ForbiddenError("forbidden", err)
 	}
 
-	return expandAndReturn(e, record, expandQuery)
+	return expandAndReturn(e, record)
 }
 
 func findLocalTrailByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
@@ -231,7 +231,7 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 		return localTrail, nil
 	}
 
-	client := util.SafeHTTPClient()
+	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
 	query := reqURL.Query()
 	query.Del("handle")
@@ -355,6 +355,7 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	delete(data, "federated_category_name")
 	delete(data, "federated_subcategory_name")
 
+	stripLocalSyncFields(data)
 	record.Load(data)
 }
 
@@ -515,11 +516,4 @@ func downloadFile(ctx context.Context, origin, col, id, name string) (*filesyste
 
 	data, _ := io.ReadAll(res.Body)
 	return filesystem.NewFileFromBytes(data, name)
-}
-
-func expandAndReturn(e *core.RequestEvent, record *core.Record, query string) error {
-	if query != "" {
-		e.App.ExpandRecord(record, strings.Split(query, ","), nil)
-	}
-	return e.JSON(http.StatusOK, record)
 }

@@ -1,8 +1,10 @@
 package permissions_test
 
 import (
+	"net/http/httptest"
 	"testing"
 
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -143,4 +145,29 @@ func TestCurrentAnonymousReadRules(t *testing.T) {
 		assertAccess(t, remotePrivate.trail, nil, link.GetString("token"), false, false)
 		assertAccess(t, localPrivate.comment, nil, link.GetString("token"), false, false)
 	})
+
+	tag := saveRulesTestRecord(t, app, "tags", map[string]any{"name": "hiking"})
+	localPublic.trail.Set("tags", []string{tag.Id})
+	if err := app.Save(localPublic.trail); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name, expand, token string
+		trail, related      *core.Record
+	}{
+		{"anonymous public tags", "tags", "", localPublic.trail, tag},
+		{"anonymous shared summit logs", "summit_logs_via_trail", link.GetString("token"), localPrivate.trail, localPrivate.log},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			trail := test.trail.Fresh()
+			e := &core.RequestEvent{App: app}
+			e.Request = httptest.NewRequest("GET", "/?expand="+test.expand+"&share="+test.token, nil)
+			if err := apis.EnrichRecord(e, trail); err != nil {
+				t.Fatal(err)
+			}
+			if got := trail.ExpandedAll(test.expand); len(got) != 1 || got[0].Id != test.related.Id {
+				t.Fatalf("%s expansion = %v, want record %s", test.expand, got, test.related.Id)
+			}
+		})
+	}
 }

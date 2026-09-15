@@ -366,6 +366,7 @@
   "list-not-shared": "Niet gedeeld met iemand",
   "list-public-warning": "Alle routes in deze lijst worden publiek",
   "list-saved-successfully": "Lijst succesvol bewaard",
+  "list-share-access-info": "Sharing a list also shares your private trails in that list with people on this instance. People on other instances can only see public trails.",
   "list-share-warning-update": "Toegevoegde routes worden gedeeld met iedereen die toegang heeft tot deze lijst.",
   "location": "Locatie",
   "login": "Inloggen",
