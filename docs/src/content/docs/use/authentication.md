@@ -39,7 +39,7 @@ Alternatively, <span class="-tracking-[0.075em]">wanderer</span> supports authen
 - Strava
 - LiveChat
 - mailcow
-- OpenID Connect
+- OpenID Connect (including OpenStreetMap, see [auth providers](/run/backend-configuration/auth-providers/))
 
 ![wanderer OAuth](../../../assets/guides/wanderer_oauth.png)
 

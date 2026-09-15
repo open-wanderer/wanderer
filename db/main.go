@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
+	"github.com/pocketbase/pocketbase/tools/auth"
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
@@ -67,6 +69,8 @@ func main() {
 
 	setupCommands(app)
 
+	configureOIDCScopes()
+
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -77,6 +81,50 @@ func initializeMeilisearch() meilisearch.ServiceManager {
 		os.Getenv("MEILI_URL"),
 		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
 	)
+}
+
+// oidcScopesEnv maps each OIDC provider slot to the environment variable that
+// overrides its scopes.
+var oidcScopesEnv = map[string]string{
+	"oidc":  "OIDC_SCOPES",
+	"oidc2": "OIDC2_SCOPES",
+	"oidc3": "OIDC3_SCOPES",
+}
+
+// configureOIDCScopes overrides the scopes requested by the oidc, oidc2 and
+// oidc3 providers with the comma separated list in OIDC_SCOPES, OIDC2_SCOPES
+// and OIDC3_SCOPES respectively. A slot without an override keeps the
+// PocketBase defaults.
+//
+// PocketBase asks every OIDC provider for "openid", "profile" and "email".
+// Not all providers accept those: OpenStreetMap, for instance, rejects the
+// authorization request outright rather than ignoring the unknown scopes, so
+// login fails before the user ever sees a consent screen. Such providers need
+// their own scope list ("openid" in the OSM case).
+func configureOIDCScopes() {
+	for name, env := range oidcScopesEnv {
+		scopes := parseScopes(os.Getenv(env))
+		if len(scopes) == 0 {
+			continue
+		}
+
+		auth.Providers[name] = func() auth.Provider {
+			provider := auth.NewOIDCProvider()
+			provider.SetScopes(scopes)
+			return provider
+		}
+	}
+}
+
+// parseScopes splits a comma separated scope list, dropping empty entries.
+func parseScopes(raw string) []string {
+	scopes := []string{}
+	for _, scope := range strings.Split(raw, ",") {
+		if scope = strings.TrimSpace(scope); scope != "" {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
 }
 
 func registerMigrations(app *pocketbase.PocketBase) {
