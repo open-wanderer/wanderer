@@ -1,5 +1,5 @@
 {
-  "@@locale": "es-ES",
+  "@@locale": "es",
   "about": "Sobre",
   "@about": {
     "description": "Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both."
