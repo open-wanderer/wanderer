@@ -31,6 +31,47 @@ type RemotePluginAssetsSummary struct {
 
 type ProgressFunc func(total, processed, failed int)
 
+var fetchRemotePhotoMedia = importer.FetchPhotoMedia
+
+// TrailPhotoMaterializationTimeout bounds one photo's download, retries and save.
+// Preparing a trail has no overall deadline or aggregate byte allowance.
+const TrailPhotoMaterializationTimeout = 2 * time.Minute
+
+var ErrTrailMaterializationRequired = errors.New("linked photos must be downloaded before publishing")
+
+// MaterializationError keeps remote failures separate from local storage,
+// cancellation and size-limit errors. Only remote failures affect asset status.
+type MaterializationError struct {
+	Failures       map[string]error
+	RemoteFailures map[string]error
+}
+
+func (e *MaterializationError) Error() string {
+	return fmt.Sprintf("could not materialize %d linked remote photo(s)", len(e.Failures))
+}
+
+func (e *MaterializationError) Unwrap() []error {
+	errs := make([]error, 0, len(e.Failures))
+	for _, err := range e.Failures {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func (e *MaterializationError) withCause(cause error) error {
+	if len(e.Failures) == 0 {
+		return cause
+	}
+	return errors.Join(e, cause)
+}
+
+type remotePhotoFetchError struct {
+	err error
+}
+
+func (e *remotePhotoFetchError) Error() string { return e.err.Error() }
+func (e *remotePhotoFetchError) Unwrap() error { return e.err }
+
 func RemotePluginAssetsSummaryForUser(app core.App, userID string, pluginID string) (RemotePluginAssetsSummary, error) {
 	assets, err := remotePluginAssetsForUser(app, userID, pluginID)
 	if err != nil {
@@ -128,26 +169,84 @@ func DeleteRemotePluginAssetsForUser(ctx context.Context, app core.App, userID s
 	return nil
 }
 
+// EnsureTrailAssetsMaterialized checks publication readiness without performing
+// network requests. Call it again inside the transaction that publishes a trail
+// so photos linked while preparation was running cannot become public remotely.
+func EnsureTrailAssetsMaterialized(app core.App, trailID string) error {
+	assetIDs, err := util.AssetIDsForTrail(app, trailID)
+	if err != nil {
+		return err
+	}
+	assets, err := privateRemotePluginPhotoAssetsByIDs(app, assetIDs)
+	if err != nil {
+		return err
+	}
+	if len(assets) > 0 {
+		return ErrTrailMaterializationRequired
+	}
+	return nil
+}
+
 func MaterializePrivateRemotePluginAssetsForTrail(ctx context.Context, app core.App, trailID string) error {
+	return MaterializePrivateRemotePluginAssetsForTrailWithProgress(ctx, app, trailID, nil)
+}
+
+// MaterializePrivateRemotePluginAssetsForTrailWithProgress prepares only this
+// trail's photos, including waypoint and summit-log photos from contributors.
+// Run it outside a transaction: each successful photo is saved independently so
+// retries only download the remaining photos. Downloads run serially to bound
+// memory use; an individual photo's timeout never ends the whole preparation.
+func MaterializePrivateRemotePluginAssetsForTrailWithProgress(ctx context.Context, app core.App, trailID string, progress ProgressFunc) error {
+	return materializePrivateRemotePluginAssetsForTrail(ctx, app, trailID, progress, TrailPhotoMaterializationTimeout)
+}
+
+func materializePrivateRemotePluginAssetsForTrail(ctx context.Context, app core.App, trailID string, progress ProgressFunc, photoTimeout time.Duration) error {
 	if trailID == "" {
+		reportProgress(progress, 0, 0, 0)
 		return nil
 	}
-	trail, err := app.FindRecordById("trails", trailID)
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	assetIDs, err := util.AssetIDsForTrail(app, trailID)
 	if err != nil {
 		return err
 	}
-	assets, err := privateRemotePluginPhotoAssetsByIDs(app, trail.GetString("author"), assetIDs)
+	assets, err := privateRemotePluginPhotoAssetsByIDs(app, assetIDs)
 	if err != nil {
 		return err
 	}
-	for _, asset := range assets {
-		if err := MaterializeRemotePluginAsset(ctx, app, asset); err != nil {
-			return fmt.Errorf("materialize remote asset %s: %w", asset.Id, err)
+	failures := &MaterializationError{Failures: map[string]error{}, RemoteFailures: map[string]error{}}
+	total := len(assets)
+	reportProgress(progress, total, 0, 0)
+	for i, asset := range assets {
+		if err := ctx.Err(); err != nil {
+			return failures.withCause(err)
 		}
+		photoCtx, cancel := context.WithTimeout(ctx, photoTimeout)
+		// Refresh the record in case another preparation already saved it.
+		err := MaterializePrivateRemotePluginAsset(photoCtx, app, asset.Id)
+		cancel()
+		if err != nil {
+			var materializeErr *MaterializationError
+			if errors.As(err, &materializeErr) {
+				for assetID, cause := range materializeErr.Failures {
+					failures.Failures[assetID] = cause
+				}
+				for assetID, cause := range materializeErr.RemoteFailures {
+					failures.RemoteFailures[assetID] = cause
+				}
+			} else {
+				failures.Failures[asset.Id] = err
+			}
+		}
+		reportProgress(progress, total, i+1, len(failures.Failures))
+	}
+	if err := ctx.Err(); err != nil {
+		return failures.withCause(err)
+	}
+	if len(failures.Failures) > 0 {
+		return failures
 	}
 	return nil
 }
@@ -205,9 +304,35 @@ func MaterializePrivateRemotePluginAsset(ctx context.Context, app core.App, asse
 }
 
 func MaterializeRemotePluginAsset(ctx context.Context, app core.App, asset *core.Record) error {
-	fetched, err := FetchRemotePluginAsset(ctx, app, asset, util.DefaultPluginMediaMaxBytes)
-	if err != nil {
+	return materializeRemotePluginAsset(ctx, app, asset, util.DefaultPluginMediaMaxBytes)
+}
+
+func materializeRemotePluginAsset(ctx context.Context, app core.App, asset *core.Record, maxBytes int64) error {
+	if err := ctx.Err(); err != nil {
 		return err
+	}
+	fetched, err := FetchRemotePluginAsset(ctx, app, asset, maxBytes)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		var remoteErr *remotePhotoFetchError
+		if !errors.As(err, &remoteErr) || errors.Is(err, util.ErrPluginMediaTooLarge) {
+			return err
+		}
+		if markErr := MarkAssetRemoteStatus(app, asset, RemoteStatusForError(remoteErr.err), remoteErr.err); markErr != nil {
+			app.Logger().Warn("failed to update remote asset status", "asset", asset.Id, "error", markErr)
+		}
+		return &MaterializationError{
+			Failures: map[string]error{asset.Id: remoteErr.err}, RemoteFailures: map[string]error{asset.Id: remoteErr.err},
+		}
+	}
+	bytesUsed := int64(len(fetched.Body))
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if bytesUsed > maxBytes {
+		return util.ErrPluginMediaTooLarge
 	}
 	file, err := filesystem.NewFileFromBytes(fetched.Body, remoteAssetFileName(asset, fetched.ContentType))
 	if err != nil {
@@ -215,7 +340,8 @@ func MaterializeRemotePluginAsset(ctx context.Context, app core.App, asset *core
 	}
 	asset.Set("file", file)
 	asset.Set("storage_mode", "copy")
-	return MarkAssetRemoteStatus(app, asset, "available", nil)
+	setAssetRemoteStatus(asset, "available", nil)
+	return app.SaveWithContext(ctx, asset)
 }
 
 func FetchRemotePluginAsset(ctx context.Context, app core.App, asset *core.Record, maxBytes int64) (*util.SafeFetchResult, error) {
@@ -261,16 +387,25 @@ func FetchRemotePluginAsset(ctx context.Context, app core.App, asset *core.Recor
 		ContentType: remote.ContentType,
 		Source:      remote.Source,
 	}
-	return importer.FetchPhotoMedia(ctx, photo, importer.Options{
+	fetched, err := fetchRemotePhotoMedia(ctx, photo, importer.Options{
 		UserID:   userID,
 		ActorID:  asset.GetString("author"),
 		Manifest: plugin.Manifest,
 		Policy:   pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 		Auth:     auth,
 	}, maxBytes)
+	if err != nil {
+		return nil, &remotePhotoFetchError{err: err}
+	}
+	return fetched, nil
 }
 
 func MarkAssetRemoteStatus(app core.App, asset *core.Record, status string, cause error) error {
+	setAssetRemoteStatus(asset, status, cause)
+	return app.Save(asset)
+}
+
+func setAssetRemoteStatus(asset *core.Record, status string, cause error) {
 	asset.Set("remote_status", status)
 	asset.Set("remote_checked_at", time.Now().UTC())
 	if cause != nil {
@@ -285,7 +420,6 @@ func MarkAssetRemoteStatus(app core.App, asset *core.Record, status string, caus
 	} else {
 		asset.Set("remote_missing_since", "")
 	}
-	return app.Save(asset)
 }
 
 func RemoteStatusForError(err error) string {
@@ -307,9 +441,6 @@ func processRemotePluginAssets(ctx context.Context, app core.App, pluginID strin
 		}
 		if err := process(asset); err != nil {
 			failed++
-			if markErr := MarkAssetRemoteStatus(app, asset, RemoteStatusForError(err), err); markErr != nil {
-				app.Logger().Warn("failed to update remote asset status", "asset", asset.Id, "error", markErr)
-			}
 			app.Logger().Warn("failed to materialize remote asset", "asset", asset.Id, "plugin", pluginID, "error", err)
 		}
 		processed++
@@ -345,8 +476,8 @@ func remotePluginAssetsForUser(app core.App, userID string, pluginID string) ([]
 	)
 }
 
-func privateRemotePluginPhotoAssetsByIDs(app core.App, actorID string, assetIDs []string) ([]*core.Record, error) {
-	if actorID == "" || len(assetIDs) == 0 {
+func privateRemotePluginPhotoAssetsByIDs(app core.App, assetIDs []string) ([]*core.Record, error) {
+	if len(assetIDs) == 0 {
 		return []*core.Record{}, nil
 	}
 
@@ -357,7 +488,7 @@ func privateRemotePluginPhotoAssetsByIDs(app core.App, actorID string, assetIDs 
 		if end > len(assetIDs) {
 			end = len(assetIDs)
 		}
-		params := dbx.Params{"author": actorID}
+		params := dbx.Params{}
 		filters := make([]string, 0, end-start)
 		for i, assetID := range assetIDs[start:end] {
 			key := fmt.Sprintf("asset_%d", i)
@@ -366,7 +497,7 @@ func privateRemotePluginPhotoAssetsByIDs(app core.App, actorID string, assetIDs 
 		}
 		found, err := app.FindRecordsByFilter(
 			"assets",
-			"author={:author} && type='photo' && storage_mode='link_private' && ("+strings.Join(filters, " || ")+")",
+			"type='photo' && storage_mode='link_private' && ("+strings.Join(filters, " || ")+")",
 			"created",
 			-1,
 			0,

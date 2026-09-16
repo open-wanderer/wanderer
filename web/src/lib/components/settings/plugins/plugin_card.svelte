@@ -4,10 +4,11 @@
 
     interface Props {
         onclick: () => void;
+        oninfo: () => void;
         ontoggle: (value: boolean) => void;
         active: boolean;
-        disabled: boolean;
-        settingsAvailable?: boolean;
+        toggleDisabled?: boolean;
+        settingsDisabled?: boolean;
         img?: string;
         title: string;
         description?: string;
@@ -21,10 +22,11 @@
 
     let {
         onclick,
+        oninfo,
         ontoggle,
         active = $bindable(),
-        disabled,
-        settingsAvailable = true,
+        toggleDisabled = false,
+        settingsDisabled = false,
         img,
         title,
         description = "",
@@ -66,12 +68,24 @@
         </div>
     </div>
     <div class="flex shrink-0 flex-col gap-2 md:items-start">
-        <div class="flex items-center justify-between gap-4 md:justify-end">
-            {#if settingsAvailable}
-                <button class="btn-secondary" {onclick}
-                    ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
-                >
-            {/if}
+        <div class="flex items-center justify-between gap-2 md:justify-end">
+            <button
+                class="btn-icon"
+                type="button"
+                onclick={oninfo}
+                title={$_("plugin-info-title", { values: { plugin: title } })}
+                aria-label={$_("plugin-info-title", { values: { plugin: title } })}
+            >
+                <i class="fa fa-circle-info" aria-hidden="true"></i>
+            </button>
+            <button
+                class="btn-secondary"
+                type="button"
+                class:btn-disabled={settingsDisabled}
+                {onclick}
+                disabled={settingsDisabled}
+                ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
+            >
             {#if onaction && actionLabel}
                 <button
                     class="btn-secondary"
@@ -92,7 +106,7 @@
                 <Toggle
                     bind:value={active}
                     onchange={ontoggle}
-                    {disabled}
+                    disabled={toggleDisabled}
                     ariaLabel={title}
                 ></Toggle>
             </div>
@@ -125,7 +139,7 @@
                         class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
                         aria-hidden="true"
                     ></i>
-                    <span>Sync</span>
+                    <span class="truncate">{$_("plugin-setup-error")}</span>
                 </span>
             {/if}
         </div>

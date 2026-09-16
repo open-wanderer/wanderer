@@ -220,10 +220,21 @@ export default class GPX {
   static parse(gpxString: string): GPX {
     const sanitizedGPX = gpxString.replace(/\sxmlns=""/g, '').replace(/<!--[\s\S]*?-->/g, '');
 
+    // Only strip prefixes that are bound to the GPX namespace itself (e.g. <g:gpx xmlns:g="http://www.topografix.com/GPX/1/1">).
+    // Prefixes of foreign namespaces (Garmin extensions etc.) must survive so they round-trip through toString().
+    const gpxPrefixes = new Set<string>();
+    for (const m of sanitizedGPX.matchAll(/xmlns:([\w.-]+)\s*=\s*["']http:\/\/www\.topografix\.com\/GPX\/1\/[01]["']/g)) {
+      gpxPrefixes.add(m[1]);
+    }
+
     return (function () {
       let data = null, error = null;
       xml2js.parseString(sanitizedGPX, {
         explicitArray: false,
+        tagNameProcessors: gpxPrefixes.size ? [(name: string) => {
+          const i = name.indexOf(":");
+          return i > 0 && gpxPrefixes.has(name.substring(0, i)) ? name.substring(i + 1) : name;
+        }] : [],
         attrValueProcessors: [(str: string) => {
           if (str.length && !isNaN(Number(str))) {
             return Number.isInteger(Number(str)) ? parseInt(String(str), 10) : parseFloat(String(str));

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -200,4 +201,65 @@ func countExpand(value string, needle string) int {
 func allRemoteTrailSyncExpandPaths() []string {
 	paths := append([]string{}, remoteTrailSyncCoreExpandPaths...)
 	return append(paths, remoteTrailSyncAssetExpandPaths...)
+}
+
+func TestFetchRemoteJSONMapClassifiesErrors(t *testing.T) {
+	newServer := func(status int, body string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(body))
+		}))
+	}
+
+	t.Run("server error is degradable", func(t *testing.T) {
+		server := newServer(http.StatusBadGateway, "")
+		defer server.Close()
+
+		remoteURL, _ := url.Parse(server.URL)
+		_, err := fetchRemoteJSONMap(context.Background(), server.Client(), remoteURL, "trail")
+		if !isDegradableSyncError(err) {
+			t.Fatalf("expected 5xx to be wrapped in errRemoteUnavailable, got %v", err)
+		}
+		var statusErr *remoteFetchStatusError
+		if !errors.As(err, &statusErr) || statusErr.StatusCode != http.StatusBadGateway {
+			t.Fatalf("expected status error to remain inspectable, got %v", err)
+		}
+	})
+
+	t.Run("client error is not degradable but retryable", func(t *testing.T) {
+		server := newServer(http.StatusBadRequest, "")
+		defer server.Close()
+
+		remoteURL, _ := url.Parse(server.URL)
+		_, err := fetchRemoteJSONMap(context.Background(), server.Client(), remoteURL, "trail")
+		if isDegradableSyncError(err) {
+			t.Fatalf("4xx must not be treated as remote unavailable, got %v", err)
+		}
+		if !shouldRetryRemoteFetchWithoutAssetExpands(err) {
+			t.Fatalf("expected 400 to trigger retry without asset expands, got %v", err)
+		}
+	})
+
+	t.Run("transport error is degradable", func(t *testing.T) {
+		server := newServer(http.StatusOK, "{}")
+		remoteURL, _ := url.Parse(server.URL)
+		client := server.Client()
+		server.Close()
+
+		_, err := fetchRemoteJSONMap(context.Background(), client, remoteURL, "trail")
+		if !isDegradableSyncError(err) {
+			t.Fatalf("expected transport failure to be wrapped in errRemoteUnavailable, got %v", err)
+		}
+	})
+
+	t.Run("invalid json is not degradable", func(t *testing.T) {
+		server := newServer(http.StatusOK, "not json")
+		defer server.Close()
+
+		remoteURL, _ := url.Parse(server.URL)
+		_, err := fetchRemoteJSONMap(context.Background(), server.Client(), remoteURL, "trail")
+		if err == nil || isDegradableSyncError(err) {
+			t.Fatalf("expected plain decode error, got %v", err)
+		}
+	})
 }

@@ -28,9 +28,12 @@ Compatible asset plugins can offer two storage modes:
 | Store photos in Wanderer | Downloads selected files and stores them as local Wanderer assets. |
 | Link remote references | Keeps private references to provider assets and fetches files on demand. |
 
-Remote links can be used only for private content. If a trail becomes public,
-Wanderer materializes its linked photos locally because anonymous viewers cannot
-access private provider media.
+Remote links can be used only for private content. When you publish a trail,
+Wanderer first copies its linked photos locally and shows the download progress.
+The trail becomes public only after all linked photos are available in Wanderer,
+because anonymous viewers cannot access private provider media. If a download
+fails, the trail stays private. Retrying keeps completed downloads and continues
+with the remaining photos.
 
 If you disable an asset plugin while linked photos still exist, Wanderer asks
 whether it should download the photos or remove the links first.

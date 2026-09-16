@@ -12,6 +12,8 @@
     import PhotoLibraryPickerModal from "$lib/components/photo/photo_library_picker_modal.svelte";
     import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
     import RoundTripControls from "$lib/components/trail/round_trip_controls.svelte";
+    import TrailPublicationProgress from "$lib/components/trail/trail_publication_progress.svelte";
+    import { trailPublications } from "$lib/stores/trail_publication_store";
     import WaypointCard from "$lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {
         type WaypointMergeOptions,
@@ -55,9 +57,11 @@
         trail,
         trails_create,
         trails_update,
+        trailSaveErrorKey,
     } from "$lib/stores/trail_store.js";
-    import { markGeneratedAssetFile } from "$lib/stores/asset_store";
+    import { markGeneratedAssetFile, type AssetImportOmission } from "$lib/stores/asset_store";
     import { APIError } from "$lib/util/api_util";
+
     import {
         ROUTING_MAX_VARIANT_ANCHORS,
         ROUTING_MAX_VARIANTS,
@@ -150,6 +154,7 @@
     import { theme } from "$lib/stores/theme_store.js";
     import { currentUser } from "$lib/stores/user_store.js";
     import { designSelectableCategories } from "$lib/util/category_util";
+    import { dateInputValue } from "$lib/util/date_util";
     import { getIconForLocation } from "$lib/util/icon_util.js";
     import {
         createAnchorMarker,
@@ -556,6 +561,7 @@
 
     const getInitialFormValues = () => ({
         ...data.trail,
+        completed_at: completionDateValue(data.trail.completed_at),
         public: data.trail.id
             ? data.trail.public
             : page.data.settings?.privacy?.trails === "public",
@@ -574,6 +580,7 @@
             schema: ClientTrailCreateSchema,
         }),
         onSubmit: async (form) => {
+            if (loading) return;
             if (!publishConfirmed) {
                 const publishForm = document.getElementById(
                     "trail-form",
@@ -593,6 +600,8 @@
             }
             publishConfirmed = false;
             loading = true;
+            let importOmissions: AssetImportOmission[] = [];
+            const onOmitted = (omissions: AssetImportOmission[]) => { importOmissions = omissions; };
             try {
                 const htmlForm = document.getElementById(
                     "trail-form",
@@ -657,6 +666,12 @@
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        undefined,
+                        onOmitted,
+                    );
+                    createdTrail.completed_at = completionDateValue(
+                        createdTrail.completed_at,
                     );
                     setFields(createdTrail);
                     trail.set(createdTrail);
@@ -667,6 +682,11 @@
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        onOmitted,
+                    );
+                    updatedTrail.completed_at = completionDateValue(
+                        updatedTrail.completed_at,
                     );
                     setFields(updatedTrail);
                     savedAtLeastOnce = true;
@@ -675,17 +695,42 @@
                 pendingTrailPhotoCandidates = [];
 
                 show_toast({
-                    type: "success",
-                    icon: "check",
-                    text: $_("trail-saved-successfully"),
-                });
+                    type: importOmissions.length ? "warning" : "success",
+                    icon: importOmissions.length ? "exclamation-triangle" : "check",
+                    text: importOmissions.length
+                        ? $_("asset-import-partial-warning", { values: { n: importOmissions.length } })
+                        : $_("trail-saved-successfully"),
+                }, importOmissions.length ? 8000 : undefined);
             } catch (e) {
                 console.error(e);
 
+                const savedTrail = e instanceof APIError
+                    ? e.detail?.savedTrail as Trail | undefined
+                    : undefined;
+                if (savedTrail?.id) {
+                    form.id = savedTrail.id;
+                    trail.set(savedTrail);
+                    savedAtLeastOnce = true;
+                }
+                // Store operations reconcile saved waypoint IDs and photos into
+                // this form, retaining failed selections for the next attempt.
+                setFields(form);
+                pendingTrailPhotoCandidates = pendingTrailPhotoCandidates.filter((candidate) =>
+                    candidate.source === "wanderer"
+                        ? form._assetLinks?.includes(candidate.assetId)
+                        : form._assetPluginLinks?.some((link) =>
+                            link.pluginId === (candidate.pluginId ?? candidate.providerId) &&
+                            link.assetIds.includes(candidate.assetId),
+                        ),
+                );
+
+                const omittedText = importOmissions.length
+                    ? ` ${$_("asset-import-partial-warning", { values: { n: importOmissions.length } })}`
+                    : "";
                 show_toast({
                     type: "error",
                     icon: "close",
-                    text: $_("error-saving-trail"),
+                    text: `${$_(trailSaveErrorKey(e))}${omittedText}`,
                 });
             } finally {
                 loading = false;
@@ -2921,8 +2966,35 @@
         updateTrailWithRouteData();
     }
 
+    function completionDateValue(value?: string): string | undefined {
+        return value?.substring(0, 10) || undefined;
+    }
+
+    function ensureCompletedAt(defaultDate?: string) {
+        if (!$formData.completed_at) {
+            setFields(
+                "completed_at",
+                completionDateValue(defaultDate) ?? dateInputValue(new Date()),
+            );
+        }
+    }
+
+    function oldestSummitLogDate(): string | undefined {
+        return $formData.expand?.summit_logs_via_trail
+            ?.map((log) => log.date)
+            .sort()[0];
+    }
+
+    function handleCompletedChange(completed: boolean) {
+        setFields("completed", completed);
+        if (completed) {
+            ensureCompletedAt(oldestSummitLogDate());
+        }
+    }
+
     function markTrailAsCompleted() {
         setFields("completed", true);
+        ensureCompletedAt(oldestSummitLogDate());
     }
 </script>
 
@@ -3199,7 +3271,16 @@
             name="completed"
             label={$formData.completed ? $_("completed") : $_("not-completed")}
             icon={$formData.completed ? "flag-checkered" : "compass-drafting"}
+            onchange={handleCompletedChange}
         ></Toggle>
+        {#if $formData.completed}
+            <Datepicker
+                name="completed_at"
+                label={$_("completed-at")}
+                error={$errors.completed_at}
+                bind:value={$formData.completed_at}
+            ></Datepicker>
+        {/if}
         <Toggle
             name="public"
             label={$formData.public ? $_("public") : $_("private")}
@@ -3333,11 +3414,29 @@
             >
         {/if}
         <hr class="border-separator" />
+        <TrailPublicationProgress
+            trailId={!isNewTrail || savedAtLeastOnce ? $formData.id : undefined}
+            name={$formData.name}
+            publicTrail={$trail.id === $formData.id && $trail.public}
+            onpublished={(saved) => {
+                if (!loading) {
+                    trail.set(saved);
+                    setFields("public", saved.public);
+                }
+            }}
+            onretry={async () => {
+                setFields("public", true);
+                publishConfirmed = true;
+                await tick();
+                (document.getElementById("trail-form") as HTMLFormElement)?.requestSubmit();
+            }}
+        />
         <Button
             primary={true}
             large={true}
             type="submit"
             extraClasses="mb-2"
+            disabled={!!($formData.id && $trailPublications[$formData.id]?.status === "running" && !$trailPublications[$formData.id]?.monitoringError)}
             {loading}>{$_("save-trail")}</Button
         >
     </form>

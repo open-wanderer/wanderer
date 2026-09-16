@@ -1,6 +1,12 @@
 import type { TrailFilter } from "$lib/models/trail";
+import type { Subcategory } from "$lib/models/subcategory";
 
 const NO_SUBCATEGORY_FILTER_PREFIX = "__no_subcategory__:";
+export const POCKETBASE_RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
+
+export function isPocketBaseRecordId(value: string): boolean {
+    return POCKETBASE_RECORD_ID_PATTERN.test(value);
+}
 
 export function noSubcategoryFilterValue(categoryId: string): string {
     return `${NO_SUBCATEGORY_FILTER_PREFIX}${categoryId}`;
@@ -10,6 +16,74 @@ export function noSubcategoryFilterCategory(value: string): string | undefined {
     return value.startsWith(NO_SUBCATEGORY_FILTER_PREFIX)
         ? value.substring(NO_SUBCATEGORY_FILTER_PREFIX.length)
         : undefined;
+}
+
+export type CategoryFilterSelection = {
+    category: string[];
+    subcategory?: string[];
+};
+
+export function buildPocketBaseCategoryFilter(
+    filter: CategoryFilterSelection,
+    availableSubcategories: Subcategory[],
+    fieldPrefix = "",
+): string {
+    const categoryField = fieldPrefix
+        ? `${fieldPrefix}.category`
+        : "category";
+    const subcategoryField = fieldPrefix
+        ? `${fieldPrefix}.subcategory`
+        : "subcategory";
+    const selectedSubcategoryIds = filter.subcategory ?? [];
+    const selectedNoSubcategoryCategoryIds = selectedSubcategoryIds
+        .map(noSubcategoryFilterCategory)
+        .filter(
+            (category): category is string =>
+                category !== undefined && isPocketBaseRecordId(category),
+        );
+    const selectedRealSubcategoryIds = selectedSubcategoryIds.filter(
+        (id) =>
+            noSubcategoryFilterCategory(id) === undefined &&
+            isPocketBaseRecordId(id),
+    );
+    const categoriesWithSubcategoryFilter = new Set(
+        availableSubcategories
+            .filter((subcategory) =>
+                selectedRealSubcategoryIds.includes(subcategory.id),
+            )
+            .map((subcategory) => subcategory.category),
+    );
+    for (const categoryId of selectedNoSubcategoryCategoryIds) {
+        categoriesWithSubcategoryFilter.add(categoryId);
+    }
+
+    const broadCategoryIds = filter.category.filter(
+        (categoryId) =>
+            isPocketBaseRecordId(categoryId) &&
+            !categoriesWithSubcategoryFilter.has(categoryId),
+    );
+    const clauses: string[] = [];
+
+    if (broadCategoryIds.length > 0) {
+        clauses.push(
+            `${categoryField}!=null&&'${broadCategoryIds.join(",")}'~${categoryField}`,
+        );
+    }
+    if (selectedRealSubcategoryIds.length > 0) {
+        clauses.push(
+            `${subcategoryField}!=null&&'${selectedRealSubcategoryIds.join(",")}'~${subcategoryField}`,
+        );
+    }
+    clauses.push(
+        ...selectedNoSubcategoryCategoryIds.map(
+            (categoryId) =>
+                `${categoryField}='${categoryId}'&&${subcategoryField}=''`,
+        ),
+    );
+
+    return clauses.length > 0
+        ? `(${clauses.map((clause) => `(${clause})`).join("||")})`
+        : "";
 }
 
 const TRAIL_SORT_OPTIONS = new Set([

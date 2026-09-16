@@ -767,9 +767,10 @@ func pluginMediaTestResponse(body string, contentType string) *http.Response {
 		header.Set("Content-Type", contentType)
 	}
 	return &http.Response{
-		Body:    io.NopCloser(strings.NewReader(body)),
-		Header:  header,
-		Request: req,
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     header,
+		Request:    req,
 	}
 }
 

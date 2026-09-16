@@ -4,7 +4,10 @@ import { type AuthRecord, type ListResult } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
 import { isURL, objectToFormData } from "$lib/util/file_util";
-import { assets_attach_to_target, assets_delete_removed } from "./asset_store";
+import { assets_attach_to_target, assets_delete_removed, type AssetImportOmissionHandler, type CompletedAssetAttachments } from "./asset_store";
+import { subcategories } from "./subcategory_store";
+import { buildPocketBaseCategoryFilter } from "$lib/util/trail_filter_util";
+import { nextDateValue } from "$lib/util/date_util";
 
 export const summitLog: Writable<SummitLog> = writable(new SummitLog(new Date().toISOString().substring(0, 10)));
 export const summitLogs: Writable<SummitLog[]> = writable([]);
@@ -33,7 +36,7 @@ export async function summit_logs_index(filter?: SummitLogFilter, handle?: strin
     return fetchedSummitLogs;
 }
 
-export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, user?: AuthRecord) {
+export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, user?: AuthRecord, onOmitted?: AssetImportOmissionHandler) {
     user ??= get(currentUser)
     if (!user) {
         throw Error("Unauthenticated")
@@ -63,19 +66,28 @@ export async function summit_logs_create(summitLog: SummitLog, f: (url: RequestI
 
     let model: SummitLog = await r.json();
 
-    model.photos = await assets_attach_to_target({
-        files: summitLog._photos,
-        assetIds: summitLog._assetLinks,
-        pluginLinks: summitLog._assetPluginLinks,
-        target: {
-            trail: model.trail,
-            summit_log: model.id,
-        },
-        existingPhotos: model.photos,
-        f,
-    });
+    try {
+        model.photos = await assets_attach_to_target({
+            files: summitLog._photos,
+            assetIds: summitLog._assetLinks,
+            pluginLinks: summitLog._assetPluginLinks,
+            target: {
+                trail: model.trail ?? summitLog.trail,
+                summit_log: model.id,
+            },
+            existingPhotos: model.photos,
+            onOmitted,
+            f,
+        });
+    } catch (cause) {
+        const attachedPhotos: string[] = cause instanceof APIError ? cause.detail?.attachedPhotos ?? [] : [];
+        model.photos = [...new Set([...(model.photos ?? []), ...attachedPhotos])];
+        throw savedSummitLogFailure(cause, summitLog, model, remainingSummitLogAttachments(summitLog, cause), [
+            ...new Set([...(summitLog.photos ?? []), ...model.photos]),
+        ]);
+    }
 
-    return model;
+    return applySavedSummitLog(summitLog, model, {});
 }
 
 function summitLogGPXFile(summitLog: SummitLog): File | Blob | undefined {
@@ -87,7 +99,7 @@ function summitLogGPXFile(summitLog: SummitLog): File | Blob | undefined {
     }
 }
 
-export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: SummitLog) {
+export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: SummitLog, onOmitted?: AssetImportOmissionHandler) {
     const user = get(currentUser)
     if (!user) {
         throw Error("Unauthenticated")
@@ -116,21 +128,86 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
     }
 
     const model: SummitLog = await r.json();
-    await assets_delete_removed(oldSummitLog.photos, newSummitLog.photos, {
-        summit_log: model.id,
-    });
-    model.photos = await assets_attach_to_target({
-        files: newSummitLog._photos,
-        assetIds: newSummitLog._assetLinks,
-        pluginLinks: newSummitLog._assetPluginLinks,
-        target: {
-            trail: model.trail,
-            summit_log: model.id,
-        },
-        existingPhotos: model.photos ?? newSummitLog.photos,
-    });
+    try {
+        model.photos = await assets_attach_to_target({
+            files: newSummitLog._photos,
+            assetIds: newSummitLog._assetLinks,
+            pluginLinks: newSummitLog._assetPluginLinks,
+            target: {
+                trail: model.trail ?? newSummitLog.trail,
+                summit_log: model.id,
+            },
+            existingPhotos: newSummitLog.photos,
+            onOmitted,
+        });
+    } catch (cause) {
+        const attachedPhotos: string[] = cause instanceof APIError ? cause.detail?.attachedPhotos ?? [] : [];
+        model.photos = [...new Set([...(oldSummitLog.photos ?? []), ...attachedPhotos])];
+        throw savedSummitLogFailure(cause, newSummitLog, model, remainingSummitLogAttachments(newSummitLog, cause), [
+            ...new Set([...(newSummitLog.photos ?? []), ...attachedPhotos]),
+        ]);
+    }
+    const selectedPhotos = [...model.photos];
+    try {
+        await assets_delete_removed(oldSummitLog.photos, selectedPhotos, { summit_log: model.id });
+    } catch (cause) {
+        model.photos = [...new Set([...(oldSummitLog.photos ?? []), ...selectedPhotos])];
+        throw savedSummitLogFailure(cause, newSummitLog, model, {}, selectedPhotos);
+    }
 
-    return model;
+    return applySavedSummitLog(newSummitLog, model, {});
+}
+
+type RemainingSummitLogAttachments = Pick<SummitLog, "_photos" | "_assetLinks" | "_assetPluginLinks">;
+
+function remainingSummitLogAttachments(log: SummitLog, error: unknown): RemainingSummitLogAttachments {
+    const completed: CompletedAssetAttachments | undefined = error instanceof APIError
+        ? error.detail?.completedAttachments
+        : undefined;
+    return {
+        _photos: completed?.files ? undefined : log._photos,
+        _assetLinks: completed?.assetIds ? undefined : log._assetLinks,
+        _assetPluginLinks: log._assetPluginLinks?.map((link) => ({
+            ...link,
+            assetIds: link.assetIds.filter((assetId) => !completed?.pluginLinks.some(
+                (savedLink) => savedLink.pluginId === link.pluginId && savedLink.assetIds.includes(assetId),
+            )),
+        })).filter((link) => link.assetIds.length),
+    };
+}
+
+function applySavedSummitLog(pending: SummitLog, saved: SummitLog, remaining: RemainingSummitLogAttachments, selectedPhotos = saved.photos): SummitLog {
+    const persisted = {
+        ...saved,
+        photos: [...(saved.photos ?? [])],
+        expand: { ...pending.expand, ...saved.expand },
+    };
+    delete persisted._photos;
+    delete persisted._assetLinks;
+    delete persisted._assetPluginLinks;
+    delete persisted._gpx;
+    Object.assign(pending, persisted, { photos: [...(selectedPhotos ?? [])] });
+    for (const key of ["_photos", "_assetLinks", "_assetPluginLinks", "_gpx"] as const) {
+        delete pending[key];
+    }
+    if (remaining._photos?.length) pending._photos = remaining._photos;
+    if (remaining._assetLinks?.length) pending._assetLinks = remaining._assetLinks;
+    if (remaining._assetPluginLinks?.length) pending._assetPluginLinks = remaining._assetPluginLinks;
+    return persisted;
+}
+
+function savedSummitLogFailure(cause: unknown, pending: SummitLog, saved: SummitLog, remaining: RemainingSummitLogAttachments, selectedPhotos: string[]): APIError {
+    const error = cause instanceof APIError ? cause : new APIError(502, "asset_import_failed", { cause });
+    // Text, date and GPX have already been stored. Keep the entry and its ID;
+    // only outstanding photo requests belong in the next save attempt.
+    const persisted = applySavedSummitLog(pending, saved, remaining, selectedPhotos);
+    error.detail = {
+        ...error.detail,
+        savedSummitLog: persisted,
+        remainingAttachments: { _gpx: undefined, _photos: remaining._photos, _assetLinks: remaining._assetLinks, _assetPluginLinks: remaining._assetPluginLinks },
+        remainingPhotos: [...selectedPhotos],
+    };
+    return error;
 }
 
 export async function summit_logs_delete(summitLog: SummitLog) {
@@ -147,31 +224,32 @@ export async function summit_logs_delete(summitLog: SummitLog) {
 }
 
 export function buildFilterText(filter: SummitLogFilter,): string {
-    let filterText: string = "";
-
-    if (filter.category.length > 0) {
-        filterText += `trail.category!=null&&'${filter.category.join(",")}'~trail.category`;
+    const clauses: string[] = [];
+    const categoryFilter = buildPocketBaseCategoryFilter(
+        filter,
+        get(subcategories),
+        "trail",
+    );
+    if (categoryFilter) {
+        clauses.push(categoryFilter);
     }
 
     if (filter.startDate) {
-        filterText += `${filter.category.length ? '&&' : ''}date>='${filter.startDate}'`
+        clauses.push(`date>='${filter.startDate}'`);
     }
 
     if (filter.endDate) {
-        filterText += `${filter.category.length || filter.startDate ? '&&' : ''}date<='${filter.endDate}'`
+        clauses.push(`date<'${nextDateValue(filter.endDate)}'`);
     }
 
     if (filter.trail) {
-        if (filter.category.length || filter.startDate || filter.endDate) {
-            filterText += "&&"
-        }
         if (isURL(filter.trail)) {
-            filterText += `trail='${filter.trail}'||trail.iri='${filter.trail}'||trail='${filter.trail.substring(filter.trail.length - 15)}'`;
+            clauses.push(`(trail='${filter.trail}'||trail.iri='${filter.trail}'||trail='${filter.trail.substring(filter.trail.length - 15)}')`);
         } else {
-            filterText += `trail='${filter.trail}'`
+            clauses.push(`trail='${filter.trail}'`);
         }
     }
 
-    return filterText;
+    return clauses.join("&&");
 
 }

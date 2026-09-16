@@ -2,34 +2,53 @@ import type { SummitLogFilter } from "$lib/models/summit_log";
 import { categories_index } from "$lib/stores/category_store";
 import { category_preferences_index } from "$lib/stores/category_preference_store";
 import { profile_stats_index } from "$lib/stores/profile_store";
+import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
+import { subcategories_index } from "$lib/stores/subcategory_store";
+import { monthDateRange } from "$lib/util/date_util";
 import { error, type Load } from "@sveltejs/kit";
 
-export const load: Load = async ({ params, fetch, parent }) => {
+export const load: Load = async ({ params, fetch, parent, setHeaders }) => {
+
+    setHeaders({
+        "cache-control": "private, no-store",
+        vary: "Cookie, Authorization",
+    });
 
     if (!params.handle) {
         error(404, "Not found")
     }
 
-    const date = new Date()
-    date.setUTCHours(6)
-    const y = date.getFullYear()
-    const m = date.getMonth();
-    const firstDay = new Date(y, m, 2);
-    const lastDay = new Date(y, m + 1, 1);
+    const parentData = await parent();
+    const currentMonth = monthDateRange(new Date());
 
-    await categories_index(fetch)
-    await category_preferences_index(fetch)
+    await Promise.all([
+        categories_index(fetch),
+        category_preferences_index(fetch),
+        subcategories_index(fetch),
+        subcategory_preferences_index(fetch),
+    ]);
 
     const filter: SummitLogFilter = {
-        startDate: firstDay.toISOString().slice(0, 10),
-        endDate: lastDay.toISOString().slice(0, 10),
-        category: []
+        startDate: currentMonth.start,
+        endDate: currentMonth.end,
+        category: [],
+        subcategory: [],
     }
     try {
-        const logs = await profile_stats_index(params.handle, filter, fetch);
-        return { filter, logs }
+        const activities = await profile_stats_index(params.handle, filter, fetch);
+        return {
+            filter,
+            activities,
+            handle: params.handle,
+            viewerId: parentData.user?.id ?? null,
+        }
 
     } catch (e) {
-        return { logs: [], filter }
+        return {
+            activities: [],
+            filter,
+            handle: params.handle,
+            viewerId: parentData.user?.id ?? null,
+        }
     }
 };

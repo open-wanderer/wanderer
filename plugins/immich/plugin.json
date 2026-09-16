@@ -180,6 +180,12 @@
       "de": "Schlägt Immich-Fotos mit Standortdaten vor, die zu deiner Tour passen.",
       "en": "Suggests geotagged Immich photos that match your trail."
     },
+    "information": {
+      "de": "Dieses Plugin verbindet wanderer über eine Server-URL und einen API-Schlüssel mit deiner Immich-Fotobibliothek. Es findet Fotos anhand ihrer Standortdaten und eines optionalen Zeitfensters, passend zu deinen Touren. Ausgewählte Fotos können als Vorschau oder Original in wanderer kopiert oder für private Touren mit Immich verknüpft werden. Suchradius und Zeitfenster lassen sich in den Plugin-Einstellungen anpassen.",
+      "en": "This plugin connects wanderer to your Immich photo library using a server URL and an API key. It finds photos that match your trails based on their location data and an optional time window. Selected photos can be copied into wanderer as previews or originals, or linked to Immich for private trails. You can adjust the search radius and time window in the plugin settings."
+    },
+    "homepageUrl": "https://immich.app/",
+    "donationUrl": "https://buy.immich.app/",
     "icons": {
       "light": "icon.svg"
     }

@@ -11,6 +11,10 @@ import (
 
 func CreateTrailShareHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
+		if err := ensureShareAllowed(e, "trails", "trail"); err != nil {
+			return err
+		}
+
 		err := e.Next()
 		if err != nil {
 			return err

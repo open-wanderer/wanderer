@@ -2,6 +2,7 @@
     import ConfirmModal from "$lib/components/confirm_modal.svelte";
     import PluginCard from "$lib/components/settings/plugins/plugin_card.svelte";
     import Modal from "$lib/components/base/modal.svelte";
+    import PluginInfoModal from "$lib/components/settings/plugins/plugin_info_modal.svelte";
     import PluginInstanceSettingsModal from "$lib/components/settings/plugins/plugin_instance_settings_modal.svelte";
     import type { Category } from "$lib/models/category.js";
     import type { PluginInstance } from "$lib/models/plugin_instance.js";
@@ -18,10 +19,12 @@
     import { show_toast } from "$lib/stores/toast_store.svelte.js";
     import {
         pluginDescription as localizedPluginDescription,
+        pluginInformation as localizedPluginInformation,
         pluginTitle as localizedPluginTitle,
     } from "$lib/util/plugin_i18n";
     import {
         translatePluginAPIError,
+        pluginSetupErrorKey,
         translatePluginError,
     } from "$lib/util/plugin_error_i18n";
     import { onMount, tick, untrack } from "svelte";
@@ -43,6 +46,7 @@
     );
 
     let pluginSettingsModal: PluginInstanceSettingsModal | undefined = $state();
+    let pluginInfoModal: PluginInfoModal | undefined = $state();
     let categoryRemapConfirmModal: ConfirmModal | undefined = $state();
     let disableRemoteAssetsModal: Modal | undefined = $state();
     let selectedPlugin: PluginProvider | undefined = $state();
@@ -50,6 +54,7 @@
     let remoteAssetSummaries: Record<string, RemoteAssetsSummary> = $state({});
     let materializeJob: MaterializeJob | null = $state(null);
     let materializingPluginId: string | null = $state(null);
+    let infoPlugin: PluginProvider | undefined = $state();
     let pendingCategoryRemap:
         | {
               instanceId: string;
@@ -700,6 +705,12 @@
         pluginSettingsModal?.openModal();
     }
 
+    async function openPluginInfo(plugin: PluginProvider) {
+        infoPlugin = plugin;
+        await tick();
+        pluginInfoModal?.openModal();
+    }
+
     function pluginLogo(plugin: PluginProvider) {
         if (currentTheme === "dark" && plugin.iconDark) {
             return plugin.iconDark;
@@ -742,6 +753,10 @@
         return result || collator.compare(fallbackA, fallbackB);
     }
 
+    function pluginInformation(plugin: PluginProvider) {
+        return localizedPluginInformation(plugin, $locale);
+    }
+
     function pluginTypeTitle(type: PluginProvider["type"]) {
         return $_(`plugin-type-${type}`);
     }
@@ -750,11 +765,21 @@
         return $_(`plugin-type-${type}-description`);
     }
 
+    function pluginSetupError(plugin: PluginProvider) {
+        if (plugin.status !== "error") {
+            return "";
+        }
+        return plugin.error || $_(pluginSetupErrorKey(plugin.setupErrorCode));
+    }
+
     function pluginCardError(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
     ) {
-        if (plugin.status != "available") {
+        if (plugin.status === "error") {
+            return pluginSetupError(plugin);
+        }
+        if (plugin.status !== "available") {
             return plugin.error ?? "";
         }
         return instanceError(instance);
@@ -774,10 +799,6 @@
 
     function canCreateInstanceFromToggle(plugin: PluginProvider) {
         return plugin.auth.type !== "oauth2" && (plugin.auth.fields?.length ?? 0) === 0;
-    }
-
-    function pluginSettingsAvailable(plugin: PluginProvider) {
-        return true;
     }
 
     function routingPluginIsSelected(plugin: PluginProvider) {
@@ -816,39 +837,84 @@
 <h3 class="text-2xl font-semibold">{$_("plugins")}</h3>
 <hr class="mt-4 mb-6 border-input-border" />
 
-<div class="space-y-8">
-    {#each pluginGroups as group (group.type)}
-        <section>
-            <div class="mb-4 space-y-2">
-                <h4 class="text-xl font-medium">{pluginTypeTitle(group.type)}</h4>
-                <p class="text-sm text-gray-500 max-w-3xl">
-                    {pluginTypeDescription(group.type)}
-                </p>
-            </div>
-            <div class="space-y-3">
-                {#each group.plugins as plugin (plugin.id)}
-                    {@const instance = instanceForPlugin(plugin)}
-                    <PluginCard
-                        img={pluginLogo(plugin)}
-                        title={pluginTitle(plugin)}
-                        description={pluginDescription(plugin)}
-                        disabled={pluginToggleDisabled(plugin, instance)}
-                        active={instance?.enabled ?? false}
-                        lastSyncAt={instance?.last_sync_at}
-                        error={pluginCardError(plugin, instance)}
-                        toggleTitle={pluginToggleTitle(plugin, instance)}
-                        settingsAvailable={pluginSettingsAvailable(plugin)}
-                        onclick={() => openPluginSettings(plugin)}
-                        ontoggle={(value) => onPluginToggle(plugin, instance, value)}
-                        actionLabel={pluginCardActionLabel(plugin, instance)}
-                        actionLoading={materializingPluginId === plugin.id}
-                        onaction={pluginCardAction(plugin, instance)}
-                    ></PluginCard>
-                {/each}
-            </div>
-        </section>
-    {/each}
-</div>
+{#if pluginGroups.length === 0}
+    <div
+        class="rounded-xl border border-dashed border-input-border bg-input-background px-6 py-10 text-center"
+    >
+        <div
+            class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-input-border text-xl text-gray-500"
+            aria-hidden="true"
+        >
+            <i class="fa fa-plug"></i>
+        </div>
+        <h4 class="text-lg font-semibold">{$_("plugins-empty-title")}</h4>
+        <p class="mx-auto mt-2 max-w-xl text-sm text-gray-500">
+            {$_("plugins-empty-description")}
+        </p>
+        <a
+            class="btn-secondary mt-6 inline-flex items-center justify-center gap-2"
+            href="https://wanderer.to/run/installation/plugins"
+            target="_blank"
+            rel="noreferrer"
+        >
+            <i class="fa fa-book" aria-hidden="true"></i>
+            {$_("plugins-empty-docs-link")}
+        </a>
+    </div>
+{:else}
+    <div class="space-y-8">
+        {#each pluginGroups as group (group.type)}
+            <section>
+                <div class="mb-4 space-y-2">
+                    <h4 class="text-xl font-medium">{pluginTypeTitle(group.type)}</h4>
+                    <p class="text-sm text-gray-500 max-w-3xl">
+                        {pluginTypeDescription(group.type)}
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    {#each group.plugins as plugin (plugin.id)}
+                        {@const instance = instanceForPlugin(plugin)}
+                        {@const settingsDisabled = plugin.status != "available"}
+                        <PluginCard
+                            img={pluginLogo(plugin)}
+                            title={pluginTitle(plugin)}
+                            description={pluginDescription(plugin)}
+                            {settingsDisabled}
+                            toggleDisabled={pluginToggleDisabled(plugin, instance)}
+                            toggleTitle={pluginToggleTitle(plugin, instance)}
+                            active={instance?.enabled ?? false}
+                            lastSyncAt={instance?.last_sync_at}
+                            error={pluginCardError(plugin, instance)}
+                            oninfo={() => openPluginInfo(plugin)}
+                            onclick={() => openPluginSettings(plugin)}
+                            ontoggle={(value) => onPluginToggle(plugin, instance, value)}
+                            actionLabel={pluginCardActionLabel(plugin, instance)}
+                            actionLoading={materializingPluginId === plugin.id}
+                            onaction={pluginCardAction(plugin, instance)}
+                        ></PluginCard>
+                    {/each}
+                </div>
+            </section>
+        {/each}
+    </div>
+{/if}
+
+{#if infoPlugin}
+    {#key infoPlugin.id}
+        <PluginInfoModal
+            bind:this={pluginInfoModal}
+            pluginId={infoPlugin.id}
+            title={pluginTitle(infoPlugin)}
+            information={pluginInformation(infoPlugin)}
+            version={infoPlugin.version}
+            homepageUrl={infoPlugin.homepageUrl}
+            donationUrl={infoPlugin.donationUrl}
+            img={pluginLogo(infoPlugin)}
+            status={infoPlugin.status}
+            error={pluginSetupError(infoPlugin)}
+        ></PluginInfoModal>
+    {/key}
+{/if}
 
 {#if pendingCategoryRemap}
     <ConfirmModal

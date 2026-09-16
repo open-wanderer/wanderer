@@ -136,4 +136,12 @@ describe("formatSpeed", () => {
         appState.settings.unit = "imperial";
         expect(formatSpeed(5.1 / 3.6)).toBe("3.2 mph");
     });
+
+    it("honors explicit precision for activity statistics", () => {
+        appState.settings.unit = "metric";
+        expect(formatSpeed(5.1 / 3.6, 0)).toBe("5 km/h");
+
+        appState.settings.unit = "imperial";
+        expect(formatSpeed(5.1 / 3.6, 2)).toBe("3.17 mph");
+    });
 });

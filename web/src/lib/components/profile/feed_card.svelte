@@ -69,7 +69,10 @@
         trail?.description ?? list?.description ?? summitLog?.text ?? "",
     );
     const descriptionPreview = $derived(
-        formatHTMLAsTextPreview(itemDescription, DESCRIPTION_PREVIEW_LENGTH),
+        formatHTMLAsTextPreview(
+            itemDescription,
+            DESCRIPTION_PREVIEW_LENGTH,
+        ),
     );
     const itemHref = $derived(
         feedItem.type === "trail"

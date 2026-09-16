@@ -3,7 +3,7 @@
 
     import { SummitLogCreateSchema } from "$lib/models/api/summit_log_schema";
     import GPX from "$lib/models/gpx/gpx";
-    import { markGeneratedAssetFile } from "$lib/stores/asset_store";
+    import { markGeneratedAssetFile, has_asset_attachments } from "$lib/stores/asset_store";
     import { summitLog } from "$lib/stores/summit_log_store";
     import { fetchGPX } from "$lib/stores/trail_store";
     import { cloneDeep } from "$lib/util/deep_util";
@@ -27,7 +27,7 @@
     import type { PluginProvider } from "$lib/models/plugin_provider";
     interface Props {
         children?: Snippet<[any]>;
-        onsave?: (summitLog: SummitLog) => void;
+        onsave?: (summitLog: SummitLog) => void | boolean | Promise<void | boolean>;
         assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
         trailId?: string;
@@ -71,14 +71,14 @@
             .optional(),
     });
 
-    const { form, errors, data, setFields } = createForm<
+    const { form, errors, data, setFields, isSubmitting } = createForm<
         z.infer<typeof ClientSummitLogCreateSchema>
     >({
         initialValues: $summitLog,
         extend: validator({ schema: ClientSummitLogCreateSchema }),
         onSubmit: async (form) => {
             if (
-                !form._photos?.length &&
+                !has_asset_attachments({ files: form._photos, assetIds: form._assetLinks, pluginLinks: form._assetPluginLinks }) &&
                 !form.photos?.length &&
                 !pendingCandidates.length &&
                 form.expand?.gpx_data
@@ -111,7 +111,20 @@
                 ];
             }
 
-            onsave?.(form);
+            if ((await onsave?.(form)) === false) {
+                // The save callback keeps the server ID and remaining requests
+                // in this form. Retain their previews without resetting the dialog.
+                setFields(form);
+                pendingCandidates = pendingCandidates.filter((candidate) =>
+                    candidate.source === "wanderer"
+                        ? form._assetLinks?.includes(candidate.assetId)
+                        : form._assetPluginLinks?.some((link) =>
+                            link.pluginId === (candidate.pluginId ?? candidate.providerId) &&
+                            link.assetIds.includes(candidate.assetId),
+                        ),
+                );
+                return;
+            }
             modal.closeModal!();
         },
     });
@@ -199,8 +212,20 @@
         ];
     }
 
-    function removePendingCandidate(assetId: string) {
-        pendingCandidates = pendingCandidates.filter((candidate) => candidate.assetId !== assetId);
+    function removePendingCandidate(assetId: string, pluginId?: string) {
+        const matches = (candidate: PhotoLibraryCandidate) => candidate.assetId === assetId &&
+            (candidate.source === "wanderer" ? !pluginId : (candidate.pluginId ?? candidate.providerId) === pluginId);
+        const removed = pendingCandidates.filter(matches);
+        pendingCandidates = pendingCandidates.filter((candidate) => !matches(candidate));
+        if (pluginId) {
+            $data._assetPluginLinks = $data._assetPluginLinks?.map((link) => link.pluginId === pluginId
+                ? { ...link, assetIds: link.assetIds.filter((id) => id !== assetId) }
+                : link,
+            ).filter((link) => link.assetIds.length);
+        } else {
+            $data._assetLinks = $data._assetLinks?.filter((id) => id !== assetId);
+            $data.photos = $data.photos.filter((photo) => !removed.some((candidate) => candidate.thumbnailUrl === photo));
+        }
     }
 
     function candidateKey(candidate: PhotoLibraryCandidate): string {
@@ -245,7 +270,7 @@
                     showThumbnailControls={false}
                     onassetplugin={canUsePhotoLibrary ? () => assetPhotoPickerModal.openModal() : undefined}
                     assetPluginPreviews={pendingCandidates.map((candidate) => ({
-                        pluginId: candidate.pluginId,
+                        pluginId: candidate.source === "wanderer" ? undefined : (candidate.pluginId ?? candidate.providerId),
                         assetId: candidate.assetId,
                         filename: candidate.originalFileName,
                         takenAt: candidate.takenAt,
@@ -281,7 +306,7 @@
             <button class="btn-secondary" onclick={() => modal.closeModal()}
                 >{$_("cancel")}</button
             >
-            <button class="btn-primary" type="submit" form="summit-log-form"
+            <button class="btn-primary" type="submit" form="summit-log-form" disabled={$isSubmitting}
                 >{$_("save")}</button
             >
         </div>

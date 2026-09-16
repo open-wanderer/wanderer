@@ -34,6 +34,8 @@
     import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { APIError } from "$lib/util/api_util";
+    import type { AssetImportOmission } from "$lib/stores/asset_store";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
     import { onMount, untrack } from "svelte";
@@ -50,6 +52,7 @@
     import SummitLogTable from "../summit_log/summit_log_table.svelte";
     import MapWithElevationMaplibre from "./map_with_elevation_maplibre.svelte";
     import TrailTimeline from "./trail_timeline.svelte";
+    import TrailPublicationProgress from "./trail_publication_progress.svelte";
     import {
         summit_logs_create,
         summit_logs_delete,
@@ -68,10 +71,12 @@
     import {
         trails_update,
         trails_update_metadata,
+        trailSaveErrorKey,
     } from "$lib/stores/trail_store";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
     import type { PluginProvider } from "$lib/models/plugin_provider";
+    import { withShareToken } from "$lib/util/url_util";
 
     interface Props {
         initTrail: Trail;
@@ -181,7 +186,12 @@
     }
 
     async function toggleMapFullScreen() {
-        goto(`/map/trail/${handle}/${trail.id!}`);
+        goto(
+            withShareToken(
+                `/map/trail/${handle}/${trail.id!}`,
+                page.url.searchParams,
+            ),
+        );
     }
 
     async function fetchComments() {
@@ -286,31 +296,62 @@
         summitLogModal.openModal();
     }
 
-    async function saveSummitLog(log: SummitLog) {
+    async function saveSummitLog(log: SummitLog): Promise<boolean> {
         summitLogCreateLoading = true;
-        if (log.id) {
-            let oldLogIndex = $summitLogs.findIndex((l) => l.id === log.id);
-            if (oldLogIndex < 0) {
-                return;
+        const omissions: AssetImportOmission[] = [];
+        const onOmitted = (items: AssetImportOmission[]) => { omissions.push(...items); };
+        let failed = false;
+        try {
+            if (log.id) {
+                let oldLogIndex = $summitLogs.findIndex((l) => l.id === log.id);
+                if (oldLogIndex < 0) {
+                    return false;
+                }
+                const updatedLog = await summit_logs_update(
+                    $summitLogs[oldLogIndex],
+                    log,
+                    onOmitted,
+                );
+                $summitLogs[oldLogIndex] = updatedLog;
+            } else {
+                log.trail = trail.id;
+                const newLog = await summit_logs_create(log, undefined, undefined, onOmitted);
+                summitLogs.set([...$summitLogs, newLog]);
+                if (
+                    $summitLogs.length == 1 &&
+                    trail.author == $currentUser?.actor &&
+                    !trail.completed
+                ) {
+                    markTrailAsCompletedModal.openModal();
+                }
             }
-            const updatedLog = await summit_logs_update(
-                $summitLogs[oldLogIndex],
-                log,
-            );
-            $summitLogs[oldLogIndex] = updatedLog;
-        } else {
-            log.trail = trail.id;
-            const newLog = await summit_logs_create(log);
-            summitLogs.set([...$summitLogs, newLog]);
-            if (
-                $summitLogs.length == 1 &&
-                trail.author == $currentUser?.actor &&
-                !trail.completed
-            ) {
-                markTrailAsCompletedModal.openModal();
+            return true;
+        } catch (error) {
+            failed = true;
+            const saved = error instanceof APIError ? error.detail?.savedSummitLog as SummitLog | undefined : undefined;
+            if (saved?.id) {
+                summitLogs.set([
+                    ...$summitLogs.filter((entry) => entry.id !== saved.id),
+                    saved,
+                ]);
+            }
+            const errorKey = trailSaveErrorKey(error);
+            const errorText = $_(errorKey === "error-saving-trail" ? "error-saving-summit-log" : errorKey);
+            const omittedText = omissions.length
+                ? ` ${$_("asset-import-partial-warning", { values: { n: omissions.length } })}`
+                : "";
+            show_toast({ type: "error", icon: "close", text: `${errorText}${omittedText}` });
+            return false;
+        } finally {
+            summitLogCreateLoading = false;
+            if (omissions.length && !failed) {
+                show_toast({
+                    type: "warning",
+                    icon: "exclamation-triangle",
+                    text: $_("asset-import-partial-warning", { values: { n: omissions.length } }),
+                }, 8000);
             }
         }
-        summitLogCreateLoading = false;
     }
 
     function beforeConfirmModalOpen(currentSummitLog: SummitLog) {
@@ -342,8 +383,14 @@
     }
 
     async function markTrailAsCompleted() {
-        trail.completed = true;
-        const updatedTrail: Trail = { ...trail };
+        const oldestSummitLogDate = $summitLogs
+            .map((log) => log.date)
+            .sort()[0];
+        const updatedTrail: Trail = {
+            ...trail,
+            completed: true,
+            completed_at: trail.completed_at || oldestSummitLogDate,
+        };
         await trails_update(trail, updatedTrail);
     }
 
@@ -510,7 +557,6 @@
                             onclick={trailPhotos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
-                            autoplay
                             loop
                             src={photo}
                         ></video>
@@ -720,6 +766,10 @@
                     {/if}
                     <TrailDropdown
                         trails={new Set<Trail>([trail])}
+                        onUpdate={(updated) => {
+                            const saved = updated?.find((item) => item.id === trail.id);
+                            if (saved) trail = mergeTrailUpdate(trail, saved);
+                        }}
                         onDelete={() =>
                             history.length ? history.back() : goto("/trails")}
                         onMerge={handleTrailMerge}
@@ -728,6 +778,14 @@
                 </div>
             </div>
         </section>
+        {#if canEditTrail}
+            <TrailPublicationProgress
+                trailId={trail.id}
+                name={trail.name}
+                publicTrail={trail.public}
+                onpublished={(saved) => { trail = mergeTrailUpdate(trail, saved); }}
+            />
+        {/if}
         <section
             class="grid grid-cols-2 sm:grid-cols-5 gap-y-4 py-4 border-b border-input-border px-3"
         >

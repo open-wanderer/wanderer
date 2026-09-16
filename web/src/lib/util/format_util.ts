@@ -59,7 +59,7 @@ export function formatElevation(meters?: number) {
     }
 }
 
-export function formatSpeed(speed?: number) {
+export function formatSpeed(speed?: number, fractionDigits?: number) {
     if (speed === undefined) {
         return "-";
     }
@@ -67,11 +67,11 @@ export function formatSpeed(speed?: number) {
     const unit = page.data.settings?.unit ?? "metric";
 
     if (unit == "metric") {
-        return `${(speed * 3.6).toFixed(1)} km/h`
+        return `${(speed * 3.6).toFixed(fractionDigits ?? 1)} km/h`
     } else {
         const mph = speed * 3.6 * 0.621371;
 
-        return `${mph.toFixed(1)} mph`;
+        return `${mph.toFixed(fractionDigits ?? 1)} mph`;
     }
 }
 
