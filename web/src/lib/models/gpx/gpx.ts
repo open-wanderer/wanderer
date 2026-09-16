@@ -1,4 +1,5 @@
 import * as xml2js from 'isomorphic-xml2js';
+import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import Metadata from './metadata';
 import Route from './route';
 import Track from './track';
@@ -218,18 +219,41 @@ export default class GPX {
   }
 
   static parse(gpxString: string): GPX {
-    const sanitizedGPX = gpxString.replace(/\sxmlns=""/g, '').replace(/<!--[\s\S]*?-->/g, '');
-
-    // Only strip prefixes that are bound to the GPX namespace itself (e.g. <g:gpx xmlns:g="http://www.topografix.com/GPX/1/1">).
-    // Prefixes of foreign namespaces (Garmin extensions etc.) must survive so they round-trip through toString().
+    const document = new DOMParser({
+      onError(level, message) {
+        // U+FFFD is valid XML text; xmldom warns about possible source encoding issues.
+        if (level === 'warning' && message === 'Unicode replacement character detected, source encoding issues?') {
+          return;
+        }
+        throw new Error(message);
+      }
+    }).parseFromString(gpxString, 'application/xml');
     const gpxPrefixes = new Set<string>();
-    for (const m of sanitizedGPX.matchAll(/xmlns:([\w.-]+)\s*=\s*["']http:\/\/www\.topografix\.com\/GPX\/1\/[01]["']/g)) {
-      gpxPrefixes.add(m[1]);
-    }
+    const normalizedGPX = new XMLSerializer().serializeToString(document.documentElement!, {
+      nodeFilter(node) {
+        // The browser xml2js implementation treats comments as object properties.
+        // Discard parsed comments without changing comment-like text in CDATA or values.
+        if (node.nodeType === node.COMMENT_NODE) {
+          return null;
+        }
+        if (node.nodeType === node.ATTRIBUTE_NODE) {
+          if (node.nodeName === 'xmlns' && node.nodeValue === '') {
+            return null;
+          }
+          // Only actual GPX namespace declarations may cause prefixes to be stripped.
+          // Foreign namespaces must survive so extensions round-trip through toString().
+          if (node.nodeName.startsWith('xmlns:') &&
+            (node.nodeValue === 'http://www.topografix.com/GPX/1/0' || node.nodeValue === 'http://www.topografix.com/GPX/1/1')) {
+            gpxPrefixes.add(node.nodeName.substring('xmlns:'.length));
+          }
+        }
+        return node;
+      }
+    });
 
     return (function () {
       let data = null, error = null;
-      xml2js.parseString(sanitizedGPX, {
+      xml2js.parseString(normalizedGPX, {
         explicitArray: false,
         tagNameProcessors: gpxPrefixes.size ? [(name: string) => {
           const i = name.indexOf(":");
@@ -244,6 +268,13 @@ export default class GPX {
         ]
       }, (err, xml) => {
         error = err;
+        if (err) {
+          return;
+        }
+        if (!xml || !Object.prototype.hasOwnProperty.call(xml, 'gpx')) {
+          error = new Error('Missing GPX root element');
+          return;
+        }
         data = new GPX({
           $: xml.gpx.$,
           metadata: xml.gpx.metadata,
