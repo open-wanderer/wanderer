@@ -13,7 +13,7 @@ import FitParser from "$lib/vendor/fit-parser/fit_parser";
 import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
 import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'geojson';
 import JSZip from "jszip";
-import type { AuthRecord } from "pocketbase";
+import { ClientResponseError, type AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
 import { icons } from "./icon_util";
 
@@ -132,6 +132,47 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
     }
 
     return gpx.toString();
+}
+
+export const trailGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss", "lat", "lon"] as const;
+export const summitLogGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss"] as const;
+const positionFields: readonly string[] = ["lat", "lon"];
+
+export async function applyGpxToForm(data: FormData, fields: readonly (typeof trailGpxFields)[number][], correctElevation: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+    const file = data.get("gpx");
+    if (!(file instanceof Blob) || file.size === 0) {
+        return;
+    }
+
+    let gpxFile: Blob;
+    let gpx: GPX;
+    let trail: Trail;
+    try {
+        const converted = await fromFile(file);
+        gpxFile = converted.gpxFile;
+        ({ gpx, trail } = await gpx2trail(converted.gpxData, undefined, correctElevation, f));
+    } catch (e) {
+        console.error(e);
+        throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } });
+    }
+
+    if (gpxFile !== file) {
+        const name = file instanceof File ? file.name.replace(/\.[^.]*$/, "") + ".gpx" : "trail.gpx";
+        data.set("gpx", gpxFile, name);
+    }
+
+    // Statistics are computed from track points only. A route-only file
+    // (<rte>/<rtept>) yields zeros, which must not replace the stored values.
+    const hasTrackPoints = gpx.trk?.some((trk) => trk.trkseg?.some((seg) => (seg.trkpt?.length ?? 0) > 0)) ?? false;
+
+    for (const field of fields) {
+        if (!hasTrackPoints && !positionFields.includes(field)) {
+            continue;
+        }
+        if (!data.has(field) && trail[field] !== undefined) {
+            data.set(field, String(trail[field]));
+        }
+    }
 }
 
 export async function fromFile(file: File | Blob) {

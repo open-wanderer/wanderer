@@ -27,6 +27,7 @@
     import type { Feature, FeatureCollection, GeoJSON } from "geojson";
     import * as M from "maplibre-gl";
     import "maplibre-gl/dist/maplibre-gl.css";
+    import "$lib/util/maplibre_worker";
     import { onDestroy, onMount, untrack } from "svelte";
 
     interface Props {

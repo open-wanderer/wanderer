@@ -1,5 +1,7 @@
 import type { Trail } from "$lib/models/trail";
 import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
+import { applyGpxToForm, trailGpxFields } from "$lib/util/gpx_util";
+import { RecordIdSchema } from "$lib/models/api/base_schema";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -9,6 +11,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *     summary: Update trail with file upload
  *     description: >
  *       Updates a trail with file upload (GPX/photos) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
+ *       A `gpx` part replaces the track: the file is converted to GPX (FIT, KML, KMZ and TCX are accepted) and `distance`, `duration`, `elevation_gain`, `elevation_loss`, `lat` and `lon` are derived from it unless the request sets them explicitly. `bounding_box_diagonal` and `polyline` are always recomputed.
  *     tags:
  *       - Trails
  *     parameters:
@@ -31,15 +34,23 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *             schema:
  *               $ref: '#/components/schemas/Trail'
  *       400:
- *         description: Bad Request (invalid id, or body `id` differs from the path)
+ *         description: Bad Request (invalid id, body `id` differs from the path, or the `gpx` file cannot be parsed)
+ *       401:
+ *         description: Unauthorized
  *       404:
  *         description: Not Found
  *       500:
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    try {        
-        const r = await uploadUpdate<Trail>(event, Collection.trails)
+    if (!event.locals.user) {
+        return json({ message: "Unauthorized" }, { status: 401 });
+    }
+    try {
+        RecordIdSchema.parse(event.params);
+        const data = await event.request.formData();
+        await applyGpxToForm(data, trailGpxFields, true, event.fetch);
+        const r = await uploadUpdate<Trail>(event, Collection.trails, data)
         enrichRecord(r);
         return json(r);
     } catch (e) {
