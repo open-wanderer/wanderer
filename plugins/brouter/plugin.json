@@ -94,6 +94,12 @@
       "de": "Berechnet Routen über einen BRouter-Dienst und native BRouter-Profile.",
       "en": "Routes using a BRouter service and native BRouter profiles."
     },
+    "information": {
+      "de": "Dieses Plugin verbindet wanderer mit BRouter und berechnet Routen mit Höhendaten auf Basis von OpenStreetMap. Es unterstützt alternative Routen, Rundtouren und eigene Routing-Profile im .brf-Format, die du in den Plugin-Einstellungen bearbeiten und Kategorien zuordnen kannst. Standardmäßig nutzt es den öffentlichen Dienst auf brouter.de; Administratoren können einen eigenen Dienst konfigurieren. Über den Spendenlink kannst du FOSSGIS e.V. unterstützen, das die öffentliche Server-Infrastruktur finanziert.",
+      "en": "This plugin connects wanderer to BRouter to calculate routes with elevation data using OpenStreetMap. It supports alternative routes, round trips, and custom .brf routing profiles that you can edit and assign to categories in the plugin settings. By default, it uses the public service at brouter.de; administrators can configure their own service. The donation link supports FOSSGIS e.V., which funds the public server infrastructure."
+    },
+    "homepageUrl": "https://brouter.de/",
+    "donationUrl": "https://www.fossgis.de/verein/spenden/",
     "icons": {
       "light": "icon.svg"
     },

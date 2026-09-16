@@ -105,6 +105,12 @@
       "de": "Berechnet Routen und Höhenprofile über einen Valhalla-Dienst.",
       "en": "Routes and enriches elevation using a Valhalla service."
     },
+    "information": {
+      "de": "Dieses Plugin verbindet wanderer mit Valhalla und berechnet Routen, Höhendaten und Abbiegehinweise auf Basis von OpenStreetMap. Es unterstützt Routen zu Fuß, mit dem Fahrrad und mit dem Auto sowie alternative Routen. Standardmäßig nutzt es den öffentlichen Valhalla-Dienst von FOSSGIS e.V.; Administratoren können einen eigenen Dienst konfigurieren. Über den Spendenlink kannst du FOSSGIS beim Betrieb der öffentlichen Routing-Infrastruktur unterstützen.",
+      "en": "This plugin connects wanderer to Valhalla to calculate routes, elevation data, and turn-by-turn instructions using OpenStreetMap. It supports walking, cycling, and driving, as well as alternative routes. By default, it uses the public Valhalla service hosted by FOSSGIS e.V.; administrators can configure their own service. The donation link supports FOSSGIS in running the public routing infrastructure."
+    },
+    "homepageUrl": "https://valhalla.github.io/valhalla/",
+    "donationUrl": "https://www.fossgis.de/verein/spenden/",
     "icons": {
       "light": "icon.svg"
     },
