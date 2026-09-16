@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -144,31 +143,21 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 	}
 }
 
-// MaterializePrivateRemoteAssetLinksBeforePublish must run before the trail is
-// persisted: public readers and federation must only see locally stored photos.
-// Existing public trails are repaired explicitly through plugin settings.
+// MaterializePrivateRemoteAssetLinksBeforePublish requires preparation to finish
+// before publication. Downloads run in a background job; this final guard only
+// reads local records, including photos linked while the job was running.
 func MaterializePrivateRemoteAssetLinksBeforePublish(app core.App) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		if !e.Record.Original().GetBool("public") && e.Record.GetBool("public") {
-			originalContext := e.Context
-			ctx, cancel := context.WithTimeout(originalContext, assetservice.TrailMaterializationTimeout)
-			defer cancel()
-			e.Context = ctx
-			defer func() { e.Context = originalContext }()
-			if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(e.Context, e.App, e.Record.Id); err != nil {
-				restoreRemoteAssetStatusesAfterRollback(app, e.App, err)
-				return trailPublicationError(err)
-			}
-			if err := e.Context.Err(); err != nil {
-				return trailPublicationError(err)
-			}
-			if err := e.Next(); err != nil {
-				if errors.Is(err, context.DeadlineExceeded) {
+			originalApp := e.App
+			return originalApp.RunInTransaction(func(txApp core.App) error {
+				if err := assetservice.EnsureTrailAssetsMaterialized(txApp, e.Record.Id); err != nil {
 					return trailPublicationError(err)
 				}
-				return err
-			}
-			return nil
+				e.App = txApp
+				defer func() { e.App = originalApp }()
+				return e.Next()
+			})
 		}
 		return e.Next()
 	}
@@ -176,10 +165,8 @@ func MaterializePrivateRemoteAssetLinksBeforePublish(app core.App) func(e *core.
 
 func trailPublicationError(err error) error {
 	code := "asset_publish_failed"
-	if errors.Is(err, assetservice.ErrTrailMaterializationBudget) || errors.Is(err, context.DeadlineExceeded) {
-		code = "asset_publish_limit_reached"
-	} else if errors.Is(err, util.ErrPluginMediaTooLarge) {
-		code = "asset_publish_photo_too_large"
+	if errors.Is(err, assetservice.ErrTrailMaterializationRequired) {
+		code = "asset_publish_required"
 	}
 	apiErr := apis.NewBadRequestError(code, err)
 	// PocketBase sentence-cases messages; preserve the public error code.
@@ -237,7 +224,32 @@ func MaterializePrivateRemoteAssetOnPublicLink(app core.App, targetField string)
 				return apis.NewBadRequestError("Could not link remote photo because it could not be downloaded. Please download or remove the photo first.", err)
 			}
 		}
-		return e.Next()
+		// Serialize the final check and insertion with publication. A trail can
+		// become public after the check above; in that case the caller must retry
+		// so its download happens before opening this short transaction.
+		originalApp := e.App
+		return originalApp.RunInTransaction(func(txApp core.App) error {
+			currentTrailID, err := util.TrailIDForLinkTarget(txApp, targetField, targetID)
+			if err != nil {
+				return err
+			}
+			currentTrail, err := txApp.FindRecordById("trails", currentTrailID)
+			if err != nil {
+				return err
+			}
+			if currentTrail.GetBool("public") && assetID != "" {
+				asset, err := txApp.FindRecordById("assets", assetID)
+				if err != nil {
+					return err
+				}
+				if asset.GetString("type") == "photo" && asset.GetString("storage_mode") == "link_private" {
+					return apis.NewBadRequestError("The trail became public before this photo was linked. Please try again to download the photo first.", assetservice.ErrTrailMaterializationRequired)
+				}
+			}
+			e.App = txApp
+			defer func() { e.App = originalApp }()
+			return e.Next()
+		})
 	}
 }
 

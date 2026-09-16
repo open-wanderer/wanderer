@@ -30,7 +30,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 )
 
-func TestPublishMaterializesAllLinkedAuthorsBeforeSuccess(t *testing.T) {
+func TestTrailPreparationIncludesLinkedContributorsAndReportsProgress(t *testing.T) {
 	app, owner, contributor := newAssetPublishTestApp(t, nil)
 	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
 	waypoint := savePublishRecord(t, app, "waypoints", map[string]any{"trail": trail.Id})
@@ -43,10 +43,25 @@ func TestPublishMaterializesAllLinkedAuthorsBeforeSuccess(t *testing.T) {
 	linkPublishPhoto(t, app, "trail", trail.Id, assets[0].Id)
 	linkPublishPhoto(t, app, "waypoint", waypoint.Id, assets[1].Id)
 	linkPublishPhoto(t, app, "summit_log", log.Id, assets[2].Id)
-	// A single photo can be linked more than once, but unrelated photos must stay private.
+	// A photo linked twice is downloaded once; other trails are unaffected.
 	linkPublishPhoto(t, app, "trail", trail.Id, assets[1].Id)
-	unlinked := newPublishPhoto(t, app, contributor.Id, "unlinked")
+	otherTrail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
+	unrelated := newPublishPhoto(t, app, owner.Id, "other-trail")
+	linkPublishPhoto(t, app, "trail", otherTrail.Id, unrelated.Id)
 
+	progress := [][3]int{}
+	if err := assetservice.MaterializePrivateRemotePluginAssetsForTrailWithProgress(context.Background(), app, trail.Id, func(total, processed, failed int) {
+		progress = append(progress, [3]int{total, processed, failed})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if want := [][3]int{{3, 0, 0}, {3, 1, 0}, {3, 2, 0}, {3, 3, 0}}; !reflect.DeepEqual(progress, want) {
+		t.Fatalf("progress = %v, want %v", progress, want)
+	}
+	stored, err := app.FindRecordById("trails", trail.Id)
+	if err != nil || stored.GetBool("public") {
+		t.Fatalf("preparation published the trail: trail=%v error=%v", stored, err)
+	}
 	publicationObserved := false
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(func(e *core.RecordEvent) error {
 		publicationObserved = true
@@ -55,174 +70,176 @@ func TestPublishMaterializesAllLinkedAuthorsBeforeSuccess(t *testing.T) {
 		}
 		return e.Next()
 	})
-	trail.Set("public", true)
-	if err := app.Save(trail); err != nil {
+	if err := savePublishedTrail(app, trail.Id); err != nil {
 		t.Fatal(err)
 	}
 	if !publicationObserved {
 		t.Fatal("trail success hook was not called")
 	}
-	assertPublishPhotoState(t, app, unlinked.Id, "link_private", "available")
+	assertPublishPhotoState(t, app, unrelated.Id, "link_private", "available")
 }
 
-func TestPublishFailureKeepsTrailPrivateAndCanRetry(t *testing.T) {
-	for _, transactional := range []bool{false, true} {
-		for _, status := range []int{http.StatusNotFound, http.StatusForbidden} {
-			t.Run(fmt.Sprintf("transaction=%t/status=%d", transactional, status), func(t *testing.T) {
-				var unavailable atomic.Bool
-				unavailable.Store(true)
-				app, owner, contributor := newAssetPublishTestApp(t, func(r *http.Request) int {
-					if r.URL.Path == "/photos/broken" && unavailable.Load() {
-						return status
-					}
-					return http.StatusOK
-				})
-				trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
-				broken := newPublishPhoto(t, app, contributor.Id, "broken")
-				broken.Set("created", time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
-				if err := app.Save(broken); err != nil {
-					t.Fatal(err)
-				}
-				good := newPublishPhoto(t, app, owner.Id, "good")
-				linkPublishPhoto(t, app, "trail", trail.Id, broken.Id)
-				linkPublishPhoto(t, app, "trail", trail.Id, good.Id)
-				published := false
-				app.OnRecordAfterUpdateSuccess("trails").BindFunc(func(e *core.RecordEvent) error {
-					published = true
-					return e.Next()
-				})
-				publish := func() error {
-					save := func(app core.App) error {
-						record, err := app.FindRecordById("trails", trail.Id)
-						if err != nil {
-							return err
-						}
-						record.Set("public", true)
-						return app.Save(record)
-					}
-					if transactional {
-						return app.RunInTransaction(save)
-					}
-					return save(app)
-				}
-				err := publish()
-				var apiErr *router.ApiError
-				if !errors.As(err, &apiErr) || apiErr.Status != http.StatusBadRequest || apiErr.Message != "asset_publish_failed" {
-					t.Fatalf("publish error = %v, want asset_publish_failed HTTP 400", err)
-				}
-				stored, err := app.FindRecordById("trails", trail.Id)
-				if err != nil || stored.GetBool("public") || published {
-					t.Fatalf("failed publication was persisted or announced: trail=%v error=%v published=%t", stored, err, published)
-				}
-				wantStatus := "missing"
-				if status == http.StatusForbidden {
-					wantStatus = "inaccessible"
-				}
-				failed := assertPublishPhotoState(t, app, broken.Id, "link_private", wantStatus)
-				if failed.GetString("remote_error") != (util.HTTPStatusError{StatusCode: status}).Error() || failed.GetDateTime("remote_checked_at").IsZero() {
-					t.Fatal("failed asset status was lost, including after rollback")
-				}
-				if got := !failed.GetDateTime("remote_missing_since").IsZero(); got != (wantStatus == "missing") {
-					t.Fatalf("remote_missing_since populated = %t for %s", got, wantStatus)
-				}
-				if !transactional {
-					assertPublishPhotoState(t, app, good.Id, "copy", "available")
-				}
-				unavailable.Store(false)
-				if err := publish(); err != nil {
-					t.Fatalf("retry failed: %v", err)
-				}
-				if !published {
-					t.Fatal("successful retry was not announced")
-				}
-				for _, asset := range []*core.Record{broken, good} {
-					stored := assertPublishPhotoState(t, app, asset.Id, "copy", "available")
-					if stored.GetString("remote_error") != "" || !stored.GetDateTime("remote_missing_since").IsZero() {
-						t.Fatal("successful retry retained a stale remote error")
-					}
-				}
-			})
-		}
-	}
-}
-
-func TestPublishOversizedPhotoReportsFileLimitAndKeepsTrailPrivate(t *testing.T) {
+func TestPublishGuardRejectsRemotePhotosWithoutDownloading(t *testing.T) {
 	for _, transactional := range []bool{false, true} {
 		t.Run(fmt.Sprintf("transaction=%t", transactional), func(t *testing.T) {
 			app, owner, _ := newAssetPublishTestApp(t, nil)
 			trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
-			photo := newPublishPhoto(t, app, owner.Id, "oversized")
-			linkPublishPhoto(t, app, "trail", trail.Id, photo.Id)
-			calls := 0
-			t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(_ context.Context, _ pluginsystem.Photo, _ importer.Options, maxBytes int64) (*util.SafeFetchResult, error) {
-				calls++
-				if maxBytes != util.DefaultPluginMediaMaxBytes {
-					t.Fatalf("per-photo limit = %d, want %d", maxBytes, util.DefaultPluginMediaMaxBytes)
-				}
-				return nil, fmt.Errorf("read photo: %w", util.ErrPluginMediaTooLarge)
+			asset := newPublishPhoto(t, app, owner.Id, "photo")
+			linkPublishPhoto(t, app, "trail", trail.Id, asset.Id)
+			t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(context.Context, pluginsystem.Photo, importer.Options, int64) (*util.SafeFetchResult, error) {
+				t.Fatal("publication guard started a download")
+				return nil, nil
 			}))
-			published := false
-			app.OnRecordAfterUpdateSuccess("trails").BindFunc(func(e *core.RecordEvent) error {
-				published = true
-				return e.Next()
-			})
-			save := func(app core.App) error {
-				record, err := app.FindRecordById("trails", trail.Id)
-				if err != nil {
-					return err
-				}
-				record.Set("public", true)
-				return app.Save(record)
-			}
 			var err error
 			if transactional {
-				err = app.RunInTransaction(save)
+				err = app.RunInTransaction(func(txApp core.App) error { return savePublishedTrail(txApp, trail.Id) })
 			} else {
-				err = save(app)
+				err = savePublishedTrail(app, trail.Id)
 			}
 			var apiErr *router.ApiError
-			if !errors.As(err, &apiErr) || apiErr.Status != http.StatusBadRequest || apiErr.Message != "asset_publish_photo_too_large" {
-				t.Fatalf("publish error = %v, want asset_publish_photo_too_large HTTP 400", err)
+			if !errors.As(err, &apiErr) || apiErr.Status != http.StatusBadRequest || apiErr.Message != "asset_publish_required" {
+				t.Fatalf("publish error = %v, want asset_publish_required HTTP 400", err)
 			}
-			if calls != 1 || published {
-				t.Fatalf("oversized photo: fetches=%d, published=%t", calls, published)
+			if err := assetservice.EnsureTrailAssetsMaterialized(app, trail.Id); !errors.Is(err, assetservice.ErrTrailMaterializationRequired) {
+				t.Fatalf("readiness error = %v", err)
 			}
-			assertUnchangedPublishFailure(t, app, trail.Id, photo.Id)
+			assertUnchangedPublishFailure(t, app, trail.Id, asset.Id)
 		})
 	}
 }
 
-func TestPublishDownloadContextStaysActiveThroughTrailSave(t *testing.T) {
+func TestPreparationFailurePreservesSuccessfulPhotosForRetry(t *testing.T) {
+	for _, status := range []int{http.StatusNotFound, http.StatusForbidden} {
+		t.Run(fmt.Sprintf("status=%d", status), func(t *testing.T) {
+			var unavailable atomic.Bool
+			unavailable.Store(true)
+			fetches := map[string]int{}
+			app, owner, contributor := newAssetPublishTestApp(t, func(r *http.Request) int {
+				fetches[r.URL.Path]++
+				if r.URL.Path == "/photos/broken" && unavailable.Load() {
+					return status
+				}
+				return http.StatusOK
+			})
+			trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
+			broken := newPublishPhoto(t, app, contributor.Id, "broken")
+			good := newPublishPhoto(t, app, owner.Id, "good")
+			linkPublishPhoto(t, app, "trail", trail.Id, broken.Id)
+			linkPublishPhoto(t, app, "trail", trail.Id, good.Id)
+			progress := [3]int{}
+			prepare := func() error {
+				return assetservice.MaterializePrivateRemotePluginAssetsForTrailWithProgress(context.Background(), app, trail.Id, func(total, processed, failed int) {
+					progress = [3]int{total, processed, failed}
+				})
+			}
+			err := prepare()
+			var failures *assetservice.MaterializationError
+			if !errors.As(err, &failures) || len(failures.RemoteFailures) != 1 || failures.RemoteFailures[broken.Id] == nil {
+				t.Fatalf("preparation error = %v, want remote failure for %s", err, broken.Id)
+			}
+			if progress != [3]int{2, 2, 1} {
+				t.Fatalf("failed preparation progress = %v", progress)
+			}
+			wantStatus := "missing"
+			if status == http.StatusForbidden {
+				wantStatus = "inaccessible"
+			}
+			failed := assertPublishPhotoState(t, app, broken.Id, "link_private", wantStatus)
+			if failed.GetString("remote_error") != (util.HTTPStatusError{StatusCode: status}).Error() || failed.GetDateTime("remote_checked_at").IsZero() {
+				t.Fatal("failed asset status was not persisted")
+			}
+			if got := !failed.GetDateTime("remote_missing_since").IsZero(); got != (wantStatus == "missing") {
+				t.Fatalf("remote_missing_since populated = %t for %s", got, wantStatus)
+			}
+			assertPublishPhotoState(t, app, good.Id, "copy", "available")
+			if err := savePublishedTrail(app, trail.Id); err == nil {
+				t.Fatal("failed preparation allowed publication")
+			}
+			unavailable.Store(false)
+			if err := prepare(); err != nil {
+				t.Fatalf("retry failed: %v", err)
+			}
+			if progress != [3]int{1, 1, 0} || fetches["/photos/good"] != 1 || fetches["/photos/broken"] != 2 {
+				t.Fatalf("retry redownloaded completed photos: progress=%v fetches=%v", progress, fetches)
+			}
+			if err := app.RunInTransaction(func(txApp core.App) error { return savePublishedTrail(txApp, trail.Id) }); err != nil {
+				t.Fatalf("publication after retry failed: %v", err)
+			}
+			for _, asset := range []*core.Record{broken, good} {
+				stored := assertPublishPhotoState(t, app, asset.Id, "copy", "available")
+				if stored.GetString("remote_error") != "" || !stored.GetDateTime("remote_missing_since").IsZero() {
+					t.Fatal("successful retry retained a stale remote error")
+				}
+			}
+		})
+	}
+}
+
+func TestPublishGuardChecksPhotosLinkedAfterPreparation(t *testing.T) {
 	app, owner, _ := newAssetPublishTestApp(t, nil)
 	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
-	photo := newPublishPhoto(t, app, owner.Id, "photo")
-	linkPublishPhoto(t, app, "trail", trail.Id, photo.Id)
-	var downloadContext context.Context
+	first := newPublishPhoto(t, app, owner.Id, "first")
+	linkPublishPhoto(t, app, "trail", trail.Id, first.Id)
+	if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(context.Background(), app, trail.Id); err != nil {
+		t.Fatal(err)
+	}
+	late := newPublishPhoto(t, app, owner.Id, "late")
+	linkPublishPhoto(t, app, "trail", trail.Id, late.Id)
+	err := app.RunInTransaction(func(txApp core.App) error { return savePublishedTrail(txApp, trail.Id) })
+	var apiErr *router.ApiError
+	if !errors.As(err, &apiErr) || apiErr.Message != "asset_publish_required" {
+		t.Fatalf("late photo bypassed publication guard: %v", err)
+	}
+	assertUnchangedPublishFailure(t, app, trail.Id, late.Id)
+	assertPublishPhotoState(t, app, first.Id, "copy", "available")
+}
+
+func TestPreparationContextsArePerPhotoAndSeparateFromPublication(t *testing.T) {
+	app, owner, _ := newAssetPublishTestApp(t, nil)
+	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
+	for _, name := range []string{"first", "second"} {
+		photo := newPublishPhoto(t, app, owner.Id, name)
+		linkPublishPhoto(t, app, "trail", trail.Id, photo.Id)
+	}
+	contexts := []context.Context{}
 	t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(ctx context.Context, _ pluginsystem.Photo, _ importer.Options, _ int64) (*util.SafeFetchResult, error) {
-		downloadContext = ctx
+		if len(contexts) > 0 && !errors.Is(contexts[len(contexts)-1].Err(), context.Canceled) {
+			t.Fatal("previous photo context was not released")
+		}
+		contexts = append(contexts, ctx)
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > assetservice.TrailPhotoMaterializationTimeout || time.Until(deadline) < time.Minute {
+			t.Fatalf("invalid per-photo deadline: %v", deadline)
+		}
 		return &util.SafeFetchResult{Body: []byte("photo")}, nil
 	}))
+	if err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(context.Background(), app, trail.Id); err != nil {
+		t.Fatal(err)
+	}
+	if len(contexts) != 2 || contexts[0] == contexts[1] {
+		t.Fatalf("download contexts = %v, want one per photo", contexts)
+	}
 	app.OnRecordUpdate("trails").BindFunc(func(e *core.RecordEvent) error {
-		// Publication owns one deadline for both the downloads and persistence.
-		// The service must not cancel that context when the downloads finish.
-		if downloadContext == nil || downloadContext.Err() != nil {
-			t.Fatal("download context ended before trail persistence")
+		if e.Context.Err() != nil {
+			t.Fatal("publication inherited canceled download context")
 		}
-		deadline, ok := downloadContext.Deadline()
-		saveDeadline, saveOK := e.Context.Deadline()
-		if !ok || !saveOK || !deadline.Equal(saveDeadline) || time.Until(deadline) > assetservice.TrailMaterializationTimeout {
-			t.Fatalf("publication deadline differs between download and save: %v / %v", deadline, saveDeadline)
+		if _, ok := e.Context.Deadline(); ok {
+			t.Fatal("publication inherited a download deadline")
 		}
 		return e.Next()
 	})
-	trail.Set("public", true)
-	if err := app.Save(trail); err != nil {
+	if err := savePublishedTrail(app, trail.Id); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := app.FindRecordById("trails", trail.Id)
-	if err != nil || !stored.GetBool("public") {
-		t.Fatalf("publication failed: trail=%v error=%v", stored, err)
+}
+
+func savePublishedTrail(app core.App, trailID string) error {
+	record, err := app.FindRecordById("trails", trailID)
+	if err != nil {
+		return err
 	}
+	record.Set("public", true)
+	return app.Save(record)
 }
 
 func TestInternalPublicAssetLinksMaterializeBeforePersisting(t *testing.T) {
@@ -259,6 +276,80 @@ func TestInternalPublicAssetLinksMaterializeBeforePersisting(t *testing.T) {
 			}
 			assertPublishPhotoState(t, app, broken.Id, "link_private", "missing")
 		})
+	}
+}
+
+func TestConcurrentPublicationCannotOvertakePrivatePhotoLink(t *testing.T) {
+	app, owner, _ := newAssetPublishTestApp(t, nil)
+	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
+	photo := newPublishPhoto(t, app, owner.Id, "photo")
+	collection, err := app.FindCollectionByNameOrId("trail_assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := core.NewRecord(collection)
+	link.Set("trail", trail.Id)
+	link.Set("asset", photo.Id)
+	linkChecked := make(chan struct{})
+	continueInsert := make(chan struct{})
+	app.OnRecordCreateExecute("trail_assets").BindFunc(func(e *core.RecordEvent) error {
+		close(linkChecked)
+		<-continueInsert
+		return e.Next()
+	})
+	linkResult := make(chan error, 1)
+	go func() { linkResult <- app.Save(link) }()
+	select {
+	case <-linkChecked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("link did not reach its insertion hook")
+	}
+	publishResult := make(chan error, 1)
+	go func() {
+		publishResult <- app.RunInTransaction(func(txApp core.App) error { return savePublishedTrail(txApp, trail.Id) })
+	}()
+	// Publication must wait for the link transaction and then see its photo.
+	var earlyPublication error
+	publicationFinishedEarly := false
+	select {
+	case earlyPublication = <-publishResult:
+		publicationFinishedEarly = true
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(continueInsert)
+	if err := <-linkResult; err != nil {
+		t.Fatalf("link failed: %v", err)
+	}
+	if publicationFinishedEarly {
+		t.Fatalf("publication finished before the checked photo link was saved: %v", earlyPublication)
+	}
+	var apiErr *router.ApiError
+	if err := <-publishResult; !errors.As(err, &apiErr) || apiErr.Message != "asset_publish_required" {
+		t.Fatalf("publication did not see the concurrently linked photo: %v", err)
+	}
+	assertUnchangedPublishFailure(t, app, trail.Id, photo.Id)
+}
+
+func TestPublicLinkRemoteFailureStatusSurvivesRollback(t *testing.T) {
+	app, owner, _ := newAssetPublishTestApp(t, func(*http.Request) int { return http.StatusNotFound })
+	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id, "public": true})
+	photo := newPublishPhoto(t, app, owner.Id, "missing")
+	collection, err := app.FindCollectionByNameOrId("trail_assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := core.NewRecord(collection)
+	link.Set("trail", trail.Id)
+	link.Set("asset", photo.Id)
+	if err := app.RunInTransaction(func(txApp core.App) error { return txApp.Save(link) }); err == nil {
+		t.Fatal("failed photo link committed")
+	}
+	if _, err := app.FindRecordById(collection, link.Id); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("failed link exists: %v", err)
+	}
+	stored := assertPublishPhotoState(t, app, photo.Id, "link_private", "missing")
+	if stored.GetString("remote_error") == "" || stored.GetDateTime("remote_missing_since").IsZero() {
+		t.Fatal("remote failure status was lost on rollback")
 	}
 }
 
@@ -318,101 +409,116 @@ func TestAlreadyPublicUpdatesSkipMediaQueriesAndExplicitRepairStillWorks(t *test
 }
 
 func TestLocalMaterializationFailuresDoNotChangeRemoteStatus(t *testing.T) {
-	for _, transactional := range []bool{false, true} {
-		for _, failure := range []string{"file", "database", "metadata"} {
-			t.Run(fmt.Sprintf("transaction=%t/%s", transactional, failure), func(t *testing.T) {
-				app, owner, _ := newAssetPublishTestApp(t, nil)
-				trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
-				asset := newPublishPhoto(t, app, owner.Id, "photo")
-				linkPublishPhoto(t, app, "trail", trail.Id, asset.Id)
-				switch failure {
-				case "file":
-					t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(context.Context, pluginsystem.Photo, importer.Options, int64) (*util.SafeFetchResult, error) {
-						return &util.SafeFetchResult{}, nil // NewFileFromBytes rejects empty content.
-					}))
-				case "database":
-					app.OnRecordUpdate("assets").BindFunc(func(e *core.RecordEvent) error {
-						if e.Record.GetString("storage_mode") == "copy" {
-							return errors.New("local asset storage failed")
-						}
-						return e.Next()
-					})
-				case "metadata":
-					asset.Set("metadata", map[string]any{})
-					if err := app.Save(asset); err != nil {
-						t.Fatal(err)
-					}
-				}
-				publish := func(app core.App) error {
-					record, err := app.FindRecordById("trails", trail.Id)
-					if err != nil {
-						return err
-					}
-					record.Set("public", true)
-					return app.Save(record)
-				}
-				var err error
-				if transactional {
-					err = app.RunInTransaction(publish)
-				} else {
-					err = publish(app)
-				}
-				if err == nil {
-					t.Fatal("local storage failure allowed publication")
-				}
-				assertUnchangedPublishFailure(t, app, trail.Id, asset.Id)
-				// The explicit materialization job must not mislabel local failures either.
-				failed := 0
-				if err := assetservice.MaterializeRemotePluginAssetsForUser(context.Background(), app, "owner", "photos", false, func(_, _, n int) { failed = n }); err != nil || failed != 1 {
-					t.Fatalf("job result failed=%d error=%v", failed, err)
-				}
-				assertUnchangedPublishFailure(t, app, trail.Id, asset.Id)
-			})
-		}
-	}
-}
-
-func TestTrailMaterializationByteBudgetStopsBeforeFurtherDownloads(t *testing.T) {
-	for _, oversized := range []bool{false, true} {
-		t.Run(fmt.Sprintf("oversized=%t", oversized), func(t *testing.T) {
+	for _, failure := range []string{"file", "database", "metadata"} {
+		t.Run(failure, func(t *testing.T) {
 			app, owner, _ := newAssetPublishTestApp(t, nil)
 			trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
-			assets := []*core.Record{}
-			for i := range 3 {
-				asset := newPublishPhoto(t, app, owner.Id, fmt.Sprintf("photo%d", i))
-				linkPublishPhoto(t, app, "trail", trail.Id, asset.Id)
-				assets = append(assets, asset)
-			}
-			limits := []int64{}
-			fetchedPhotos := []string{}
-			t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(_ context.Context, photo pluginsystem.Photo, _ importer.Options, maxBytes int64) (*util.SafeFetchResult, error) {
-				limits = append(limits, maxBytes)
-				fetchedPhotos = append(fetchedPhotos, photo.ExternalID)
-				if len(fetchedPhotos) == 2 && oversized {
-					return nil, util.ErrPluginMediaTooLarge
-				}
-				return &util.SafeFetchResult{Body: bytes.Repeat([]byte("x"), int(min(6, maxBytes)))}, nil
-			}))
-			err := assetservice.MaterializeTrailWithByteLimitForTest(context.Background(), app, trail.Id, 10)
-			if oversized && !errors.Is(err, util.ErrPluginMediaTooLarge) || !oversized && !errors.Is(err, assetservice.ErrTrailMaterializationBudget) {
-				t.Fatalf("unexpected budget error: %v", err)
-			}
-			if !reflect.DeepEqual(limits, []int64{10, 4}) {
-				t.Fatalf("fetch limits = %v, want [10 4] without a third fetch", limits)
-			}
-			for _, asset := range assets {
-				id := asset.GetString("external_id")
-				if id == fetchedPhotos[0] || (!oversized && id == fetchedPhotos[1]) {
-					assertPublishPhotoState(t, app, asset.Id, "copy", "available")
-				} else {
-					assertUnchangedPublishFailure(t, app, trail.Id, asset.Id)
+			asset := newPublishPhoto(t, app, owner.Id, "photo")
+			linkPublishPhoto(t, app, "trail", trail.Id, asset.Id)
+			switch failure {
+			case "file":
+				t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(context.Context, pluginsystem.Photo, importer.Options, int64) (*util.SafeFetchResult, error) {
+					return &util.SafeFetchResult{}, nil // NewFileFromBytes rejects empty content.
+				}))
+			case "database":
+				app.OnRecordUpdate("assets").BindFunc(func(e *core.RecordEvent) error {
+					if e.Record.GetString("storage_mode") == "copy" {
+						return errors.New("local asset storage failed")
+					}
+					return e.Next()
+				})
+			case "metadata":
+				asset.Set("metadata", map[string]any{})
+				if err := app.Save(asset); err != nil {
+					t.Fatal(err)
 				}
 			}
+			err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(context.Background(), app, trail.Id)
+			var failures *assetservice.MaterializationError
+			if !errors.As(err, &failures) || len(failures.RemoteFailures) != 0 {
+				t.Fatalf("local preparation failure = %v", err)
+			}
+			assertUnchangedPublishFailure(t, app, trail.Id, asset.Id)
+			// Plugin settings must not mislabel local failures either.
+			failed := 0
+			if err := assetservice.MaterializeRemotePluginAssetsForUser(context.Background(), app, "owner", "photos", false, func(_, _, n int) { failed = n }); err != nil || failed != 1 {
+				t.Fatalf("job result failed=%d error=%v", failed, err)
+			}
+			assertUnchangedPublishFailure(t, app, trail.Id, asset.Id)
 		})
 	}
 }
 
-func TestPublishCancellationBeforeOrAfterMediaResponseKeepsTrailPrivate(t *testing.T) {
+func TestPreparationKeepsPerPhotoLimitAndContinuesAfterSizeFailures(t *testing.T) {
+	app, owner, _ := newAssetPublishTestApp(t, nil)
+	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
+	for i := range 12 {
+		asset := newPublishPhoto(t, app, owner.Id, fmt.Sprintf("photo%d", i))
+		linkPublishPhoto(t, app, "trail", trail.Id, asset.Id)
+	}
+	calls := 0
+	t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(_ context.Context, _ pluginsystem.Photo, _ importer.Options, maxBytes int64) (*util.SafeFetchResult, error) {
+		calls++
+		if maxBytes != util.DefaultPluginMediaMaxBytes {
+			t.Fatalf("photo %d allowance = %d, want full per-photo limit", calls, maxBytes)
+		}
+		if calls <= 11 {
+			return nil, util.ErrPluginMediaTooLarge
+		}
+		return &util.SafeFetchResult{Body: []byte("photo")}, nil
+	}))
+	progress := [3]int{}
+	err := assetservice.MaterializePrivateRemotePluginAssetsForTrailWithProgress(context.Background(), app, trail.Id, func(total, processed, failed int) {
+		progress = [3]int{total, processed, failed}
+	})
+	var failures *assetservice.MaterializationError
+	if !errors.Is(err, util.ErrPluginMediaTooLarge) || !errors.As(err, &failures) || len(failures.Failures) != 11 || len(failures.RemoteFailures) != 0 {
+		t.Fatalf("unexpected size failures: %v", err)
+	}
+	if calls != 12 || progress != [3]int{12, 12, 11} {
+		t.Fatalf("preparation stopped after failed photos: calls=%d progress=%v", calls, progress)
+	}
+	for id := range failures.Failures {
+		assertUnchangedPublishFailure(t, app, trail.Id, id)
+	}
+	if err := savePublishedTrail(app, trail.Id); err == nil {
+		t.Fatal("oversized photo allowed publication")
+	}
+}
+
+func TestPhotoTimeoutDoesNotCancelRemainingPreparation(t *testing.T) {
+	app, owner, _ := newAssetPublishTestApp(t, nil)
+	trail := savePublishRecord(t, app, "trails", map[string]any{"author": owner.Id})
+	for _, name := range []string{"slow", "good"} {
+		photo := newPublishPhoto(t, app, owner.Id, name)
+		linkPublishPhoto(t, app, "trail", trail.Id, photo.Id)
+	}
+	calls := 0
+	t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(ctx context.Context, photo pluginsystem.Photo, _ importer.Options, _ int64) (*util.SafeFetchResult, error) {
+		calls++
+		if photo.ExternalID == "slow" {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		if ctx.Err() != nil {
+			t.Fatal("slow photo canceled the next download")
+		}
+		return &util.SafeFetchResult{Body: []byte("photo")}, nil
+	}))
+	progress := [3]int{}
+	err := assetservice.MaterializeTrailWithPhotoTimeoutForTest(context.Background(), app, trail.Id, func(total, processed, failed int) {
+		progress = [3]int{total, processed, failed}
+	}, 100*time.Millisecond)
+	var failures *assetservice.MaterializationError
+	if !errors.Is(err, context.DeadlineExceeded) || !errors.As(err, &failures) || len(failures.RemoteFailures) != 0 {
+		t.Fatalf("unexpected timeout error: %v", err)
+	}
+	if calls != 2 || progress != [3]int{2, 2, 1} {
+		t.Fatalf("per-photo timeout ended preparation: calls=%d progress=%v", calls, progress)
+	}
+}
+
+func TestPreparationCancellationBeforeOrAfterMediaResponseKeepsTrailPrivate(t *testing.T) {
 	for _, mode := range []string{"already-canceled", "during-fetch", "after-fetch", "deadline"} {
 		t.Run(mode, func(t *testing.T) {
 			app, owner, _ := newAssetPublishTestApp(t, nil)
@@ -430,7 +536,7 @@ func TestPublishCancellationBeforeOrAfterMediaResponseKeepsTrailPrivate(t *testi
 			t.Cleanup(assetservice.SetRemotePhotoMediaFetcherForTest(func(ctx context.Context, _ pluginsystem.Photo, _ importer.Options, maxBytes int64) (*util.SafeFetchResult, error) {
 				calls++
 				deadline, ok := ctx.Deadline()
-				if !ok || time.Until(deadline) > assetservice.TrailMaterializationTimeout || maxBytes != util.DefaultPluginMediaMaxBytes {
+				if !ok || time.Until(deadline) > assetservice.TrailPhotoMaterializationTimeout || maxBytes != util.DefaultPluginMediaMaxBytes {
 					t.Fatalf("missing publication timeout/per-photo cap: deadline=%v maxBytes=%d", deadline, maxBytes)
 				}
 				if mode == "deadline" {
@@ -446,16 +552,15 @@ func TestPublishCancellationBeforeOrAfterMediaResponseKeepsTrailPrivate(t *testi
 			if mode == "already-canceled" {
 				cancel()
 			}
-			trail.Set("public", true)
-			err := app.SaveWithContext(ctx, trail)
+			err := assetservice.MaterializePrivateRemotePluginAssetsForTrail(ctx, app, trail.Id)
 			if err == nil {
 				t.Fatal("canceled publication succeeded")
 			}
-			if mode == "deadline" {
-				var apiErr *router.ApiError
-				if !errors.As(err, &apiErr) || apiErr.Message != "asset_publish_limit_reached" {
-					t.Fatalf("deadline error = %v, want asset_publish_limit_reached", err)
-				}
+			if mode == "deadline" && !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("deadline error = %v, want context deadline exceeded", err)
+			}
+			if mode != "deadline" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancellation error = %v, want context canceled", err)
 			}
 			if mode == "already-canceled" && calls != 0 {
 				t.Fatal("already canceled publication started a media request")

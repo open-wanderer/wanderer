@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 	"pocketbase/plugins/importer"
@@ -15,6 +16,6 @@ func SetRemotePhotoMediaFetcherForTest(fetch func(context.Context, pluginsystem.
 	return func() { fetchRemotePhotoMedia = original }
 }
 
-func MaterializeTrailWithByteLimitForTest(ctx context.Context, app core.App, trailID string, maxBytes int64) error {
-	return materializePrivateRemotePluginAssetsForTrail(ctx, app, trailID, maxBytes)
+func MaterializeTrailWithPhotoTimeoutForTest(ctx context.Context, app core.App, trailID string, progress ProgressFunc, timeout time.Duration) error {
+	return materializePrivateRemotePluginAssetsForTrail(ctx, app, trailID, progress, timeout)
 }

@@ -9,6 +9,7 @@
     import { env } from "$env/dynamic/public";
     import Toast from "$lib/components/base/toast.svelte";
     import BackgroundTasksDialog from "$lib/components/background_tasks_dialog.svelte";
+    import TrailPublicationTasks from "$lib/components/trail/trail_publication_tasks.svelte";
     import Footer from "$lib/components/footer.svelte";
     import NavBar from "$lib/components/nav_bar.svelte";
     import PageLoadingBar from "$lib/components/page_loading_bar.svelte";
@@ -222,6 +223,7 @@
 <PageLoadingBar class="text-content"></PageLoadingBar>
 <Toast></Toast>
 <BackgroundTasksDialog></BackgroundTasksDialog>
+<TrailPublicationTasks />
 {@render children?.()}
 
 <Footer></Footer>

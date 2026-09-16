@@ -52,6 +52,7 @@
     import SummitLogTable from "../summit_log/summit_log_table.svelte";
     import MapWithElevationMaplibre from "./map_with_elevation_maplibre.svelte";
     import TrailTimeline from "./trail_timeline.svelte";
+    import TrailPublicationProgress from "./trail_publication_progress.svelte";
     import {
         summit_logs_create,
         summit_logs_delete,
@@ -765,6 +766,10 @@
                     {/if}
                     <TrailDropdown
                         trails={new Set<Trail>([trail])}
+                        onUpdate={(updated) => {
+                            const saved = updated?.find((item) => item.id === trail.id);
+                            if (saved) trail = mergeTrailUpdate(trail, saved);
+                        }}
                         onDelete={() =>
                             history.length ? history.back() : goto("/trails")}
                         onMerge={handleTrailMerge}
@@ -773,6 +778,14 @@
                 </div>
             </div>
         </section>
+        {#if canEditTrail}
+            <TrailPublicationProgress
+                trailId={trail.id}
+                name={trail.name}
+                publicTrail={trail.public}
+                onpublished={(saved) => { trail = mergeTrailUpdate(trail, saved); }}
+            />
+        {/if}
         <section
             class="grid grid-cols-2 sm:grid-cols-5 gap-y-4 py-4 border-b border-input-border px-3"
         >

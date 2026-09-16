@@ -13,6 +13,7 @@
         trails_delete,
         trails_show,
         trails_update,
+        trailSaveErrorKey,
     } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
@@ -663,6 +664,7 @@
         const newVisibility = !majorityOfSelectedTrailsArePublic();
 
         loading = true;
+        const updatedTrails: Trail[] = [];
         for (const cTrail of trails ?? []) {
             if (!cTrail) continue;
 
@@ -678,26 +680,28 @@
             };
 
             try {
-                await trails_update(
+                const saved = await trails_update(
                     origTrail,
                     updatedTrail,
                     undefined,
                     undefined,
                     ["tags", "category"],
                 );
+                Object.assign(cTrail, saved);
+                updatedTrails.push(saved);
             } catch (e) {
                 console.error(e);
 
                 show_toast({
                     type: "error",
                     icon: "close",
-                    text: `${$_("error-saving-trail")}: ${cTrail.name}`,
+                    text: `${$_(trailSaveErrorKey(e))}: ${cTrail.name}`,
                 });
             }
         }
 
         loading = false;
-        onUpdate?.();
+        onUpdate?.(updatedTrails);
     }
 
     async function updateTrailsBulk(changes: TrailBulkEditChanges) {

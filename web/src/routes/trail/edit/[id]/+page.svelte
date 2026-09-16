@@ -11,6 +11,8 @@
     import PhotoPicker from "$lib/components/photo/photo_picker.svelte";
     import PhotoLibraryPickerModal from "$lib/components/photo/photo_library_picker_modal.svelte";
     import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
+    import TrailPublicationProgress from "$lib/components/trail/trail_publication_progress.svelte";
+    import { trailPublications } from "$lib/stores/trail_publication_store";
     import WaypointCard from "$lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {
         type WaypointMergeOptions,
@@ -121,7 +123,7 @@
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, untrack } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly } from "svelte/transition";
@@ -344,6 +346,7 @@
             schema: ClientTrailCreateSchema,
         }),
         onSubmit: async (form) => {
+            if (loading) return;
             if (!publishConfirmed) {
                 const publishForm = document.getElementById(
                     "trail-form",
@@ -2522,11 +2525,29 @@
             >
         {/if}
         <hr class="border-separator" />
+        <TrailPublicationProgress
+            trailId={!isNewTrail || savedAtLeastOnce ? $formData.id : undefined}
+            name={$formData.name}
+            publicTrail={$trail.id === $formData.id && $trail.public}
+            onpublished={(saved) => {
+                if (!loading) {
+                    trail.set(saved);
+                    setFields("public", saved.public);
+                }
+            }}
+            onretry={async () => {
+                setFields("public", true);
+                publishConfirmed = true;
+                await tick();
+                (document.getElementById("trail-form") as HTMLFormElement)?.requestSubmit();
+            }}
+        />
         <Button
             primary={true}
             large={true}
             type="submit"
             extraClasses="mb-2"
+            disabled={!!($formData.id && $trailPublications[$formData.id]?.status === "running" && !$trailPublications[$formData.id]?.monitoringError)}
             {loading}>{$_("save-trail")}</Button
         >
     </form>

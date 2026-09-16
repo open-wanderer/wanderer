@@ -18,6 +18,7 @@ import { subcategories } from "./subcategory_store";
 import { tags_create } from "./tag_store";
 import { currentUser } from "./user_store";
 import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint_store";
+import { trails_publish } from "./trail_publication_store";
 
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
@@ -390,7 +391,8 @@ async function createTrailWithAssets(trail: Trail, photos: File[], gpx: File | B
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "_assetPluginLinks"])
+    const shouldPublish = trail.public;
+    const formData = objectToFormData({ ...trail, public: false }, ["photos", "expand", "_assetLinks", "_assetPluginLinks"])
 
     if (gpx) {
         formData.set("gpx", gpx);
@@ -462,6 +464,7 @@ async function createTrailWithAssets(trail: Trail, photos: File[], gpx: File | B
         }
         await assets_set_trail_thumbnail(model.id!, model.photos?.at(trail.thumbnail ?? 0), f);
         model = await trails_show(model.id!, undefined, undefined, false, f);
+        if (shouldPublish) model = await publishSavedTrail(model, f);
     } catch (error) {
         // The trail already exists, even when a later photo or waypoint request
         // fails. Let the editor retry against its ID instead of creating it again.
@@ -474,6 +477,27 @@ async function createTrailWithAssets(trail: Trail, photos: File[], gpx: File | B
 
     return model;
 
+}
+
+async function publishSavedTrail(savedTrail: Trail, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Trail> {
+    try {
+        // Starting the monitor before exposing the new draft ID lets a mounted
+        // progress panel share the same request instead of starting another one.
+        const publication = trails_publish(savedTrail.id!, f, savedTrail.name);
+        trail.set(savedTrail);
+        await publication;
+        // Publication is persisted already. Even if the following refresh
+        // fails, a retry must not save this trail as a private draft again.
+        savedTrail.public = true;
+        trail.set(savedTrail);
+        return await trails_show(savedTrail.id!, undefined, undefined, true, f);
+    } catch (error) {
+        const failure = error instanceof APIError
+            ? error
+            : new APIError(503, "asset_publish_status_failed");
+        failure.detail = { ...failure.detail, savedTrail };
+        throw failure;
+    }
 }
 
 async function reportTrailAssetImports<T>(save: (report: AssetImportOmissionHandler) => Promise<T>, onOmitted?: AssetImportOmissionHandler): Promise<T> {
@@ -511,6 +535,12 @@ export function trailSaveErrorKey(error: unknown): string {
         "asset_publish_failed",
         "asset_publish_limit_reached",
         "asset_publish_photo_too_large",
+        "asset_publish_required",
+        "asset_publish_changed",
+        "asset_publish_in_progress",
+        "asset_publish_busy",
+        "asset_publish_interrupted",
+        "asset_publish_status_failed",
     ]);
     return error instanceof APIError && codes.has(error.message)
         ? error.message
@@ -572,6 +602,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 async function updateTrailWithAssets(oldTrail: Trail, newTrail: Trail, photos: File[] | undefined, gpx: File | Blob | null | undefined, exclude: (keyof Trail)[] | undefined, onOmitted: AssetImportOmissionHandler) {
     newTrail.author = oldTrail.author
+    const shouldPublish = !oldTrail.public && newTrail.public && !exclude?.includes("public");
 
     const waypointUpdates = compareObjectArrays<Waypoint>(oldTrail.expand?.waypoints_via_trail ?? [], newTrail.expand?.waypoints_via_trail ?? []);
 
@@ -650,6 +681,7 @@ async function updateTrailWithAssets(oldTrail: Trail, newTrail: Trail, photos: F
     }
 
     const formData = objectToFormData(newTrail, ["expand", "photos", "_assetLinks", "_assetPluginLinks", ...(exclude ?? [])])
+    if (shouldPublish) formData.set("public", "false");
 
     if (gpx) {
         formData.append("gpx", gpx);
@@ -710,6 +742,7 @@ async function updateTrailWithAssets(oldTrail: Trail, newTrail: Trail, photos: F
         await assets_set_trail_thumbnail(model.id!, thumbnailCandidates.at(newTrail.thumbnail ?? 0));
     }
     model = await trails_show(model.id!, undefined, undefined, true);
+    if (shouldPublish) model = await publishSavedTrail(model);
 
     for (const log of model.expand?.summit_logs_via_trail ?? []) {
         if (!log.expand) {

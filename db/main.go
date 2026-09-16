@@ -258,6 +258,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
 	se.Router.POST("/trail-merge", routes.TrailMerge(client))
+	se.Router.POST("/trails/{id}/publication", routes.TrailPublicationStart)
+	se.Router.GET("/trails/{id}/publication", routes.TrailPublicationStatus)
 	se.Router.POST("/asset-merge/suggest", routes.AssetMergeSuggest)
 	se.Router.POST("/asset-merge", routes.AssetMerge)
 
