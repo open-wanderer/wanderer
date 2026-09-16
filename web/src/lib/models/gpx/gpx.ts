@@ -1,5 +1,5 @@
 import * as xml2js from 'isomorphic-xml2js';
-import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+import { parseGpxXml } from './parse-xml';
 import Metadata from './metadata';
 import Route from './route';
 import Track from './track';
@@ -219,75 +219,17 @@ export default class GPX {
   }
 
   static parse(gpxString: string): GPX {
-    const document = new DOMParser({
-      onError(level, message) {
-        // U+FFFD is valid XML text; xmldom warns about possible source encoding issues.
-        if (level === 'warning' && message === 'Unicode replacement character detected, source encoding issues?') {
-          return;
-        }
-        throw new Error(message);
-      }
-    }).parseFromString(gpxString, 'application/xml');
-    const gpxPrefixes = new Set<string>();
-    const normalizedGPX = new XMLSerializer().serializeToString(document.documentElement!, {
-      nodeFilter(node) {
-        // The browser xml2js implementation treats comments as object properties.
-        // Discard parsed comments without changing comment-like text in CDATA or values.
-        if (node.nodeType === node.COMMENT_NODE) {
-          return null;
-        }
-        if (node.nodeType === node.ATTRIBUTE_NODE) {
-          if (node.nodeName === 'xmlns' && node.nodeValue === '') {
-            return null;
-          }
-          // Only actual GPX namespace declarations may cause prefixes to be stripped.
-          // Foreign namespaces must survive so extensions round-trip through toString().
-          if (node.nodeName.startsWith('xmlns:') &&
-            (node.nodeValue === 'http://www.topografix.com/GPX/1/0' || node.nodeValue === 'http://www.topografix.com/GPX/1/1')) {
-            gpxPrefixes.add(node.nodeName.substring('xmlns:'.length));
-          }
-        }
-        return node;
-      }
+    const xml = parseGpxXml(gpxString);
+    if (!xml || !Object.prototype.hasOwnProperty.call(xml, 'gpx')) {
+      throw new Error('Missing GPX root element');
+    }
+    return new GPX({
+      $: xml.gpx.$,
+      metadata: xml.gpx.metadata,
+      wpt: xml.gpx.wpt,
+      rte: xml.gpx.rte,
+      trk: xml.gpx.trk
     });
-
-    return (function () {
-      let data = null, error = null;
-      xml2js.parseString(normalizedGPX, {
-        explicitArray: false,
-        tagNameProcessors: gpxPrefixes.size ? [(name: string) => {
-          const i = name.indexOf(":");
-          return i > 0 && gpxPrefixes.has(name.substring(0, i)) ? name.substring(i + 1) : name;
-        }] : [],
-        attrValueProcessors: [(str: string) => {
-          if (str.length && !isNaN(Number(str))) {
-            return Number.isInteger(Number(str)) ? parseInt(String(str), 10) : parseFloat(String(str));
-          }
-          return str;
-        }
-        ]
-      }, (err, xml) => {
-        error = err;
-        if (err) {
-          return;
-        }
-        if (!xml || !Object.prototype.hasOwnProperty.call(xml, 'gpx')) {
-          error = new Error('Missing GPX root element');
-          return;
-        }
-        data = new GPX({
-          $: xml.gpx.$,
-          metadata: xml.gpx.metadata,
-          wpt: xml.gpx.wpt,
-          rte: xml.gpx.rte,
-          trk: xml.gpx.trk
-        });
-      });
-      if (error) {
-        throw error
-      };
-      return data;
-    }()) as unknown as GPX;
   }
 
   toGeoJSON(includeRoute: boolean = false, includeWaypoints: boolean = false): GeoJSON.FeatureCollection {

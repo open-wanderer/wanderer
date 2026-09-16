@@ -1,12 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DOMParser, Node, onErrorStopParsing } from "@xmldom/xmldom";
-import * as xml2js from "isomorphic-xml2js";
+import { describe, expect, it } from "vitest";
 import GPX from "./gpx";
-
-vi.mock("isomorphic-xml2js", async (importOriginal) => {
-    const original = await importOriginal<typeof xml2js>();
-    return { ...original, parseString: vi.fn(original.parseString) };
-});
 
 const GPX_NS = "http://www.topografix.com/GPX/1/1";
 const GARMIN_TPX_NS = "http://www.garmin.com/xmlschemas/TrackPointExtension/v1";
@@ -23,26 +16,7 @@ function trackPointCount(gpx: GPX): number {
     return gpx.trk?.reduce((sum, trk) => sum + (trk.trkseg?.reduce((s, seg) => s + (seg.trkpt?.length ?? 0), 0) ?? 0), 0) ?? 0;
 }
 
-describe.each(["Node", "browser"])("GPX.parse with the %s XML object parser", (environment) => {
-    beforeAll(async () => {
-        if (environment === "browser") {
-            vi.stubGlobal("DOMParser", class extends DOMParser {
-                constructor() {
-                    super({ onError: onErrorStopParsing });
-                }
-            });
-            vi.stubGlobal("Node", Node);
-            // Exercise the package's separate browser parser, which does not ignore comments.
-            const browserParser = await vi.importActual<typeof xml2js>("isomorphic-xml2js/dist/lib/parser.js");
-            vi.mocked(xml2js.parseString).mockImplementation(browserParser.parseString);
-        }
-    });
-
-    afterAll(() => {
-        vi.mocked(xml2js.parseString).mockReset();
-        vi.unstubAllGlobals();
-    });
-
+describe("GPX.parse", () => {
     it("keeps Garmin extension prefixes through a parse/toString round trip", () => {
         // Garmin Connect exports bind the TrackPointExtension namespace to an arbitrary prefix (ns3, gpxtpx, ...).
         const extensions = `<extensions><ns3:TrackPointExtension><ns3:atemp>2.0</ns3:atemp><ns3:hr>82</ns3:hr></ns3:TrackPointExtension></extensions>`;
@@ -162,15 +136,63 @@ describe.each(["Node", "browser"])("GPX.parse with the %s XML object parser", (e
         expect(GPX.parse(gpx.toString()).metadata?.name).toBe('Trail \uFFFD');
     });
 
+    it("preserves the server parser's support for undeclared extension prefixes", () => {
+        const xml = `<gpx>${track('', '<extensions><gpxtpx:hr>82</gpxtpx:hr></extensions>')}</gpx>`;
+        const gpx = GPX.parse(xml);
+
+        expect(trackPointCount(gpx)).toBe(2);
+        expect(gpx.toString()).toContain('<gpxtpx:hr>82</gpxtpx:hr>');
+    });
+
     it.each([
-        '<gpx><!<!-- removed -->--><metadata><name>hidden</name></metadata>--></gpx>',
+        ['HTML entities', '<gpx><metadata><name>A&nbsp;&copy;B</name></metadata></gpx>', 'A\u00a0©B'],
+        ['whitespace before declaration', '\n <?xml version="1.0"?><gpx><metadata><name>kept</name></metadata></gpx>', 'kept'],
+        ['BOM', '\uFEFF<gpx><metadata><name>kept</name></metadata></gpx>', 'kept'],
+        ['trailing text', '<gpx><metadata><name>kept</name></metadata></gpx>trailing', 'kept'],
+        ['uppercase numeric reference', '<gpx><metadata><name>&#X41;</name></metadata></gpx>', 'A'],
+    ])("preserves server import compatibility for %s", (_name, xml, expected) => {
+        expect(GPX.parse(xml).metadata?.name).toBe(expected);
+    });
+
+    it("preserves the server parser's handling of duplicate attributes", () => {
+        expect(GPX.parse('<gpx creator="first" creator="second"/>').$.creator).toBe('first');
+    });
+
+    it("passes comment-like declarations to the parser without rebuilding comments", () => {
+        const xml = '<gpx><!<!-- removed -->--><metadata><name>kept</name></metadata>--></gpx>';
+        expect(GPX.parse(xml).metadata?.name).toBe('kept');
+    });
+
+    it("respects local namespace declarations without stripping foreign extensions", () => {
+        const xml = `<gpx xmlns:p="${GARMIN_TPX_NS}">` +
+            `<p:rte xmlns:p="${GPX_NS}"><p:rtept lat="47" lon="8"/><p:rtept lat="47.01" lon="8.01"/></p:rte>` +
+            track('', '<extensions><p:hr>82</p:hr></extensions>') + '</gpx>';
+        const gpx = GPX.parse(xml);
+
+        expect(gpx.rte).toHaveLength(1);
+        expect(gpx.toString()).toContain('<p:hr>82</p:hr>');
+    });
+
+    it("keeps track points in document order when GPX prefixes are interleaved", () => {
+        const xml = `<gpx xmlns="${GPX_NS}" xmlns:a="${GPX_NS}" xmlns:b="${GPX_NS}"><trk><trkseg>` +
+            '<a:trkpt lat="47.01" lon="8"/><trkpt lat="47.02" lon="8"/>' +
+            '<b:trkpt lat="47.03" lon="8"/><a:trkpt lat="47.04" lon="8"/>' +
+            '<trkpt lat="47.05" lon="8"/></trkseg></trk></gpx>';
+
+        const gpx = GPX.parse(xml);
+
+        expect(gpx.flatten().map(point => point.$.lat)).toEqual([47.01, 47.02, 47.03, 47.04, 47.05]);
+        expect(GPX.parse(gpx.toString()).flatten().map(point => point.$.lat)).toEqual([47.01, 47.02, 47.03, 47.04, 47.05]);
+    });
+
+    it.each([
         '<gpx><metadata><name>unterminated</metadata></gpx>',
         '<gpx><!-- unterminated</gpx>',
         '<gpx><metadata></gpx>',
-        '<gpx creator=unquoted/>',
+        '<gpx><metadata><name>Tom & Jerry</name></metadata></gpx>',
         '<not-gpx/>',
         ''
-    ])("rejects malformed input without first deleting substrings: %s", (xml) => {
+    ])("preserves errors from the existing XML parser: %s", (xml) => {
         expect(() => GPX.parse(xml)).toThrow();
     });
 });
