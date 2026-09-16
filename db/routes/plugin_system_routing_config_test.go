@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"pocketbase/pluginsystem"
 	"strings"
 	"testing"
@@ -915,7 +917,6 @@ func TestRoutingConfigLayersMergeProfileAndCategoryDefaults(t *testing.T) {
 }
 
 func TestRoutingDefaultsAndUpsertsHandleMissingRows(t *testing.T) {
-	t.Chdir("..")
 	app := pocketbase.NewWithConfig(pocketbase.Config{
 		DefaultDataDir: t.TempDir(),
 	})
@@ -923,6 +924,7 @@ func TestRoutingDefaultsAndUpsertsHandleMissingRows(t *testing.T) {
 		t.Fatalf("bootstrap test app: %v", err)
 	}
 	defer app.ResetBootstrapState()
+	installRoutingConfigTestPlugin(t, app, "valhalla")
 
 	for _, raw := range []string{
 		testRoutingSettingsCollectionJSON,
@@ -1052,12 +1054,12 @@ func TestRoutingDefaultsAndUpsertsHandleMissingRows(t *testing.T) {
 }
 
 func TestManifestCategoryMappingsUseSubcategoryThenCategoryFallback(t *testing.T) {
-	t.Chdir("..")
 	app := pocketbase.NewWithConfig(pocketbase.Config{DefaultDataDir: t.TempDir()})
 	if err := app.Bootstrap(); err != nil {
 		t.Fatalf("bootstrap test app: %v", err)
 	}
 	defer app.ResetBootstrapState()
+	installRoutingConfigTestPlugin(t, app, "valhalla")
 	if err := createTestRoutingCollection(app, testRoutingProfileMappingsCollectionJSON); err != nil {
 		t.Fatalf("create mappings collection: %v", err)
 	}
@@ -1080,12 +1082,12 @@ func TestManifestCategoryMappingsUseSubcategoryThenCategoryFallback(t *testing.T
 }
 
 func TestEffectiveControlsReturnGenericStandardAndNativeMetadata(t *testing.T) {
-	t.Chdir("..")
 	app := pocketbase.NewWithConfig(pocketbase.Config{DefaultDataDir: t.TempDir()})
 	if err := app.Bootstrap(); err != nil {
 		t.Fatalf("bootstrap test app: %v", err)
 	}
 	defer app.ResetBootstrapState()
+	installRoutingConfigTestPlugin(t, app, "valhalla")
 	for _, raw := range []string{testRoutingSettingsCollectionJSON, testRoutingProfileMappingsCollectionJSON} {
 		if err := createTestRoutingCollection(app, raw); err != nil {
 			t.Fatalf("create routing collection: %v", err)
@@ -1216,6 +1218,44 @@ func numericPreference(value any) float64 {
 		return value
 	default:
 		return 0
+	}
+}
+
+// These tests resolve checked-in manifest metadata without executing the plugin.
+// Seed a private installation so they never depend on local data/plugins bundles.
+func installRoutingConfigTestPlugin(t *testing.T, app core.App, pluginID string) {
+	t.Helper()
+	payload, err := os.ReadFile(filepath.Join("..", "..", "plugins", pluginID, "plugin.json"))
+	if err != nil {
+		t.Fatalf("read %s manifest: %v", pluginID, err)
+	}
+	var manifest pluginsystem.Manifest
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		t.Fatalf("decode %s manifest: %v", pluginID, err)
+	}
+	if err := pluginsystem.ValidateManifest(manifest); err != nil {
+		t.Fatalf("validate %s manifest: %v", pluginID, err)
+	}
+
+	pluginDir := t.TempDir()
+	if err := writeRoutingTestWASM(pluginDir); err != nil {
+		t.Fatalf("write test runtime: %v", err)
+	}
+	collection := core.NewBaseCollection("installed_plugins")
+	collection.Fields.Add(
+		&core.TextField{Name: "plugin_id"},
+		&core.TextField{Name: "path"},
+		&core.JSONField{Name: "manifest"},
+	)
+	if err := app.Save(collection); err != nil {
+		t.Fatalf("create installed plugins collection: %v", err)
+	}
+	record := core.NewRecord(collection)
+	record.Set("plugin_id", pluginID)
+	record.Set("path", pluginDir)
+	record.Set("manifest", manifest)
+	if err := app.Save(record); err != nil {
+		t.Fatalf("install %s test plugin: %v", pluginID, err)
 	}
 }
 
@@ -1502,12 +1542,12 @@ func TestNumericSelectPresentationUsesDeclaredOptionStrings(t *testing.T) {
 }
 
 func TestEffectiveControlsUseProfileDefaultWithoutMaterializingIt(t *testing.T) {
-	t.Chdir("..")
 	app := pocketbase.NewWithConfig(pocketbase.Config{DefaultDataDir: t.TempDir()})
 	if err := app.Bootstrap(); err != nil {
 		t.Fatalf("bootstrap test app: %v", err)
 	}
 	defer app.ResetBootstrapState()
+	installRoutingConfigTestPlugin(t, app, "brouter")
 	for _, raw := range []string{testRoutingSettingsCollectionJSON, testRoutingProfileMappingsCollectionJSON} {
 		if err := createTestRoutingCollection(app, raw); err != nil {
 			t.Fatalf("create routing collection: %v", err)
