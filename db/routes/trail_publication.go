@@ -116,7 +116,9 @@ func TrailPublicationStatus(e *core.RequestEvent) error {
 	}
 	job := publicationManager(e.App).snapshot(trailID, e.Auth.Id)
 	if job == nil {
-		return e.NotFoundError("publication job not found", nil)
+		// No retained job visible to this user is an expected idle state; the
+		// trail itself may already be public.
+		return e.JSON(http.StatusOK, map[string]string{"trailId": trailID, "status": "idle"})
 	}
 	return e.JSON(http.StatusOK, job)
 }

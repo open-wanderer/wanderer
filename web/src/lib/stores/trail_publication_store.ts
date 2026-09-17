@@ -28,10 +28,9 @@ function remember(job: TrailPublication) {
 
 export async function trails_publication_status(id: string, f: Fetch = fetch): Promise<TrailPublication | null> {
     const response = await f(`/api/v1/trail/${id}/publication`, { method: "GET" });
-    if (response.status === 404) return null;
     const data = await response.json();
     if (!response.ok) throw new APIError(response.status, data.message, data.detail);
-    return data;
+    return data.status === "idle" ? null : data;
 }
 
 async function missingPublication(job: TrailPublication, f: Fetch): Promise<TrailPublication> {

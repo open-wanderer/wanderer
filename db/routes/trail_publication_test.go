@@ -22,6 +22,43 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
+func TestTrailPublicationStatusIdle(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		public        bool
+		expiredStatus string
+	}{
+		{name: "no job"},
+		{name: "already public", public: true},
+		{name: "expired completed job", public: true, expiredStatus: "completed"},
+		{name: "expired failed job", expiredStatus: "failed"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newPublicationRouteFixture(t)
+			f.trail.Set("public", tt.public)
+			f.save(t, f.trail)
+			if tt.expiredStatus != "" {
+				f.manager.jobs[f.trail.Id] = &trailPublicationEntry{
+					job: TrailPublicationJob{
+						ID: "expired", TrailID: f.trail.Id, Status: tt.expiredStatus,
+						UpdatedAt: time.Now().Add(-3 * time.Hour),
+					},
+					userID: f.owner.Id,
+				}
+			}
+			f.requestIdle(t, f.owner, f.trail.Id)
+			assertPublicationPrivacy(t, f.app, f.trail.Id, tt.public)
+		})
+	}
+}
+
+func TestTrailPublicationStatusIdleRequiresTrailAndPermission(t *testing.T) {
+	f := newPublicationRouteFixture(t)
+	f.requestError(t, f.owner, http.MethodGet, "missing", http.StatusNotFound, "")
+	f.requestError(t, nil, http.MethodGet, f.trail.Id, http.StatusUnauthorized, "")
+	f.requestError(t, f.stranger, http.MethodGet, f.trail.Id, http.StatusForbidden, "")
+}
+
 func TestTrailPublicationBackgroundProgressAndReuse(t *testing.T) {
 	f := newPublicationRouteFixture(t)
 	started, release := make(chan struct{}), make(chan struct{})
@@ -59,7 +96,7 @@ func TestTrailPublicationBackgroundProgressAndReuse(t *testing.T) {
 		t.Fatalf("progress = %#v", status)
 	}
 	// Both users can edit; only the requester can see the job or reuse it.
-	f.requestError(t, f.editor, http.MethodGet, f.trail.Id, http.StatusNotFound, "")
+	f.requestIdle(t, f.editor, f.trail.Id)
 	f.requestError(t, f.editor, http.MethodPost, f.trail.Id, http.StatusConflict, "asset_publish_in_progress")
 	f.requestError(t, nil, http.MethodGet, f.trail.Id, http.StatusUnauthorized, "")
 	f.requestError(t, nil, http.MethodPost, f.trail.Id, http.StatusUnauthorized, "")
@@ -508,6 +545,24 @@ func (f *publicationRouteFixture) requestError(t *testing.T, auth *core.Record, 
 	t.Helper()
 	_, err := f.request(context.Background(), auth, method, trailID)
 	assertPublicationAPIError(t, err, status, code)
+}
+
+func (f *publicationRouteFixture) requestIdle(t *testing.T, auth *core.Record, trailID string) {
+	t.Helper()
+	response, err := f.request(context.Background(), auth, http.MethodGet, trailID)
+	if err != nil {
+		t.Fatalf("GET publication: %v", err)
+	}
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET publication status = %d, body=%s", response.Code, response.Body.String())
+	}
+	var status map[string]string
+	if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if len(status) != 2 || status["trailId"] != trailID || status["status"] != "idle" {
+		t.Fatalf("idle status = %#v, want only trailId=%q and status=idle", status, trailID)
+	}
 }
 
 func assertPublicationAPIError(t *testing.T, err error, status int, code string) {

@@ -13,6 +13,20 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("trail publication monitoring", () => {
+    it("leaves an idle trail untracked without polling or starting publication", async () => {
+        const request = vi.fn().mockResolvedValue(Response.json({ trailId: "trail", status: "idle" }));
+        await expect(trails_resume_publication("trail", request)).resolves.toBeNull();
+        await vi.runAllTimersAsync();
+        expect(request).toHaveBeenCalledExactlyOnceWith("/api/v1/trail/trail/publication", { method: "GET" });
+        expect(get(trailPublications)).toEqual({});
+    });
+
+    it.each([401, 403, 404, 500])("preserves HTTP %s errors instead of treating them as idle", async (status) => {
+        const request = vi.fn().mockResolvedValue(Response.json({ message: "status request failed" }, { status }));
+        await expect(trails_resume_publication("trail", request)).rejects.toMatchObject({ status, message: "status request failed" });
+        expect(get(trailPublications)).toEqual({});
+    });
+
     it("reports progress, polls with increasing intervals, and stops on completion", async () => {
         const request = vi.fn()
             .mockResolvedValueOnce(Response.json(job))
@@ -54,7 +68,7 @@ describe("trail publication monitoring", () => {
         const publication = trails_publish("trail", request);
         await expect(publication).resolves.toMatchObject({ status: "completed" });
         expect(request).toHaveBeenCalledWith("/api/v1/trail/trail/publication", { method: "POST" });
-        resolveProbe(new Response(null, { status: 404 }));
+        resolveProbe(Response.json({ trailId: "trail", status: "idle" }));
         await expect(probe).resolves.toBeNull();
     });
 
@@ -93,6 +107,18 @@ describe("trail publication monitoring", () => {
         expect(get(trailPublications).trail.monitoringError).toBeUndefined();
     });
 
+    it("reports monitoring failure when the status endpoint returns 404 during publication", async () => {
+        const request = vi.fn()
+            .mockResolvedValueOnce(Response.json(job))
+            .mockImplementation(async () => Response.json({ message: "Not found" }, { status: 404 }));
+        const result = trails_publish("trail", request).catch((error) => error);
+        await vi.runAllTimersAsync();
+        expect(await result).toMatchObject({ message: "asset_publish_status_failed" });
+        expect(get(trailPublications).trail).toMatchObject({ status: "running", monitoringError: true });
+        expect(request).toHaveBeenCalledTimes(4);
+        expect(request.mock.calls.every(([url]) => url === "/api/v1/trail/trail/publication")).toBe(true);
+    });
+
     it("does not show historic completed jobs as a new background task", async () => {
         const request = vi.fn().mockResolvedValue(Response.json({ ...job, status: "completed" }));
         await trails_resume_publication("trail", request);
@@ -102,7 +128,7 @@ describe("trail publication monitoring", () => {
     it.each([true, false])("checks persisted visibility when a job disappears after restart (public=%s)", async (isPublic) => {
         const request = vi.fn()
             .mockResolvedValueOnce(Response.json(job))
-            .mockResolvedValueOnce(new Response(null, { status: 404 }))
+            .mockResolvedValueOnce(Response.json({ trailId: "trail", status: "idle" }))
             .mockResolvedValueOnce(Response.json({ public: isPublic }));
         const result = trails_publish("trail", request).catch((error) => error);
         await vi.runAllTimersAsync();

@@ -1,4 +1,5 @@
 import type { RequestEvent } from "@sveltejs/kit";
+import { ClientResponseError } from "pocketbase";
 import { describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./+server";
 
@@ -19,5 +20,24 @@ describe("trail publication proxy", () => {
         const event = { params: { id: "../other" }, locals: { pb: { send } } } as unknown as RequestEvent;
         expect((await POST(event)).status).toBe(400);
         expect(send).not.toHaveBeenCalled();
+    });
+
+    it("returns idle as a successful, uncached status response", async () => {
+        const status = { trailId: "trail0000000001", status: "idle" };
+        const send = vi.fn().mockResolvedValue(status);
+        const event = { params: { id: status.trailId }, locals: { pb: { send } }, fetch: vi.fn() } as unknown as RequestEvent;
+        const response = await GET(event);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+        expect(await response.json()).toEqual(status);
+    });
+
+    it.each([401, 403, 404])("preserves backend HTTP %s errors", async (status) => {
+        const failure = { status, message: "Status request failed.", data: {} };
+        const send = vi.fn().mockRejectedValue(new ClientResponseError({ status, response: failure, originalError: { data: failure } }));
+        const event = { params: { id: "trail0000000001" }, locals: { pb: { send } }, fetch: vi.fn() } as unknown as RequestEvent;
+        const response = await GET(event);
+        expect(response.status).toBe(status);
+        expect(await response.json()).toMatchObject(failure);
     });
 });
