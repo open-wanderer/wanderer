@@ -50,6 +50,9 @@ func sortMatches(matches []assetCandidate) []assetCandidate {
 func candidateForAsset(asset immichAsset, req assetLibraryRequest, maxDistance float64) (assetCandidate, bool) {
 	lat := *asset.ExifInfo.Latitude
 	lon := *asset.ExifInfo.Longitude
+	if req.Bounds != nil && !req.Bounds.contains(lat, lon) {
+		return assetCandidate{}, false
+	}
 	bestLat := req.Lat
 	bestLon := req.Lon
 	bestDistance := math.MaxFloat64
@@ -65,11 +68,15 @@ func candidateForAsset(asset immichAsset, req assetLibraryRequest, maxDistance f
 				bestFromStart = point.Distance
 			}
 		}
+	} else if req.Bounds != nil {
+		bestLat = lat
+		bestLon = lon
+		bestDistance = 0
 	} else if req.Lat != 0 || req.Lon != 0 {
 		bestDistance = haversineMeters(lat, lon, req.Lat, req.Lon)
 	}
 
-	if bestDistance > maxDistance {
+	if req.Bounds == nil && bestDistance > maxDistance {
 		return assetCandidate{}, false
 	}
 	return assetCandidate{
@@ -85,6 +92,16 @@ func candidateForAsset(asset immichAsset, req assetLibraryRequest, maxDistance f
 		City:              asset.ExifInfo.City,
 		Country:           asset.ExifInfo.Country,
 	}, true
+}
+
+func (bounds assetBounds) contains(lat, lon float64) bool {
+	if lat < bounds.South || lat > bounds.North {
+		return false
+	}
+	if bounds.West > bounds.East {
+		return lon >= bounds.West || lon <= bounds.East
+	}
+	return lon >= bounds.West && lon <= bounds.East
 }
 
 func haversineMeters(lat1, lon1, lat2, lon2 float64) float64 {

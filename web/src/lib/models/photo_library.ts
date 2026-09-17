@@ -1,3 +1,10 @@
+export interface PhotoLibraryBounds {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+}
+
 export interface PhotoLibraryCandidate {
     source?: "plugin" | "wanderer";
     providerId?: string;

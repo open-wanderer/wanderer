@@ -9,6 +9,12 @@ const LibraryRequestSchema = z.object({
     summitLogId: RecordIdValueSchema.optional(),
     lat: z.number().optional(),
     lon: z.number().optional(),
+    bounds: z.object({
+        west: z.number().finite().min(-180).max(180),
+        south: z.number().finite().min(-90).max(90),
+        east: z.number().finite().min(-180).max(180),
+        north: z.number().finite().min(-90).max(90),
+    }).refine((bounds) => bounds.south <= bounds.north).optional(),
     trailData: z.string().optional(),
     takenAfter: z.string().datetime().optional(),
     takenBefore: z.string().datetime().optional(),

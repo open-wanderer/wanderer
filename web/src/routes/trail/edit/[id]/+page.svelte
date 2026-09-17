@@ -2600,6 +2600,7 @@
 <WaypointModal
     bind:this={waypointModal}
     onsave={saveWaypoint}
+    trailData={valhallaStore.route.toString()}
     assetPluginActive={data.assetPluginActive}
     {assetPluginIds}
     assetPluginProviders={data.assetPluginProviders}

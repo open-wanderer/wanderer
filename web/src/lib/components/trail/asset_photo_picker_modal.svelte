@@ -6,12 +6,13 @@
     interface Props {
         lat: number;
         lon: number;
+        trailData?: string;
         assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
         onselect?: (candidates: PhotoLibraryCandidate[]) => void | Promise<void>;
     }
 
-    let { lat, lon, assetPluginIds = [], assetPluginProviders = [], onselect }: Props = $props();
+    let { lat, lon, trailData, assetPluginIds = [], assetPluginProviders = [], onselect }: Props = $props();
     let picker: PhotoLibraryPickerModal = $state()!;
 
     export function openModal() {
@@ -24,6 +25,7 @@
     id="asset-photo-picker-modal"
     {lat}
     {lon}
+    {trailData}
     {assetPluginIds}
     {assetPluginProviders}
     doubleRadius={false}

@@ -8,11 +8,12 @@
     import { _ } from "svelte-i18n";
 
     import GPX from "$lib/models/gpx/gpx";
-    import type { PhotoLibraryCandidate } from "$lib/models/photo_library";
+    import type { PhotoLibraryBounds, PhotoLibraryCandidate } from "$lib/models/photo_library";
     import type { PluginProvider } from "$lib/models/plugin_provider";
     import { baseMapStyles } from "$lib/vendor/maplibre-layer-manager/layers";
     import { markerElement, syncMarkerHighlightClass } from "$lib/util/maplibre_util";
     import { polylineToGeoJSON } from "$lib/util/polyline_util";
+    import { normalizePhotoLibraryBounds, photoLibraryBoundsContain } from "$lib/util/photo_library_bounds";
     import DoubleSlider from "../base/double_slider.svelte";
     import Modal from "../base/modal.svelte";
 
@@ -34,6 +35,11 @@
         cursorId?: string;
         hasMore: boolean;
         loading: boolean;
+    }
+
+    interface CandidateSearch {
+        body: Record<string, unknown>;
+        controller: AbortController;
     }
 
     interface PhotoCluster {
@@ -68,6 +74,7 @@
         trailPolyline?: string;
         assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
+        searchScope?: "viewport" | "trail";
         doubleRadius?: boolean;
         title?: string;
         actionLabel?: string;
@@ -87,6 +94,7 @@
         trailPolyline,
         assetPluginIds,
         assetPluginProviders = [],
+        searchScope = "viewport",
         doubleRadius = false,
         title,
         actionLabel,
@@ -104,9 +112,9 @@
     let loadingMore = $state(false);
     let saving = $state(false);
     let error = $state("");
-    let fatalError = $state(false);
     let candidates = $state<PhotoLibraryCandidate[]>([]);
-    let selectedKeys = $state(new Set<string>());
+    let selectedCandidates = $state<PhotoLibraryCandidate[]>([]);
+    const selectedKeys = $derived(new Set(selectedCandidates.map(candidateKey)));
     let providerFilter = $state("all");
     let activeClusterKey = $state<string | undefined>();
     let highlightedClusterKey = $state<string | undefined>();
@@ -118,9 +126,12 @@
     let wandererPage = $state(1);
     let wandererHasMore = $state(false);
     let pluginPagination = $state<Record<string, PluginPaginationState>>({});
+    let activeSearch: CandidateSearch | undefined;
+    let viewportSearchTimer: ReturnType<typeof setTimeout> | undefined;
+    let pickerOpen = false;
 
     onDestroy(() => {
-        destroyMap();
+        closePicker();
     });
 
     const activeAssetPluginIds = $derived(
@@ -131,7 +142,6 @@
     const clusters = $derived(mapReady ? buildClusters(providerCandidates, mapZoom, mapBounds) : []);
     const mapCandidates = $derived(filterByMapBounds(providerCandidates));
     const visibleCandidates = $derived(activeClusterKey ? filterByActiveCluster(providerCandidates) : mapCandidates);
-    const selectedCandidates = $derived(candidates.filter((candidate) => selectedKeys.has(candidateKey(candidate))));
     const providerOptions = $derived(buildProviderOptions(candidates));
     const showWandererLoadMore = $derived(wandererHasMore && (providerFilter === "all" || providerFilter === WANDERER_PROVIDER_ID));
     const pluginLoadMoreIds = $derived(
@@ -195,17 +205,27 @@
     });
 
     export async function openModal() {
+        closePicker();
+        pickerOpen = true;
+        candidates = [];
+        selectedCandidates = [];
+        providerFilter = "all";
+        error = "";
         modal.openModal();
-        destroyMap();
-        await tick();
-        await loadCandidates();
         await tick();
         ensureMap();
-        map?.resize();
-        syncMap();
+        await loadCandidates();
     }
 
-    function requestBody(extra: Record<string, unknown> = {}) {
+    function closePicker() {
+        pickerOpen = false;
+        clearTimeout(viewportSearchTimer);
+        activeSearch?.controller.abort();
+        activeSearch = undefined;
+        destroyMap();
+    }
+
+    function requestBody() {
         return {
             ...(trailId ? { trailId } : {}),
             ...(waypointId ? { waypointId } : {}),
@@ -214,33 +234,35 @@
             ...(!trailId && trailData ? { trailData } : {}),
             ...(trailPolyline ? { trailPolyline } : {}),
             ...selectedTimeWindow(),
+            ...(searchScope === "viewport" ? { bounds: viewportBounds() } : {}),
             doubleRadius,
-            ...extra,
         };
     }
 
     async function loadCandidates() {
+        clearTimeout(viewportSearchTimer);
+        activeSearch?.controller.abort();
+        const search: CandidateSearch = { body: requestBody(), controller: new AbortController() };
+        activeSearch = search;
         loading = true;
+        loadingMore = false;
         error = "";
-        fatalError = false;
         candidates = [];
-        selectedKeys = new Set();
         existingWandererExternalKeys = new Set();
         wandererPage = 1;
         wandererHasMore = false;
         pluginPagination = {};
         activeClusterKey = undefined;
         highlightedClusterKey = undefined;
-        mapZoom = 0;
-        mapBounds = undefined;
         previewIndex = 0;
         try {
             const loaders: Promise<PhotoLibraryCandidate[]>[] = [
-                loadWandererCandidates(1),
-                ...activeAssetPluginIds.map(async (id) => (await loadPluginCandidates(id)).candidates),
+                loadWandererCandidates(1, search),
+                ...activeAssetPluginIds.map(async (id) => (await loadPluginCandidates(id, search)).candidates),
             ];
 
             const settled = await Promise.allSettled(loaders);
+            if (activeSearch !== search) return;
             const fulfilled = settled.filter(
                 (item): item is PromiseFulfilledResult<PhotoLibraryCandidate[]> => item.status === "fulfilled",
             );
@@ -258,26 +280,32 @@
                     .join("; ");
             }
         } catch (e: any) {
+            if (activeSearch !== search) return;
             console.error(e);
-            fatalError = true;
             error = e?.message ?? "Unable to load photos";
         } finally {
-            loading = false;
+            if (activeSearch === search) loading = false;
         }
     }
 
-    async function loadPluginCandidates(pluginId: string, cursorId?: string): Promise<PluginCandidateBatch> {
+    function assertActiveSearch(search: CandidateSearch) {
+        if (activeSearch !== search) throw new DOMException("Search replaced", "AbortError");
+    }
+
+    async function loadPluginCandidates(pluginId: string, search: CandidateSearch, cursorId?: string): Promise<PluginCandidateBatch> {
         const pluginPath = `/api/v1/plugins/assets/${encodeURIComponent(pluginId)}`;
         const r = await fetch(`${pluginPath}/candidates`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody(cursorId ? { cursorId } : {})),
+            body: JSON.stringify({ ...search.body, ...(cursorId ? { cursorId } : {}) }),
+            signal: search.controller.signal,
         });
         if (!r.ok) {
             const response = await r.json().catch(() => ({}));
             throw new Error(response.message ?? "Unable to load plugin photos");
         }
         const output: LibraryOutput = await r.json();
+        assertActiveSearch(search);
         if (output.error) {
             throw new Error(output.error.message ?? "Unable to load plugin photos");
         }
@@ -311,41 +339,44 @@
 
     async function loadMorePluginCandidates(pluginId: string) {
         const pagination = pluginPagination[pluginId];
-        if (!pagination?.hasMore || !pagination.cursorId || pagination.loading) {
+        const search = activeSearch;
+        if (!search || loading || !pagination?.hasMore || !pagination.cursorId || pagination.loading) {
             return;
         }
         pagination.loading = true;
         error = "";
         try {
-            let batch = await loadPluginCandidates(pluginId, pagination.cursorId);
+            let batch = await loadPluginCandidates(pluginId, search, pagination.cursorId);
             if (batch.restartRequired) {
                 candidates = candidates.filter((candidate) => candidate.pluginId !== pluginId);
-                batch = await loadPluginCandidates(pluginId);
+                batch = await loadPluginCandidates(pluginId, search);
             }
             candidates = uniqueCandidates([...candidates, ...batch.candidates]);
-            await tick();
-            syncMap();
         } catch (e: any) {
+            if (activeSearch !== search) return;
             console.error(e);
             error = e?.message ?? "Unable to load plugin photos";
             pluginPagination[pluginId] = { ...pagination, loading: false };
         }
     }
 
-    async function loadWandererCandidates(page: number): Promise<PhotoLibraryCandidate[]> {
+    async function loadWandererCandidates(page: number, search: CandidateSearch): Promise<PhotoLibraryCandidate[]> {
         const r = await fetch("/api/v1/assets/library", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody({
+            body: JSON.stringify({
+                ...search.body,
                 page,
                 perPage: WANDERER_LIBRARY_PER_PAGE,
-            })),
+            }),
+            signal: search.controller.signal,
         });
         if (!r.ok) {
             const response = await r.json().catch(() => ({}));
             throw new Error(response.message ?? "Unable to load wanderer photos");
         }
         const output: LibraryOutput = await r.json();
+        assertActiveSearch(search);
         const refs = output.existingExternalRefs ?? [];
         existingWandererExternalKeys = new Set(refs.map((ref) => externalRefKey(ref.provider, ref.id)));
         wandererPage = page;
@@ -358,21 +389,21 @@
     }
 
     async function loadMoreWandererCandidates() {
-        if (!wandererHasMore || loadingMore) {
+        const search = activeSearch;
+        if (!search || loading || !wandererHasMore || loadingMore) {
             return;
         }
         loadingMore = true;
         error = "";
         try {
-            const next = await loadWandererCandidates(wandererPage + 1);
+            const next = await loadWandererCandidates(wandererPage + 1, search);
             candidates = uniqueCandidates([...candidates, ...next]);
-            await tick();
-            syncMap();
         } catch (e: any) {
+            if (activeSearch !== search) return;
             console.error(e);
             error = e?.message ?? "Unable to load wanderer photos";
         } finally {
-            loadingMore = false;
+            if (activeSearch === search) loadingMore = false;
         }
     }
 
@@ -448,12 +479,13 @@
     }
 
     function filterByMapBounds(items: PhotoLibraryCandidate[]) {
-        if (!mapBounds) {
+        const bounds = viewportBounds();
+        if (!bounds) {
             return items;
         }
         return items.filter((candidate) => {
             const position = markerPosition(candidate);
-            return position ? mapBounds?.contains([position.lon, position.lat]) : false;
+            return position ? photoLibraryBoundsContain(bounds, position.lat, position.lon) : false;
         });
     }
 
@@ -524,10 +556,13 @@
         if (!bounds) {
             return [-180, -85, 180, 85];
         }
+        const normalized = normalizePhotoLibraryBounds({
+            west: bounds.getWest(), east: bounds.getEast(), south: bounds.getSouth(), north: bounds.getNorth(),
+        });
         return [
-            Math.max(-180, bounds.getWest()),
+            normalized.west,
             Math.max(-85, bounds.getSouth()),
-            Math.min(180, bounds.getEast()),
+            normalized.east,
             Math.min(85, bounds.getNorth()),
         ];
     }
@@ -563,7 +598,11 @@
     }
 
     function buildProviderOptions(items: PhotoLibraryCandidate[]) {
-        const ids = Array.from(new Set(items.map(displayProviderId))).filter(Boolean);
+        const ids = Array.from(new Set([
+            WANDERER_PROVIDER_ID,
+            ...activeAssetPluginIds,
+            ...items.map(displayProviderId),
+        ])).filter(Boolean);
         return ids.map((id) => ({
             id,
             label: providerLabel(id),
@@ -638,28 +677,20 @@
     }
 
     function toggleCandidate(candidate: PhotoLibraryCandidate) {
-        const next = new Set(selectedKeys);
         const key = candidateKey(candidate);
-        if (next.has(key)) {
-            next.delete(key);
+        if (selectedKeys.has(key)) {
+            selectedCandidates = selectedCandidates.filter((item) => candidateKey(item) !== key);
         } else {
-            next.add(key);
+            selectedCandidates = [...selectedCandidates, candidate];
         }
-        selectedKeys = next;
     }
 
     function selectVisible() {
-        const next = new Set(selectedKeys);
-        const allVisibleSelected = visibleCandidates.length > 0 && visibleCandidates.every((candidate) => next.has(candidateKey(candidate)));
-        for (const candidate of visibleCandidates) {
-            const key = candidateKey(candidate);
-            if (allVisibleSelected) {
-                next.delete(key);
-            } else {
-                next.add(key);
-            }
-        }
-        selectedKeys = next;
+        const allVisibleSelected = visibleCandidates.length > 0 && visibleCandidates.every((candidate) => selectedKeys.has(candidateKey(candidate)));
+        const visibleKeys = new Set(visibleCandidates.map(candidateKey));
+        selectedCandidates = allVisibleSelected
+            ? selectedCandidates.filter((candidate) => !visibleKeys.has(candidateKey(candidate)))
+            : [...selectedCandidates, ...visibleCandidates.filter((candidate) => !selectedKeys.has(candidateKey(candidate)))];
     }
 
     function isSelected(candidate: PhotoLibraryCandidate) {
@@ -702,12 +733,7 @@
                 end: nextEnd,
             };
         }
-        destroyMap();
         await loadCandidates();
-        await tick();
-        ensureMap();
-        map?.resize();
-        syncMap();
     }
 
     function selectedTimeWindow() {
@@ -916,12 +942,17 @@
             zoom: hasCoordinate(lon) && hasCoordinate(lat) ? 12 : 5,
             attributionControl: false,
         });
+        // Establish the search area before the first request. Later results
+        // update markers without moving the user's chosen viewport.
+        if (!hasCoordinate(lat) || !hasCoordinate(lon)) {
+            fitMapToBounds(contentBounds());
+        }
+        updateMapViewport();
         map.addControl(new M.NavigationControl({ showCompass: false }), "top-right");
         map.on("load", () => {
             mapReady = true;
             syncMap();
         });
-        map.on("zoomend", () => syncMapViewport());
         map.on("moveend", () => syncMapViewport());
         map.on("click", () => clearActiveCluster());
     }
@@ -951,7 +982,6 @@
             addTrailLayer(trailGeoJSON);
         }
 
-        fitMapToBounds(contentBounds(trailGeoJSON));
         updateMapViewport();
     }
 
@@ -973,16 +1003,29 @@
 
     function syncMapViewport() {
         updateMapViewport();
+        if (!pickerOpen || searchScope !== "viewport") return;
+        clearTimeout(viewportSearchTimer);
+        if (JSON.stringify(viewportBounds()) === JSON.stringify(activeSearch?.body.bounds)) return;
+        viewportSearchTimer = setTimeout(() => {
+            void loadCandidates();
+        }, 300);
     }
 
     function updateMapViewport() {
-        if (!map || !mapReady) {
+        if (!map) {
             mapZoom = 0;
             mapBounds = undefined;
             return;
         }
         mapZoom = map.getZoom();
         mapBounds = map.getBounds();
+    }
+
+    function viewportBounds(): PhotoLibraryBounds | undefined {
+        if (!mapBounds) return;
+        return normalizePhotoLibraryBounds({
+            west: mapBounds.getWest(), south: mapBounds.getSouth(), east: mapBounds.getEast(), north: mapBounds.getNorth(),
+        });
     }
 
     function fitMapToContent() {
@@ -1015,16 +1058,7 @@
     }
 
     function mapSyncKey() {
-        return [
-            trailData ?? "",
-            trailPolyline ?? "",
-            providerCandidates
-                .map((candidate) => {
-                    const position = markerPosition(candidate);
-                    return `${candidateKey(candidate)}:${position?.lat ?? ""}:${position?.lon ?? ""}`;
-                })
-                .join("|"),
-        ].join("::");
+        return [trailData ?? "", trailPolyline ?? ""].join("::");
     }
 
     function clearMapLayers() {
@@ -1197,18 +1231,9 @@
     }
 </script>
 
-<Modal {id} size="w-[min(96vw,76rem)] max-w-[96vw]" title={title ?? $_("photo-library")} bind:this={modal}>
+<Modal {id} size="w-[min(96vw,76rem)] max-w-[96vw]" title={title ?? $_("photo-library")} bind:this={modal} onclose={closePicker}>
     {#snippet content()}
         <div class="h-[72vh] min-h-[34rem] max-h-[46rem] w-full overflow-x-auto">
-            {#if loading}
-                <div class="flex min-h-80 items-center justify-center text-sm text-gray-500">
-                    {$_("loading")}...
-                </div>
-            {:else if fatalError}
-                <div class="flex min-h-80 items-center justify-center text-sm text-red-500">
-                    {error}
-                </div>
-            {:else}
                 <div class="grid h-full min-w-[42rem] grid-cols-[minmax(16rem,22rem)_minmax(22rem,1fr)] gap-4">
                     <section class="flex min-h-0 flex-col gap-3">
                         {#if error}
@@ -1278,7 +1303,11 @@
                                 </button>
                             </div>
                         </div>
-                        {#if visibleCandidates.length}
+                        {#if loading}
+                            <div class="flex min-h-0 flex-1 items-center justify-center text-sm text-gray-500">
+                                {$_("loading")}...
+                            </div>
+                        {:else if visibleCandidates.length}
                             <div class="min-h-0 flex-1 overflow-y-auto rounded-lg border border-input-border">
                                 {#each visibleCandidates as candidate (candidateKey(candidate))}
                                     {@const currentProviderId = displayProviderId(candidate)}
@@ -1416,7 +1445,6 @@
                         </div>
                     </section>
                 </div>
-            {/if}
         </div>
     {/snippet}
     {#snippet footer({ closeModal })}

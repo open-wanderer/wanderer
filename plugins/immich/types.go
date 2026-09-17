@@ -4,6 +4,7 @@ type assetLibraryRequest struct {
 	Action       string       `json:"action"`
 	Lat          float64      `json:"lat,omitempty"`
 	Lon          float64      `json:"lon,omitempty"`
+	Bounds       *assetBounds `json:"bounds,omitempty"`
 	Points       []trackPoint `json:"points,omitempty"`
 	StartedAt    string       `json:"startedAt,omitempty"`
 	EndedAt      string       `json:"endedAt,omitempty"`
@@ -11,6 +12,13 @@ type assetLibraryRequest struct {
 	TakenBefore  string       `json:"takenBefore,omitempty"`
 	DoubleRadius bool         `json:"doubleRadius,omitempty"`
 	AssetIDs     []string     `json:"assetIds,omitempty"`
+}
+
+type assetBounds struct {
+	West  float64 `json:"west"`
+	South float64 `json:"south"`
+	East  float64 `json:"east"`
+	North float64 `json:"north"`
 }
 
 type trackPoint struct {

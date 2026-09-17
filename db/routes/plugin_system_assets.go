@@ -78,11 +78,12 @@ type pluginAssetLibraryRequest struct {
 	TrailID   string `json:"trailId,omitempty"`
 	TrailData string `json:"trailData,omitempty"`
 
-	Lat          float64 `json:"lat,omitempty"`
-	Lon          float64 `json:"lon,omitempty"`
-	TakenAfter   string  `json:"takenAfter,omitempty"`
-	TakenBefore  string  `json:"takenBefore,omitempty"`
-	DoubleRadius bool    `json:"doubleRadius,omitempty"`
+	Lat          float64                  `json:"lat,omitempty"`
+	Lon          float64                  `json:"lon,omitempty"`
+	TakenAfter   string                   `json:"takenAfter,omitempty"`
+	TakenBefore  string                   `json:"takenBefore,omitempty"`
+	DoubleRadius bool                     `json:"doubleRadius,omitempty"`
+	Bounds       *pluginAssetSearchBounds `json:"bounds,omitempty"`
 
 	WaypointID  string   `json:"waypointId,omitempty"`
 	SummitLogID string   `json:"summitLogId,omitempty"`
@@ -133,17 +134,18 @@ type pluginAssetSearchLimits struct {
 }
 
 type pluginAssetLibraryActionInput struct {
-	Action       string                  `json:"action"`
-	TrailID      string                  `json:"trailId,omitempty"`
-	Lat          float64                 `json:"lat,omitempty"`
-	Lon          float64                 `json:"lon,omitempty"`
-	Points       []pluginAssetTrackPoint `json:"points,omitempty"`
-	StartedAt    string                  `json:"startedAt,omitempty"`
-	EndedAt      string                  `json:"endedAt,omitempty"`
-	TakenAfter   string                  `json:"takenAfter,omitempty"`
-	TakenBefore  string                  `json:"takenBefore,omitempty"`
-	DoubleRadius bool                    `json:"doubleRadius,omitempty"`
-	AssetIDs     []string                `json:"assetIds,omitempty"`
+	Action       string                   `json:"action"`
+	TrailID      string                   `json:"trailId,omitempty"`
+	Lat          float64                  `json:"lat,omitempty"`
+	Lon          float64                  `json:"lon,omitempty"`
+	Points       []pluginAssetTrackPoint  `json:"points,omitempty"`
+	StartedAt    string                   `json:"startedAt,omitempty"`
+	EndedAt      string                   `json:"endedAt,omitempty"`
+	TakenAfter   string                   `json:"takenAfter,omitempty"`
+	TakenBefore  string                   `json:"takenBefore,omitempty"`
+	DoubleRadius bool                     `json:"doubleRadius,omitempty"`
+	Bounds       *pluginAssetSearchBounds `json:"bounds,omitempty"`
+	AssetIDs     []string                 `json:"assetIds,omitempty"`
 }
 
 type assetLibraryPagination struct {
@@ -1489,12 +1491,16 @@ func newAssetLibraryActionInput(data pluginAssetLibraryRequest) pluginAssetLibra
 		TakenAfter:   strings.TrimSpace(data.TakenAfter),
 		TakenBefore:  strings.TrimSpace(data.TakenBefore),
 		DoubleRadius: data.DoubleRadius,
+		Bounds:       data.Bounds,
 		AssetIDs:     data.AssetIDs,
 	}
 }
 
 func assetLibraryActionInputForApp(app core.App, data pluginAssetLibraryRequest, useTrailTime bool) (pluginAssetLibraryActionInput, error) {
 	request := newAssetLibraryActionInput(data)
+	if err := request.Bounds.validate(); err != nil {
+		return request, err
+	}
 	if err := applyAssetLibraryExplicitTimeWindow(&request); err != nil {
 		return request, err
 	}
@@ -1536,6 +1542,9 @@ func assetLibraryActionInputForApp(app core.App, data pluginAssetLibraryRequest,
 
 func assetLibraryActionInputForWandererLibrary(app core.App, data pluginAssetLibraryRequest) (pluginAssetLibraryActionInput, error) {
 	request := newAssetLibraryActionInput(data)
+	if err := request.Bounds.validate(); err != nil {
+		return request, err
+	}
 	if err := applyAssetLibraryExplicitTimeWindow(&request); err != nil {
 		return request, err
 	}
@@ -1690,7 +1699,7 @@ func assetLibraryLinkedAssetIDs(app core.App, data pluginAssetLibraryRequest) (m
 }
 
 func assetLibraryPaginationForRequest(data pluginAssetLibraryRequest, request pluginAssetLibraryActionInput, hasLocation bool) assetLibraryPagination {
-	if hasLocation || len(request.Points) > 0 {
+	if request.Bounds == nil && (hasLocation || len(request.Points) > 0) {
 		return assetLibraryPagination{}
 	}
 	perPage := data.PerPage
@@ -1727,7 +1736,12 @@ func assetLibraryRecords(app core.App, actorID string, request pluginAssetLibrar
 		params["takenBefore"] = takenBefore
 	}
 	if bounds, ok := assetLibraryCoordinateBounds(request, hasLocation); ok {
-		filters = append(filters, "lat >= {:minLat}", "lat <= {:maxLat}", "lon >= {:minLon}", "lon <= {:maxLon}")
+		filters = append(filters, "lat >= {:minLat}", "lat <= {:maxLat}")
+		if bounds.minLon > bounds.maxLon {
+			filters = append(filters, "(lon >= {:minLon} || lon <= {:maxLon})")
+		} else {
+			filters = append(filters, "lon >= {:minLon}", "lon <= {:maxLon}")
+		}
 		params["minLat"] = bounds.minLat
 		params["maxLat"] = bounds.maxLat
 		params["minLon"] = bounds.minLon
@@ -1742,7 +1756,7 @@ func assetLibraryRecords(app core.App, actorID string, request pluginAssetLibrar
 	records, err := app.FindRecordsByFilter(
 		"assets",
 		strings.Join(filters, " && "),
-		"-taken_at,-created",
+		"-taken_at,-created,id",
 		limit,
 		offset,
 		params,
@@ -1790,6 +1804,14 @@ type assetLibraryBounds struct {
 }
 
 func assetLibraryCoordinateBounds(request pluginAssetLibraryActionInput, hasLocation bool) (assetLibraryBounds, bool) {
+	if request.Bounds != nil {
+		return assetLibraryBounds{
+			minLat: request.Bounds.South,
+			maxLat: request.Bounds.North,
+			minLon: request.Bounds.West,
+			maxLon: request.Bounds.East,
+		}, true
+	}
 	if !hasLocation && len(request.Points) == 0 {
 		return assetLibraryBounds{}, false
 	}
@@ -1853,7 +1875,7 @@ func isFiniteCoordinate(lat float64, lon float64) bool {
 }
 
 func assetLibraryMaxDistance(request pluginAssetLibraryActionInput, hasLocation bool) float64 {
-	if !hasLocation && len(request.Points) == 0 {
+	if request.Bounds != nil || (!hasLocation && len(request.Points) == 0) {
 		return math.Inf(1)
 	}
 	if request.DoubleRadius {
@@ -1871,6 +1893,9 @@ func assetLibraryCandidate(record *core.Record, request pluginAssetLibraryAction
 	lat := record.GetFloat("lat")
 	lon := record.GetFloat("lon")
 	if lat == 0 && lon == 0 {
+		return pluginAssetCandidate{}, false
+	}
+	if !request.Bounds.contains(lat, lon) {
 		return pluginAssetCandidate{}, false
 	}
 

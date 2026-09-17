@@ -182,6 +182,7 @@ Important boundaries:
 - `points[].distance` is cumulative distance from the beginning of the track in metres.
 - Track points are reduced to approximately 2,000 points before plugin invocation.
 - Explicit `takenAfter` and `takenBefore` values are validated as RFC 3339 and mirrored into `startedAt` and `endedAt`.
+- Optional `bounds: {west, south, east, north}` uses geographic degrees and replaces radius filtering. All four coordinates must be finite and in range, with `south <= north`. `west > east` crosses the antimeridian; `west=-180, east=180` covers all longitudes. Track points remain available for route-position metadata.
 
 ### 4.3 Success and failure semantics
 
@@ -371,9 +372,9 @@ The settings dialog runs `check` before saving an asset plugin.
 The entry point is `PhotoLibraryPickerModal.openModal`.
 
 1. `dateSliderDefaults` determines the UI time range. Tracks with timestamps start with the track interval; tracks without timestamps default to the previous year. The slider may expand in steps of one, five, and ten years.
-2. `requestBody` combines trail ID, unsaved `trailData`, optional target ID, coordinate, time range, and `doubleRadius`.
+2. The picker initializes the map around the waypoint coordinate or fits the trail. `requestBody` combines its visible `bounds`, trail ID, unsaved `trailData`, optional target ID, coordinate, time range, and `doubleRadius`. The "waypoints from photos" flow explicitly uses `searchScope="trail"`: it omits `bounds` so the configured distance from the trail remains the inclusion criterion.
 3. `loadCandidates` starts `loadWandererCandidates` for the internal library and one `loadPluginCandidates` call for every enabled asset plugin in parallel.
-4. One failing provider does not hide results from other providers. The picker reports a fatal error only when all loaders fail.
+4. One failing provider does not hide results from other providers. Errors appear alongside the map, which remains available for another search.
 5. Plugin requests pass through `PluginSystemAssetCandidates` and `pluginSystemAssetCall`.
 6. `assetLibraryActionInputForApp` reads optional `trailData` first and otherwise loads the stored GPX. `trailTrackPointsFromBytes` calculates cumulative distance and time boundaries, then `decimateTrackPoints` reduces large tracks.
 7. `assetPluginInvocationForUser` requires an active instance, decrypts authentication, and builds effective configuration and connector policy.
@@ -384,8 +385,9 @@ The entry point is `PhotoLibraryPickerModal.openModal`.
 12. The frontend adds `source=plugin`, provider identity, and the protected thumbnail URL. It stores pagination independently per plugin and renders a load-more action for each provider with another batch.
 13. A continuation sends the same search parameters plus `cursorId`. New candidates are mixed into the existing list and `uniqueCandidates` deduplicates by `(externalProvider, externalId)`. When a corresponding wanderer asset already exists, the local candidate wins and the plugin result is hidden.
 14. An expired, unknown, or mismatched cursor returns `restartRequired`; the picker removes the old candidates for that plugin and begins again. The display is globally re-sorted after every batch by `distanceFromStart`, distance, and capture time.
+15. In viewport mode, map movement starts a new search after a short debounce, resets pagination, and cancels the previous search. In trail mode, map movement only filters the displayed trail-matching candidates and does not request a new search. Responses from replaced searches are ignored. Selected photos survive viewport and date changes; incoming results update markers without fitting or moving the map.
 
-`AssetLibraryCandidates` serves the internal library. It filters the user's photos by date and a spatial bounding-box prefilter, calculates exact Haversine distance, and removes assets already linked to the current target. Searches without spatial context use page/offset pagination with a default of 100 and maximum of 250 records; spatial searches are unpaginated so distance ranking sees the full matching set. The internal radius is 1,000 metres or 2,000 metres with `doubleRadius`, independent of the provider-specific Immich radius.
+`AssetLibraryCandidates` serves the internal library. It filters the user's photos by date and a spatial bounding box, calculates exact Haversine distance, and removes assets already linked to the current target. Explicit viewport searches and searches without spatial context use page/offset pagination with a default of 100 and maximum of 250 records. Legacy spatial searches without explicit bounds are unpaginated so distance ranking sees the full matching set. Their internal radius is 1,000 metres or 2,000 metres with `doubleRadius`, independent of the provider-specific Immich radius. Explicit bounds replace this radius cutoff.
 
 ### 7.4 Immich matching
 
@@ -405,9 +407,9 @@ The entry point is `PhotoLibraryPickerModal.openModal`.
 
 A picker call returns at most 100 candidates, evaluates at most 2,500 raw provider assets, and cooperatively performs at most 10 provider requests. Auto-attach instead allows 2,500 candidates, 2,500 evaluated assets, and 16 provider requests per batch. A stop inside a 250-item provider page returns the current page and raw-item offset, so the next call reloads that page and skips the evaluated prefix. `nextPage` must parse as a strictly increasing page number. The separate `searchAssets` helper remains for `check`, which reads one page.
 
-`matchAssetCandidates` removes assets owned by another user when `ownedOnly=true` and `userId` is known, assets without both EXIF coordinates, and assets farther than `maxDistanceMeters` or twice that radius when `doubleRadius=true`.
+`matchAssetCandidates` removes assets owned by another user when `ownedOnly=true` and `userId` is known, assets without both EXIF coordinates, and assets outside explicit viewport bounds. Without bounds it instead rejects assets farther than `maxDistanceMeters` or twice that radius when `doubleRadius=true`.
 
-`candidateForAsset` compares a photo with every supplied track point and records the nearest point. Without a track, it uses the single coordinate. `sortMatches` orders by increasing distance and then by descending `takenAt` string.
+`candidateForAsset` compares a photo with every supplied track point and records the nearest point. Without a track, a viewport search uses the photo's coordinates; a legacy radius search uses the requested single coordinate. `sortMatches` orders by increasing distance and then by descending `takenAt` string.
 
 ### 7.5 Authenticated thumbnails
 

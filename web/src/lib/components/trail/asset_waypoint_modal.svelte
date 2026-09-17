@@ -185,6 +185,7 @@
 <PhotoLibraryPickerModal
     bind:this={picker}
     id="asset-waypoint-modal"
+    searchScope="trail"
     {trailId}
     {trailData}
     {trailPolyline}

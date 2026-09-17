@@ -245,7 +245,7 @@ that export with an action in `request.action`:
 | Action | Purpose |
 | --- | --- |
 | `check` | Validate the submitted credentials and connector configuration. |
-| `candidates` | Return external photo candidates for a trail or coordinate. |
+| `candidates` | Return external photo candidates for a map viewport, trail, or coordinate. |
 | `import` | Return `Photo` descriptors for selected external asset IDs. |
 | `thumbnail` | Return a preview photo descriptor for one external asset ID. |
 
@@ -256,6 +256,11 @@ instead of linked because private provider media cannot be served anonymously.
 Asset plugins should keep `externalId` stable so the host can avoid duplicate
 imports. The host sends the photo limits in `input.limits`; automatic attachment
 flows enforce those limits before storing asset records.
+Manual map searches include `request.bounds` with `west`, `south`, `east`, and
+`north` in degrees. These bounds replace radius filtering, while route points
+can still provide nearest-point metadata. `west > east` crosses the antimeridian;
+`west=-180, east=180` covers all longitudes. Requests without bounds retain the
+route or coordinate radius behavior.
 When asset photos create new waypoints, the host merges nearby photos using the
 trail category's waypoint merge settings and names new waypoints from nearby
 OpenStreetMap points of interest, falling back to reverse geocoding and then the

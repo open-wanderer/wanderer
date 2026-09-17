@@ -24,12 +24,13 @@
     interface Props {
         children?: Snippet<[any]>;
         onsave?: (waypoint: Waypoint) => boolean | Promise<boolean> | void
+        trailData?: string;
         assetPluginActive?: boolean;
         assetPluginIds?: string[];
         assetPluginProviders?: PluginProvider[];
     }
 
-    let { children, onsave, assetPluginIds = [], assetPluginProviders = [] }: Props = $props();
+    let { children, onsave, trailData, assetPluginIds = [], assetPluginProviders = [] }: Props = $props();
 
     let modal: Modal;
     let assetPhotoPickerModal: AssetPhotoPickerModal = $state()!;
@@ -242,6 +243,7 @@
 
 <AssetPhotoPickerModal
     bind:this={assetPhotoPickerModal}
+    {trailData}
     lat={parseFloat(String($data.lat)) || 0}
     lon={parseFloat(String($data.lon)) || 0}
     {assetPluginIds}

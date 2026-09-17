@@ -589,6 +589,13 @@ time data. `takenAfter` and `takenBefore` are explicit search-window hints when
 the host or user provides them. For waypoint searches, the host may only provide
 `lat` and `lon`.
 
+Manual map searches additionally send `bounds: {west, south, east, north}` in
+degrees. Bounds replace the route/coordinate radius as the inclusion filter;
+track points can still supply nearest-point and route-distance metadata.
+`west > east` denotes an antimeridian crossing, and `west=-180, east=180`
+covers all longitudes. Without bounds, existing radius matching applies.
+Continuation cursors are tied to the bounds as well as the other search fields.
+
 Runtime failures are reported by the failed export call, application failures
 must use the structured `error` field, and HTTP clients use the response status.
 

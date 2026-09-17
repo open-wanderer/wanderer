@@ -164,6 +164,49 @@ func TestNextCandidatePageRejectsNonProgressingValues(t *testing.T) {
 	}
 }
 
+func TestSearchAssetCandidatePagesBoundsContinueAcrossFilteredPages(t *testing.T) {
+	pages := map[int]assetCandidateProviderPage{
+		1: {
+			Items: []immichAsset{
+				geotaggedImmichAsset("outside-1", 46, 8),
+				geotaggedImmichAsset("inside-1", 46.5, 8.5),
+				geotaggedImmichAsset("outside-2", 46, 8),
+			},
+			NextPage: stringPointer("2"),
+		},
+		2: {
+			Items: []immichAsset{
+				geotaggedImmichAsset("outside-3", 46, 8),
+				geotaggedImmichAsset("inside-2", 46.5, 8.5),
+			},
+		},
+	}
+	request := assetLibraryRequest{Bounds: &assetBounds{West: 8.4, South: 46.4, East: 8.6, North: 46.6}}
+	limits := assetCandidateSearchLimits{MaxItems: 1, MaxScannedItems: 2, MaxProviderRequests: 2}
+	wantIDs := []string{"inside-1", "", "inside-2"}
+	wantScanned := []int{2, 2, 1}
+	var state map[string]any
+	for batch := range wantIDs {
+		result, err := searchAssetCandidatePages(request, immichConfig{MaxDistanceMeters: 1}, state, limits, func(page int) (assetCandidateProviderPage, error) {
+			return pages[page], nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.ScannedItems != wantScanned[batch] || result.HasMore != (batch < 2) {
+			t.Fatalf("batch %d = %#v", batch, result)
+		}
+		if wantIDs[batch] == "" {
+			if len(result.Candidates) != 0 {
+				t.Fatalf("batch %d should contain no matches: %#v", batch, result)
+			}
+		} else if len(result.Candidates) != 1 || result.Candidates[0].AssetID != wantIDs[batch] {
+			t.Fatalf("batch %d candidates = %#v, want %q", batch, result.Candidates, wantIDs[batch])
+		}
+		state = result.State
+	}
+}
+
 func testImmichAssets(count int, matches func(index int) bool) []immichAsset {
 	assets := make([]immichAsset, 0, count)
 	for index := 0; index < count; index++ {

@@ -27,7 +27,7 @@ No write, delete, upload, album, library, or admin permissions are required.
 | Immich server URL | Base URL of the Immich server. |
 | API key | Immich API key. Stored encrypted in wanderer. |
 | Time window | Minutes around the trail or waypoint time range to search. |
-| Search radius | Maximum distance in meters between a photo and a trail point. |
+| Search radius | Maximum distance in meters between a photo and a trail point when no map bounds are provided. |
 | Maximum waypoints | Maximum number of photo waypoints to create from a trail search. |
 | Import size | `Preview` stores Immich preview images; `Original` stores the original file. |
 | Own photos only | Restrict candidates to the Immich user returned by the plugin check action. |
@@ -51,9 +51,16 @@ The `asset_library.v1` export handles these actions:
 | Action | Meaning |
 | --- | --- |
 | `check` | Calls Immich `/api/users/me` and performs a tiny search to validate auth and connector settings. |
-| `candidates` | Searches Immich image assets with EXIF coordinates and ranks them against the provided trail points or coordinate. |
+| `candidates` | Searches Immich image assets with EXIF coordinates inside the provided map bounds, or within the configured radius of trail points or a coordinate when no bounds are provided. |
 | `import` | Returns `sdk.Photo` descriptors for selected Immich assets using the configured import size. |
 | `thumbnail` | Returns a connector-backed preview descriptor for one asset. |
+
+Candidate requests may include `bounds: {west, south, east, north}` in degrees.
+These bounds replace the search radius, including when `doubleRadius` is set.
+Bounds with `west > east` cross the antimeridian; `west: -180, east: 180`
+covers all longitudes. Matching photos retain the nearest trail point when
+trail points are provided. Otherwise, their own coordinates are used.
+The configured time window and ownership filter still apply.
 
 The plugin never contacts Immich directly. All Immich requests go through the
 wanderer host request boundary, which enforces the manifest connector policy,
