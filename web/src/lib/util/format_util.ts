@@ -1,4 +1,5 @@
 import { page } from "$app/state";
+import { Parser } from "htmlparser2";
 
 export function formatTimeHHMM(seconds?: number) {
     if (seconds == null || isNaN(seconds)) {
@@ -105,7 +106,7 @@ export function formatTimeSince(date: Date) {
     return { unit: "seconds", value: seconds };
 }
 
-const blockTags = [
+const blockTags = new Set([
     "address",
     "article",
     "aside",
@@ -113,7 +114,12 @@ const blockTags = [
     "div",
     "figure",
     "footer",
-    "h[1-6]",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
     "header",
     "li",
     "main",
@@ -127,64 +133,45 @@ const blockTags = [
     "th",
     "tr",
     "ul",
-].join("|");
-
-const blockTagRegex = new RegExp(`</?(?:${blockTags})(?:\\s[^>]*)?/?>`, "gi");
-
-const namedEntities: Record<string, string> = {
-    amp: "&",
-    apos: "'",
-    gt: ">",
-    lt: "<",
-    nbsp: " ",
-    quot: '"',
-};
-
-function decodeEntities(text: string) {
-    // Single pass, so a decoded "&amp;lt;" stays as the literal text "&lt;"
-    return text.replace(
-        /&(#\d+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g,
-        (entity, body: string) => {
-            if (body.startsWith("#")) {
-                const codePoint =
-                    body[1] === "x" || body[1] === "X"
-                        ? parseInt(body.slice(2), 16)
-                        : parseInt(body.slice(1), 10);
-                if (
-                    !Number.isFinite(codePoint) ||
-                    codePoint < 0 ||
-                    codePoint > 0x10ffff ||
-                    (codePoint >= 0xd800 && codePoint <= 0xdfff)
-                ) {
-                    return entity;
-                }
-                return String.fromCodePoint(codePoint);
-            }
-            return namedEntities[body.toLowerCase()] ?? entity;
-        },
-    );
-}
+]);
 
 /**
  * Converts rich text to plain text.
  *
- * Deliberately string-based rather than DOM-based: it has to produce identical
- * output during SSR and in the browser, otherwise the two renders disagree and
- * hydration re-renders the subtree.
+ * Use the same parser during SSR and in the browser to avoid hydration differences.
+ * The result is plain text, including decoded entities, and must be rendered as
+ * text rather than inserted as HTML.
  */
 export function formatHTMLAsText(html?: string) {
     if (!html) {
         return "";
     }
 
-    return decodeEntities(
-        html
-            .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
-            .replace(/<br\s*\/?>/gi, "\n")
-            .replace(blockTagRegex, "\n")
-            // Attribute values may contain ">", so match quoted runs explicitly
-            .replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, ""),
-    )
+    const text: string[] = [];
+    let ignoredDepth = 0;
+    const parser = new Parser({
+        onopentag(name) {
+            if (ignoredDepth > 0 || name === "script" || name === "style") {
+                ignoredDepth++;
+            } else if (name === "br" || blockTags.has(name)) {
+                text.push("\n");
+            }
+        },
+        ontext(value) {
+            if (ignoredDepth === 0) text.push(value);
+        },
+        onclosetag(name) {
+            if (ignoredDepth > 0) {
+                ignoredDepth--;
+            } else if (blockTags.has(name)) {
+                text.push("\n");
+            }
+        },
+    });
+    parser.end(html);
+
+    return text.join("")
+        .replace(/\u00a0/g, " ")
         .replace(/\r\n?/g, "\n")
         .replace(/[ \t]+\n/g, "\n") // trailing spaces
         .replace(/\n[ \t]+/g, "\n") // leading spaces

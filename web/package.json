@@ -64,6 +64,7 @@
     "crypto-random-string": "^5.0.0",
     "felte": "^1.3.0",
     "heic2any": "^0.0.4",
+    "htmlparser2": "^12.0.0",
     "instead": "^1.0.3",
     "isomorphic-xml2js": "^0.1.3",
     "json-diff-ts": "^4.10.4",
