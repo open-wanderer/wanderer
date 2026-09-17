@@ -723,7 +723,7 @@ func putPluginAssetThumbnailCache(key string, entry pluginAssetThumbnailCacheEnt
 }
 
 func writePluginAssetThumbnail(e *core.RequestEvent, entry pluginAssetThumbnailCacheEntry) error {
-	e.Response.Header().Set("Cache-Control", "private, no-cache")
+	e.Response.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
 	e.Response.Header().Set("ETag", entry.ETag)
 	e.Response.Header().Set("Vary", "Authorization")
 	if e.Request.Header.Get("If-None-Match") == entry.ETag {

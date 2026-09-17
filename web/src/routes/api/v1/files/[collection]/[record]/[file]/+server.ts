@@ -85,9 +85,15 @@ export async function GET(event: RequestEvent) {
 
     let fileURL = event.locals.pb.buildURL(parts.join("/") + '?' + new URLSearchParams(safeSearchParams.data));
 
+    const headers: HeadersInit = {};
+    const token = event.locals.pb.authStore.token;
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
     try {
-        const r = await event.fetch(fileURL)
-        return new Response(r.body, { headers: r.headers });
+        const r = await event.fetch(fileURL, { headers })
+        return new Response(r.body, { headers: r.headers, status: r.status });
     } catch (e: any) {
         throw error(500, e);
     }

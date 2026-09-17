@@ -166,6 +166,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdate("trails").BindFunc(hooks.MaterializePrivateRemoteAssetLinksBeforePublish(app))
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 
+	app.OnFileDownloadRequest("assets").BindFunc(hooks.AuthorizeAssetFileDownload())
 	app.OnRecordUpdate("assets").BindFunc(hooks.InvalidateAssetContentHashOnFileChange())
 	app.OnRecordAfterCreateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
 	app.OnRecordAfterUpdateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))

@@ -411,6 +411,9 @@ func assetDeleteLinkTargets(e *core.RequestEvent) ([]assetDeleteLinkTarget, erro
 }
 
 func AssetFile(e *core.RequestEvent) error {
+	// Every request must recheck access, including after a share is revoked.
+	e.Response.Header().Set("Cache-Control", "private, no-cache, must-revalidate")
+	e.Response.Header().Add("Vary", "Authorization")
 	assetID := e.Request.PathValue("id")
 	if assetID == "" {
 		return e.NotFoundError("", nil)
@@ -430,7 +433,7 @@ func AssetFile(e *core.RequestEvent) error {
 	}
 
 	if fileURL := util.AssetFileRedirectURL(asset); fileURL != "" {
-		return e.Redirect(http.StatusFound, assetFileRedirectURLWithThumb(fileURL, e.Request.URL.Query().Get("thumb")))
+		return e.Redirect(http.StatusFound, assetFileRedirectURLWithQuery(fileURL, e.Request.URL.Query()))
 	}
 
 	storageMode := asset.GetString("storage_mode")
@@ -464,20 +467,20 @@ func AssetFile(e *core.RequestEvent) error {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	e.Response.Header().Set("Cache-Control", "private, max-age=300")
 	return e.Blob(http.StatusOK, contentType, fetched.Body)
 }
 
-func assetFileRedirectURLWithThumb(fileURL string, thumb string) string {
-	if thumb == "" {
-		return fileURL
-	}
+func assetFileRedirectURLWithQuery(fileURL string, requestQuery url.Values) string {
 	parsed, err := url.Parse(fileURL)
 	if err != nil {
 		return fileURL
 	}
 	query := parsed.Query()
-	query.Set("thumb", thumb)
+	for _, key := range []string{"thumb", "share"} {
+		if value := requestQuery.Get(key); value != "" {
+			query.Set(key, value)
+		}
+	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String()
 }
