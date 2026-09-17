@@ -890,7 +890,7 @@
         {/if}
     {/snippet}
     {#snippet footer()}
-        <div class="flex items-center gap-4">
+        <div class="flex flex-col items-stretch gap-4 sm:flex-row">
             <button
                 class="btn-secondary"
                 disabled={materializingPluginId !== null}
