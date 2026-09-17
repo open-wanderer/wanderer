@@ -1,4 +1,5 @@
 import * as xml2js from 'isomorphic-xml2js';
+import { parseGpxXml } from './parse-xml';
 import Metadata from './metadata';
 import Route from './route';
 import Track from './track';
@@ -218,45 +219,17 @@ export default class GPX {
   }
 
   static parse(gpxString: string): GPX {
-    const sanitizedGPX = gpxString.replace(/\sxmlns=""/g, '').replace(/<!--[\s\S]*?-->/g, '');
-
-    // Only strip prefixes that are bound to the GPX namespace itself (e.g. <g:gpx xmlns:g="http://www.topografix.com/GPX/1/1">).
-    // Prefixes of foreign namespaces (Garmin extensions etc.) must survive so they round-trip through toString().
-    const gpxPrefixes = new Set<string>();
-    for (const m of sanitizedGPX.matchAll(/xmlns:([\w.-]+)\s*=\s*["']http:\/\/www\.topografix\.com\/GPX\/1\/[01]["']/g)) {
-      gpxPrefixes.add(m[1]);
+    const xml = parseGpxXml(gpxString);
+    if (!xml || !Object.prototype.hasOwnProperty.call(xml, 'gpx')) {
+      throw new Error('Missing GPX root element');
     }
-
-    return (function () {
-      let data = null, error = null;
-      xml2js.parseString(sanitizedGPX, {
-        explicitArray: false,
-        tagNameProcessors: gpxPrefixes.size ? [(name: string) => {
-          const i = name.indexOf(":");
-          return i > 0 && gpxPrefixes.has(name.substring(0, i)) ? name.substring(i + 1) : name;
-        }] : [],
-        attrValueProcessors: [(str: string) => {
-          if (str.length && !isNaN(Number(str))) {
-            return Number.isInteger(Number(str)) ? parseInt(String(str), 10) : parseFloat(String(str));
-          }
-          return str;
-        }
-        ]
-      }, (err, xml) => {
-        error = err;
-        data = new GPX({
-          $: xml.gpx.$,
-          metadata: xml.gpx.metadata,
-          wpt: xml.gpx.wpt,
-          rte: xml.gpx.rte,
-          trk: xml.gpx.trk
-        });
-      });
-      if (error) {
-        throw error
-      };
-      return data;
-    }()) as unknown as GPX;
+    return new GPX({
+      $: xml.gpx.$,
+      metadata: xml.gpx.metadata,
+      wpt: xml.gpx.wpt,
+      rte: xml.gpx.rte,
+      trk: xml.gpx.trk
+    });
   }
 
   toGeoJSON(includeRoute: boolean = false, includeWaypoints: boolean = false): GeoJSON.FeatureCollection {
