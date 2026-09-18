@@ -21,6 +21,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:collection/collection.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/models/category.dart';
@@ -395,14 +396,17 @@ class _ListMapState extends ConsumerState<_ListMap> {
       embedded: true,
       onMapCreated: (controller) => _controller = controller,
       onStyleLoaded: (style) {
-        if (combinedBounds != null) {
-          _controller?.fitBounds(
+        final controller = _controller;
+        if (combinedBounds != null && controller != null) {
+          // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+          fitBoundsReliably(
+            controller,
             bounds: combinedBounds,
             padding: const EdgeInsets.all(40),
             // Duration.zero crashes the Android native binding
             // (animateCamera receives a null duration).
             nativeDuration: const Duration(milliseconds: 1),
-          );
+          ).ignore();
         }
         _trailLayer.addArrows(style, lines).ignore();
       },

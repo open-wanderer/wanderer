@@ -12,6 +12,7 @@ import 'package:wanderer/models/region_geometry.dart';
 import 'package:wanderer/provider/region/region_geometry_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:wanderer/util/region/file_path.dart';
 
 /// Full-screen map showing a downloadable region's boundary polygon,
@@ -58,11 +59,13 @@ class _SettingsOfflineRegionsMapScreenState
     );
 
     // Never Duration.zero — it crashes the Android native binding.
-    controller.fitBounds(
+    // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+    fitBoundsReliably(
+      controller,
       bounds: bounds,
       padding: const EdgeInsets.all(40),
       nativeDuration: const Duration(milliseconds: 1),
-    );
+    ).ignore();
   }
 
   /// The single draw path for the boundary polygon, called from both

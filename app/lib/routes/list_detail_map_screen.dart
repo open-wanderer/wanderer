@@ -19,6 +19,7 @@ import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/components/category/category_icon.dart';
 import 'package:wanderer/util/geo/polyline.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 
 class ListDetailMapScreen extends ConsumerStatefulWidget {
   final String id;
@@ -163,14 +164,17 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                 onMapCreated: (controller) => _controller = controller,
                 onStyleLoaded: (style) {
                   final bounds = combinedBounds;
-                  if (bounds != null) {
-                    _controller?.fitBounds(
+                  final controller = _controller;
+                  if (bounds != null && controller != null) {
+                    // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+                    fitBoundsReliably(
+                      controller,
                       bounds: bounds,
                       padding: const EdgeInsets.all(40),
                       // Duration.zero crashes the Android native binding
                       // (animateCamera receives a null duration).
                       nativeDuration: const Duration(milliseconds: 1),
-                    );
+                    ).ignore();
                   }
                   _trailLayer.addArrows(style, lines).ignore();
                 },

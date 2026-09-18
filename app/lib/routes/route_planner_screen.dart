@@ -13,6 +13,7 @@ import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
 import 'package:wanderer/util/route/segment.dart';
 
@@ -256,7 +257,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     // Duration.zero is avoided: the Android binding passes it to
     // `animateCamera` as null, which throws. Mirrors TrailMap's fit.
-    await controller.fitBounds(
+    // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+    await fitBoundsReliably(
+      controller,
       bounds: bounds,
       padding: padding,
       nativeDuration: const Duration(milliseconds: 1),

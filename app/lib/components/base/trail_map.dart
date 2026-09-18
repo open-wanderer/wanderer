@@ -13,6 +13,7 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:wanderer/util/region/proxy_style_rewriter.dart';
 
 /// Native MapLibre GL map host for a single [Trail]. Swaps light/dark styles
@@ -327,7 +328,9 @@ class _TrailMapState extends ConsumerState<TrailMap>
     if (hasExtent) {
       // Duration.zero is avoided: the Android binding passes it to
       // `animateCamera` as null, which throws.
-      await controller.fitBounds(
+      // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+      await fitBoundsReliably(
+        controller,
         bounds: bounds,
         padding: widget.initialCameraFitPadding,
         nativeDuration: const Duration(milliseconds: 1),

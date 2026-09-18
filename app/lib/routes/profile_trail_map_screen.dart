@@ -35,6 +35,7 @@ import 'package:wanderer/provider/trail/profile_trail_bounding_box_provider.dart
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:wanderer/util/map/sheet_metrics.dart';
 
 /// Zoom used when centering on a specific point (GPS fix or saved home
@@ -254,7 +255,9 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
           bounds.longitudeEast != bounds.longitudeWest;
       if (hasExtent) {
         // Never Duration.zero — the Android native binding throws.
-        cameraFuture = controller.fitBounds(
+        // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+        cameraFuture = fitBoundsReliably(
+          controller,
           bounds: bounds,
           padding: padding,
           nativeDuration: const Duration(milliseconds: 1),
