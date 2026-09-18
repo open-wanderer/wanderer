@@ -55,7 +55,7 @@
     let loading: boolean = $state(true);
 
     let filter: TrailFilter = $state(restoreStoredFilter(page.data.filter));
-    const pagination: { page: number; totalPages: number; items: number } =
+    let pagination: { page: number; totalPages: number; items: number } =
         $state({
             page: page.url.searchParams.has("page")
                 ? parseInt(page.url.searchParams.get("page")!)
@@ -235,7 +235,7 @@
         bind:filter
         {loading}
         bind:trails
-        {pagination}
+        bind:pagination
         onupdate={() => handleFilterUpdate(false)}
         onpagination={paginate}
         ondisplaychange={handleDisplayModeChange}
