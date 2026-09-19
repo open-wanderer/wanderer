@@ -7,7 +7,8 @@ Die Tests auf `feat/srch0` verlangen korrekte Ergebnisse und müssen gegen
 den bisherigen Produktcode rot bleiben. Bekannte Fehler innerhalb des
 verbindlichen Abnahmeumfangs sind keine erlaubten Abweichungen. Die unten
 dokumentierten Befunde zur Sortierabsicherung, Feldauswahl, administrativen
-Tag-Umbenennung und Absicherung negativer Thumbnailindizes sind seit dem
+Tag-Umbenennung, Absicherung negativer Thumbnailindizes, Weitergabe des
+API-Fehlerstatus und Validierung der Actor-Suchparameter sind seit dem
 19. September 2026 keine SRCH0-Blocker.
 Produktkorrekturen werden als einzelne fachliche Fixes
 mit ihren Regressionstests für separate PRs vorbereitet. `fix/srch0-findings` bleibt die
@@ -40,19 +41,73 @@ SRCH0-Produktstand weiterhin offen.
 
 | Befund | Reproduktion und Bedeutung | Nachweis |
 | --- | --- | --- |
-| HTTP-Clientfehler wird zu 500 | Ein echter `MeilisearchApiError` mit HTTP 400 hat den Status unter `response.status`. Der Proxy liest `httpStatus` und antwortet mit 500. Die Fehlerklasse geht verloren. | `SRCH0-P-HTTP` in `web/src/lib/srch0/plausibility.test.ts`; reale API-Engine-Negativfälle |
 | Radius bei Nullkoordinaten fehlt | `(46,7)` erzeugt einen Radiusfilter; `(0,7)` und `(46,0)` erzeugen keinen. Gültige geografische Koordinaten werden durch Truthiness verworfen. | `SRCH0-P-GEO-ZERO`; `SRCH0-COMPILER-017/018` |
 | Falsche Abstiegslimite in der Karte | Bei `max_elevation_gain=800` und `max_elevation_loss=700` ist `elevationLossMax=700`, aber `elevationLossLimit=800`. Die Achse verwendet zwei widersprüchliche Grenzen. | `SRCH0-P-LOSS-LIMIT`; echter Map-Loader |
 | Löschen eines Shares entfernt weitere Freigaben aus dem Suchindex | Alice und Bob haben je einen Share auf denselben Trail. Nach Löschen von Alices Share existiert Bobs Datenbankfreigabe weiterhin; der Hook schreibt dennoch `shares=[]` in den Suchindex. Bob verliert damit diesen Suchzugang. | `SRCH0-MUTATION-005`; echte Datenbankprobe und materialisierte Engineaufträge |
 | Geänderte Actor- und Kategoriemetadaten bleiben im Trailindex alt | Änderungen an Actor oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Die Entscheidung zur Tag-Umbenennung nimmt diese Befunde nicht von der Abnahme aus. | `SRCH0-MUTATION-007/009`; echte Hooks und Datenbankproben |
 | Fehlende oder ungültige Schwierigkeit wird erfunden | Go projiziert Unknown als `0`/leicht; die Web-Konvertierung weist sonstige Rohwerte teilweise als schwierig aus. Unknown muss ohne erfundene Stufe erhalten bleiben. | strikte Go-Projektions- und Web-DTO-Prüfungen |
-| Ungültige Actor-Suchparameter werden falsch behandelt | Fehlendes `q` wird zu HTTP 500; `limit` erreicht den SDK-Auftrag als String. | strikte Actor-Parameterprüfungen |
 
 Die Produktfixes gehören auf ihre separaten Produktbranches.
 SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
 Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
 Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)
 beschreibt den Vergleich mit der historischen Beobachtung.
+
+## Kein Blocker: API-Fehlerstatus
+
+Entscheidung vom 19. September 2026: Die Weitergabe des Meilisearch-Fehlerstatus
+ist **kein SRCH0-Merge- oder Abnahmeblocker**. Ein echter
+`MeilisearchApiError` mit HTTP 400 stellt seinen Status unter `response.status`
+bereit. Der bisherige Zugriff auf `httpStatus` führt im Proxy zu HTTP 500.
+Die separate Korrektur auf `fix/search-api-error-status` liest den richtigen
+SDK-Status in den Routen für Einzel-, Mehrfach-, Cluster- und
+Bounding-Box-Suche sowie im gemeinsamen Fehlerhandler. Erfolgreiche
+Suchanfragen und deren Ergebnisse werden dadurch nicht verändert.
+
+Die Evidenz bleibt erhalten: `SRCH0-P-HTTP` in
+`web/src/lib/srch0/plausibility.test.ts` sowie die API-Statusprüfungen in
+`SRCH0-SEARCH-116` und `SRCH0-SEARCH-124` bis `127` mit ihren
+`API-FIX-`-Solländerungen. Die Ausnahme betrifft ausschliesslich die falsche
+Weitergabe des Fehlerstatus. Authentifizierung, Berechtigungen, Sichtbarkeit
+und die tatsächliche Ablehnung unberechtigter Anfragen bleiben verbindlich;
+gemischte Negativfälle erhalten keine pauschale Ausnahme.
+
+Commit `8bcfe61df` ist frisch ab `origin/dev` (`c73966d6c`) lokal vorbereitet,
+ohne Push oder PR und ohne Integration in `dev` oder `feat/srch0`. Die
+Regression reproduziert den Fehler auf `dev`; mit dem Fix bestehen alle 25
+neuen Regressionstests und alle 146 Web-Unit-Tests. `npm run check` meldet
+0 Fehler und 0 Warnungen. Dies ersetzt keine SRCH0-Gesamtabnahme. SRCH0-Tests, Korpus
+und aktive Erwartungen bleiben unverändert; ihre technische Einordnung als
+Diagnose ausserhalb der Abnahme steht noch aus. Ein grüner SRCH0-Lauf wird
+hier nicht behauptet.
+
+## Kein Blocker: Actor-Suchparameter
+
+Entscheidung vom 19. September 2026: Die Validierung der Actor-Suchparameter
+ist **kein SRCH0-Merge- oder Abnahmeblocker**. Fehlendes `q` ergibt in der
+historischen Baseline `e9b7a8cad` HTTP 500. Auf dem aktuellen `dev`
+(`c73966d6c`) bleibt dank `isHttpError` bereits HTTP 404 erhalten; fachlich
+vorgesehen ist HTTP 400. Ein übergebenes `limit` erreicht den SDK-Auftrag
+bisher als String. Die normale Oberfläche übergibt `q` und kein eigenes
+`limit`; eine Störung dieser regulären Aufrufe ist nicht nachgewiesen.
+
+Der unabhängige Fix `fix/search-actor-parameters` liefert bei fehlendem `q`
+HTTP 400, übergibt gültige Limits als Zahlen und weist ungültige Limits mit
+HTTP 400 zurück. Der Standardwert bleibt `3`. Die Evidenz in
+`SRCH0-COMPILER-062/064`, ihren `WEB-FIX-`-Solländerungen und den strikten
+Actor-Parameterprüfungen in `web/src/lib/srch0/plausibility.test.ts` bleibt
+erhalten. Die Ausnahme betrifft nur diese Parametervalidierung und
+Typumwandlung; Authentifizierung, Berechtigungen und Sichtbarkeit bleiben
+verbindlich.
+
+Commit `a72ff18df` ist frisch ab `origin/dev` (`c73966d6c`) lokal vorbereitet,
+ohne Push oder PR und ohne Integration in `dev` oder `feat/srch0`. Er benötigt
+den separaten Fehlerstatus-Fix nicht. Auf `dev` scheitern 14 der 20 neuen
+Regressionstests; mit dem Fix bestehen alle 20 und die gesamte Web-Testsuite
+mit 141 Tests. `npm run check` meldet 0 Fehler und 0 Warnungen. Dies ersetzt
+keine SRCH0-Gesamtabnahme. SRCH0-Tests, Korpus und aktive Erwartungen bleiben
+unverändert; die technische Trennung von Diagnose und Abnahme steht vor der
+formalen Gesamtabnahme noch aus. Ein grüner SRCH0-Lauf wird hier nicht behauptet.
 
 ## Kein Blocker: negativer Thumbnailindex
 
@@ -182,8 +237,9 @@ aktive Solländerung `WEB-FIX-SRCH0-BROWSER-009` und der Plausibilitätstest
 Tests, Korpus und Sollwerte werden durch diese Dokumentationsentscheidung
 nicht geändert; die bisherigen strikten Assertions können deshalb weiterhin
 rot werden. Ausschliesslich Fehler der genannten Sortierabsicherung, der
-oben beschriebenen Feldauswahl, der administrativen Tag-Umbenennung und der
-Absicherung negativer Thumbnailindizes gelten
+oben beschriebenen Feldauswahl, der administrativen Tag-Umbenennung, der
+Absicherung negativer Thumbnailindizes, der Weitergabe des API-Fehlerstatus
+und der Validierung der Actor-Suchparameter gelten
 im jeweils abgegrenzten Umfang fachlich als Diagnose ausserhalb der
 SRCH0-Abnahme. Die technische Trennung
 von Diagnose und Abnahme muss vor der formalen Gesamtabnahme nachgeführt

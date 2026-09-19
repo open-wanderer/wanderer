@@ -4,8 +4,9 @@ SRCH0 verlangt fachlich korrektes Suchverhalten. Historische Beobachtungen
 helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
 Jede verletzte geprüfte Eigenschaft lässt den Test scheitern. Die
 [Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker von der
-Sortierabsicherung, der Feldauswahl, der administrativen Tag-Umbenennung und
-der Absicherung negativer Thumbnailindizes
+Sortierabsicherung, der Feldauswahl, der administrativen Tag-Umbenennung,
+der Absicherung negativer Thumbnailindizes, der Weitergabe des API-Fehlerstatus
+und der Validierung der Actor-Suchparameter
 ohne Blockerstatus; innerhalb des verbindlichen Abnahmeumfangs sind
 Fehlerausnahmen verboten.
 
@@ -42,6 +43,18 @@ PocketBase- und interne Schreibpfade können sie dagegen speichern.
 Die Eingabevalidierung und Fotoanordnung werden dabei nicht verändert.
 Andere Projektions-, Zugriffs- und Startup-Prüfungen bleiben verbindlich.
 
+Auch die Weitergabe des API-Fehlerstatus und die Validierung der
+Actor-Suchparameter sind **keine SRCH0-Merge- oder Abnahmeblocker**. Sie werden
+unabhängig auf `fix/search-api-error-status` und `fix/search-actor-parameters`
+korrigiert. Der erste Fix liest `response.status` des Meilisearch-SDK, damit
+beispielsweise HTTP 400 erhalten bleibt. Der zweite beantwortet fehlendes
+`q` mit HTTP 400 und validiert `limit` als Zahl; der Standard bleibt `3`.
+Ohne `q` lieferte die historische Baseline HTTP 500, aktuelles `dev` bereits
+HTTP 404. Die normale Actor-Suche übergibt `q` und kein eigenes `limit`;
+eine Störung dieser regulären Aufrufe ist nicht nachgewiesen. Die Ausnahmen
+betreffen nur Fehlerstatus und Parameterbehandlung, keine Authentifizierung,
+Berechtigungen oder Sichtbarkeitsregeln.
+
 „Fehlende Indexdokumente“ bezeichnet eine Absicherung der neuen
 Metadaten-Teilupdates, keinen separat nachgewiesenen `dev`-Fehler und keinen
 zusätzlichen SRCH0-Blocker. Der Tag-Fix enthält sie bereits; ein eigener
@@ -55,15 +68,18 @@ dieser unveränderten Prüfungen steht noch aus. Details stehen unter
 
 Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
 und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung,
-Feldauswahl, administrativen Tag-Umbenennung und Absicherung negativer
-Thumbnailindizes sind im beschriebenen Umfang
+Feldauswahl, administrativen Tag-Umbenennung, Absicherung negativer
+Thumbnailindizes, Weitergabe des API-Fehlerstatus und Validierung der
+Actor-Suchparameter sind im beschriebenen Umfang
 fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
 und Abnahme muss vor der formalen Gesamtabnahme nachgeführt werden; dies
 belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
 [Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte),
 [abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder),
-[administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung)
-und [negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex).
+[administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung),
+[negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex),
+[API-Fehlerstatus](BEFUNDE.md#kein-blocker-api-fehlerstatus) und
+[Actor-Suchparameter](BEFUNDE.md#kein-blocker-actor-suchparameter).
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
@@ -90,6 +106,14 @@ PRs vorbereitet. Stand vom 19. September 2026:
   `feat/srch0`. Diese Absicherung ist keine Voraussetzung für SRCH0.
   Umfang, Evidenz und erfolgreiche Einzelprüfungen stehen unter
   [negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex).
+- `fix/search-api-error-status` (`8bcfe61df`) und
+  `fix/search-actor-parameters` (`a72ff18df`) sind jeweils frisch ab
+  `origin/dev` (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und
+  ohne Integration in `dev` oder `feat/srch0`. Keiner der beiden Fixes ist
+  Voraussetzung für SRCH0. Umfang, Evidenz und erfolgreiche Einzelprüfungen
+  stehen unter
+  [API-Fehlerstatus](BEFUNDE.md#kein-blocker-api-fehlerstatus) und
+  [Actor-Suchparameter](BEFUNDE.md#kein-blocker-actor-suchparameter).
 - `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
   Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.

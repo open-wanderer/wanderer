@@ -87,6 +87,26 @@ erfolgreich; dies ersetzt keine SRCH0-Gesamtabnahme. Details stehen in
 `scripts/srch0/BEFUNDE.md` unter
 „Kein Blocker: negativer Thumbnailindex“.
 
+Die Weitergabe des API-Fehlerstatus und die Validierung der Actor-Suchparameter
+sind ebenfalls **keine SRCH0-Merge- oder Abnahmeblocker**. Die unabhängigen
+Branches `fix/search-api-error-status` (`8bcfe61df`) und
+`fix/search-actor-parameters` (`a72ff18df`) sind
+jeweils frisch ab `origin/dev` (`c73966d6c`) lokal ohne Push oder PR vorbereitet
+und noch nicht in `dev` oder `feat/srch0` integriert. Der erste Fix verwendet
+`response.status` des Meilisearch-SDK in den Suchrouten und im gemeinsamen
+Fehlerhandler, damit beispielsweise HTTP 400 erhalten bleibt. Der zweite
+liefert bei fehlendem `q` HTTP 400, übergibt gültige Limits als Zahlen und
+weist ungültige Limits mit HTTP 400 zurück; der Standard bleibt `3`.
+Fehlendes `q` ergab in der historischen Baseline HTTP 500, auf aktuellem
+`dev` dank `isHttpError` bereits HTTP 404. Die normale Oberfläche übergibt
+`q` und kein eigenes `limit`; eine Störung dieser regulären Aufrufe ist nicht
+nachgewiesen. Die Ausnahmen betreffen nur diese Statusweitergabe und
+Parameterbehandlung. Authentifizierung, Berechtigungen, Sichtbarkeit und die
+Ablehnung unberechtigter Anfragen bleiben verbindlich. Evidenz, erfolgreiche
+Einzelprüfungen und abgegrenzte SRCH0-Prüfungen stehen in
+`scripts/srch0/BEFUNDE.md` unter „Kein Blocker:
+API-Fehlerstatus“ und „Kein Blocker: Actor-Suchparameter“.
+
 „Fehlende Indexdokumente“ ist kein separat nachgewiesener `dev`-Fehler und
 kein zusätzlicher SRCH0-Blocker, sondern eine Implementierungsanforderung an
 neue Metadaten-Teilupdates. Die Tests stellen den fehlenden Zustand gezielt
@@ -109,15 +129,17 @@ Sortwerte gültige Vorgaben“ sowie für die Feldauswahl `SRCH0-P-RETRIEVAL`,
 Historische Evidenz, aktive Erwartungen und
 strikte Tests bleiben unverändert; sie können deshalb weiterhin rot werden.
 Nur Fehler dieser Sortierabsicherung, Feldauswahl, administrativen
-Tag-Umbenennung und Absicherung negativer Thumbnailindizes sind im jeweils
+Tag-Umbenennung, Absicherung negativer Thumbnailindizes, Weitergabe des
+API-Fehlerstatus und Validierung der Actor-Suchparameter sind im jeweils
 beschriebenen Umfang fachlich als Diagnose ausserhalb
 der Abnahme zu werten. Die technische Trennung von Diagnose und Abnahme ist
 vor der formalen Gesamtabnahme nachzuführen; ein grüner Lauf wird hier nicht
 behauptet. Gemischte Fälle erhalten keine Ausnahme für andere Eigenschaften.
 Details stehen in `scripts/srch0/BEFUNDE.md` unter „Zurückgestellt: Absicherung
 gespeicherter Sortwerte“, „Kein Blocker: abgerufene Suchfelder“,
-„Kein Blocker: administrative Tag-Umbenennung“ und
-„Kein Blocker: negativer Thumbnailindex“.
+„Kein Blocker: administrative Tag-Umbenennung“,
+„Kein Blocker: negativer Thumbnailindex“, „Kein Blocker: API-Fehlerstatus“ und
+„Kein Blocker: Actor-Suchparameter“.
 
 SRCH0 bleibt bis zur Integration aller übrigen erforderlichen Korrekturen und
 zur erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
@@ -200,7 +222,10 @@ Golden. Fehler- und Wiederanlauffälle ergänzen die normalen Starts.
 Die ausführliche, reproduzierbare Bewertung steht in
 `scripts/srch0/BEFUNDE.md`. Bereits bestätigte Fehler betreffen den verlorenen
 HTTP-Clientstatus, Radiusfilter bei Nullkoordinaten, die Abstiegslimite der
-Karte und die nicht weitergereichte Feldauswahl. Ein negatives Thumbnail mit
+Karte und die nicht weitergereichte Feldauswahl. Der falsche API-Fehlerstatus
+und die Actor-Parameterbehandlung sind gemäss Entscheidung vom
+19. September 2026 keine SRCH0-Blocker und werden unabhängig korrigiert.
+Ein negatives Thumbnail mit
 vorhandenem Foto ist im Produktionsschema speicherbar und bringt den
 Projektor zum Absturz; seine Absicherung ist gemäss Entscheidung vom
 19. September 2026 kein SRCH0-Blocker und wird separat korrigiert.
@@ -391,3 +416,5 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-19 | Veralteter Tag-Name nach administrativer Umbenennung ist kein SRCH0-Merge- oder Abnahmeblocker; separater Fix auf `fix/search-tag-metadata` | Die normale Oberfläche bietet keine Umbenennung und die PocketBase-Records-API erlaubt sie nur Superusern. Die Ausnahme betrifft ausschliesslich die Tag-Aktualität in `SRCH0-MUTATION-008`, keine übrigen Metadaten oder Assertions gemischter Fälle. Der lokale Fix ist ungepusht und nicht integriert. Strikte Tests und Erwartungen bleiben unverändert; die technische Trennung von Diagnose und Abnahme steht aus. |
 | 2026-09-19 | Fehlende Indexdokumente als Bestandteil neuer Metadatenupdates behandeln; kein eigener Fix oder zusätzlicher SRCH0-Blocker | Der fehlende Zustand wird in Tests gezielt hergestellt und belegt keinen eigenständigen `dev`-Fehler. Der Tag-Fix enthält die Absicherung bereits. Ihre Implementierungsprüfungen begründen ohne diesen optionalen Fix keine zusätzliche Abnahmevoraussetzung; die technische Zuordnung der unveränderten Prüfungen steht aus. |
 | 2026-09-19 | Negative Thumbnailindizes sind kein SRCH0-Merge- oder Abnahmeblocker; separat auf `fix/search-thumbnail-index` korrigieren | Die Panic mit einem im Produktionsschema speicherbaren negativen Index bleibt belegt. Normale Fotoauswahl und JSON-API erzeugen oder erlauben diesen Wert nicht. Der lokale Fix verwendet bei negativem Index das erste Foto, ohne Eingabevalidierung oder Fotoanordnung zu ändern. Tests und Erwartungen bleiben unverändert; die technische Trennung von Diagnose und Abnahme steht aus. |
+| 2026-09-19 | API-Fehlerstatus ist kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/search-api-error-status` korrigieren | Der SDK-Status unter `response.status` muss korrekt weitergereicht werden. Die Ausnahme betrifft nur dessen Weitergabe, keine Authentifizierung, Berechtigungen oder Sichtbarkeitsregeln. Evidenz, Tests und Erwartungen bleiben erhalten; die technische Einordnung als Diagnose steht aus. |
+| 2026-09-19 | Actor-Suchparameter sind kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/search-actor-parameters` korrigieren | Fehlendes `q` soll HTTP 400 ergeben und `limit` als validierte Zahl übergeben werden; Standard bleibt `3`. Die normale Oberfläche sendet `q` ohne eigenes `limit`. Historische Baseline und aktuelles `dev` liefern bei fehlendem `q` unterschiedliche falsche Statuscodes. Tests und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
