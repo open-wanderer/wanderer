@@ -97,6 +97,7 @@ export default defineConfig({
         badge: { text: 'Beta', variant: 'caution' },
         items: [
           { label: 'Getting started', link: '/app/getting-started/' },
+          { label: 'What works where', link: '/app/what-works-where/' },
           { label: 'Find trails', link: '/app/find-trails/' },
           { label: 'Trail details', link: '/app/trail-details/' },
           { label: 'Record a trail', link: '/app/record-a-trail/' },
