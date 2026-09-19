@@ -250,6 +250,7 @@
 
     const getInitialFormValues = () => ({
         ...data.trail,
+        difficulty: data.trail.difficulty || ("" as const),
         completed_at: completionDateValue(data.trail.completed_at),
         public: data.trail.id
             ? data.trail.public
@@ -2309,7 +2310,9 @@
             <Select
                 name="difficulty"
                 label={$_("difficulty")}
+                error={$errors.difficulty}
                 items={[
+                    { text: "?", value: "" },
                     { text: $_("easy"), value: "easy" },
                     { text: $_("moderate"), value: "moderate" },
                     { text: $_("difficult"), value: "difficult" },

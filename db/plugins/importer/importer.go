@@ -99,6 +99,8 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	}
 	photos := photoFiles(ctx, app, collection, item.Photos, opts, mediaBudget, mediaContext)
 
+	// TrailImport does not carry a canonical difficulty. Leave the optional
+	// field empty instead of inventing an "easy" rating for every provider.
 	record.Load(map[string]any{
 		"name":           fallbackName(item.Name),
 		"description":    item.Description,
@@ -111,7 +113,6 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		"date":           date,
 		"lat":            metrics.StartLat,
 		"lon":            metrics.StartLon,
-		"difficulty":     "easy",
 		"category":       categoryTarget.CategoryID,
 		"subcategory":    categoryTarget.SubcategoryID,
 		"author":         opts.ActorID,

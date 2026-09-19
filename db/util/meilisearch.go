@@ -140,7 +140,7 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 	return document, nil
 }
 
-func difficultyToNumber(difficulty string) int32 {
+func difficultyToNumber(difficulty string) any {
 	switch difficulty {
 	case "easy":
 		return 0
@@ -150,7 +150,7 @@ func difficultyToNumber(difficulty string) int32 {
 		return 2
 	}
 
-	return 0
+	return nil
 }
 
 func getStoredBounds(r *core.Record) [4]float64 {

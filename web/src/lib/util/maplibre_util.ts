@@ -225,7 +225,7 @@ export function createPopupFromTrail(trail: Trail) {
 
         const difficultyElement = document.createElement("h5");
         difficultyElement.innerHTML = `<i class="fa fa-gauge mr-2"></i>`; // Safe static icon
-        difficultyElement.appendChild(document.createTextNode(get(_)(trail.difficulty as string))); // Safely append difficulty
+        difficultyElement.appendChild(document.createTextNode(get(_)(trail.difficulty || "?"))); // Safely append difficulty
         detailsContainer.appendChild(difficultyElement);
 
         textContainer.appendChild(detailsContainer);

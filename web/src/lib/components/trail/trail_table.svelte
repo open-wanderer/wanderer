@@ -207,7 +207,7 @@
                             {formatTimeHHMM(trail.duration)}
                         </td>
                         <td class="p-4 text-sm">
-                            {$_(trail.difficulty ?? "easy")}
+                            {$_(trail.difficulty || "?")}
                         </td>
                         <td class="p-4 text-sm">
                             {formatElevation(trail.elevation_gain)}

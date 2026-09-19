@@ -191,7 +191,7 @@
                 </p>
             {/if}
             <p class="whitespace-nowrap">
-                <i class="fa fa-gauge mr-3"></i>{$_(trail.difficulty ?? "?")}
+                <i class="fa fa-gauge mr-3"></i>{$_(trail.difficulty || "?")}
             </p>
             <p class="whitespace-nowrap">
                 <i

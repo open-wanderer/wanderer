@@ -297,7 +297,6 @@ export async function trails_search_bounding_box(
             date: new Date(0).toISOString(),
             updated: new Date(0).toISOString(),
             description: "",
-            difficulty: "easy",
             distance: 0,
             duration: 0,
             elevation_gain: 0,
@@ -719,7 +718,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             created: new Date(created * 1000).toISOString(),
             date: new Date(date * 1000).toISOString(),
             description: h.description,
-            difficulty: h.difficulty == 0 ? "easy" : h.difficulty == 1 ? "moderate" : "difficult",
+            difficulty: h.difficulty === 0 ? "easy" : h.difficulty === 1 ? "moderate" : h.difficulty === 2 ? "difficult" : undefined,
             distance: h.distance,
             duration: h.duration,
             elevation_gain: h.elevation_gain,
@@ -784,7 +783,7 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND elevation_loss <= ${Math.ceil(filter.elevationLossMax)}`
     }
 
-    if (filter.difficulty.length > 0) {
+    if (filter.difficulty.length > 0 && ![0, 1, 2].every(value => filter.difficulty.includes(value as 0 | 1 | 2))) {
         filterText += ` AND difficulty IN [${filter.difficulty.join(",")}]`
     }
 

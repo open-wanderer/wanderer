@@ -381,7 +381,8 @@
  *           format: date-time
  *         difficulty:
  *           type: string
- *           enum: [easy, moderate, difficult]
+ *           enum: ["", easy, moderate, difficult]
+ *           description: Empty string means the difficulty is unknown.
  *         lat:
  *           type: number
  *           minimum: -90
@@ -465,7 +466,8 @@
  *           format: date-time
  *         difficulty:
  *           type: string
- *           enum: [easy, moderate, difficult]
+ *           enum: ["", easy, moderate, difficult]
+ *           description: Empty string means the difficulty is unknown.
  *         lat:
  *           type: number
  *           minimum: -90
@@ -525,7 +527,8 @@
  *           format: date-time
  *         difficulty:
  *           type: string
- *           enum: [easy, moderate, difficult]
+ *           enum: ["", easy, moderate, difficult]
+ *           description: Empty string clears the difficulty; omit to leave it unchanged.
  *         lat:
  *           type: number
  *           minimum: -90

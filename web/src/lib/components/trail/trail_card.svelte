@@ -239,7 +239,7 @@
                 {/if}
                 <p class="whitespace-nowrap">
                     <i class="fa fa-gauge mr-3"></i>{$_(
-                        trail.difficulty ?? "?",
+                        trail.difficulty || "?",
                     )}
                 </p>
             </div>

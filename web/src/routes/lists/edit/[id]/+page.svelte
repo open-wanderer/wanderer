@@ -377,7 +377,7 @@
                         </h4>
                         <span class="text-sm"
                             ><i class="fa fa-gauge mr-2"></i>{$_(
-                                trail.difficulty ?? "?",
+                                trail.difficulty || "?",
                             )}</span
                         >
                         <div
