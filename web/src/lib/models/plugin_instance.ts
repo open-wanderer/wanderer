@@ -5,7 +5,6 @@ export interface PluginInstance {
     enabled: boolean;
     auth?: Record<string, string>;
     config?: Record<string, unknown>;
-    state?: Record<string, unknown>;
     status:
         | "configured"
         | "needs_auth"

@@ -43,6 +43,21 @@
         });
     });
 
+    $effect(() => {
+        const slider = sliderContainer?.noUiSlider;
+        if (!slider || currentValue === undefined || currentValue === null) {
+            return;
+        }
+        const sliderValue = Array.isArray(slider.get())
+            ? parseFloat(slider.get()[0])
+            : parseFloat(slider.get());
+        const nextValue = Number(currentValue);
+        if (!Number.isFinite(nextValue) || Math.abs(sliderValue - nextValue) < 0.000001) {
+            return;
+        }
+        slider.set(nextValue);
+    });
+
     export function set(value: number) {
         sliderContainer.noUiSlider.set(value);
     }
@@ -55,13 +70,13 @@
     @reference "../../../css/app.css";
 
     :global(.noUi-target) {
-        @apply border border-input-border shadow-none;
+        @apply border border-input-border bg-input-background shadow-none;
     }
     :global(.noUi-horizontal) {
         height: 6px;
     }
     :global(.noUi-connect) {
-        @apply bg-primary;
+        @apply bg-input-border-focus;
     }
 
     :global(.noUi-horizontal .noUi-handle) {

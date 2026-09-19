@@ -9,6 +9,7 @@
         error?: string | string[] | null;
         min?: string | number;
         max?: string | number;
+        disabled?: boolean;
         onchange?: ChangeEventHandler<HTMLInputElement>;
     }
 
@@ -19,6 +20,7 @@
         error = "",
         min,
         max,
+        disabled = false,
         onchange,
     }: Props = $props();
 </script>
@@ -38,6 +40,8 @@
             type="date"
             {min}
             {max}
+            {disabled}
+            class:text-gray-500={disabled}
             bind:value
             {onchange}
         />

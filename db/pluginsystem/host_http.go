@@ -293,6 +293,11 @@ func hostRequestBody(spec HostRequestSpec, options HostRequestOptions) (io.Reade
 			return nil, "", 0, err
 		}
 		return strings.NewReader(body), "application/x-www-form-urlencoded", int64(len(body)), nil
+	case HostRequestBodyTypeText:
+		if hasUnsafeTextControl(spec.Body.Text) {
+			return nil, "", 0, fmt.Errorf("text body must not contain control characters")
+		}
+		return strings.NewReader(spec.Body.Text), "text/plain", int64(len(spec.Body.Text)), nil
 	case HostRequestBodyTypeMultipart:
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
@@ -331,6 +336,18 @@ func hostRequestBody(spec HostRequestSpec, options HostRequestOptions) (io.Reade
 	default:
 		return nil, "", 0, fmt.Errorf("unsupported host request body type %q", spec.Body.Type)
 	}
+}
+
+func hasUnsafeTextControl(value string) bool {
+	for _, r := range value {
+		if r == '\n' || r == '\r' || r == '\t' {
+			continue
+		}
+		if r < 0x20 || r == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 func formURLEncodedBody(fields []FormField) (string, error) {
@@ -372,20 +389,8 @@ func validateHostRequestUpload(manifest Manifest, spec HostRequestSpec, contentT
 func validateHostHTTPResponse(manifest Manifest, spec HostRequestSpec, resp *http.Response) error {
 	allowedContentTypes := effectiveResponseContentTypes(manifest, spec)
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 && len(allowedContentTypes) > 0 {
-		contentType := resp.Header.Get("Content-Type")
-		mediaType, _, err := mime.ParseMediaType(contentType)
-		if err != nil || mediaType == "" {
-			return fmt.Errorf("provider response has invalid content type")
-		}
-		allowed := false
-		for _, expected := range allowedContentTypes {
-			if strings.EqualFold(mediaType, expected) {
-				allowed = true
-				break
-			}
-		}
-		if !allowed {
-			return fmt.Errorf("provider response content type %q is not allowed", mediaType)
+		if err := ValidateResponseContentType(resp.Header.Get("Content-Type"), allowedContentTypes); err != nil {
+			return err
 		}
 	}
 	maxBytes := effectiveResponseMaxBytes(manifest, spec)

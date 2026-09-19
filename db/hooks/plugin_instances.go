@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/pocketbase/dbx"
+	assetservice "pocketbase/services/assets"
 	"pocketbase/util"
 
 	"github.com/pocketbase/pocketbase/apis"
@@ -12,6 +13,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/security"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 )
 
 // ListPluginInstanceHandler censors auth values before plugin instances leave
@@ -70,6 +72,9 @@ func CreateUpdatePluginInstanceSuccessHandler() func(e *core.RecordEvent) error 
 // changed auth fields before the update is persisted.
 func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
+		if err := preventAssetPluginDisableWithRemoteLinks(e.App, e.Record); err != nil {
+			return err
+		}
 		ensurePluginInstanceStatus(e.Record)
 		mergePluginInstanceDefaultConfig(e.App, e.Record)
 		if err := encryptPluginInstanceAuth(e.App, e.Record); err != nil {
@@ -80,14 +85,102 @@ func UpdatePluginInstanceHandler() func(e *core.RecordEvent) error {
 	}
 }
 
+// UpdatePluginInstanceRequestHandler applies user-facing removal guards only
+// to API updates. Internal maintenance saves retain their model-level defaults
+// and encryption hooks without being turned into BadRequest responses.
+func UpdatePluginInstanceRequestHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		if err := preventSelectedRoutingPluginDisable(e.App, e.Record); err != nil {
+			return err
+		}
+		return e.Next()
+	}
+}
+
+func DeletePluginInstanceHandler() func(e *core.RecordRequestEvent) error {
+	return func(e *core.RecordRequestEvent) error {
+		if err := preventSelectedRoutingPluginRemoval(e.App, e.Record, "deleting"); err != nil {
+			return err
+		}
+		if err := preventAssetPluginDeleteWithRemoteLinks(e.App, e.Record); err != nil {
+			return err
+		}
+		return e.Next()
+	}
+}
+
+func preventSelectedRoutingPluginDisable(app core.App, r *core.Record) error {
+	if !r.Original().GetBool("enabled") || r.GetBool("enabled") {
+		return nil
+	}
+	return preventSelectedRoutingPluginRemoval(app, r, "disabling")
+}
+
+func preventSelectedRoutingPluginRemoval(app core.App, r *core.Record, action string) error {
+	pluginID := r.GetString("plugin_id")
+	selected, err := pluginsystem.RoutingPluginIsSelected(app, r.GetString("user"), pluginID)
+	if err != nil {
+		return err
+	}
+	if !selected {
+		return nil
+	}
+	return apis.NewBadRequestError("plugin_selected_in_routing_settings", map[string]any{
+		"code":     "plugin_selected_in_routing_settings",
+		"pluginId": pluginID,
+		"action":   action,
+	})
+}
+
+func preventAssetPluginDisableWithRemoteLinks(app core.App, r *core.Record) error {
+	if !r.Original().GetBool("enabled") || r.GetBool("enabled") {
+		return nil
+	}
+	return preventAssetPluginRemovalWithRemoteLinks(app, r, "disabling")
+}
+
+func preventAssetPluginDeleteWithRemoteLinks(app core.App, r *core.Record) error {
+	return preventAssetPluginRemovalWithRemoteLinks(app, r, "deleting")
+}
+
+func preventAssetPluginRemovalWithRemoteLinks(app core.App, r *core.Record, action string) error {
+	pluginID := r.GetString("plugin_id")
+	plugin, err := pluginsystem.LoadInstalledPlugin(app, "", pluginID)
+	if err != nil || plugin.Manifest.Type != pluginsystem.PluginTypeAssets {
+		return nil
+	}
+	summary, err := assetservice.RemotePluginAssetsSummaryForUser(app, r.GetString("user"), pluginID)
+	if err != nil {
+		return err
+	}
+	if summary.Count == 0 {
+		return nil
+	}
+	return apis.NewBadRequestError("Plugin has linked remote photos. Download linked photos before "+action+" this plugin.", map[string]any{
+		"count":       summary.Count,
+		"publicCount": summary.PublicCount,
+	})
+}
+
 func mergePluginInstanceDefaultConfig(app core.App, r *core.Record) {
 	defaults := installedPluginDefaultConfig(app, r.GetString("plugin_id"))
-	if len(defaults) == 0 {
-		return
-	}
-	merged := pluginsystem.CloneJSONMap(defaults)
-	pluginsystem.MergePluginConfig(merged, pluginsystem.JSONMapFromRecord(r, "config"))
+	merged := pluginhost.MergeInstanceConfigDefaults(defaults, pluginsystem.JSONMapFromRecord(r, "config"))
 	r.Set("config", merged)
+}
+
+func installedPluginType(app core.App, pluginID string) string {
+	if pluginID == "" {
+		return ""
+	}
+	record, _ := app.FindFirstRecordByFilter(
+		"installed_plugins",
+		"plugin_id={:plugin_id}",
+		dbx.Params{"plugin_id": pluginID},
+	)
+	if record == nil {
+		return ""
+	}
+	return record.GetString("type")
 }
 
 func installedPluginDefaultConfig(app core.App, pluginID string) map[string]any {

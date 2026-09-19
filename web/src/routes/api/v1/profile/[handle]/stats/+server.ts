@@ -3,6 +3,7 @@ import type { StatisticActivity } from '$lib/models/statistic_activity';
 import type { Subcategory } from '$lib/models/subcategory';
 import type { SummitLog } from '$lib/models/summit_log';
 import type { Trail } from '$lib/models/trail';
+import { enrichSummitLogAssetPhotos, withRequiredExpand } from '$lib/server/profile_asset_util';
 import {
     buildCompletedTrailFilter,
     buildSummitLogStatisticsFilter,
@@ -13,6 +14,7 @@ import {
 } from '$lib/server/profile_statistics';
 import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
 import { Collection, handleError } from '$lib/util/api_util';
+import { isURL } from '$lib/util/file_util';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
 
@@ -105,8 +107,10 @@ export async function GET(event: RequestEvent) {
             ]
                 .filter(Boolean)
                 .join('&&');
+            const listOptions = withRequiredExpand(safeSearchParams, ["summit_log_assets_via_summit_log.asset"]);
             const summitLogs = await event.locals.pb.collection(Collection.summit_logs)
-                .getFullList<SummitLog>({ ...safeSearchParams });
+                .getFullList<SummitLog>({ ...listOptions });
+            enrichSummitLogAssetPhotos(summitLogs);
 
             const completedTrails = await event.locals.pb
                 .collection(Collection.trails)
@@ -139,18 +143,25 @@ export async function GET(event: RequestEvent) {
                     : summitLogToStatisticActivity(activity),
             );
 
+            // Summit log activities may carry asset expands (photo plugins);
+            // fall back to plain file URLs otherwise.
+            enrichSummitLogAssetPhotos(
+                activities.filter((activity) => activity.source !== 'completed_trail'),
+                origin,
+            );
             activities.forEach(i => {
                 const collection = i.collectionId ||
                     (i.source === 'completed_trail' ? Collection.trails : Collection.summit_logs);
                 i.collectionId = collection;
                 i.collectionName = collection;
-                i.photos = (i.photos ?? []).map(p =>
-                    `${origin}/api/v1/files/${collection}/${i.id}/${p}`
-                )
-                if (i.gpx) {
-                    i.gpx = `${origin}/api/v1/files/${collection}/${i.id}/${i.gpx}`
+                if (i.source === 'completed_trail') {
+                    i.photos = (i.photos ?? []).map(p =>
+                        normalizeRemoteFileURL(p, origin, collection, i.id ?? "")
+                    );
                 }
-
+                if (i.gpx) {
+                    i.gpx = normalizeRemoteFileURL(i.gpx, origin, collection, i.id ?? "");
+                }
             })
         }
 
@@ -163,4 +174,14 @@ export async function GET(event: RequestEvent) {
     } catch (e) {
         return handleError(e)
     }
+}
+
+function normalizeRemoteFileURL(file: string, origin: string, collection: string, recordId: string): string {
+    if (isURL(file)) {
+        return file;
+    }
+    if (file.startsWith("/")) {
+        return new URL(file, origin).toString();
+    }
+    return new URL(`/api/v1/files/${collection}/${recordId}/${file}`, origin).toString();
 }

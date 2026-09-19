@@ -2,6 +2,7 @@
     export type SingleSelectItem = {
         text: string;
         value: any;
+        icon?: string;
     };
 </script>
 
@@ -216,7 +217,15 @@
         onkeydown={handleKeydown}
     >
         {#if selectedItem}
-            <span class="truncate">{selectedItem.text}</span>
+            <span class="flex min-w-0 items-center gap-2 pr-5">
+                <span class="truncate">{selectedItem.text}</span>
+                {#if selectedItem.icon}
+                    <i
+                        class="fa {selectedItem.icon} shrink-0 text-xs text-gray-500"
+                        aria-hidden="true"
+                    ></i>
+                {/if}
+            </span>
         {:else}
             <span class="truncate text-gray-400">{placeholder}</span>
         {/if}
@@ -246,9 +255,17 @@
                         selectItem(item);
                     }}
                 >
-                    <span class="truncate">{item.text}</span>
+                    <span class="flex min-w-0 items-center gap-2">
+                        <span class="truncate">{item.text}</span>
+                        {#if item.icon}
+                            <i
+                                class="fa {item.icon} shrink-0 text-xs text-gray-500"
+                                aria-hidden="true"
+                            ></i>
+                        {/if}
+                    </span>
                     {#if item.value === value}
-                        <i class="fa fa-check ml-3"></i>
+                        <i class="fa fa-check ml-3 shrink-0"></i>
                     {/if}
                 </li>
             {/each}

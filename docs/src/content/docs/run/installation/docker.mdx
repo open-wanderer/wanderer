@@ -3,7 +3,7 @@ title: Manual Docker Setup
 description: Detailed installation instructions for Docker
 ---
 
-You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./installation-from-source).
+You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./from-source).
 
 ## Prerequisites
 
@@ -27,6 +27,13 @@ After cloning the repository, you will find a [`docker-compose.yml`](https://git
 ```bash
 docker compose up -d
 ```
+
+Official Wanderer images contain no provider plugin bundles. Download the
+separate release bundle for each integration you want to use and extract it
+into the mounted `./data/plugins` directory; see
+[Plugin installation](./plugins). Once a valid Valhalla bundle is discovered,
+Wanderer automatically activates and selects it for its supported routing
+roles. Users do not need to enable Valhalla manually.
 
 ## Configuration Notes
 
@@ -80,6 +87,13 @@ services:
       <<: *cenv
       POCKETBASE_ENCRYPTION_KEY: <YOUR_ENCRYPTION_KEY_HERE>
       ORIGIN: http://localhost:3000
+      OVERPASS_API_URL: https://overpass-api.de
+      NOMINATIM_URL: https://nominatim.openstreetmap.org
+      # Optional one-time legacy import when a valid Valhalla bundle is first discovered.
+      # Later syncs ignore this value; update the endpoint in plugin configuration.
+      # VALHALLA_URL: https://valhalla1.openstreetmap.de
+      # Optional: trust private CAs for PocketBase/Go server-side API calls
+      # SSL_CERT_FILE: /etc/ssl/private-ca/ca.pem
     ports:
       - "8090:8090"
     networks:
@@ -87,6 +101,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/pb_data:/pb_data
+      - ./data/plugins:/data/plugins
+      # - ./certs/ca.pem:/etc/ssl/private-ca/ca.pem:ro
     healthcheck:
       test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s
@@ -112,9 +128,8 @@ services:
       UPLOAD_USER:
       UPLOAD_PASSWORD:
       OVERPASS_API_URL: https://overpass-api.de
-      VALHALLA_URL: https://valhalla1.openstreetmap.de
       NOMINATIM_URL: https://nominatim.openstreetmap.org
-      # Optional: trust private CAs for server-side API calls
+      # Optional: trust private CAs for Node.js server-side API calls
       # NODE_EXTRA_CA_CERTS: /etc/ssl/private-ca/ca.pem
     volumes:
       - ./data/uploads:/app/uploads
@@ -147,10 +162,12 @@ Make sure to set the `ORIGIN` environment variable to the full public URL (inclu
 
 ## Volumes
 
-By default, two volumes are mounted:
+By default, four persistent host paths are mounted:
 
 - Meilisearch index data: `./data/data.ms`
 - PocketBase data: `./data/pb_data`
+- Provider plugin bundles: `./data/plugins`
+- Uploaded files: `./data/uploads`
 
 These can be changed to bind mounts or other volume strategies if needed.
 
@@ -171,7 +188,11 @@ docker compose pull
 docker compose up -d
 ```
 
-Always consult the [changelog](/changelog) before updating, in case of breaking changes.
+Provider bundles are not part of the container images and therefore are not
+updated by `docker compose pull`. Replace installed bundles with the assets from
+the same Wanderer release; see [Updating plugin bundles](./plugins#updating-plugin-bundles).
+Always consult the [changelog](/changelog) before updating, in case of breaking
+changes.
 
 ## Verify the Installation
 

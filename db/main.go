@@ -159,10 +159,24 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
 
 	app.OnRecordCreateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
+	app.OnRecordUpdateRequest("trails").BindFunc(hooks.UseTrailRequestContext)
 	app.OnRecordUpdateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordCreate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
 	app.OnRecordUpdate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
+	app.OnRecordUpdate("trails").BindFunc(hooks.MaterializePrivateRemoteAssetLinksBeforePublish(app))
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
+
+	app.OnRecordUpdate("assets").BindFunc(hooks.InvalidateAssetContentHashOnFileChange())
+	app.OnRecordAfterCreateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
+	app.OnRecordAfterUpdateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
+	app.OnRecordAfterDeleteSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
+	assetLinkReindexHandler := hooks.ReindexTrailOnAssetLinkChange(client)
+	app.OnRecordAfterCreateSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
+	app.OnRecordAfterDeleteSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
+	app.OnRecordCreate("trail_assets").BindFunc(hooks.MaterializePrivateRemoteAssetOnPublicLink(app, "trail"))
+	app.OnRecordCreate("waypoint_assets").BindFunc(hooks.MaterializePrivateRemoteAssetOnPublicLink(app, "waypoint"))
+	app.OnRecordCreate("summit_log_assets").BindFunc(hooks.MaterializePrivateRemoteAssetOnPublicLink(app, "summit_log"))
+	app.OnRecordDeleteRequest("trails").BindFunc(hooks.DeleteTrailAssetCleanupHandler())
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
 
@@ -171,6 +185,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordDeleteRequest("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
 
 	app.OnRecordCreateRequest("waypoints").BindFunc(hooks.CreateWaypointHandler())
+	app.OnRecordDeleteRequest("waypoints").BindFunc(hooks.DeleteWaypointHandler())
 
 	app.OnRecordCreateRequest("comments").BindFunc(hooks.CreateCommentHandler())
 	app.OnRecordUpdateRequest("comments").BindFunc(hooks.UpdateCommentHandler())
@@ -200,7 +215,9 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreate("plugin_instances").BindFunc(hooks.CreatePluginInstanceHandler())
 	app.OnRecordAfterCreateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
 	app.OnRecordUpdate("plugin_instances").BindFunc(hooks.UpdatePluginInstanceHandler())
+	app.OnRecordUpdateRequest("plugin_instances").BindFunc(hooks.UpdatePluginInstanceRequestHandler())
 	app.OnRecordAfterUpdateSuccess("plugin_instances").BindFunc(hooks.CreateUpdatePluginInstanceSuccessHandler())
+	app.OnRecordDeleteRequest("plugin_instances").BindFunc(hooks.DeletePluginInstanceHandler())
 
 	app.OnRecordsListRequest("feed", "profile_feed").BindFunc(hooks.ListFeedHandler())
 
@@ -237,9 +254,15 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
 	se.Router.POST("/category-preferences/reorder", routes.CategoryPreferencesReorder)
 	se.Router.POST("/subcategory-preferences/reorder", routes.SubcategoryPreferencesReorder)
+	se.Router.GET("/geocoding/reverse", routes.GeocodingReverse)
+	se.Router.GET("/geocoding/search", routes.GeocodingSearch)
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
 	se.Router.POST("/trail-merge", routes.TrailMerge(client))
+	se.Router.POST("/trails/{id}/publication", routes.TrailPublicationStart)
+	se.Router.GET("/trails/{id}/publication", routes.TrailPublicationStatus)
+	se.Router.POST("/asset-merge/suggest", routes.AssetMergeSuggest)
+	se.Router.POST("/asset-merge", routes.AssetMerge)
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
@@ -248,9 +271,49 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/plugins/auth/validate", routes.PluginSystemSessionAuthValidate)
 	se.Router.POST("/plugins/category-remap/preview", routes.PluginSystemCategoryRemapPreview)
 	se.Router.POST("/plugins/category-remap/apply", routes.PluginSystemCategoryRemapApply)
+	se.Router.POST("/plugins/assets/auto-attach", routes.PluginSystemAssetAutoAttach)
+	se.Router.GET("/plugins/assets/maintenance/trails", routes.PluginSystemAssetMaintenanceTrails)
+	se.Router.POST("/plugins/assets/maintenance/attach", routes.PluginSystemAssetMaintenanceAttach)
+	se.Router.POST("/plugins/assets/{plugin}/check", routes.PluginSystemAssetCheck)
+	se.Router.POST("/plugins/assets/{plugin}/candidates", routes.PluginSystemAssetCandidates)
+	se.Router.POST("/plugins/assets/{plugin}/import", routes.PluginSystemAssetImport)
+	se.Router.POST("/plugins/assets/{plugin}/import-to-waypoint", routes.PluginSystemAssetImportToWaypoint)
+	se.Router.POST("/plugins/assets/{plugin}/import-to-target", routes.PluginSystemAssetImportToTarget)
+	se.Router.GET("/plugins/assets/{plugin}/thumbnail/{asset}", routes.PluginSystemAssetThumbnail)
+	se.Router.GET("/plugins/assets/{plugin}/remote-assets-summary", routes.PluginSystemAssetRemoteAssetsSummary)
+	se.Router.POST("/plugins/assets/{plugin}/materialize-all", routes.PluginSystemAssetMaterializeAll)
+	se.Router.POST("/plugins/assets/{plugin}/repair-remote-assets", routes.PluginSystemAssetRepairRemoteAssets)
+	se.Router.POST("/plugins/assets/{plugin}/delete-remote-assets", routes.PluginSystemAssetDeleteRemoteAssets)
+	se.Router.GET("/plugins/assets/jobs/materialize/{id}", routes.PluginSystemAssetMaterializeStatus)
+	se.Router.GET("/plugins/routing/engines", routes.PluginSystemRoutingEnginesGet)
+	se.Router.GET("/plugins/routing/settings", routes.PluginSystemRoutingSettingsGet)
+	se.Router.PATCH("/plugins/routing/settings", routes.PluginSystemRoutingSettingsPatch)
+	se.Router.GET("/plugins/routing/admin/settings", routes.PluginSystemRoutingAdminSettingsGet)
+	se.Router.PATCH("/plugins/routing/admin/settings", routes.PluginSystemRoutingAdminSettingsPatch)
+	se.Router.GET("/plugins/routing/mappings", routes.PluginSystemRoutingMappingsGet)
+	se.Router.PUT("/plugins/routing/mappings", routes.PluginSystemRoutingMappingsPut)
+	se.Router.PATCH("/plugins/routing/mappings/{id}", routes.PluginSystemRoutingMappingsPatch)
+	se.Router.GET("/plugins/routing/profiles", routes.PluginSystemRoutingProfilesGet)
+	se.Router.PUT("/plugins/routing/profiles", routes.PluginSystemRoutingProfilesPut)
+	se.Router.PATCH("/plugins/routing/profiles/{id}", routes.PluginSystemRoutingProfilesPatch)
+	se.Router.DELETE("/plugins/routing/profiles/{id}", routes.PluginSystemRoutingProfilesDelete)
+	se.Router.POST("/plugins/routing/effective-controls", routes.PluginSystemRoutingEffectiveControls)
+	se.Router.POST("/plugins/routing/native-controls", routes.PluginSystemRoutingNativeControls)
+	se.Router.POST("/plugins/routing/profile-prepare", routes.PluginSystemRoutingProfilePrepare)
+	se.Router.POST("/plugins/routing/check", routes.PluginSystemRoutingCheck)
+	se.Router.POST("/plugins/routing/route", routes.PluginSystemRoutingRoute)
+	se.Router.POST("/plugins/routing/round-trip", routes.PluginSystemRoutingRoundTrip)
+	se.Router.POST("/plugins/routing/route-candidates", routes.PluginSystemRoutingRouteCandidates)
+	se.Router.POST("/plugins/routing/elevation", routes.PluginSystemRoutingElevation)
+	se.Router.POST("/plugins/routing/maneuvers", routes.PluginSystemRoutingManeuvers)
 	se.Router.POST("/plugins/oauth/start", routes.PluginSystemOAuthStart)
 	se.Router.POST("/plugins/oauth/callback", routes.PluginSystemOAuthCallback)
 	se.Router.POST("/plugins/oauth/revoke", routes.PluginSystemOAuthRevoke)
+
+	se.Router.POST("/assets/library", routes.AssetLibraryCandidates)
+	se.Router.DELETE("/assets/orphans", routes.AssetOrphansDelete)
+	se.Router.DELETE("/assets/{id}", routes.AssetDelete)
+	se.Router.GET("/assets/{id}/file", routes.AssetFile)
 
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
@@ -287,6 +350,7 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	if err := util.SeedDefaultSubcategories(app); err != nil {
 		return err
 	}
+	initRoutingDefaults(app)
 	initPlugins(app)
 	initMeilisearchConfig(client)
 	go func() {
@@ -300,6 +364,14 @@ func initPlugins(app core.App) {
 	manager := pluginsystem.NewManager(app, "")
 	if err := manager.SyncInstalledPlugins(context.Background()); err != nil {
 		warning := fmt.Sprintf("Error discovering WASM plugins: %v", err)
+		fmt.Println(warning)
+		app.Logger().Error(warning)
+	}
+}
+
+func initRoutingDefaults(app core.App) {
+	if err := routes.InitRoutingDefaults(app); err != nil {
+		warning := fmt.Sprintf("Error initializing routing defaults: %v", err)
 		fmt.Println(warning)
 		app.Logger().Error(warning)
 	}

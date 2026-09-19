@@ -16,6 +16,7 @@ git clone https://github.com/open-wanderer/wanderer.git --branch v{version} --si
     - **Go** ≥ 1.23.0
     - **Node.js** ≥ 18.17.0
     - **npm** ≥ 8.15.0
+    - **TinyGo** when building provider plugin bundles from source
 
 ## meilisearch
 
@@ -54,6 +55,24 @@ If `vitest` is not installed, add it manually:
 npm i -s vitest
 ```
 
+## Provider plugins
+
+Provider plugins are separate runtime bundles and are not built into the
+PocketBase or web binaries. Either download the desired archives from the
+[matching GitHub release](https://github.com/open-wanderer/wanderer/releases)
+and extract each plugin directory below `wanderer/data/plugins`, or build and
+install all first-party bundles from the repository root with:
+
+```bash
+cd wanderer
+make plugins-install-local
+```
+
+Building the bundles requires TinyGo. See [Plugin installation](./plugins) for
+the expected directory layout and operational details. After Valhalla is
+installed, Wanderer activates and selects it for its supported routing roles
+automatically; individual users do not need to do this manually.
+
 ## Launch
 
 You can launch all three services using a shell script that sets environment variables and ensures proper startup order:
@@ -66,16 +85,20 @@ export ORIGIN=http://localhost:3000
 export MEILI_URL=http://127.0.0.1:7700
 export MEILI_MASTER_KEY=YOU_SHOULD_DEFINITELY_CHANGE_ME
 export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
-export VALHALLA_URL=https://valhalla1.openstreetmap.de
+export OVERPASS_API_URL=https://overpass-api.de
+export NOMINATIM_URL=https://nominatim.openstreetmap.org
 export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
 
 # Optional configuration
 # export MEILI_NO_ANALYTICS=true
 # export BODY_SIZE_LIMIT=Infinity
 # export PUBLIC_DISABLE_SIGNUP=false
+# One-time legacy import when a valid Valhalla bundle is first discovered successfully:
+# export VALHALLA_URL=https://valhalla1.openstreetmap.de
 # export UPLOAD_FOLDER=/app/uploads
 # export UPLOAD_USER=
 # export UPLOAD_PASSWORD=
+# export SSL_CERT_FILE=/absolute/path/to/ca.pem
 # export NODE_EXTRA_CA_CERTS=/absolute/path/to/ca.pem
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
@@ -94,17 +117,29 @@ Make sure you replace `MEILI_MASTER_KEY` with a secure value before going to pro
 To update to the latest version stop the running application and run:
 
 ```bash
+cd wanderer
 git pull origin main
 
-cd wanderer/db
+cd db
 go mod tidy && go build
 
-cd wanderer/web
+cd ../web
 npm ci --omit=dev
 npm run build
+cd ..
 ```
 
-Then re-run the launch script. Always review the [changelog](/changelog) for breaking changes.
+If you use source-built first-party provider bundles, update them separately
+from the repository root:
+
+```bash
+make plugins-install-local
+```
+
+If you installed release bundles instead, replace them with the matching assets
+from the new Wanderer release; core binaries do not update provider bundles.
+See [Updating plugin bundles](./plugins#updating-plugin-bundles). Then re-run the
+launch script. Always review the [changelog](/changelog) for breaking changes.
 
 ## Verify the Installation
 

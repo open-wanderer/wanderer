@@ -1,0 +1,550 @@
+# Walking-Hiking-Mountain/Alpine Hiking profile TEMPLATE
+# 18/5/2016  v1.8.7   ! Fixed down/uphillcostfactors for shortest_way - to be really shortest
+#
+# SAC T3 - demanding_mountain_hiking - exposed sites may be secured, possible need of hands for balance,	Partly exposed with fall hazard, Well sure-footed, Good hiking shoes, Basic alpine experience
+#
+# Legend above is placeholder for generated comments of final profile
+# See the profile bottom for changelogs and verbose *) comments
+# See also https://github.com/poutnikl/Brouter-profiles/wiki
+# and https://github.com/poutnikl/Hiking-Poutnik
+
+---context:global
+
+assign   consider_elevation     = false   # %consider_elevation% | Activate to prefer a route with few elevation meters | boolean
+assign   consider_noise         = false   # %consider_noise% | Activate to prefer a low-noise route | boolean
+assign   consider_river         = false   # %consider_river% | Activate to prefer a route along rivers, lakes, etc. | boolean
+assign   consider_forest        = false   # %consider_forest% | Activate to prefer a route in forest or green areas| boolean
+assign   consider_town          = false   # %consider_town% | Activate to bypass cities / big towns as far as possible | boolean
+
+assign   shortest_way             0    # 0 as default, duplicate shortest standard profile, SAC access limit ignored for now
+
+assign   iswet                    0    # %iswet% | tries to prevent muddy boots and wet buttocks | boolean
+assign   hiking_routes_preference 0.20 # %hiking_routes_preference% | Increases cost of non hiking routes by multiplier 1 + hiking_routes_preference (0.10 to 2.0) | number
+
+assign   Offroad_factor           0.0  # default 0.0, see ****), see also https://github.com/poutnikl/Brouter-profiles/wiki/Trekking-MTB-Profiles---legend
+
+assign   path_preference          0.0  # %path_preference% | Penalizes roads and paved ways in favour of paths | number
+
+#SAC - mountain hiking - see http://wiki.openstreetmap.org/wiki/Key:sac_scale
+
+assign   SAC_scale_limit          3    # %SAC_scale_limit% | all paths with sac_scale higher than  SAC_scale_limit are forbidden | [0=avoid any SAC paths, 1=SAC T1, 2=SAC T2, 3=SAC T3, 4=SAC T4, 5=SAC T5, 6=SAC T6]
+assign   SAC_scale_preferred      1    # %SAC_scale_preferred% | The same, but the preferred SAC scale level. Level below are slightly, above strongly penalized | [0=avoid any SAC paths, 1=SAC T1, 2=SAC T2, 3=SAC T3, 4=SAC T4, 5=SAC T5, 6=SAC T6]
+
+assign   SAC_access_penalty       9000 # costfactor 9999 means the most horrible but allowed road.,
+                                       # 100000=forbidden. This makes difference if forbidden way is the only option.
+assign  SAC_K1 0.05                    # Penalizing of SAC levels below preferred
+assign  SAC_K2 0.6                     # Penalizing of SAC levels above preferred
+
+#orientation/decision penalties, not used for preferred hiking routes
+assign   turncost_value           0 # not used now
+assign   initialcost_value        0 # not used now
+
+#less frequently changed flags
+assign   allow_steps              true   # %allow_steps% | Set to false to disallow steps | boolean
+assign   allow_ferries            true   # %allow_ferries% | set to false to disallow ferries | boolean
+
+assign   use_proposed_cycleroutes false  # %use_proposed_cycleroutes% | Set to true to consider proposed and regular cycleroutes as equals | boolean
+
+assign add_beeline                false  # %add_beeline% | Enable beeline on distant start/end points | boolean
+
+assign   cost_of_unknown          2  # 2 as default
+
+#
+assign   elevationpenaltybuffer     5    # 5 as default
+assign   elevationmaxbuffer         10   # 10 as default
+assign   elevationbufferreduce      1.0  # 0.0 as default
+
+assign   turnInstructionMode  =   1       # %turnInstructionMode% | Mode for the generated turn instructions | [0=none, 1=auto-choose, 2=locus-style, 3=osmand-style, 4=comment-style, 5=gpsies-style, 6=orux-style, 7=locus-old-style]
+assign   turnInstructionCatchingRange  20 # V1.8.5 / default=40, but foot paths may be more distinguished, especially in cities.
+
+
+# as initial point, considered flat speed 4 km/h, climbing speed 600 m /h
+assign   uphillcostvalue      7    # %uphillcostvalue% | Cost for going uphill | number
+assign   uphillcutoffvalue      3
+assign   downhillcutoffvalue  3
+assign   downhillcostvalue    7    # %downhillcostvalue% | Cost for going downhill | number
+
+#internal parameters
+assign   Offroad_hillcostfactor   multiply -0.3333 ( max -3.0 ( multiply -1.0 ( max 0.0 Offroad_factor ) ) )
+                  # for Offroadfactor <=0 is 0, for Offroadfactor >=3 is 1, otherwise 0.3333 * Offroadfactor
+                  # progressively decreases hillcosts to be 0.0 at Offroad_factor = 3.0
+                  # if Offroad_factor = 1 , then downhillcost decreases e.g. from 60 to 40
+
+assign   downhillcost if consider_elevation  then
+        ( multiply ( add 1.0 ( multiply Offroad_hillcostfactor -1.0 ) ) downhillcostvalue ) else 0
+
+assign   uphillcost   if consider_elevation  then
+        ( multiply ( add 1.0 ( multiply Offroad_hillcostfactor -1.0 ) ) uphillcostvalue ) else 0
+
+assign   uphillcutoff    if  consider_elevation   then    uphillcutoffvalue else 1.5
+assign   downhillcutoff  if  consider_elevation   then  downhillcutoffvalue else 1.5
+
+assign   nonhiking_route_penalty    add 1.0 max 0.0 hiking_routes_preference
+
+assign   validForFoot        1
+
+#Penalizing SAC routes below (K1) and above(K2) preferred SAC scale
+#see  http://wiki.openstreetmap.org/wiki/Key:sac_scale
+
+#SAC_scale_penalty:
+#Penalty is SAC_access_penalty                           for  SAC > SAC_scale_limit
+#Penalty is 0.0                                          for  SAC_scale_preferred = SAC, SAC <= SAC_scale_limit
+#Penalty is ( 1 + SAC_K1)^(SAC_scale_preferred - SAC) -1 for  SAC_scale_preferred > SAC, SAC <= SAC_scale_limit
+#Penalty is ( 1 + SAC_K2)^(SAC - SAC_scale_preferred) -1 for  SAC_scale_preferred < SAC, SAC <= SAC_scale_limit
+
+#extra complexity of code below, with adding +/- 1.0
+#is to keep final penalties additive, even with multiplicative incremental penalty approach
+#code is run only once, being in global context
+
+assign  SAC_K10     add SAC_K1 1.0
+assign  SAC_K20     add SAC_K2 1.0
+
+assign  SAC_K1_2    add multiply SAC_K10 SAC_K10 -1.0
+assign  SAC_K2_2    add multiply SAC_K20 SAC_K20 -1.0
+
+assign  SAC_K1_3    add ( multiply ( add SAC_K1_2 1.0 ) SAC_K10 ) -1.0
+assign  SAC_K2_3    add ( multiply ( add SAC_K2_2 1.0 ) SAC_K20 ) -1.0
+assign  SAC_K1_4    add ( multiply ( add SAC_K1_3 1.0 ) SAC_K10 ) -1.0
+assign  SAC_K2_4    add ( multiply ( add SAC_K2_3 1.0 ) SAC_K20 ) -1.0
+assign  SAC_K1_5    add ( multiply ( add SAC_K1_4 1.0 ) SAC_K10 ) -1.0
+assign  SAC_K2_5    add ( multiply ( add SAC_K2_4 1.0 ) SAC_K20 ) -1.0
+assign  SAC_K1_6    add ( multiply ( add SAC_K1_5 1.0 ) SAC_K10 ) -1.0
+assign  SAC_K2_6    add ( multiply ( add SAC_K2_5 1.0 ) SAC_K20 ) -1.0
+
+
+---context:way   # following code refers to way-tags
+
+assign ispaved or surface=paved or surface=asphalt or surface=concrete surface=paving_stones
+assign isunpaved not or surface= or ispaved or surface=fine_gravel surface=cobblestone
+
+assign any_hiking_route or route=hiking             or route_hiking_iwn=yes
+                        or route_hiking_nwn=yes     or route_hiking_rwn=yes
+                        or route_hiking_lwn=yes     or route_hiking_=yes
+                        or route_foot_=yes          or route_foot_nwn=yes
+                        or route_foot_rwn=yes       route_foot_lwn=yes
+
+assign any_cycleroute =
+  if not use_proposed_cycleroutes then
+     if      route_bicycle_icn=yes then true
+     else if route_bicycle_ncn=yes then true
+     else if route_bicycle_rcn=yes then true
+     else if route_bicycle_lcn=yes then true
+     else false
+  else
+     if      route_bicycle_icn=yes|proposed then true
+     else if route_bicycle_ncn=yes|proposed then true
+     else if route_bicycle_rcn=yes|proposed then true
+     else if route_bicycle_lcn=yes|proposed then true
+     else false
+
+assign is_ldhr                  and any_hiking_route not equal 0.0 hiking_routes_preference
+assign nodeaccessgranted        any_hiking_route
+
+# ismuddy addresses potentially bad surface conditions during wet weather ( mud, slickiness of grass)
+assign ismuddy      and or isunpaved surface=
+                    and iswet
+                    not or surface=gravel surface=pebblestone
+
+assign issidewalk   sidewalk=left|right|both|yes
+
+assign istrack      highway=track|road|path|footway
+assign ismainroad   highway=motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified
+
+#assign turncost   switch or shortest_way  is_ldhr   0 turncost_value  #v1.5
+assign turncost   0 #v1.8.3
+
+assign initialcost
+   switch route=ferry 10000
+
+   switch or shortest_way  is_ldhr  0 initialcost_value
+
+assign defaultaccess    switch access=    not motorroad=yes    switch or access=private access=no   0   1
+
+assign bikeaccess
+       switch bicycle=
+              switch vehicle=
+                     defaultaccess
+                     switch or vehicle=private vehicle=no
+                            0
+                            1
+              not or bicycle=private or bicycle=no bicycle=dismount
+
+assign footaccess     or issidewalk
+                      or and bikeaccess  not foot=no|use_sidepath
+                      or bicycle=dismount
+                      switch foot=      defaultaccess    not foot=private|no|use_sidepath
+
+assign accesspenalty switch footaccess 0 switch bikeaccess 4 switch foot=use_sidepath 10 switch any_hiking_route 12 switch any_cycleroute 16 100000
+
+assign badoneway = 0
+assign onewaypenalty = 0
+
+
+#SAC is estimated path difficulty,
+#integrating both MTB and SAC scales with estimated MTB/SAC difficulty matching
+#see http://wiki.openstreetmap.org/wiki/Key:mtb:scale
+#    http://wiki.openstreetmap.org/wiki/Key:sac_scale
+
+assign SAC
+    if sac_scale= then (
+
+        if mtb:scale=        then 0
+
+        else if mtb:scale=6|5     then 5
+        else if mtb:scale=4       then 4
+        else if mtb:scale=3       then 3
+        else if mtb:scale=2-|2|2+ then 2
+        else if mtb:scale=1+|1    then 1
+        else 0
+        )
+    else
+
+        if      sac_scale=difficult_alpine_hiking   then 6
+        else if sac_scale=demanding_alpine_hiking   then 5
+        else if sac_scale=alpine_hiking             then 4
+        else if sac_scale=demanding_mountain_hiking then 3
+        else if sac_scale=mountain_hiking           then 2
+        else if sac_scale=hiking|T1-hiking|yes      then 1
+        else 0
+
+assign  SAC_scale_access   # if SAC_scale_limit < SAC then true else false
+    if sac_scale= then true  else equal ( max SAC_scale_limit SAC ) SAC_scale_limit
+
+assign  SAC_scale_penalty
+
+    if not SAC_scale_access  then  SAC_access_penalty  # not allowed SAC scale
+
+       else if equal SAC           SAC_scale_preferred       then 0.0
+       else if equal ( add SAC 1 ) SAC_scale_preferred       then SAC_K1
+       else if equal ( add SAC 2 ) SAC_scale_preferred       then SAC_K1_2
+       else if equal ( add SAC 3 ) SAC_scale_preferred       then SAC_K1_3
+       else if equal ( add SAC 4 ) SAC_scale_preferred       then SAC_K1_4
+       else if equal ( add SAC 5 ) SAC_scale_preferred       then SAC_K1_5
+       else if equal ( add SAC 6 ) SAC_scale_preferred       then SAC_K1_6
+       else if equal ( add SAC_scale_preferred 1 ) SAC       then SAC_K2
+       else if equal ( add SAC_scale_preferred 2 ) SAC       then SAC_K2_2
+       else if equal ( add SAC_scale_preferred 3 ) SAC       then SAC_K2_3
+       else if equal ( add SAC_scale_preferred 4 ) SAC       then SAC_K2_4
+       else if equal ( add SAC_scale_preferred 5 ) SAC       then SAC_K2_5
+       else if equal ( add SAC_scale_preferred 6 ) SAC       then SAC_K2_6
+       else 1.0
+
+assign tracktype_penalty (
+    if not istrack           then 0.0    else if tracktype=       then 0.0
+    else if tracktype=grade1 then 0.1    else if tracktype=grade2 then 0.05
+    else if tracktype=grade3 then 0.0    else if tracktype=grade4 then 0.0
+    else if tracktype=grade5 then 0.0       else 0.0 )
+
+assign surface_penalty (
+    if not istrack                           then 0.0
+    else if ispaved                          then 0.0
+    else if surface=cobblestone              then 0.0
+    else if surface=fine_gravel|ground|earth|unpaved|grass|compacted then 0.0
+    else if surface=dirt|sand                then 0.1
+    else if surface=                         then 0.0
+    else if surface=gravel|pebblestone       then 0.2
+                                             else 0.0 )
+
+assign wet_penalty (
+    if not iswet then 0.0
+    else if ismainroad then -0.1
+    else if tracktype=grade1 then ( if ispaved then -0.2 else if ismuddy then 0.2 else 0.1 )
+        else if tracktype=grade2 then ( if ispaved then -0.1 else if ismuddy then 0.4 else 0.2 )
+        else if tracktype=grade3 then ( if ispaved then -0.0 else if ismuddy then 0.8 else 0.3 )
+        else if tracktype=grade4 then ( if ispaved then  0.1 else if ismuddy then 1.5 else 0.5 )
+        else if tracktype=grade5 then ( if ispaved then  0.2 else if ismuddy then 2.5 else 1.0 )
+        else                          ( if ispaved then -0.2 else if ismuddy then 2.5 else 1.0 )
+        )
+
+assign Offroad_factor_for_road
+  if  ( equal Offroad_factor 0.0 ) then 0.0  else
+  (
+    if    ismainroad    then  Offroad_factor
+    else if ( or ispaved highway=residential|living_street|service|pedestrian )  then ( multiply 0.33 Offroad_factor )
+    else if ( not isunpaved )                                                                  then ( multiply -0.33 Offroad_factor )
+      else  ( multiply -1 multiply Offroad_factor ( add 1.0 ( multiply 0.33 SAC_scale_penalty ) ) )
+    )
+
+assign nonpath_penalty =
+if ( equal path_preference 0.0 ) then 0.0                  # nonpath_penalty inactive
+else if not istrack then path_preference                   #istrack = highway=track/path/road/footway
+else if ispaved then                                      ( multiply path_preference 0.5 )
+else if or ( and not isunpaved not highway=path )
+           ( tracktype=grade1|grade2 )  then              ( multiply path_preference 0.25 )
+else if not ( and isunpaved
+              and highway=path
+              and tracktype=grade1|grade2
+                   not surface=gravel|cobblestone|pebblestone )
+                                        then              ( multiply path_preference 0.125 )
+else 0.0
+
+assign rawcostfactor # can be <1.0, is treated later
+
+    if shortest_way  then (   add 1 accesspenalty )   else
+
+  add      nonpath_penalty
+  add      accesspenalty
+  (
+  if    ( and highway= not route=ferry )  then 100000
+  else if    highway=steps then ( switch allow_steps   ( switch consider_elevation 1.0 3.0 )     100000 )
+  else  if    route=ferry    then ( if allow_ferries then 2.34 else 100000 )
+
+# iswet=1 in global context section means wet weather, increases penalty for eventually inconvenient ways
+# ismuddy boolean relates in wet weather to unpaved or unclassified surface, that can have mud or get slicky in wet weather.
+
+  else if    highway=pedestrian       then ( switch ismuddy 1.3 1.0 )
+  else if    highway=bridleway        then ( switch ismuddy 2.5     switch iswet   1.4 1.2 )
+  else if    highway=cycleway         then ( switch ismuddy 1.4     switch iswet   1.0 1.1 )
+  else if    highway=residential|living_street
+                                     then  ( switch ismuddy 1.5     switch iswet   1.0 1.1 )
+  else if    highway=service         then  ( switch ismuddy 1.5     switch iswet   1.1 1.2 )
+
+  else if    istrack                 then
+       ( add 1.0 add tracktype_penalty add surface_penalty      add wet_penalty        SAC_scale_penalty      )
+
+  else if highway=motorway|motorway_link  then  100000
+  else if highway=proposed|abandoned|construction then (  switch ismuddy 10  switch iswet 6 4 )
+
+  else if highway=trunk|trunk_link    then
+      ( switch iswet ( switch issidewalk 1.5 10 )    ( switch issidewalk 2.0 20 ) )
+ else if highway=primary|primary_link    then
+      ( switch iswet ( switch issidewalk 1.5 5 )    ( switch issidewalk 2.0 10 ) )
+  else if highway=secondary|secondary_link        then
+      ( switch iswet  ( switch issidewalk 1.2 2.5 )    ( switch issidewalk 1.5 4.0 ) )
+  else if highway=tertiary|tertiary_link        then
+      ( if iswet then ( switch issidewalk 1.1 1.5 ) else ( switch issidewalk 1.2 2.5 ) )
+  else if highway=unclassified                 then
+        ( if ismuddy then 3.0 else if iswet then ( switch issidewalk 1.0 1.3 ) else ( switch issidewalk 1.1 1.5 ) )
+
+  else add cost_of_unknown switch ismuddy 0.5 0.0
+  )
+
+assign rawcostfactor2
+
+  if equal hiking_routes_preference 0.0     then    rawcostfactor  # Not preferring hiking routes
+  else if is_ldhr                 then    rawcostfactor  # is hiking route
+                          else    multiply rawcostfactor nonhiking_route_penalty
+
+assign noise_penalty
+   switch consider_noise
+     switch estimated_noise_class=  0
+     switch estimated_noise_class=1  0.3
+     switch estimated_noise_class=2  0.5
+     switch estimated_noise_class=3  0.7
+     switch estimated_noise_class=4  1
+     switch estimated_noise_class=5  1.2
+     switch estimated_noise_class=6  1.5 0 0
+
+assign no_river_penalty
+   switch consider_river
+     switch estimated_river_class=  3
+     switch estimated_river_class=1  2
+     switch estimated_river_class=2  1.5
+     switch estimated_river_class=3  1
+     switch estimated_river_class=4  0.5
+     switch estimated_river_class=5  0.2
+     switch estimated_river_class=6  0 99 0
+
+assign no_forest_penalty
+   switch consider_forest
+     switch estimated_forest_class=  1
+     switch estimated_forest_class=1  0.5
+     switch estimated_forest_class=2  0.4
+     switch estimated_forest_class=3  0.25
+     switch estimated_forest_class=4  0.15
+     switch estimated_forest_class=5  0.1
+     switch estimated_forest_class=6  0 99 0
+
+assign town_penalty
+   switch consider_town
+     switch estimated_town_class=  0
+     switch estimated_town_class=1  0.5
+     switch estimated_town_class=2  0.9
+     switch estimated_town_class=3  1.2
+     switch estimated_town_class=4  1.3
+     switch estimated_town_class=5  1.4
+     switch estimated_town_class=6  1.6 99 0
+
+assign trafficpenalty = 0
+
+assign costfactor
+add town_penalty
+  add no_forest_penalty
+  add no_river_penalty
+  add noise_penalty
+  add trafficpenalty
+if shortest_way  then  ( add 1 accesspenalty )
+       else max 1.0 add rawcostfactor2 Offroad_factor_for_road
+
+assign downhillcostfactor
+    if shortest_way  then (   add 1 accesspenalty )   else
+    max 1.0
+    add rawcostfactor2
+    add Offroad_factor_for_road
+    if ismuddy                     then 0.5                     # slicky
+    else if surface=grass          then -0.2                    # soft impact
+    else if ispaved                then 0.2                     # hard impact
+    else if surface=gravel|pebblestone|fine_gravel  then 0.3    # slides
+                                                    else 0.0
+
+assign uphillcostfactor
+    if shortest_way  then (   add 1 accesspenalty )   else
+    max 1.0
+    add rawcostfactor2
+    add Offroad_factor_for_road
+    if ismuddy                      then 0.3    # slicky
+    else if surface=grass           then 0.1    # unsure foot
+    else if ispaved                 then -0.1   # sure foot
+    else if surface=gravel|pebblestone|fine_gravel  then 0.2 # slides
+                                                    else 0.0
+
+# way priorities used for voice hint generation
+
+assign priorityclassifier =
+
+  if      ( highway=motorway                  ) then  30
+  else if ( highway=motorway_link             ) then  29
+  else if ( highway=trunk                     ) then  28
+  else if ( highway=trunk_link                ) then  27
+  else if ( highway=primary                   ) then  26
+  else if ( highway=primary_link              ) then  25
+  else if ( highway=secondary                 ) then  24
+  else if ( highway=secondary_link            ) then  23
+  else if ( highway=tertiary                  ) then  22
+  else if ( highway=tertiary_link             ) then  21
+  else if ( highway=unclassified              ) then  20
+  else if ( highway=residential|living_street ) then  18
+  else if ( highway=steps|pedestrian          ) then  16
+  else if ( highway=service|cycleway          ) then  if ( or tracktype=grade1 ispaved ) then  14 else 12
+  else if ( highway=track|road|bridleway      ) then  if ( or tracktype=grade1 ispaved ) then  10 else 8
+  else if ( highway=path|footway   )            then  (    if ( or tracktype=grade1 ispaved )   then  6
+                                                      else if tracktype=grade2                  then  4
+                                                      else if not surface=grass|gravel          then  3
+                                                                                                else  2 )
+  else 0
+
+# some more classifying bits used for voice hint generation...
+
+assign isbadoneway = 0
+assign isgoodoneway = 0
+assign isroundabout = junction=roundabout
+assign islinktype = highway=motorway_link|trunk_link|primary_link|secondary_link|tertiary_link
+assign isgoodforcars = if greater priorityclassifier 19 then true
+                  else if highway=residential|living_street|service then true
+                  else if ( and highway=track tracktype=grade1 ) then true
+                  else false
+
+# ... encoded into a bitmask
+
+assign classifiermask add          isbadoneway
+                      add multiply isgoodoneway   2
+                      add multiply isroundabout   4
+                      add multiply islinktype     8
+                          multiply isgoodforcars 16
+
+---context:node  # following code refers to node tags
+
+
+assign defaultaccess
+       switch access=
+              1 # add default barrier restrictions here!
+              switch or access=private access=no
+                     0
+                     1
+
+assign bikeaccess
+       or nodeaccessgranted=yes
+          switch bicycle=
+                 switch vehicle=
+                        defaultaccess
+                        switch or vehicle=private vehicle=no
+                               0
+                               1
+                 switch or bicycle=private or bicycle=no bicycle=dismount
+                        0
+                        1
+
+assign footaccess
+       or bicycle=dismount
+          switch foot=
+                 defaultaccess
+                 switch or foot=private foot=no
+                        0
+                        1
+
+assign initialcost switch or bikeaccess footaccess 0 1000000
+
+#############################################################################################
+# ****) Offroad_factor ( ported MTB_factor from bicycle Trekking profile
+#############################################################################################
+#
+# MTB_factor tweaks/trims MTB approach of the profile  by preferring/penalizing in progressive order
+# nonpaved  - preferred
+# not paved - little preferred
+# paved     - little penalized
+# mainroads - penalized
+#
+# MTB_factor can be used for one-time tweaking of routing profile for particular trip,
+# or trimming of the profile according to biker preferencing without need of profile deep insight
+#
+# Positive values progessively promote/penalize roads in favour of MTB riding.
+
+# Negative value has the opposite effect, preferring mainroads and penalizing unpaved roads.
+# This effect is somewhat similar to iswet=1 ( *) wet weather mode ),
+# but does not distinguish particular road classes / surfaces / smoothness,
+# aside of mentioned schema below.
+
+# The calculated values below is added to the costfactor.
+
+# + MTB_factor                                    for main roads (tertiaries and better),
+# + 0.33 * MTB_factor                             for paved roads,
+# - 0.33 * MTB_factor                             for not paved/not unpaved roads,
+# - MTB_factor * ( 1 + 0.33 * smoothnesspenalty ) for unpaved roads.  - at MTB_factor 3.0 smootheness is ignored
+#
+# Default   is 0.0 = no effect.
+# Recommended -0.5 - +1.0
+# Reasonable  -2.0 .. +3.0,
+#
+# Final costfactor is kept >= 1 for final costfacto values.
+#############################################################################################
+# changelog:
+# Feature is / + added / - removed / * changed / ! fixed
+
+# Hiking Version 1.6 ALFA
+# 2014-10-10 (c) Poutnik
+# Route_foot related hints were improved with usage of Hiking.brf from below and by Arndt comment
+# http://pastebin.com/YLpkGVD4
+# http://forum.openstreetmap.org/viewtopic.php?pid=447507#p447507
+#
+# 2014-10-10 v1.1 - changed hiking route preference logic
+# 1.2 - fixed preference counting bug
+# 2014-10-11 1.3 - adding foot route to hiking routes,
+# fixed ferry cost to respect initial cost triggering.
+#      added bikeaccess,  added shortest way mode,  code cleanup
+# 2014-10-12: v1.4 - involving turncosts and way/node initial costs as orientation/decision penalties,
+#           but turning them off for sticking to hiking routes as extra preference,
+#           tweaking cost preferences
+# 2014-10-13 v1.5
+# redesigned route preference policy - turncost turned off even for nonsticky but preferred hiking routes
+# cost tweaking.
+# removed uniform cost=1 for sticky hiking routes, to distinguish quality
+# giving penalty 1 for non hiking routes at sticky hiking routes.
+# used not round costs to often trigger initial cost calculation
+#v1.51 - bugfix of redundant routing penalty
+#v 1.6 - initialcost penalty only for sticking routes, decreased way penalties for preferring routes
+# 31/5/2015 v 1.7 ALFA  + sac_scale + sac_scale_limit implemented
+# 10/6/2015 v1.7.1 ALFA * sac_scale improved
+#                        + MTB scale integrated to SAC scale
+#                       + sac_scale_preferred implemented, with progressive penalizing for SAC <> SAC preferred
+# 10/6/2015 v1.7.2 BETA ! Fixed general way access penalties
+# 15/6/2015 v1.7.3 BETA * SAC-MTB scale integration reevaluated, increased MTB scale penalty
+#                       * MTB scale penalty used as fallback if no SAC rating
+# 16/6/2015 v1.7.4 ALFA * Optimized SAC logic
+# 17/6/2015 v1.7.5 BETA + Track penalty system
+# 20/6/2015 v1.7.6 RELEASE * Modified and simplified route preferencing
+# 01/12/2015 v1.8.1 ALFA   +ported MTB_factor from bicycle Trekking template, renamed for hiking context to Offroad_factor
+# 02/4/2016 v1.8.2 ALFA   +implemented path preference factor , try 20.0. Default 0.0 has no effect
+# 3/5/2016  v1.8.3 BETA   +implemented navigation hint support
+# 7/5/2016  v1.8.4 RELEASE +implemented navigation hint support ftom BRouter 1.4
+# 10/5/2016 v1.8.6 BETA   * decreased turnInstructionCatchingRange from default 40 to 20
+# 18/5/2016  v1.8.7 BETA   ! Fixed down/uphillcostfactors for shortest_way - to be really shortest

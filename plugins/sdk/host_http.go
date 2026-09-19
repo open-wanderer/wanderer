@@ -126,6 +126,24 @@ func PostForm(connector string, path string, query []QueryParam, headers map[str
 	})
 }
 
+func PostText(connector string, path string, query []QueryParam, headers map[string]string, text string, expect ResponseExpect) (HostResponse, []byte, error) {
+	return HostRequest(HostRequestSpec{
+		Method: "POST",
+		Target: RequestTarget{
+			Type:      "connector",
+			Connector: connector,
+			Path:      path,
+			Query:     query,
+		},
+		Headers: headers,
+		Body: &HostRequestBody{
+			Type: HostRequestBodyTypeText,
+			Text: text,
+		},
+		Expect: expect,
+	})
+}
+
 func (r HostResponse) FirstHeader(name string) string {
 	values := r.HeaderValuesFor(name)
 	if len(values) == 0 {

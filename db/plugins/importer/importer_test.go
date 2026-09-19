@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -510,6 +512,44 @@ func TestValidateRemoteMediaURLSyntax(t *testing.T) {
 	})
 }
 
+func TestPhotoAssetInputPreservesZeroCoordinates(t *testing.T) {
+	zero := 0.0
+	input := photoAssetInput(Options{
+		UserID: "user1",
+		Manifest: pluginsystem.Manifest{
+			ID: "immich",
+		},
+	}, PhotoAssetTarget{}, pluginsystem.Photo{
+		ExternalID: "asset1",
+		Lat:        &zero,
+		Lon:        &zero,
+	})
+
+	if !input.HasLat || !input.HasLon {
+		t.Fatalf("expected explicit zero coordinates to be marked present: %#v", input)
+	}
+	if input.Lat != 0 || input.Lon != 0 {
+		t.Fatalf("unexpected coordinates: %v, %v", input.Lat, input.Lon)
+	}
+}
+
+func TestPhotoAssetInputPreservesTakenAt(t *testing.T) {
+	takenAt := time.Date(2024, 7, 25, 10, 27, 38, 339000000, time.UTC)
+	input := photoAssetInput(Options{
+		UserID: "user1",
+		Manifest: pluginsystem.Manifest{
+			ID: "immich",
+		},
+	}, PhotoAssetTarget{}, pluginsystem.Photo{
+		ExternalID: "asset1",
+		TakenAt:    &takenAt,
+	})
+
+	if input.TakenAt == nil || !input.TakenAt.Equal(takenAt) {
+		t.Fatalf("expected taken_at to be preserved, got %#v", input.TakenAt)
+	}
+}
+
 func TestPhotoFile(t *testing.T) {
 	ctx := context.Background()
 
@@ -524,6 +564,118 @@ func TestPhotoFile(t *testing.T) {
 		photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{Type: "carrier"}}
 		if _, _, err := photoFile(ctx, photo, Options{}, 1024, nil); err == nil {
 			t.Fatal("expected error for unsupported source type")
+		}
+	})
+}
+
+func TestEffectivePluginMediaMaxBytes(t *testing.T) {
+	manifest := pluginsystem.Manifest{Permissions: pluginsystem.PermissionManifest{
+		Downloads: pluginsystem.DownloadPermissions{MaxBytes: 16},
+	}}
+	for _, tc := range []struct {
+		name      string
+		manifest  pluginsystem.Manifest
+		requested int64
+		want      int64
+	}{
+		{"manifest narrows host limit", manifest, 50, 16},
+		{"host limit stays narrower", manifest, 8, 8},
+		{"manifest applies to missing host limit", manifest, 0, 16},
+		{"host limit without manifest", pluginsystem.Manifest{}, 8, 8},
+		{"default without either limit", pluginsystem.Manifest{}, 0, util.DefaultPluginMediaMaxBytes},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := effectivePluginMediaMaxBytes(tc.manifest, tc.requested); got != tc.want {
+				t.Fatalf("got %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFetchPhotoMediaURLUsesManifestPolicy(t *testing.T) {
+	originalFetch := fetchPublicPluginMedia
+	t.Cleanup(func() { fetchPublicPluginMedia = originalFetch })
+
+	requestedLimit := int64(0)
+	fetchPublicPluginMedia = func(_ context.Context, _ string, maxBytes int64) (*util.SafeFetchResult, error) {
+		requestedLimit = maxBytes
+		return &util.SafeFetchResult{
+			Body:        []byte("jpeg"),
+			ContentType: "image/jpeg; charset=binary",
+			FinalURL:    "https://media.example/photo.jpg",
+		}, nil
+	}
+	manifest := pluginsystem.Manifest{Permissions: pluginsystem.PermissionManifest{
+		Downloads: pluginsystem.DownloadPermissions{
+			MaxBytes:     4,
+			ContentTypes: []string{"image/jpeg"},
+		},
+	}}
+	photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{
+		Type: "url",
+		URL:  "https://media.example/photo.jpg",
+	}}
+
+	if _, err := FetchPhotoMedia(context.Background(), photo, Options{Manifest: manifest}, 10); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if requestedLimit != 4 {
+		t.Fatalf("public fetch limit = %d, want manifest limit 4", requestedLimit)
+	}
+
+	fetchPublicPluginMedia = func(_ context.Context, _ string, _ int64) (*util.SafeFetchResult, error) {
+		return &util.SafeFetchResult{Body: []byte("html"), ContentType: "text/html"}, nil
+	}
+	if _, err := FetchPhotoMedia(context.Background(), photo, Options{Manifest: manifest}, 10); err == nil || !strings.Contains(err.Error(), "not allowed") {
+		t.Fatalf("got error %v, want content type rejection", err)
+	}
+}
+
+func TestPluginMediaResponseEnforcesManifestPolicy(t *testing.T) {
+	manifest := pluginsystem.Manifest{Permissions: pluginsystem.PermissionManifest{
+		Downloads: pluginsystem.DownloadPermissions{
+			MaxBytes:     4,
+			ContentTypes: []string{"image/jpeg"},
+		},
+	}}
+
+	t.Run("allows declared content type with parameters", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "image/jpeg; charset=binary")
+		result, err := pluginMediaResponse(resp, manifest, 10)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(result.Body) != "1234" || result.FinalURL != "https://media.example/photo" {
+			t.Fatalf("unexpected result: %#v", result)
+		}
+	})
+
+	t.Run("rejects content type outside manifest", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "text/html")
+		if _, err := pluginMediaResponse(resp, manifest, 10); err == nil || !strings.Contains(err.Error(), "not allowed") {
+			t.Fatalf("got error %v, want content type rejection", err)
+		}
+	})
+
+	t.Run("rejects missing content type", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "")
+		if _, err := pluginMediaResponse(resp, manifest, 10); err == nil || !strings.Contains(err.Error(), "invalid content type") {
+			t.Fatalf("got error %v, want invalid content type", err)
+		}
+	})
+
+	t.Run("manifest narrows response size", func(t *testing.T) {
+		resp := pluginMediaTestResponse("12345", "image/jpeg")
+		maxBytes := effectivePluginMediaMaxBytes(manifest, 10)
+		if _, err := pluginMediaResponse(resp, manifest, maxBytes); err == nil || !strings.Contains(err.Error(), "maximum size") {
+			t.Fatalf("got error %v, want size rejection", err)
+		}
+	})
+
+	t.Run("host can narrow response size further", func(t *testing.T) {
+		resp := pluginMediaTestResponse("1234", "image/jpeg")
+		if _, err := pluginMediaResponse(resp, manifest, 3); err == nil || !strings.Contains(err.Error(), "maximum size") {
+			t.Fatalf("got error %v, want size rejection", err)
 		}
 	})
 }
@@ -608,6 +760,20 @@ func TestFetchPluginMediaWithRetry(t *testing.T) {
 	})
 }
 
+func pluginMediaTestResponse(body string, contentType string) *http.Response {
+	req, _ := http.NewRequest(http.MethodGet, "https://media.example/photo", nil)
+	header := http.Header{}
+	if contentType != "" {
+		header.Set("Content-Type", contentType)
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     header,
+		Request:    req,
+	}
+}
+
 func TestPluginMediaBudgetRemainingBytes(t *testing.T) {
 	budget := &pluginMediaBudget{}
 	if got := budget.remainingBytes(); got != util.DefaultPluginMediaMaxBytes {
@@ -620,6 +786,45 @@ func TestPluginMediaBudgetRemainingBytes(t *testing.T) {
 	budget.bytes = util.DefaultPluginMaxImportMediaBytes
 	if got := budget.remainingBytes(); got != 0 {
 		t.Fatalf("got %d, want exhausted budget", got)
+	}
+}
+
+func TestPhotoImportLimitResolution(t *testing.T) {
+	defaults := Options{}
+	if got := defaults.maxPhotosPerTrail(); got != 0 {
+		t.Fatalf("got trail limit %d, want unlimited", got)
+	}
+	if got := defaults.maxPhotosPerWaypoint(); got != 0 {
+		t.Fatalf("got waypoint limit %d, want unlimited", got)
+	}
+	if got := defaults.maxPhotosPerSummitLog(); got != 0 {
+		t.Fatalf("got summit log limit %d, want unlimited", got)
+	}
+
+	empty := Options{PhotoLimits: &PhotoImportLimits{}}
+	if got := empty.maxPhotosPerTrail(); got != util.DefaultPluginMaxPhotosPerTrail {
+		t.Fatalf("got trail limit %d, want %d", got, util.DefaultPluginMaxPhotosPerTrail)
+	}
+	if got := empty.maxPhotosPerWaypoint(); got != util.DefaultPluginMaxPhotosPerWaypoint {
+		t.Fatalf("got waypoint limit %d, want %d", got, util.DefaultPluginMaxPhotosPerWaypoint)
+	}
+	if got := empty.maxPhotosPerSummitLog(); got != util.DefaultPluginMaxPhotosPerSummitLog {
+		t.Fatalf("got summit log limit %d, want %d", got, util.DefaultPluginMaxPhotosPerSummitLog)
+	}
+
+	custom := Options{PhotoLimits: &PhotoImportLimits{
+		MaxPhotosPerTrail:     11,
+		MaxPhotosPerWaypoint:  3,
+		MaxPhotosPerSummitLog: 7,
+	}}
+	if got := custom.maxPhotosForAssetTarget(PhotoAssetTarget{Trail: "trail1"}); got != 11 {
+		t.Fatalf("got trail target limit %d, want 11", got)
+	}
+	if got := custom.maxPhotosForAssetTarget(PhotoAssetTarget{Waypoint: "waypoint1"}); got != 3 {
+		t.Fatalf("got waypoint target limit %d, want 3", got)
+	}
+	if got := custom.maxPhotosForAssetTarget(PhotoAssetTarget{SummitLog: "summit1"}); got != 7 {
+		t.Fatalf("got summit log target limit %d, want 7", got)
 	}
 }
 

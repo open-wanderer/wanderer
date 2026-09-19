@@ -25,6 +25,7 @@ const (
 	defaultWorkerSessionTimeout      = 15 * time.Minute
 	defaultWorkerSlotAcquireTimeout  = 30 * time.Second
 	defaultWorkerCapturedStderrBytes = 64 * 1024
+	defaultWorkerMinimum             = 8
 )
 
 var (
@@ -38,6 +39,18 @@ type WorkerRuntime struct {
 
 type RuntimeSessionFatalError struct {
 	Err error
+}
+
+type WorkerCapacityError struct {
+	Err error
+}
+
+func (e WorkerCapacityError) Error() string {
+	return fmt.Sprintf("plugin worker capacity unavailable: %v", e.Err)
+}
+
+func (e WorkerCapacityError) Unwrap() error {
+	return e.Err
 }
 
 func (e RuntimeSessionFatalError) Error() string {
@@ -57,7 +70,7 @@ func NewWorkerRuntime() WorkerRuntime {
 	return WorkerRuntime{}
 }
 
-func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error) {
+func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext, options RuntimeCallOptions) ([]byte, error) {
 	session, err := r.OpenSession(ctx, plugin, policy)
 	if err != nil {
 		return nil, err
@@ -65,7 +78,7 @@ func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export stri
 	defer func() {
 		_ = session.Close(context.Background())
 	}()
-	return session.Call(ctx, export, input)
+	return session.Call(ctx, export, input, options)
 }
 
 func (r WorkerRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error) {
@@ -156,7 +169,7 @@ type workerRuntimeSession struct {
 	fatalMsg string
 }
 
-func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte) ([]byte, error) {
+func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) ([]byte, error) {
 	s.callMu.Lock()
 	defer s.callMu.Unlock()
 
@@ -177,7 +190,7 @@ func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []
 
 	result := make(chan workerCallOutcome, 1)
 	go func() {
-		result <- s.call(callCtx, export, input)
+		result <- s.call(callCtx, export, input, options)
 	}()
 
 	select {
@@ -202,7 +215,10 @@ type workerCallOutcome struct {
 	err    error
 }
 
-func (s *workerRuntimeSession) call(ctx context.Context, export string, input []byte) workerCallOutcome {
+func (s *workerRuntimeSession) call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) workerCallOutcome {
+	hostRequestLimit := EffectiveMaxHostRequests(options)
+	hostRequestCount := 0
+	var budgetErr error
 	msg, err := workerMessageWithData(workerMessageCallExport, workerCallExport{
 		WASMPath:    s.plugin.WASMPath,
 		Export:      export,
@@ -227,6 +243,20 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 		}
 		switch msg.Type {
 		case workerMessageHostHTTPRequest:
+			hostRequestCount++
+			if hostRequestCount > hostRequestLimit {
+				if budgetErr == nil {
+					budgetErr = HostRequestBudgetError{Limit: hostRequestLimit}
+				}
+				if err := s.writeHostHTTPResponse(hostHTTPResponse{
+					Error: &PluginError{Code: "request_budget_exceeded", Message: budgetErr.Error()},
+				}); err != nil {
+					s.markFatal("host http budget response failed")
+					s.kill()
+					return workerCallOutcome{err: RuntimeSessionFatalError{Err: s.withStderr(err)}}
+				}
+				continue
+			}
 			if err := s.handleHostHTTPRequest(ctx, msg); err != nil {
 				s.markFatal("host http rpc failed")
 				s.kill()
@@ -240,6 +270,9 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 				s.markFatal("invalid call_result payload")
 				s.kill()
 				return workerCallOutcome{err: RuntimeSessionFatalError{Err: err}}
+			}
+			if budgetErr != nil {
+				return workerCallOutcome{err: budgetErr}
 			}
 			if result.PluginError != nil {
 				return workerCallOutcome{err: PluginCallError{
@@ -303,6 +336,10 @@ func (s *workerRuntimeSession) handleHostHTTPRequest(ctx context.Context, msg wo
 		return err
 	}
 	response := executeHostHTTPRequest(ctx, s.plugin.Manifest, s.policy, requestBytes)
+	return s.writeHostHTTPResponse(response)
+}
+
+func (s *workerRuntimeSession) writeHostHTTPResponse(response hostHTTPResponse) error {
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		return err
@@ -402,13 +439,13 @@ func acquireWorkerSlot(ctx context.Context) (*semaphore.Weighted, error) {
 	defer cancel()
 	slot := workerSemaphore()
 	if err := slot.Acquire(acquireCtx, 1); err != nil {
-		return nil, fmt.Errorf("acquire plugin worker slot: %w", err)
+		return nil, WorkerCapacityError{Err: err}
 	}
 	return slot, nil
 }
 
 func workerSemaphore() *semaphore.Weighted {
-	limit := int64(envInt("WANDERER_PLUGIN_WORKER_MAX", maxInt(2, runtime.NumCPU())))
+	limit := int64(envInt("WANDERER_PLUGIN_WORKER_MAX", defaultWorkerLimit(runtime.NumCPU())))
 	workerSlotsMu.Lock()
 	defer workerSlotsMu.Unlock()
 	if workerSlots == nil {
@@ -449,6 +486,10 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func defaultWorkerLimit(cpuCount int) int {
+	return maxInt(defaultWorkerMinimum, cpuCount)
 }
 
 func childEnvWithout(keys ...string) []string {

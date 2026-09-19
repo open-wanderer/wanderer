@@ -68,15 +68,11 @@ export function formatSpeed(speed?: number, fractionDigits?: number) {
     const unit = page.data.settings?.unit ?? "metric";
 
     if (unit == "metric") {
-        return `${(speed * 3.6).toFixed(fractionDigits ?? 2)} km/h`
+        return `${(speed * 3.6).toFixed(fractionDigits ?? 1)} km/h`
     } else {
         const mph = speed * 3.6 * 0.621371;
 
-        const formattedMph =
-            fractionDigits === undefined
-                ? Math.round(mph)
-                : mph.toFixed(fractionDigits);
-        return `${formattedMph} mp/h`;
+        return `${mph.toFixed(fractionDigits ?? 1)} mph`;
     }
 }
 

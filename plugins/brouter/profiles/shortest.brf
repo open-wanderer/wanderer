@@ -1,0 +1,155 @@
+---context:global   # following code refers to global config
+
+# the elevation parameters
+
+assign downhillcost 0
+assign downhillcutoff 1.5
+assign uphillcost 0
+assign uphillcutoff 1.5
+
+assign   turnInstructionMode  = 1  # %turnInstructionMode% | Mode for the generated turn instructions | [0=none, 1=auto-choose, 2=locus-style, 3=osmand-style, 4=comment-style, 5=gpsies-style, 6=orux-style, 7=locus-old-style]
+assign   validForFoot        1
+
+assign use_proposed_cycleroutes = false  # %use_proposed_cycleroutes% | Set to true to consider proposed and regular cycleroutes as equals | boolean
+
+---context:way   # following code refers to way-tags
+
+assign any_cycleroute
+  switch not use_proposed_cycleroutes
+    or route_bicycle_icn=yes or route_bicycle_ncn=yes or route_bicycle_rcn=yes route_bicycle_lcn=yes
+    or route_bicycle_icn=yes|proposed or route_bicycle_ncn=yes|proposed or route_bicycle_rcn=yes|proposed route_bicycle_lcn=yes|proposed
+
+assign nodeaccessgranted or any_cycleroute lcn=yes
+
+assign turncost 0
+
+assign initialclassifier =
+     if route=ferry then 1
+     else 0
+
+assign initialcost switch route=ferry 10000 0
+
+#
+# implicit access here just from the motorroad tag
+# (implicit access rules from highway tag handled elsewhere)
+#
+assign defaultaccess
+       switch access=
+              (
+                    if motorroad=yes then false
+                    else if highway=motorway|motorway_link then false
+                    else true
+              )
+              switch or access=private access=no
+                     false
+                     true
+
+#
+# calculate logical bike access
+#
+assign bikeaccess
+       switch bicycle=
+              switch bicycle_road=yes
+                 true
+                 switch vehicle=
+                        ( if highway=footway then false else defaultaccess )
+                        not vehicle=private|no
+              not or bicycle=private or bicycle=no or bicycle=dismount bicycle=use_sidepath
+
+#
+# calculate logical foot access
+#
+assign footaccess
+       or bicycle=dismount
+          switch foot=
+                 defaultaccess
+                 not or foot=private or foot=no foot=use_sidepath
+
+assign accesspenalty switch or bikeaccess footaccess 0 100000
+
+assign costfactor
+  add accesspenalty
+
+  switch and highway= not route=ferry  100000
+
+  switch    route=ferry                             5.67
+  switch or highway=motorway highway=motorway_link    100000
+  switch or highway=proposed highway=abandoned        100000
+  1
+
+# way priorities used for voice hint generation
+
+assign isresidentialorliving = or highway=residential|living_street living_street=yes
+
+assign priorityclassifier =
+
+  if      ( highway=motorway                       ) then  30
+  else if ( highway=motorway_link                  ) then  29
+  else if ( highway=trunk                          ) then  28
+  else if ( highway=trunk_link                     ) then  27
+  else if ( highway=primary                        ) then  26
+  else if ( highway=primary_link                   ) then  25
+  else if ( highway=secondary                      ) then  24
+  else if ( highway=secondary_link                 ) then  23
+  else if ( highway=tertiary                       ) then  22
+  else if ( highway=tertiary_link                  ) then  21
+  else if ( highway=unclassified                   ) then  20
+  else if ( isresidentialorliving                  ) then  6
+  else if ( highway=service                        ) then  6
+  else if ( highway=cycleway                       ) then  6
+  else if ( or bicycle=designated bicycle_road=yes ) then  6
+  else if ( highway=track                          ) then if tracktype=grade1 then 6 else 4
+  else if ( highway=bridleway|road|path|footway    ) then  4
+  else if ( highway=steps                          ) then  2
+  else if ( highway=pedestrian                     ) then  2
+  else 0
+
+# some more classifying bits used for voice hint generation...
+
+assign isroundabout = junction=roundabout
+assign islinktype = highway=motorway_link|trunk_link|primary_link|secondary_link|tertiary_link
+assign isgoodforcars = if greater priorityclassifier 6 then true
+                  else if ( or isresidentialorliving highway=service ) then true
+                  else if ( and highway=track tracktype=grade1 ) then true
+                  else false
+
+
+# ... encoded into a bitmask
+
+assign classifiermask add multiply isroundabout   4
+                      add multiply islinktype     8
+                          multiply isgoodforcars 16
+
+# include `smoothness=` tags in the response's WayTags for track analysis
+assign dummyUsage = smoothness=
+
+---context:node  # following code refers to node tags
+
+assign defaultaccess
+       switch access=
+              1 # add default barrier restrictions here!
+              switch or access=private access=no
+                     0
+                     1
+
+assign bikeaccess
+       or nodeaccessgranted=yes
+          switch bicycle=
+                 switch vehicle=
+                        defaultaccess
+                        switch or vehicle=private vehicle=no
+                               0
+                               1
+                 switch or bicycle=private or bicycle=no bicycle=dismount
+                        0
+                        1
+
+assign footaccess
+       or bicycle=dismount
+          switch foot=
+                 defaultaccess
+                 switch or foot=private foot=no
+                        0
+                        1
+
+assign initialcost switch or bikeaccess footaccess 0 1000000

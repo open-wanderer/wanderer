@@ -1,7 +1,8 @@
 <script lang="ts">
-    import * as noUiSlider from "nouislider";
+    import noUiSlider from "nouislider";
     import "nouislider/dist/nouislider.css";
     import { onMount } from "svelte";
+    import { type Options as SliderOptions } from "nouislider";
 
     interface Props {
         minValue?: number;
@@ -19,7 +20,8 @@
         currentMax = $bindable(maxValue),
         onset,
         onupdate,
-    }: Props = $props();
+        ...sliderOptions
+    }: Props & Partial<SliderOptions> = $props();
 
     let sliderContainer: any = $state();
 
@@ -33,6 +35,7 @@
         noUiSlider.create(sliderContainer, {
             start: [currentMin, currentMax],
             connect: true,
+            ...sliderOptions,
             range: {
                 min: minValue,
                 max: maxValue,
@@ -53,11 +56,15 @@
     @reference "tailwindcss";
     @reference "../../../css/app.css";
 
+    :global(.noUi-target) {
+        @apply border border-input-border bg-input-background shadow-none;
+    }
+
     :global(.noUi-horizontal) {
         height: 6px;
     }
     :global(.noUi-connect) {
-        @apply bg-primary;
+        @apply bg-input-border-focus;
     }
 
     :global(.noUi-horizontal .noUi-handle) {

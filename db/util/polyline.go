@@ -1,9 +1,7 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/tkrajina/gpxgo/gpx"
@@ -29,32 +27,17 @@ func ComputeTrailGeometry(app core.App, r *core.Record) (*TrailGeometry, error) 
 		MaxLon: r.GetFloat("lon"),
 	}
 
-	gpxPath := r.GetString("gpx")
-	if len(gpxPath) == 0 {
+	content, err := ReadTrailGPX(app, r)
+	if err != nil {
+		return nil, err
+	}
+	if len(content) == 0 {
 		return geometry, nil
 	}
 
-	fsys, err := app.NewFilesystem()
+	gpxData, err := gpx.ParseBytes(content)
 	if err != nil {
-		return nil, fmt.Errorf("open filesystem: %w", err)
-	}
-	defer fsys.Close()
-
-	gpxFilePath := r.BaseFilesPath() + "/" + gpxPath
-	gpxFile, err := fsys.GetReader(gpxFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("open gpx file %q: %w", gpxFilePath, err)
-	}
-	defer gpxFile.Close()
-
-	content := new(bytes.Buffer)
-	if _, err = io.Copy(content, gpxFile); err != nil {
-		return nil, fmt.Errorf("read gpx file %q: %w", gpxFilePath, err)
-	}
-
-	gpxData, err := gpx.Parse(content)
-	if err != nil {
-		return nil, fmt.Errorf("parse gpx file %q: %w", gpxFilePath, err)
+		return nil, fmt.Errorf("parse trail gpx: %w", err)
 	}
 
 	minLat, maxLat, minLon, maxLon := 90.0, -90.0, 180.0, -180.0

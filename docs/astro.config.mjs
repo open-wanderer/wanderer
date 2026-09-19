@@ -52,6 +52,10 @@ export default defineConfig({
           link: '/use/create-a-trail/'
         },
         {
+          label: 'Route planning',
+          link: '/use/routing/'
+        },
+        {
           label: 'Categories',
           link: '/use/categories/'
         },
@@ -88,7 +92,12 @@ export default defineConfig({
         },
         {
           label: 'Plugins',
-          link: '/use/plugins/'
+          items: [
+            { label: 'Overview', link: '/use/plugins/' },
+            { label: 'Trail plugins', link: '/use/plugins/trail/' },
+            { label: 'Asset plugins', link: '/use/plugins/asset/' },
+            { label: 'Routing plugins', link: '/use/plugins/routing/' },
+          ]
         },
         ]
       },

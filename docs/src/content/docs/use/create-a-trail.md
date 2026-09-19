@@ -1,6 +1,6 @@
 ---
 title: Create or edit a trail
-description: How to create or edit a trail by uploading or drawing a trail using Valhalla
+description: How to create or edit a trail by uploading a file or drawing with a configured routing plugin
 ---
 
 ## What is a trail?
@@ -31,18 +31,25 @@ After uploading:
 Click the **Draw a route** button to manually define a route on the map. While in drawing mode:
 
 - Click on the map to place route anchors
-- <span class="-tracking-[0.075em]">wanderer</span> will automatically route between anchors using the [Valhalla routing engine](https://github.com/valhalla/valhalla)
+- <span class="-tracking-[0.075em]">wanderer</span> will automatically route between anchors using the configured routing plugin
 - You can drag anchors to reposition them
-- Use the top-left menu to change routing mode (e.g. walking, cycling)
+- Choose the trail category and optional subcategory to select the kind of route, such as Hiking or Biking / Gravel
+- Use the route settings to switch between routing each segment separately and routing through all anchors as via points, when the selected engine supports it
 - Use the waypoint button (location marker icon) in the route editing toolbar to show or hide existing waypoint markers on the map. Hiding them also disables right-clicking to create new waypoints.
 - To remove an anchor, click on it and then click the red trash icon
 
-If you disable Valhalla routing, straight lines will be used between anchors instead.
+If you disable automatic routing, straight lines will be used between anchors instead.
+
+See [Route planning](/use/routing/) for engine selection, category profiles,
+route variants, round trips, and advanced routing options.
 
 To finish drawing, click **Stop drawing**.
 
 :::tip
-<span class="-tracking-[0.075em]">wanderer</span> uses a public, donation-financed Valhalla server by default. Please consider supporting it at [https://www.fossgis.de/verein/spenden/](https://www.fossgis.de/verein/spenden/).
+Official Wanderer images do not include routing plugin bundles. An administrator
+must install at least one compatible plugin before automatic routing is
+available. See [Routing plugins](/use/plugins/routing/) and
+[Plugin installation](/run/installation/plugins/).
 :::
 
 #### Trail anchor list

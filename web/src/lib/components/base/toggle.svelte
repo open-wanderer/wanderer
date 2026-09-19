@@ -4,6 +4,7 @@
         icon?: string;
         value?: boolean;
         label?: string;
+        ariaLabel?: string;
         error?: string;
         disabled?: boolean;
         onchange?: (value: boolean) => void;
@@ -14,6 +15,7 @@
         icon = "",
         value = $bindable(false),
         label = "",
+        ariaLabel = "",
         error = "",
         disabled = false,
         onchange,
@@ -35,6 +37,7 @@
             type="checkbox"
             class="sr-only peer"
             value="1"
+            aria-label={ariaLabel || label || name}
             {disabled}
             onchange={handleToggleChange}
         />

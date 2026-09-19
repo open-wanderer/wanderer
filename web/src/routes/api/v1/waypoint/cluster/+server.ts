@@ -12,6 +12,7 @@ const WaypointClusterSchema = z.object({
     category: z.string().length(15).or(z.literal("")).optional(),
     photos: z.array(WaypointClusterPointSchema),
     waypoints: z.array(WaypointClusterPointSchema),
+    resolveNames: z.boolean().optional(),
 });
 
 export async function POST(event: RequestEvent) {

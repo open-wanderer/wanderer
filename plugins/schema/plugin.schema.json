@@ -29,7 +29,7 @@
     },
     "type": {
       "type": "string",
-      "enum": ["trails"]
+      "enum": ["trails", "assets", "routing"]
     },
     "name": {
       "type": "string",
@@ -71,6 +71,27 @@
       "$ref": "#/definitions/metadata"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "assets"
+          }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "hostConfig": {
+            "not": {
+              "required": ["merge"]
+            }
+          }
+        }
+      }
+    }
+  ],
   "definitions": {
     "runtime": {
       "type": "object",
@@ -337,7 +358,7 @@
         },
         "type": {
           "type": "string",
-          "enum": ["boolean", "date", "select", "text", "url"]
+          "enum": ["boolean", "date", "number", "select", "text", "url"]
         },
         "label": {
           "type": "string"
@@ -358,6 +379,15 @@
           }
         },
         "default": {},
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
         "required": {
           "type": "boolean"
         },
@@ -422,6 +452,34 @@
                 "$ref": "#/definitions/categoryMappingTarget"
               }
             ]
+          }
+        },
+        "photoMode": {
+          "type": "string",
+          "enum": ["copy", "link_private"]
+        },
+        "maxPhotosPerTrail": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxPhotosPerWaypoint": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxPhotosPerSummitLog": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "autoAttach": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "trailPlugins": {
+              "type": "boolean"
+            },
+            "upload": {
+              "type": "boolean"
+            }
           }
         },
         "connectors": {

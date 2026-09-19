@@ -5,6 +5,27 @@ import (
 	"math"
 )
 
+func Encode(coords [][2]float64, precision float64) (string, error) {
+	if precision == 0 {
+		return "", fmt.Errorf("precision must not be zero")
+	}
+	if len(coords) == 0 {
+		return "", nil
+	}
+	result := make([]byte, 0, len(coords)*4)
+	previousLat := 0
+	previousLon := 0
+	for _, coordinate := range coords {
+		lat := int(math.Round(coordinate[0] * precision))
+		lon := int(math.Round(coordinate[1] * precision))
+		result = appendEncodedValue(result, lat-previousLat)
+		result = appendEncodedValue(result, lon-previousLon)
+		previousLat = lat
+		previousLon = lon
+	}
+	return string(result), nil
+}
+
 func Decode(encoded string, precision float64) ([][2]float64, error) {
 	if precision == 0 {
 		return nil, fmt.Errorf("precision must not be zero")
@@ -122,4 +143,16 @@ func decodeValue(encoded string, index int) (int, int, error) {
 		}
 	}
 	return (result >> 1) ^ (-(result & 1)), index, nil
+}
+
+func appendEncodedValue(output []byte, value int) []byte {
+	encoded := value << 1
+	if value < 0 {
+		encoded = ^encoded
+	}
+	for encoded >= 0x20 {
+		output = append(output, byte((0x20|(encoded&0x1f))+63))
+		encoded >>= 5
+	}
+	return append(output, byte(encoded+63))
 }

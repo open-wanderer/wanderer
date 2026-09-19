@@ -40,7 +40,6 @@ const PluginInstanceCreateSchema = z.object({
     enabled: z.boolean().default(false),
     auth: OptionalAuthSchema,
     config: OptionalJsonRecordSchema,
-    state: OptionalJsonRecordSchema,
     status: PluginInstanceStatusSchema.optional(),
 });
 
@@ -48,7 +47,6 @@ const PluginInstanceUpdateSchema = z.object({
     enabled: z.boolean().optional(),
     auth: OptionalAuthSchema,
     config: OptionalJsonRecordSchema,
-    state: OptionalJsonRecordSchema,
     status: PluginInstanceStatusSchema.optional(),
 });
 

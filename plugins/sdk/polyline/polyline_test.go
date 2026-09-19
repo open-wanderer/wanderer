@@ -15,6 +15,30 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+func TestEncodeRoundTrip(t *testing.T) {
+	input := [][2]float64{{38.5, -120.2}, {40.7, -120.95}, {43.252, -126.453}}
+	encoded, err := Encode(input, 1e5)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if encoded != "_p~iF~ps|U_ulLnnqC_mqNvxq`@" {
+		t.Fatalf("encoded polyline = %q", encoded)
+	}
+	decoded, err := Decode(encoded, 1e5)
+	if err != nil {
+		t.Fatalf("decode encoded polyline: %v", err)
+	}
+	if len(decoded) != len(input) || decoded[2] != input[2] {
+		t.Fatalf("round trip = %#v", decoded)
+	}
+}
+
+func TestEncodeRejectsZeroPrecision(t *testing.T) {
+	if _, err := Encode([][2]float64{{1, 2}}, 0); err == nil {
+		t.Fatal("zero precision was accepted")
+	}
+}
+
 func TestNormalizeCoordinateScale(t *testing.T) {
 	points := [][2]float64{{385, -1202}}
 	NormalizeCoordinateScale(points)

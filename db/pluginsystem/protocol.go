@@ -4,7 +4,9 @@ const (
 	ManifestVersion = "1.0"
 	RuntimeWASM     = "wasm"
 
-	PluginTypeTrails = "trails"
+	PluginTypeTrails  = "trails"
+	PluginTypeAssets  = "assets"
+	PluginTypeRouting = "routing"
 
 	AuthTypeOAuth2  = "oauth2"
 	AuthTypeAPIKey  = "api_key"
@@ -23,6 +25,7 @@ const (
 
 	HostRequestBodyTypeJSON      = "json"
 	HostRequestBodyTypeForm      = "form"
+	HostRequestBodyTypeText      = "text"
 	HostRequestBodyTypeMultipart = "multipart"
 	MultipartSourceTrail         = "trail"
 	MultipartSourceTrailGPX      = "trail.gpx"
@@ -67,6 +70,9 @@ type ConfigField struct {
 	Descriptions map[string]string   `json:"descriptions,omitempty"`
 	Options      []ConfigFieldOption `json:"options,omitempty"`
 	Default      any                 `json:"default,omitempty"`
+	Min          *float64            `json:"min,omitempty"`
+	Max          *float64            `json:"max,omitempty"`
+	Step         *float64            `json:"step,omitempty"`
 	Required     bool                `json:"required,omitempty"`
 	Hidden       bool                `json:"hidden,omitempty"`
 }
@@ -170,6 +176,7 @@ type HostRequestBody struct {
 	Type  string          `json:"type"`
 	JSON  any             `json:"json,omitempty"`
 	Form  []FormField     `json:"form,omitempty"`
+	Text  string          `json:"text,omitempty"`
 	Parts []MultipartPart `json:"parts,omitempty"`
 }
 

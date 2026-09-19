@@ -3,7 +3,18 @@ title: Local development
 description: How to install <span class="-tracking-[0.075em]">wanderer</span> for local development
 ---
 
-If you would like to set up a development environment on your own machine to work on <span class="-tracking-[0.075em]">wanderer</span> please first follow the bare-metal installation steps in the [installation guide](/run/installation#from-source). We will slightly modify the launch script to launch a node server in development mode instead:
+If you would like to set up a development environment on your own machine to work on <span class="-tracking-[0.075em]">wanderer</span> please first follow the bare-metal [installation guide](/run/installation/from-source). We will slightly modify the launch script to launch a node server in development mode instead:
+
+Provider bundles are separate from the backend binary. To exercise first-party
+integrations locally, install them from the repository root before starting the
+services (TinyGo is required):
+
+```bash
+make plugins-install-local
+```
+
+This writes the runtime bundles to `data/plugins`; it does not embed them into
+the Wanderer binaries or images.
 
 ```bash
 trap "kill 0" EXIT
@@ -12,8 +23,13 @@ export ORIGIN=http://localhost:5173
 export MEILI_URL=http://127.0.0.1:7700
 export MEILI_MASTER_KEY=p2gYZAWODOrwTPr4AYoahCZ9CI8y9bUd0yQLGk-E3m8
 export PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
-export VALHALLA_URL=https://valhalla1.openstreetmap.de
+export OVERPASS_API_URL=https://overpass-api.de
+export NOMINATIM_URL=https://nominatim.openstreetmap.org
 export POCKETBASE_ENCRYPTION_KEY=9ada3c93163812101e50e2bf49e880bc
+# export SSL_CERT_FILE=/absolute/path/to/ca.pem
+# export NODE_EXTRA_CA_CERTS=/absolute/path/to/ca.pem
+# Optional one-time import when a valid Valhalla bundle is first discovered successfully:
+# export VALHALLA_URL=https://valhalla1.openstreetmap.de
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
 cd db && ./pocketbase serve &
@@ -58,4 +74,3 @@ docker build db/ --no-cache -t flomp/wanderer-db:latest
 # web
 docker build web/ --no-cache  -t flomp/wanderer-web:latest 
 ```
-
