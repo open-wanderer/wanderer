@@ -2,6 +2,7 @@ import { error, isHttpError, json, type NumericRange, type RequestEvent } from "
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodSchema } from "zod";
 import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
+import { MeilisearchApiError } from "meilisearch";
 
 export class APIError extends Error {
     status: number;
@@ -188,6 +189,12 @@ export async function remove(event: RequestEvent, collection: Collection) {
     return { 'acknowledged': r }
 }
 
+export function getHTTPErrorStatus(e: unknown): number {
+    const status = e instanceof MeilisearchApiError ? e.response.status
+        : e instanceof ClientResponseError ? e.status : 500;
+    return Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500;
+}
+
 export function handleError(e: any) {
     if (isHttpError(e)) {
         throw e;
@@ -195,6 +202,8 @@ export function handleError(e: any) {
         return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
         return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
+    } else if (e instanceof MeilisearchApiError) {
+        return json({ ...e.cause, message: e.message }, { status: getHTTPErrorStatus(e) });
     } else if (e instanceof SyntaxError) {
         return json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {

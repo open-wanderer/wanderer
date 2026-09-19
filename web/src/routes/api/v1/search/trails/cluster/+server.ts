@@ -1,4 +1,5 @@
 import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
+import { getHTTPErrorStatus } from "$lib/util/api_util";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
 import { MAP_MAX_POLYLINES } from "$lib/config/map";
@@ -127,6 +128,6 @@ export async function POST(event: RequestEvent) {
         });
     } catch (e: any) {
         console.error("Clustering error:", e);
-        throw error(e.httpStatus || 500, e.message ?? "Unable to cluster trails");
+        throw error(getHTTPErrorStatus(e), e.message ?? "Unable to cluster trails");
     }
 }

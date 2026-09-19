@@ -1,4 +1,5 @@
 import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
+import { getHTTPErrorStatus } from "$lib/util/api_util";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 
 /**
@@ -58,6 +59,6 @@ export async function POST(event: RequestEvent) {
     } catch (e: any) {
         console.error(e);
 
-        throw error(e.httpStatus || 500, e)
+        throw error(getHTTPErrorStatus(e), e)
     }
 }

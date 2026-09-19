@@ -1,9 +1,24 @@
 import { error, isHttpError } from "@sveltejs/kit";
 import { describe, expect, it } from "vitest";
 import { ClientResponseError } from "pocketbase";
+import { MeilisearchApiError } from "meilisearch";
 import { assertFileField, handleError } from "./api_util";
 
 describe("handleError", () => {
+    it.each([400, 403, 503])("preserves Meilisearch status %i and error details", async (status) => {
+        const detail = { message: "Search failed", code: "invalid_search_filter", type: "invalid_request", link: "https://example.invalid/error" };
+        const failure = new MeilisearchApiError(new Response(null, { status }), detail);
+
+        const response = handleError(failure);
+
+        expect(response.status).toBe(status);
+        expect(await response.json()).toEqual(detail);
+    });
+
+    it("keeps unexpected failures as server errors", () => {
+        expect(handleError(new Error("connection failed")).status).toBe(500);
+    });
+
     it("preserves SvelteKit HTTP errors", () => {
         let httpError: unknown;
         try {

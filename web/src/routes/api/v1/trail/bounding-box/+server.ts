@@ -1,4 +1,5 @@
 import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
+import { getHTTPErrorStatus } from "$lib/util/api_util";
 import type { TrailBoundingBox } from "$lib/models/trail";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 
@@ -109,6 +110,6 @@ export async function GET(event: RequestEvent) {
         return json(boundingBox)
     } catch (e: any) {
         console.error(e);
-        throw error(e.httpStatus || 500, e.message ?? "Unable to get trail bounding box");
+        throw error(getHTTPErrorStatus(e), e.message ?? "Unable to get trail bounding box");
     }
 }
