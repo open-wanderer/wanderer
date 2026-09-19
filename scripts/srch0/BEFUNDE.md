@@ -45,7 +45,6 @@ SRCH0-Produktstand weiterhin offen.
 | Negativer Thumbnailindex verursacht Panic | Das echte Produktionsschema akzeptiert `thumbnail=-1` bei vorhandenem, tatsächlich hochgeladenem JPEG. Der Projektor prüft nur die obere Grenze und greift auf `photos[-1]` zu. Ein speicherbarer Record bringt die Projektion zum Absturz. | `SRCH0-PROJECTION-021`; `db/srch0_projection_test.go` |
 | Löschen eines Shares entfernt weitere Freigaben aus dem Suchindex | Alice und Bob haben je einen Share auf denselben Trail. Nach Löschen von Alices Share existiert Bobs Datenbankfreigabe weiterhin; der Hook schreibt dennoch `shares=[]` in den Suchindex. Bob verliert damit diesen Suchzugang. | `SRCH0-MUTATION-005`; echte Datenbankprobe und materialisierte Engineaufträge |
 | Geänderte Actor- und Kategoriemetadaten bleiben im Trailindex alt | Änderungen an Actor oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Die Entscheidung zur Tag-Umbenennung nimmt diese Befunde nicht von der Abnahme aus. | `SRCH0-MUTATION-007/009`; echte Hooks und Datenbankproben |
-| Metadatenupdates dürfen keine unvollständigen Treffer erzeugen | Fehlt ein abhängiges Suchdokument, darf eine Metadatenänderung kein unvollständiges Dokument im Index erzeugen. Diese eigenständige Anforderung bleibt auch in gemischten Tag-Proben verbindlich. | `db/srch0_index_correctness_test.go`; strikte Projektionsprüfungen |
 | Fehlende oder ungültige Schwierigkeit wird erfunden | Go projiziert Unknown als `0`/leicht; die Web-Konvertierung weist sonstige Rohwerte teilweise als schwierig aus. Unknown muss ohne erfundene Stufe erhalten bleiben. | strikte Go-Projektions- und Web-DTO-Prüfungen |
 | Ungültige Actor-Suchparameter werden falsch behandelt | Fehlendes `q` wird zu HTTP 500; `limit` erreicht den SDK-Auftrag als String. | strikte Actor-Parameterprüfungen |
 
@@ -70,7 +69,8 @@ Die Ausnahme betrifft ausschliesslich die Aktualität des Tag-Namens in
 `GO-FIX-SRCH0-MUTATION-008`. Sie nimmt weder Actor- und Kategoriemetadaten noch
 andere Assertions desselben Falls pauschal aus. Reguläre Tagfilter, das
 Aktualisieren der Tag-Zuordnung einer Tour und Zugriffsprüfungen bleiben
-verbindlich; ebenso der Schutz vor unvollständigen Suchdokumenten.
+verbindlich. Der Schutz vor unvollständigen Suchdokumenten gehört zur unten
+beschriebenen Implementierungsanforderung an neue Metadatenupdates.
 
 Der separate Fix auf `fix/search-tag-metadata`, Commit `122974380`, ist frisch
 ab `origin/dev` (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und ohne
@@ -84,6 +84,26 @@ Tests, Korpus und aktive Erwartungen bleiben unverändert. Die strikten
 Tag-Aktualitätsprüfungen können deshalb weiterhin rot werden; ihre technische
 Trennung von Diagnose und Abnahme steht vor der formalen Gesamtabnahme noch
 aus. Ein grüner SRCH0-Lauf wird hier nicht behauptet.
+
+## Bestandteil der Metadatenkorrektur: fehlende Indexdokumente
+
+Entscheidung vom 19. September 2026: „Fehlende Indexdokumente“ ist kein
+eigenständiger nachgewiesener `dev`-Fehler und kein zusätzlicher SRCH0-Blocker.
+Die Tests stellen den fehlenden Indexeintrag gezielt her; sie belegen keine
+Häufigkeit im Alltag. Neue Metadaten-Teilupdates müssen in diesem Zustand
+vollständige Suchdokumente herstellen oder die Indexaktualisierung mit einem
+Fehler abbrechen, wenn die nötigen Daten fehlen. Sie dürfen keine
+unvollständigen Treffer erzeugen. Diese Absicherung gehört in denselben Fix;
+ein eigener Branch, PR oder Arbeitspunkt ist nicht vorgesehen. Der Tag-Fix
+`fix/search-tag-metadata` (`122974380`) enthält die vollständige Neuerstellung
+bereits, geprüft durch `TestTagRenameRebuildsMissingSearchDocument`. Ohne
+Lieferung dieses optionalen Tag-Fixes entsteht daraus keine zusätzliche
+SRCH0-Abnahmevoraussetzung. Andere Indexpfade, etwa bei Startup, Freigaben
+oder Likes, werden damit weder allgemein repariert noch von ihren Prüfungen
+ausgenommen.
+Tests, Korpus und aktive Erwartungen bleiben unverändert; auch diese
+Zuordnung der Implementierungsprüfungen ist vor der formalen Gesamtabnahme
+technisch nachzuführen.
 
 ## Kein Blocker: abgerufene Suchfelder
 

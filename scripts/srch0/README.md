@@ -31,6 +31,17 @@ Metadatenbefunde und andere Assertions gemischter Fälle bleiben davon
 unberührt. Reguläre Tagfilter, Tag-Zuordnungsänderungen und Zugriffsprüfungen
 bleiben verbindlich.
 
+„Fehlende Indexdokumente“ bezeichnet eine Absicherung der neuen
+Metadaten-Teilupdates, keinen separat nachgewiesenen `dev`-Fehler und keinen
+zusätzlichen SRCH0-Blocker. Der Tag-Fix enthält sie bereits; ein eigener
+Branch, PR oder Arbeitspunkt ist nicht nötig. Die Tests erzeugen diesen
+fehlenden Zustand gezielt. Werden neue Teilupdates geliefert, müssen sie
+vollständige Suchdokumente sicherstellen oder bei unzureichenden Daten die
+Indexaktualisierung mit einem Fehler abbrechen. Ohne den optionalen Tag-Fix entsteht
+daraus keine zusätzliche SRCH0-Abnahmevoraussetzung; die technische Zuordnung
+dieser unveränderten Prüfungen steht noch aus. Details stehen unter
+[Bestandteil der Metadatenkorrektur](BEFUNDE.md#bestandteil-der-metadatenkorrektur-fehlende-indexdokumente).
+
 Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
 und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung,
 Feldauswahl und administrativen Tag-Umbenennung sind im beschriebenen Umfang
