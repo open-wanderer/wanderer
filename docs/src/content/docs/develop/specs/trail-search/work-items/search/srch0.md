@@ -34,10 +34,28 @@ fachliche Fixes mit ihren Regressionstests für separate PRs vorbereitet.
 Erhalt bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
 Fehlerweitergabe, Wiederaufnahme und Reparaturbefehl.
 
-SRCH0 bleibt bis zur Integration aller erforderlichen Korrekturen und zur
-erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
-dieser Produktstand die Fehler enthält, müssen seine betroffenen Tests rot
-bleiben. Ein kombinierter Testlauf dient der Fixprüfung und macht den
+Die Absicherung ungültiger gespeicherter Sortierfelder und -richtungen sowie
+die Vorgaberichtung bei fehlenden oder ungültigen Angaben sind seit der
+Entscheidung vom 19. September 2026 **kein SRCH0-Blocker**. Diese kleine
+Robustheitsverbesserung wird zurückgestellt; vorerst ist kein eigener PR
+vorgesehen. Ein Fehler im normalen Gebrauch ist dafür bisher nicht
+nachgewiesen. Gültige Sortierung und alle übrigen Blocker bleiben verbindlich.
+
+Betroffen sind insbesondere `SRCH0-BROWSER-009`, dessen aktive Solländerung
+`WEB-FIX-SRCH0-BROWSER-009` und der Plausibilitätstest „verwendet für ungültige
+Sortwerte gültige Vorgaben“. Historische Evidenz, aktive Erwartungen und
+strikte Tests bleiben unverändert; sie können deshalb weiterhin rot werden.
+Nur Fehler dieser Sortierabsicherung sind fachlich als Diagnose ausserhalb
+der Abnahme zu werten. Die technische Trennung von Diagnose und Abnahme ist
+vor der formalen Gesamtabnahme nachzuführen; ein grüner Lauf wird hier nicht
+behauptet. Gemischte Fälle erhalten keine Ausnahme für andere Eigenschaften.
+Details stehen in `scripts/srch0/BEFUNDE.md` unter „Zurückgestellt: Absicherung
+gespeicherter Sortwerte“.
+
+SRCH0 bleibt bis zur Integration aller übrigen erforderlichen Korrekturen und
+zur erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
+dieser Produktstand abnahmerelevante Fehler enthält, müssen seine betroffenen
+Tests rot bleiben. Ein kombinierter Testlauf dient der Fixprüfung und macht den
 ungefixten SRCH0-Stand nicht mergebar. Der bisherige grüne kombinierte Lauf
 enthielt auch das Startup-Paket und belegt keinen grünen SRCH0-Lauf ohne diese
 Änderungen.
@@ -64,9 +82,10 @@ Der Korpus unterscheidet drei Dinge:
    Eigenschaft, etwa Sichtbarkeit, gültige Koordinaten oder eine konsistente
    Sortierung? Diese Prüfung liest keine erwartete Treffermenge aus `observed`.
 
-Jede Verletzung einer geprüften Eigenschaft lässt den Test scheitern. Es gibt
-keine Ausnahme für bekannte Verstösse. Historische Beobachtungen sind weder
-eine fachliche Freigabe noch ein Ersatz für korrekte aktive Erwartungen.
+Jede Verletzung einer geprüften Eigenschaft lässt den Test scheitern. Innerhalb
+des verbindlichen Abnahmeumfangs gibt es keine Ausnahme für bekannte Verstösse.
+Historische Beobachtungen sind weder eine fachliche Freigabe noch ein Ersatz
+für korrekte aktive Erwartungen.
 
 SRCH0 führt keine neuen Suchfunktionen und keine Korrektur der gefundenen
 Produktfehler ein. Die einzige produktive Testnaht erlaubt es, den bereits
@@ -299,3 +318,4 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-08 | Produktionsmigrationen, unabhängiges Inventar und kleine Adapter | Die Tests sollen reale Zustände abbilden und überprüfbar bleiben |
 | 2026-09-08 | Dokumentation bleibt Deutsch | Vorgabe für diesen Branch |
 | 2026-09-19 | Fachliche Korrekturen mit ihren Regressionstests einzeln für separate PRs vorbereiten; Radiusfix zuerst auf `fix/search-radius-filter` | Einzelne Fixes lassen sich unabhängig prüfen. Dies ersetzt die bisherige Aufteilung in genau zwei Produkt-PRs; `fix/srch0-findings` bleibt Sammelreferenz und Startup bleibt separat. Der Radiusfix ist nur lokal vorbereitet und noch nicht integriert; SRCH0 bleibt blockiert. |
+| 2026-09-19 | Absicherung gespeicherter Sortwerte und Vorgaberichtung zurückstellen; kein SRCH0-Blocker und vorerst kein eigener PR | Der belegte Fall nutzt absichtlich ungültige Werte; ein Fehler im regulären Gebrauch ist nicht nachgewiesen. Die Entscheidung grenzt die frühere pauschale Blockerregel ein. Gültige Sortierung und übrige Blocker bleiben verbindlich; die technische Einordnung der unveränderten strikten Proben ist vor der Gesamtabnahme nachzuführen. |

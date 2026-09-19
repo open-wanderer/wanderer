@@ -2,8 +2,24 @@
 
 SRCH0 verlangt fachlich korrektes Suchverhalten. Historische Beobachtungen
 helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
-Jede verletzte geprüfte Eigenschaft lässt den Test scheitern; Ausnahmen für
-bekannte Fehler sind verboten. Die [Befunde](BEFUNDE.md) sind Merge-Blocker.
+Jede verletzte geprüfte Eigenschaft lässt den Test scheitern. Die
+[Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker und die
+zurückgestellte Absicherung gespeicherter Sortwerte; innerhalb des
+verbindlichen Abnahmeumfangs sind Fehlerausnahmen verboten.
+
+Entscheidung vom 19. September 2026: Ungültige gespeicherte Sortierfelder und
+-richtungen sowie die Vorgaberichtung bei fehlenden oder ungültigen Angaben
+sind **kein SRCH0-Blocker**. Diese Robustheitsverbesserung wird zurückgestellt;
+vorerst wird kein eigener PR vorbereitet. Ein Fehler im normalen Gebrauch
+ist dafür bisher nicht nachgewiesen. Gültige Sortierung und alle übrigen
+Blocker bleiben unverändert verbindlich.
+
+Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
+und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung
+sind fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
+und Abnahme muss vor der formalen Gesamtabnahme nachgeführt werden; dies
+belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
+[Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte).
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
@@ -19,8 +35,9 @@ PRs vorbereitet. Stand vom 19. September 2026:
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
   Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
 
-SRCH0 bleibt blockiert. Solange der von SRCH0 geprüfte Produktstand die Fehler
-enthält, müssen die betroffenen Tests rot bleiben. SRCH0 darf erst nach
+SRCH0 bleibt wegen der übrigen Befunde blockiert. Solange der von SRCH0
+geprüfte Produktstand die abnahmerelevanten Fehler enthält, müssen die
+betroffenen Tests rot bleiben. SRCH0 darf erst nach
 Integration aller erforderlichen Korrekturen einschliesslich des Startup-Pakets
 und erfolgreichen fachlichen Prüfungen seines tatsächlichen Branchstands
 gemergt werden. Der bisherige grüne Lauf in einer kombinierten Prüfkopie
