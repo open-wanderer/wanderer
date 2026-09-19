@@ -783,6 +783,12 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		// An error body decodes to an empty object, which would be stored as
+		// a trail without an id.
+		return nil, fmt.Errorf("fetching trail %s returned: %d", fetchURL, resp.StatusCode)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -792,6 +798,9 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	err = json.Unmarshal(body, &object)
 	if err != nil {
 		return nil, err
+	}
+	if object.ID == "" {
+		return nil, fmt.Errorf("fetching trail %s returned an object without an id", fetchURL)
 	}
 
 	return &object, nil
