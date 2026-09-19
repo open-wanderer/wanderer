@@ -1,20 +1,23 @@
 ---
 title: App development
-description: How to set up a development environment for the <span class="-tracking-[0.075em]">wanderer</span> mobile app
+description: How to set up a development environment for the wanderer mobile app
 ---
 
 The <span class="-tracking-[0.075em]">wanderer</span> mobile app is a [Flutter](https://flutter.dev) application located in the `app/` folder of the repository. This guide walks you through setting up a development environment for it.
 
 :::caution
-The app has not been merged into the main release line yet. To develop against a compatible backend you must run the current release version with the `-app` suffix, e.g. `v0.20.0-app`, instead of the plain release tag. These tags contain the additional backend endpoints (region catalogue, health probe, navigation, and more) that the app depends on.
+The app has not been merged into the main release line yet. Two consequences:
+
+- The `app/` folder only exists on the `feature/app` branch. Check that branch out.
+- The backend the app talks to needs endpoints (region catalogue, health probe, navigation, and more) that are only in the **`-app` Docker images**: `flomp/wanderer-db:<version>-app` and `flomp/wanderer-web:<version>-app`, e.g. `v0.20.0-app`. Both images must carry the same tag — the web image hosts the `/api/v1/regions` proxy the app relies on. There are no `-app` git tags; a source checkout of `feature/app` contains the same backend code.
 :::
 
 ## Prerequisites
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) with Dart `^3.11.5`
-- A running <span class="-tracking-[0.075em]">wanderer</span> backend at the matching `-app` release (see above) — either a [local development setup](/develop/local-development) checked out at that tag or a self-hosted instance running it
-- For Android: Android Studio / SDK with `minSdk` 26 (Android 8.0) or higher
-- For iOS: Xcode and an Apple development certificate
+- A running <span class="-tracking-[0.075em]">wanderer</span> backend that supports the app: either a [local development setup](/develop/local-development) from the `feature/app` branch, or a self-hosted instance running the `-app` images (see above)
+- For Android: Android Studio / SDK with a JDK 17, `compileSdk` 37 and `minSdk` 26 (Android 8.0)
+- For iOS: Xcode with CocoaPods; an Apple development certificate for running on a physical device (the simulator needs none)
 
 Verify your setup with:
 
@@ -33,9 +36,11 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 ```
 
+`lib/objectbox-model.json` and `lib/objectbox.g.dart` are committed. Commit them whenever an ObjectBox entity changes — the model file records entity and property IDs that must stay stable across builds.
+
 ## Localization
 
-User-facing strings live in ARB files in `lib/i18n/` (`app_en.arb` is the template). After adding or changing a string, regenerate the localization classes with:
+User-facing strings live in ARB files in `lib/i18n/` (`app_en.arb` is the template). `flutter run` and `flutter build` regenerate the localization classes automatically (`generate: true` in `pubspec.yaml`). To regenerate them explicitly after adding or changing a string — and to refresh the untranslated-messages report — run:
 
 ```bash
 flutter gen-l10n
@@ -55,7 +60,9 @@ flutter run
 
 On first launch the app asks which instance to connect to. You can enter any URL — including your local development server.
 
-For security reasons the app only permits unencrypted (`http://`) connections to `127.0.0.1`; plain HTTP to LAN or emulator-bridge addresses (such as `10.0.2.2`) is blocked on both platforms. To connect to a backend running on your development machine:
+The app talks to the **SvelteKit frontend**, which proxies to PocketBase — point it at the frontend's port (`5173` for `npm run dev`, `3000` for a production build), never at PocketBase's `8090` directly.
+
+For security reasons the app only permits unencrypted (`http://`) connections to `127.0.0.1` (iOS additionally accepts `localhost`); plain HTTP to LAN or emulator-bridge addresses (such as `10.0.2.2`) is blocked on both platforms. To connect to a backend running on your development machine:
 
 - **Android (emulator or USB device):** forward the port with adb, then connect to `127.0.0.1`:
 
@@ -76,8 +83,9 @@ For security reasons the app only permits unencrypted (`http://`) connections to
 | `lib/routes/` | One file per screen, wired together in `lib/provider/router_provider.dart` (go_router) |
 | `lib/components/` | Reusable widgets, grouped by feature (`trail/`, `map/`, `route_planner/`, …) |
 | `lib/provider/` | Riverpod providers — app state, API access, settings |
+| `lib/actions/` | Multi-step user flows shared between screens (launching navigation, importing a file, requesting permissions) |
 | `lib/models/` | Immutable data models (freezed) |
-| `lib/entities/` | ObjectBox entities for local persistence (offline trails, recordings) |
+| `lib/entities/` | ObjectBox entities for local persistence (offline trails, recordings, regions) |
 | `lib/services/` | Long-running services (trail downloads, tile proxy, position sources) |
 | `lib/i18n/` | ARB translation files and generated localizations |
 
