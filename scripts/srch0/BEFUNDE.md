@@ -6,8 +6,9 @@ Stand: 19. September 2026. Geprüfte Produktbaseline:
 Die Tests auf `feat/srch0` verlangen korrekte Ergebnisse und müssen gegen
 den bisherigen Produktcode rot bleiben. Bekannte Fehler innerhalb des
 verbindlichen Abnahmeumfangs sind keine erlaubten Abweichungen. Die unten
-dokumentierten Befunde zur Sortierabsicherung, Feldauswahl und administrativen
-Tag-Umbenennung sind seit dem 19. September 2026 keine SRCH0-Blocker.
+dokumentierten Befunde zur Sortierabsicherung, Feldauswahl, administrativen
+Tag-Umbenennung und Absicherung negativer Thumbnailindizes sind seit dem
+19. September 2026 keine SRCH0-Blocker.
 Produktkorrekturen werden als einzelne fachliche Fixes
 mit ihren Regressionstests für separate PRs vorbereitet. `fix/srch0-findings` bleibt die
 Sammelreferenz für die bisherigen Korrekturen. `fix/search-index-startup`
@@ -42,7 +43,6 @@ SRCH0-Produktstand weiterhin offen.
 | HTTP-Clientfehler wird zu 500 | Ein echter `MeilisearchApiError` mit HTTP 400 hat den Status unter `response.status`. Der Proxy liest `httpStatus` und antwortet mit 500. Die Fehlerklasse geht verloren. | `SRCH0-P-HTTP` in `web/src/lib/srch0/plausibility.test.ts`; reale API-Engine-Negativfälle |
 | Radius bei Nullkoordinaten fehlt | `(46,7)` erzeugt einen Radiusfilter; `(0,7)` und `(46,0)` erzeugen keinen. Gültige geografische Koordinaten werden durch Truthiness verworfen. | `SRCH0-P-GEO-ZERO`; `SRCH0-COMPILER-017/018` |
 | Falsche Abstiegslimite in der Karte | Bei `max_elevation_gain=800` und `max_elevation_loss=700` ist `elevationLossMax=700`, aber `elevationLossLimit=800`. Die Achse verwendet zwei widersprüchliche Grenzen. | `SRCH0-P-LOSS-LIMIT`; echter Map-Loader |
-| Negativer Thumbnailindex verursacht Panic | Das echte Produktionsschema akzeptiert `thumbnail=-1` bei vorhandenem, tatsächlich hochgeladenem JPEG. Der Projektor prüft nur die obere Grenze und greift auf `photos[-1]` zu. Ein speicherbarer Record bringt die Projektion zum Absturz. | `SRCH0-PROJECTION-021`; `db/srch0_projection_test.go` |
 | Löschen eines Shares entfernt weitere Freigaben aus dem Suchindex | Alice und Bob haben je einen Share auf denselben Trail. Nach Löschen von Alices Share existiert Bobs Datenbankfreigabe weiterhin; der Hook schreibt dennoch `shares=[]` in den Suchindex. Bob verliert damit diesen Suchzugang. | `SRCH0-MUTATION-005`; echte Datenbankprobe und materialisierte Engineaufträge |
 | Geänderte Actor- und Kategoriemetadaten bleiben im Trailindex alt | Änderungen an Actor oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Die Entscheidung zur Tag-Umbenennung nimmt diese Befunde nicht von der Abnahme aus. | `SRCH0-MUTATION-007/009`; echte Hooks und Datenbankproben |
 | Fehlende oder ungültige Schwierigkeit wird erfunden | Go projiziert Unknown als `0`/leicht; die Web-Konvertierung weist sonstige Rohwerte teilweise als schwierig aus. Unknown muss ohne erfundene Stufe erhalten bleiben. | strikte Go-Projektions- und Web-DTO-Prüfungen |
@@ -53,6 +53,38 @@ SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
 Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
 Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)
 beschreibt den Vergleich mit der historischen Beobachtung.
+
+## Kein Blocker: negativer Thumbnailindex
+
+Entscheidung vom 19. September 2026: Die Absicherung negativer
+Thumbnailindizes wird als Robustheitsverbesserung eingeordnet und ist
+**kein SRCH0-Merge- oder Abnahmeblocker**. Sie wird separat auf
+`fix/search-thumbnail-index` korrigiert. Die normale Fotoauswahl erzeugt
+nichtnegative Indizes; auch die JSON-API validiert sie entsprechend.
+Multipart-Anfragen, die PocketBase-Records-API oder interne Schreibzugriffe
+können dagegen negative Werte speichern. Der Fehler ist nachgewiesen und
+betrifft mehr als die Bildanzeige: Das echte Produktionsschema akzeptiert
+`thumbnail=-1` bei vorhandenem, tatsächlich hochgeladenem JPEG. Der Projektor
+prüft nur die obere Grenze, greift auf `photos[-1]` zu und bricht mit einer
+Panic ab.
+
+Der Fix fällt bei einem negativen Index auf das erste Foto zurück. Commit
+`e6861358b` ist frisch ab `origin/dev` (`c73966d6c`) lokal vorbereitet, ohne
+Push oder PR und ohne Integration in `dev` oder `feat/srch0`. Eingabevalidierung,
+PocketBase-Schema und Fotoanordnung in der Oberfläche gehören nicht zu diesem
+Fix. Andere Projektions-, Zugriffs- und Startup-Prüfungen bleiben verbindlich.
+
+Die gezielte Regression reproduziert auf `dev` die Panic bei `-1`. Mit dem
+Fix bestehen alle sechs Grenzfälle (negativer Index, erstes und letztes Foto,
+Index gleich und grösser als die Fotoanzahl sowie keine Fotos) und die gesamte
+Backend-Testsuite. Diese Einzelprüfung ersetzt keine SRCH0-Gesamtabnahme.
+
+Die Evidenz bleibt erhalten: `SRCH0-PROJECTION-021`, die aktive Solländerung
+`GO-FIX-SRCH0-PROJECTION-021` und die Prüfung in
+`db/srch0_projection_test.go`. Tests, Korpus und aktive Erwartungen bleiben
+unverändert; die strikten Prüfungen können daher weiterhin rot werden.
+Ihre technische Trennung von Diagnose und Abnahme steht vor der formalen
+Gesamtabnahme noch aus. Ein grüner SRCH0-Lauf wird hier nicht behauptet.
 
 ## Kein Blocker: administrative Tag-Umbenennung
 
@@ -150,7 +182,8 @@ aktive Solländerung `WEB-FIX-SRCH0-BROWSER-009` und der Plausibilitätstest
 Tests, Korpus und Sollwerte werden durch diese Dokumentationsentscheidung
 nicht geändert; die bisherigen strikten Assertions können deshalb weiterhin
 rot werden. Ausschliesslich Fehler der genannten Sortierabsicherung, der
-oben beschriebenen Feldauswahl und der administrativen Tag-Umbenennung gelten
+oben beschriebenen Feldauswahl, der administrativen Tag-Umbenennung und der
+Absicherung negativer Thumbnailindizes gelten
 im jeweils abgegrenzten Umfang fachlich als Diagnose ausserhalb der
 SRCH0-Abnahme. Die technische Trennung
 von Diagnose und Abnahme muss vor der formalen Gesamtabnahme nachgeführt

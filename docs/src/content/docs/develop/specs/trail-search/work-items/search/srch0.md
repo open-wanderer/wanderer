@@ -70,6 +70,23 @@ und noch nicht in `dev` oder `feat/srch0` integriert. Umfang und erfolgreiche
 Einzelprüfungen stehen in `scripts/srch0/BEFUNDE.md` unter
 „Kein Blocker: administrative Tag-Umbenennung“.
 
+Die Absicherung negativer Thumbnailindizes ist ebenfalls **kein SRCH0-Merge-
+oder Abnahmeblocker**. Der Befund `SRCH0-PROJECTION-021` und seine aktive
+Solländerung `GO-FIX-SRCH0-PROJECTION-021` bleiben erhalten: Das reale
+PocketBase-Schema erlaubt einen negativen Index bei vorhandenem Foto; der
+Projektor greift damit ausserhalb des Arrays zu und bricht mit einer Panic
+ab. Die normale Fotoauswahl und JSON-API erzeugen oder erlauben diesen Wert
+nicht; Multipart-, PocketBase- und interne Schreibpfade können ihn dagegen
+speichern. Der separate Fix `fix/search-thumbnail-index`, Commit `e6861358b`,
+frisch ab `origin/dev` (`c73966d6c`), fällt bei einem negativen Index auf das erste Foto
+zurück. Er ist lokal ohne Push oder PR vorbereitet und noch nicht in `dev`
+oder `feat/srch0` integriert. Er ändert weder Eingabevalidierung noch Schema
+oder Fotoanordnung. Andere Projektions-, Zugriffs- und Startup-Prüfungen
+bleiben verbindlich. Sechs Grenzfälle und die gesamte Backend-Testsuite sind
+erfolgreich; dies ersetzt keine SRCH0-Gesamtabnahme. Details stehen in
+`scripts/srch0/BEFUNDE.md` unter
+„Kein Blocker: negativer Thumbnailindex“.
+
 „Fehlende Indexdokumente“ ist kein separat nachgewiesener `dev`-Fehler und
 kein zusätzlicher SRCH0-Blocker, sondern eine Implementierungsanforderung an
 neue Metadaten-Teilupdates. Die Tests stellen den fehlenden Zustand gezielt
@@ -91,14 +108,16 @@ Sortwerte gültige Vorgaben“ sowie für die Feldauswahl `SRCH0-P-RETRIEVAL`,
 `SRCH0-COMPILER-049` und `WEB-FIX-SRCH0-COMPILER-049`.
 Historische Evidenz, aktive Erwartungen und
 strikte Tests bleiben unverändert; sie können deshalb weiterhin rot werden.
-Nur Fehler dieser Sortierabsicherung, Feldauswahl und administrativen
-Tag-Umbenennung sind im jeweils beschriebenen Umfang fachlich als Diagnose ausserhalb
+Nur Fehler dieser Sortierabsicherung, Feldauswahl, administrativen
+Tag-Umbenennung und Absicherung negativer Thumbnailindizes sind im jeweils
+beschriebenen Umfang fachlich als Diagnose ausserhalb
 der Abnahme zu werten. Die technische Trennung von Diagnose und Abnahme ist
 vor der formalen Gesamtabnahme nachzuführen; ein grüner Lauf wird hier nicht
 behauptet. Gemischte Fälle erhalten keine Ausnahme für andere Eigenschaften.
 Details stehen in `scripts/srch0/BEFUNDE.md` unter „Zurückgestellt: Absicherung
-gespeicherter Sortwerte“, „Kein Blocker: abgerufene Suchfelder“ und
-„Kein Blocker: administrative Tag-Umbenennung“.
+gespeicherter Sortwerte“, „Kein Blocker: abgerufene Suchfelder“,
+„Kein Blocker: administrative Tag-Umbenennung“ und
+„Kein Blocker: negativer Thumbnailindex“.
 
 SRCH0 bleibt bis zur Integration aller übrigen erforderlichen Korrekturen und
 zur erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
@@ -183,7 +202,8 @@ Die ausführliche, reproduzierbare Bewertung steht in
 HTTP-Clientstatus, Radiusfilter bei Nullkoordinaten, die Abstiegslimite der
 Karte und die nicht weitergereichte Feldauswahl. Ein negatives Thumbnail mit
 vorhandenem Foto ist im Produktionsschema speicherbar und bringt den
-Projektor zum Absturz.
+Projektor zum Absturz; seine Absicherung ist gemäss Entscheidung vom
+19. September 2026 kein SRCH0-Blocker und wird separat korrigiert.
 
 Die Clusterabfrage erreicht beim grossen Dataset die Indexgrenze von 1'000
 Treffern; die Duplikatprüfung untersucht nur die erste Engineantwort mit
@@ -370,3 +390,4 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-19 | Ignorierte Feldauswahl (`SRCH0-GAP-DTO-001`) ist kein SRCH0-Blocker; separat auf `fix/search-retrieved-fields` korrigieren | Die Korrektur begrenzt Antwortfelder, ohne Treffer, Filter, Sortierung oder Zugriffsregeln zu ändern; eine Beschleunigung ist nicht gemessen. Der Fix ist lokal ohne Push oder PR vorbereitet. Die unveränderten strikten Proben sind vor der Gesamtabnahme technisch als Diagnose einzuordnen; übrige Blocker bleiben verbindlich. |
 | 2026-09-19 | Veralteter Tag-Name nach administrativer Umbenennung ist kein SRCH0-Merge- oder Abnahmeblocker; separater Fix auf `fix/search-tag-metadata` | Die normale Oberfläche bietet keine Umbenennung und die PocketBase-Records-API erlaubt sie nur Superusern. Die Ausnahme betrifft ausschliesslich die Tag-Aktualität in `SRCH0-MUTATION-008`, keine übrigen Metadaten oder Assertions gemischter Fälle. Der lokale Fix ist ungepusht und nicht integriert. Strikte Tests und Erwartungen bleiben unverändert; die technische Trennung von Diagnose und Abnahme steht aus. |
 | 2026-09-19 | Fehlende Indexdokumente als Bestandteil neuer Metadatenupdates behandeln; kein eigener Fix oder zusätzlicher SRCH0-Blocker | Der fehlende Zustand wird in Tests gezielt hergestellt und belegt keinen eigenständigen `dev`-Fehler. Der Tag-Fix enthält die Absicherung bereits. Ihre Implementierungsprüfungen begründen ohne diesen optionalen Fix keine zusätzliche Abnahmevoraussetzung; die technische Zuordnung der unveränderten Prüfungen steht aus. |
+| 2026-09-19 | Negative Thumbnailindizes sind kein SRCH0-Merge- oder Abnahmeblocker; separat auf `fix/search-thumbnail-index` korrigieren | Die Panic mit einem im Produktionsschema speicherbaren negativen Index bleibt belegt. Normale Fotoauswahl und JSON-API erzeugen oder erlauben diesen Wert nicht. Der lokale Fix verwendet bei negativem Index das erste Foto, ohne Eingabevalidierung oder Fotoanordnung zu ändern. Tests und Erwartungen bleiben unverändert; die technische Trennung von Diagnose und Abnahme steht aus. |

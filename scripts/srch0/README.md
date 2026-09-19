@@ -4,7 +4,8 @@ SRCH0 verlangt fachlich korrektes Suchverhalten. Historische Beobachtungen
 helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
 Jede verletzte geprüfte Eigenschaft lässt den Test scheitern. Die
 [Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker von der
-Sortierabsicherung, der Feldauswahl und der administrativen Tag-Umbenennung
+Sortierabsicherung, der Feldauswahl, der administrativen Tag-Umbenennung und
+der Absicherung negativer Thumbnailindizes
 ohne Blockerstatus; innerhalb des verbindlichen Abnahmeumfangs sind
 Fehlerausnahmen verboten.
 
@@ -31,6 +32,16 @@ Metadatenbefunde und andere Assertions gemischter Fälle bleiben davon
 unberührt. Reguläre Tagfilter, Tag-Zuordnungsänderungen und Zugriffsprüfungen
 bleiben verbindlich.
 
+Die Absicherung negativer Thumbnailindizes (`SRCH0-PROJECTION-021` und
+`GO-FIX-SRCH0-PROJECTION-021`) ist ebenfalls **kein SRCH0-Merge- oder
+Abnahmeblocker**. Ein speicherbarer negativer Index bei vorhandenem Foto
+führt nachweislich zu einer Panic im Projektor. Die normale Fotoauswahl und
+die JSON-API erzeugen oder erlauben solche Werte nicht; Multipart-,
+PocketBase- und interne Schreibpfade können sie dagegen speichern.
+`fix/search-thumbnail-index` fällt für diesen Fall auf das erste Foto zurück.
+Die Eingabevalidierung und Fotoanordnung werden dabei nicht verändert.
+Andere Projektions-, Zugriffs- und Startup-Prüfungen bleiben verbindlich.
+
 „Fehlende Indexdokumente“ bezeichnet eine Absicherung der neuen
 Metadaten-Teilupdates, keinen separat nachgewiesenen `dev`-Fehler und keinen
 zusätzlichen SRCH0-Blocker. Der Tag-Fix enthält sie bereits; ein eigener
@@ -44,13 +55,15 @@ dieser unveränderten Prüfungen steht noch aus. Details stehen unter
 
 Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
 und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung,
-Feldauswahl und administrativen Tag-Umbenennung sind im beschriebenen Umfang
+Feldauswahl, administrativen Tag-Umbenennung und Absicherung negativer
+Thumbnailindizes sind im beschriebenen Umfang
 fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
 und Abnahme muss vor der formalen Gesamtabnahme nachgeführt werden; dies
 belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
 [Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte),
-[abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder) und
-[administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung).
+[abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder),
+[administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung)
+und [negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex).
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
@@ -72,6 +85,11 @@ PRs vorbereitet. Stand vom 19. September 2026:
   Voraussetzung für SRCH0. Umfang und Einzelprüfungen stehen unter
   [administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung).
 - `fix/srch0-findings` bleibt die Sammelreferenz für die bisherigen Korrekturen.
+- `fix/search-thumbnail-index`, Commit `e6861358b`, ist frisch ab `origin/dev`
+  (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und ohne Integration in `dev` oder
+  `feat/srch0`. Diese Absicherung ist keine Voraussetzung für SRCH0.
+  Umfang, Evidenz und erfolgreiche Einzelprüfungen stehen unter
+  [negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex).
 - `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
   Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
