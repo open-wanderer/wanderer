@@ -387,10 +387,25 @@ SRCH0-Abnahme; Nachfolgetasks müssen sie erhalten.
 Der ausführbare Korpus ergänzt mindestens die auf `feat/srch0` belegten
 Fehlerfälle: SDK-HTTP-Statusweitergabe, Actor-Suchparameter, negative
 Thumbnailindizes, Erhalt verbleibender Shares, Aktualisierung abhängiger
-Actor-/Tag-/Kategoriemetadaten und vollständige Materialisierung fehlender
-Indexdokumente. Die globale Tag-Umbenennung `SRCH0-MUTATION-008` bleibt dabei
+Actor-/Tag-/Kategoriemetadaten. Die globale Tag-Umbenennung
+`SRCH0-MUTATION-008` bleibt dabei
 als nicht blockierender Diagnosefall erhalten; die unten begründete Ausnahme
 gilt nicht pauschal für andere Metadatenmutationen.
+
+Die Prüfungen fehlender Indexdokumente sichern die neu eingeführten
+Metadaten-Teilaktualisierungen ab: Ein fehlender Eintrag darf durch sie nicht
+als unvollständiger Treffer entstehen. Die Tests stellen diesen Ausgangszustand
+gezielt her; daraus folgt kein zusätzlich nachgewiesener Bedienfehler in
+`dev`. Diese Absicherung gehört zur jeweiligen Metadaten-Korrektur und erhält
+kein separates Arbeitspaket, keinen eigenen PR und keinen zusätzlichen
+SRCH0-Blockerstatus. Sobald eine solche Korrektur eingeführt wird, muss sie
+diese Anforderung samt Regressionstests erfüllen. Für Tags ist dies bereits
+in `fix/search-tag-metadata` (`122974380`) enthalten; die Absicherung macht
+den nicht blockierenden Tag-Fix nicht zur Abnahmevoraussetzung. Bestehende
+Startup- und andere Indexfehler werden dadurch nicht neu eingestuft. Tests
+und Korpus bleiben unverändert; die noch ausstehende Trennung von Diagnose
+und Abnahme muss diese Zuordnung ebenfalls berücksichtigen.
+
 Clustergrundlage und Upload-Duplikatprüfung müssen die gesamte
 zulässige Kandidatenmenge berücksichtigen; Engine-Defaultlimits und
 `maxTotalHits` dürfen kein erfolgreiches unvollständiges Ergebnis erzeugen.
@@ -873,3 +888,4 @@ SRCH0.
 | 2026-09-19 | `SRCH0-GAP-SORT-001` wird als Robustheitsverbesserung zurückgestellt und ist kein SRCH0-Blocker; vorerst kein eigener PR | ungültige Storagewerte sind ein defensiver Testfall ohne nachgewiesenen Fehler im gewöhnlichen Gebrauch; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
 | 2026-09-19 | `SRCH0-GAP-DTO-001` ist kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-retrieved-fields` | die vorgesehene Feldauswahl reduziert unnötige Antwortdaten ohne Änderung der Suchergebnisse; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
 | 2026-09-19 | Die globale Tag-Umbenennung `SRCH0-MUTATION-008` ist kein SRCH0-Blocker; separater lokaler Fix auf `fix/search-tag-metadata` (`122974380`) bleibt vorbereitet | Umbenennung ist nur als administrativer Sonderfall möglich, nicht in der normalen UI oder über die Records-API normaler Benutzer; reguläre Tagfilter und Zuordnungsänderungen bleiben verbindlich, die Diagnose-/Abnahmetrennung in der Suite steht noch aus |
+| 2026-09-19 | Schutz vor unvollständigen neuen Indexdokumenten gehört zur jeweiligen Metadaten-Korrektur, kein separates Arbeitspaket oder zusätzlicher SRCH0-Blocker | Die Tests prüfen gezielt fehlende Dokumente als Ausgangslage der neuen Teilaktualisierung; der Tag-Fix enthält die Absicherung bereits. Tests und Korpus bleiben unverändert; andere Indexfehler sind nicht ausgenommen. |
