@@ -100,6 +100,10 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 			cachedID := record.Id
 			record, err = performFullSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
+				if errors.Is(err, errRemoteGone) {
+					dropGoneRemoteRecord(e.App, "trails", cachedID)
+					return e.NotFoundError("Trail not found", err)
+				}
 				cached := cachedRecordFallback(e.App, "trails", cachedID, err)
 				if cached == nil {
 					if errors.Is(err, util.ErrRateLimited) {
@@ -135,7 +139,13 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 					syncRecord := record.Fresh()
 					go func() {
 						defer trailSyncing.Delete(iri)
-						performFullSync(e.App, bgCtx, &urlCopy, syncRecord)
+						_, err := performFullSync(e.App, bgCtx, &urlCopy, syncRecord)
+						switch {
+						case errors.Is(err, errRemoteGone):
+							dropGoneRemoteRecord(e.App, "trails", syncRecord.Id)
+						case err != nil:
+							backgroundSyncFailed(e.App, "trails", iri, err)
+						}
 					}()
 				}
 			}
@@ -248,6 +258,9 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 		statusErr := fmt.Errorf("remote trail fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
 		if res.StatusCode >= http.StatusInternalServerError {
 			return localTrail, fmt.Errorf("%w: %w", errRemoteUnavailable, statusErr)
+		}
+		if isGoneStatus(res.StatusCode) {
+			return localTrail, fmt.Errorf("%w: %w", errRemoteGone, statusErr)
 		}
 		return localTrail, statusErr
 	}
