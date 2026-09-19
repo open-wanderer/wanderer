@@ -203,6 +203,16 @@ begrenzt die Ausnahme und hält die noch nachzuführende Diagnose-/Abnahmetrennu
 fest. Reguläre Tagfilter, Tagzuordnungen und andere Metadatenbefunde bleiben
 von dieser Ausnahme unberührt.
 
+Die Vorschaubild-Absicherung für negative Indizes `SRCH0-PROJECTION-021`
+ist ebenfalls **kein SRCH0-Blocker** und erhält den separaten lokalen Fix
+`fix/search-thumbnail-index`. Der nachgewiesene Absturz betrifft Werte,
+die normale Fotoauswahl und JSON-API nicht zulassen, andere Schreibpfade
+jedoch erlauben. Der Fix verwendet bei einem negativen Index das erste
+Foto. Die [Vorschaubild-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-vorschaubild-absicherung)
+grenzt diese Ausnahme ab; die Diagnose-/Abnahmetrennung in der Suite steht
+noch aus. Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben
+verbindlich. Der Fix ist noch nicht gepusht, als PR eingereicht oder integriert.
+
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
 Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0
 verlangt bereits Datenerhalt, abgeschlossene Initialisierung vor Suchfreigabe

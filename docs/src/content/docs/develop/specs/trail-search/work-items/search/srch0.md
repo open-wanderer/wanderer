@@ -43,8 +43,9 @@ blockieren Merge und Abnahme, bis die Korrekturen integriert sind und die
 betroffenen Tests bestehen. `known_gap`, ein `successor_ref` oder ein historisch grüner Lauf
 sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
 Kompatibilitätsvertrag für nachfolgende Arbeiten. Die Sortier-Robustheit
-`SRCH0-GAP-SORT-001`, die Feldauswahl `SRCH0-GAP-DTO-001` und die globale
-Tag-Umbenennung `SRCH0-MUTATION-008` gehören nicht zu diesem Abnahmeumfang;
+`SRCH0-GAP-SORT-001`, die Feldauswahl `SRCH0-GAP-DTO-001`, die globale
+Tag-Umbenennung `SRCH0-MUTATION-008` und negative Thumbnailindizes
+`SRCH0-PROJECTION-021` gehören nicht zu diesem Abnahmeumfang;
 ihre Diagnosefälle bleiben nachvollziehbar erhalten.
 
 Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
@@ -64,7 +65,7 @@ SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
 | Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
 | Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
-| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001` und die Tag-Umbenennung `SRCH0-MUTATION-008` sind keine Blocker |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001`, die Tag-Umbenennung `SRCH0-MUTATION-008` und negative Thumbnailindizes `SRCH0-PROJECTION-021` sind keine Blocker |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
 Der historische Bestandsanker besteht aus Commit, Engineprofil,
@@ -388,9 +389,10 @@ Der ausführbare Korpus ergänzt mindestens die auf `feat/srch0` belegten
 Fehlerfälle: SDK-HTTP-Statusweitergabe, Actor-Suchparameter, negative
 Thumbnailindizes, Erhalt verbleibender Shares, Aktualisierung abhängiger
 Actor-/Tag-/Kategoriemetadaten. Die globale Tag-Umbenennung
-`SRCH0-MUTATION-008` bleibt dabei
-als nicht blockierender Diagnosefall erhalten; die unten begründete Ausnahme
-gilt nicht pauschal für andere Metadatenmutationen.
+`SRCH0-MUTATION-008` und negative Thumbnailindizes `SRCH0-PROJECTION-021`
+bleiben dabei als nicht blockierende Diagnosefälle erhalten; die unten
+begründeten Ausnahmen gelten nicht pauschal für andere Metadatenmutationen
+oder Projektionsfehler.
 
 Die Prüfungen fehlender Indexdokumente sichern die neu eingeführten
 Metadaten-Teilaktualisierungen ab: Ein fehlender Eintrag darf durch sie nicht
@@ -496,6 +498,45 @@ Tag-Umbenennungen in den Suchdokumenten betroffener Touren nach. Der
 Regressionstest mit 201 betroffenen Touren und die gesamte Backend-Testsuite
 sind erfolgreich; Push, PR und Integration in `dev` oder `feat/srch0` sind
 noch nicht erfolgt. Dieser Nachweis betrifft den separaten Fix, nicht die
+SRCH0-Gesamtabnahme.
+
+### Nicht blockierende Vorschaubild-Absicherung
+
+**Entscheidung vom 19. September 2026:** Der negative Thumbnailindex
+(`SRCH0-PROJECTION-021`) ist kein Merge- oder Abnahmeblocker für SRCH0,
+wird aber separat auf `fix/search-thumbnail-index` korrigiert. Der Fehler
+ist nachgewiesen: Ein im tatsächlichen PocketBase-Schema gespeicherter
+Datensatz mit Foto und `thumbnail: -1` verursacht bei der Suchprojektion
+eine Go-Panic. Es handelt sich nicht bloss um ein falsches Vorschaubild.
+
+Die normale Fotoauswahl erzeugt keine negativen Indizes; die JSON-API weist
+sie zurück. Über den Multipart-Pfad oder direkte beziehungsweise interne
+PocketBase-Schreibzugriffe kann der ungültige Wert jedoch gespeichert
+werden. Ein Auslöser durch normale Bedienung der Oberfläche ist bisher
+nicht nachgewiesen. Deshalb wird die Absicherung separat behandelt und
+nicht zur Voraussetzung der SRCH0-Suchbasis gemacht.
+
+Der Fix erweitert ausschliesslich die vorhandene Bereichsprüfung: Bei
+einem negativen Index wird wie bei einem zu grossen Index das erste Foto
+verwendet. API-Validierung, Datenbankschema und Fotoreihenfolge ändern sich
+dadurch nicht. Die Ausnahme gilt nur für diesen negativen Index; andere
+Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben verbindlich.
+
+Case-ID, historische Evidenz und die Solländerung
+`GO-FIX-SRCH0-PROJECTION-021` bleiben erhalten. Tests, Korpus und
+Erwartungen werden durch diese Dokumentänderung nicht geändert. Die
+vorhandene Suite kann den Fall weiterhin als Pflichtprüfung behandeln;
+die Trennung der Diagnose von der verbindlichen Abnahme ist noch
+nachzuführen. Diese Einstufung behauptet keinen grünen Gesamtlauf und
+hebt keine übrigen SRCH0-Blocker auf.
+
+Die isolierte Korrektur ist auf `fix/search-thumbnail-index` (`e6861358b`)
+lokal direkt ab `origin/dev` (`c73966d6c`) vorbereitet. Der gezielte Test
+reproduziert vor der Korrektur die Go-Panic bei `-1`. Nach der Korrektur
+bestehen alle sechs Grenzfälle (negativer Index, erstes und letztes Foto,
+Index gleich oder grösser als die Fotoanzahl sowie keine Fotos) und die
+gesamte Backend-Testsuite. Push, PR und Integration sind noch nicht
+erfolgt. Dieser Nachweis betrifft den isolierten Fix, nicht die
 SRCH0-Gesamtabnahme.
 
 ### Weitergehende Folgearbeiten
@@ -812,6 +853,14 @@ Fixbranch ab `origin/dev` (`c73966d6c`), ohne Push, PR oder Integration.
 Die [Tag-Einstufung](#nicht-blockierende-tag-umbenennung) beschreibt den
 administrativen Sonderfall, den begrenzten Fix und die Prüfungsnachweise.
 
+Die ebenfalls nicht blockierende Vorschaubild-Absicherung
+`SRCH0-PROJECTION-021` erhält mit `fix/search-thumbnail-index` einen
+eigenen lokalen Fixbranch (`e6861358b`) direkt ab `origin/dev`
+(`c73966d6c`), ohne Push, PR oder Integration. Sechs Grenzfälle und die
+gesamte Backend-Testsuite bestehen. Die [Vorschaubild-Einstufung](#nicht-blockierende-vorschaubild-absicherung)
+beschreibt den nachgewiesenen Absturz, die begrenzte Ausnahme und den
+isolierten Prüfungsnachweis.
+
 Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
 
 | Feld | Stand |
@@ -889,3 +938,4 @@ SRCH0.
 | 2026-09-19 | `SRCH0-GAP-DTO-001` ist kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-retrieved-fields` | die vorgesehene Feldauswahl reduziert unnötige Antwortdaten ohne Änderung der Suchergebnisse; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
 | 2026-09-19 | Die globale Tag-Umbenennung `SRCH0-MUTATION-008` ist kein SRCH0-Blocker; separater lokaler Fix auf `fix/search-tag-metadata` (`122974380`) bleibt vorbereitet | Umbenennung ist nur als administrativer Sonderfall möglich, nicht in der normalen UI oder über die Records-API normaler Benutzer; reguläre Tagfilter und Zuordnungsänderungen bleiben verbindlich, die Diagnose-/Abnahmetrennung in der Suite steht noch aus |
 | 2026-09-19 | Schutz vor unvollständigen neuen Indexdokumenten gehört zur jeweiligen Metadaten-Korrektur, kein separates Arbeitspaket oder zusätzlicher SRCH0-Blocker | Die Tests prüfen gezielt fehlende Dokumente als Ausgangslage der neuen Teilaktualisierung; der Tag-Fix enthält die Absicherung bereits. Tests und Korpus bleiben unverändert; andere Indexfehler sind nicht ausgenommen. |
+| 2026-09-19 | Negative Thumbnailindizes `SRCH0-PROJECTION-021` sind kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-thumbnail-index` (`e6861358b`) | Der Absturz ist mit einem gespeicherten Datensatz und Foto nachgewiesen, normale Fotoauswahl und JSON-API lassen negative Werte jedoch nicht zu. Der Fix fällt auf das erste Foto zurück; Diagnosefall und Solländerung bleiben erhalten, die Diagnose-/Abnahmetrennung in der Suite steht noch aus. |

@@ -103,18 +103,23 @@ zulässigen Ausnahmen. Testkorpus und Korrekturen dürfen getrennte PRs sein;
 die Korrekturen bleiben Voraussetzungen der SRCH0-Abnahme.
 
 Die Sortier-Robustheit `SRCH0-GAP-SORT-001`, die Feldauswahl
-`SRCH0-GAP-DTO-001` und die globale Tag-Umbenennung `SRCH0-MUTATION-008`
+`SRCH0-GAP-DTO-001`, die globale Tag-Umbenennung `SRCH0-MUTATION-008`
+und negative Thumbnailindizes `SRCH0-PROJECTION-021`
 liegen seit den Entscheidungen vom 19. September 2026 ausserhalb dieses
 verbindlichen Abnahmeumfangs. Die Sortier-Robustheit bleibt zurückgestellt;
 Feldauswahl und Tag-Umbenennung werden separat korrigiert. Die Umbenennung
 ist ein administrativer Sonderfall, der in der normalen UI und für normale
 API-Benutzer nicht verfügbar ist.
+Die Vorschaubild-Absicherung wird ebenfalls separat korrigiert. Sie
+verhindert den nachgewiesenen Absturz bei negativen Indizes, die normale
+Fotoauswahl und JSON-API nicht zulassen, andere Schreibpfade jedoch erlauben.
 Die genaue Abgrenzung und der
 unveränderte Stand der Testimplementierung sind in
 [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) dokumentiert.
 Gültige Bestandssortierungen, reguläre Tagfilter und Tagzuordnungen sowie
 die übrigen Fehler bleiben verbindlich. Die Tag-Ausnahme stuft andere
-Metadatenbefunde nicht neu ein.
+Metadatenbefunde nicht neu ein. Die Vorschaubild-Ausnahme betrifft keine
+anderen Projektions-, Sichtbarkeits- oder Startup-Prüfungen.
 
 Damit gehören etwa fehlerhafte Radiusgrenzen, Unknown-Difficulty-Ergebnisse,
 Listenprojektionen oder ein destruktiver normaler Indexstart nicht erst in

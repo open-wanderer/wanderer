@@ -86,6 +86,15 @@ Integration. Die [Tag-Einstufung](/develop/specs/trail-search/work-items/search/
 hält die noch ausstehende Diagnose-/Abnahmetrennung fest; reguläre Tagfilter,
 Tagzuordnungen und die übrigen Metadatenbefunde sind nicht ausgenommen.
 
+Auch negative Thumbnailindizes `SRCH0-PROJECTION-021` sind **kein
+SRCH0-Blocker**. Der nachgewiesene Absturz tritt mit ungültigen Werten auf,
+die normale Fotoauswahl und JSON-API nicht zulassen, andere Schreibpfade
+jedoch erlauben. Der separate lokale Fix auf `fix/search-thumbnail-index`
+fällt dann auf das erste Foto zurück. Die [Vorschaubild-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-vorschaubild-absicherung)
+beschreibt den begrenzten Umfang und die noch ausstehende Diagnose-/Abnahmetrennung.
+Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben verbindlich;
+Push, PR und Integration sind noch nicht erfolgt.
+
 ## Parallele Index- und Engine-Schnitte
 
 | Work Item | Ziel | Stand |

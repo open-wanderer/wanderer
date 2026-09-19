@@ -113,16 +113,21 @@ Invarianten:
   SRCH-COMP, SRCH2 oder SEC-VIS-0 verschoben, die die freigegebene Baseline
   erst konsumieren.
 - Die am 19. September 2026 ausdrücklich ausgenommenen Korrekturen
-  `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001` und die globale Tag-Umbenennung
-  `SRCH0-MUTATION-008` gehören nicht zum verbindlichen SRCH0-Abnahmeumfang.
+  `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001`, die globale Tag-Umbenennung
+  `SRCH0-MUTATION-008` und negative Thumbnailindizes `SRCH0-PROJECTION-021`
+  gehören nicht zum verbindlichen SRCH0-Abnahmeumfang.
   Die Sortier-Robustheit bleibt zurückgestellt; Feldauswahl und die nur
-  administrativ verfügbare Tag-Umbenennung werden separat korrigiert. Sie
+  administrativ verfügbare Tag-Umbenennung werden separat korrigiert. Auch
+  die Vorschaubild-Absicherung erhält einen separaten Fix; sie schützt vor
+  einem nachgewiesenen Absturz bei einem Wert, den normale Fotoauswahl und
+  JSON-API nicht zulassen. Sie
   sind keine Merge- oder Abnahmeblocker. Die begrenzte Einstufung und ihr Verhältnis zu den noch
   unveränderten Tests stehen in
   [SRCH0](/develop/specs/trail-search/work-items/search/srch0/); gültige
   Bestandssortierungen, reguläre Tagfilter, Tagzuordnungen und alle anderen
   Blocker bleiben verbindlich. Andere Metadatenbefunde sind von der
-  Tag-Ausnahme nicht betroffen.
+  Tag-Ausnahme nicht betroffen; andere Projektions-, Sichtbarkeits- und
+  Startup-Prüfungen nicht von der Vorschaubild-Ausnahme.
 - Nachfolgende Tasks erhalten die aktive Baseline. Bewusste neue Semantik
   benötigt ein ausdrücklich begründetes, auf stabile Case-IDs bezogenes
   Delta-Overlay samt Nachweis aller unveränderten Resultate. Historische
