@@ -198,6 +198,78 @@ bleiben unverändert. Die ausführbare Auswertung muss die beiden eng
 begrenzten Nicht-Blocker-Einstufungen noch technisch berücksichtigen;
 ein grüner SRCH0-Gesamtlauf wird damit nicht behauptet.
 
+## Upload-Duplikatprüfung: separater Import-Fix, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: Die unvollständige Duplikatprüfung
+beim Datei-/URL-Upload ist **kein SRCH0-Merge- oder Abnahmeblocker**. Sie
+bleibt als Meilisearch-Consumer inventarisiert, ihre Korrektur gehört jedoch
+fachlich zum Import und ist keine Voraussetzung der erweiterten Suche.
+Der Fehler bleibt nachgewiesen: Bisher wird nur die erste Suchantwort mit
+dem Standardlimit 20 geprüft. Ein passender sichtbarer Kandidat ausserhalb
+dieser Antwort kann deshalb übersehen werden.
+
+Der unabhängige Branch `fix/upload-duplicate-check`, Commit `8f50fe9ac`,
+basiert direkt auf `origin/dev` (`c73966d6c`). Er übernimmt ausschliesslich den Upload-Teil der
+Vervollständigung: Weitere Treffer werden in Paketen bis 500 nachgeladen,
+bereits gelesene IDs bei Folgeanfragen ausgeschlossen. Die Prüfung endet
+beim ersten Duplikat oder einer leeren Restmenge. Dadurch begrenzt auch
+`maxTotalHits` nicht mehr die gesamte geprüfte Menge. Die bestehende
+Ähnlichkeitsheuristik, Tenant-Zugriffsregeln und `ignoreDuplicates` bleiben
+erhalten. Die Karte verwendet diesen Helper auf dem isolierten Fixbranch
+nicht. Eine Prüfung ohne passenden Treffer kann weiterhin den gesamten
+sichtbaren Suchbestand durchlaufen; eine Leistungsoptimierung oder Garantie
+gegen parallele Imports bzw. Indexverzögerungen wird damit nicht zugesagt.
+
+`SRCH0-SEARCH-117`, `API-FIX-SRCH0-SEARCH-117`, die Traversierungsanteile
+von `SRCH0-COMPILER-083/084` samt `WEB-FIX-`-Solländerungen sowie die
+kontrollierte Vollständigkeitsprobe und der API-/Engine-Nachweis bleiben erhalten.
+Die Ausnahme betrifft ausschliesslich die Duplikaterkennung ausserhalb
+der ersten Antwort; Zugriffsregeln und andere Upload-Eigenschaften werden
+nicht pauschal aus der Abnahme genommen. Der Fix ist lokal vorbereitet,
+ohne Push oder PR und ohne Integration in `dev` oder `feat/srch0`.
+
+Die 15 neuen Uploadregressionen reproduzieren vor dem Fix sieben Fehler;
+danach bestehen alle 15 sowie sämtliche 136 Webtests. `npm run check`
+meldet keine Fehler oder Warnungen. Eine separate Probe des echten
+Batchhelpers gegen isoliertes Meilisearch 1.53.2 bestätigt 1'101 zulässige
+Treffer bei `maxTotalHits=1000` und 17 Treffer bei einem Cap von sieben,
+jeweils vollständig und unter Erhalt des Tenant-Scopes und zusätzlicher
+Filter. Die Uploadtests verwenden den echten Handler mit gemocktem
+GPX-Parsing und Speichern; die Engineprobe ersetzt keinen vollständigen
+Import- oder SRCH0-Gesamtlauf.
+
+## Cluster-Trefferlimit: akzeptierte Begrenzung, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: Die Karte bleibt unverändert. Ihre
+begrenzte Clustergrundlage oberhalb des Engine-Caps ist **kein SRCH0-Merge-
+oder Abnahmeblocker**. `maxTotalHits` ist ein konfigurierbares Engine-Limit
+mit Standardwert 1000. Der bisherige Clusterrequest mit `limit=10000`
+überwindet diese Grenze nicht; die Cluster repräsentieren in diesem Fall
+nur die zurückgelieferten Touren. Das ist eine akzeptierte bekannte
+Begrenzung und kein Versprechen einer vollständigen Darstellung.
+
+Die Cluster-Vervollständigung in diesem Sammelbranch bleibt historische
+Implementierungsreferenz und wird zurückgestellt. Sie wird weder auf einen
+separaten Cluster-Fixbranch ausgekoppelt noch in den Import-Fix übernommen.
+Kartenimplementierung, Engine-Einstellungen und UI bleiben unverändert.
+Der Nachladeansatz erzeugt zusätzliche sequenzielle Suchanfragen, wachsende
+ID-Ausschlusslisten und eine vollständige Sammlung im Arbeitsspeicher;
+eine solche Vollständigkeitsanforderung ist keine SRCH0-Voraussetzung mehr.
+
+Die Ausnahme betrifft die Cluster-Vervollständigung in `SRCH0-SEARCH-129`,
+`API-FIX-SRCH0-SEARCH-129`, die Traversierungsanteile von
+`SRCH0-COMPILER-072` samt `WEB-FIX-`-Solländerung und die zugehörigen
+Vollständigkeitsprüfungen.
+`SRCH0-SEARCH-130` dokumentiert dagegen das Engine-Cap der Listenpagination
+und ist kein Nachweis einer separaten Clusterkorrektur. Er bleibt als
+Beobachtung erhalten; eine Änderung der Listenpagination gehört nicht zu
+dieser Arbeit. Sichtbarkeit und Zugriffsregeln bleiben verbindlich.
+
+Die Dokumentationsentscheidung ändert weder historische Evidenz noch
+SRCH0-Korpus, aktive Sollwerte oder Testimplementierungen. Ihre technische
+Trennung von Diagnose und Abnahme steht weiterhin aus. Ein grüner
+SRCH0-Gesamtlauf wird nicht behauptet.
+
 ## Gesamtabnahme bleibt offen
 
 Die genannten Testergebnisse gelten für die jeweils isolierten Fixcommits.
