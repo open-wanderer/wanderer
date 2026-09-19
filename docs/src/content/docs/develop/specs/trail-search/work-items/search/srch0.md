@@ -15,7 +15,7 @@ spec:
   exposure: internal
   implementationDependsOn: []
   releaseGates: []
-  lastReviewed: '2026-09-08'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Zweck und Aussagekraft
@@ -27,17 +27,31 @@ UI-Prototyp und die übrigen Spezifikationen des früheren Spec-Branches sind
 nicht Bestandteil dieser Implementierung.
 
 SRCH0 darf bei fachlich falschen geprüften Ergebnissen nicht grün sein. Die
-Tests werden auf `feat/srch0` verschärft. Produktkorrekturen entstehen in zwei
-separaten PRs: `fix/srch0-findings` für die übrigen Suchfehler und
-`fix/search-index-startup` für das gesamte Startup-Paket. Dieses umfasst den
+Tests werden auf `feat/srch0` verschärft. Produktkorrekturen werden als einzelne
+fachliche Fixes mit ihren Regressionstests für separate PRs vorbereitet.
+`fix/srch0-findings` bleibt die Sammelreferenz für die bisherigen Korrekturen.
+`fix/search-index-startup` behandelt weiterhin das gesamte Startup-Paket:
 Erhalt bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
-Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
+Fehlerweitergabe, Wiederaufnahme und Reparaturbefehl.
 
-Beide Produkt-PRs blockieren den Merge von SRCH0. Bis der geprüfte Branchstand
-beide Pakete enthält, müssen seine betroffenen Tests rot bleiben. Ein
-kombinierter Testlauf dient der Fixprüfung und macht den ungefixten
-SRCH0-Stand nicht mergebar. Der bisherige grüne kombinierte Lauf enthielt auch
-das Startup-Paket und belegt keinen grünen SRCH0-Lauf ohne diese Änderungen.
+SRCH0 bleibt bis zur Integration aller erforderlichen Korrekturen und zur
+erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
+dieser Produktstand die Fehler enthält, müssen seine betroffenen Tests rot
+bleiben. Ein kombinierter Testlauf dient der Fixprüfung und macht den
+ungefixten SRCH0-Stand nicht mergebar. Der bisherige grüne kombinierte Lauf
+enthielt auch das Startup-Paket und belegt keinen grünen SRCH0-Lauf ohne diese
+Änderungen.
+
+Stand vom 19. September 2026: Die Radiuskorrektur liegt als erster einzelner Fix
+auf `fix/search-radius-filter`, Commit `398b45682`, frisch ab `origin/dev`
+(`c73966d6c`). Sie behandelt Nullkoordinaten, gültige Koordinaten und Radien
+sowie die doppelte Radiusklausel. Alle 24 Radius-Regressionstests und alle 145
+Web-Unit-Tests sind erfolgreich; `npm run check` meldet 0 Fehler und 0 Warnungen.
+Der Branch ist lokal und ungepusht, es gibt keinen PR und keine Integration in
+`dev` oder `feat/srch0`. Diese Einzelprüfung ersetzt keine SRCH0-Gesamtabnahme.
+Historische Beobachtungen und aktive Erwartungen bleiben unverändert. Details
+stehen im Abschnitt „Lieferstand der Radiuskorrektur“ in
+`scripts/srch0/BEFUNDE.md`.
 
 Der Korpus unterscheidet drei Dinge:
 
@@ -284,3 +298,4 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-08 | Das gesamte Startup-Paket erhält mit `fix/search-index-startup` einen eigenen PR neben `fix/srch0-findings`; beide blockieren SRCH0 | Der Startup-Umbau überschreitet den Umfang des Korrekturbranches. Die fachlichen SRCH0-Prüfungen bleiben unverändert verbindlich. |
 | 2026-09-08 | Produktionsmigrationen, unabhängiges Inventar und kleine Adapter | Die Tests sollen reale Zustände abbilden und überprüfbar bleiben |
 | 2026-09-08 | Dokumentation bleibt Deutsch | Vorgabe für diesen Branch |
+| 2026-09-19 | Fachliche Korrekturen mit ihren Regressionstests einzeln für separate PRs vorbereiten; Radiusfix zuerst auf `fix/search-radius-filter` | Einzelne Fixes lassen sich unabhängig prüfen. Dies ersetzt die bisherige Aufteilung in genau zwei Produkt-PRs; `fix/srch0-findings` bleibt Sammelreferenz und Startup bleibt separat. Der Radiusfix ist nur lokal vorbereitet und noch nicht integriert; SRCH0 bleibt blockiert. |

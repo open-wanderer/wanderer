@@ -1,19 +1,36 @@
 # SRCH0: fachliche Fehler und Merge-Blocker
 
-Stand: 8. September 2026. Geprüfte Produktbaseline:
+Stand: 19. September 2026. Geprüfte Produktbaseline:
 `e9b7a8cade980002acbcf2e2f5b2a083934f29d2`.
 
 Die Tests auf `feat/srch0` verlangen korrekte Ergebnisse und müssen gegen
 den bisherigen Produktcode rot bleiben. Bekannte Fehler sind keine erlaubten
-Abweichungen. Produktkorrekturen entstehen in zwei separaten PRs:
-`fix/srch0-findings` für die übrigen Suchfehler und
-`fix/search-index-startup` für das gesamte Startup-Paket einschliesslich
-Indexerhalt, synchroner Initialisierung, Fehlerweitergabe, Wiederaufnahme und
-Reparaturbefehl. Beide PRs bleiben Merge-Blocker. Erst nach Integration beider
-Pakete und erfolgreichem Lauf des tatsächlichen SRCH0-Branchstands ist SRCH0
-mergebar. Historische Goldens dürfen diesen Nachweis nicht ersetzen. Der
-bisherige grüne kombinierte Prüfbaum enthielt beide Pakete; sein Ergebnis gilt
-nicht für den Korrekturbranch ohne Startup-Paket.
+Abweichungen. Produktkorrekturen werden als einzelne fachliche Fixes mit ihren
+Regressionstests für separate PRs vorbereitet. `fix/srch0-findings` bleibt die
+Sammelreferenz für die bisherigen Korrekturen. `fix/search-index-startup`
+behandelt weiterhin das gesamte Startup-Paket einschliesslich Indexerhalt,
+synchroner Initialisierung, Fehlerweitergabe, Wiederaufnahme und
+Reparaturbefehl. Erst nach Integration aller erforderlichen Korrekturen und
+erfolgreichem Lauf des tatsächlichen SRCH0-Branchstands ist SRCH0 mergebar.
+Historische Goldens dürfen diesen Nachweis nicht ersetzen. Der bisherige grüne
+kombinierte Prüfbaum enthielt die Findings-Korrekturen und das Startup-Paket;
+sein Ergebnis gilt nicht für den Korrekturbranch ohne Startup-Paket.
+
+## Lieferstand der Radiuskorrektur
+
+Als erster einzelner Fix liegt die Radiuskorrektur auf
+`fix/search-radius-filter`, Commit `398b45682`, frisch ab `origin/dev`
+(`c73966d6c`). Sie erhält gültige Nullkoordinaten, prüft die Koordinatengrenzen
+und einen endlichen positiven Radius und erzeugt genau eine `_geoRadius`-Klausel.
+Der Stand vom 19. September 2026 ist ausschliesslich lokal: nicht gepusht, kein
+PR erstellt und weder in `dev` noch in `feat/srch0` integriert.
+
+Auf dem Radiusbranch sind alle 24 gezielten Regressionstests und alle 145
+Web-Unit-Tests erfolgreich; `npm run check` meldet 0 Fehler und 0 Warnungen.
+Diese Prüfung betrifft den einzelnen Fix und ersetzt keine SRCH0-Gesamtabnahme.
+SRCH0 bleibt blockiert. Seine historischen Beobachtungen und aktiven
+Erwartungen bleiben unverändert; die Radiusbefunde sind im geprüften
+SRCH0-Produktstand weiterhin offen.
 
 ## Bestätigte Fehler
 
@@ -30,7 +47,7 @@ nicht für den Korrekturbranch ohne Startup-Paket.
 | Ungültige gespeicherte Sortwerte erreichen die Engine | Rohe Storagewerte werden als Sortkey und Richtung übernommen. | strikte Compiler- und Browserprüfungen |
 | Ungültige Actor-Suchparameter werden falsch behandelt | Fehlendes `q` wird zu HTTP 500; `limit` erreicht den SDK-Auftrag als String. | strikte Actor-Parameterprüfungen |
 
-Die Produktfixes gehören ausschliesslich auf die beiden separaten Produktbranches.
+Die Produktfixes gehören auf ihre separaten Produktbranches.
 SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
 Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
 Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)

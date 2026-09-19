@@ -6,20 +6,27 @@ Jede verletzte geprüfte Eigenschaft lässt den Test scheitern; Ausnahmen für
 bekannte Fehler sind verboten. Die [Befunde](BEFUNDE.md) sind Merge-Blocker.
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
-werden in zwei getrennten PRs behandelt:
+werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
+PRs vorbereitet. Stand vom 19. September 2026:
 
-- `fix/srch0-findings` korrigiert die übrigen belegten Suchfehler.
+- `fix/search-radius-filter` ist der erste einzelne Fix, Commit `398b45682`,
+  frisch ab `origin/dev` (`c73966d6c`). Der Branch ist lokal und ungepusht, es
+  gibt noch keinen PR und keine Integration in `dev` oder `feat/srch0`.
+  Umfang und erfolgreiche Einzelprüfungen stehen im
+  [Lieferstand der Radiuskorrektur](BEFUNDE.md#lieferstand-der-radiuskorrektur).
+- `fix/srch0-findings` bleibt die Sammelreferenz für die bisherigen Korrekturen.
 - `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
   Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
 
-Beide Produkt-PRs sind Merge-Blocker für SRCH0. Solange der von SRCH0 geprüfte
-Produktstand die Fehler enthält, müssen die betroffenen Tests rot bleiben.
-SRCH0 darf erst nach Integration beider Pakete und erfolgreichen fachlichen
-Prüfungen seines tatsächlichen Branchstands gemergt werden. Der bisherige grüne
-Lauf in einer kombinierten Prüfkopie enthielt auch das Startup-Paket; er belegt
-keinen grünen SRCH0-Lauf mit den übrigen Korrekturen allein und ersetzt diese
-Abnahme nicht.
+SRCH0 bleibt blockiert. Solange der von SRCH0 geprüfte Produktstand die Fehler
+enthält, müssen die betroffenen Tests rot bleiben. SRCH0 darf erst nach
+Integration aller erforderlichen Korrekturen einschliesslich des Startup-Pakets
+und erfolgreichen fachlichen Prüfungen seines tatsächlichen Branchstands
+gemergt werden. Der bisherige grüne Lauf in einer kombinierten Prüfkopie
+enthielt auch das Startup-Paket; er belegt keinen grünen SRCH0-Lauf mit den
+übrigen Korrekturen allein und ersetzt diese Abnahme nicht. Die historischen
+Beobachtungen und aktiven Erwartungen bleiben bei dieser Aufteilung unverändert.
 
 Die Baseline ist `e9b7a8cade980002acbcf2e2f5b2a083934f29d2` vom 7. September
 2026, direkt aus dem aktualisierten `origin/dev`. Die
