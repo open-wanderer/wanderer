@@ -144,6 +144,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
 
+	app.OnRecordAfterUpdateSuccess("tags").BindFunc(hooks.UpdateTagIndexHandler(client))
+
 	app.OnRecordCreateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
 	app.OnRecordUpdateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
 	app.OnRecordAfterCreateSuccess("categories").BindFunc(hooks.BackfillRemoteTrailCategoryHandler())
