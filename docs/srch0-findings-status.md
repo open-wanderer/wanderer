@@ -72,6 +72,37 @@ Sortierabsicherung betrifft die Nicht-Blockerentscheidung nur diesen Befund;
 die noch unveränderte Testauswertung muss Diagnose und Abnahme entsprechend
 trennen. Alle übrigen Blocker bleiben verbindlich.
 
+## Tag-Umbenennung: administrativer Sonderfall, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: Veraltete Tag-Namen im Suchindex nach
+einer globalen Tag-Umbenennung (`SRCH0-MUTATION-008`) sind **kein Merge- oder
+Abnahmeblocker für SRCH0**. Die normale Wanderer-Oberfläche erlaubt das
+Anlegen und Zuordnen von Tags sowie das Entfernen einer Zuordnung, aber keine
+globale Umbenennung. Auch normale API-Benutzer dürfen bestehende Tags nicht
+ändern: Die PocketBase-Collection `tags` hat weiterhin `updateRule: null`.
+Eine Umbenennung ist beispielsweise als PocketBase-Superuser in der
+Administration oder durch interne Backend-Schreibzugriffe möglich. Die
+bisherige Einstufung als praxisrelevanter Fehler im normalen Bedienablauf
+wird damit korrigiert.
+
+Der separat vorbereitete Fix bleibt erhalten: `fix/search-tag-metadata`,
+Commit `122974380`, frisch ab `origin/dev` bei `c73966d6c`. Er aktualisiert
+ausschliesslich die Tag-Namen der betroffenen Touren; Autoren- und
+Kategoriemetadaten sind nicht Teil dieses Fixbranches. Die Regressionen
+prüfen unter anderem 201 betroffene Touren, den Erhalt anderer Suchfelder,
+fehlende Indexdokumente sowie abgewiesene und zurückgerollte Änderungen.
+Gezielte Regressionstests und die gesamte Backend-Testsuite sind erfolgreich.
+Der Branch ist lokal, ohne Push oder PR, und nicht in `dev` oder `feat/srch0`
+integriert. Seine Integration ist keine Voraussetzung für die SRCH0-Abnahme.
+
+Diese Ausnahme betrifft nur den Befund der administrativen Tag-Umbenennung.
+Tagfilter, das Zuordnen und Entfernen von Tags an Touren sowie Zugriffsregeln
+bleiben verbindlich. Historische Evidenz, Korpus, aktive Sollwerte und
+Testimplementierung bleiben unverändert. Die ausführbare Auswertung muss
+den betreffenden Befund noch als Diagnose von der Abnahme trennen; gemischte
+Prüfungen erhalten keine pauschale Ausnahme. Damit wird weder ein grüner
+SRCH0-Lauf noch eine Freigabe anderer Metadatenbefunde behauptet.
+
 ## Gesamtabnahme bleibt offen
 
 Die genannten Testergebnisse gelten für die jeweils isolierten Fixcommits.
