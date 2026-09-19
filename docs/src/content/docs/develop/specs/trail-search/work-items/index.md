@@ -106,6 +106,20 @@ Authentifizierung, Berechtigungen und die Ablehnung fehlgeschlagener
 Engineanfragen bleiben verbindlich. Tests und Korpus bleiben unverändert;
 die technische Diagnose-/Abnahmetrennung ist noch nachzuführen.
 
+Upload-Duplikatprüfung und Clusterbegrenzung sind ebenfalls **keine
+SRCH0-Blocker**. `fix/upload-duplicate-check` wird als unabhängiger
+Importfix direkt ab `dev` (`c73966d6c`) vorbereitet, lokal ohne Push, PR
+oder Integration. SRCH0 erfasst den technischen Meilisearch-Consumer
+weiter. Für die aktuelle Karte bleibt das Cap als bekannte Begrenzung
+akzeptiert; der Cluster-Nachladefix erhält keinen eigenen Branch und
+bleibt ohne Produktänderung zurückgestellt. Ein UI-Signal, eine Änderung
+von `maxTotalHits` oder vollständige Cluster oberhalb des Caps werden
+damit nicht zugesagt. Die [Duplikat-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-upload-duplikatprüfung)
+und [Cluster-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-clusterbegrenzung)
+halten die noch offene Diagnose-/Abnahmetrennung bei unveränderten Tests
+und Korpus fest. Zugriffsscope, Sichtbarkeit und Berechtigungen bleiben
+verbindlich.
+
 ## Parallele Index- und Engine-Schnitte
 
 | Work Item | Ziel | Stand |

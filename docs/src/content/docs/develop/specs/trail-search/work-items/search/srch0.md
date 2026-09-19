@@ -45,8 +45,10 @@ sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
 Kompatibilitätsvertrag für nachfolgende Arbeiten. Die Sortier-Robustheit
 `SRCH0-GAP-SORT-001`, die Feldauswahl `SRCH0-GAP-DTO-001`, die globale
 Tag-Umbenennung `SRCH0-MUTATION-008`, negative Thumbnailindizes
-`SRCH0-PROJECTION-021`, die SDK-HTTP-Statusweitergabe (`SRCH0-P-HTTP`)
-und die unten abgegrenzten Actor-Suchparameter gehören nicht zu diesem Abnahmeumfang;
+`SRCH0-PROJECTION-021`, die SDK-HTTP-Statusweitergabe (`SRCH0-P-HTTP`),
+die unten abgegrenzten Actor-Suchparameter, die Upload-Duplikatprüfung
+und die Vollständigkeit der Clustergrundlage oberhalb des bestehenden
+Karten-Caps gehören nicht zu diesem Abnahmeumfang;
 ihre Diagnosefälle bleiben nachvollziehbar erhalten.
 
 Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
@@ -66,7 +68,7 @@ SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
 | Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
 | Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
-| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; die unten abgegrenzten Befunde zu Sortier-Robustheit, Feldauswahl, Tag-Umbenennung, negativen Thumbnailindizes, SDK-HTTP-Statusweitergabe und Actor-Suchparametern sind keine Blocker |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; die unten abgegrenzten Befunde zu Sortier-Robustheit, Feldauswahl, Tag-Umbenennung, negativen Thumbnailindizes, SDK-HTTP-Statusweitergabe, Actor-Suchparametern, Upload-Duplikatprüfung und Cluster-Cap sind keine Blocker |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
 Der historische Bestandsanker besteht aus Commit, Engineprofil,
@@ -363,7 +365,9 @@ tenantgescopte Suche mit leerem `q`, Offset 0, ohne Sortierung und ohne
 explizites Limit. Damit gilt das Engine-Defaultlimit 20. Gelesen werden `id`,
 `name`, `author_name`, `domain`, `distance`, `elevation_gain`,
 `elevation_loss` und `_geo`. Ein passender Datensatz an Position 21 gehört als
-eigener Bestandsfall in den Korpus.
+eigener Bestandsfall in den Korpus. Die Prüfung bleibt als technischer
+Meilisearch-Consumer inventarisiert; ihre fachlich zum Import gehörende
+Korrektur ist keine SRCH0-Abnahmevoraussetzung.
 
 Profil-, Empfehlungs-, Bounding-Box-, Cluster- und bekannte Multi-Search-
 Aufträge erhalten je eigene Consumerkennung. Zufallsausgaben werden nicht als
@@ -411,11 +415,14 @@ Startup- und andere Indexfehler werden dadurch nicht neu eingestuft. Tests
 und Korpus bleiben unverändert; die noch ausstehende Trennung von Diagnose
 und Abnahme muss diese Zuordnung ebenfalls berücksichtigen.
 
-Clustergrundlage und Upload-Duplikatprüfung müssen die gesamte
-zulässige Kandidatenmenge berücksichtigen; Engine-Defaultlimits und
-`maxTotalHits` dürfen kein erfolgreiches unvollständiges Ergebnis erzeugen.
-Ein Duplikat hinter Position 20 und tatsächlich indexierte 10'001 Trails
-gehören zum Nachweis.
+Die bisherige Forderung, für Cluster und Upload-Duplikatprüfung vor
+SRCH0-Abnahme sämtliche Kandidaten über die vorhandenen Limits hinaus
+zu erfassen, ist aufgehoben. Der Importfix wird separat umgesetzt;
+das bestehende Karten-Cap wird vorerst als bekannte Begrenzung akzeptiert.
+Die Nachweise mit einem Duplikat ausserhalb der ersten 20 Treffer und
+mit tatsächlich indexierten 10'001 Trails bleiben als Diagnose erhalten.
+Die folgenden Einstufungen begrenzen diese Ausnahmen; unzulässige
+Zugriffe oder Treffer werden dadurch nicht akzeptiert.
 
 ### Zurückgestellte Sortier-Robustheit
 
@@ -612,6 +619,85 @@ danach bestehen alle 20 sowie sämtliche 141 Webtests.
 `npm run check` meldet keine Fehler oder Warnungen. Der Branch enthält
 keine Änderungen des separaten Statusfixes. Push, PR und Integration
 sind noch nicht erfolgt; der Nachweis ersetzt keine SRCH0-Gesamtabnahme.
+
+### Nicht blockierende Upload-Duplikatprüfung
+
+**Entscheidung vom 19. September 2026:** Die unvollständige Duplikatprüfung
+beim Trail-Upload (`SRCH0-SEARCH-117`) ist kein Merge- oder Abnahmeblocker
+für SRCH0. Sie wird als eigenständiger Importfix auf
+`fix/upload-duplicate-check` (`8f50fe9ac`) direkt ab `origin/dev` (`c73966d6c`)
+korrigiert. SRCH0 führt den technischen Meilisearch-Consumer und seine
+Evidenz weiter; die Integration dieses Fixes ist keine Voraussetzung
+der Suchbaseline.
+
+Die bisherige Prüfung betrachtet lediglich die erste Engineantwort mit
+dem Standardlimit 20. Ein passender vorhandener Trail ausserhalb dieser
+Antwort kann damit übersehen werden. Der separate Fix prüft weitere
+Kandidaten mit den bisherigen Vergleichskriterien und erhält den
+authentifizierten Suchscope. Der echte Engine-Regressionstest muss den
+Vergleichskandidaten aus tatsächlich ausserhalb der ersten 20 Treffer
+liegenden Dokumenten wählen; ein Name wie `duplicate-21` allein belegt
+keine solche Position. Die Ausnahme betrifft neben `SRCH0-SEARCH-117`
+auch die Nachlade- und Anforderungsform in `SRCH0-COMPILER-083/084`
+samt `WEB-FIX-SRCH0-COMPILER-083/084`; Berechtigungsassertionen sind
+dadurch nicht ausgenommen.
+
+Historische Evidenz, Tests, Korpus und Solländerungen bleiben durch diese
+Dokumentationsentscheidung unverändert. Die technische Trennung der
+Duplikatdiagnose von der verbindlichen SRCH0-Abnahme steht noch aus.
+Authentifizierung, Berechtigungen und korrekter Zugriffsscope bleiben
+verbindlich. Die Einstufung erklärt weder die vorhandene Lücke für
+behoben noch einen SRCH0-Gesamtlauf für grün.
+
+Der separate Fix enthält nur den Batchhelper, die Uploadroute und deren
+Tests. Von 15 neuen Uploadregressionen schlugen vor der Korrektur sieben
+fehl; danach bestehen alle 15 sowie sämtliche 136 Webtests.
+`npm run check` meldet keine Fehler oder Warnungen. Ein zusätzlicher
+Batchhelper-Test gegen isoliertes Meilisearch 1.53.2 bestätigt die
+vollständige Erfassung der zulässigen Testbestände: bei `maxTotalHits=1000`
+alle 1'101 Treffer in Paketen von 500/500/101, bei `maxTotalHits=7` alle
+17 Treffer in Paketen von 7/7/3, jeweils vier Anfragen einschliesslich
+der abschliessenden leeren Antwort. Tenant-Token und zusätzliche Filter
+bleiben wirksam; private oder anderweitig ausgeschlossene Dokumente
+werden nicht geliefert. Das qualifiziert den separaten Produktfix,
+nicht die SRCH0-Gesamtabnahme oder ein neues Engineprofil des Korpus.
+Push, PR und Integration sind noch nicht erfolgt.
+
+### Nicht blockierende Clusterbegrenzung
+
+**Entscheidung vom 19. September 2026:** Die begrenzte Clustergrundlage
+der aktuellen Karte (`SRCH0-SEARCH-129`) ist kein Merge- oder
+Abnahmeblocker für SRCH0. Das bestehende Karten-Cap bleibt als bekannte
+Begrenzung akzeptiert; oberhalb dieses Caps besteht für den aktuellen
+Pfad kein Versprechen vollständiger Cluster. Der Nachladefix aus
+`fix/srch0-findings` bleibt zurückgestellt und dient nur als Referenz.
+Es wird kein eigener Clusterbranch vorbereitet und keine entsprechende
+Produktänderung, kein neues UI-Signal und keine Änderung von
+`maxTotalHits` übernommen. Die Ausnahme umfasst die Vollmengen- und
+Nachladeanforderung aus `SRCH0-SEARCH-129` sowie `SRCH0-COMPILER-072`
+und `WEB-FIX-SRCH0-COMPILER-072`; die Prüfung des Zugriffsscopes und
+der Nutzerfilter bleibt verbindlich.
+
+Der Test indexiert 10'001 Trails. Bei `maxTotalHits=1000` liefert die
+Clusterabfrage trotz `limit: 10000` höchstens 1'000 Treffer. Das ist die
+Wirkung einer konfigurierbaren Enginebegrenzung mit Standardwert 1'000,
+kein Meilisearch-Fehler. Der vorgeschlagene Vollscan in Paketen von 500
+mit wachsenden ID-Ausschlüssen verursacht zusätzliche Anfragen und
+Filteraufwand; er ist keine kostenneutrale Voraussetzung der Suchbaseline.
+
+`SRCH0-SEARCH-130` prüft dagegen die gewöhnliche Listenpagination: Bei
+Seitengrösse 100 ist Seite 11 am selben Engine-Cap leer. Der Fall ist
+kein Clusterfix-Nachweis und wird nicht als solcher umgedeutet. Diese
+Entscheidung ändert weder die Listenpagination noch die späteren
+Vollständigkeitsanforderungen des V1-Cursorvertrags.
+
+Evidenz und Tests der Clusterbegrenzung bleiben erhalten. Die strikte
+Testsuite kann weiterhin Vollständigkeit oberhalb des Caps verlangen;
+die technische Diagnose-/Abnahmetrennung ist noch nachzuführen.
+Zugriffsscope, Sichtbarkeit und Berechtigungen der gelieferten Treffer
+bleiben verbindlich. Die Begrenzung ist keine allgemeine Ausnahme für
+ACL-Fehler, andere Suchpfade oder erfolgreiche Antworten auf Enginefehler.
+Die Einstufung behauptet keinen grünen SRCH0-Gesamtlauf.
 
 ### Weitergehende Folgearbeiten
 
@@ -813,7 +899,7 @@ Produktions-Performancegrenze.
 | Sort/Paging | neun Keys in beide Richtungen, Defaults, Gleichstandsgruppen, erste/mittlere/leere Seite |
 | Surfaces | Liste, Karte, Profil, Cluster, Bounding Box, Multi-Search und Empfehlung |
 | Actor | unauthentifiziert, Self ein/aus, lokaler Lookup und Remote-Handle-Zweig |
-| Upload-Duplikat | Tenant-Scope, leeres `q`, Offset 0, Defaultlimit 20, acht gelesene Felder, Position 21 |
+| Upload-Duplikat | Tenant-Scope, leeres `q`, Offset 0, Defaultlimit 20, acht gelesene Felder; Diagnose eines Duplikats ausserhalb der ersten 20 Treffer |
 | Projektion | Trail-, Listen- und Actordokumente samt Relationsauflösung |
 | Mutationen | Create, Update, Delete, Sichtbarkeit, Shares, Likes, Actor, Tags und Taxonomie |
 | Startup | vorhandene, fehlende und leere Indizes; Settings-, Delete- und Add-Taskfolge; Request während jeder Zwischenstufe |
@@ -823,6 +909,11 @@ Produktions-Performancegrenze.
 Jeder produktive First-Party-Consumer muss mindestens einem Fall zugeordnet
 sein. Ein Consumer ohne Fixture ist ein Manifestfehler, nicht implizit durch
 die allgemeine Suchmatrix abgedeckt.
+
+Die Pflicht zur Inventarisierung verlangt keine Korrektur der oben
+ausgenommenen Diagnosefälle vor SRCH0-Abnahme. Insbesondere bleiben
+Upload-Duplikatprüfung und Cluster-Cap erfasst, ohne dadurch erneut zu
+Merge- oder Abnahmeblockern zu werden.
 
 ## Testharness
 
@@ -849,6 +940,10 @@ synthetischen Quelldatasets abgeleitet, nicht aus erwarteten Trefferlisten
 oder dem vom Produkt erzeugten Tenant-Filter. Weitere Properties prüfen
 Vollständigkeit, eindeutige IDs, konsistente Counts und Seiten, Werterhalt,
 Range-Monotonie und numerische Sortierung bei leerem Suchtext.
+
+Die oben abgegrenzten nicht blockierenden Diagnosefälle, einschliesslich
+Upload-Duplikatprüfung und Cluster-Cap, sind dabei von den verbindlichen
+Abnahmeprüfungen zu trennen; diese technische Umstellung steht noch aus.
 
 Verletzungen im verbindlichen Abnahmeumfang schlagen immer fehl.
 `knownViolation`, erwartetes Fehlschlagen,
@@ -943,6 +1038,16 @@ Push, PR und Integration sind noch nicht erfolgt. Die oben dokumentierten
 Ausnahmen gelten nur für diese Korrekturen, nicht für den gesamten
 API-Prüfungsumfang.
 
+Die Upload-Duplikatprüfung wird als Importfix unabhängig auf
+`fix/upload-duplicate-check` (`8f50fe9ac`) direkt ab `origin/dev` (`c73966d6c`)
+vorbereitet, ohne Push, PR oder Integration. Die
+[Duplikat-Einstufung](#nicht-blockierende-upload-duplikatprüfung) erklärt
+den nicht blockierenden Status und die isolierten Prüfungsnachweise
+(136 Webtests, fehlerfreier Check und echte Meilisearch-Batchprüfung). Für die
+[Clusterbegrenzung](#nicht-blockierende-clusterbegrenzung) bleibt die
+Sammelkorrektur zurückgestellt; es gibt dafür keinen separaten Fixbranch
+und keine übernommene Produktänderung.
+
 Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
 
 | Feld | Stand |
@@ -1023,3 +1128,5 @@ SRCH0.
 | 2026-09-19 | Negative Thumbnailindizes `SRCH0-PROJECTION-021` sind kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-thumbnail-index` (`e6861358b`) | Der Absturz ist mit einem gespeicherten Datensatz und Foto nachgewiesen, normale Fotoauswahl und JSON-API lassen negative Werte jedoch nicht zu. Der Fix fällt auf das erste Foto zurück; Diagnosefall und Solländerung bleiben erhalten, die Diagnose-/Abnahmetrennung in der Suite steht noch aus. |
 | 2026-09-19 | SDK-HTTP-Statusweitergabe ist kein SRCH0-Blocker; separater Fix auf `fix/search-api-error-status` (`8bcfe61df`) | Der tatsächliche SDK-Status ersetzt den irrtümlichen Fallback auf 500. Die Ausnahme betrifft nur die Fehlerklassifikation, nicht Authentifizierung, Berechtigungen oder als Erfolg ausgegebene Enginefehler; die Diagnose-/Abnahmetrennung bleibt offen. |
 | 2026-09-19 | Fehlendes `q` und explizite Actor-Limits sind kein SRCH0-Blocker; unabhängiger Fix auf `fix/search-actor-parameters` (`a72ff18df`) | Die normale UI setzt `q` und nutzt das numerische Standardlimit 3. Explizite Limits als String und der falsche Status für fehlendes `q` bleiben nachgewiesene API-Fehler; Tests und historische Erwartungen bleiben unverändert, die Diagnose-/Abnahmetrennung steht aus. |
+| 2026-09-19 | Upload-Duplikatprüfung `SRCH0-SEARCH-117` ist kein SRCH0-Blocker; separater Importfix auf `fix/upload-duplicate-check` (`8f50fe9ac`) | SRCH0 inventarisiert den technischen Meilisearch-Consumer weiter, die Importkorrektur ist keine Abnahmevoraussetzung. Evidenz und Tests bleiben erhalten; die Diagnose-/Abnahmetrennung steht aus. |
+| 2026-09-19 | Cluster-Cap `SRCH0-SEARCH-129` ist kein SRCH0-Blocker; bestehende Begrenzung akzeptiert und Nachladefix zurückgestellt | Kein Vollständigkeitsversprechen oberhalb des Caps, kein eigener Clusterbranch, keine Produkt-, UI- oder `maxTotalHits`-Änderung. Die konfigurierbare Enginebegrenzung ist kein Meilisearch-Fehler; ein Vollscan ist nicht kostenneutral. `SRCH0-SEARCH-130` bleibt ein separater Listenpagination-Fall. |

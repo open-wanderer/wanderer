@@ -73,7 +73,8 @@ SRCH0 liefert die fachlich geprüfte Regressionsbaseline des heutigen Produkts.
 Es erfasst vor jeder UI-, Gateway-, Projektions- oder Indexmigration die
 tatsächlich unterstützte Matrix aus Filtern, Sortierungen, ACL-Kontexten,
 API- und URL-Zuständen und sichert deren korrektes Verhalten ab. Bekannte
-Fehler werden vor der Abnahme korrigiert. Die vollständige Bestandsliste
+Fehler im verbindlichen Abnahmeumfang werden vor der Abnahme korrigiert.
+Die unten abgegrenzten Diagnosefälle sind davon ausgenommen. Die vollständige Bestandsliste
 besitzt SRCH0 selbst; die capability-übergreifenden Cutover-/Rollbackregeln
 stehen getrennt in den
 [gemeinsamen Invarianten](/develop/specs/trail-search/shared-invariants/).
@@ -104,8 +105,9 @@ die Korrekturen bleiben Voraussetzungen der SRCH0-Abnahme.
 
 Die Sortier-Robustheit `SRCH0-GAP-SORT-001`, die Feldauswahl
 `SRCH0-GAP-DTO-001`, die globale Tag-Umbenennung `SRCH0-MUTATION-008`,
-negative Thumbnailindizes `SRCH0-PROJECTION-021`, SDK-HTTP-Statusweitergabe
-und die abgegrenzten Actor-Suchparameter
+negative Thumbnailindizes `SRCH0-PROJECTION-021`, SDK-HTTP-Statusweitergabe,
+die abgegrenzten Actor-Suchparameter, Upload-Duplikatprüfung und
+Vollständigkeit oberhalb des bestehenden Cluster-Caps
 liegen seit den Entscheidungen vom 19. September 2026 ausserhalb dieses
 verbindlichen Abnahmeumfangs. Die Sortier-Robustheit bleibt zurückgestellt;
 Feldauswahl und Tag-Umbenennung werden separat korrigiert. Die Umbenennung
@@ -117,6 +119,11 @@ Fotoauswahl und JSON-API nicht zulassen, andere Schreibpfade jedoch erlauben.
 Statusweitergabe und Actor-Suchparameter erhalten zwei unabhängige Fixes:
 Der SDK-Fehlerstatus wird erhalten; fehlendes `q` und ungültige explizite
 Limits werden mit HTTP 400 abgewiesen, gültige Limits numerisch übergeben.
+Die Duplikatprüfung wird als unabhängiger Importfix korrigiert, bleibt aber
+als technischer Meilisearch-Consumer inventarisiert. Das aktuelle Karten-Cap
+bleibt als bekannte Begrenzung akzeptiert; der Cluster-Nachladefix wird
+zurückgestellt, ohne eigenen Branch oder Produktänderung. Oberhalb des
+Caps wird für den aktuellen Kartenpfad keine Vollständigkeit zugesagt.
 Die genaue Abgrenzung und der
 unveränderte Stand der Testimplementierung sind in
 [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) dokumentiert.
@@ -126,6 +133,8 @@ Metadatenbefunde nicht neu ein. Die Vorschaubild-Ausnahme betrifft keine
 anderen Projektions-, Sichtbarkeits- oder Startup-Prüfungen.
 Die API-Ausnahmen nehmen weder Authentifizierung und Berechtigungen noch
 die Ablehnung fehlgeschlagener Engineanfragen aus der Abnahme heraus.
+Auch die Duplikat- und Cluster-Einstufungen nehmen Zugriffsscope,
+Sichtbarkeit oder Berechtigungen nicht von der Abnahme aus.
 
 Damit gehören etwa fehlerhafte Radiusgrenzen, Unknown-Difficulty-Ergebnisse,
 Listenprojektionen oder ein destruktiver normaler Indexstart nicht erst in

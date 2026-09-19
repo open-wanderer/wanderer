@@ -224,6 +224,18 @@ explizite Limits. Authentifizierung, Berechtigungen und die Ablehnung
 fehlgeschlagener Engineanfragen bleiben verbindlich; die technische
 Diagnose-/Abnahmetrennung der unveränderten Suite steht noch aus.
 
+Auch Upload-Duplikatprüfung und Clusterbegrenzung sind **keine SRCH0-Blocker**.
+Der separate Importfix `fix/upload-duplicate-check` startet direkt ab
+`dev` (`c73966d6c`), lokal ohne Push, PR oder Integration; der technische
+Meilisearch-Consumer bleibt in SRCH0 inventarisiert. Die aktuelle Karte
+behält ihr akzeptiertes Cap ohne Vollständigkeitsversprechen darüber hinaus.
+Der Cluster-Nachladefix bleibt zurückgestellt, ohne eigenen Branch,
+Produktänderung, UI-Signal oder Änderung von `maxTotalHits`.
+Die [Duplikat-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-upload-duplikatprüfung)
+und [Cluster-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-clusterbegrenzung)
+halten die unveränderte Evidenz und die noch offene Diagnose-/Abnahmetrennung
+fest. Zugriffsscope, Sichtbarkeit und Berechtigungen bleiben verbindlich.
+
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
 Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0
 verlangt bereits Datenerhalt, abgeschlossene Initialisierung vor Suchfreigabe

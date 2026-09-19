@@ -115,7 +115,9 @@ Invarianten:
 - Die am 19. September 2026 ausdrücklich ausgenommenen Korrekturen
   `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001`, die globale Tag-Umbenennung
   `SRCH0-MUTATION-008`, negative Thumbnailindizes `SRCH0-PROJECTION-021`,
-  SDK-HTTP-Statusweitergabe und die abgegrenzten Actor-Suchparameter
+  SDK-HTTP-Statusweitergabe, die abgegrenzten Actor-Suchparameter,
+  Upload-Duplikatprüfung und Vollständigkeit oberhalb des bestehenden
+  Cluster-Caps
   gehören nicht zum verbindlichen SRCH0-Abnahmeumfang.
   Die Sortier-Robustheit bleibt zurückgestellt; Feldauswahl und die nur
   administrativ verfügbare Tag-Umbenennung werden separat korrigiert. Auch
@@ -133,6 +135,11 @@ Invarianten:
   Die API-Ausnahmen betreffen nur die Fehlerklassifikation beziehungsweise
   fehlendes `q` und explizite Limits; Authentifizierung, Berechtigungen und
   die Ablehnung fehlgeschlagener Engineanfragen bleiben verbindlich.
+  Die Duplikatprüfung bleibt als technischer Meilisearch-Consumer erfasst,
+  wird aber als unabhängiger Importfix korrigiert. Das aktuelle Karten-Cap
+  ist eine akzeptierte bekannte Begrenzung; der Cluster-Nachladefix bleibt
+  zurückgestellt, ohne eigenen Branch oder Produktänderung. Daraus folgt
+  keine Ausnahme für Zugriffsscope, Sichtbarkeit oder Berechtigungen.
 - Nachfolgende Tasks erhalten die aktive Baseline. Bewusste neue Semantik
   benötigt ein ausdrücklich begründetes, auf stabile Case-IDs bezogenes
   Delta-Overlay samt Nachweis aller unveränderten Resultate. Historische

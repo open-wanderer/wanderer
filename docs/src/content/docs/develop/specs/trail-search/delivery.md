@@ -107,8 +107,9 @@ Schnitt genannten Security-Gates nachweislich erfüllt sind.
    der SRCH0-Abnahme auf derselben Zielrevision integriert und grün sein.
    Die Sortier-Robustheit `SRCH0-GAP-SORT-001`, die Feldauswahl
    `SRCH0-GAP-DTO-001`, die globale Tag-Umbenennung `SRCH0-MUTATION-008`,
-   negative Thumbnailindizes `SRCH0-PROJECTION-021`, SDK-HTTP-Statusweitergabe
-   und die abgegrenzten Actor-Suchparameter sind davon
+   negative Thumbnailindizes `SRCH0-PROJECTION-021`, SDK-HTTP-Statusweitergabe,
+   die abgegrenzten Actor-Suchparameter, Upload-Duplikatprüfung und
+   Vollständigkeit oberhalb des bestehenden Cluster-Caps sind davon
    ausgenommen und keine SRCH0-Blocker.
    SRCH-V1, SRCH-COMP, SRCH2, SEC-VIS-0 und die späteren Indexbausteine
    übernehmen diese korrigierte Basis.
@@ -224,6 +225,21 @@ Ablehnung fehlgeschlagener Engineanfragen bleiben verbindlich. Tests und
 Korpus bleiben unverändert; die Diagnose-/Abnahmetrennung steht aus.
 Push, PR und Integration sind noch nicht erfolgt.
 
+Upload-Duplikatprüfung und Clusterbegrenzung sind ebenfalls **keine
+SRCH0-Blocker**. Die Duplikatprüfung erhält als Importkorrektur den
+unabhängigen lokalen Branch `fix/upload-duplicate-check`, frisch ab
+`dev` (`c73966d6c`); ihr technischer Meilisearch-Consumer bleibt in SRCH0
+erfasst. Das aktuelle Karten-Cap wird als bekannte Begrenzung akzeptiert,
+ohne Vollständigkeitsversprechen oberhalb des Caps. Der Cluster-Nachladefix
+aus der Sammelreferenz bleibt zurückgestellt: kein eigener Clusterbranch,
+keine Produktänderung, kein neues UI-Signal, keine Änderung von `maxTotalHits`.
+Die [Duplikat-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-upload-duplikatprüfung)
+und [Cluster-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-clusterbegrenzung)
+bewahren Diagnose und historische Evidenz. Tests und Korpus bleiben
+unverändert; die technische Trennung von Diagnose und Abnahme steht noch
+aus. Zugriffsscope, Sichtbarkeit und Berechtigungen bleiben verbindlich.
+Push, PR und Integration des Importfixes sind noch nicht erfolgt.
+
 Die Darstellung zeigt nur die für diese Entscheidung wichtigen Kanten; die Tabelle enthält die vollständigen Abhängigkeiten:
 
 ```text
@@ -322,7 +338,7 @@ weiterhin ausschliesslich aus der Spalte **Abhängigkeit**.
 
 | Baustein                                          | Inhalt                                                                                                                                                                                                                                                                                                         | Abhängigkeit                  | Ergebnis                                                |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------ |
-| <span id="baustein-srch0"></span>[SRCH0 – Regressionsbasis](/develop/specs/trail-search/work-items/search/srch0/) | Datierter, ausführbarer Testkorpus mit stabilen Case-IDs, unveränderter historischer Evidenz, korrekten aktiven Erwartungen und unabhängigen Eigenschaften | Implementierung: keine; Abnahme: bekannte Fehler im verbindlichen Abnahmeumfang korrigiert, integrierte Zielrevision grün; die oben abgegrenzten Befunde zu Sortier-Robustheit, Feldauswahl, Tag-Umbenennung, negativen Thumbnailindizes, SDK-HTTP-Statusweitergabe und Actor-Suchparametern sind keine Blocker | fachlich korrekte Basis für spätere Änderungen; aktuell `blocked` |
+| <span id="baustein-srch0"></span>[SRCH0 – Regressionsbasis](/develop/specs/trail-search/work-items/search/srch0/) | Datierter, ausführbarer Testkorpus mit stabilen Case-IDs, unveränderter historischer Evidenz, korrekten aktiven Erwartungen und unabhängigen Eigenschaften | Implementierung: keine; Abnahme: bekannte Fehler im verbindlichen Abnahmeumfang korrigiert, integrierte Zielrevision grün; die oben abgegrenzten Befunde zu Sortier-Robustheit, Feldauswahl, Tag-Umbenennung, negativen Thumbnailindizes, SDK-HTTP-Statusweitergabe, Actor-Suchparametern, Upload-Duplikatprüfung und Cluster-Cap sind keine Blocker | fachlich korrekte Basis für spätere Änderungen; aktuell `blocked` |
 | <span id="baustein-idx0"></span>[IDX0 – Suchindex-Bootstrap und Readiness](/develop/specs/trail-search/work-items/engine/idx0/) | entfernt den unbedingten asynchronen Startup-Wipe, stellt fehlende beziehungsweise unerwartet leere Legacyindizes kontrolliert her, bietet einen Offline-Rebuild, produziert beide `SearchReadinessV1`-Endpunkte und dokumentiert den einmaligen gefencten Erstrollout | keine | normale Neustarts lassen grüne Indizes unangetastet; SRCH-COMP erhält einen konkreten Readinessproduzenten |
 | <span id="baustein-srch-v1"></span>[SRCH-V1 – Normativer Suchvertrag](/develop/specs/trail-search/work-items/search/srch-v1/) | versionierte gemeinsame Suchsprache mit Request, Response, Normalisierung, URL-Codec, Fehlern und Schemas | abgenommene SRCH0-Regressionsbasis | implementierbare gemeinsame Sprache ohne Runtime-Cutover |
 | <span id="baustein-srch-comp"></span>[SRCH-COMP – Bestandsadapter](/develop/specs/trail-search/work-items/search/srch-comp/) | führt den freigeschalteten Bestandsumfang unter SRCH-V1 serverseitig auf dem heutigen Backend aus, konsumiert IDX0-Readiness und erhält die korrigierte SRCH0-Semantik; Overlays gelten für neue Adaptersemantik | Implementierung: SRCH-V1 und [IDX0](#baustein-idx0); Liveaktivierung: SEC-VIS-0 | kontrollierter Suchpfad für bestehende First-Party-Aufträge |
