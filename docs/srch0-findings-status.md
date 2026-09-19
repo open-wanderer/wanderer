@@ -116,6 +116,33 @@ den betreffenden Befund noch als Diagnose von der Abnahme trennen; gemischte
 Prüfungen erhalten keine pauschale Ausnahme. Damit wird weder ein grüner
 SRCH0-Lauf noch eine Freigabe anderer Metadatenbefunde behauptet.
 
+## Vorschaubild: Robustheitskorrektur, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: Der negative Vorschaubildindex
+(`SRCH0-PROJECTION-021`, `GO-FIX-SRCH0-PROJECTION-021`) ist **kein Merge- oder
+Abnahmeblocker für SRCH0**. Die normale Fotoauswahl erzeugt keine negativen
+Indizes; Formularvalidierung und JSON-API lehnen sie ab. Das PocketBase-Schema
+und der Multipart-API-Pfad erlauben solche Werte jedoch. Der Nachweis mit
+tatsächlich gespeichertem Datensatz und Foto bleibt gültig: `thumbnail=-1`
+verursacht eine Panic bei der Erzeugung des Suchdokuments. Die Entscheidung
+priorisiert diese Robustheitskorrektur; sie erklärt den Fehler nicht für
+harmlos und behauptet keinen nachgewiesenen normalen UI-Auslöser.
+
+Der isolierte Fix liegt auf `fix/search-thumbnail-index`, Commit `e6861358b`,
+frisch ab `origin/dev` bei `c73966d6c`. Er ergänzt ausschliesslich die untere
+Indexgrenze im Suchprojektor: Bei negativen Werten wird wie bei zu grossen
+Werten das erste Foto verwendet. API-Validierung, Datenbankschema und
+Foto-Reihenfolge werden nicht geändert. Der neue Regressionstest reproduziert
+die Panic ohne Fix; mit Fix bestehen alle sechs Vorschaubildfälle und die
+gesamte Backend-Testsuite. Lokal, ohne Push oder PR und ohne Integration in
+`dev` oder `feat/srch0`; diese Integration ist keine SRCH0-Abnahmevoraussetzung.
+
+Historische Evidenz, Korpus, aktive Sollwerte und bestehende SRCH0-Tests
+bleiben unverändert. Die automatische Auswertung muss die eng begrenzte
+Nicht-Blocker-Einstufung noch berücksichtigen. Andere Projektionsprüfungen,
+Zugriffsregeln und Startup-Anforderungen bleiben verbindlich; ein grüner
+SRCH0-Gesamtlauf wird hier nicht behauptet.
+
 ## Gesamtabnahme bleibt offen
 
 Die genannten Testergebnisse gelten für die jeweils isolierten Fixcommits.
