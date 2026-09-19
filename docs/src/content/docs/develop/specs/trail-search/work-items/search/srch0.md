@@ -52,18 +52,38 @@ bleiben unverändert. Eine messbare Beschleunigung ist nicht nachgewiesen.
 Commit und Einzelprüfungen stehen in `scripts/srch0/BEFUNDE.md` unter
 „Kein Blocker: abgerufene Suchfelder“.
 
+Ein veralteter Tag-Name nach einer globalen Umbenennung ist ebenfalls
+**kein SRCH0-Merge- oder Abnahmeblocker**. Die normale Oberfläche erlaubt das
+Anlegen und Zuordnen von Tags sowie das Entfernen einer Zuordnung, aber keine
+Umbenennung. Reguläre Benutzer können Tags auch über die API nicht umbenennen
+(`tags.updateRule: null`); die Administration als PocketBase-Superuser kann
+dies dagegen. Der Befund betrifft einen administrativen Sonderfall.
+
+Die Ausnahme gilt ausschliesslich für die Aktualität des Tag-Namens in
+`SRCH0-MUTATION-008` und `GO-FIX-SRCH0-MUTATION-008`. Actor- und
+Kategoriemetadaten sowie andere Assertions gemischter Fälle sind nicht
+ausgenommen. Reguläre Tagfilter, Änderungen der Tag-Zuordnung einer Tour,
+Zugriffsprüfungen und der Schutz vor unvollständigen Suchdokumenten bleiben
+verbindlich. Der separate Fix `fix/search-tag-metadata`, Commit `122974380`,
+ist frisch ab `origin/dev` (`c73966d6c`) lokal ohne Push oder PR vorbereitet
+und noch nicht in `dev` oder `feat/srch0` integriert. Umfang und erfolgreiche
+Einzelprüfungen stehen in `scripts/srch0/BEFUNDE.md` unter
+„Kein Blocker: administrative Tag-Umbenennung“.
+
 Betroffen sind insbesondere `SRCH0-BROWSER-009`, dessen aktive Solländerung
 `WEB-FIX-SRCH0-BROWSER-009` und der Plausibilitätstest „verwendet für ungültige
 Sortwerte gültige Vorgaben“ sowie für die Feldauswahl `SRCH0-P-RETRIEVAL`,
 `SRCH0-COMPILER-049` und `WEB-FIX-SRCH0-COMPILER-049`.
 Historische Evidenz, aktive Erwartungen und
 strikte Tests bleiben unverändert; sie können deshalb weiterhin rot werden.
-Nur Fehler dieser Sortierabsicherung und Feldauswahl sind fachlich als Diagnose ausserhalb
+Nur Fehler dieser Sortierabsicherung, Feldauswahl und administrativen
+Tag-Umbenennung sind im jeweils beschriebenen Umfang fachlich als Diagnose ausserhalb
 der Abnahme zu werten. Die technische Trennung von Diagnose und Abnahme ist
 vor der formalen Gesamtabnahme nachzuführen; ein grüner Lauf wird hier nicht
 behauptet. Gemischte Fälle erhalten keine Ausnahme für andere Eigenschaften.
 Details stehen in `scripts/srch0/BEFUNDE.md` unter „Zurückgestellt: Absicherung
-gespeicherter Sortwerte“ und „Kein Blocker: abgerufene Suchfelder“.
+gespeicherter Sortwerte“, „Kein Blocker: abgerufene Suchfelder“ und
+„Kein Blocker: administrative Tag-Umbenennung“.
 
 SRCH0 bleibt bis zur Integration aller übrigen erforderlichen Korrekturen und
 zur erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
@@ -333,3 +353,4 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-19 | Fachliche Korrekturen mit ihren Regressionstests einzeln für separate PRs vorbereiten; Radiusfix zuerst auf `fix/search-radius-filter` | Einzelne Fixes lassen sich unabhängig prüfen. Dies ersetzt die bisherige Aufteilung in genau zwei Produkt-PRs; `fix/srch0-findings` bleibt Sammelreferenz und Startup bleibt separat. Der Radiusfix ist nur lokal vorbereitet und noch nicht integriert; SRCH0 bleibt blockiert. |
 | 2026-09-19 | Absicherung gespeicherter Sortwerte und Vorgaberichtung zurückstellen; kein SRCH0-Blocker und vorerst kein eigener PR | Der belegte Fall nutzt absichtlich ungültige Werte; ein Fehler im regulären Gebrauch ist nicht nachgewiesen. Die Entscheidung grenzt die frühere pauschale Blockerregel ein. Gültige Sortierung und übrige Blocker bleiben verbindlich; die technische Einordnung der unveränderten strikten Proben ist vor der Gesamtabnahme nachzuführen. |
 | 2026-09-19 | Ignorierte Feldauswahl (`SRCH0-GAP-DTO-001`) ist kein SRCH0-Blocker; separat auf `fix/search-retrieved-fields` korrigieren | Die Korrektur begrenzt Antwortfelder, ohne Treffer, Filter, Sortierung oder Zugriffsregeln zu ändern; eine Beschleunigung ist nicht gemessen. Der Fix ist lokal ohne Push oder PR vorbereitet. Die unveränderten strikten Proben sind vor der Gesamtabnahme technisch als Diagnose einzuordnen; übrige Blocker bleiben verbindlich. |
+| 2026-09-19 | Veralteter Tag-Name nach administrativer Umbenennung ist kein SRCH0-Merge- oder Abnahmeblocker; separater Fix auf `fix/search-tag-metadata` | Die normale Oberfläche bietet keine Umbenennung und die PocketBase-Records-API erlaubt sie nur Superusern. Die Ausnahme betrifft ausschliesslich die Tag-Aktualität in `SRCH0-MUTATION-008`, keine übrigen Metadaten oder Assertions gemischter Fälle. Der lokale Fix ist ungepusht und nicht integriert. Strikte Tests und Erwartungen bleiben unverändert; die technische Trennung von Diagnose und Abnahme steht aus. |

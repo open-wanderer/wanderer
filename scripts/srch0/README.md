@@ -4,8 +4,9 @@ SRCH0 verlangt fachlich korrektes Suchverhalten. Historische Beobachtungen
 helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
 Jede verletzte geprüfte Eigenschaft lässt den Test scheitern. Die
 [Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker von der
-Sortierabsicherung und der Feldauswahl ohne Blockerstatus; innerhalb des
-verbindlichen Abnahmeumfangs sind Fehlerausnahmen verboten.
+Sortierabsicherung, der Feldauswahl und der administrativen Tag-Umbenennung
+ohne Blockerstatus; innerhalb des verbindlichen Abnahmeumfangs sind
+Fehlerausnahmen verboten.
 
 Entscheidung vom 19. September 2026: Ungültige gespeicherte Sortierfelder und
 -richtungen sowie die Vorgaberichtung bei fehlenden oder ungültigen Angaben
@@ -21,13 +22,24 @@ Entscheidung **kein SRCH0-Blocker**. Sie wird dennoch separat auf
 Auswahl bleibt erhalten. Dies begrenzt Antwortfelder, ohne Treffer oder
 Sortierung zu ändern. Eine messbare Beschleunigung ist nicht nachgewiesen.
 
+Auch ein veralteter Tag-Name nach einer globalen Umbenennung
+(`SRCH0-MUTATION-008`) ist **kein SRCH0-Merge- oder Abnahmeblocker**. Die
+normale Oberfläche bietet keine Umbenennung; die PocketBase-Records-API erlaubt sie nur
+Superusern. Der Befund betrifft einen administrativen Sonderfall. Die Ausnahme
+gilt ausschliesslich für die Aktualität des umbenannten Tags; andere
+Metadatenbefunde und andere Assertions gemischter Fälle bleiben davon
+unberührt. Reguläre Tagfilter, Tag-Zuordnungsänderungen und Zugriffsprüfungen
+bleiben verbindlich.
+
 Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
-und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung und
-Feldauswahl sind fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
+und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung,
+Feldauswahl und administrativen Tag-Umbenennung sind im beschriebenen Umfang
+fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
 und Abnahme muss vor der formalen Gesamtabnahme nachgeführt werden; dies
 belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
-[Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte)
-und [abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder).
+[Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte),
+[abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder) und
+[administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung).
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
@@ -43,6 +55,11 @@ PRs vorbereitet. Stand vom 19. September 2026:
   `feat/srch0`. Diese Optimierung ist keine Voraussetzung für SRCH0.
   Commit und Einzelprüfungen stehen unter
   [abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder).
+- `fix/search-tag-metadata`, Commit `122974380`, ist frisch ab `origin/dev`
+  (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und ohne Integration in
+  `dev` oder `feat/srch0`. Dieser administrative Sonderfall ist keine
+  Voraussetzung für SRCH0. Umfang und Einzelprüfungen stehen unter
+  [administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung).
 - `fix/srch0-findings` bleibt die Sammelreferenz für die bisherigen Korrekturen.
 - `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,

@@ -6,8 +6,9 @@ Stand: 19. September 2026. Geprüfte Produktbaseline:
 Die Tests auf `feat/srch0` verlangen korrekte Ergebnisse und müssen gegen
 den bisherigen Produktcode rot bleiben. Bekannte Fehler innerhalb des
 verbindlichen Abnahmeumfangs sind keine erlaubten Abweichungen. Die unten
-dokumentierten Befunde zur Sortierabsicherung und Feldauswahl sind seit dem
-19. September 2026 keine SRCH0-Blocker. Produktkorrekturen werden als einzelne fachliche Fixes
+dokumentierten Befunde zur Sortierabsicherung, Feldauswahl und administrativen
+Tag-Umbenennung sind seit dem 19. September 2026 keine SRCH0-Blocker.
+Produktkorrekturen werden als einzelne fachliche Fixes
 mit ihren Regressionstests für separate PRs vorbereitet. `fix/srch0-findings` bleibt die
 Sammelreferenz für die bisherigen Korrekturen. `fix/search-index-startup`
 behandelt weiterhin das gesamte Startup-Paket einschliesslich Indexerhalt,
@@ -43,7 +44,8 @@ SRCH0-Produktstand weiterhin offen.
 | Falsche Abstiegslimite in der Karte | Bei `max_elevation_gain=800` und `max_elevation_loss=700` ist `elevationLossMax=700`, aber `elevationLossLimit=800`. Die Achse verwendet zwei widersprüchliche Grenzen. | `SRCH0-P-LOSS-LIMIT`; echter Map-Loader |
 | Negativer Thumbnailindex verursacht Panic | Das echte Produktionsschema akzeptiert `thumbnail=-1` bei vorhandenem, tatsächlich hochgeladenem JPEG. Der Projektor prüft nur die obere Grenze und greift auf `photos[-1]` zu. Ein speicherbarer Record bringt die Projektion zum Absturz. | `SRCH0-PROJECTION-021`; `db/srch0_projection_test.go` |
 | Löschen eines Shares entfernt weitere Freigaben aus dem Suchindex | Alice und Bob haben je einen Share auf denselben Trail. Nach Löschen von Alices Share existiert Bobs Datenbankfreigabe weiterhin; der Hook schreibt dennoch `shares=[]` in den Suchindex. Bob verliert damit diesen Suchzugang. | `SRCH0-MUTATION-005`; echte Datenbankprobe und materialisierte Engineaufträge |
-| Geänderte Metadaten bleiben im Trailindex alt | Änderungen an Actor, Tag oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Zusätzlich dürfen Metadatenupdates bei fehlenden Einträgen keine unvollständigen Treffer erzeugen. | `SRCH0-MUTATION-007/008/009`; echte Hooks und Datenbankproben |
+| Geänderte Actor- und Kategoriemetadaten bleiben im Trailindex alt | Änderungen an Actor oder Kategorie ändern die Quelldaten, aktualisieren aber die davon abhängigen Trail-Suchdokumente nicht entsprechend. Die Entscheidung zur Tag-Umbenennung nimmt diese Befunde nicht von der Abnahme aus. | `SRCH0-MUTATION-007/009`; echte Hooks und Datenbankproben |
+| Metadatenupdates dürfen keine unvollständigen Treffer erzeugen | Fehlt ein abhängiges Suchdokument, darf eine Metadatenänderung kein unvollständiges Dokument im Index erzeugen. Diese eigenständige Anforderung bleibt auch in gemischten Tag-Proben verbindlich. | `db/srch0_index_correctness_test.go`; strikte Projektionsprüfungen |
 | Fehlende oder ungültige Schwierigkeit wird erfunden | Go projiziert Unknown als `0`/leicht; die Web-Konvertierung weist sonstige Rohwerte teilweise als schwierig aus. Unknown muss ohne erfundene Stufe erhalten bleiben. | strikte Go-Projektions- und Web-DTO-Prüfungen |
 | Ungültige Actor-Suchparameter werden falsch behandelt | Fehlendes `q` wird zu HTTP 500; `limit` erreicht den SDK-Auftrag als String. | strikte Actor-Parameterprüfungen |
 
@@ -52,6 +54,36 @@ SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
 Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
 Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)
 beschreibt den Vergleich mit der historischen Beobachtung.
+
+## Kein Blocker: administrative Tag-Umbenennung
+
+Entscheidung vom 19. September 2026: Der veraltete Tag-Name nach einer globalen
+Umbenennung ist **kein SRCH0-Merge- oder Abnahmeblocker**. Die normale
+Wanderer-Oberfläche erlaubt das Anlegen und Zuordnen von Tags sowie das
+Entfernen einer Zuordnung, aber keine globale Umbenennung. Reguläre Benutzer
+können Tags auch über die API nicht umbenennen (`tags.updateRule: null`).
+Eine Umbenennung durch einen PocketBase-Superuser in der Administration ist
+möglich; der Befund betrifft somit einen administrativen Sonderfall.
+
+Die Ausnahme betrifft ausschliesslich die Aktualität des Tag-Namens in
+`SRCH0-MUTATION-008` und der aktiven Solländerung
+`GO-FIX-SRCH0-MUTATION-008`. Sie nimmt weder Actor- und Kategoriemetadaten noch
+andere Assertions desselben Falls pauschal aus. Reguläre Tagfilter, das
+Aktualisieren der Tag-Zuordnung einer Tour und Zugriffsprüfungen bleiben
+verbindlich; ebenso der Schutz vor unvollständigen Suchdokumenten.
+
+Der separate Fix auf `fix/search-tag-metadata`, Commit `122974380`, ist frisch
+ab `origin/dev` (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und ohne
+Integration in `dev` oder `feat/srch0`. Er aktualisiert ausschliesslich die
+Tags betroffener Touren nach Tag-Umbenennungen. Seine Regressionstests,
+einschliesslich einer Umbenennung mit 201 betroffenen Touren, und die gesamte
+Backend-Testsuite sind erfolgreich. Diese Einzelprüfung ersetzt keine
+SRCH0-Gesamtabnahme.
+
+Tests, Korpus und aktive Erwartungen bleiben unverändert. Die strikten
+Tag-Aktualitätsprüfungen können deshalb weiterhin rot werden; ihre technische
+Trennung von Diagnose und Abnahme steht vor der formalen Gesamtabnahme noch
+aus. Ein grüner SRCH0-Lauf wird hier nicht behauptet.
 
 ## Kein Blocker: abgerufene Suchfelder
 
@@ -97,8 +129,9 @@ aktive Solländerung `WEB-FIX-SRCH0-BROWSER-009` und der Plausibilitätstest
 
 Tests, Korpus und Sollwerte werden durch diese Dokumentationsentscheidung
 nicht geändert; die bisherigen strikten Assertions können deshalb weiterhin
-rot werden. Ausschliesslich Fehler der genannten Sortierabsicherung und der
-oben beschriebenen Feldauswahl gelten fachlich als Diagnose ausserhalb der
+rot werden. Ausschliesslich Fehler der genannten Sortierabsicherung, der
+oben beschriebenen Feldauswahl und der administrativen Tag-Umbenennung gelten
+im jeweils abgegrenzten Umfang fachlich als Diagnose ausserhalb der
 SRCH0-Abnahme. Die technische Trennung
 von Diagnose und Abnahme muss vor der formalen Gesamtabnahme nachgeführt
 werden; ein grüner Lauf wird hier nicht behauptet. Gemischte Fälle wie
