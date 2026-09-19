@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strings"
 	"testing"
 
 	_ "pocketbase/migrations"
@@ -19,20 +18,29 @@ import (
 
 func TestImportProviderDifficultyContract(t *testing.T) {
 	app, opts := newProviderDifficultyApp(t)
-	for _, test := range []struct {
+	tests := []struct {
 		name  string
 		field string
 		want  string
 	}{
 		{"legacy", "", ""},
 		{"empty", `,"difficulty":""`, ""},
+		{"null", `,"difficulty":null`, ""},
 		{"easy", `,"difficulty":"easy"`, "easy"},
 		{"moderate", `,"difficulty":"moderate"`, "moderate"},
 		{"difficult", `,"difficulty":"difficult"`, "difficult"},
-	} {
+		{"invalid string", `,"difficulty":"hard"`, ""},
+		{"wrong case", `,"difficulty":"Easy"`, ""},
+		{"number", `,"difficulty":1`, ""},
+		{"boolean", `,"difficulty":true`, ""},
+		{"array", `,"difficulty":["easy"]`, ""},
+		{"object", `,"difficulty":{"grade":"easy"}`, ""},
+	}
+	for _, test := range tests {
 		for _, kind := range []string{"planned", "completed"} {
 			t.Run(test.name+"/"+kind, func(t *testing.T) {
-				// Decode plugin JSON so omitted fields exercise older-plugin behavior.
+				// Legacy metadata is deliberately different from the canonical field:
+				// it must neither supply a missing rating nor override a valid one.
 				payload := fmt.Sprintf(`{"name":"Provider rating","kind":%q,"source":{"provider":"test-provider","externalId":%q},"metadata":{"difficulty":"difficult"}%s}`, kind, test.name+"-"+kind, test.field)
 				var item pluginsystem.TrailImport
 				if err := json.Unmarshal([]byte(payload), &item); err != nil {
@@ -53,61 +61,73 @@ func TestImportProviderDifficultyContract(t *testing.T) {
 				if trail.GetString("gpx") == "" {
 					t.Fatal("import did not persist its GPX")
 				}
-
-				// Re-imports retain user-edited ratings, including unknown. They
-				// are skipped even if the plugin now emits invalid fields or GPX.
-				for _, savedDifficulty := range []string{"", "easy", "moderate", "difficult"} {
-					trail.Set("difficulty", savedDifficulty)
-					if err := app.Save(trail); err != nil {
-						t.Fatal(err)
-					}
-					for _, incomingDifficulty := range []string{"", "easy", "difficult", "invalid"} {
-						item.Difficulty = incomingDifficulty
-						item.Track = pluginsystem.Track{Format: "invalid"}
-						repeated, err := importer.ImportTrail(context.Background(), app, item, opts)
-						if err != nil {
-							t.Fatal(err)
-						}
-						if !repeated.Skipped || repeated.Created || repeated.TrailID != trail.Id {
-							t.Fatalf("repeat import = %#v, want skipped existing trail", repeated)
-						}
-						if got := providerDifficultyTrail(t, app, trail.Id).GetString("difficulty"); got != savedDifficulty {
-							t.Fatalf("repeat import changed difficulty from %q to %q", savedDifficulty, got)
-						}
-					}
-				}
 			})
 		}
 	}
-	if got := providerDifficultyRecordCount(t, app, "trails"); got != 10 {
-		t.Fatalf("trail count = %d, want 10 (duplicates must not create trails)", got)
+	if got, want := providerDifficultyRecordCount(t, app, "trails"), int64(2*len(tests)); got != want {
+		t.Fatalf("trail count = %d, want %d", got, want)
 	}
 }
 
-func TestImportProviderDifficultyRejectsInvalidBeforeGPXAndRecordCreation(t *testing.T) {
+func TestImportProviderDifficultyIgnoresInvalidStrings(t *testing.T) {
 	app, opts := newProviderDifficultyApp(t)
 	for _, difficulty := range []string{"unknown", "hard", "Easy", " easy", "easy ", "0"} {
 		t.Run(difficulty, func(t *testing.T) {
-			for _, track := range []pluginsystem.Track{providerDifficultyGPX(), {Format: "invalid"}} {
-				item := pluginsystem.TrailImport{
-					Name: "Invalid rating", Difficulty: difficulty,
-					Source: pluginsystem.TrailImportSource{Provider: "test-provider", ExternalID: difficulty},
-					Track:  track,
-				}
+			// Construct the item directly: normalization is an importer guarantee,
+			// rather than only a side effect of JSON decoding.
+			item := pluginsystem.TrailImport{
+				Name: "Invalid rating", Difficulty: difficulty,
+				Source:   pluginsystem.TrailImportSource{Provider: "test-provider", ExternalID: difficulty},
+				Track:    providerDifficultyGPX(),
+				Metadata: map[string]any{"difficulty": "easy"},
+			}
+			result, err := importer.ImportTrail(context.Background(), app, item, opts)
+			if err != nil {
+				t.Fatalf("invalid optional rating must not block the import: %v", err)
+			}
+			if !result.Created || result.Skipped {
+				t.Fatalf("import = %#v, want new trail", result)
+			}
+			if got := providerDifficultyTrail(t, app, result.TrailID).GetString("difficulty"); got != "" {
+				t.Fatalf("invalid rating stored as %q, want unknown", got)
+			}
+		})
+	}
+}
+
+func TestImportProviderDifficultyPreservesExistingTrails(t *testing.T) {
+	app, opts := newProviderDifficultyApp(t)
+	for _, savedDifficulty := range []string{"", "easy", "moderate", "difficult"} {
+		t.Run(savedDifficulty, func(t *testing.T) {
+			item := pluginsystem.TrailImport{
+				Name: "Original name", Difficulty: savedDifficulty,
+				Source: pluginsystem.TrailImportSource{Provider: "test-provider", ExternalID: "existing-" + savedDifficulty},
+				Track:  providerDifficultyGPX(),
+			}
+			original, err := importer.ImportTrail(context.Background(), app, item, opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Preserve all existing ratings, including unknown. Duplicates still
+			// skip GPX processing even if the new rating or track is invalid.
+			item.Track = pluginsystem.Track{Format: "invalid"}
+			for _, incomingDifficulty := range []string{"", "easy", "moderate", "difficult", "hard", "Easy"} {
+				item.Difficulty = incomingDifficulty
 				result, err := importer.ImportTrail(context.Background(), app, item, opts)
-				if err == nil || !strings.Contains(err.Error(), "unsupported trail difficulty") || !strings.Contains(err.Error(), fmt.Sprintf("%q", difficulty)) {
-					t.Fatalf("import error = %v, want difficulty validation before GPX processing", err)
+				if err != nil {
+					t.Fatal(err)
 				}
-				if result != nil {
-					t.Fatalf("invalid import returned result %#v", result)
+				if result.Created || !result.Skipped || result.TrailID != original.TrailID {
+					t.Fatalf("duplicate result = %#v, want skipped original trail", result)
+				}
+				if got := providerDifficultyTrail(t, app, original.TrailID).GetString("difficulty"); got != savedDifficulty {
+					t.Fatalf("incoming %q changed existing difficulty from %q to %q", incomingDifficulty, savedDifficulty, got)
 				}
 			}
 		})
 	}
-	for _, collection := range []string{"trails", "trail_external_reference", "waypoints", "summit_logs"} {
-		if got := providerDifficultyRecordCount(t, app, collection); got != 0 {
-			t.Errorf("invalid import created %d records in %s", got, collection)
-		}
+	if got := providerDifficultyRecordCount(t, app, "trails"); got != 4 {
+		t.Fatalf("trail count = %d, want 4 (duplicates must not create trails)", got)
 	}
 }
 
