@@ -1,0 +1,83 @@
+---
+title: What works where
+description: A side-by-side of the wanderer mobile app and the web interface during the beta
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+
+<BetaNotice />
+
+The app is built for the trail: finding trails, recording, navigating, and working without a connection. Managing your collection and talking to other people still mostly happen on the web. Both use the same account and the same data on your instance, so anything you do on one side shows up on the other.
+
+The goal is full parity with the web interface. The tables below show where the beta stands today; rows marked *planned* are on the roadmap, without a date.
+
+**Legend:** ✅ available · 🟡 partly (see note) · ❌ not available
+
+## Trails
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Browse, search, filter and sort trails | ✅ | ✅ |
+| Record a trail with GPS | ✅ [Record a trail](/app/record-a-trail) | ❌ |
+| Plan a route on the map | ✅ needs a connection | ✅ |
+| Import a file | 🟡 GPX offline; KML, KMZ, TCX, FIT need a connection | ✅ |
+| Create and edit trail details, photos, waypoints | ✅ editing needs a connection | ✅ |
+| Create waypoints from geotagged photos | ✅ | ✅ |
+| Export a trail (GPX and other formats) | ❌ *planned* — use [Import/Export](/use/import-export#export) on the web | ✅ |
+| Share a trail with other users or via link | ❌ *planned* — use [Share trails](/use/share-trails) on the web | ✅ |
+| Merge trails | ❌ *planned* — use [Merge trails](/use/merge-trails) on the web | ✅ |
+| Statistics | ❌ *planned* — use [Statistics](/use/statistics) on the web | ✅ |
+
+## Offline & navigation
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Download trails to your device | ✅ [Offline use](/app/offline-use) | ❌ |
+| Download map regions (base map, shaded relief) | ✅ | ❌ |
+| Turn-by-turn navigation | 🟡 on-screen directions; no voice guidance, no rerouting — [Navigate a trail](/app/navigate-a-trail) | ❌ |
+| Navigate offline | ✅ downloaded trails | ❌ |
+
+Voice guidance is not planned for the first release of the app.
+
+## Community
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Like a trail | ✅ | ✅ |
+| Read comments and summit logs | ✅ needs a connection | ✅ |
+| Write a comment | ❌ *planned* — comment on the trail's web page | ✅ |
+| Add a summit log | ❌ *planned* — see [Summit logs](/use/summit-logs) | ✅ |
+| Follow users, view profiles and their feed | ✅ | ✅ |
+| Share your profile (QR code, link) | ✅ [Profile](/app/profile#share-your-profile) | ✅ |
+| Notification inbox | ❌ — see [Notifications](/use/community-interaction#notifications) on the web | ✅ |
+| Notifications on your phone | ❌ the app sends none; notification settings apply to the web and email | — |
+
+## Lists
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Browse lists, open their trails, view a list on the map | ✅ [Lists](/app/lists) | ✅ |
+| Create, edit or delete a list | ❌ *planned* — see [Lists](/use/lists) | ✅ |
+| Add or remove trails | ❌ *planned* — see [Lists](/use/lists) | ✅ |
+| Share a list | ❌ *planned* — see [Share a list](/use/lists#share-a-list) | ✅ |
+
+## Account & settings
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Log in with password or a third-party login (OAuth) | ✅ | ✅ |
+| Register a new account | ✅ if the instance allows signups | ✅ |
+| Account, privacy, language & units, notification preferences, categories | ✅ synced with the web; read-only while offline | ✅ |
+| Appearance (light / dark) | ✅ per device | ✅ |
+| Delete your account | ✅ | ✅ |
+| API tokens | ❌ — see [Authentication](/use/authentication#api-tokens) | ✅ |
+| Plugins (e.g. Strava import) | ❌ — configured on the web, see [Plugins](/use/plugins); imported trails appear in the app | ✅ |
+| Custom map styles and terrain | ❌ — the app uses your instance's default map | ✅ |
+
+## One account, two sides
+
+- **Settings** made in the app apply on the web and vice versa, except the theme, which is stored per device.
+- **Trails you create in the app** are stored on your device first and uploaded to your instance automatically as soon as it is reachable. Until then they exist only on that phone.
+- **Trails you download** are copies. Editing happens on the instance; use **Update** in the trail's three-dot menu to refresh the device copy after the original changed.
+
+Missing something that isn't listed here? [Open an issue](https://github.com/open-wanderer/wanderer/issues/new?template=app_bug_report.yml) and tell us what you were trying to do.
