@@ -9,7 +9,7 @@ The <span class="-tracking-[0.075em]">wanderer</span> mobile app is a [Flutter](
 The app has not been merged into the main release line yet. Two consequences:
 
 - The `app/` folder only exists on the `feature/app` branch. Check that branch out.
-- The backend the app talks to needs endpoints (region catalogue, health probe, navigation, and more) that are only in the **`-app` Docker images**: `flomp/wanderer-db:<version>-app` and `flomp/wanderer-web:<version>-app`, e.g. `v0.20.0-app`. Both images must carry the same tag — the web image hosts the `/api/v1/regions` proxy the app relies on. There are no `-app` git tags; a source checkout of `feature/app` contains the same backend code.
+- The backend the app talks to needs endpoints (region catalogue, health probe, navigation, and more) that are only in the **`-app` Docker images**: `flomp/wanderer-db:<version>-app` and `flomp/wanderer-web:<version>-app`, e.g. `v0.20.0-app`. Both images must carry the same tag, because the web image hosts the `/api/v1/regions` proxy the app relies on. There are no `-app` git tags; a source checkout of `feature/app` contains the same backend code.
 :::
 
 ## Prerequisites
@@ -36,17 +36,17 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-`lib/objectbox-model.json` and `lib/objectbox.g.dart` are committed. Commit them whenever an ObjectBox entity changes — the model file records entity and property IDs that must stay stable across builds.
+`lib/objectbox-model.json` and `lib/objectbox.g.dart` are committed. Commit them whenever an ObjectBox entity changes; the model file records entity and property IDs that must stay stable across builds.
 
 ## Localization
 
-User-facing strings live in ARB files in `lib/i18n/` (`app_en.arb` is the template). `flutter run` and `flutter build` regenerate the localization classes automatically (`generate: true` in `pubspec.yaml`). To regenerate them explicitly after adding or changing a string — and to refresh the untranslated-messages report — run:
+User-facing strings live in ARB files in `lib/i18n/` (`app_en.arb` is the template). `flutter run` and `flutter build` regenerate the localization classes automatically (`generate: true` in `pubspec.yaml`). To regenerate them explicitly after adding or changing a string, and to refresh the untranslated-messages report, run:
 
 ```bash
 flutter gen-l10n
 ```
 
-This also updates `lib/i18n/untranslated_messages.json`, a committed report of strings that are still English-only in other locales. If your change makes this file grow, consider providing translations — or commit the updated report so the gap is at least visible in the diff.
+This also updates `lib/i18n/untranslated_messages.json`, a committed report of strings that are still English-only in other locales. If your change makes this file grow, consider providing translations, or commit the updated report so the gap is at least visible in the diff.
 
 ## Run the app
 
@@ -58,9 +58,9 @@ flutter run
 
 ### Connecting to a local backend
 
-On first launch the app asks which instance to connect to. You can enter any URL — including your local development server.
+On first launch the app asks which instance to connect to. You can enter any URL, including your local development server.
 
-The app talks to the **SvelteKit frontend**, which proxies to PocketBase — point it at the frontend's port (`5173` for `npm run dev`, `3000` for a production build), never at PocketBase's `8090` directly.
+The app talks to the **SvelteKit frontend**, which proxies to PocketBase. Point it at the frontend's port (`5173` for `npm run dev`, `3000` for a production build), never at PocketBase's `8090` directly.
 
 For security reasons the app only permits unencrypted (`http://`) connections to `127.0.0.1` (iOS additionally accepts `localhost`); plain HTTP to LAN or emulator-bridge addresses (such as `10.0.2.2`) is blocked on both platforms. To connect to a backend running on your development machine:
 
@@ -72,7 +72,7 @@ For security reasons the app only permits unencrypted (`http://`) connections to
 
   Then enter `http://127.0.0.1:5173` as the instance URL (or port `3000` for a production-mode frontend).
 
-- **iOS simulator:** the simulator shares the host network — enter `http://127.0.0.1:5173` directly.
+- **iOS simulator:** the simulator shares the host network; enter `http://127.0.0.1:5173` directly.
 
 - **Physical device without adb/USB:** expose your dev server via HTTPS (e.g. a reverse proxy or tunnel) and use that URL.
 
@@ -82,7 +82,7 @@ For security reasons the app only permits unencrypted (`http://`) connections to
 | ------ | -------- |
 | `lib/routes/` | One file per screen, wired together in `lib/provider/router_provider.dart` (go_router) |
 | `lib/components/` | Reusable widgets, grouped by feature (`trail/`, `map/`, `route_planner/`, …) |
-| `lib/provider/` | Riverpod providers — app state, API access, settings |
+| `lib/provider/` | Riverpod providers: app state, API access, settings |
 | `lib/actions/` | Multi-step user flows shared between screens (launching navigation, importing a file, requesting permissions) |
 | `lib/models/` | Immutable data models (freezed) |
 | `lib/entities/` | ObjectBox entities for local persistence (offline trails, recordings, regions) |

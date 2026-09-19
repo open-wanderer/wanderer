@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing the app! Before filing, check [what works where](https://wanderer.to/app/what-works-where/) — some things are not in the beta yet on purpose.
+        Thanks for testing the app! Before filing, check [what works where](https://wanderer.to/app/what-works-where/); some things are not in the beta yet on purpose.
   - type: textarea
     id: what-happened
     attributes:
