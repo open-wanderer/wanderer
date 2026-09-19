@@ -102,10 +102,11 @@ bestehen. `knownViolation`, Skip oder erwartete Fehlschläge sind keine
 zulässigen Ausnahmen. Testkorpus und Korrekturen dürfen getrennte PRs sein;
 die Korrekturen bleiben Voraussetzungen der SRCH0-Abnahme.
 
-Die ausdrücklich zurückgestellte Robustheitskorrektur `SRCH0-GAP-SORT-001`
-liegt seit der Entscheidung vom 19. September 2026 ausserhalb dieses
-verbindlichen Abnahmeumfangs: ungültige gespeicherte Sortierwerte und ihr
-Richtungsfallback blockieren SRCH0 nicht. Die genaue Abgrenzung und der
+Die Sortier-Robustheit `SRCH0-GAP-SORT-001` und die Feldauswahl
+`SRCH0-GAP-DTO-001` liegen seit der Entscheidung vom 19. September 2026
+ausserhalb dieses verbindlichen Abnahmeumfangs. Erstere bleibt zurückgestellt,
+Letztere wird separat korrigiert; beide blockieren SRCH0 nicht. Die genaue
+Abgrenzung und der
 unveränderte Stand der Testimplementierung sind in
 [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) dokumentiert.
 Gültige Bestandssortierungen und die übrigen Fehler bleiben verbindlich.

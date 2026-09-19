@@ -105,8 +105,8 @@ Schnitt genannten Security-Gates nachweislich erfüllt sind.
    Verhalten. Bekannte Fehler im verbindlichen Abnahmeumfang blockieren
    Merge und Abnahme. Produktkorrekturen dürfen getrennte PRs besitzen, müssen aber vor
    der SRCH0-Abnahme auf derselben Zielrevision integriert und grün sein.
-   Die zurückgestellte Sortier-Robustheit `SRCH0-GAP-SORT-001` ist davon
-   ausgenommen und kein SRCH0-Blocker.
+   Die Sortier-Robustheit `SRCH0-GAP-SORT-001` und die Feldauswahl
+   `SRCH0-GAP-DTO-001` sind davon ausgenommen und keine SRCH0-Blocker.
    SRCH-V1, SRCH-COMP, SRCH2, SEC-VIS-0 und die späteren Indexbausteine
    übernehmen diese korrigierte Basis.
 2. **[SRCH-V1](/develop/specs/trail-search/work-items/search/srch-v1/) – eine
@@ -178,6 +178,14 @@ erhalten. Die vorhandene Suite bildet diese nicht blockierende Einordnung
 noch nicht ab; die [SRCH0-Entscheidung](/develop/specs/trail-search/work-items/search/srch0/)
 beschreibt die erforderliche Trennung von den weiterhin verbindlichen
 Sortierprüfungen. Die übrigen offenen Korrekturen halten SRCH0 blockiert.
+
+Am selben Tag wurde auch die Feldauswahl `SRCH0-GAP-DTO-001` als
+**nicht blockierend** eingestuft: Sie reduziert unnötige Antwortdaten, ohne
+Treffer oder Sortierung zu ändern; eine messbare Beschleunigung ist nicht
+nachgewiesen. Dafür ist dennoch `fix/search-retrieved-fields` separat und
+lokal ab `dev` (`c73966d6c`) vorbereitet, ohne Push, PR oder Integration.
+Die [SRCH0-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-feldauswahl)
+hält auch hier die noch nachzuführende Trennung der Diagnoseprüfungen fest.
 
 Die Darstellung zeigt nur die für diese Entscheidung wichtigen Kanten; die Tabelle enthält die vollständigen Abhängigkeiten:
 
@@ -277,7 +285,7 @@ weiterhin ausschliesslich aus der Spalte **Abhängigkeit**.
 
 | Baustein                                          | Inhalt                                                                                                                                                                                                                                                                                                         | Abhängigkeit                  | Ergebnis                                                |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------ |
-| <span id="baustein-srch0"></span>[SRCH0 – Regressionsbasis](/develop/specs/trail-search/work-items/search/srch0/) | Datierter, ausführbarer Testkorpus mit stabilen Case-IDs, unveränderter historischer Evidenz, korrekten aktiven Erwartungen und unabhängigen Eigenschaften | Implementierung: keine; Abnahme: bekannte Fehler im verbindlichen Abnahmeumfang korrigiert, integrierte Zielrevision grün; `SRCH0-GAP-SORT-001` ist kein Blocker | fachlich korrekte Basis für spätere Änderungen; aktuell `blocked` |
+| <span id="baustein-srch0"></span>[SRCH0 – Regressionsbasis](/develop/specs/trail-search/work-items/search/srch0/) | Datierter, ausführbarer Testkorpus mit stabilen Case-IDs, unveränderter historischer Evidenz, korrekten aktiven Erwartungen und unabhängigen Eigenschaften | Implementierung: keine; Abnahme: bekannte Fehler im verbindlichen Abnahmeumfang korrigiert, integrierte Zielrevision grün; `SRCH0-GAP-SORT-001` und `SRCH0-GAP-DTO-001` sind keine Blocker | fachlich korrekte Basis für spätere Änderungen; aktuell `blocked` |
 | <span id="baustein-idx0"></span>[IDX0 – Suchindex-Bootstrap und Readiness](/develop/specs/trail-search/work-items/engine/idx0/) | entfernt den unbedingten asynchronen Startup-Wipe, stellt fehlende beziehungsweise unerwartet leere Legacyindizes kontrolliert her, bietet einen Offline-Rebuild, produziert beide `SearchReadinessV1`-Endpunkte und dokumentiert den einmaligen gefencten Erstrollout | keine | normale Neustarts lassen grüne Indizes unangetastet; SRCH-COMP erhält einen konkreten Readinessproduzenten |
 | <span id="baustein-srch-v1"></span>[SRCH-V1 – Normativer Suchvertrag](/develop/specs/trail-search/work-items/search/srch-v1/) | versionierte gemeinsame Suchsprache mit Request, Response, Normalisierung, URL-Codec, Fehlern und Schemas | abgenommene SRCH0-Regressionsbasis | implementierbare gemeinsame Sprache ohne Runtime-Cutover |
 | <span id="baustein-srch-comp"></span>[SRCH-COMP – Bestandsadapter](/develop/specs/trail-search/work-items/search/srch-comp/) | führt den freigeschalteten Bestandsumfang unter SRCH-V1 serverseitig auf dem heutigen Backend aus, konsumiert IDX0-Readiness und erhält die korrigierte SRCH0-Semantik; Overlays gelten für neue Adaptersemantik | Implementierung: SRCH-V1 und [IDX0](#baustein-idx0); Liveaktivierung: SEC-VIS-0 | kontrollierter Suchpfad für bestehende First-Party-Aufträge |

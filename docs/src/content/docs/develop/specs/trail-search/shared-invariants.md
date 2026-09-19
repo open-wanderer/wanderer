@@ -112,11 +112,12 @@ Invarianten:
   sind dann Voraussetzungen der SRCH0-Abnahme. Sie werden nicht auf
   SRCH-COMP, SRCH2 oder SEC-VIS-0 verschoben, die die freigegebene Baseline
   erst konsumieren.
-- Die am 19. September 2026 ausdrücklich zurückgestellte Robustheitskorrektur
-  `SRCH0-GAP-SORT-001` gehört nicht zum verbindlichen SRCH0-Abnahmeumfang.
-  Ungültige gespeicherte Sortierwerte und ihr Richtungsfallback sind damit
-  kein Merge- oder Abnahmeblocker. Die begrenzte Einstufung und ihr Verhältnis
-  zu den noch unveränderten Tests stehen in
+- Die am 19. September 2026 ausdrücklich ausgenommenen Korrekturen
+  `SRCH0-GAP-SORT-001` und `SRCH0-GAP-DTO-001` gehören nicht zum verbindlichen
+  SRCH0-Abnahmeumfang. Die Sortier-Robustheit bleibt zurückgestellt;
+  die Feldauswahl wird separat korrigiert. Beide sind kein Merge- oder
+  Abnahmeblocker. Die begrenzte Einstufung und ihr Verhältnis zu den noch
+  unveränderten Tests stehen in
   [SRCH0](/develop/specs/trail-search/work-items/search/srch0/); gültige
   Bestandssortierungen und alle anderen Blocker bleiben verbindlich.
 - Nachfolgende Tasks erhalten die aktive Baseline. Bewusste neue Semantik

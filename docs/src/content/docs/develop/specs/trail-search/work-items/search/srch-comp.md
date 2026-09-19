@@ -89,9 +89,11 @@ Legacyparser als Eingangsadapter erhalten.
 ## Korrigierte SRCH0-Basis und Adapter-Deltas
 
 SRCH-COMP konsumiert historische Basisfälle zusammen mit den abgenommenen
-aktiven Solländerungen und unabhängigen Properties. Radius-, Datums-,
-Karten-, Retrieval- und Storagefehler müssen bereits vor SRCH0-Abnahme
-behoben sein. Der Adapter erhält diese Ergebnisse:
+aktiven Solländerungen und unabhängigen Properties. Radius-, Datums- und
+Kartenfehler müssen bereits vor SRCH0-Abnahme behoben sein. Feldauswahl und
+Sortier-Robustheit sind gemäss [SRCH0](/develop/specs/trail-search/work-items/search/srch0/)
+keine Abnahmeblocker; ihre unten beschriebene Zielsemantik bleibt für den
+Adapter vorgesehen:
 
 | Referenz | Erhaltene Semantik beziehungsweise explizite V1-Erweiterung |
 | --- | --- |

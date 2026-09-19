@@ -42,9 +42,9 @@ Bekannte, nachgewiesene Produktfehler im verbindlichen Abnahmeumfang
 blockieren Merge und Abnahme, bis die Korrekturen integriert sind und die
 betroffenen Tests bestehen. `known_gap`, ein `successor_ref` oder ein historisch grüner Lauf
 sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
-Kompatibilitätsvertrag für nachfolgende Arbeiten. Die zurückgestellte
-Robustheitsverbesserung `SRCH0-GAP-SORT-001` gehört nicht zu diesem
-Abnahmeumfang; ihre Diagnosefälle bleiben nachvollziehbar erhalten.
+Kompatibilitätsvertrag für nachfolgende Arbeiten. Die Sortier-Robustheit
+`SRCH0-GAP-SORT-001` und die Feldauswahl `SRCH0-GAP-DTO-001` gehören nicht
+zu diesem Abnahmeumfang; ihre Diagnosefälle bleiben nachvollziehbar erhalten.
 
 Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
 verantwortet den Korrektheitsnachweis; die Produkt-PRs liefern die dazu
@@ -63,7 +63,7 @@ SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
 | Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
 | Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
-| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001` ist kein Blocker |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001` und `SRCH0-GAP-DTO-001` sind keine Blocker |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
 Der historische Bestandsanker besteht aus Commit, Engineprofil,
@@ -380,7 +380,6 @@ SRCH0-Abnahme; Nachfolgetasks müssen sie erhalten.
 | `SRCH0-GAP-DATE-001` | inklusives Datumsende erfasst nur den Tagesbeginn | vollständiger lokaler Kalendertag einschliesslich 23-/25-Stunden-Tagen |
 | `SRCH0-GAP-GEO-002` | Koordinate `0` deaktiviert den Radius | Latitude und Longitude `0` bleiben gültige Anker |
 | `SRCH0-GAP-MAP-001` | Abstiegslimit verwendet den Aufstiegsgrenzwert | Abstieg verwendet den Abstiegsgrenzwert |
-| `SRCH0-GAP-DTO-001` | Feldauswahl erreicht die Engine nicht | beabsichtigte Retrievalfelder werden tatsächlich angewendet |
 | `SRCH0-GAP-SEC-001` | nachgewiesene unzulässige Sichtbarkeit oder Umgehung im geprüften Suchpfad | keine unzulässigen Treffer oder Counts im betreffenden Principal-Kontext |
 | `SRCH0-GAP-BOOT-001` | Startup leert live verwendete Indizes asynchron | Indexerhalt, terminal erfolgreiche Initialisierung, Fehlerweitergabe und Wiederaufnahme |
 
@@ -421,6 +420,27 @@ fordert keinen Sortierfix als zusätzliches Releasegate.
 Die Tests der neun gültigen Sortierfelder in beiden Richtungen bleiben
 verbindlich. Textrelevanz und Gleichstandsbehandlung sind eigenständige
 Themen und von dieser Entscheidung nicht betroffen.
+
+### Nicht blockierende Feldauswahl
+
+**Entscheidung vom 19. September 2026:** `SRCH0-GAP-DTO-001` ist kein
+Merge- oder Abnahmeblocker für SRCH0, wird aber separat auf
+`fix/search-retrieved-fields` korrigiert. Der Suchhelper übermittelt seine
+Standardfeldliste bisher ausserhalb von `options`; die Engine erhält sie
+dadurch nicht. Die Korrektur setzt sie in `options.attributesToRetrieve`
+und erhält eine ausdrücklich vom Aufrufer angegebene Feldliste.
+
+Die Korrektur begrenzt die Antwort auf die vorgesehenen Felder und vermeidet
+unter anderem unnötige `polyline`-Daten. Sie verändert weder Treffer, Filter,
+Sortierung noch Sichtbarkeitsregeln. Eine messbare Beschleunigung ist bisher
+nicht nachgewiesen; die Feldauswahl ist keine Voraussetzung der korrekten
+SRCH0-Suchbasis.
+
+Gap-ID, Case-IDs und historische Beobachtungen bleiben erhalten. Die
+betreffenden Diagnoseprüfungen und aktiven Solländerungen sind in der
+vorhandenen Suite noch unverändert; ihre Trennung vom verbindlichen
+Abnahmeumfang muss dort nachgeführt werden. Diese Einstufung behauptet
+keinen grünen Gesamtlauf und hebt keine übrigen Blocker auf.
 
 ### Weitergehende Folgearbeiten
 
@@ -721,7 +741,14 @@ einzeln auf frischen `dev`-Branches vorbereitet, jeweils mit passenden
 Regressionstests und einem eigenen PR. Zusammengehörige Änderungen zur
 Behebung desselben Fehlers bleiben in einem PR. Die zurückgestellte
 Sortier-Robustheit `SRCH0-GAP-SORT-001` wird vorerst nicht ausgekoppelt und
-blockiert SRCH0 nicht.
+blockiert SRCH0 nicht. Die ebenfalls nicht blockierende Feldauswahl
+`SRCH0-GAP-DTO-001` ist dagegen auf einem eigenen lokalen Fixbranch
+vorbereitet: `fix/search-retrieved-fields` (`8211e5598`), direkt ab
+`origin/dev` bei `c73966d6c`, ohne Push oder PR und noch ohne Integration
+in `dev` oder `feat/srch0`. Gezielte Requestproben bestätigen die
+Standardliste mit 32 Feldern sowie eigene und explizit leere Feldlisten;
+alle 121 Webtests und `npm run check` sind ohne Fehler oder Warnungen
+erfolgreich. Dies belegt den isolierten Fix, keine SRCH0-Gesamtabnahme.
 
 Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
 
@@ -797,3 +824,4 @@ SRCH0.
 | 2026-09-19 | Nachgewiesene Bestandsfehler einschließlich Startup werden vor SRCH0-Abnahme behoben | spätere Owner erhalten diese Korrekturen; ihre vollständige neue Architektur wird dadurch nicht zur zyklischen Voraussetzung |
 | 2026-09-19 | Fachlich unabhängige Produktkorrekturen erhalten eigene PRs samt Regressionstests; erster lokaler Fix ist `fix/search-radius-filter` (`398b45682`) | die Sammelkorrekturen bleiben Referenz; der isolierte Radiusnachweis ersetzt weder Integration noch SRCH0-Gesamtabnahme |
 | 2026-09-19 | `SRCH0-GAP-SORT-001` wird als Robustheitsverbesserung zurückgestellt und ist kein SRCH0-Blocker; vorerst kein eigener PR | ungültige Storagewerte sind ein defensiver Testfall ohne nachgewiesenen Fehler im gewöhnlichen Gebrauch; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
+| 2026-09-19 | `SRCH0-GAP-DTO-001` ist kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-retrieved-fields` | die vorgesehene Feldauswahl reduziert unnötige Antwortdaten ohne Änderung der Suchergebnisse; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |

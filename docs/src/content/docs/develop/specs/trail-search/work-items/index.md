@@ -71,6 +71,12 @@ Einordnung noch übernehmen; die [SRCH0-Spezifikation](/develop/specs/trail-sear
 hält diese Abgrenzung fest. Die Tests gültiger Sortierungen und die übrigen
 Abnahmevoraussetzungen gelten weiterhin.
 
+Die Feldauswahl `SRCH0-GAP-DTO-001` ist ebenfalls **kein SRCH0-Blocker**,
+wird aber separat auf `fix/search-retrieved-fields` korrigiert, lokal ohne
+Push oder PR. Die [SRCH0-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-feldauswahl)
+beschreibt den begrenzten Umfang und die noch ausstehende Trennung der
+Diagnoseprüfungen.
+
 ## Parallele Index- und Engine-Schnitte
 
 | Work Item | Ziel | Stand |

@@ -188,6 +188,12 @@ erhalten, ihre nicht blockierende Einordnung muss in der vorhandenen Suite
 noch nachgeführt werden. Die [SRCH0-Spezifikation](/develop/specs/trail-search/work-items/search/srch0/)
 grenzt dies von den weiterhin verbindlichen Tests gültiger Sortierungen ab.
 
+Auch die Feldauswahl `SRCH0-GAP-DTO-001` ist **kein SRCH0-Blocker**.
+Sie wird separat auf `fix/search-retrieved-fields` korrigiert, lokal ohne
+Push oder PR. Begründung, Umfang und die noch ausstehende Trennung der
+Diagnoseprüfungen stehen in
+[SRCH0](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-feldauswahl).
+
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
 Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0
 verlangt bereits Datenerhalt, abgeschlossene Initialisierung vor Suchfreigabe
