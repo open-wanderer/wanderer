@@ -5,8 +5,9 @@ helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
 Jede verletzte geprüfte Eigenschaft lässt den Test scheitern. Die
 [Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker von der
 Sortierabsicherung, der Feldauswahl, der administrativen Tag-Umbenennung,
-der Absicherung negativer Thumbnailindizes, der Weitergabe des API-Fehlerstatus
-und der Validierung der Actor-Suchparameter
+der Absicherung negativer Thumbnailindizes, der Weitergabe des API-Fehlerstatus,
+der Validierung der Actor-Suchparameter, der Vollständigkeit der
+Upload-Duplikatprüfung und der Vervollständigung der Clustergrundlage
 ohne Blockerstatus; innerhalb des verbindlichen Abnahmeumfangs sind
 Fehlerausnahmen verboten.
 
@@ -55,6 +56,19 @@ eine Störung dieser regulären Aufrufe ist nicht nachgewiesen. Die Ausnahmen
 betreffen nur Fehlerstatus und Parameterbehandlung, keine Authentifizierung,
 Berechtigungen oder Sichtbarkeitsregeln.
 
+Die Vollständigkeit der Upload-Duplikatprüfung und die Vervollständigung der
+Clustergrundlage sind ebenfalls **keine SRCH0-Merge- oder Abnahmeblocker**.
+Die Duplikatkorrektur entsteht unabhängig auf `fix/upload-duplicate-check`;
+fachlich gehört sie zum Upload, bleibt aber als Meilisearch-Consumer im
+SRCH0-Inventar. Für Cluster bleibt die bestehende Begrenzung akzeptiert:
+`SRCH0-SEARCH-129` belegt 1'000 zurückgegebene von 10'001 vorhandenen Trails.
+Das Nachladen des Sammelfixes ist zurückgestellt; es gibt keinen separaten
+Clusterbranch und keine Änderung an Clusterabfrage oder Oberfläche.
+Die Antwort ist damit keine Zusage vollständiger Abdeckung. Der Nachweis
+aller 10'001 Touren ist keine SRCH0-Abnahmevoraussetzung. `SRCH0-SEARCH-130`
+prüft separat die Listenpagination an der Enginegrenze und bleibt unverändert.
+Authentifizierung, Zugriffsregeln und Sichtbarkeit bleiben verbindlich.
+
 „Fehlende Indexdokumente“ bezeichnet eine Absicherung der neuen
 Metadaten-Teilupdates, keinen separat nachgewiesenen `dev`-Fehler und keinen
 zusätzlichen SRCH0-Blocker. Der Tag-Fix enthält sie bereits; ein eigener
@@ -69,8 +83,9 @@ dieser unveränderten Prüfungen steht noch aus. Details stehen unter
 Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
 und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung,
 Feldauswahl, administrativen Tag-Umbenennung, Absicherung negativer
-Thumbnailindizes, Weitergabe des API-Fehlerstatus und Validierung der
-Actor-Suchparameter sind im beschriebenen Umfang
+Thumbnailindizes, Weitergabe des API-Fehlerstatus, Validierung der
+Actor-Suchparameter, Vollständigkeit der Upload-Duplikatprüfung und
+Vervollständigung der Clustergrundlage sind im beschriebenen Umfang
 fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
 und Abnahme muss vor der formalen Gesamtabnahme nachgeführt werden; dies
 belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
@@ -78,8 +93,10 @@ belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
 [abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder),
 [administrative Tag-Umbenennung](BEFUNDE.md#kein-blocker-administrative-tag-umbenennung),
 [negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex),
-[API-Fehlerstatus](BEFUNDE.md#kein-blocker-api-fehlerstatus) und
-[Actor-Suchparameter](BEFUNDE.md#kein-blocker-actor-suchparameter).
+[API-Fehlerstatus](BEFUNDE.md#kein-blocker-api-fehlerstatus),
+[Actor-Suchparameter](BEFUNDE.md#kein-blocker-actor-suchparameter),
+[Upload-Duplikatprüfung](BEFUNDE.md#kein-blocker-upload-duplikatprüfung) und
+[begrenzte Clustergrundlage](BEFUNDE.md#kein-blocker-begrenzte-clustergrundlage).
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
@@ -114,6 +131,12 @@ PRs vorbereitet. Stand vom 19. September 2026:
   stehen unter
   [API-Fehlerstatus](BEFUNDE.md#kein-blocker-api-fehlerstatus) und
   [Actor-Suchparameter](BEFUNDE.md#kein-blocker-actor-suchparameter).
+- `fix/upload-duplicate-check`, Commit `8f50fe9ac`, ist frisch ab `origin/dev`
+  (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und ohne Integration in
+  `dev` oder `feat/srch0`. Der Fix ist keine Voraussetzung für SRCH0 und
+  verändert keine Clusterabfrage. Umfang, Evidenz und erfolgreiche
+  Einzelprüfungen stehen unter
+  [Upload-Duplikatprüfung](BEFUNDE.md#kein-blocker-upload-duplikatprüfung).
 - `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,
   Fehlerweitergabe, Wiederaufnahme und den Reparaturbefehl.
@@ -383,8 +406,11 @@ Laufzeitoptimierung zurückgestellt.
 Test, unabhängig davon, ob der Fehler schon bekannt war. Ein Fix muss diese
 Prüfung bestehen; die Rückkehr des alten Fehlers muss sie wieder scheitern
 lassen. Go prüft korrekte Projektionen, Freigaben und aktualisierte Metadaten
-unabhängig von den historischen Goldens. Vollständigkeits- und Startuptests
-dürfen fehlende Treffer oder vorzeitig verfügbare Teilindizes nicht akzeptieren.
+unabhängig von den historischen Goldens. Die unveränderten
+Vollständigkeitstests für Upload-Duplikate und Cluster bleiben als Diagnose
+erhalten; ihre technische Trennung von der Abnahme steht noch aus.
+Startuptests bleiben verbindlich und dürfen vorzeitig verfügbare Teilindizes
+nicht akzeptieren.
 
 Die Kürzel in `successor_refs` sind Planungsreferenzen. Ihre Dokumente liegen
 nicht in diesem Branch; sie sind weder tote Links noch eine Voraussetzung,

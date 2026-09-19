@@ -8,7 +8,8 @@ den bisherigen Produktcode rot bleiben. Bekannte Fehler innerhalb des
 verbindlichen Abnahmeumfangs sind keine erlaubten Abweichungen. Die unten
 dokumentierten Befunde zur Sortierabsicherung, Feldauswahl, administrativen
 Tag-Umbenennung, Absicherung negativer Thumbnailindizes, Weitergabe des
-API-Fehlerstatus und Validierung der Actor-Suchparameter sind seit dem
+API-Fehlerstatus, Validierung der Actor-Suchparameter, Vollständigkeit der
+Upload-Duplikatprüfung und Vervollständigung der Clustergrundlage sind seit dem
 19. September 2026 keine SRCH0-Blocker.
 Produktkorrekturen werden als einzelne fachliche Fixes
 mit ihren Regressionstests für separate PRs vorbereitet. `fix/srch0-findings` bleibt die
@@ -52,6 +53,73 @@ SRCH0 enthält die strikten Regressionstests und die korrekten aktiven
 Erwartungen. Eine Änderung dieser Erwartungen darf keinen fachlichen
 Propertytest umgehen. Die [Anleitung](README.md#eine-produktkorrektur-prüfen)
 beschreibt den Vergleich mit der historischen Beobachtung.
+
+## Kein Blocker: Upload-Duplikatprüfung
+
+Entscheidung vom 19. September 2026: Die Vollständigkeit der
+Upload-Duplikatprüfung ist **kein SRCH0-Merge- oder Abnahmeblocker**.
+Die Korrektur gehört fachlich zum Upload und wird unabhängig auf
+`fix/upload-duplicate-check` vorbereitet. Die Duplikatprüfung bleibt als
+Meilisearch-Consumer im SRCH0-Inventar und in der Evidenz enthalten.
+
+Der bisherige Uploadhelper prüft nur die erste Engineantwort mit höchstens
+20 Trails. Eine kontrollierte Probe legt das passende Duplikat hinter diese
+erste Antwort. Der separate Fix prüft auch weitere Kandidaten. Nachweis
+und aktive Solländerungen bleiben erhalten: `SRCH0-SEARCH-117` mit
+`API-FIX-SRCH0-SEARCH-117`, `SRCH0-COMPILER-083/084` mit ihren `WEB-FIX-`
+Änderungen und der Duplikattest in `web/src/lib/srch0/completeness.test.ts`.
+Die Ausnahme betrifft diese Vollständigkeitskorrektur, keine
+Authentifizierung oder Zugriffsregeln; insbesondere ist der Tenant-Negativfall
+`SRCH0-SEARCH-118` davon nicht ausgenommen.
+
+Commit `8f50fe9ac` ist frisch ab `origin/dev` (`c73966d6c`) lokal vorbereitet,
+ohne Push oder PR und ohne Integration in `dev` oder `feat/srch0`.
+Clusterabfragen werden durch diesen Fix nicht verändert. Auf `dev` scheitern
+7 der 15 neuen Upload-Regressionstests; mit dem Fix bestehen alle 15 und die
+gesamte Web-Testsuite mit 136 Tests. `npm run check` meldet 0 Fehler und
+0 Warnungen. Eine zusätzliche Probe des produktiven Helpers gegen eine
+isolierte Meilisearch-Instanz `1.53.2` findet alle 1'101 zulässigen Treffer
+bei einer Enginegrenze von 1'000 sowie alle 17 bei einer Grenze von 7.
+Tenant-Token und zusätzliche Filter bleiben wirksam; in dieser Probe werden
+für den Token unsichtbare private sowie zusätzlich herausgefilterte
+Dokumente ausgeschlossen. Diese Einzelprüfungen
+ersetzen keine SRCH0-Gesamtabnahme. SRCH0-Tests, Korpus und aktive
+Erwartungen bleiben unverändert. Die technische Einordnung der genannten
+Prüfungen als Diagnose ausserhalb der Abnahme steht vor der formalen
+Gesamtabnahme noch aus; ein grüner SRCH0-Lauf wird hier nicht behauptet.
+
+## Kein Blocker: begrenzte Clustergrundlage
+
+Entscheidung vom 19. September 2026: Die Vervollständigung der Clustergrundlage
+ist **kein SRCH0-Merge- oder Abnahmeblocker**. Die bestehende Begrenzung bleibt
+als bekannte Grenze akzeptiert. Der Generator erzeugt tatsächlich 10'001
+Trails; bei `maxTotalHits=1000` liefert die bisherige Clusterabfrage nur
+1'000 davon. Daraus folgt keine Zusage, dass die Clusterantwort alle
+sichtbaren Touren oder deren Gesamtzahl vollständig repräsentiert.
+
+Das Nachladen aus dem Sammelfix ist zurückgestellt. Es wird kein separater
+Cluster-Fixbranch vorbereitet; Clusterabfrage und Oberfläche bleiben
+unverändert, einschliesslich des bisherigen fehlenden Begrenzungshinweises.
+Das diskutierte Nachladen in 500er-Paketen verursacht zusätzliche
+Engineanfragen und überträgt weitere Treffer. Eine Laufzeit- oder
+Performancewirkung ist ohne Benchmarks nicht gemessen.
+
+Die Evidenz bleibt erhalten: `SRCH0-SEARCH-129` mit
+`API-FIX-SRCH0-SEARCH-129`, `SRCH0-COMPILER-072` mit
+`WEB-FIX-SRCH0-COMPILER-072` und der Clustertest in
+`web/src/lib/srch0/completeness.test.ts`. Die vollständige Darstellung aller
+10'001 Touren ist keine SRCH0-Abnahmevoraussetzung. `SRCH0-SEARCH-130`
+prüft dagegen die **Listenpagination** jenseits der Enginegrenze, keine
+Clusteränderung. Diese separate Grenzprobe bleibt unverändert und erhält
+durch diese Entscheidung keine allgemeine Ausnahme für Listenfehler.
+Authentifizierung, Zugriffsregeln, Sichtbarkeit und andere Assertions
+gemischter Fälle bleiben verbindlich.
+
+SRCH0-Tests, Korpus und aktive Erwartungen bleiben unverändert; insbesondere
+werden die bisherigen Solländerungen zum Nachladen nicht stillschweigend
+entfernt. Ihre technische Einordnung als Diagnose ausserhalb der Abnahme
+steht vor der formalen Gesamtabnahme noch aus. Ein grüner SRCH0-Lauf wird
+hier nicht behauptet.
 
 ## Kein Blocker: API-Fehlerstatus
 
@@ -238,8 +306,9 @@ Tests, Korpus und Sollwerte werden durch diese Dokumentationsentscheidung
 nicht geändert; die bisherigen strikten Assertions können deshalb weiterhin
 rot werden. Ausschliesslich Fehler der genannten Sortierabsicherung, der
 oben beschriebenen Feldauswahl, der administrativen Tag-Umbenennung, der
-Absicherung negativer Thumbnailindizes, der Weitergabe des API-Fehlerstatus
-und der Validierung der Actor-Suchparameter gelten
+Absicherung negativer Thumbnailindizes, der Weitergabe des API-Fehlerstatus,
+der Validierung der Actor-Suchparameter, der Vollständigkeit der
+Upload-Duplikatprüfung und der Vervollständigung der Clustergrundlage gelten
 im jeweils abgegrenzten Umfang fachlich als Diagnose ausserhalb der
 SRCH0-Abnahme. Die technische Trennung
 von Diagnose und Abnahme muss vor der formalen Gesamtabnahme nachgeführt
@@ -255,8 +324,7 @@ Entscheidungen nicht betroffen. Alle übrigen SRCH0-Blocker bleiben bestehen.
 
 | Einordnung | Beobachtung | Aussagegrenze |
 | --- | --- | --- |
-| Merge-Blocker: unvollständige Clusterresultate | Der Generator materialisiert tatsächlich 10'001 Trails. Bei `maxTotalHits=1000` liefert die bisherige Clusterabfrage nur 1'000 davon. | Produktprüfungen verlangen die vollständige sichtbare Clustergrundlage. Ein Engine-Cap darf kein erfolgreiches unvollständiges Produktresultat ergeben. Fälle `SRCH0-SEARCH-129/130`, `completeness.test.ts`. |
-| Merge-Blocker: unvollständige Duplikatprüfung | Der bisherige Uploadhelper untersucht nur die erste Engineantwort mit höchstens 20 Trails. | Eine kontrollierte Probe legt das passende Duplikat in eine spätere Antwort und verlangt dessen Erkennung. Die echte API-/Engineprüfung ergänzt diesen Nachweis. `SRCH0-SEARCH-117`, `completeness.test.ts`. |
+| Listenpagination an der Enginegrenze | Bei `maxTotalHits=1000` und 100 Treffern pro Seite bleibt Seite 11 leer, obwohl das Dataset 10'001 Trails enthält. | `SRCH0-SEARCH-130` ist eine unveränderte Listen-Grenzprobe, kein Clusterfall und kein Nachweis einer Clusterkorrektur. |
 | Merge-Blocker: Startup-Verfügbarkeit | Normale Starts löschen und befüllen die live verwendeten Indizes asynchron neu. Tokenroute und Suche können währenddessen erreichbar sein. Das gesamte Startup-Paket wird im eigenen PR auf `fix/search-index-startup` behandelt. | Strikte Tests bleiben in SRCH0 und verlangen den Erhalt vorhandener Daten, terminal erfolgreiche Initialisierung vor Suchbereitschaft, Fehlerweitergabe und Wiederaufnahme abgebrochener Erstinitialisierung. Fälle `SRCH0-MUTATION-090` bis `093`. Die Auslagerung erlaubt keine Fehlerausnahme. |
 | Redundanz | Derselbe `_geoRadius` wird zweimal per AND verknüpft. | Logisch dieselbe Treffermenge; kein belegter Ergebnisfehler allein durch die Wiederholung. `SRCH0-P-GEO-DUPLICATE`, `SRCH0-COMPILER-016`. |
 | Merge-Blocker: Enddatum | Ein Enddatum `2026-09-07` wird bisher zu einer inklusiven Grenze am Tagesbeginn. Der lokale Mittag liegt dahinter. | Das ganze lokale Kalenderdatum muss eingeschlossen sein, auch an 23-/25-Stunden-Tagen. Diese Zielsemantik war bereits im Spec festgelegt. `SRCH0-P-DATE-END` und strikte Kalender-/DST-Prüfungen. |

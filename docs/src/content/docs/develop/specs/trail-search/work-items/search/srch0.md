@@ -107,6 +107,25 @@ Einzelprüfungen und abgegrenzte SRCH0-Prüfungen stehen in
 `scripts/srch0/BEFUNDE.md` unter „Kein Blocker:
 API-Fehlerstatus“ und „Kein Blocker: Actor-Suchparameter“.
 
+Die Vollständigkeit der Upload-Duplikatprüfung und die Vervollständigung der
+Clustergrundlage sind ebenfalls **keine SRCH0-Merge- oder Abnahmeblocker**.
+Der separate Fix `fix/upload-duplicate-check`, Commit `8f50fe9ac`, ist frisch
+ab `origin/dev` (`c73966d6c`) lokal ohne Push oder PR vorbereitet und noch
+nicht in `dev` oder `feat/srch0` integriert. Die Korrektur gehört fachlich zum Upload;
+dessen Meilisearch-Nutzung bleibt im SRCH0-Inventar und in der Evidenz.
+Sie verändert keine Clusterabfrage. Für Cluster ist die bestehende
+Begrenzung als bekannte Grenze akzeptiert. Das Nachladen des Sammelfixes
+bleibt zurückgestellt, ohne separaten Clusterbranch oder Änderung an
+Clusterabfrage und Oberfläche. Bei 10'001 Touren und `maxTotalHits=1000`
+werden nur 1'000 repräsentiert; vollständige Abdeckung ist nicht zugesagt
+und kein SRCH0-Pflichtnachweis. `SRCH0-SEARCH-129` betrifft
+Cluster, `SRCH0-SEARCH-130` dagegen die unveränderte Listenpagination an der
+Enginegrenze. Die Entscheidung gibt keine allgemeine Ausnahme für
+Listenfehler, Authentifizierung, Zugriffsregeln oder Sichtbarkeit. Evidenz,
+erfolgreiche Einzelprüfungen und Umfang stehen in `scripts/srch0/BEFUNDE.md`
+unter „Kein Blocker: Upload-Duplikatprüfung“ und „Kein Blocker: begrenzte
+Clustergrundlage“.
+
 „Fehlende Indexdokumente“ ist kein separat nachgewiesener `dev`-Fehler und
 kein zusätzlicher SRCH0-Blocker, sondern eine Implementierungsanforderung an
 neue Metadaten-Teilupdates. Die Tests stellen den fehlenden Zustand gezielt
@@ -130,7 +149,8 @@ Historische Evidenz, aktive Erwartungen und
 strikte Tests bleiben unverändert; sie können deshalb weiterhin rot werden.
 Nur Fehler dieser Sortierabsicherung, Feldauswahl, administrativen
 Tag-Umbenennung, Absicherung negativer Thumbnailindizes, Weitergabe des
-API-Fehlerstatus und Validierung der Actor-Suchparameter sind im jeweils
+API-Fehlerstatus, Validierung der Actor-Suchparameter, Vollständigkeit der
+Upload-Duplikatprüfung und Vervollständigung der Clustergrundlage sind im jeweils
 beschriebenen Umfang fachlich als Diagnose ausserhalb
 der Abnahme zu werten. Die technische Trennung von Diagnose und Abnahme ist
 vor der formalen Gesamtabnahme nachzuführen; ein grüner Lauf wird hier nicht
@@ -138,8 +158,9 @@ behauptet. Gemischte Fälle erhalten keine Ausnahme für andere Eigenschaften.
 Details stehen in `scripts/srch0/BEFUNDE.md` unter „Zurückgestellt: Absicherung
 gespeicherter Sortwerte“, „Kein Blocker: abgerufene Suchfelder“,
 „Kein Blocker: administrative Tag-Umbenennung“,
-„Kein Blocker: negativer Thumbnailindex“, „Kein Blocker: API-Fehlerstatus“ und
-„Kein Blocker: Actor-Suchparameter“.
+„Kein Blocker: negativer Thumbnailindex“, „Kein Blocker: API-Fehlerstatus“,
+„Kein Blocker: Actor-Suchparameter“, „Kein Blocker: Upload-Duplikatprüfung“ und
+„Kein Blocker: begrenzte Clustergrundlage“.
 
 SRCH0 bleibt bis zur Integration aller übrigen erforderlichen Korrekturen und
 zur erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
@@ -232,10 +253,12 @@ Projektor zum Absturz; seine Absicherung ist gemäss Entscheidung vom
 
 Die Clusterabfrage erreicht beim grossen Dataset die Indexgrenze von 1'000
 Treffern; die Duplikatprüfung untersucht nur die erste Engineantwort mit
-höchstens 20 Trails. Strikte Produktprüfungen verlangen eine vollständige
-Clustergrundlage und das Finden eines passenden Duplikats auch nach dieser
-ersten Antwort. Eine dokumentierte Begrenzung darf diese Tests nicht bestehen
-lassen.
+höchstens 20 Trails. Beide Befunde sind seit dem 19. September 2026 keine
+SRCH0-Blocker. Die Duplikatprüfung wird unabhängig im Upload korrigiert;
+Cluster behalten ihre bekannte Begrenzung. Die bisherigen strikten
+Vollständigkeitsprüfungen bleiben als Evidenz erhalten und können weiterhin
+scheitern. Ihre technische Einordnung als Diagnose steht noch aus; ein
+Nachweis aller 10'001 Touren ist keine SRCH0-Abnahmevoraussetzung.
 
 Die doppelte `_geoRadius`-Klausel ist eine Redundanz ohne belegten Unterschied
 in der Treffermenge. Das Enddatum umfasst den ganzen lokalen Kalendertag;
@@ -418,3 +441,5 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-19 | Negative Thumbnailindizes sind kein SRCH0-Merge- oder Abnahmeblocker; separat auf `fix/search-thumbnail-index` korrigieren | Die Panic mit einem im Produktionsschema speicherbaren negativen Index bleibt belegt. Normale Fotoauswahl und JSON-API erzeugen oder erlauben diesen Wert nicht. Der lokale Fix verwendet bei negativem Index das erste Foto, ohne Eingabevalidierung oder Fotoanordnung zu ändern. Tests und Erwartungen bleiben unverändert; die technische Trennung von Diagnose und Abnahme steht aus. |
 | 2026-09-19 | API-Fehlerstatus ist kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/search-api-error-status` korrigieren | Der SDK-Status unter `response.status` muss korrekt weitergereicht werden. Die Ausnahme betrifft nur dessen Weitergabe, keine Authentifizierung, Berechtigungen oder Sichtbarkeitsregeln. Evidenz, Tests und Erwartungen bleiben erhalten; die technische Einordnung als Diagnose steht aus. |
 | 2026-09-19 | Actor-Suchparameter sind kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/search-actor-parameters` korrigieren | Fehlendes `q` soll HTTP 400 ergeben und `limit` als validierte Zahl übergeben werden; Standard bleibt `3`. Die normale Oberfläche sendet `q` ohne eigenes `limit`. Historische Baseline und aktuelles `dev` liefern bei fehlendem `q` unterschiedliche falsche Statuscodes. Tests und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
+| 2026-09-19 | Upload-Duplikatprüfung ist kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/upload-duplicate-check` korrigieren | Die Erkennung hinter der ersten Engineantwort gehört fachlich zum Upload. Der Meilisearch-Consumer bleibt inventarisiert. Tests, Korpus und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
+| 2026-09-19 | Bestehende Clusterbegrenzung beibehalten; Vervollständigung ist kein SRCH0-Merge- oder Abnahmeblocker | Das Nachladen des Sammelfixes ist zurückgestellt. Kein separater Clusterbranch und keine Änderung an Clusterabfrage oder Oberfläche. Die begrenzte Antwort verspricht keine vollständige Abdeckung; alle 10'001 Touren nachzuweisen ist keine Abnahmevoraussetzung. `SRCH0-SEARCH-129` bleibt Clusterevidenz, `130` eine separate Listen-Grenzprobe. Tests und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
