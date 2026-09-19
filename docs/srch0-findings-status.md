@@ -143,6 +143,61 @@ Nicht-Blocker-Einstufung noch berücksichtigen. Andere Projektionsprüfungen,
 Zugriffsregeln und Startup-Anforderungen bleiben verbindlich; ein grüner
 SRCH0-Gesamtlauf wird hier nicht behauptet.
 
+## API-Fehlerstatus: separat korrigiert, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: Die Weitergabe des HTTP-Status von
+Suchfehlern ist **kein SRCH0-Merge- oder Abnahmeblocker**. Der bisherige
+Proxy liest `httpStatus`, obwohl das installierte Meilisearch-SDK den Status
+unter `response.status` liefert; der gemeinsame Fehlerhandler behandelt
+SDK-Fehler pauschal als 500. Dadurch erscheinen beispielsweise abgelehnte
+Anfragen mit Engine-Status 400 oder 403 als interne Serverfehler. Der Fix
+erhält den tatsächlichen Fehlerstatus, ändert aber weder erfolgreiche
+Suchergebnisse noch Zugriffsregeln oder die Fehleranzeige der Oberfläche.
+
+Die Ausnahme betrifft `SRCH0-P-HTTP` und ausschliesslich die Statusweitergabe
+in `API-FIX-SRCH0-SEARCH-116` sowie `124` bis `127` und den zugehörigen
+Suchendpunkt-/Fehlerhandlerprüfungen. Authentifizierung, Berechtigungen,
+Sichtbarkeit und die Ablehnung fehlerhafter Anfragen bleiben verbindlich;
+die betroffenen Fälle erhalten keine pauschale Ausnahme.
+
+Der unabhängige Fix liegt auf `fix/search-api-error-status`, Commit
+`8bcfe61df`, frisch ab `origin/dev` bei `c73966d6c`. Er umfasst die Einzel- und Mehrfachsuche,
+Kartencluster, Trail-Bounding-Box und den gemeinsamen Fehlerhandler.
+Er benötigt die Actor-Parameterkorrektur nicht. Vor der Korrektur schlagen
+19 gezielte Tests fehl; danach bestehen alle 25 neuen Regressionstests und
+sämtliche 146 Webtests. `npm run check` meldet keine Fehler oder Warnungen.
+
+## Actor-Suchparameter: separat korrigiert, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: Die Korrektur fehlender Suchparameter
+und expliziter Trefferlimits ist **kein SRCH0-Merge- oder Abnahmeblocker**.
+Die normale Oberfläche übermittelt immer `q` und kein eigenes `limit`;
+der numerische Standardwert ist drei. Direkte API-Aufrufe sind betroffen:
+ein gültiges `limit=7` wird bisher als Text an die Engine weitergegeben.
+Die Korrektur wandelt gültige Limits in nichtnegative sichere Ganzzahlen
+um und lehnt ungültige Werte mit 400 ab. Fehlendes `q` ergibt ebenfalls 400;
+`q=` bleibt zulässig. Der historische SRCH0-Ausgangsstand meldete fehlendes
+`q` mit 500. Aktuelles `dev` meldet seit `5058af64d` bereits 404, weil der
+gemeinsame Fehlerhandler SvelteKit-HTTP-Fehler unverändert weitergibt.
+
+Diese Ausnahme umfasst die Parameterkorrekturen von `SRCH0-COMPILER-062`
+und `064` samt `WEB-FIX-SRCH0-COMPILER-062` und `064` sowie die gezielten
+Actor-Parameterprüfungen. Authentifizierung, Selbst-Ausschluss,
+föderierte Handle-Auflösung und andere Sucheigenschaften bleiben verbindlich.
+
+Der unabhängige Fix liegt auf `fix/search-actor-parameters`, Commit
+`a72ff18df`, frisch ab `origin/dev` bei `c73966d6c`. Er ändert ausschliesslich die Actor-Route und
+deren Regressionstests; die allgemeine SDK-Fehlerweitergabe gehört zum
+anderen Fix. Vor der Korrektur schlagen 14 der 20 neuen Tests fehl; danach
+bestehen alle 20 und sämtliche 141 Webtests. `npm run check` meldet keine
+Fehler oder Warnungen. Beide Branches sind lokal, ohne Push oder PR und ohne
+Integration in `dev` oder `feat/srch0` vorbereitet.
+
+Historische Evidenz, Korpus, aktive Sollwerte und bestehende SRCH0-Tests
+bleiben unverändert. Die ausführbare Auswertung muss die beiden eng
+begrenzten Nicht-Blocker-Einstufungen noch technisch berücksichtigen;
+ein grüner SRCH0-Gesamtlauf wird damit nicht behauptet.
+
 ## Gesamtabnahme bleibt offen
 
 Die genannten Testergebnisse gelten für die jeweils isolierten Fixcommits.
