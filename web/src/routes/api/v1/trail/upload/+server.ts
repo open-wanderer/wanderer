@@ -4,9 +4,10 @@ import type { Trail, TrailSearchResult } from "$lib/models/trail";
 import { searchLocationReverse } from "$lib/stores/search_store";
 import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
+import { searchBatches } from "$lib/server/search_batches";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
-import type { Hits, Meilisearch } from "meilisearch";
+import type { Meilisearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
 /**
@@ -123,22 +124,22 @@ export async function PUT(event: RequestEvent) {
 }
 
 async function findDuplicate(ms: Meilisearch, t1: Trail) {
-    const response = await ms.index("trails").search("", {});
-
-    const trails: TrailSearchResult[] = response.hits as Hits<TrailSearchResult>
-
     const distanceThreshold = 100;
     const elevationThreshhold = 50;
     const lengthThreshhold = 50;
 
-    for (const t2 of trails) {
-        const lengthDifference = Math.abs((t1.distance ?? 0) - (t2.distance ?? 0));
-        const elevationGainDifference = Math.abs((t1.elevation_gain ?? 0) - (t2.elevation_gain ?? 0));
-        const elevationLossDifference = Math.abs((t1.elevation_loss ?? 0) - (t2.elevation_loss ?? 0));
-        const startpointDifference = haversineDistance(t1.lat ?? 0, t1.lon ?? 0, t2._geo.lat ?? 0, t2._geo.lng ?? 0)
+    for await (const trails of searchBatches<TrailSearchResult>(ms.index("trails"), "", {
+        attributesToRetrieve: ["id", "name", "author_name", "domain", "distance", "elevation_gain", "elevation_loss", "_geo"],
+    })) {
+        for (const t2 of trails) {
+            const lengthDifference = Math.abs((t1.distance ?? 0) - (t2.distance ?? 0));
+            const elevationGainDifference = Math.abs((t1.elevation_gain ?? 0) - (t2.elevation_gain ?? 0));
+            const elevationLossDifference = Math.abs((t1.elevation_loss ?? 0) - (t2.elevation_loss ?? 0));
+            const startpointDifference = haversineDistance(t1.lat ?? 0, t1.lon ?? 0, t2._geo.lat ?? 0, t2._geo.lng ?? 0)
 
-        if (lengthDifference < lengthThreshhold && elevationGainDifference < elevationThreshhold && elevationLossDifference < elevationThreshhold && startpointDifference < distanceThreshold) {
-            return t2
+            if (lengthDifference < lengthThreshhold && elevationGainDifference < elevationThreshhold && elevationLossDifference < elevationThreshhold && startpointDifference < distanceThreshold) {
+                return t2
+            }
         }
     }
 
