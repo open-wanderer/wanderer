@@ -43,8 +43,9 @@ blockieren Merge und Abnahme, bis die Korrekturen integriert sind und die
 betroffenen Tests bestehen. `known_gap`, ein `successor_ref` oder ein historisch grüner Lauf
 sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
 Kompatibilitätsvertrag für nachfolgende Arbeiten. Die Sortier-Robustheit
-`SRCH0-GAP-SORT-001` und die Feldauswahl `SRCH0-GAP-DTO-001` gehören nicht
-zu diesem Abnahmeumfang; ihre Diagnosefälle bleiben nachvollziehbar erhalten.
+`SRCH0-GAP-SORT-001`, die Feldauswahl `SRCH0-GAP-DTO-001` und die globale
+Tag-Umbenennung `SRCH0-MUTATION-008` gehören nicht zu diesem Abnahmeumfang;
+ihre Diagnosefälle bleiben nachvollziehbar erhalten.
 
 Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
 verantwortet den Korrektheitsnachweis; die Produkt-PRs liefern die dazu
@@ -63,7 +64,7 @@ SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
 | Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
 | Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
-| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001` und `SRCH0-GAP-DTO-001` sind keine Blocker |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001` und die Tag-Umbenennung `SRCH0-MUTATION-008` sind keine Blocker |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
 Der historische Bestandsanker besteht aus Commit, Engineprofil,
@@ -387,7 +388,10 @@ Der ausführbare Korpus ergänzt mindestens die auf `feat/srch0` belegten
 Fehlerfälle: SDK-HTTP-Statusweitergabe, Actor-Suchparameter, negative
 Thumbnailindizes, Erhalt verbleibender Shares, Aktualisierung abhängiger
 Actor-/Tag-/Kategoriemetadaten und vollständige Materialisierung fehlender
-Indexdokumente. Clustergrundlage und Upload-Duplikatprüfung müssen die gesamte
+Indexdokumente. Die globale Tag-Umbenennung `SRCH0-MUTATION-008` bleibt dabei
+als nicht blockierender Diagnosefall erhalten; die unten begründete Ausnahme
+gilt nicht pauschal für andere Metadatenmutationen.
+Clustergrundlage und Upload-Duplikatprüfung müssen die gesamte
 zulässige Kandidatenmenge berücksichtigen; Engine-Defaultlimits und
 `maxTotalHits` dürfen kein erfolgreiches unvollständiges Ergebnis erzeugen.
 Ein Duplikat hinter Position 20 und tatsächlich indexierte 10'001 Trails
@@ -441,6 +445,43 @@ betreffenden Diagnoseprüfungen und aktiven Solländerungen sind in der
 vorhandenen Suite noch unverändert; ihre Trennung vom verbindlichen
 Abnahmeumfang muss dort nachgeführt werden. Diese Einstufung behauptet
 keinen grünen Gesamtlauf und hebt keine übrigen Blocker auf.
+
+### Nicht blockierende Tag-Umbenennung
+
+**Entscheidung vom 19. September 2026:** Die veralteten Tagnamen nach einer
+globalen Umbenennung (`SRCH0-MUTATION-008`) sind kein Merge- oder
+Abnahmeblocker für SRCH0. Der Befund bleibt ein Fehler: Die Datenbank enthält
+den neuen Namen, während die betroffenen Suchdokumente den alten behalten;
+ein Filter mit dem neuen Tagnamen kann deshalb Touren übersehen.
+
+Die normale Wanderer-Oberfläche bietet jedoch keine globale Tag-Umbenennung
+an. Benutzer können Tags anlegen sowie Touren zuordnen oder die Zuordnung
+entfernen. Die Collection `tags` hat `updateRule: null`; auch über die
+Records-API dürfen normale Benutzer bestehende Tags nicht umbenennen.
+Ein PocketBase-Superuser kann den Namen global ändern. Der Fall prüft damit
+einen administrativen Sonderfall und ist keine Voraussetzung der aktuellen
+SRCH0-Suchbasis.
+
+Die Ausnahme betrifft ausschliesslich diese Tag-Umbenennung. Reguläre
+Tagfilter, das Anlegen von Tags, Änderungen der Tagzuordnung an Touren und
+die zugehörigen Aktualisierungs- und Berechtigungsprüfungen bleiben
+verbindlich. Andere Actor-, Kategorie- oder Metadatenbefunde werden damit
+nicht neu eingestuft.
+
+Case-ID, historische Evidenz und die gewünschte Korrektur bleiben erhalten.
+Tests, Korpus und Erwartungen werden durch diese Dokumentänderung nicht
+geändert; die Suite kann den Fall weiterhin als Pflichtprüfung behandeln.
+Die Trennung der Diagnose von der verbindlichen Abnahmeprüfung ist dort
+noch nachzuführen. Die Einstufung behauptet keinen grünen Gesamtlauf und
+lässt die übrigen SRCH0-Blocker bestehen.
+
+Die isolierte Korrektur ist auf `fix/search-tag-metadata` (`122974380`)
+lokal ab `origin/dev` (`c73966d6c`) vorbereitet. Sie führt ausschliesslich
+Tag-Umbenennungen in den Suchdokumenten betroffener Touren nach. Der
+Regressionstest mit 201 betroffenen Touren und die gesamte Backend-Testsuite
+sind erfolgreich; Push, PR und Integration in `dev` oder `feat/srch0` sind
+noch nicht erfolgt. Dieser Nachweis betrifft den separaten Fix, nicht die
+SRCH0-Gesamtabnahme.
 
 ### Weitergehende Folgearbeiten
 
@@ -750,6 +791,12 @@ Standardliste mit 32 Feldern sowie eigene und explizit leere Feldlisten;
 alle 121 Webtests und `npm run check` sind ohne Fehler oder Warnungen
 erfolgreich. Dies belegt den isolierten Fix, keine SRCH0-Gesamtabnahme.
 
+Auch die nicht blockierende globale Tag-Umbenennung `SRCH0-MUTATION-008`
+besitzt mit `fix/search-tag-metadata` (`122974380`) einen separaten lokalen
+Fixbranch ab `origin/dev` (`c73966d6c`), ohne Push, PR oder Integration.
+Die [Tag-Einstufung](#nicht-blockierende-tag-umbenennung) beschreibt den
+administrativen Sonderfall, den begrenzten Fix und die Prüfungsnachweise.
+
 Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
 
 | Feld | Stand |
@@ -825,3 +872,4 @@ SRCH0.
 | 2026-09-19 | Fachlich unabhängige Produktkorrekturen erhalten eigene PRs samt Regressionstests; erster lokaler Fix ist `fix/search-radius-filter` (`398b45682`) | die Sammelkorrekturen bleiben Referenz; der isolierte Radiusnachweis ersetzt weder Integration noch SRCH0-Gesamtabnahme |
 | 2026-09-19 | `SRCH0-GAP-SORT-001` wird als Robustheitsverbesserung zurückgestellt und ist kein SRCH0-Blocker; vorerst kein eigener PR | ungültige Storagewerte sind ein defensiver Testfall ohne nachgewiesenen Fehler im gewöhnlichen Gebrauch; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
 | 2026-09-19 | `SRCH0-GAP-DTO-001` ist kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-retrieved-fields` | die vorgesehene Feldauswahl reduziert unnötige Antwortdaten ohne Änderung der Suchergebnisse; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
+| 2026-09-19 | Die globale Tag-Umbenennung `SRCH0-MUTATION-008` ist kein SRCH0-Blocker; separater lokaler Fix auf `fix/search-tag-metadata` (`122974380`) bleibt vorbereitet | Umbenennung ist nur als administrativer Sonderfall möglich, nicht in der normalen UI oder über die Records-API normaler Benutzer; reguläre Tagfilter und Zuordnungsänderungen bleiben verbindlich, die Diagnose-/Abnahmetrennung in der Suite steht noch aus |

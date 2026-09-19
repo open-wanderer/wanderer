@@ -77,6 +77,15 @@ Push oder PR. Die [SRCH0-Einstufung](/develop/specs/trail-search/work-items/sear
 beschreibt den begrenzten Umfang und die noch ausstehende Trennung der
 Diagnoseprüfungen.
 
+Die globale Tag-Umbenennung `SRCH0-MUTATION-008` ist ebenfalls **kein
+SRCH0-Blocker**. Sie ist ein administrativer Sonderfall, der in der normalen
+UI und für normale API-Benutzer nicht verfügbar ist.
+`fix/search-tag-metadata` (`122974380`) bleibt als
+separater lokaler Fix ab `dev` (`c73966d6c`) vorbereitet, ohne Push, PR oder
+Integration. Die [Tag-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-tag-umbenennung)
+hält die noch ausstehende Diagnose-/Abnahmetrennung fest; reguläre Tagfilter,
+Tagzuordnungen und die übrigen Metadatenbefunde sind nicht ausgenommen.
+
 ## Parallele Index- und Engine-Schnitte
 
 | Work Item | Ziel | Stand |

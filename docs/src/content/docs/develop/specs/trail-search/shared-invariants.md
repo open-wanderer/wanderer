@@ -113,13 +113,16 @@ Invarianten:
   SRCH-COMP, SRCH2 oder SEC-VIS-0 verschoben, die die freigegebene Baseline
   erst konsumieren.
 - Die am 19. September 2026 ausdrücklich ausgenommenen Korrekturen
-  `SRCH0-GAP-SORT-001` und `SRCH0-GAP-DTO-001` gehören nicht zum verbindlichen
-  SRCH0-Abnahmeumfang. Die Sortier-Robustheit bleibt zurückgestellt;
-  die Feldauswahl wird separat korrigiert. Beide sind kein Merge- oder
-  Abnahmeblocker. Die begrenzte Einstufung und ihr Verhältnis zu den noch
+  `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001` und die globale Tag-Umbenennung
+  `SRCH0-MUTATION-008` gehören nicht zum verbindlichen SRCH0-Abnahmeumfang.
+  Die Sortier-Robustheit bleibt zurückgestellt; Feldauswahl und die nur
+  administrativ verfügbare Tag-Umbenennung werden separat korrigiert. Sie
+  sind keine Merge- oder Abnahmeblocker. Die begrenzte Einstufung und ihr Verhältnis zu den noch
   unveränderten Tests stehen in
   [SRCH0](/develop/specs/trail-search/work-items/search/srch0/); gültige
-  Bestandssortierungen und alle anderen Blocker bleiben verbindlich.
+  Bestandssortierungen, reguläre Tagfilter, Tagzuordnungen und alle anderen
+  Blocker bleiben verbindlich. Andere Metadatenbefunde sind von der
+  Tag-Ausnahme nicht betroffen.
 - Nachfolgende Tasks erhalten die aktive Baseline. Bewusste neue Semantik
   benötigt ein ausdrücklich begründetes, auf stabile Case-IDs bezogenes
   Delta-Overlay samt Nachweis aller unveränderten Resultate. Historische

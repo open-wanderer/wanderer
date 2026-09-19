@@ -102,14 +102,19 @@ bestehen. `knownViolation`, Skip oder erwartete Fehlschläge sind keine
 zulässigen Ausnahmen. Testkorpus und Korrekturen dürfen getrennte PRs sein;
 die Korrekturen bleiben Voraussetzungen der SRCH0-Abnahme.
 
-Die Sortier-Robustheit `SRCH0-GAP-SORT-001` und die Feldauswahl
-`SRCH0-GAP-DTO-001` liegen seit der Entscheidung vom 19. September 2026
-ausserhalb dieses verbindlichen Abnahmeumfangs. Erstere bleibt zurückgestellt,
-Letztere wird separat korrigiert; beide blockieren SRCH0 nicht. Die genaue
-Abgrenzung und der
+Die Sortier-Robustheit `SRCH0-GAP-SORT-001`, die Feldauswahl
+`SRCH0-GAP-DTO-001` und die globale Tag-Umbenennung `SRCH0-MUTATION-008`
+liegen seit den Entscheidungen vom 19. September 2026 ausserhalb dieses
+verbindlichen Abnahmeumfangs. Die Sortier-Robustheit bleibt zurückgestellt;
+Feldauswahl und Tag-Umbenennung werden separat korrigiert. Die Umbenennung
+ist ein administrativer Sonderfall, der in der normalen UI und für normale
+API-Benutzer nicht verfügbar ist.
+Die genaue Abgrenzung und der
 unveränderte Stand der Testimplementierung sind in
 [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) dokumentiert.
-Gültige Bestandssortierungen und die übrigen Fehler bleiben verbindlich.
+Gültige Bestandssortierungen, reguläre Tagfilter und Tagzuordnungen sowie
+die übrigen Fehler bleiben verbindlich. Die Tag-Ausnahme stuft andere
+Metadatenbefunde nicht neu ein.
 
 Damit gehören etwa fehlerhafte Radiusgrenzen, Unknown-Difficulty-Ergebnisse,
 Listenprojektionen oder ein destruktiver normaler Indexstart nicht erst in

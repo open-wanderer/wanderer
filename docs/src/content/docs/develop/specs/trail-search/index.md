@@ -194,6 +194,15 @@ Push oder PR. Begründung, Umfang und die noch ausstehende Trennung der
 Diagnoseprüfungen stehen in
 [SRCH0](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-feldauswahl).
 
+Auch die globale Tag-Umbenennung `SRCH0-MUTATION-008` ist **kein
+SRCH0-Blocker**: Sie ist nur administrativ möglich, nicht über die normale
+UI oder Records-API normaler Benutzer. Der separate Fix auf
+`fix/search-tag-metadata` (`122974380`) bleibt lokal vorbereitet, ohne
+Push, PR oder Integration. Die [Tag-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-tag-umbenennung)
+begrenzt die Ausnahme und hält die noch nachzuführende Diagnose-/Abnahmetrennung
+fest. Reguläre Tagfilter, Tagzuordnungen und andere Metadatenbefunde bleiben
+von dieser Ausnahme unberührt.
+
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
 Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0
 verlangt bereits Datenerhalt, abgeschlossene Initialisierung vor Suchfreigabe
