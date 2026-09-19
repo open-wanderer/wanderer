@@ -440,6 +440,60 @@ func TestProcessDeleteTrailActivity(t *testing.T) {
 	})
 }
 
+// A reply from other ActivityPub software is accepted as a comment although
+// its id is not a Wanderer comment IRI. Its Delete has to be understood the
+// same way, or the comment outlives the post.
+func TestProcessDeleteForeignCommentActivity(t *testing.T) {
+	setup := func(t *testing.T) (*trailDeleteFixture, *core.Collection) {
+		f := setupTrailDeleteTestApp(t)
+		comments, err := f.app.FindCollectionByNameOrId("comments")
+		if err != nil {
+			t.Fatal(err)
+		}
+		comments.Fields.Add(&core.TextField{Name: "iri"})
+		if err := f.app.Save(comments); err != nil {
+			t.Fatal(err)
+		}
+		return f, comments
+	}
+
+	foreignIRI := "https://mastodon.example/users/carol/statuses/123"
+
+	t.Run("removes the comment", func(t *testing.T) {
+		f, comments := setup(t)
+		carol := f.actor(t, "carol", false)
+		trail := f.content(t, f.trails, "trail", f.actor(t, "author", false))
+
+		comment := core.NewRecord(comments)
+		comment.Set("iri", foreignIRI)
+		comment.Set("author", carol.Id)
+		comment.Set("trail", trail.Id)
+		if err := f.app.Save(comment); err != nil {
+			t.Fatal(err)
+		}
+
+		activity := pub.DeleteNew(pub.IRI("https://mastodon.example/users/carol/statuses/123#delete"), pub.IRI(foreignIRI))
+		activity.Actor = pub.IRI(carol.GetString("iri"))
+		if err := ProcessDeleteActivity(f.app, carol, *activity); err != nil {
+			t.Fatalf("ProcessDeleteActivity: %v", err)
+		}
+		if f.exists(t, comment) {
+			t.Error("comment still exists after its Delete")
+		}
+	})
+
+	t.Run("ignores an object it never stored", func(t *testing.T) {
+		f, _ := setup(t)
+		carol := f.actor(t, "carol", false)
+
+		activity := pub.DeleteNew(pub.IRI("https://mastodon.example/x"), pub.IRI(foreignIRI))
+		activity.Actor = pub.IRI(carol.GetString("iri"))
+		if err := ProcessDeleteActivity(f.app, carol, *activity); err != nil {
+			t.Fatalf("ProcessDeleteActivity: %v", err)
+		}
+	})
+}
+
 func TestProcessDeleteListActivity(t *testing.T) {
 	t.Run("removes a list that was synced on demand and never filed into a feed", func(t *testing.T) {
 		f := setupTrailDeleteTestApp(t)

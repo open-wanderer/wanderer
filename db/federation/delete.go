@@ -433,6 +433,14 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 		err = processDeleteSummitLogActivity(app, actor, activity)
 	case util.ObjectKindList:
 		err = processDeleteListActivity(app, actor, activity)
+	default:
+		// Mirrors ProcessCreateOrUpdateActivity: anything else was accepted
+		// as a comment, so a reply from other ActivityPub software is
+		// retracted the same way. One we never stored is nothing to do.
+		err = processDeleteCommentActivity(app, actor, activity)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = nil
+		}
 	}
 
 	if err != nil {
