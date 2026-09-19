@@ -20,7 +20,7 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 	thumbnail := ""
 	if len(photos) > 0 {
 		thumbnailIndex := r.GetInt("thumbnail")
-		if thumbnailIndex >= len(photos) {
+		if thumbnailIndex < 0 || thumbnailIndex >= len(photos) {
 			thumbnailIndex = 0
 		}
 		thumbnail = photos[thumbnailIndex]
