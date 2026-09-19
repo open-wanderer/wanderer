@@ -132,15 +132,16 @@ func actorDeleteInboxes(app core.App, actorId string, actorIRI string) ([]string
 	return inboxes, rows.Err()
 }
 
-// commentInboxes returns every inbox a comment's text was sent to, read back
-// from the cc of its recorded Create and Update activities. A comment edited to
+// recordedInboxes returns every inbox an object was sent to, read back from
+// the cc of its recorded Create and Update activities. Mentioned actors are
+// addressed there without any follow relationship, and an object edited to
 // mention someone new went to both audiences, so all of them count.
-func commentInboxes(app core.App, commentIRI string) ([]string, error) {
+func recordedInboxes(app core.App, objectIRI string) ([]string, error) {
 	records, err := app.FindRecordsByFilter(
 		"activitypub_activities",
 		"(type = 'Create' || type = 'Update') && object.id = {:iri}",
 		"", 0, 0,
-		dbx.Params{"iri": commentIRI},
+		dbx.Params{"iri": objectIRI},
 	)
 	if err != nil {
 		return nil, err

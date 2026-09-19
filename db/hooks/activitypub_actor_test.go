@@ -160,9 +160,9 @@ func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 	activities.Fields.Add(
 		&core.TextField{Name: "iri"},
 		&core.TextField{Name: "type"},
-		&core.TextField{Name: "to"},
+		&core.JSONField{Name: "to"},
 		&core.JSONField{Name: "cc"},
-		&core.TextField{Name: "object"},
+		&core.JSONField{Name: "object"},
 		&core.TextField{Name: "actor"},
 		&core.TextField{Name: "published"},
 	)
@@ -346,7 +346,7 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 		if got := countActivitiesOf(t, app, iri); got != 1 {
 			t.Fatalf("expected only the deletion notice to remain for the deleted actor, found %d record(s)", got)
 		}
-		announcement, err := app.FindFirstRecordByData("activitypub_activities", "object", iri)
+		announcement, err := app.FindFirstRecordByFilter("activitypub_activities", "object = {:iri}", dbx.Params{"iri": iri})
 		if err != nil {
 			t.Fatalf("expected a persisted announcement naming the deleted actor: %v", err)
 		}

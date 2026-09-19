@@ -1,12 +1,17 @@
 package federation
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"testing"
+	"time"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
+	"github.com/pocketbase/pocketbase/tools/security"
 )
 
 // A remote trail reaches this instance in two ways: delivered to a follower's
@@ -16,17 +21,20 @@ import (
 // was filed into, not just the first.
 
 type trailDeleteFixture struct {
-	app    *pbtests.TestApp
-	actors *core.Collection
-	trails *core.Collection
-	lists  *core.Collection
-	feed   *core.Collection
+	app        *pbtests.TestApp
+	in         *inboxes
+	actors     *core.Collection
+	trails     *core.Collection
+	lists      *core.Collection
+	feed       *core.Collection
+	activities *core.Collection
 }
 
 func setupTrailDeleteTestApp(t *testing.T) *trailDeleteFixture {
 	t.Helper()
 
 	t.Setenv("ORIGIN", "https://local.example")
+	t.Setenv("POCKETBASE_ENCRYPTION_KEY", summitLogTestKey)
 
 	app, err := pbtests.NewTestApp(t.TempDir())
 	if err != nil {
@@ -37,18 +45,45 @@ func setupTrailDeleteTestApp(t *testing.T) *trailDeleteFixture {
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(
 		&core.TextField{Name: "iri"},
+		&core.TextField{Name: "inbox"},
+		&core.TextField{Name: "private_key"},
 		&core.BoolField{Name: "is_local"},
 	)
 	if err := app.Save(actors); err != nil {
 		t.Fatal(err)
 	}
 
+	follows := core.NewBaseCollection("follows")
+	follows.Fields.Add(
+		&core.RelationField{Name: "follower", CollectionId: actors.Id, MaxSelect: 1},
+		&core.RelationField{Name: "followee", CollectionId: actors.Id, MaxSelect: 1},
+		&core.TextField{Name: "status"},
+	)
+	if err := app.Save(follows); err != nil {
+		t.Fatal(err)
+	}
+
 	trails := core.NewBaseCollection("trails")
 	trails.Fields.Add(
 		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "public"},
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
 	)
 	if err := app.Save(trails); err != nil {
+		t.Fatal(err)
+	}
+
+	activities := core.NewBaseCollection("activitypub_activities")
+	activities.Fields.Add(
+		&core.TextField{Name: "iri"},
+		&core.TextField{Name: "type"},
+		&core.JSONField{Name: "to"},
+		&core.JSONField{Name: "cc"},
+		&core.JSONField{Name: "object"},
+		&core.TextField{Name: "actor"},
+		&core.TextField{Name: "published"},
+	)
+	if err := app.Save(activities); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,23 +109,94 @@ func setupTrailDeleteTestApp(t *testing.T) *trailDeleteFixture {
 		t.Fatal(err)
 	}
 
-	return &trailDeleteFixture{app: app, actors: actors, trails: trails, lists: lists, feed: feed}
+	return &trailDeleteFixture{
+		app: app, in: newInboxes(t),
+		actors: actors, trails: trails, lists: lists, feed: feed, activities: activities,
+	}
 }
 
+// actor is local, able to sign as PostActivity requires, or remote with its
+// inbox on the counting server.
 func (f *trailDeleteFixture) actor(t *testing.T, name string, local bool) *core.Record {
 	t.Helper()
 
-	host := "remote.example"
-	if local {
-		host = "local.example"
-	}
 	r := core.NewRecord(f.actors)
-	r.Set("iri", "https://"+host+"/api/v1/activitypub/user/"+name)
+	if local {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			t.Fatal(err)
+		}
+		encrypted, err := security.Encrypt(x509.MarshalPKCS1PrivateKey(key), summitLogTestKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		iri := "https://local.example/api/v1/activitypub/user/" + name
+		r.Set("iri", iri)
+		r.Set("inbox", iri+"/inbox")
+		r.Set("private_key", encrypted)
+	} else {
+		r.Set("iri", "https://remote.example/api/v1/activitypub/user/"+name)
+		r.Set("inbox", f.in.url(name))
+	}
 	r.Set("is_local", local)
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
 	}
 	return r
+}
+
+func (f *trailDeleteFixture) follow(t *testing.T, follower, followee *core.Record) {
+	t.Helper()
+
+	c, err := f.app.FindCollectionByNameOrId("follows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := core.NewRecord(c)
+	r.Set("follower", follower.Id)
+	r.Set("followee", followee.Id)
+	r.Set("status", "accepted")
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// localTrail is a public trail of a local author, addressed as this instance
+// would address it.
+func (f *trailDeleteFixture) localTrail(t *testing.T, author *core.Record) *core.Record {
+	t.Helper()
+
+	r := core.NewRecord(f.trails)
+	r.Set("author", author.Id)
+	r.Set("public", true)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	r.Set("iri", "https://local.example/api/v1/trail/"+r.Id)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// recorded files a Create or Update of the trail as PostActivity would have,
+// with the inboxes it was sent to in cc.
+func (f *trailDeleteFixture) recorded(t *testing.T, typ string, trail *core.Record, sentTo ...*core.Record) {
+	t.Helper()
+
+	cc := make([]string, 0, len(sentTo))
+	for _, actor := range sentTo {
+		cc = append(cc, actor.GetString("inbox"))
+	}
+
+	r := core.NewRecord(f.activities)
+	r.Set("iri", "https://local.example/api/v1/activitypub/activity/"+security.RandomString(8))
+	r.Set("type", typ)
+	r.Set("object", map[string]any{"id": trail.GetString("iri"), "type": "Note"})
+	r.Set("cc", cc)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (f *trailDeleteFixture) content(t *testing.T, collection *core.Collection, path string, author *core.Record) *core.Record {
@@ -211,6 +317,83 @@ func TestProcessDeleteListActivity(t *testing.T) {
 		}
 		if f.exists(t, list) {
 			t.Error("list still exists after Delete")
+		}
+	})
+}
+
+func TestCreateTrailDeleteActivity(t *testing.T) {
+	// The reviewer's repro. B follows A, nobody follows B. B's trail mentions
+	// A, so A received it although A is not a follower. When B deletes the
+	// trail, A must be told, or A's cached copy lives on.
+	t.Run("ReachesMentionedActorsWhoDoNotFollow", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		a := f.actor(t, "a", false)
+		f.follow(t, b, a)
+
+		trail := f.localTrail(t, b)
+		f.recorded(t, "Update", trail, a)
+
+		if err := CreateTrailDeleteActivity(f.app, trail); err != nil {
+			t.Fatal(err)
+		}
+
+		if got := f.in.wait("a", 1, 5*time.Second); got != 1 {
+			t.Fatalf("mentioned actor A should receive the Delete, got %d delivery(ies)", got)
+		}
+	})
+
+	// Followers still hear, and an actor that is both a follower and was
+	// mentioned hears once.
+	t.Run("ReachesFollowersOnce", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		follower := f.actor(t, "follower", false)
+		both := f.actor(t, "both", false)
+		f.follow(t, follower, b)
+		f.follow(t, both, b)
+
+		trail := f.localTrail(t, b)
+		f.recorded(t, "Create", trail, both)
+		f.recorded(t, "Update", trail, both)
+
+		if err := CreateTrailDeleteActivity(f.app, trail); err != nil {
+			t.Fatal(err)
+		}
+
+		if got := f.in.wait("follower", 1, 5*time.Second); got != 1 {
+			t.Fatalf("follower should receive the Delete, got %d", got)
+		}
+		if got := f.in.wait("both", 1, 5*time.Second); got != 1 {
+			t.Fatalf("follower who was also mentioned should receive the Delete once, got %d", got)
+		}
+	})
+
+	// The recorded audience is written to the Delete's cc, next to the
+	// followers collection, so the activity itself says who it went to.
+	t.Run("RecordsMentionedInboxesInCC", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		a := f.actor(t, "a", false)
+
+		trail := f.localTrail(t, b)
+		f.recorded(t, "Create", trail, a)
+
+		if err := CreateTrailDeleteActivity(f.app, trail); err != nil {
+			t.Fatal(err)
+		}
+
+		rec, err := f.app.FindFirstRecordByFilter("activitypub_activities", "type = 'Delete' && object = {:iri}", dbx.Params{"iri": trail.GetString("iri")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cc := rec.GetStringSlice("cc")
+		want := []string{b.GetString("iri") + "/followers", a.GetString("inbox")}
+		if len(cc) != len(want) || cc[0] != want[0] || cc[1] != want[1] {
+			t.Fatalf("cc = %v, want %v", cc, want)
 		}
 	})
 }

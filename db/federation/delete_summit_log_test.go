@@ -4,12 +4,14 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -70,11 +72,12 @@ func (in *inboxes) wait(name string, want int, deadline time.Duration) int {
 }
 
 type summitLogFixture struct {
-	app    *pbtests.TestApp
-	in     *inboxes
-	actors *core.Collection
-	trails *core.Collection
-	logs   *core.Collection
+	app        *pbtests.TestApp
+	in         *inboxes
+	actors     *core.Collection
+	trails     *core.Collection
+	logs       *core.Collection
+	activities *core.Collection
 }
 
 func setupSummitLogDeleteTestApp(t *testing.T) *summitLogFixture {
@@ -135,9 +138,9 @@ func setupSummitLogDeleteTestApp(t *testing.T) *summitLogFixture {
 	activities.Fields.Add(
 		&core.TextField{Name: "iri"},
 		&core.TextField{Name: "type"},
-		&core.TextField{Name: "to"},
-		&core.TextField{Name: "cc"},
-		&core.TextField{Name: "object"},
+		&core.JSONField{Name: "to"},
+		&core.JSONField{Name: "cc"},
+		&core.JSONField{Name: "object"},
 		&core.TextField{Name: "actor"},
 		&core.TextField{Name: "published"},
 	)
@@ -145,7 +148,27 @@ func setupSummitLogDeleteTestApp(t *testing.T) *summitLogFixture {
 		t.Fatal(err)
 	}
 
-	return &summitLogFixture{app: app, in: newInboxes(t), actors: actors, trails: trails, logs: logs}
+	return &summitLogFixture{app: app, in: newInboxes(t), actors: actors, trails: trails, logs: logs, activities: activities}
+}
+
+// recorded files a Create or Update of the log as PostActivity would have,
+// with the inboxes it was sent to in cc.
+func (f *summitLogFixture) recorded(t *testing.T, typ string, log *core.Record, sentTo ...*core.Record) {
+	t.Helper()
+
+	cc := make([]string, 0, len(sentTo))
+	for _, actor := range sentTo {
+		cc = append(cc, actor.GetString("inbox"))
+	}
+
+	r := core.NewRecord(f.activities)
+	r.Set("iri", "https://local.example/api/v1/activitypub/activity/"+security.RandomString(8))
+	r.Set("type", typ)
+	r.Set("object", map[string]any{"id": log.GetString("iri"), "type": "Note"})
+	r.Set("cc", cc)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // localAuthor is an actor able to sign, which PostActivity requires.
@@ -241,6 +264,18 @@ func (f *summitLogFixture) orphanedSummitLog(t *testing.T, author, trailAuthor *
 	return log
 }
 
+// jsonString reads a JSON field that holds a single string, as the activity
+// record's to does when it names one actor.
+func jsonString(t *testing.T, rec *core.Record, field string) string {
+	t.Helper()
+
+	var s string
+	if err := json.Unmarshal([]byte(rec.GetString(field)), &s); err != nil {
+		t.Fatalf("%s = %q is not a JSON string: %v", field, rec.GetString(field), err)
+	}
+	return s
+}
+
 func TestCreateSummitLogDeleteActivity(t *testing.T) {
 	// The reviewer's repro. A follows B and logs a summit on B's trail. C
 	// follows A but not B, and so received the log through A. B's trail is
@@ -299,11 +334,11 @@ func TestCreateSummitLogDeleteActivity(t *testing.T) {
 		if err := CreateSummitLogDeleteActivity(f.app, withTrail); err != nil {
 			t.Fatal(err)
 		}
-		rec, err := f.app.FindFirstRecordByData("activitypub_activities", "object", withTrail.GetString("iri"))
+		rec, err := f.app.FindFirstRecordByFilter("activitypub_activities", "object = {:iri}", dbx.Params{"iri": withTrail.GetString("iri")})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := rec.GetString("to"); got != b.GetString("iri") {
+		if got := jsonString(t, rec, "to"); got != b.GetString("iri") {
 			t.Fatalf("with the trail present, to = %q, want the trail author %q", got, b.GetString("iri"))
 		}
 
@@ -311,12 +346,37 @@ func TestCreateSummitLogDeleteActivity(t *testing.T) {
 		if err := CreateSummitLogDeleteActivity(f.app, withoutTrail); err != nil {
 			t.Fatal(err)
 		}
-		rec, err = f.app.FindFirstRecordByData("activitypub_activities", "object", withoutTrail.GetString("iri"))
+		rec, err = f.app.FindFirstRecordByFilter("activitypub_activities", "object = {:iri}", dbx.Params{"iri": withoutTrail.GetString("iri")})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := rec.GetString("to"); got != "https://www.w3.org/ns/activitystreams#Public" {
+		if got := jsonString(t, rec, "to"); got != "https://www.w3.org/ns/activitystreams#Public" {
 			t.Fatalf("with the trail gone, to = %q, want Public", got)
+		}
+	})
+
+	// A log's text can mention an actor who neither follows the author nor
+	// owns the trail. The Create recorded that inbox, and the Delete has to
+	// reach it too.
+	t.Run("ReachesMentionedActors", func(t *testing.T) {
+		f := setupSummitLogDeleteTestApp(t)
+
+		a := f.localAuthor(t, "a")
+		b := f.remoteActor(t, "b")
+		m := f.remoteActor(t, "m")
+
+		log := f.summitLog(t, a, f.trail(t, b).Id)
+		f.recorded(t, "Create", log, m)
+
+		if err := CreateSummitLogDeleteActivity(f.app, log); err != nil {
+			t.Fatal(err)
+		}
+
+		if got := f.in.wait("m", 1, 5*time.Second); got != 1 {
+			t.Fatalf("mentioned actor M should receive the Delete, got %d", got)
+		}
+		if got := f.in.wait("b", 1, 5*time.Second); got != 1 {
+			t.Fatalf("trail author B should receive the Delete, got %d", got)
 		}
 	})
 

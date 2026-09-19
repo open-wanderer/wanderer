@@ -123,8 +123,27 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
-	cc := author.GetString("iri") + "/followers"
 	object := r.GetString("iri")
+
+	// The trail went to the author's followers and to whoever its description
+	// mentioned. The Create and Update activities recorded the mentioned
+	// inboxes, which need not follow the author, so the audience is read back
+	// rather than derived from the follow table alone.
+	recipients, err := followerInboxes(app, author.Id)
+	if err != nil {
+		return err
+	}
+	mentioned, err := recordedInboxes(app, object)
+	if err != nil {
+		return err
+	}
+	mentioned = remoteInboxes(mentioned)
+	recipients = append(recipients, mentioned...)
+
+	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
+	for _, inbox := range mentioned {
+		cc.Append(pub.IRI(inbox))
+	}
 
 	record := core.NewRecord(collection)
 	record.Set("id", recordId)
@@ -144,13 +163,8 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
 	activity.Actor = pub.IRI(author.GetString("iri"))
 	activity.To = pub.ItemCollection{pub.IRI(to)}
-	activity.CC = pub.ItemCollection{pub.IRI(cc)}
+	activity.CC = cc
 	activity.Published = time.Now()
-
-	recipients, err := followerInboxes(app, author.Id)
-	if err != nil {
-		return err
-	}
 
 	return PostActivity(app, author, activity, recipients)
 }
@@ -183,7 +197,7 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 	// activities recorded the inboxes they went out to, mentioned actors and
 	// trail author alike, so the audience is read back rather than derived
 	// again, and it does not depend on the trail still existing.
-	recipients, err := commentInboxes(app, object)
+	recipients, err := recordedInboxes(app, object)
 	if err != nil {
 		return err
 	}
@@ -266,11 +280,19 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	}
 
 	// The log was handed to this author's followers when it was created, so
-	// they are told regardless of what happened to the trail.
+	// they are told regardless of what happened to the trail. So were the
+	// actors its text mentioned, whose inboxes the Create and Update
+	// activities recorded.
 	recipients, err := followerInboxes(app, author.Id)
 	if err != nil {
 		return err
 	}
+	mentioned, err := recordedInboxes(app, r.GetString("iri"))
+	if err != nil {
+		return err
+	}
+	mentioned = remoteInboxes(mentioned)
+	recipients = append(recipients, mentioned...)
 
 	to := "https://www.w3.org/ns/activitystreams#Public"
 
@@ -305,6 +327,9 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	object := r.GetString("iri")
 	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
+	for _, inbox := range mentioned {
+		cc.Append(pub.IRI(inbox))
+	}
 
 	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
 	activity.Actor = pub.IRI(author.GetString("iri"))
