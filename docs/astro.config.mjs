@@ -142,6 +142,7 @@ export default defineConfig({
               { label: 'Backing up your server', link: '/run/backend-configuration/backup-server/' },
               { label: 'Custom categories', link: '/run/backend-configuration/custom-categories/' },
               { label: 'Adjust Filesize Limits', link: '/run/backend-configuration/adjust-filesize-limits/' },
+              { label: 'Mobile app support', link: '/run/backend-configuration/mobile-app/' },
               { label: 'Region catalogue', link: '/run/backend-configuration/region-catalogue/' },
               { label: 'Custom map tiles & assets', link: '/run/backend-configuration/map-tiles/' },
             ]

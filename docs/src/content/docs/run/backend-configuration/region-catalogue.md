@@ -11,7 +11,7 @@ As an instance administrator you decide which regions your server offers. For ev
 - a **DEM archive** with elevation data for hillshading and elevation profiles, extracted from [Mapterhorn](https://mapterhorn.com)
 
 :::note
-The region catalogue is only useful in combination with the mobile app. If none of your users use the app, you can ignore this page entirely; nothing is built or downloaded until you enable a region.
+The region catalogue is only useful in combination with the mobile app and requires the `-app` images described in [Mobile app support](/run/backend-configuration/mobile-app). If none of your users use the app, you can ignore this page entirely; nothing is built or downloaded until you enable a region.
 :::
 
 ## The regions collection
