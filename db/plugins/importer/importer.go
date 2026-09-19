@@ -67,6 +67,11 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	} else if existing != nil {
 		return &Result{TrailID: existing.Id, Skipped: true}, nil
 	}
+	switch item.Difficulty {
+	case "", "easy", "moderate", "difficult":
+	default:
+		return nil, fmt.Errorf("unsupported trail difficulty %q: expected easy, moderate, difficult, or empty", item.Difficulty)
+	}
 
 	gpxBytes, parsedGPX, err := decodeAndParseGPX(item.Track)
 	if err != nil {
@@ -111,11 +116,11 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		"date":           date,
 		"lat":            metrics.StartLat,
 		"lon":            metrics.StartLon,
-		"difficulty":     "easy",
 		"category":       categoryTarget.CategoryID,
 		"subcategory":    categoryTarget.SubcategoryID,
 		"author":         opts.ActorID,
 	})
+	record.Set("difficulty", item.Difficulty)
 	if item.Kind == "completed" {
 		record.Set("completed_at", date)
 	}
