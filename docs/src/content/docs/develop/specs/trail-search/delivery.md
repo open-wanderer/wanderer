@@ -153,12 +153,18 @@ beweist noch keinen ACL-Fehler; die generelle Umstellung auf ausschliesslich
 lokale Aggregate bleibt SEC-VIS-0-Scope.
 
 Aktueller Umsetzungsstand: `feat/srch0` enthält die begonnene Testsuite auf
-Basis von `e9b7a8cad` vom 7. September 2026. Die Bestandskorrekturen aus
-`fix/srch0-findings` sind noch einzubeziehen; für
-`fix/search-index-startup` fehlt die Implementierung. SRCH0 ist deshalb
-`blocked`. Die historische Evidenz darf unverändert auf einen fehlerhaften
-Stand verweisen; die aktive Abnahmesuite darf ihn weder mit `knownViolation`
-noch mit `xfail` oder angepassten Fehlererwartungen akzeptieren.
+Basis von `e9b7a8cad` vom 7. September 2026. Die Bestandskorrekturen aus der
+Sammelreferenz `fix/srch0-findings` werden als einzelne fachliche Fixes mit
+eigenen Regressionstests und PRs vorbereitet. Der erste Fix liegt lokal auf
+`fix/search-radius-filter` (`398b45682`, direkt ab `dev` bei `c73966d6c`):
+Radiuskorrektur und 24 gezielte Regressionstests sind geprüft, aber noch
+nicht gepusht, als PR eingereicht oder in `dev` beziehungsweise `feat/srch0`
+integriert. Der [SRCH0-Umsetzungsstand](/develop/specs/trail-search/work-items/search/srch0/#aktueller-umsetzungsbezug)
+enthält die Prüfungsnachweise. Für `fix/search-index-startup` fehlt weiterhin
+die Implementierung. SRCH0 bleibt `blocked`. Die historische Evidenz darf
+unverändert auf einen fehlerhaften Stand verweisen; die aktive Abnahmesuite
+darf ihn weder mit `knownViolation` noch mit `xfail` oder angepassten
+Fehlererwartungen akzeptieren.
 
 Die Darstellung zeigt nur die für diese Entscheidung wichtigen Kanten; die Tabelle enthält die vollständigen Abhängigkeiten:
 

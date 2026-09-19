@@ -47,10 +47,16 @@ nicht, dass eine im Katalog genannte Abhängigkeit entfällt.
 | [SRCH-SAVED](/develop/specs/trail-search/work-items/search/srch-saved/) | benannte Suchen und Standardsuche für die Trail-Liste | Implementierung nach SRCH-COMP; sichtbare Freigabe nach SRCH4a und SEC-VIS-0; kein Geo-/Count-Gate |
 
 SRCH0 ist auf `feat/srch0` mit Ausgangsrevision `e9b7a8cad` vom
-7. September 2026 in Umsetzung. `fix/srch0-findings` enthält getrennte Produktkorrekturen;
-`fix/search-index-startup` besitzt noch kein Implementierungspaket. Diese
-Arbeitsteilung erlaubt parallele Implementierung, ersetzt aber keine Abnahme
-auf einer gemeinsamen Zielrevision. Bekannte Fehler im vereinbarten Umfang
+7. September 2026 in Umsetzung. `fix/srch0-findings` bleibt die Sammelreferenz
+für einzeln vorzubereitende Produkt-PRs. Als erster Fix ist
+`fix/search-radius-filter` (`398b45682`, direkt ab `dev` bei `c73966d6c`)
+mit 24 Radiusregressionen lokal geprüft; weder Push noch PR oder Integration
+in `dev` beziehungsweise `feat/srch0` sind erfolgt.
+Die [SRCH0-Spezifikation](/develop/specs/trail-search/work-items/search/srch0/#aktueller-umsetzungsbezug)
+führt die Prüfungsnachweise. `fix/search-index-startup` besitzt noch kein
+Implementierungspaket. Diese Arbeitsteilung erlaubt parallele
+Implementierung, ersetzt aber keine Abnahme auf einer gemeinsamen
+Zielrevision. Bekannte Fehler im vereinbarten Umfang
 bleiben Merge- und Abnahmeblocker; `knownViolation`, `xfail` oder historische
 Fehlerausgaben dürfen die aktive Suite nicht grün machen. SRCH-COMP, SRCH2 und
 SEC-VIS-0 übernehmen die korrigierte Basis und ihre jeweiligen Erweiterungen;

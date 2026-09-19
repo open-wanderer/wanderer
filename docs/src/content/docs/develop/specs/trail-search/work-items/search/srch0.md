@@ -678,14 +678,34 @@ eines neuen Suchpfads. Korpusvollständigkeit allein ist kein Abschluss.
 
 ### Aktueller Umsetzungsbezug
 
-Stand 19. September 2026 liegt die Testsuite auf `feat/srch0`
-(`fc6e6c62b`), die übrigen Produktkorrekturen auf `fix/srch0-findings`
-(`dd1377608`). Das vorgesehene Startup-Paket auf `fix/search-index-startup`
-ist dort noch nicht implementiert; der Branch zeigt auf die Ausgangsrevision.
-Beide Korrekturpakete müssen vor SRCH0-Abnahme integriert und gemeinsam
-geprüft sein. Ein früherer grüner kombinierter Prüfbaum belegt nicht den
-verbliebenen Stand ohne Startup-Paket. Die Branches sind Arbeitsbezüge,
-keine zusätzlichen fachlichen Work Items oder bereits erteilte Freigaben.
+Stand 19. September 2026 liegt die Testimplementierung auf `feat/srch0`
+(`fc6e6c62b`). `fix/srch0-findings` bleibt die Sammelreferenz für die bereits
+implementierten Produktkorrekturen; dessen Stand `754456831` enthält den
+Merge von `dev` (`c73966d6c`). Fachlich unabhängige Korrekturen werden daraus
+einzeln auf frischen `dev`-Branches vorbereitet, jeweils mit passenden
+Regressionstests und einem eigenen PR. Zusammengehörige Änderungen zur
+Behebung desselben Fehlers bleiben in einem PR.
+
+Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
+
+| Feld | Stand |
+| --- | --- |
+| Branch / Commit | `fix/search-radius-filter` / `398b45682` |
+| Direkte Basis | `origin/dev` bei `c73966d6c` |
+| Befunde | `SRCH0-GAP-GEO-001` und `SRCH0-GAP-GEO-002`; genau eine Radiusklausel, gültige Nullkoordinaten, Prüfung der Koordinatengrenzen und eines endlichen positiven Radius |
+| Gezielte Regressionen | 24 Fälle in `web/src/lib/stores/trail_store.test.ts`; vor der Korrektur 20 fehlgeschlagen, nach der Korrektur alle erfolgreich |
+| Prüfung des Fixcommits | `npm run test:unit -- --run` im Webverzeichnis: 145 Tests erfolgreich; `npm run check`: keine Fehler oder Warnungen |
+| Veröffentlichung / Integration | lokal, nicht gepusht, kein PR; weder in `dev` noch in `feat/srch0` integriert |
+
+Die Radiusprüfung belegt den isolierten Fix, keine SRCH0-Gesamtabnahme. Der
+Befund bleibt für den ungefixten Produktstand offen. Das vorgesehene
+Startup-Paket auf `fix/search-index-startup` ist weiterhin nicht
+implementiert; der Branch zeigt auf die Ausgangsrevision. Alle erforderlichen
+Produktkorrekturen einschliesslich Startup müssen vor SRCH0-Abnahme
+integriert und gemeinsam geprüft sein. Ein früherer grüner kombinierter
+Prüfbaum belegt nicht den verbliebenen Stand ohne Startup-Paket. Die Branches
+sind Arbeitsbezüge, keine zusätzlichen fachlichen Work Items oder bereits
+erteilte Freigaben.
 
 ## Abhängige Folgearbeiten
 
@@ -738,3 +758,4 @@ SRCH0.
 | 2026-09-19 | Fachlich korrekte aktive Erwartungen und unabhängige Properties bestimmen die Abnahme; historische Beobachtungen bleiben Evidenz | die rein beobachtende Abnahmeregel vom 1. September würde bekannte Fehler als grüne Ausgangsbasis festschreiben und ist ersetzt |
 | 2026-09-19 | Ausgangsrevision ist `e9b7a8cad` vom 7. September; Tests und Produktfixes bleiben getrennt reviewbar | die Spezifikation folgt dem ausführbaren Korpus auf `feat/srch0`, ohne dessen noch blockierten Stand als abgenommen auszugeben |
 | 2026-09-19 | Nachgewiesene Bestandsfehler einschließlich Startup werden vor SRCH0-Abnahme behoben | spätere Owner erhalten diese Korrekturen; ihre vollständige neue Architektur wird dadurch nicht zur zyklischen Voraussetzung |
+| 2026-09-19 | Fachlich unabhängige Produktkorrekturen erhalten eigene PRs samt Regressionstests; erster lokaler Fix ist `fix/search-radius-filter` (`398b45682`) | die Sammelkorrekturen bleiben Referenz; der isolierte Radiusnachweis ersetzt weder Integration noch SRCH0-Gesamtabnahme |
