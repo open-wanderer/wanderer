@@ -32,6 +32,11 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    {
+      name: 'components',
+      testMatch: /components\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {
       name: 'teardown',
@@ -54,6 +59,7 @@ export default defineConfig({
 
     {
       name: 'chromium',
+      testIgnore: /components\//,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],

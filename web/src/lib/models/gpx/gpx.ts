@@ -1,4 +1,5 @@
 import * as xml2js from 'isomorphic-xml2js';
+import { parseGpxXml } from './parse-xml';
 import Metadata from './metadata';
 import Route from './route';
 import Track from './track';
@@ -218,34 +219,17 @@ export default class GPX {
   }
 
   static parse(gpxString: string): GPX {
-    const sanitizedGPX = gpxString.replace(/\sxmlns=""/g, '').replace(/<!--[\s\S]*?-->/g, '');
-
-    return (function () {
-      let data = null, error = null;
-      xml2js.parseString(sanitizedGPX, {
-        explicitArray: false,
-        attrValueProcessors: [(str: string) => {
-          if (str.length && !isNaN(Number(str))) {
-            return Number.isInteger(Number(str)) ? parseInt(String(str), 10) : parseFloat(String(str));
-          }
-          return str;
-        }
-        ]
-      }, (err, xml) => {
-        error = err;
-        data = new GPX({
-          $: xml.gpx.$,
-          metadata: xml.gpx.metadata,
-          wpt: xml.gpx.wpt,
-          rte: xml.gpx.rte,
-          trk: xml.gpx.trk
-        });
-      });
-      if (error) {
-        throw error
-      };
-      return data;
-    }()) as unknown as GPX;
+    const xml = parseGpxXml(gpxString);
+    if (!xml || !Object.prototype.hasOwnProperty.call(xml, 'gpx')) {
+      throw new Error('Missing GPX root element');
+    }
+    return new GPX({
+      $: xml.gpx.$,
+      metadata: xml.gpx.metadata,
+      wpt: xml.gpx.wpt,
+      rte: xml.gpx.rte,
+      trk: xml.gpx.trk
+    });
   }
 
   toGeoJSON(includeRoute: boolean = false, includeWaypoints: boolean = false): GeoJSON.FeatureCollection {

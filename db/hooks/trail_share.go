@@ -7,9 +7,13 @@ import (
 )
 
 // Search projection runs on successful record mutations, including internal
-// writes. The request hook handles only the explicit federation announcement.
+// writes. The request hook validates sharing and sends the federation announcement.
 func CreateTrailShareHandler() func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
+		if err := ensureShareAllowed(e, "trails", "trail"); err != nil {
+			return err
+		}
+
 		if err := e.Next(); err != nil {
 			return err
 		}

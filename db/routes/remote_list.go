@@ -20,7 +20,6 @@ import (
 func RemoteListGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
 	listID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 
 	var record *core.Record
 	var err error
@@ -45,12 +44,23 @@ func RemoteListGet(e *core.RequestEvent) error {
 		}
 
 		if record.Id == "" || record.GetBool("needs_full_sync") {
+			cachedID := record.Id
 			record, err = performFullListSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
-				if errors.Is(err, util.ErrRateLimited) {
-					return e.TooManyRequestsError("Too many requests", err)
+				cached := cachedRecordFallback(e.App, "lists", cachedID, err)
+				if cached == nil {
+					if errors.Is(err, util.ErrRateLimited) {
+						return e.TooManyRequestsError("Too many requests", err)
+					}
+					return e.InternalServerError("Sync failed", err)
 				}
-				return e.InternalServerError("Sync failed", err)
+
+				e.App.Logger().Warn(
+					"serving cached list after failed remote sync",
+					"iri", cached.GetString("iri"),
+					"error", err,
+				)
+				record = cached
 			}
 			if record.Id == "" {
 				// Local content that does not exist: performFullListSync
@@ -66,9 +76,11 @@ func RemoteListGet(e *core.RequestEvent) error {
 				if _, alreadySyncing := listSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
 					urlCopy := *e.Request.URL
 					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
+					// Sync hooks and remote data must not mutate the response record.
+					syncRecord := record.Fresh()
 					go func() {
 						defer listSyncing.Delete(iri)
-						performFullListSync(e.App, bgCtx, &urlCopy, record)
+						performFullListSync(e.App, bgCtx, &urlCopy, syncRecord)
 					}()
 				}
 			}
@@ -91,7 +103,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 		return e.ForbiddenError("forbidden", err)
 	}
 
-	return expandAndReturn(e, record, expandQuery)
+	return expandAndReturn(e, record)
 }
 
 func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle, trailID string) (*core.Record, error) {
@@ -102,13 +114,26 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle
 	// whose owner had set account privacy to "private", including their public
 	// lists.
 	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
-	if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
-		return nil, err
-	}
 	if actor == nil {
+		// No actor available at all — no cache, and the live lookup itself
+		// failed (e.g. remote instance unreachable, unknown handle). We can't
+		// construct the IRI, but a previously-synced list may still exist
+		// locally under this exact ID, so fall back to a plain local lookup
+		// instead of failing the whole request. Skip this fallback for a
+		// private-profile error so the caller's 404 handling still applies.
+		if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
+			if local, localErr := e.App.FindRecordById("lists", trailID); localErr == nil {
+				return local, nil
+			}
+		}
 		return nil, err
 	}
 
+	// Actor is non-nil even though err may be set: federation.GetActorByHandle
+	// (via assembleActor) returns a previously-cached actor record alongside a
+	// transport error when a background refresh of stale actor data fails.
+	// That cached actor's IRI is still usable to look up the local list, so
+	// use it instead of discarding it and 500ing the whole request.
 	actorURL, _ := url.Parse(actor.GetString("iri"))
 	iri := fmt.Sprintf("%s://%s/api/v1/list/%s", actorURL.Scheme, actorURL.Host, trailID)
 
@@ -116,6 +141,14 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle
 	existing, _ := e.App.FindFirstRecordByFilter("lists", "iri={:iri}||id={:id}", dbx.Params{"id": trailID, "iri": iri})
 	if existing != nil {
 		return existing, nil
+	}
+
+	// No cached copy of this list exists locally. If the actor fetch failed
+	// for a real (non-private) reason, there's nothing usable to fall back to
+	// — surface the original error rather than fabricating a shell that a
+	// subsequent sync attempt would just fail on again.
+	if err != nil && !errors.Is(err, federation.ErrProfilePrivate) {
+		return nil, err
 	}
 
 	// 3. Not found? Return a new Shell
@@ -141,7 +174,7 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 		return localList, nil
 	}
 
-	client := util.SafeHTTPClient()
+	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
 	query := reqURL.Query()
 	query.Del("handle")
@@ -155,11 +188,15 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 
 	res, err := client.Do(req)
 	if err != nil {
-		return localList, err
+		return localList, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return localList, fmt.Errorf("remote list fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
+		statusErr := fmt.Errorf("remote list fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
+		if res.StatusCode >= http.StatusInternalServerError {
+			return localList, fmt.Errorf("%w: %w", errRemoteUnavailable, statusErr)
+		}
+		return localList, statusErr
 	}
 
 	var remoteMap map[string]any
@@ -177,6 +214,7 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 		syncListMetadata(localList, remoteMap)
 
 		localList.Set("needs_full_sync", false)
+		localList.Set("full_sync_completed", true)
 
 		// 3. Sync Trails
 		if expand, ok := remoteMap["expand"].(map[string]any); ok {
@@ -204,6 +242,7 @@ func syncListMetadata(record *core.Record, data map[string]any) {
 	delete(data, "author")
 	delete(data, "iri")
 
+	stripLocalSyncFields(data)
 	record.Load(data)
 }
 

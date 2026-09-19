@@ -2,12 +2,15 @@ import type { Waypoint } from "$lib/models/waypoint";
 import { Collection, handleError, upload } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 
+const fileFields = ["photos"] as const;
+
 /**
  * @swagger
  * /api/v1/waypoint/{id}/file:
  *   post:
  *     summary: Upload waypoint file
- *     description: Uploads a file (photo) for a waypoint
+ *     description: >
+ *       Adds photos to a waypoint. The multipart field must be named `photos` (use `photos+` to append, `photos-` to remove by filename); a request without it is rejected with 400.
  *     tags:
  *       - Waypoints
  *     parameters:
@@ -23,9 +26,11 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *           schema:
  *             type: object
  *             properties:
- *               file:
- *                 type: string
- *                 format: binary
+ *               photos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
  *     responses:
  *       200:
  *         description: File uploaded, waypoint updated
@@ -34,7 +39,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *             schema:
  *               $ref: '#/components/schemas/Waypoint'
  *       400:
- *         description: Bad Request
+ *         description: Bad Request (no `photos` field in the body)
  *       404:
  *         description: Not Found
  *       500:
@@ -42,7 +47,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function POST(event: RequestEvent) {
     try {
-        const r = await upload<Waypoint>(event, Collection.waypoints);
+        const r = await upload<Waypoint>(event, Collection.waypoints, fileFields);
         return json(r);
     } catch (e: any) {
         return handleError(e);

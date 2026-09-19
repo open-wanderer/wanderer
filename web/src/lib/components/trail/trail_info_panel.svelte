@@ -342,8 +342,14 @@
     }
 
     async function markTrailAsCompleted() {
-        trail.completed = true;
-        const updatedTrail: Trail = { ...trail };
+        const oldestSummitLogDate = $summitLogs
+            .map((log) => log.date)
+            .sort()[0];
+        const updatedTrail: Trail = {
+            ...trail,
+            completed: true,
+            completed_at: trail.completed_at || oldestSummitLogDate,
+        };
         await trails_update(trail, updatedTrail);
     }
 
@@ -510,7 +516,6 @@
                             onclick={trail.photos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
-                            autoplay
                             loop
                             src={photo}
                         ></video>

@@ -21,6 +21,25 @@ In any case, once you have successfully created your OAuth app you will receive 
 In the PocketBase admin panel navigate to the `users` table. Click the gear icon at the top to open the table's settings and navigate to `Options`.
 In the tab `OAuth2`, add your provider and fill in the Client ID and Client Secret from the step before and save your changes.
 
+### Providers that reject the default scopes
+
+<span class="-tracking-[0.075em]">wanderer</span> requests the scopes `openid`, `profile` and `email` from every OIDC provider. Some providers reject an authorization request that contains scopes they do not know, instead of ignoring them, and the login then fails before the consent screen appears.
+
+For those providers set the scope list on the `db` service, using the variable for the slot the provider is configured in: `OIDC_SCOPES` for `oidc`, `OIDC2_SCOPES` for `oidc2` and `OIDC3_SCOPES` for `oidc3`. Slots without an override keep the default scopes, so other OIDC providers are not affected.
+
+#### OpenStreetMap
+
+OSM accepts neither `profile` nor `email`. `openid` is enough for login. If OSM is configured as `oidc`:
+
+```yaml
+services:
+  db:
+    environment:
+      OIDC_SCOPES: "openid"
+```
+
+Accounts created through OSM may receive a generated username such as `users729068` when the OSM display name cannot be used as the `username`, for example because it contains characters the field does not allow or is already taken.
+
 ### Disable password authentication
 
 After enabling the neccessary OAuth2 providers for your application you may want to disable the standard local password authentication.
