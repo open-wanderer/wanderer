@@ -67,13 +67,7 @@ Builds and the admin page need the `db` service to reach these hosts. If your in
 
 ### Sizing
 
-Region archives are large and extraction is I/O- and CPU-heavy. As a rule of thumb from our own builds:
-
-| Region | Vector | DEM | Build time |
-| ------ | ------ | --- | ---------- |
-| _fill in from your instance's first pass — e.g. `germany.bavaria`_ | | | |
-
-Watch the first pass with the values that matter to you (disk, RAM, wall-clock) before enabling a whole continent.
+Archive sizes vary widely and the two archives don't scale together: the **vector** archive grows with map density (streets, buildings, labels), the **DEM** archive with terrain relief. A mountain range in Canada produces a small vector file and a large DEM; a flat city like Amsterdam the opposite. The admin page shows the size of each built archive, and the app shows it to users before they download — enable one region, run **Sync now**, and look at the result before enabling a whole continent.
 
 ## Troubleshooting
 
