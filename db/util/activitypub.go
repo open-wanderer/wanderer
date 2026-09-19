@@ -110,6 +110,97 @@ func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	return priv, pub, nil
 }
 
+// ObjectKind names the sort of thing an ActivityPub object IRI points at.
+type ObjectKind string
+
+const (
+	ObjectKindUnknown   ObjectKind = ""
+	ObjectKindTrail     ObjectKind = "trail"
+	ObjectKindComment   ObjectKind = "comment"
+	ObjectKindSummitLog ObjectKind = "summit-log"
+	ObjectKindList      ObjectKind = "list"
+	ObjectKindWaypoint  ObjectKind = "waypoint"
+	ObjectKindActor     ObjectKind = "actor"
+	ObjectKindActivity  ObjectKind = "activity"
+)
+
+// ObjectKindFromIRI classifies an object IRI by the path segment that names its
+// type.
+//
+// It exists because searching the whole IRI for a keyword is not safe: the host
+// is part of that string, so an instance at https://mylist.social matches "list"
+// for every object it ever sends, and a user called "trailrunner" matches
+// "trail" in their own actor IRI. Routing an activity on that basis hands it to
+// the wrong handler.
+//
+// Wanderer object IRIs are <origin>/api/v1/<kind>/<id>, with actors and
+// activities a level deeper under <origin>/api/v1/activitypub/<kind>/<id>. The
+// origin may carry a path prefix of its own, so the version segment is located
+// rather than assumed to sit at a fixed offset. Anything unrecognised — content
+// from other ActivityPub software, say — is reported as unknown for the caller
+// to decide about.
+func ObjectKindFromIRI(iri string) ObjectKind {
+	u, err := url.Parse(iri)
+	if err != nil {
+		return ObjectKindUnknown
+	}
+
+	segments := make([]string, 0, 6)
+	for _, s := range strings.Split(u.Path, "/") {
+		if s != "" {
+			segments = append(segments, s)
+		}
+	}
+
+	for i, s := range segments {
+		if s != "v1" || i == 0 || segments[i-1] != "api" {
+			continue
+		}
+
+		rest := segments[i+1:]
+		if len(rest) == 0 {
+			return ObjectKindUnknown
+		}
+
+		if rest[0] == "activitypub" {
+			// .../activitypub/<kind>/<id>; without an id this names a
+			// collection endpoint rather than an object.
+			if len(rest) < 3 {
+				return ObjectKindUnknown
+			}
+			switch rest[1] {
+			case "user":
+				return ObjectKindActor
+			case "activity":
+				return ObjectKindActivity
+			}
+			return ObjectKindUnknown
+		}
+
+		// Likewise: <kind> alone is the collection, <kind>/<id> is an object.
+		if len(rest) < 2 {
+			return ObjectKindUnknown
+		}
+
+		switch rest[0] {
+		case "trail":
+			return ObjectKindTrail
+		case "comment":
+			return ObjectKindComment
+		case "summit-log":
+			return ObjectKindSummitLog
+		case "list":
+			return ObjectKindList
+		case "waypoint":
+			return ObjectKindWaypoint
+		}
+
+		return ObjectKindUnknown
+	}
+
+	return ObjectKindUnknown
+}
+
 // IsLocalIRI reports whether iri belongs to this instance's own ORIGIN.
 // It is used to prevent the instance from federating with itself, i.e. treating
 // its own content as if it were remote.
