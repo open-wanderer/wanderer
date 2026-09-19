@@ -9,6 +9,10 @@ Suchkorrekturen. Der Stand `754456831` enthält den Merge von `dev`
 eigenen PR. Zusammengehörige Änderungen zur Behebung desselben Fehlers
 bleiben in einem PR.
 
+Zurückgestellte Robustheitsverbesserungen ausserhalb des verbindlichen
+SRCH0-Abnahmeumfangs benötigen dafür weder einen eigenen PR noch eine
+Integration vor der Abnahme.
+
 ## Radiusfilter: separat vorbereitet
 
 | Feld | Stand |
@@ -27,11 +31,32 @@ Die Auskopplung betrifft die SRCH0-Befunde `SRCH0-GAP-GEO-001` und
 Die entsprechende Radiuskorrektur bleibt in diesem Sammelbranch enthalten;
 der neue Branch erlaubt ihre unabhängige Prüfung und Integration.
 
+## Sortiereinstellungen: zurückgestellt, kein SRCH0-Blocker
+
+Entscheidung vom 19. September 2026: `SRCH0-GAP-SORT-001` ist eine kleine
+Robustheitsverbesserung und blockiert weder Merge noch Abnahme von SRCH0.
+Dies betrifft die Validierung ungültiger gespeicherter Sortierfelder und
+Sortierrichtungen sowie den Fallback bei fehlender oder ungültiger Richtung.
+Die normale Oberfläche erzeugt gültige Sortierwerte; der belegte Randfall
+verwendet absichtlich ungültige Browserspeicherwerte. Ein Fehler im normalen
+Gebrauch ist dafür bisher nicht nachgewiesen.
+
+Die Korrektur bleibt als Sammelreferenz in diesem Branch enthalten. Vorerst
+wird dafür kein separater Produkt-PR vorbereitet. Prüfungen gültiger
+Sortierungen sowie die anderen SRCH0-Blocker bleiben verbindlich.
+
+Diese Änderung dokumentiert die Priorisierung. Produktcode, historische
+Evidenz und bestehende Testimplementierung bleiben unverändert. Ein Fehler
+ausschliesslich in den betreffenden Sortier-Robustheitsprüfungen ist nach
+dieser Entscheidung diagnostisch und kein Abnahmehindernis; der aktuelle
+Suite-Status ist damit nicht automatisch grün. Die ausführbare
+Abnahmeauswertung muss diese begrenzte Einstufung berücksichtigen.
+
 ## Gesamtabnahme bleibt offen
 
 Die genannten Testergebnisse gelten für den isolierten Radius-Fixcommit.
 Sie sind keine Abnahme der vollständigen SRCH0-Suite auf `feat/srch0`.
-Vor deren Abnahme müssen alle erforderlichen Produktkorrekturen
+Vor deren Abnahme müssen alle Produktkorrekturen im verbindlichen Umfang
 einschliesslich des noch ausstehenden Startup-Pakets integriert und am
 gemeinsamen Zielstand geprüft sein. Historische Beobachtungen und aktive
 Solländerungen des SRCH0-Korpus werden durch diese Aufteilung nicht geändert.
