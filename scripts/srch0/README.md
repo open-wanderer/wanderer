@@ -3,8 +3,8 @@
 SRCH0 verlangt fachlich korrektes Suchverhalten. Historische Beobachtungen
 helfen beim Vergleich, dürfen aber keinen bekannten Fehler legitimieren.
 Jede verletzte geprüfte Eigenschaft lässt den Test scheitern. Die
-[Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker und die
-zurückgestellte Absicherung gespeicherter Sortwerte; innerhalb des
+[Befunde](BEFUNDE.md) unterscheiden verbindliche Merge-Blocker von der
+Sortierabsicherung und der Feldauswahl ohne Blockerstatus; innerhalb des
 verbindlichen Abnahmeumfangs sind Fehlerausnahmen verboten.
 
 Entscheidung vom 19. September 2026: Ungültige gespeicherte Sortierfelder und
@@ -14,12 +14,20 @@ vorerst wird kein eigener PR vorbereitet. Ein Fehler im normalen Gebrauch
 ist dafür bisher nicht nachgewiesen. Gültige Sortierung und alle übrigen
 Blocker bleiben unverändert verbindlich.
 
+Auch die ignorierte Feldauswahl (`SRCH0-GAP-DTO-001`) ist seit dieser
+Entscheidung **kein SRCH0-Blocker**. Sie wird dennoch separat auf
+`fix/search-retrieved-fields` korrigiert. Die beabsichtigte Auswahl wird in
+`options.attributesToRetrieve` weitergereicht; eine ausdrücklich gewählte
+Auswahl bleibt erhalten. Dies begrenzt Antwortfelder, ohne Treffer oder
+Sortierung zu ändern. Eine messbare Beschleunigung ist nicht nachgewiesen.
+
 Die bestehenden strikten Tests und aktiven Sollwerte bleiben unverändert
-und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung
-sind fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
+und können weiter scheitern. Nur Fehler der genannten Sortierabsicherung und
+Feldauswahl sind fachlich als Diagnose zu werten. Die technische Trennung von Diagnose
 und Abnahme muss vor der formalen Gesamtabnahme nachgeführt werden; dies
 belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
-[Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte).
+[Absicherung gespeicherter Sortwerte](BEFUNDE.md#zurückgestellt-absicherung-gespeicherter-sortwerte)
+und [abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder).
 
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
@@ -30,6 +38,11 @@ PRs vorbereitet. Stand vom 19. September 2026:
   gibt noch keinen PR und keine Integration in `dev` oder `feat/srch0`.
   Umfang und erfolgreiche Einzelprüfungen stehen im
   [Lieferstand der Radiuskorrektur](BEFUNDE.md#lieferstand-der-radiuskorrektur).
+- `fix/search-retrieved-fields` ist frisch ab `origin/dev` (`c73966d6c`) lokal
+  vorbereitet, ohne Push oder PR und ohne Integration in `dev` oder
+  `feat/srch0`. Diese Optimierung ist keine Voraussetzung für SRCH0.
+  Commit und Einzelprüfungen stehen unter
+  [abgerufene Suchfelder](BEFUNDE.md#kein-blocker-abgerufene-suchfelder).
 - `fix/srch0-findings` bleibt die Sammelreferenz für die bisherigen Korrekturen.
 - `fix/search-index-startup` behandelt das gesamte Startup-Paket: Erhalt
   bestehender Indizes, synchrone Initialisierung vor Suchbereitschaft,

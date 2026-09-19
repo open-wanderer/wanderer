@@ -41,16 +41,29 @@ Robustheitsverbesserung wird zurückgestellt; vorerst ist kein eigener PR
 vorgesehen. Ein Fehler im normalen Gebrauch ist dafür bisher nicht
 nachgewiesen. Gültige Sortierung und alle übrigen Blocker bleiben verbindlich.
 
+Auch die ignorierte Feldauswahl (`SRCH0-GAP-DTO-001`) ist seit dieser
+Entscheidung **kein SRCH0-Blocker**. Die separate Korrektur auf
+`fix/search-retrieved-fields`, frisch ab `origin/dev` (`c73966d6c`), ist lokal
+ohne Push oder PR vorbereitet und ist noch nicht in `dev` oder `feat/srch0`
+integriert. Sie reicht die Standardauswahl als `options.attributesToRetrieve`
+weiter und erhält ausdrücklich gewählte Felder des Aufrufers. Dies begrenzt
+Antwortfelder wie `polyline`; Treffer, Filter, Sortierung und Zugriffsregeln
+bleiben unverändert. Eine messbare Beschleunigung ist nicht nachgewiesen.
+Commit und Einzelprüfungen stehen in `scripts/srch0/BEFUNDE.md` unter
+„Kein Blocker: abgerufene Suchfelder“.
+
 Betroffen sind insbesondere `SRCH0-BROWSER-009`, dessen aktive Solländerung
 `WEB-FIX-SRCH0-BROWSER-009` und der Plausibilitätstest „verwendet für ungültige
-Sortwerte gültige Vorgaben“. Historische Evidenz, aktive Erwartungen und
+Sortwerte gültige Vorgaben“ sowie für die Feldauswahl `SRCH0-P-RETRIEVAL`,
+`SRCH0-COMPILER-049` und `WEB-FIX-SRCH0-COMPILER-049`.
+Historische Evidenz, aktive Erwartungen und
 strikte Tests bleiben unverändert; sie können deshalb weiterhin rot werden.
-Nur Fehler dieser Sortierabsicherung sind fachlich als Diagnose ausserhalb
+Nur Fehler dieser Sortierabsicherung und Feldauswahl sind fachlich als Diagnose ausserhalb
 der Abnahme zu werten. Die technische Trennung von Diagnose und Abnahme ist
 vor der formalen Gesamtabnahme nachzuführen; ein grüner Lauf wird hier nicht
 behauptet. Gemischte Fälle erhalten keine Ausnahme für andere Eigenschaften.
 Details stehen in `scripts/srch0/BEFUNDE.md` unter „Zurückgestellt: Absicherung
-gespeicherter Sortwerte“.
+gespeicherter Sortwerte“ und „Kein Blocker: abgerufene Suchfelder“.
 
 SRCH0 bleibt bis zur Integration aller übrigen erforderlichen Korrekturen und
 zur erfolgreichen Prüfung seines tatsächlichen Branchstands blockiert. Solange
@@ -319,3 +332,4 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-08 | Dokumentation bleibt Deutsch | Vorgabe für diesen Branch |
 | 2026-09-19 | Fachliche Korrekturen mit ihren Regressionstests einzeln für separate PRs vorbereiten; Radiusfix zuerst auf `fix/search-radius-filter` | Einzelne Fixes lassen sich unabhängig prüfen. Dies ersetzt die bisherige Aufteilung in genau zwei Produkt-PRs; `fix/srch0-findings` bleibt Sammelreferenz und Startup bleibt separat. Der Radiusfix ist nur lokal vorbereitet und noch nicht integriert; SRCH0 bleibt blockiert. |
 | 2026-09-19 | Absicherung gespeicherter Sortwerte und Vorgaberichtung zurückstellen; kein SRCH0-Blocker und vorerst kein eigener PR | Der belegte Fall nutzt absichtlich ungültige Werte; ein Fehler im regulären Gebrauch ist nicht nachgewiesen. Die Entscheidung grenzt die frühere pauschale Blockerregel ein. Gültige Sortierung und übrige Blocker bleiben verbindlich; die technische Einordnung der unveränderten strikten Proben ist vor der Gesamtabnahme nachzuführen. |
+| 2026-09-19 | Ignorierte Feldauswahl (`SRCH0-GAP-DTO-001`) ist kein SRCH0-Blocker; separat auf `fix/search-retrieved-fields` korrigieren | Die Korrektur begrenzt Antwortfelder, ohne Treffer, Filter, Sortierung oder Zugriffsregeln zu ändern; eine Beschleunigung ist nicht gemessen. Der Fix ist lokal ohne Push oder PR vorbereitet. Die unveränderten strikten Proben sind vor der Gesamtabnahme technisch als Diagnose einzuordnen; übrige Blocker bleiben verbindlich. |
