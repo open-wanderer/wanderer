@@ -19,12 +19,77 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/600.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PLACEHOLDERS: the store listings are not published yet. Swap both values
-// for the real URLs when the beta ships; nothing else on this page needs to
-// change. See PRODUCT.md → "Store links do not exist yet".
+// BETA LINKS. TestFlight is live. The Play open test and the GitHub APK asset
+// are placeholders — swap the two values when they exist; nothing else on this
+// page needs to change. See PRODUCT.md → "Beta install links".
 // ─────────────────────────────────────────────────────────────────────────────
-const APP_STORE_URL = "#app-store-listing-pending";
-const PLAY_STORE_URL = "#play-store-listing-pending";
+const TESTFLIGHT_URL = "https://testflight.apple.com/join/6VCR4QpV";
+const PLAY_OPEN_TEST_URL = "#play-open-test-pending";
+const APK_RELEASES_URL = "https://github.com/open-wanderer/wanderer/releases/latest";
+const APK_ASSET_PATTERN = "wanderer-<version>-android.apk";
+const MIN_BACKEND_VERSION = "v0.20.0-app";
+const BUG_REPORT_URL =
+  "https://github.com/open-wanderer/wanderer/issues/new?template=app_bug_report.yml";
+
+const GLYPH_APPLE =
+  "M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701";
+const GLYPH_PLAY =
+  "M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z";
+const GLYPH_GITHUB =
+  "M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z";
+
+// One entry per install path. Rendered twice (hero + summit) as buttons and
+// once in the install section as step-by-step cards.
+const installOptions = [
+  {
+    id: "ios",
+    href: TESTFLIGHT_URL,
+    glyph: GLYPH_APPLE,
+    quiet: "Join the beta on",
+    label: "TestFlight",
+    aria: "Join the wanderer beta on TestFlight",
+    platform: "iPhone & iPad",
+    requirement: "iOS 15 or newer",
+    steps: [
+      "Install Apple's free TestFlight app from the App Store.",
+      "Open the TestFlight link on your device and tap Accept.",
+      "Tap Install. TestFlight tells you when a new build is available.",
+    ],
+    note: "Beta builds expire after 90 days; TestFlight prompts you to update before that. Use TestFlight's Send Beta Feedback to reach us, or file a bug on GitHub.",
+  },
+  {
+    id: "play",
+    href: PLAY_OPEN_TEST_URL,
+    glyph: GLYPH_PLAY,
+    quiet: "Join the open test on",
+    label: "Google Play",
+    aria: "Join the wanderer open test on Google Play",
+    platform: "Android",
+    requirement: "Android 8.0 or newer",
+    steps: [
+      "Open the open-test link on your phone.",
+      "Tap Become a tester.",
+      "Install wanderer from Google Play as usual. Updates arrive automatically.",
+    ],
+    note: "Leaving the test stops updates but keeps the app installed.",
+  },
+  {
+    id: "apk",
+    href: APK_RELEASES_URL,
+    glyph: GLYPH_GITHUB,
+    quiet: "Download the APK from",
+    label: "GitHub Releases",
+    aria: "Download the wanderer APK from GitHub Releases",
+    platform: "Android without Google Play",
+    requirement: "Android 8.0 or newer",
+    steps: [
+      `Open the latest release and download the file named ${APK_ASSET_PATTERN}. Skip any .aab file — it is for the Play Store, not for installing.`,
+      "Open the downloaded file. When Android asks, allow installs from this source.",
+      "Tap Install.",
+    ],
+    note: "APK installs do not update themselves — come back here for each new release.",
+  },
+];
 
 // The route is one real hike: the Emerald Lake loop, 10.93 km with 237 m of
 // climbing (the trail on the detail screenshot below). `km` and `gain` drive the
@@ -189,56 +254,34 @@ const legs = [
         </h1>
 
         <p class="hero-sub">
-          The <span class="tracking-[-0.075em]">wanderer</span> app is now available for iOS and Android.
+          The <span class="tracking-[-0.075em]">wanderer</span> app is now in public beta for iOS and Android.
         </p>
 
         <div class="store-row">
-          <a
-            class="store-btn"
-            href={APP_STORE_URL}
-            aria-label="Download wanderer on the App Store"
-          >
-            <svg
-              class="store-glyph"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-              ></path>
-            </svg>
-            <span class="store-btn-text">
-              <span class="store-btn-quiet">Download on the</span>
-              <span class="store-btn-label">App Store</span>
-            </span>
-          </a>
-
-          <a
-            class="store-btn"
-            href={PLAY_STORE_URL}
-            aria-label="Get wanderer on Google Play"
-          >
-            <svg
-              class="store-glyph"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"
-              ></path>
-            </svg>
-            <span class="store-btn-text">
-              <span class="store-btn-quiet">Get it on</span>
-              <span class="store-btn-label">Google Play</span>
-            </span>
-          </a>
+          {
+            installOptions.map((opt) => (
+              <a class="store-btn" href={opt.href} aria-label={opt.aria}>
+                <svg
+                  class="store-glyph"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d={opt.glyph} />
+                </svg>
+                <span class="store-btn-text">
+                  <span class="store-btn-quiet">{opt.quiet}</span>
+                  <span class="store-btn-label">{opt.label}</span>
+                </span>
+              </a>
+            ))
+          }
         </div>
+        <p class="hero-req">
+          iOS 15+ · Android 8.0+ · Works with instances on {MIN_BACKEND_VERSION} or newer
+        </p>
       </div>
 
       <div class="hero-device">
@@ -252,6 +295,80 @@ const legs = [
             class="app-phone-screen"
             loading="eager"
           />
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── INSTALL ───────────────────────────────────────────────────────── -->
+    <section class="leg leg--surface install" id="install" aria-labelledby="install-heading">
+      <div class="leg-inner">
+        <p class="node-tag">Public beta</p>
+        <h2 class="waypoint-heading" id="install-heading">Install the beta.</h2>
+        <p class="waypoint-body install-lead">
+          Pick your platform. You also need an account on a
+          <span class="tracking-[-0.075em]">wanderer</span> instance running
+          <code>{MIN_BACKEND_VERSION}</code> or newer — yours, your club's, or
+          <a class="inline-link" href="/servers">a public one</a>.
+        </p>
+
+        <ol class="install-grid">
+          {
+            installOptions.map((opt) => (
+              <li class="install-card">
+                <div class="install-card-head">
+                  <svg
+                    class="store-glyph"
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d={opt.glyph} />
+                  </svg>
+                  <div>
+                    <h3 class="install-card-title">{opt.platform}</h3>
+                    <p class="install-card-req">{opt.requirement}</p>
+                  </div>
+                </div>
+                <ol class="install-steps">
+                  {opt.steps.map((step) => <li>{step}</li>)}
+                </ol>
+                <p class="install-note">{opt.note}</p>
+                <a class="store-btn install-card-btn" href={opt.href} aria-label={opt.aria}>
+                  <span class="store-btn-text">
+                    <span class="store-btn-quiet">{opt.quiet}</span>
+                    <span class="store-btn-label">{opt.label}</span>
+                  </span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+
+        <div class="install-scope">
+          <div>
+            <h3 class="install-scope-title">What's in the beta</h3>
+            <ul class="install-scope-list">
+              <li>Browse, search and filter your instance's trails; record, plan, navigate and take trails and map regions offline.</li>
+              <li>Comments, summit logs and lists can be read in the app but are written on the web for now. No voice guidance, no rerouting, no push notifications.</li>
+              <li>Everything you do in the app lands on your instance — the same account, the same data as on the web.</li>
+            </ul>
+            <a class="text-link" href="/app/what-works-where">
+              See what works where
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+            </a>
+          </div>
+          <div>
+            <h3 class="install-scope-title">Found a bug?</h3>
+            <p class="install-scope-body">
+              Tell us on GitHub. The template asks for your device, the app build and the instance version — that's usually all we need.
+            </p>
+            <a class="text-link" href={BUG_REPORT_URL}>
+              Report an app bug
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+            </a>
+          </div>
         </div>
       </div>
     </section>
@@ -452,51 +569,26 @@ const legs = [
               </p>
 
               <div class="store-row store-row--summit">
-                <a
-                  class="store-btn"
-                  href={APP_STORE_URL}
-                  aria-label="Download wanderer on the App Store"
-                >
-                  <svg
-                    class="store-glyph"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-                    ></path>
-                  </svg>
-                  <span class="store-btn-text">
-                    <span class="store-btn-quiet">Download on the</span>
-                    <span class="store-btn-label">App Store</span>
-                  </span>
-                </a>
-
-                <a
-                  class="store-btn"
-                  href={PLAY_STORE_URL}
-                  aria-label="Get wanderer on Google Play"
-                >
-                  <svg
-                    class="store-glyph"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"
-                    ></path>
-                  </svg>
-                  <span class="store-btn-text">
-                    <span class="store-btn-quiet">Get it on</span>
-                    <span class="store-btn-label">Google Play</span>
-                  </span>
-                </a>
+                {
+                  installOptions.map((opt) => (
+                    <a class="store-btn" href={opt.href} aria-label={opt.aria}>
+                      <svg
+                        class="store-glyph"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d={opt.glyph} />
+                      </svg>
+                      <span class="store-btn-text">
+                        <span class="store-btn-quiet">{opt.quiet}</span>
+                        <span class="store-btn-label">{opt.label}</span>
+                      </span>
+                    </a>
+                  ))
+                }
               </div>
 
               <a class="text-link summit-link" href="/app/getting-started">
@@ -713,6 +805,137 @@ const legs = [
     }
     .store-btn {
       justify-content: center;
+    }
+  }
+
+  /* ── Install ────────────────────────────────────────────────────────────── */
+  .hero-req {
+    margin-top: 1rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--summit-fog);
+  }
+  .install .waypoint-heading {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+  }
+  .install-lead {
+    max-width: 60ch;
+  }
+  .install-lead code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.875em;
+    padding: 0.05em 0.35em;
+    border: 1px solid var(--dusk-divide);
+    border-radius: 4px;
+    color: var(--white);
+  }
+  .inline-link {
+    color: var(--white);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .inline-link:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
+  }
+
+  .install-grid {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1rem;
+  }
+  .install-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 1px solid var(--dusk-divide);
+    border-radius: 12px;
+    background: var(--polar-night);
+  }
+  .install-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .install-card-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .install-card-req {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    color: var(--summit-fog);
+    margin: 0.15rem 0 0;
+  }
+  .install-steps {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--white);
+  }
+  .install-steps li::marker {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--summit-fog);
+  }
+  .install-note {
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: var(--summit-fog);
+    margin: 0;
+    flex-grow: 1;
+  }
+  .install-card-btn {
+    align-self: flex-start;
+  }
+
+  .install-scope {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    gap: 1.5rem clamp(1.5rem, 4vw, 3rem);
+    padding-top: clamp(1.5rem, 3vw, 2rem);
+    border-top: 1px solid var(--dusk-divide);
+  }
+  .install-scope-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.625rem;
+  }
+  .install-scope-list {
+    margin: 0 0 1rem;
+    padding-left: 1.125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--summit-fog);
+  }
+  .install-scope-body {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--summit-fog);
+    margin: 0 0 1rem;
+    max-width: 52ch;
+  }
+  .install-scope .text-link {
+    display: inline-flex;
+  }
+
+  @media (max-width: 480px) {
+    .install-card-btn {
+      align-self: stretch;
     }
   }
 
