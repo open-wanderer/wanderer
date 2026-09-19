@@ -6,7 +6,7 @@ import type { Waypoint } from "$lib/models/waypoint";
 import { APIError } from "$lib/util/api_util";
 import { deepEqual } from "$lib/util/deep_util";
 import { getFileURL, objectToFormData } from "$lib/util/file_util";
-import { noSubcategoryFilterCategory } from "$lib/util/trail_filter_util";
+import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "$lib/util/trail_filter_util";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -851,12 +851,14 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND likes = ${user?.actor}`
     }
 
-    if (filter.startDate) {
-        filterText += ` AND date >= ${new Date(filter.startDate).getTime() / 1000}`
+    const startDate = trailFilterDateBoundary(filter.startDate);
+    if (startDate !== undefined) {
+        filterText += ` AND date >= ${startDate}`
     }
 
-    if (filter.endDate) {
-        filterText += ` AND date <= ${new Date(filter.endDate).getTime() / 1000}`
+    const endDate = trailFilterDateBoundary(filter.endDate, true);
+    if (endDate !== undefined) {
+        filterText += ` AND date < ${endDate}`
     }
 
     const selectedSubcategoryIds = filter.subcategory ?? [];

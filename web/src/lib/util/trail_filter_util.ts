@@ -86,6 +86,35 @@ export function buildPocketBaseCategoryFilter(
         : "";
 }
 
+/** Convert a browser-local calendar day into an inclusive start or exclusive end. */
+export function trailFilterDateBoundary(
+    value?: string,
+    nextDay = false,
+): number | undefined {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return undefined;
+    }
+
+    // UTC is only used for calendar validation and arithmetic, not the search timezone.
+    const calendarDate = new Date(`${value}T00:00:00Z`);
+    if (
+        !Number.isFinite(calendarDate.getTime()) ||
+        calendarDate.toISOString().split("T")[0] !== value
+    ) {
+        return undefined;
+    }
+    if (nextDay) {
+        calendarDate.setUTCDate(calendarDate.getUTCDate() + 1);
+    }
+
+    // Resolve each midnight independently: a DST gap can move midnight to 01:00.
+    // A completely skipped local day has equal start/end bounds and no matches.
+    const localDate = new Date(
+        `${calendarDate.toISOString().split("T")[0]}T00:00:00`,
+    );
+    return localDate.getTime() / 1000;
+}
+
 const TRAIL_SORT_OPTIONS = new Set([
     "name",
     "distance",
