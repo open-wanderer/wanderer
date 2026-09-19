@@ -95,6 +95,19 @@ Gezielte Regressionstests und die gesamte Backend-Testsuite sind erfolgreich.
 Der Branch ist lokal, ohne Push oder PR, und nicht in `dev` oder `feat/srch0`
 integriert. Seine Integration ist keine Voraussetzung für die SRCH0-Abnahme.
 
+„Fehlende Indexdokumente“ bezeichnet dabei die Absicherung der neu eingeführten
+Metadaten-Teilaktualisierung. Die Tests stellen einen fehlenden Indexeintrag
+gezielt her; eine Teilaktualisierung darf daraus keinen unvollständigen
+Treffer erzeugen. Dies ist kein separat nachgewiesener Bedienfehler in `dev`
+und kein eigenes Arbeitspaket, eigener PR oder zusätzlicher SRCH0-Blocker.
+Die Absicherung bleibt Bestandteil der jeweiligen Metadaten-Korrektur und
+ihrer Regressionstests. Für Tags ist sie bereits in `122974380` enthalten;
+sie erzwingt keine Integration dieses nicht blockierenden Fixes vor SRCH0.
+Damit werden weder andere Indexlücken allgemein repariert noch bestehende
+Startup-, Freigabe- oder andere Indexbefunde von der Abnahme ausgenommen.
+Tests und Korpus bleiben unverändert; die noch ausstehende Trennung von
+Diagnose und Abnahme muss diese Zuordnung ebenfalls berücksichtigen.
+
 Diese Ausnahme betrifft nur den Befund der administrativen Tag-Umbenennung.
 Tagfilter, das Zuordnen und Entfernen von Tags an Touren sowie Zugriffsregeln
 bleiben verbindlich. Historische Evidenz, Korpus, aktive Sollwerte und
