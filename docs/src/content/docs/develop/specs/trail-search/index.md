@@ -170,15 +170,23 @@ SRCH3 + G3b                -> G3b-AGG
 SRCH0 bewahrt historische Beobachtungen unverändert als Evidenz. Für die
 Abnahme zählen fachlich korrigierte Erwartungen und unabhängige
 Korrektheitseigenschaften auf einer gemeinsamen Zielrevision. Die Tests und
-Bestandskorrekturen dürfen in getrennten PRs entstehen; SRCH0 bleibt bis zu
-ihrer Integration und einer grünen Gesamtsuite blockiert. Der Testbranch
-`feat/srch0` ist begonnen. Die Korrekturen aus der Sammelreferenz
+Bestandskorrekturen dürfen in getrennten PRs entstehen; SRCH0 bleibt bis zur
+Integration der verbindlichen Korrekturen und einer grünen Abnahmesuite
+blockiert. Der Testbranch `feat/srch0` ist begonnen. Die Korrekturen aus der Sammelreferenz
 `fix/srch0-findings` werden einzeln für eigene PRs vorbereitet. Der erste
 Fix `fix/search-radius-filter` (`398b45682`) ist lokal geprüft, aber noch
 nicht gepusht, als PR eingereicht oder in `dev` beziehungsweise `feat/srch0`
 integriert. Der [SRCH0-Umsetzungsstand](/develop/specs/trail-search/work-items/search/srch0/#aktueller-umsetzungsbezug)
 führt Details und Prüfungsnachweise. Das noch fehlende Startup-Paket
 `fix/search-index-startup` bleibt ebenfalls Voraussetzung der Gesamtabnahme.
+
+Die Sortier-Robustheit `SRCH0-GAP-SORT-001` ist seit der Entscheidung vom
+19. September 2026 ausdrücklich **kein SRCH0-Blocker**. Die Bereinigung
+ungültiger Storagewerte und die Fallback-Richtung sind zurückgestellt;
+vorerst ist dafür kein eigener PR vorgesehen. Die Diagnosefälle bleiben
+erhalten, ihre nicht blockierende Einordnung muss in der vorhandenen Suite
+noch nachgeführt werden. Die [SRCH0-Spezifikation](/develop/specs/trail-search/work-items/search/srch0/)
+grenzt dies von den weiterhin verbindlichen Tests gültiger Sortierungen ab.
 
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
 Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0

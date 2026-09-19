@@ -56,11 +56,20 @@ Die [SRCH0-Spezifikation](/develop/specs/trail-search/work-items/search/srch0/#a
 führt die Prüfungsnachweise. `fix/search-index-startup` besitzt noch kein
 Implementierungspaket. Diese Arbeitsteilung erlaubt parallele
 Implementierung, ersetzt aber keine Abnahme auf einer gemeinsamen
-Zielrevision. Bekannte Fehler im vereinbarten Umfang
+Zielrevision. Bekannte Fehler im verbindlichen Abnahmeumfang
 bleiben Merge- und Abnahmeblocker; `knownViolation`, `xfail` oder historische
 Fehlerausgaben dürfen die aktive Suite nicht grün machen. SRCH-COMP, SRCH2 und
 SEC-VIS-0 übernehmen die korrigierte Basis und ihre jeweiligen Erweiterungen;
 die notwendigen Bestandskorrekturen warten nicht auf diese Nachfolger.
+
+`SRCH0-GAP-SORT-001` ist gemäss Entscheidung vom 19. September 2026
+**kein SRCH0-Blocker**. Die Bereinigung ungültiger Storagewerte und die
+Fallback-Richtung sind als kleine Robustheitsverbesserung zurückgestellt;
+vorerst wird dafür kein eigener PR vorbereitet. Diagnosefälle und historische
+Evidenz bleiben erhalten. Die vorhandene Suite muss die nicht blockierende
+Einordnung noch übernehmen; die [SRCH0-Spezifikation](/develop/specs/trail-search/work-items/search/srch0/)
+hält diese Abgrenzung fest. Die Tests gültiger Sortierungen und die übrigen
+Abnahmevoraussetzungen gelten weiterhin.
 
 ## Parallele Index- und Engine-Schnitte
 

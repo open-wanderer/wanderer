@@ -24,7 +24,8 @@ spec:
 SRCH0 schafft eine fachlich geprüfte, korrigierte Ausgangsbasis für die
 Weiterentwicklung der Suche. Der gemeinsame Testkorpus prüft Eingaben der
 First-Party-Oberflächen, Indexprojektionen und tatsächliche Suchergebnisse.
-Ein reproduzierbarer Fehler ist kein zulässiges Regressionsergebnis.
+Ein reproduzierbarer Fehler im verbindlichen Abnahmeumfang ist kein
+zulässiges Regressionsergebnis.
 
 Der Korpus unterscheidet drei Ebenen:
 
@@ -37,11 +38,13 @@ Der Korpus unterscheidet drei Ebenen:
    Werte und konsistente Zustände werden zusätzlich ohne Ableitung aus den
    Goldens geprüft. Eine Solländerung darf diese Prüfungen nicht umgehen.
 
-Bekannte, nachgewiesene Produktfehler im geprüften Umfang blockieren Merge
-und Abnahme, bis die Korrekturen integriert sind und die betroffenen Tests
-bestehen. `known_gap`, ein `successor_ref` oder ein historisch grüner Lauf
+Bekannte, nachgewiesene Produktfehler im verbindlichen Abnahmeumfang
+blockieren Merge und Abnahme, bis die Korrekturen integriert sind und die
+betroffenen Tests bestehen. `known_gap`, ein `successor_ref` oder ein historisch grüner Lauf
 sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
-Kompatibilitätsvertrag für nachfolgende Arbeiten.
+Kompatibilitätsvertrag für nachfolgende Arbeiten. Die zurückgestellte
+Robustheitsverbesserung `SRCH0-GAP-SORT-001` gehört nicht zu diesem
+Abnahmeumfang; ihre Diagnosefälle bleiben nachvollziehbar erhalten.
 
 Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
 verantwortet den Korrektheitsnachweis; die Produkt-PRs liefern die dazu
@@ -60,7 +63,7 @@ SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
 | Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
 | Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
-| Abnahmevoraussetzung | alle nachgewiesenen Fehler im Prüfungsumfang behoben und am integrierten Zielcommit geprüft |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001` ist kein Blocker |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
 Der historische Bestandsanker besteht aus Commit, Engineprofil,
@@ -77,7 +80,8 @@ Reproduzierbarkeit des Korpus als auch die fachliche Produktabnahme.
 `observed` ist historische Evidenz, keine Autorität über ein korrektes
 Sollresultat. Ohne Solländerung gilt der beobachtete Wert nur, sofern er die
 unabhängigen fachlichen Prüfungen besteht. Ein dabei neu gefundener Fehler
-blockiert den Lauf auch bei einem bislang als `preserve` markierten Fall.
+im verbindlichen Abnahmeumfang blockiert den Lauf auch bei einem bislang als
+`preserve` markierten Fall.
 
 ## Scope
 
@@ -377,7 +381,6 @@ SRCH0-Abnahme; Nachfolgetasks müssen sie erhalten.
 | `SRCH0-GAP-GEO-002` | Koordinate `0` deaktiviert den Radius | Latitude und Longitude `0` bleiben gültige Anker |
 | `SRCH0-GAP-MAP-001` | Abstiegslimit verwendet den Aufstiegsgrenzwert | Abstieg verwendet den Abstiegsgrenzwert |
 | `SRCH0-GAP-DTO-001` | Feldauswahl erreicht die Engine nicht | beabsichtigte Retrievalfelder werden tatsächlich angewendet |
-| `SRCH0-GAP-SORT-001` | ungültige Storagewerte erreichen die Engine | gültiger dokumentierter Fallback vor dem Enginezugriff |
 | `SRCH0-GAP-SEC-001` | nachgewiesene unzulässige Sichtbarkeit oder Umgehung im geprüften Suchpfad | keine unzulässigen Treffer oder Counts im betreffenden Principal-Kontext |
 | `SRCH0-GAP-BOOT-001` | Startup leert live verwendete Indizes asynchron | Indexerhalt, terminal erfolgreiche Initialisierung, Fehlerweitergabe und Wiederaufnahme |
 
@@ -390,6 +393,36 @@ zulässige Kandidatenmenge berücksichtigen; Engine-Defaultlimits und
 `maxTotalHits` dürfen kein erfolgreiches unvollständiges Ergebnis erzeugen.
 Ein Duplikat hinter Position 20 und tatsächlich indexierte 10'001 Trails
 gehören zum Nachweis.
+
+### Zurückgestellte Sortier-Robustheit
+
+**Entscheidung vom 19. September 2026:** `SRCH0-GAP-SORT-001` ist kein
+Merge- oder Abnahmeblocker für SRCH0. Die Bereinigung ungültiger gespeicherter
+Werte für `sort` und `sort_order` sowie der Fallback bei fehlender oder
+ungültiger Richtung werden als kleine Robustheitsverbesserung zurückgestellt.
+Vorerst wird dafür kein eigener Produkt-PR vorbereitet.
+
+Die normale Oberfläche erzeugt gültige Sortierwerte. Der belegte negative
+Testfall verwendet absichtlich ungültige Browser-Storagewerte; ein Fehler
+im gewöhnlichen Gebrauch ist dafür bisher nicht nachgewiesen. Auch die
+Fallback-Richtung wird derzeit nicht als Voraussetzung der Suchbasis gewertet.
+Der gewünschte spätere Fallback auf die gültigen Vorgaben der jeweiligen
+Ansicht bleibt dokumentiert, ist aber keine aktive SRCH0-Abnahmeforderung.
+
+Gap-ID, Case-IDs und historische Beobachtungen bleiben erhalten. Dazu gehören
+`SRCH0-BROWSER-009` und die Solländerung `WEB-FIX-SRCH0-BROWSER-009`.
+Die betreffenden Proben dienen normativ nur der Diagnose. Die vorhandene
+Testimplementierung ist noch nicht an diese Einordnung angepasst und kann
+die Fälle weiterhin als verpflichtende Korrekturen prüfen. Ihre Trennung
+von den verbindlichen Abnahmeprüfungen ist bei der nächsten Anpassung der
+Suite nachzuführen; diese Dokumentänderung behauptet keinen grünen Lauf und
+fordert keinen Sortierfix als zusätzliches Releasegate.
+
+Die Tests der neun gültigen Sortierfelder in beiden Richtungen bleiben
+verbindlich. Textrelevanz und Gleichstandsbehandlung sind eigenständige
+Themen und von dieser Entscheidung nicht betroffen.
+
+### Weitergehende Folgearbeiten
 
 Zwei bestehende Referenzen bezeichnen weitergehende Folgearbeiten:
 
@@ -626,7 +659,8 @@ oder dem vom Produkt erzeugten Tenant-Filter. Weitere Properties prüfen
 Vollständigkeit, eindeutige IDs, konsistente Counts und Seiten, Werterhalt,
 Range-Monotonie und numerische Sortierung bei leerem Suchtext.
 
-Verletzungen schlagen immer fehl. `knownViolation`, erwartetes Fehlschlagen,
+Verletzungen im verbindlichen Abnahmeumfang schlagen immer fehl.
+`knownViolation`, erwartetes Fehlschlagen,
 Überspringen oder ein Golden-Update dürfen keinen bekannten Produktfehler
 grün machen. Eine nachgewiesene Redundanz ist von einem Ergebnisfehler zu
 unterscheiden; eine angenommene strukturelle Bereinigung erhält einen
@@ -658,8 +692,8 @@ SRCH0 ist erst mergebar und abgenommen, wenn:
    Engineprofile die aktiven Produktprüfungen bestehen;
 5. State-, Compiler-, Projektions-, Search-, Mutation- und Browserharness
    denselben Datasetdigest konsumieren;
-6. alle nachgewiesenen Fehler im Prüfungsumfang eine begründete aktive
-   Korrektur und einen grünen unabhängigen Regressionstest besitzen;
+6. alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang eine begründete
+   aktive Korrektur und einen grünen unabhängigen Regressionstest besitzen;
 7. historische Basisfälle und aktive Solländerungen getrennt validiert sind;
 8. ein absichtlich verändertes Golden ohne Evidenzänderung von CI abgewiesen
    wird;
@@ -669,8 +703,9 @@ SRCH0 ist erst mergebar und abgenommen, wenn:
 11. der Testaufbau weder eine reale Betreiberinstanz noch deren Daten benötigt;
 12. Startup-, API-, Engine- und Browsertests einschließlich der betroffenen
     Bestandsreparaturen am tatsächlich integrierten Zielstand grün sind; und
-13. kein bekannter Fehler durch eine Ausnahme oder ausschliesslich durch den
-    Vergleich mit einem ebenfalls fehlerhaften Golden freigegeben wird.
+13. kein bekannter Fehler im verbindlichen Abnahmeumfang durch eine Ausnahme
+    oder ausschliesslich durch den Vergleich mit einem ebenfalls fehlerhaften
+    Golden freigegeben wird.
 
 Die Abnahme bestätigt Korrektheit im dokumentierten Prüfungsumfang. Sie ist
 weder ein Beweis für beliebige ACL-/Federationszustände noch die Freigabe
@@ -684,7 +719,9 @@ implementierten Produktkorrekturen; dessen Stand `754456831` enthält den
 Merge von `dev` (`c73966d6c`). Fachlich unabhängige Korrekturen werden daraus
 einzeln auf frischen `dev`-Branches vorbereitet, jeweils mit passenden
 Regressionstests und einem eigenen PR. Zusammengehörige Änderungen zur
-Behebung desselben Fehlers bleiben in einem PR.
+Behebung desselben Fehlers bleiben in einem PR. Die zurückgestellte
+Sortier-Robustheit `SRCH0-GAP-SORT-001` wird vorerst nicht ausgekoppelt und
+blockiert SRCH0 nicht.
 
 Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
 
@@ -759,3 +796,4 @@ SRCH0.
 | 2026-09-19 | Ausgangsrevision ist `e9b7a8cad` vom 7. September; Tests und Produktfixes bleiben getrennt reviewbar | die Spezifikation folgt dem ausführbaren Korpus auf `feat/srch0`, ohne dessen noch blockierten Stand als abgenommen auszugeben |
 | 2026-09-19 | Nachgewiesene Bestandsfehler einschließlich Startup werden vor SRCH0-Abnahme behoben | spätere Owner erhalten diese Korrekturen; ihre vollständige neue Architektur wird dadurch nicht zur zyklischen Voraussetzung |
 | 2026-09-19 | Fachlich unabhängige Produktkorrekturen erhalten eigene PRs samt Regressionstests; erster lokaler Fix ist `fix/search-radius-filter` (`398b45682`) | die Sammelkorrekturen bleiben Referenz; der isolierte Radiusnachweis ersetzt weder Integration noch SRCH0-Gesamtabnahme |
+| 2026-09-19 | `SRCH0-GAP-SORT-001` wird als Robustheitsverbesserung zurückgestellt und ist kein SRCH0-Blocker; vorerst kein eigener PR | ungültige Storagewerte sind ein defensiver Testfall ohne nachgewiesenen Fehler im gewöhnlichen Gebrauch; Diagnosefälle bleiben erhalten, die Suite muss ihre nicht blockierende Einordnung noch übernehmen |
