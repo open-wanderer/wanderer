@@ -34,6 +34,8 @@ import type { SearchResponse } from "meilisearch";
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 0
+ *           maximum: 9007199254740991
  *           default: 3
  *         description: |
  *           Maximum number of results to return from the local index. Has no
@@ -88,7 +90,7 @@ import type { SearchResponse } from "meilisearch";
  *                 page:
  *                   type: integer
  *       400:
- *         description: Missing required `q` parameter.
+ *         description: Missing required `q` parameter or invalid `limit`.
  *       404:
  *         description: Federated fetch failed with a network error.
  *       500:
@@ -98,14 +100,16 @@ export async function GET(event: RequestEvent) {
     if (!event.locals.user) {
         return error(401, "Unauthorized")
     }
+    if (!event.url.searchParams.has("q")) {
+        return error(400, "Bad request: missing required parameter 'q'");
+    }
+    const rawLimit = event.url.searchParams.get("limit");
+    const limit = rawLimit === null ? 3 : Number(rawLimit);
+    if (rawLimit !== null && (!rawLimit.trim() || !Number.isSafeInteger(limit) || limit < 0)) {
+        return error(400, "Bad request: limit must be a non-negative safe integer");
+    }
     try {
-
-        if (!event.url.searchParams.has("q")) {
-            return error(404, "Bad request: missing required parameter 'q'")
-
-        }
         const q = event.url.searchParams.get("q")!
-        const limit = event.url.searchParams.get("limit")
 
         if (isValidPubHandle(q)) {
             try {
@@ -142,7 +146,7 @@ export async function GET(event: RequestEvent) {
             filterText = `id != ${event.locals.pb.authStore.record.actor}`
         }
 
-        const r = await event.locals.ms.index("actors").search(q, { filter: filterText, limit: limit ?? 3 });
+        const r = await event.locals.ms.index("actors").search(q, { filter: filterText, limit });
 
 
         return json(r)
