@@ -89,9 +89,13 @@ func CreateActorDeleteActivity(app core.App, actor *core.Record, recipients []st
 	return PostActivity(app, actor, activity, recipients)
 }
 
-func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
-	if !r.GetBool("public") {
-		// only broadcast the trail if it is public
+// CreateTrailDeleteActivity tells the audience, as collected by
+// TrailDeleteRecipients before the trail's rows were cascaded away, that the
+// trail is no longer available. The trail need not be public any more: a
+// trail that was handed out while public is retracted from whoever got it.
+// A trail nobody ever received is not announced at all.
+func CreateTrailDeleteActivity(app core.App, r *core.Record, audience DeleteAudience) error {
+	if !r.GetBool("public") && audience.Empty() {
 		return nil
 	}
 	origin := os.Getenv("ORIGIN")
@@ -125,23 +129,11 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	to := "https://www.w3.org/ns/activitystreams#Public"
 	object := r.GetString("iri")
 
-	// The trail went to the author's followers and to whoever its description
-	// mentioned. The Create and Update activities recorded the mentioned
-	// inboxes, which need not follow the author, so the audience is read back
-	// rather than derived from the follow table alone.
-	recipients, err := followerInboxes(app, author.Id)
-	if err != nil {
-		return err
-	}
-	mentioned, err := recordedInboxes(app, object)
-	if err != nil {
-		return err
-	}
-	mentioned = remoteInboxes(mentioned)
-	recipients = append(recipients, mentioned...)
-
+	// As on the Create: followers as their collection, everyone else by
+	// inbox. Listing follower inboxes would hand the follower list to every
+	// recipient.
 	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
-	for _, inbox := range mentioned {
+	for _, inbox := range audience.Holders {
 		cc.Append(pub.IRI(inbox))
 	}
 
@@ -166,7 +158,7 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record) error {
 	activity.CC = cc
 	activity.Published = time.Now()
 
-	return PostActivity(app, author, activity, recipients)
+	return PostActivity(app, author, activity, audience.Inboxes())
 }
 
 func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager, r *core.Record) error {
@@ -355,8 +347,12 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	return app.Save(record)
 }
 
-func CreateListDeleteActivity(app core.App, r *core.Record) error {
-
+// CreateListDeleteActivity is CreateTrailDeleteActivity for a list, with
+// the audience from ListDeleteRecipients.
+func CreateListDeleteActivity(app core.App, r *core.Record, audience DeleteAudience) error {
+	if !r.GetBool("public") && audience.Empty() {
+		return nil
+	}
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -386,21 +382,20 @@ func CreateListDeleteActivity(app core.App, r *core.Record) error {
 
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
 	to := "https://www.w3.org/ns/activitystreams#Public"
-	cc := author.GetString("iri") + "/followers"
 	object := r.GetString("iri")
+
+	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
+	for _, inbox := range audience.Holders {
+		cc.Append(pub.IRI(inbox))
+	}
 
 	activity := pub.DeleteNew(pub.IRI(id), pub.IRI(object))
 	activity.Actor = pub.IRI(author.GetString("iri"))
 	activity.To = pub.ItemCollection{pub.IRI(to)}
-	activity.CC = pub.ItemCollection{pub.IRI(cc)}
+	activity.CC = cc
 	activity.Published = time.Now()
 
-	recipients, err := followerInboxes(app, author.Id)
-	if err != nil {
-		return err
-	}
-
-	err = PostActivity(app, author, activity, recipients)
+	err = PostActivity(app, author, activity, audience.Inboxes())
 	if err != nil {
 		return err
 	}

@@ -140,6 +140,28 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 	}
 }
 
+const trailDeleteRecipientsKey = "__delete_recipients"
+
+// CollectTrailDeleteRecipientsHandler works out who has to be told before the
+// trail is deleted, and keeps the list on the record for DeleteTrailHandler.
+// The comments, summit logs, likes and shares that name those actors are
+// cascaded away with the trail, so afterwards is too late.
+func CollectTrailDeleteRecipientsHandler() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		trail := e.Record
+		audience, err := federation.TrailDeleteRecipients(e.App, trail, trail.GetBool("public"))
+		if err != nil {
+			e.App.Logger().Error(
+				"could not collect recipients to announce trail deletion to",
+				"trail", trail.Id, "error", err,
+			)
+			audience = federation.DeleteAudience{}
+		}
+		trail.Set(trailDeleteRecipientsKey, audience)
+		return e.Next()
+	}
+}
+
 func DeleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
@@ -154,7 +176,8 @@ func DeleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			log.Fatalf("Error waiting for task completion: %v", err)
 		}
 
-		err = federation.CreateTrailDeleteActivity(e.App, e.Record)
+		audience, _ := record.GetRaw(trailDeleteRecipientsKey).(federation.DeleteAudience)
+		err = federation.CreateTrailDeleteActivity(e.App, record, audience)
 		if err != nil {
 			return err
 		}

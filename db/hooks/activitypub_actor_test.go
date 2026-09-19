@@ -114,6 +114,8 @@ func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 	// covered in the federation package.
 	trails := core.NewBaseCollection("trails")
 	trails.Fields.Add(
+		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "public"},
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1, CascadeDelete: true},
 	)
 	if err := app.Save(trails); err != nil {

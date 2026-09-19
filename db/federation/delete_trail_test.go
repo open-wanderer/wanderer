@@ -90,9 +90,41 @@ func setupTrailDeleteTestApp(t *testing.T) *trailDeleteFixture {
 	lists := core.NewBaseCollection("lists")
 	lists.Fields.Add(
 		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "public"},
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
 	)
 	if err := app.Save(lists); err != nil {
+		t.Fatal(err)
+	}
+
+	// The rows that name who interacted with a trail, cascading with it as
+	// in the real schema.
+	for _, name := range []string{"comments", "summit_logs"} {
+		c := core.NewBaseCollection(name)
+		c.Fields.Add(
+			&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
+			&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1, CascadeDelete: true},
+		)
+		if err := app.Save(c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"trail_like", "trail_share"} {
+		c := core.NewBaseCollection(name)
+		c.Fields.Add(
+			&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
+			&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1, CascadeDelete: true},
+		)
+		if err := app.Save(c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	listShare := core.NewBaseCollection("list_share")
+	listShare.Fields.Add(
+		&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
+		&core.RelationField{Name: "list", CollectionId: lists.Id, MaxSelect: 1, CascadeDelete: true},
+	)
+	if err := app.Save(listShare); err != nil {
 		t.Fatal(err)
 	}
 
@@ -161,22 +193,124 @@ func (f *trailDeleteFixture) follow(t *testing.T, follower, followee *core.Recor
 	}
 }
 
-// localTrail is a public trail of a local author, addressed as this instance
-// would address it.
-func (f *trailDeleteFixture) localTrail(t *testing.T, author *core.Record) *core.Record {
+// localContent is a trail or list of a local author, addressed as this
+// instance would address it.
+func (f *trailDeleteFixture) localContent(t *testing.T, collection *core.Collection, path string, author *core.Record, public bool) *core.Record {
 	t.Helper()
 
-	r := core.NewRecord(f.trails)
+	r := core.NewRecord(collection)
 	r.Set("author", author.Id)
-	r.Set("public", true)
+	r.Set("public", public)
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
 	}
-	r.Set("iri", "https://local.example/api/v1/trail/"+r.Id)
+	r.Set("iri", "https://local.example/api/v1/"+path+"/"+r.Id)
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
 	}
 	return r
+}
+
+func (f *trailDeleteFixture) localTrail(t *testing.T, author *core.Record, public bool) *core.Record {
+	return f.localContent(t, f.trails, "trail", author, public)
+}
+
+// interaction files a comment, summit log, like or share of the trail by
+// actor; subjectField is the relation naming the actor in that collection.
+func (f *trailDeleteFixture) interaction(t *testing.T, collection, subjectField string, actor, subject *core.Record) {
+	t.Helper()
+
+	c, err := f.app.FindCollectionByNameOrId(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := core.NewRecord(c)
+	r.Set(subjectField, actor.Id)
+	r.Set(subject.Collection().Name[:len(subject.Collection().Name)-1], subject.Id)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// announced files the Announce that sharing the object with actor sent, as
+// CreateAnnounceActivity records it: the actor's IRI in to.
+func (f *trailDeleteFixture) announced(t *testing.T, object, actor *core.Record) {
+	t.Helper()
+
+	r := core.NewRecord(f.activities)
+	r.Set("iri", "https://local.example/api/v1/activitypub/activity/"+security.RandomString(8))
+	r.Set("type", "Announce")
+	r.Set("object", map[string]any{"id": object.GetString("iri"), "type": "Note"})
+	r.Set("to", []string{actor.GetString("iri")})
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// recordedReply files the Create of a comment or summit log on the trail, as
+// CreateCommentActivity records it: the reply's own id, the trail in
+// inReplyTo, and the inboxes it was sent to in cc.
+func (f *trailDeleteFixture) recordedReply(t *testing.T, trail *core.Record, sentTo ...*core.Record) {
+	t.Helper()
+
+	cc := make([]string, 0, len(sentTo))
+	for _, actor := range sentTo {
+		cc = append(cc, actor.GetString("inbox"))
+	}
+
+	r := core.NewRecord(f.activities)
+	r.Set("iri", "https://local.example/api/v1/activitypub/activity/"+security.RandomString(8))
+	r.Set("type", "Create")
+	r.Set("object", map[string]any{
+		"id":        "https://local.example/api/v1/comment/" + security.RandomString(8),
+		"type":      "Note",
+		"inReplyTo": trail.GetString("iri"),
+	})
+	r.Set("cc", cc)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (f *trailDeleteFixture) sendTrailDelete(t *testing.T, trail *core.Record) {
+	t.Helper()
+
+	audience, err := TrailDeleteRecipients(f.app, trail, trail.GetBool("public"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := CreateTrailDeleteActivity(f.app, trail, audience); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (f *trailDeleteFixture) sendListDelete(t *testing.T, list *core.Record) {
+	t.Helper()
+
+	audience, err := ListDeleteRecipients(f.app, list, list.GetBool("public"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := CreateListDeleteActivity(f.app, list, audience); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (f *trailDeleteFixture) deliveries(t *testing.T, name string, want int) {
+	t.Helper()
+
+	if got := f.in.wait(name, want, 5*time.Second); got != want {
+		t.Errorf("%s received %d delivery(ies), want %d", name, got, want)
+	}
+}
+
+// silence asserts that nothing reaches name, giving delivery time to be wrong.
+func (f *trailDeleteFixture) silence(t *testing.T, name string) {
+	t.Helper()
+
+	if got := f.in.wait(name, 1, 500*time.Millisecond); got != 0 {
+		t.Errorf("%s received %d delivery(ies), want none", name, got)
+	}
 }
 
 // recorded files a Create or Update of the trail as PostActivity would have,
@@ -332,16 +466,36 @@ func TestCreateTrailDeleteActivity(t *testing.T) {
 		a := f.actor(t, "a", false)
 		f.follow(t, b, a)
 
-		trail := f.localTrail(t, b)
+		trail := f.localTrail(t, b, true)
 		f.recorded(t, "Update", trail, a)
 
-		if err := CreateTrailDeleteActivity(f.app, trail); err != nil {
-			t.Fatal(err)
-		}
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "a", 1)
+	})
 
-		if got := f.in.wait("a", 1, 5*time.Second); got != 1 {
-			t.Fatalf("mentioned actor A should receive the Delete, got %d delivery(ies)", got)
+	// Anyone who commented on, logged a summit on, liked or was handed the
+	// trail holds a copy of it, whether or not they follow its author.
+	t.Run("ReachesEveryoneHoldingACopy", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		trail := f.localTrail(t, b, true)
+
+		f.interaction(t, "comments", "author", f.actor(t, "commenter", false), trail)
+		f.interaction(t, "summit_logs", "author", f.actor(t, "logger", false), trail)
+		f.interaction(t, "trail_like", "actor", f.actor(t, "liker", false), trail)
+		f.interaction(t, "trail_share", "actor", f.actor(t, "sharee", false), trail)
+		// A share since revoked: no trail_share row, only the Announce.
+		f.announced(t, trail, f.actor(t, "revoked", false))
+		// Mentioned in a local comment on the trail, and so fetched it.
+		f.recordedReply(t, trail, f.actor(t, "replymention", false))
+		f.interaction(t, "comments", "author", f.actor(t, "bystander", false), f.localTrail(t, b, true))
+
+		f.sendTrailDelete(t, trail)
+		for _, name := range []string{"commenter", "logger", "liker", "sharee", "revoked", "replymention"} {
+			f.deliveries(t, name, 1)
 		}
+		f.silence(t, "bystander")
 	})
 
 	// Followers still hear, and an actor that is both a follower and was
@@ -355,36 +509,80 @@ func TestCreateTrailDeleteActivity(t *testing.T) {
 		f.follow(t, follower, b)
 		f.follow(t, both, b)
 
-		trail := f.localTrail(t, b)
+		trail := f.localTrail(t, b, true)
 		f.recorded(t, "Create", trail, both)
 		f.recorded(t, "Update", trail, both)
+		f.interaction(t, "comments", "author", both, trail)
 
-		if err := CreateTrailDeleteActivity(f.app, trail); err != nil {
-			t.Fatal(err)
-		}
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "follower", 1)
+		f.deliveries(t, "both", 1)
+	})
 
-		if got := f.in.wait("follower", 1, 5*time.Second); got != 1 {
-			t.Fatalf("follower should receive the Delete, got %d", got)
-		}
-		if got := f.in.wait("both", 1, 5*time.Second); got != 1 {
-			t.Fatalf("follower who was also mentioned should receive the Delete once, got %d", got)
+	// A trail that is private by the time it is deleted was never handed to
+	// followers, but whoever else holds a copy still has to hear.
+	t.Run("PrivateTrailReachesHoldersNotFollowers", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		follower := f.actor(t, "follower", false)
+		f.follow(t, follower, b)
+
+		trail := f.localTrail(t, b, false)
+		f.interaction(t, "trail_share", "actor", f.actor(t, "sharee", false), trail)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "sharee", 1)
+		f.silence(t, "follower")
+	})
+
+	// A private trail nobody ever received is nobody's business.
+	t.Run("PrivateUnsharedTrailSendsNothing", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+		trail := f.localTrail(t, b, false)
+
+		f.sendTrailDelete(t, trail)
+		f.silence(t, "follower")
+		if _, err := f.app.FindFirstRecordByFilter("activitypub_activities", "type = 'Delete'", dbx.Params{}); err == nil {
+			t.Error("a Delete was recorded for a trail that was never handed out")
 		}
 	})
 
-	// The recorded audience is written to the Delete's cc, next to the
-	// followers collection, so the activity itself says who it went to.
-	t.Run("RecordsMentionedInboxesInCC", func(t *testing.T) {
+	// A remote author's trail is not ours to retract, however many local
+	// interactions it has.
+	t.Run("RemoteTrailSendsNothing", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		remote := f.actor(t, "remote", false)
+		trail := f.content(t, f.trails, "trail", remote)
+		f.interaction(t, "comments", "author", f.actor(t, "commenter", false), trail)
+
+		audience, err := TrailDeleteRecipients(f.app, trail, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !audience.Empty() {
+			t.Fatalf("audience = %+v, want none for a remote author's trail", audience)
+		}
+	})
+
+	// The Delete's cc names the followers collection and the other holders
+	// by inbox, as the Create did. Follower inboxes are never listed: that
+	// would hand the follower list to every recipient.
+	t.Run("RecordsHoldersNotFollowersInCC", func(t *testing.T) {
 		f := setupTrailDeleteTestApp(t)
 
 		b := f.actor(t, "b", true)
 		a := f.actor(t, "a", false)
+		f.follow(t, f.actor(t, "follower", false), b)
 
-		trail := f.localTrail(t, b)
+		trail := f.localTrail(t, b, true)
 		f.recorded(t, "Create", trail, a)
 
-		if err := CreateTrailDeleteActivity(f.app, trail); err != nil {
-			t.Fatal(err)
-		}
+		f.sendTrailDelete(t, trail)
 
 		rec, err := f.app.FindFirstRecordByFilter("activitypub_activities", "type = 'Delete' && object = {:iri}", dbx.Params{"iri": trail.GetString("iri")})
 		if err != nil {
@@ -395,5 +593,38 @@ func TestCreateTrailDeleteActivity(t *testing.T) {
 		if len(cc) != len(want) || cc[0] != want[0] || cc[1] != want[1] {
 			t.Fatalf("cc = %v, want %v", cc, want)
 		}
+		f.deliveries(t, "follower", 1)
+	})
+}
+
+func TestCreateListDeleteActivity(t *testing.T) {
+	// A list only leaves the instance by following its author or by being
+	// shared, and a share once made counts even after it was revoked.
+	t.Run("ReachesFollowersAndSharees", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+		list := f.localContent(t, f.lists, "list", b, true)
+		f.interaction(t, "list_share", "actor", f.actor(t, "sharee", false), list)
+		f.announced(t, list, f.actor(t, "revoked", false))
+
+		f.sendListDelete(t, list)
+		for _, name := range []string{"follower", "sharee", "revoked"} {
+			f.deliveries(t, name, 1)
+		}
+	})
+
+	t.Run("PrivateListReachesShareesNotFollowers", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+		list := f.localContent(t, f.lists, "list", b, false)
+		f.interaction(t, "list_share", "actor", f.actor(t, "sharee", false), list)
+
+		f.sendListDelete(t, list)
+		f.deliveries(t, "sharee", 1)
+		f.silence(t, "follower")
 	})
 }
