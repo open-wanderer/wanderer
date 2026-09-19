@@ -1,0 +1,43 @@
+---
+import Default from "@astrojs/starlight/components/Banner.astro";
+import { APP_BETA_ANNOUNCEMENT, APP_BETA_URL } from "../lib/site";
+
+/**
+ * Starlight `Banner` override. A page's own `banner` frontmatter wins;
+ * otherwise, while the app beta announcement is on, every docs page gets
+ * the same one-liner. Pages under /app/ already carry the beta notice in
+ * their body, so they are left out.
+ */
+const { banner } = Astro.locals.starlightRoute.entry.data;
+const isAppPage = Astro.locals.starlightRoute.id.startsWith("app/");
+const showBeta = APP_BETA_ANNOUNCEMENT && !banner && !isAppPage;
+---
+
+{
+	banner ? (
+		<Default />
+	) : (
+		showBeta && (
+			<div class="sl-banner docs-beta-banner" data-pagefind-ignore>
+				The <span class="-tracking-[0.075em]">wanderer</span> app is now in public beta for iOS and Android —{" "}
+				<a href={APP_BETA_URL}>get the beta</a>
+			</div>
+		)
+	)
+}
+
+<style>
+	.docs-beta-banner {
+		padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+		background-color: var(--sl-color-bg-accent);
+		color: var(--sl-color-text-invert);
+		line-height: var(--sl-line-height-headings);
+		text-align: center;
+		text-wrap: balance;
+		font-size: var(--sl-text-sm);
+	}
+	.docs-beta-banner a {
+		color: inherit;
+		font-weight: 600;
+	}
+</style>

@@ -21,7 +21,8 @@ export default defineConfig({
       { icon: 'github', label: 'GitHub', href: 'https://github.com/open-wanderer/wanderer' },
     ],
     components: {
-      Footer: './src/components/footer.astro'
+      Footer: './src/components/footer.astro',
+      Banner: './src/components/docs_banner.astro'
     },
     plugins: [
       starlightOpenAPI([
