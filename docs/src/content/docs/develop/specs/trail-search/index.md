@@ -213,6 +213,17 @@ grenzt diese Ausnahme ab; die Diagnose-/Abnahmetrennung in der Suite steht
 noch aus. Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben
 verbindlich. Der Fix ist noch nicht gepusht, als PR eingereicht oder integriert.
 
+SDK-HTTP-Statusweitergabe und Actor-Suchparameter sind ebenfalls **keine
+SRCH0-Blocker**. Die unabhängigen lokalen Branches
+`fix/search-api-error-status` und `fix/search-actor-parameters` starten
+jeweils direkt ab `dev` (`c73966d6c`), ohne Push, PR oder Integration.
+Die [Status-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-api-fehlerstatusweitergabe)
+und [Parameter-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-actor-suchparameter)
+begrenzen die Ausnahme auf Fehlerklassifikation sowie fehlendes `q` und
+explizite Limits. Authentifizierung, Berechtigungen und die Ablehnung
+fehlgeschlagener Engineanfragen bleiben verbindlich; die technische
+Diagnose-/Abnahmetrennung der unveränderten Suite steht noch aus.
+
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
 Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0
 verlangt bereits Datenerhalt, abgeschlossene Initialisierung vor Suchfreigabe

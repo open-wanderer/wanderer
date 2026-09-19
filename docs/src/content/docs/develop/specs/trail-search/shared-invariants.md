@@ -114,13 +114,15 @@ Invarianten:
   erst konsumieren.
 - Die am 19. September 2026 ausdrücklich ausgenommenen Korrekturen
   `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001`, die globale Tag-Umbenennung
-  `SRCH0-MUTATION-008` und negative Thumbnailindizes `SRCH0-PROJECTION-021`
+  `SRCH0-MUTATION-008`, negative Thumbnailindizes `SRCH0-PROJECTION-021`,
+  SDK-HTTP-Statusweitergabe und die abgegrenzten Actor-Suchparameter
   gehören nicht zum verbindlichen SRCH0-Abnahmeumfang.
   Die Sortier-Robustheit bleibt zurückgestellt; Feldauswahl und die nur
   administrativ verfügbare Tag-Umbenennung werden separat korrigiert. Auch
   die Vorschaubild-Absicherung erhält einen separaten Fix; sie schützt vor
   einem nachgewiesenen Absturz bei einem Wert, den normale Fotoauswahl und
-  JSON-API nicht zulassen. Sie
+  JSON-API nicht zulassen. SDK-HTTP-Statusweitergabe und Actor-Suchparameter
+  werden auf zwei unabhängigen Branches korrigiert. Alle genannten Befunde
   sind keine Merge- oder Abnahmeblocker. Die begrenzte Einstufung und ihr Verhältnis zu den noch
   unveränderten Tests stehen in
   [SRCH0](/develop/specs/trail-search/work-items/search/srch0/); gültige
@@ -128,6 +130,9 @@ Invarianten:
   Blocker bleiben verbindlich. Andere Metadatenbefunde sind von der
   Tag-Ausnahme nicht betroffen; andere Projektions-, Sichtbarkeits- und
   Startup-Prüfungen nicht von der Vorschaubild-Ausnahme.
+  Die API-Ausnahmen betreffen nur die Fehlerklassifikation beziehungsweise
+  fehlendes `q` und explizite Limits; Authentifizierung, Berechtigungen und
+  die Ablehnung fehlgeschlagener Engineanfragen bleiben verbindlich.
 - Nachfolgende Tasks erhalten die aktive Baseline. Bewusste neue Semantik
   benötigt ein ausdrücklich begründetes, auf stabile Case-IDs bezogenes
   Delta-Overlay samt Nachweis aller unveränderten Resultate. Historische

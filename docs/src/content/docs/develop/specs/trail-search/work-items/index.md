@@ -95,6 +95,17 @@ beschreibt den begrenzten Umfang und die noch ausstehende Diagnose-/Abnahmetrenn
 Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben verbindlich;
 Push, PR und Integration sind noch nicht erfolgt.
 
+SDK-HTTP-Statusweitergabe und Actor-Suchparameter sind ebenfalls **keine
+SRCH0-Blocker**. Die unabhängigen lokalen Fixbranches
+`fix/search-api-error-status` und `fix/search-actor-parameters` basieren
+jeweils direkt auf `dev` (`c73966d6c`), ohne Push, PR oder Integration.
+Die [Status-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-api-fehlerstatusweitergabe)
+und [Parameter-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-actor-suchparameter)
+nehmen nur Fehlerklassifikation, fehlendes `q` und explizite Limits aus.
+Authentifizierung, Berechtigungen und die Ablehnung fehlgeschlagener
+Engineanfragen bleiben verbindlich. Tests und Korpus bleiben unverändert;
+die technische Diagnose-/Abnahmetrennung ist noch nachzuführen.
+
 ## Parallele Index- und Engine-Schnitte
 
 | Work Item | Ziel | Stand |

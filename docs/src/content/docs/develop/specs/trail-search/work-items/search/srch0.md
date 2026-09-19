@@ -44,8 +44,9 @@ betroffenen Tests bestehen. `known_gap`, ein `successor_ref` oder ein historisch
 sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
 Kompatibilitätsvertrag für nachfolgende Arbeiten. Die Sortier-Robustheit
 `SRCH0-GAP-SORT-001`, die Feldauswahl `SRCH0-GAP-DTO-001`, die globale
-Tag-Umbenennung `SRCH0-MUTATION-008` und negative Thumbnailindizes
-`SRCH0-PROJECTION-021` gehören nicht zu diesem Abnahmeumfang;
+Tag-Umbenennung `SRCH0-MUTATION-008`, negative Thumbnailindizes
+`SRCH0-PROJECTION-021`, die SDK-HTTP-Statusweitergabe (`SRCH0-P-HTTP`)
+und die unten abgegrenzten Actor-Suchparameter gehören nicht zu diesem Abnahmeumfang;
 ihre Diagnosefälle bleiben nachvollziehbar erhalten.
 
 Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
@@ -65,7 +66,7 @@ SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
 | Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
 | Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
-| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; `SRCH0-GAP-SORT-001`, `SRCH0-GAP-DTO-001`, die Tag-Umbenennung `SRCH0-MUTATION-008` und negative Thumbnailindizes `SRCH0-PROJECTION-021` sind keine Blocker |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im verbindlichen Abnahmeumfang behoben und am integrierten Zielcommit geprüft; die unten abgegrenzten Befunde zu Sortier-Robustheit, Feldauswahl, Tag-Umbenennung, negativen Thumbnailindizes, SDK-HTTP-Statusweitergabe und Actor-Suchparametern sind keine Blocker |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
 Der historische Bestandsanker besteht aus Commit, Engineprofil,
@@ -389,10 +390,12 @@ Der ausführbare Korpus ergänzt mindestens die auf `feat/srch0` belegten
 Fehlerfälle: SDK-HTTP-Statusweitergabe, Actor-Suchparameter, negative
 Thumbnailindizes, Erhalt verbleibender Shares, Aktualisierung abhängiger
 Actor-/Tag-/Kategoriemetadaten. Die globale Tag-Umbenennung
-`SRCH0-MUTATION-008` und negative Thumbnailindizes `SRCH0-PROJECTION-021`
-bleiben dabei als nicht blockierende Diagnosefälle erhalten; die unten
-begründeten Ausnahmen gelten nicht pauschal für andere Metadatenmutationen
-oder Projektionsfehler.
+`SRCH0-MUTATION-008`, negative Thumbnailindizes `SRCH0-PROJECTION-021`,
+SDK-HTTP-Statusweitergabe und die unten abgegrenzten Actor-Suchparameter
+bleiben dabei als nicht blockierende Diagnosefälle erhalten. Diese Ausnahmen
+gelten weder pauschal für andere Metadatenmutationen oder Projektionsfehler
+noch für Authentifizierung, Berechtigungen oder als Erfolg ausgegebene
+Enginefehler.
 
 Die Prüfungen fehlender Indexdokumente sichern die neu eingeführten
 Metadaten-Teilaktualisierungen ab: Ein fehlender Eintrag darf durch sie nicht
@@ -538,6 +541,77 @@ Index gleich oder grösser als die Fotoanzahl sowie keine Fotos) und die
 gesamte Backend-Testsuite. Push, PR und Integration sind noch nicht
 erfolgt. Dieser Nachweis betrifft den isolierten Fix, nicht die
 SRCH0-Gesamtabnahme.
+
+### Nicht blockierende API-Fehlerstatusweitergabe
+
+**Entscheidung vom 19. September 2026:** Die fehlerhafte Weitergabe des
+HTTP-Status eines Meilisearch-SDK-Fehlers ist kein Merge- oder
+Abnahmeblocker für SRCH0. Sie erhält mit `fix/search-api-error-status`
+(`8bcfe61df`) einen separaten Fixbranch direkt ab `origin/dev` (`c73966d6c`).
+
+Der SDK-Fehler stellt den Status unter `response.status` bereit; die
+bisherigen Fehlerhandler lesen `httpStatus`. Dadurch wird etwa ein
+Enginefehler mit HTTP 400 als HTTP 500 ausgegeben. Der Fix erhält den
+tatsächlichen 4xx-/5xx-Status in den betroffenen Suchendpunkten und im
+gemeinsamen Fehlerhandler. Er ändert keine Suchergebnisse oder
+Berechtigungsregeln. Die Einordnung priorisiert diese Fehlerklassifikation
+separat; der nachgewiesene API-Fehler bleibt dokumentiert.
+
+Die Ausnahme betrifft `SRCH0-P-HTTP` und die Statusassertionen in
+`SRCH0-SEARCH-116` sowie `SRCH0-SEARCH-124` bis `127` samt ihren
+`API-FIX-…`-Solländerungen. Authentifizierung, Berechtigungsprüfung und die
+Anforderung, fehlgeschlagene Engineanfragen nicht als erfolgreichen
+Suchlauf auszugeben, bleiben verbindlich; andere Assertions derselben
+Fälle sind nicht pauschal ausgenommen.
+
+Historische Evidenz, Tests, Korpus und aktive Erwartungen bleiben
+unverändert. Die Suite kann die Statuskorrektur weiterhin als Pflicht
+prüfen; ihre technische Trennung von Diagnose und verbindlicher Abnahme
+steht noch aus. Die Dokumentationsentscheidung behauptet weder einen
+grünen Gesamtlauf noch die Behebung anderer SRCH0-Blocker.
+
+Der isolierte Fix ist mit 25 neuen Regressionstests geprüft: vier
+Suchrouten mit SDK-Status 400, 403, 404 und 503 sowie Transportfehlern,
+unveränderte Erfolgsantworten und der gemeinsame Fehlerhandler.
+Vor der Korrektur schlugen im gezielten Lauf 19 Tests fehl; danach
+bestehen sämtliche 146 Webtests und `npm run check` ohne Fehler oder
+Warnungen. Die Actor-Route wird in diesem Branch nicht geändert. Push,
+PR und Integration sind noch nicht erfolgt; dies ist keine
+SRCH0-Gesamtabnahme.
+
+### Nicht blockierende Actor-Suchparameter
+
+**Entscheidung vom 19. September 2026:** Die Behandlung eines fehlenden
+`q` und expliziter `limit`-Werte in der Actor-Suche ist kein Merge- oder
+Abnahmeblocker für SRCH0. Die Korrektur wird unabhängig vom Statusfix auf
+`fix/search-actor-parameters` (`a72ff18df`) direkt ab `origin/dev` (`c73966d6c`)
+vorbereitet. Die normale Oberfläche setzt `q` stets und verwendet ohne
+eigenen Limitparameter das funktionierende numerische Standardlimit `3`.
+
+Der API-Fehler bleibt real: Ein explizites `limit=7` wird bisher als String
+an das SDK weitergereicht. Der Fix übergibt Limits als sichere,
+nichtnegative Ganzzahlen, behält den Standardwert `3` und weist ungültige
+Werte mit HTTP 400 zurück. Ein fehlendes `q` wird ebenfalls als HTTP 400
+gemeldet. Am historischen Ausgangscommit `e9b7a8cad` ergibt dieser Fall
+HTTP 500; auf aktuellem `dev` bereits HTTP 404, weil der gemeinsame
+Fehlerhandler SvelteKit-HTTP-Fehler inzwischen erhält. Die historische
+Beobachtung wird dadurch nicht umgeschrieben.
+
+Die Ausnahme betrifft die Parameterprüfungen zu `SRCH0-COMPILER-062`
+und `SRCH0-COMPILER-064` sowie die zugehörigen `WEB-FIX-…`-Solländerungen
+und strikten Parameterproben. Authentifizierung, Berechtigungen,
+`includeSelf` und die sonstige Actor-Suchsemantik bleiben verbindlich.
+Tests, Korpus und Erwartungen bleiben unverändert; die technische
+Trennung der Diagnose von der verbindlichen Abnahme steht noch aus.
+Die Einstufung behauptet keinen grünen Gesamtlauf und hebt keine übrigen
+SRCH0-Blocker auf.
+
+Der isolierte Fix ändert die Actor-Route samt API-Dokumentation und
+ergänzt 20 Regressionstests. Vor der Korrektur schlugen davon 14 fehl;
+danach bestehen alle 20 sowie sämtliche 141 Webtests.
+`npm run check` meldet keine Fehler oder Warnungen. Der Branch enthält
+keine Änderungen des separaten Statusfixes. Push, PR und Integration
+sind noch nicht erfolgt; der Nachweis ersetzt keine SRCH0-Gesamtabnahme.
 
 ### Weitergehende Folgearbeiten
 
@@ -861,6 +935,14 @@ gesamte Backend-Testsuite bestehen. Die [Vorschaubild-Einstufung](#nicht-blockie
 beschreibt den nachgewiesenen Absturz, die begrenzte Ausnahme und den
 isolierten Prüfungsnachweis.
 
+Die nicht blockierenden API-Befunde erhalten zwei unabhängige lokale
+Fixbranches direkt ab `origin/dev` (`c73966d6c`):
+`fix/search-api-error-status` (`8bcfe61df`) für die SDK-HTTP-Statusweitergabe und
+`fix/search-actor-parameters` (`a72ff18df`) für fehlendes `q` und numerische Limits.
+Push, PR und Integration sind noch nicht erfolgt. Die oben dokumentierten
+Ausnahmen gelten nur für diese Korrekturen, nicht für den gesamten
+API-Prüfungsumfang.
+
 Als erste Auskopplung ist die Radiuskorrektur lokal vorbereitet:
 
 | Feld | Stand |
@@ -939,3 +1021,5 @@ SRCH0.
 | 2026-09-19 | Die globale Tag-Umbenennung `SRCH0-MUTATION-008` ist kein SRCH0-Blocker; separater lokaler Fix auf `fix/search-tag-metadata` (`122974380`) bleibt vorbereitet | Umbenennung ist nur als administrativer Sonderfall möglich, nicht in der normalen UI oder über die Records-API normaler Benutzer; reguläre Tagfilter und Zuordnungsänderungen bleiben verbindlich, die Diagnose-/Abnahmetrennung in der Suite steht noch aus |
 | 2026-09-19 | Schutz vor unvollständigen neuen Indexdokumenten gehört zur jeweiligen Metadaten-Korrektur, kein separates Arbeitspaket oder zusätzlicher SRCH0-Blocker | Die Tests prüfen gezielt fehlende Dokumente als Ausgangslage der neuen Teilaktualisierung; der Tag-Fix enthält die Absicherung bereits. Tests und Korpus bleiben unverändert; andere Indexfehler sind nicht ausgenommen. |
 | 2026-09-19 | Negative Thumbnailindizes `SRCH0-PROJECTION-021` sind kein SRCH0-Blocker; separate lokale Korrektur auf `fix/search-thumbnail-index` (`e6861358b`) | Der Absturz ist mit einem gespeicherten Datensatz und Foto nachgewiesen, normale Fotoauswahl und JSON-API lassen negative Werte jedoch nicht zu. Der Fix fällt auf das erste Foto zurück; Diagnosefall und Solländerung bleiben erhalten, die Diagnose-/Abnahmetrennung in der Suite steht noch aus. |
+| 2026-09-19 | SDK-HTTP-Statusweitergabe ist kein SRCH0-Blocker; separater Fix auf `fix/search-api-error-status` (`8bcfe61df`) | Der tatsächliche SDK-Status ersetzt den irrtümlichen Fallback auf 500. Die Ausnahme betrifft nur die Fehlerklassifikation, nicht Authentifizierung, Berechtigungen oder als Erfolg ausgegebene Enginefehler; die Diagnose-/Abnahmetrennung bleibt offen. |
+| 2026-09-19 | Fehlendes `q` und explizite Actor-Limits sind kein SRCH0-Blocker; unabhängiger Fix auf `fix/search-actor-parameters` (`a72ff18df`) | Die normale UI setzt `q` und nutzt das numerische Standardlimit 3. Explizite Limits als String und der falsche Status für fehlendes `q` bleiben nachgewiesene API-Fehler; Tests und historische Erwartungen bleiben unverändert, die Diagnose-/Abnahmetrennung steht aus. |
