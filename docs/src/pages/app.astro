@@ -20,7 +20,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BETA LINKS. TestFlight is live. The Play open test and the GitHub APK asset
-// are placeholders — swap the two values when they exist; nothing else on this
+// are placeholders; swap the two values when they exist; nothing else on this
 // page needs to change. See PRODUCT.md → "Beta install links".
 // ─────────────────────────────────────────────────────────────────────────────
 const TESTFLIGHT_URL = "https://testflight.apple.com/join/6VCR4QpV";
@@ -83,11 +83,11 @@ const installOptions = [
     platform: "Android without Google Play",
     requirement: "Android 8.0 or newer",
     steps: [
-      `Open the latest release and download the file named ${APK_ASSET_PATTERN}. Skip any .aab file — it is for the Play Store, not for installing.`,
+      `Open the latest release and download the file named ${APK_ASSET_PATTERN}. Skip any .aab file; it is for the Play Store, not for installing.`,
       "Open the downloaded file. When Android asks, allow installs from this source.",
       "Tap Install.",
     ],
-    note: "APK installs do not update themselves — come back here for each new release.",
+    note: "APK installs do not update themselves. Come back here for each new release.",
   },
 ];
 
@@ -307,7 +307,7 @@ const legs = [
         <p class="waypoint-body install-lead">
           Pick your platform. You also need an account on a
           <span class="tracking-[-0.075em]">wanderer</span> instance running
-          <code>{MIN_BACKEND_VERSION}</code> or newer — yours, your club's, or
+          <code>{MIN_BACKEND_VERSION}</code> or newer: yours, your club's, or
           <a class="inline-link" href="/servers">a public one</a>.
         </p>
 
@@ -352,7 +352,7 @@ const legs = [
             <ul class="install-scope-list">
               <li>Browse, search and filter your instance's trails; record, plan, navigate and take trails and map regions offline.</li>
               <li>Comments, summit logs and lists can be read in the app but are written on the web for now. No voice guidance, no rerouting, no push notifications.</li>
-              <li>Everything you do in the app lands on your instance — the same account, the same data as on the web.</li>
+              <li>Everything you do in the app lands on your instance: the same account, the same data as on the web.</li>
             </ul>
             <a class="text-link" href="/app/what-works-where">
               See what works where
@@ -362,7 +362,7 @@ const legs = [
           <div>
             <h3 class="install-scope-title">Found a bug?</h3>
             <p class="install-scope-body">
-              Tell us on GitHub. The template asks for your device, the app build and the instance version — that's usually all we need.
+              Tell us on GitHub. The template asks for your device, the app build and the instance version. That's usually all we need.
             </p>
             <a class="text-link" href={BUG_REPORT_URL}>
               Report an app bug
