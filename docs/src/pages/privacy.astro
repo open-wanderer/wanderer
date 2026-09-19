@@ -314,20 +314,25 @@ const LAST_UPDATED = "6 September 2026";
             <strong>Unpublishing is not deletion.</strong> Making a public trail
             or list private again stops it from being sent onward, but no
             deletion is sent, so copies already held by other instances stay
-            where they are. For trails specifically, this has a sharper
-            consequence: if
-            you make a trail private and delete it afterwards, no deletion signal
-            is sent either, because deletion itself is skipped for content that is
-            not currently public. If you want a deletion to reach instances that
-            already received the trail, delete it while it is still public rather
-            than unpublishing first.
+            where they are. If you want a deletion to reach instances that
+            already received the trail, delete it while it is still public
+            rather than unpublishing first: deleting it afterwards still
+            reaches anyone who was mentioned in it, commented on it, logged a
+            summit on it, liked it or had it shared with them, but no longer
+            your followers.
           </li>
           <li>
             <strong>Deletion is a request, not a guarantee.</strong> Deleting
-            public content sends a delete out to instances that received it.
-            Well-behaved instances honour it. An instance that is offline,
-            misconfigured or hostile may not. Treat anything published publicly
-            to a federated network as difficult to fully retract.
+            public content sends a deletion to the instances your own instance
+            knows to hold a copy: those following you, and anyone who was
+            mentioned in it, commented on it, logged a summit on it, liked it
+            or had it shared with them. Well-behaved instances honour it. An
+            instance that is offline, misconfigured or hostile may not, and an
+            instance that fetched a copy on its own, because one of its users
+            opened your trail, is not known to yours; such a copy is removed
+            when that instance next refreshes it and finds it gone. Treat
+            anything published publicly to a federated network as difficult to
+            fully retract.
           </li>
           <li>
             <strong>Departing accounts travel too.</strong> When an account is
