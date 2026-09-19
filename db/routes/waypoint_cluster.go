@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/pocketbase/pocketbase/apis"
@@ -17,9 +19,10 @@ type waypointMergeSettings struct {
 }
 
 type waypointClusterRequest struct {
-	Category  string                    `json:"category"`
-	Photos    []waypointClusterPhoto    `json:"photos"`
-	Waypoints []waypointClusterWaypoint `json:"waypoints"`
+	Category     string                    `json:"category"`
+	Photos       []waypointClusterPhoto    `json:"photos"`
+	Waypoints    []waypointClusterWaypoint `json:"waypoints"`
+	ResolveNames bool                      `json:"resolveNames"`
 }
 
 type waypointClusterPhoto struct {
@@ -36,6 +39,7 @@ type waypointClusterWaypoint struct {
 
 type waypointPhotoCluster struct {
 	Waypoint string   `json:"waypoint,omitempty"`
+	Name     string   `json:"name,omitempty"`
 	Photos   []string `json:"photos"`
 	SumLat   float64  `json:"-"`
 	SumLon   float64  `json:"-"`
@@ -92,11 +96,29 @@ func WaypointCluster(e *core.RequestEvent) error {
 		return err
 	}
 
+	clusters := clusterWaypointPhotos(data.Photos, data.Waypoints, mergeSettings)
+	if data.ResolveNames {
+		resolveWaypointClusterNames(e.Request.Context(), e.App.Logger(), clusters, mergeSettings.Radius, resolveWaypointName)
+	}
+
 	return e.JSON(http.StatusOK, map[string]any{
 		"mergeEnabled": mergeSettings.Enabled,
 		"mergeRadius":  mergeSettings.Radius,
-		"clusters":     clusterWaypointPhotos(data.Photos, data.Waypoints, mergeSettings),
+		"clusters":     clusters,
 	})
+}
+
+type waypointNameResolver func(context.Context, *slog.Logger, float64, float64, float64) (string, error)
+
+func resolveWaypointClusterNames(ctx context.Context, logger *slog.Logger, clusters []waypointPhotoCluster, radius float64, resolve waypointNameResolver) {
+	for i := range clusters {
+		cluster := &clusters[i]
+		if cluster.Waypoint != "" || cluster.Count == 0 {
+			continue
+		}
+
+		cluster.Name, _ = resolve(ctx, logger, cluster.Lat, cluster.Lon, radius)
+	}
 }
 
 func getWaypointMergeSettings(app core.App, categoryId string) (waypointMergeSettings, error) {

@@ -1,6 +1,7 @@
 import { SummitLogCreateSchema } from '$lib/models/api/summit_log_schema';
 import type { SummitLog } from '$lib/models/summit_log';
 import { Collection, create, handleError, list } from '$lib/util/api_util';
+import { enrichSummitLogAssetExpands } from '$lib/util/asset_link_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**
@@ -86,6 +87,8 @@ export async function PUT(event: RequestEvent) {
 
 
 function removeTimeFromDates(logs: SummitLog[]) {
-    logs.forEach(l => l.date = l.date.substring(0, 10));
-
+    logs.forEach(l => {
+        l.date = l.date.substring(0, 10);
+        enrichSummitLogAssetExpands(l);
+    });
 }

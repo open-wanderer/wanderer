@@ -1,4 +1,5 @@
 import type { Trail } from "$lib/models/trail";
+import { enrichTrailResponse, withTrailAssetExpands } from "$lib/server/trail_response_util";
 import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
 import { applyGpxToForm, trailGpxFields } from "$lib/util/gpx_util";
 import { RecordIdSchema } from "$lib/models/api/base_schema";
@@ -10,7 +11,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *   post:
  *     summary: Update trail with file upload
  *     description: >
- *       Updates a trail with file upload (GPX/photos) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
+ *       Updates a trail with GPX file upload and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
  *       A `gpx` part replaces the track: the file is converted to GPX (FIT, KML, KMZ and TCX are accepted) and `distance`, `duration`, `elevation_gain`, `elevation_loss`, `lat` and `lon` are derived from it unless the request sets them explicitly. `bounding_box_diagonal` and `polyline` are always recomputed.
  *     tags:
  *       - Trails
@@ -49,8 +50,17 @@ export async function POST(event: RequestEvent) {
     try {
         RecordIdSchema.parse(event.params);
         const data = await event.request.formData();
+        if (data.has("photos")) {
+            return json({ message: "trail_photos_form_field_removed" }, { status: 400 });
+        }
+
         await applyGpxToForm(data, trailGpxFields, true, event.fetch);
-        const r = await uploadUpdate<Trail>(event, Collection.trails, data)
+        let r = await uploadUpdate<Trail>(event, Collection.trails, data)
+        r = await event.locals.pb.collection(Collection.trails).getOne<Trail>(r.id!, {
+            expand: withTrailAssetExpands({
+                expand: event.url.searchParams.get("expand") ?? undefined,
+            }).expand,
+        });
         enrichRecord(r);
         return json(r);
     } catch (e) {
@@ -60,8 +70,5 @@ export async function POST(event: RequestEvent) {
 
 
 function enrichRecord(r: Trail) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
+    enrichTrailResponse(r);
 }

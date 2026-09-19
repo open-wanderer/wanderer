@@ -8,13 +8,17 @@
     import SummitLogCard from "$lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "$lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import PhotoPicker from "$lib/components/trail/photo_picker.svelte";
+    import PhotoPicker from "$lib/components/photo/photo_picker.svelte";
+    import PhotoLibraryPickerModal from "$lib/components/photo/photo_library_picker_modal.svelte";
     import TrailAnchorList from "$lib/components/trail/trail_anchor_list.svelte";
+    import TrailPublicationProgress from "$lib/components/trail/trail_publication_progress.svelte";
+    import { trailPublications } from "$lib/stores/trail_publication_store";
     import WaypointCard from "$lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {
         type WaypointMergeOptions,
     } from "$lib/components/waypoint/waypoint_merge_modal.svelte";
     import WaypointModal from "$lib/components/waypoint/waypoint_modal.svelte";
+    import AssetWaypointModal from "$lib/components/trail/asset_waypoint_modal.svelte";
     import { SummitLogCreateSchema } from "$lib/models/api/summit_log_schema.js";
     import { TrailCreateSchema } from "$lib/models/api/trail_schema.js";
     import { WaypointCreateSchema } from "$lib/models/api/waypoint_schema.js";
@@ -22,7 +26,14 @@
     import GPXWaypoint from "$lib/models/gpx/waypoint";
     import type { List } from "$lib/models/list";
     import { SummitLog } from "$lib/models/summit_log";
-    import { Trail, hasDuplicatePhotos } from "$lib/models/trail";
+    import { Trail } from "$lib/models/trail";
+    import type { Asset } from "$lib/models/asset";
+    import {
+        mergePhotoLibraryPluginLinks,
+        photoLibraryCandidateKey,
+        photoLibraryPluginLinks,
+        type PhotoLibraryCandidate,
+    } from "$lib/models/photo_library";
     import type { RoutingOptions, ValhallaAnchor } from "$lib/models/valhalla";
     import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
     import { type OverpassPopupAction } from "$lib/util/maplibre_util";
@@ -37,7 +48,11 @@
         trail,
         trails_create,
         trails_update,
+        trailSaveErrorKey,
     } from "$lib/stores/trail_store.js";
+    import { markGeneratedAssetFile, type AssetImportOmission } from "$lib/stores/asset_store";
+    import { APIError } from "$lib/util/api_util";
+
     import {
         valhallaStore,
         calculateRouteBetween,
@@ -64,6 +79,7 @@
         formatElevation,
         formatTimeHHMM,
     } from "$lib/util/format_util";
+    import { extractGPSCoordinates } from "$lib/util/exif_util";
     import { cropGPX, fromFile, gpx2trail } from "$lib/util/gpx_util";
 
     import { page } from "$app/state";
@@ -72,14 +88,15 @@
     import Combobox, {
         type ComboboxItem,
     } from "$lib/components/base/combobox.svelte";
-    import type { DropdownItem } from "$lib/components/base/dropdown.svelte";
+    import Dropdown, {
+        type DropdownItem,
+    } from "$lib/components/base/dropdown.svelte";
     import Editor from "$lib/components/base/editor.svelte";
     import Search, {
         type SearchItem,
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -95,17 +112,18 @@
         createAnchorMarker,
         createEditTrailMapPopup,
         FontawesomeMarker,
+        markerElement,
+        syncMarkerHighlightClass,
     } from "$lib/util/maplibre_util";
     import {
         renderValhallaAnchorMarker,
         valhallaAnchorTitle,
     } from "$lib/util/valhalla_anchor_util";
-    import EXIF from "$lib/vendor/exif-js/exif.js";
     import { validator } from "@felte/validator-zod";
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
     import * as M from "maplibre-gl";
-    import { onMount, untrack } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { backInOut } from "svelte/easing";
     import { fly } from "svelte/transition";
@@ -124,13 +142,43 @@
     let lists = $state(untrack(() => data.lists));
 
     let waypointModal: WaypointModal;
+    let assetWaypointModal: AssetWaypointModal;
+    let trailPhotoLibraryModal: PhotoLibraryPickerModal = $state()!;
     let waypointMergeModal: WaypointMergeModal;
     let summitLogModal: SummitLogModal;
     let listSelectModal: ListSearchModal;
     let markTrailAsCompletedModal: ConfirmModal;
     let replaceRouteModal: ConfirmModal;
+    let publishConfirmModal: ConfirmModal | undefined = $state();
+    let publishConfirmed = false;
+    let pendingLinkedPhotoCount = $state(0);
 
     let loading = $state(false);
+    let pendingTrailPhotoCandidates: PhotoLibraryCandidate[] = $state([]);
+
+    // Counts photos still stored as remote links (link_private). Publishing copies
+    // them into wanderer, because a remote link cannot be served to public viewers.
+    function countLinkedPrivatePhotos(): number {
+        const expand = $formData.expand;
+        if (!expand) return 0;
+        const isLinked = (a: { storage_mode?: string }) =>
+            a.storage_mode === "link_private";
+        let count = (expand.assets_via_trail ?? []).filter(isLinked).length;
+        for (const w of expand.waypoints_via_trail ?? []) {
+            count += (w.expand?.assets_via_waypoint ?? []).filter(isLinked).length;
+        }
+        for (const s of expand.summit_logs_via_trail ?? []) {
+            count += (s.expand?.assets_via_summit_log ?? []).filter(isLinked).length;
+        }
+        return count;
+    }
+
+    function confirmPublishWithLinkedPhotos() {
+        publishConfirmed = true;
+        (
+            document.getElementById("trail-form") as HTMLFormElement | null
+        )?.requestSubmit();
+    }
 
     let editingBasicInfo: boolean = $state(false);
 
@@ -166,45 +214,56 @@
 
     let croppedGPX: GPX | null = null;
 
-    const PhotoCloneSourceSchema = z.object({
-        id: z.string(),
-        collectionId: z.string().optional(),
-        collectionName: z.string().optional(),
-        photos: z.array(z.string()).default([]),
+    // Assets are not edited by this form; carry them through untouched.
+    const ClientAssetSchema = z.custom<Asset>();
+    const PhotoLibraryPluginLinkSchema = z.object({
+        pluginId: z.string(),
+        assetIds: z.array(z.string()),
     });
 
     const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
         _photos: z.array(z.instanceof(File)).optional(),
         _gpx: z.instanceof(Blob).optional().nullable(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(PhotoLibraryPluginLinkSchema)
+            .optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
+                assets_via_summit_log: z.array(ClientAssetSchema).optional(),
+                summit_log_assets_via_summit_log: z.any().optional(),
             })
             .optional(),
     });
 
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
         _photos: z.array(z.instanceof(File)).optional(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(PhotoLibraryPluginLinkSchema)
+            .optional(),
+        expand: z
+            .object({
+                assets_via_waypoint: z.array(ClientAssetSchema).optional(),
+                waypoint_assets_via_waypoint: z.any().optional(),
+            })
+            .optional(),
     });
 
-    type PhotoCloneSource = z.infer<typeof PhotoCloneSourceSchema>;
-    type PhotoCloneTarget = {
-        _duplicatePhotoSource?: PhotoCloneSource;
-        _photos?: File[];
-    };
-    type PhotoCloneEntry = [string, File[]];
-    type DuplicateLegacyPhotoClones = {
-        trailPhotos: File[];
-        waypointPhotosById: Map<string, File[]>;
-        summitLogPhotosById: Map<string, File[]>;
-    };
-
     const ClientTrailCreateSchema = TrailCreateSchema.extend({
+        photos: z.array(z.string()).default([]),
+        _assetLinks: z.array(z.string()).optional(),
+        _assetPluginLinks: z
+            .array(PhotoLibraryPluginLinkSchema)
+            .optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
+                assets_via_trail: z.array(ClientAssetSchema).optional(),
+                trail_assets_via_trail: z.any().optional(),
                 summit_logs_via_trail: z
                     .array(ClientSummitLogCreateSchema)
                     .optional(),
@@ -228,7 +287,25 @@
     let routeSegments = $state<TrackSegment[]>([]);
 
     let savedAtLeastOnce = $state(false);
-    let duplicateLegacyPhotosPromise: Promise<DuplicateLegacyPhotoClones> | undefined;
+
+    let assetPluginIds = $derived(data.assetPluginIds);
+    let canImportPhotosFromLibrary = $derived(!isNewTrail || savedAtLeastOnce);
+    let photoImportDropdownItems: DropdownItem[] = $derived([
+        {
+            text: $_("upload-photos-from-device"),
+            value: "device",
+            icon: "image",
+        },
+        {
+            text: $_("choose-photos-from-library"),
+            value: "library",
+            icon: "images",
+            disabled: !canImportPhotosFromLibrary,
+            tooltip: canImportPhotosFromLibrary
+                ? undefined
+                : $_("save-your-trail-first"),
+        },
+    ]);
 
     let tagItems: ComboboxItem[] = $state([]);
 
@@ -269,7 +346,28 @@
             schema: ClientTrailCreateSchema,
         }),
         onSubmit: async (form) => {
+            if (loading) return;
+            if (!publishConfirmed) {
+                const publishForm = document.getElementById(
+                    "trail-form",
+                ) as HTMLFormElement | null;
+                const willBePublic = !!(
+                    publishForm && new FormData(publishForm).get("public")
+                );
+                const wasPublic = !!(data.trail.id && data.trail.public);
+                if (!wasPublic && willBePublic) {
+                    const linkedCount = countLinkedPrivatePhotos();
+                    if (linkedCount > 0) {
+                        pendingLinkedPhotoCount = linkedCount;
+                        publishConfirmModal?.openModal();
+                        return;
+                    }
+                }
+            }
+            publishConfirmed = false;
             loading = true;
+            let importOmissions: AssetImportOmission[] = [];
+            const onOmitted = (omissions: AssetImportOmission[]) => { importOmissions = omissions; };
             try {
                 const htmlForm = document.getElementById(
                     "trail-form",
@@ -281,12 +379,14 @@
                 form.photos = form.photos.filter(
                     (p) => !p.startsWith("data:image/svg+xml;base64"),
                 );
-                Object.assign(
-                    form,
-                    await prepareDuplicateLegacyPhotos(form as Trail),
-                );
+                applyTrailPhotoLibrarySelection(form as Trail);
 
-                if (!form.photos?.length && !photoFiles.length) {
+                if (
+                    !form.photos?.length &&
+                    !photoFiles.length &&
+                    !pendingTrailPhotoCandidates.length &&
+                    !hasPendingAssetLinks(form as Trail)
+                ) {
                     const canvas = document.querySelector(
                         "#map .maplibregl-canvas",
                     ) as HTMLCanvasElement;
@@ -294,7 +394,12 @@
                     const dataURL = canvas.toDataURL("image/webp", 0.3);
                     const response = await fetch(dataURL);
                     const blob = await response.blob();
-                    photoFiles = [new File([blob], "route")];
+                    photoFiles = [
+                        markGeneratedAssetFile(
+                            new File([blob], "wanderer-route-preview.webp", { type: "image/webp" }),
+                            "route-preview",
+                        ),
+                    ];
                 }
 
                 form.expand!.gpx_data = valhallaStore.route.toString();
@@ -326,39 +431,71 @@
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        undefined,
+                        onOmitted,
                     );
                     createdTrail.completed_at = completionDateValue(
                         createdTrail.completed_at,
                     );
                     setFields(createdTrail);
                     trail.set(createdTrail);
+                    savedAtLeastOnce = true;
                 } else {
                     const updatedTrail = await trails_update(
                         $trail,
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        onOmitted,
                     );
                     updatedTrail.completed_at = completionDateValue(
                         updatedTrail.completed_at,
                     );
                     setFields(updatedTrail);
+                    savedAtLeastOnce = true;
                 }
                 photoFiles = [];
+                pendingTrailPhotoCandidates = [];
 
-                savedAtLeastOnce = true;
                 show_toast({
-                    type: "success",
-                    icon: "check",
-                    text: $_("trail-saved-successfully"),
-                });
+                    type: importOmissions.length ? "warning" : "success",
+                    icon: importOmissions.length ? "exclamation-triangle" : "check",
+                    text: importOmissions.length
+                        ? $_("asset-import-partial-warning", { values: { n: importOmissions.length } })
+                        : $_("trail-saved-successfully"),
+                }, importOmissions.length ? 8000 : undefined);
             } catch (e) {
                 console.error(e);
 
+                const savedTrail = e instanceof APIError
+                    ? e.detail?.savedTrail as Trail | undefined
+                    : undefined;
+                if (savedTrail?.id) {
+                    form.id = savedTrail.id;
+                    trail.set(savedTrail);
+                    savedAtLeastOnce = true;
+                }
+                // Store operations reconcile saved waypoint IDs and photos into
+                // this form, retaining failed selections for the next attempt.
+                setFields(form);
+                pendingTrailPhotoCandidates = pendingTrailPhotoCandidates.filter((candidate) =>
+                    candidate.source === "wanderer"
+                        ? form._assetLinks?.includes(candidate.assetId)
+                        : form._assetPluginLinks?.some((link) =>
+                            link.pluginId === (candidate.pluginId ?? candidate.providerId) &&
+                            link.assetIds.includes(candidate.assetId),
+                        ),
+                );
+
+                const omittedText = importOmissions.length
+                    ? ` ${$_("asset-import-partial-warning", { values: { n: importOmissions.length } })}`
+                    : "";
                 show_toast({
                     type: "error",
                     icon: "close",
-                    text: $_("error-saving-trail"),
+                    text: `${$_(trailSaveErrorKey(e))}${omittedText}`,
                 });
             } finally {
                 loading = false;
@@ -415,10 +552,6 @@
                 }
             }
         }
-
-        void prepareDuplicateLegacyPhotos($formData as Trail, {
-            syncFormData: true,
-        });
     });
 
     function fitCurrentRoute() {
@@ -641,6 +774,145 @@
 
             // updateTrailOnMap();
         }
+    }
+
+    function onAssetPluginImport(importedWaypoints: Waypoint[]) {
+        if (!importedWaypoints.length) return;
+        const waypoints = importedWaypoints;
+        const nextWaypoints = mergeAssetPluginWaypoints(
+            $formData.expand!.waypoints_via_trail ?? [],
+            waypoints,
+        );
+        $formData.expand!.waypoints_via_trail = nextWaypoints;
+    }
+
+    function onTrailPhotoLibrarySelect(candidates: PhotoLibraryCandidate[]) {
+        pendingTrailPhotoCandidates = [
+            ...pendingTrailPhotoCandidates,
+            ...candidates.filter(
+                (candidate) =>
+                    !pendingTrailPhotoCandidates.some(
+                        (pending) =>
+                            photoLibraryCandidateKey(pending) ===
+                            photoLibraryCandidateKey(candidate),
+                    ),
+            ),
+        ];
+    }
+
+    function removePendingTrailPhotoCandidate(assetId: string) {
+        pendingTrailPhotoCandidates = pendingTrailPhotoCandidates.filter(
+            (candidate) => candidate.assetId !== assetId,
+        );
+    }
+
+    function applyTrailPhotoLibrarySelection(target: Trail) {
+        if (!pendingTrailPhotoCandidates.length) {
+            return;
+        }
+        const pluginCandidates = pendingTrailPhotoCandidates.filter(
+            (candidate) => candidate.source !== "wanderer",
+        );
+        const wandererCandidates = pendingTrailPhotoCandidates.filter(
+            (candidate) => candidate.source === "wanderer",
+        );
+        target._assetLinks = Array.from(new Set([
+            ...(target._assetLinks ?? []),
+            ...wandererCandidates.map((candidate) => candidate.assetId),
+        ]));
+        target._assetPluginLinks = mergePhotoLibraryPluginLinks(
+            target._assetPluginLinks,
+            photoLibraryPluginLinks(pluginCandidates),
+        );
+        target.photos = Array.from(
+            new Set([
+                ...(target.photos ?? []),
+                ...wandererCandidates
+                    .map((candidate) => candidate.thumbnailUrl)
+                    .filter((url): url is string => Boolean(url)),
+            ]),
+        );
+    }
+
+    function hasPendingAssetLinks(target: Trail) {
+        return Boolean(
+            target._assetLinks?.length ||
+            target._assetPluginLinks?.some((link) => link.assetIds.length),
+        );
+    }
+
+    function mergeAssetPluginWaypoints(existing: Waypoint[], imported: Waypoint[]) {
+        const merged = existing.map(normalizeAssetPluginWaypoint);
+        const indexById = new Map<string, number>();
+        for (const [index, waypoint] of merged.entries()) {
+            if (waypoint.id) {
+                indexById.set(waypoint.id, index);
+            }
+        }
+
+        for (const rawWaypoint of imported) {
+            const waypoint = normalizeAssetPluginWaypoint(rawWaypoint);
+            const existingIndex = waypoint.id ? indexById.get(waypoint.id) : undefined;
+            if (existingIndex === undefined) {
+                if (waypoint.id) {
+                    indexById.set(waypoint.id, merged.length);
+                }
+                merged.push(waypoint);
+                continue;
+            }
+            merged[existingIndex] = mergeAssetPluginWaypoint(merged[existingIndex], waypoint);
+        }
+        return sortWaypointsByDistanceFromStart(merged);
+    }
+
+    function normalizeAssetPluginWaypoint(waypoint: Waypoint): Waypoint {
+        return { ...waypoint, photos: waypoint.photos ?? [] };
+    }
+
+    function mergeAssetPluginWaypoint(existing: Waypoint, incoming: Waypoint): Waypoint {
+        const candidates = uniqueAssetCandidates([
+            ...(existing._assetCandidates ?? []),
+            ...(incoming._assetCandidates ?? []),
+        ]);
+        const assetLinks = Array.from(new Set([
+            ...(existing._assetLinks ?? []),
+            ...(incoming._assetLinks ?? []),
+        ]));
+        const assetPluginLinks = mergePhotoLibraryPluginLinks(
+            existing._assetPluginLinks,
+            incoming._assetPluginLinks,
+        );
+        return {
+            ...existing,
+            ...incoming,
+            marker: existing.marker,
+            photos: incoming.photos?.length ? incoming.photos : (existing.photos ?? []),
+            _photos: [
+                ...(existing._photos ?? []),
+                ...(incoming._photos ?? []),
+            ],
+            _assetCandidates: candidates.length ? candidates : undefined,
+            _assetLinks: assetLinks.length ? assetLinks : undefined,
+            _assetPluginLinks: assetPluginLinks,
+        };
+    }
+
+    function uniqueAssetCandidates(candidates: NonNullable<Waypoint["_assetCandidates"]>) {
+        const seen = new Set<string>();
+        return candidates.filter((candidate) => {
+            const key = `${candidate.pluginId ?? ""}:${candidate.assetId}`;
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    }
+
+    function sortWaypointsByDistanceFromStart(waypoints: Waypoint[]) {
+        return [...waypoints].sort(
+            (a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0),
+        );
     }
 
     function getExistingWaypointClusterInputs() {
@@ -1127,17 +1399,11 @@
     }
 
     function highlightAnchorMarker(index: number | null) {
-        for (const anchor of valhallaStore.anchors) {
-            anchor.marker?.getElement().classList.remove("anchor-list-highlight");
-        }
-
-        if (index === null) {
-            return;
-        }
-
-        valhallaStore.anchors[index]?.marker
-            ?.getElement()
-            .classList.add("anchor-list-highlight");
+        syncMarkerHighlightClass(
+            valhallaStore.anchors.map((anchor) => markerElement(anchor.marker)),
+            index === null ? undefined : markerElement(valhallaStore.anchors[index]?.marker),
+            "anchor-list-highlight",
+        );
     }
 
     async function removeAnchor(anchorIndex: number) {
@@ -1555,6 +1821,10 @@
         updateTrailOnMap();
     }
 
+    function routeHasTrackPoints() {
+        return valhallaStore.route.flatten().length > 0;
+    }
+
     function updateTotals(gpx: GPX) {
         const totals = gpx.features;
         formData.set({
@@ -1570,220 +1840,6 @@
         const t: Trail = JSON.parse(JSON.stringify($formData));
         t.expand!.gpx = valhallaStore.route;
         mapTrail = [t];
-    }
-
-    function routeHasTrackPoints() {
-        return valhallaStore.route.flatten().length > 0;
-    }
-
-    async function prepareDuplicateLegacyPhotos(
-        target: Trail,
-        options: { syncFormData?: boolean } = {},
-    ) {
-        if (
-            !isNewTrail ||
-            savedAtLeastOnce ||
-            !hasDuplicatePhotos(data.duplicateOptions) ||
-            !data.duplicateSourceTrail
-        ) {
-            return target;
-        }
-        duplicateLegacyPhotosPromise ??= cloneDuplicateLegacyPhotos(target);
-        const clonedPhotos = await duplicateLegacyPhotosPromise;
-        appendDuplicateTrailPhotoFiles(clonedPhotos.trailPhotos);
-
-        if (options.syncFormData) {
-            formData.set(
-                applyDuplicateLegacyPhotoClones(
-                    $formData as Trail,
-                    clonedPhotos,
-                ),
-            );
-        }
-
-        return applyDuplicateLegacyPhotoClones(target, clonedPhotos);
-    }
-
-    async function cloneDuplicateLegacyPhotos(
-        target: Trail,
-    ): Promise<DuplicateLegacyPhotoClones> {
-        const duplicateSourceTrail = data.duplicateSourceTrail;
-        if (!duplicateSourceTrail) {
-            return emptyDuplicateLegacyPhotoClones();
-        }
-
-        const [trailPhotos, waypointEntries, summitLogEntries] =
-            await Promise.all([
-                data.duplicateOptions?.trailPhotos
-                    ? clonePhotoFiles(photoCloneSourceFromRecord(duplicateSourceTrail))
-                    : Promise.resolve([]),
-                data.duplicateOptions?.waypointPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.waypoints_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-                data.duplicateOptions?.summitLogPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.summit_logs_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-            ]);
-
-        return {
-            trailPhotos,
-            waypointPhotosById: new Map(waypointEntries),
-            summitLogPhotosById: new Map(summitLogEntries),
-        };
-    }
-
-    function emptyDuplicateLegacyPhotoClones(): DuplicateLegacyPhotoClones {
-        return {
-            trailPhotos: [],
-            waypointPhotosById: new Map(),
-            summitLogPhotosById: new Map(),
-        };
-    }
-
-    function appendDuplicateTrailPhotoFiles(clonedPhotos: File[]) {
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !photoFiles.includes(photo),
-        );
-        if (missingPhotos.length) {
-            photoFiles = [...photoFiles, ...missingPhotos];
-        }
-    }
-
-    async function clonePhotoFilesByTargetId(
-        targets: ({ id?: string } & PhotoCloneTarget)[],
-    ): Promise<PhotoCloneEntry[]> {
-        const entries = await Promise.all(
-            targets.map(async (target) => {
-                const clonedPhotos = await clonePhotoFiles(
-                    target._duplicatePhotoSource,
-                );
-                if (!target.id || !clonedPhotos.length) {
-                    return undefined;
-                }
-                return [target.id, clonedPhotos] as PhotoCloneEntry;
-            }),
-        );
-
-        return entries.filter((entry): entry is PhotoCloneEntry =>
-            Boolean(entry),
-        );
-    }
-
-    function applyDuplicateLegacyPhotoClones(
-        target: Trail,
-        clonedPhotos: DuplicateLegacyPhotoClones,
-    ): Trail {
-        return {
-            ...target,
-            expand: {
-                ...target.expand,
-                waypoints_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.waypoints_via_trail ?? [],
-                    clonedPhotos.waypointPhotosById,
-                ),
-                summit_logs_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.summit_logs_via_trail ?? [],
-                    clonedPhotos.summitLogPhotosById,
-                ),
-            },
-        };
-    }
-
-    function mergeDuplicatePhotoClones<T extends { id?: string } & PhotoCloneTarget>(
-        targets: T[],
-        clonedPhotosById: Map<string, File[]>,
-    ): T[] {
-        return targets.map((target) =>
-            withMergedDuplicatePhotos(
-                target,
-                target.id ? clonedPhotosById.get(target.id) : undefined,
-            ),
-        );
-    }
-
-    function withMergedDuplicatePhotos<T extends PhotoCloneTarget>(
-        target: T,
-        clonedPhotos?: File[],
-    ): T {
-        if (!clonedPhotos?.length) {
-            return target;
-        }
-        const existingPhotos = target._photos ?? [];
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !existingPhotos.includes(photo),
-        );
-        if (!missingPhotos.length) {
-            return target;
-        }
-
-        return {
-            ...target,
-            _photos: [...existingPhotos, ...missingPhotos],
-        };
-    }
-
-    async function clonePhotoFiles(source?: PhotoCloneSource): Promise<File[]> {
-        if (!source?.photos.length) {
-            return [];
-        }
-
-        const files: File[] = [];
-        for (const photo of source.photos) {
-            try {
-                const response = await fetch(photoCloneURL(source, photo));
-                if (!response.ok) {
-                    console.warn(`Unable to clone photo ${photo}: ${response.status}`);
-                    continue;
-                }
-                const blob = await response.blob();
-                files.push(
-                    new File([blob], photoCloneFileName(photo), {
-                        type: blob.type || "application/octet-stream",
-                    }),
-                );
-            } catch (error) {
-                console.warn(`Unable to clone photo ${photo}`, error);
-            }
-        }
-        return files;
-    }
-
-    function photoCloneSourceFromRecord(record: {
-        id?: string;
-        collectionId?: string;
-        collectionName?: string;
-        photos?: string[];
-    }): PhotoCloneSource | undefined {
-        if (!record.id || !record.photos?.length) {
-            return undefined;
-        }
-        return {
-            id: record.id,
-            collectionId: record.collectionId,
-            collectionName: record.collectionName,
-            photos: record.photos,
-        };
-    }
-
-    function photoCloneURL(source: PhotoCloneSource, photo: string) {
-        if (photo.startsWith("http://") || photo.startsWith("https://")) {
-            return photo;
-        }
-        const collection = source.collectionId ?? source.collectionName;
-        if (!collection) {
-            throw new Error("Unable to clone photo without collection");
-        }
-        return `/api/v1/files/${collection}/${source.id}/${photo}`;
-    }
-
-    function photoCloneFileName(photo: string) {
-        return decodeURIComponent(
-            photo.split("?")[0].split("/").pop() || "photo",
-        );
     }
 
     function handleSearchClick(item: SearchItem) {
@@ -1864,6 +1920,14 @@
         document.getElementById("waypoint-photo-input")!.click();
     }
 
+    function handlePhotoImportMenuClick(item: DropdownItem) {
+        if (item.value === "device") {
+            openPhotoBrowser();
+        } else if (item.value === "library") {
+            assetWaypointModal.openModal();
+        }
+    }
+
     interface GPXCoord {
         id: string;
         longitude: number;
@@ -1875,6 +1939,7 @@
         lat: number;
         lon: number;
         waypoint?: string;
+        name?: string;
         photos: string[];
     }
 
@@ -1894,6 +1959,7 @@
         category?: string;
         photos: WaypointClusterPoint[];
         waypoints: WaypointClusterPoint[];
+        resolveNames?: boolean;
     }
 
     async function clusterWaypointPhotos(
@@ -1928,27 +1994,8 @@
         const photoCoords: GPXCoord[] = [];
 
         for (const [index, file] of Array.from(files).entries()) {
-            const coords = await new Promise<GPXCoord | undefined>((resolve) => {
-                EXIF.getData(file, function (p) {
-                    const lat = EXIF.getTag(p, "GPSLatitude");
-                    const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-                    const lon = EXIF.getTag(p, "GPSLongitude");
-                    const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
-
-                    if (lat && lon) {
-                        resolve({
-                            id: index.toString(),
-                            latitude: convertDMSToDD(lat, latDir),
-                            longitude: convertDMSToDD(lon, lonDir),
-                            file,
-                        });
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-            });
-
-            if (!coords) {
+            const coordinates = await extractGPSCoordinates(file);
+            if (!coordinates) {
                 show_toast(
                     {
                         type: "warning",
@@ -1960,13 +2007,19 @@
                 continue;
             }
 
-            photoCoords.push(coords);
+            photoCoords.push({
+                id: index.toString(),
+                latitude: coordinates.lat,
+                longitude: coordinates.lon,
+                file,
+            });
         }
 
         let clusterResponse: WaypointPhotoClusterResponse;
         try {
             clusterResponse = await clusterWaypointPhotos({
                 category: $formData.category,
+                resolveNames: true,
                 photos: photoCoords.map((coords) => ({
                     id: coords.id,
                     lat: coords.latitude,
@@ -2020,6 +2073,7 @@
                 cluster.lat,
                 cluster.lon,
                 {
+                    name: cluster.name,
                     icon: photos.length > 1 ? "images" : "image",
                 },
             );
@@ -2368,16 +2422,27 @@
             onclick={() => beforeWaypointModalOpen()}
             ><i class="fa fa-plus mr-2"></i>{$_("add-waypoint")}</button
         >
-        <button
-            class="btn-secondary"
-            type="button"
-            onclick={() => openPhotoBrowser()}
-            ><i class="fa fa-image mr-2"></i>{$_("from-photos")}</button
+        <Dropdown
+            items={photoImportDropdownItems}
+            onchange={handlePhotoImportMenuClick}
+            matchToggleWidth={true}
         >
+            {#snippet children({ toggleMenu: openDropdown })}
+                <Button
+                    secondary={true}
+                    type="button"
+                    extraClasses="w-full"
+                    onclick={openDropdown}
+                    ><i class="fa fa-images mr-2"></i>{$_("from-photos")}<i
+                        class="fa fa-caret-down ml-2 text-xs"
+                    ></i></Button
+                >
+            {/snippet}
+        </Dropdown>
         <input
             type="file"
             id="waypoint-photo-input"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/heic,image/heif,image/heic-sequence,image/heif-sequence,image/webp,image/gif,image/avif,.jpg,.jpeg,.png,.heic,.heif,.webp,.gif,.avif"
             multiple={true}
             style="display: none;"
             onchange={() => handleWaypointPhotoSelection()}
@@ -2390,6 +2455,17 @@
             bind:photos={$formData.photos}
             bind:thumbnail={$formData.thumbnail}
             bind:photoFiles
+            onassetplugin={canImportPhotosFromLibrary
+                ? () => trailPhotoLibraryModal.openModal()
+                : undefined}
+            assetPluginPreviews={pendingTrailPhotoCandidates.map((candidate) => ({
+                pluginId: candidate.pluginId,
+                assetId: candidate.assetId,
+                filename: candidate.originalFileName,
+                takenAt: candidate.takenAt,
+                thumbnailUrl: candidate.thumbnailUrl,
+            }))}
+            onassetplugindelete={removePendingTrailPhotoCandidate}
         ></PhotoPicker>
         <hr class="border-separator" />
         <h3 class="text-xl font-semibold">{$_("summit-book")}</h3>
@@ -2449,11 +2525,29 @@
             >
         {/if}
         <hr class="border-separator" />
+        <TrailPublicationProgress
+            trailId={!isNewTrail || savedAtLeastOnce ? $formData.id : undefined}
+            name={$formData.name}
+            publicTrail={$trail.id === $formData.id && $trail.public}
+            onpublished={(saved) => {
+                if (!loading) {
+                    trail.set(saved);
+                    setFields("public", saved.public);
+                }
+            }}
+            onretry={async () => {
+                setFields("public", true);
+                publishConfirmed = true;
+                await tick();
+                (document.getElementById("trail-form") as HTMLFormElement)?.requestSubmit();
+            }}
+        />
         <Button
             primary={true}
             large={true}
             type="submit"
             extraClasses="mb-2"
+            disabled={!!($formData.id && $trailPublications[$formData.id]?.status === "running" && !$trailPublications[$formData.id]?.monitoringError)}
             {loading}>{$_("save-trail")}</Button
         >
     </form>
@@ -2503,7 +2597,14 @@
         </div>
     </div>
 </main>
-<WaypointModal bind:this={waypointModal} onsave={saveWaypoint}></WaypointModal>
+<WaypointModal
+    bind:this={waypointModal}
+    onsave={saveWaypoint}
+    trailData={valhallaStore.route.toString()}
+    assetPluginActive={data.assetPluginActive}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+></WaypointModal>
 <WaypointMergeModal
     merge={pendingWaypointMerge}
     bind:this={waypointMergeModal}
@@ -2511,7 +2612,32 @@
     onmerge={addPendingWaypointToExisting}
     oncancel={cancelPendingWaypointMerge}
 ></WaypointMergeModal>
-<SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
+<AssetWaypointModal
+    bind:this={assetWaypointModal}
+    trailId={$formData.id ?? ""}
+    category={$formData.category}
+    trailData={valhallaStore.route.toString()}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+    existingWaypoints={$formData.expand?.waypoints_via_trail ?? []}
+    onsave={onAssetPluginImport}
+></AssetWaypointModal>
+<PhotoLibraryPickerModal
+    bind:this={trailPhotoLibraryModal}
+    id="trail-photo-library-modal"
+    trailId={$formData.id ?? ""}
+    trailData={valhallaStore.route.toString()}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+    onselect={onTrailPhotoLibrarySelect}
+/>
+<SummitLogModal
+    bind:this={summitLogModal}
+    onsave={(log) => saveSummitLog(log)}
+    {assetPluginIds}
+    assetPluginProviders={data.assetPluginProviders}
+    trailId={$formData.id ?? ""}
+    trailData={valhallaStore.route.toString()}
 ></SummitLogModal>
 <ListSearchModal
     lists={lists.items}
@@ -2535,6 +2661,17 @@
     deny="cancel"
     bind:this={replaceRouteModal}
     onconfirm={replaceRoute}
+></ConfirmModal>
+<ConfirmModal
+    id="publish-linked-photos-modal"
+    title={$_("publish-trail-confirm-title")}
+    text={$_("publish-trail-confirm-text", {
+        values: { count: pendingLinkedPhotoCount },
+    })}
+    action="publish-and-copy"
+    deny="cancel"
+    bind:this={publishConfirmModal}
+    onconfirm={confirmPublishWithLinkedPhotos}
 ></ConfirmModal>
 
 <style>

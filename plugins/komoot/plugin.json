@@ -75,10 +75,13 @@
       "provider_session"
     ],
     "downloads": {
-      "maxBytes": 16777216,
+      "maxBytes": 52428800,
       "contentTypes": [
         "application/json",
-        "application/hal+json"
+        "application/hal+json",
+        "image/jpeg",
+        "image/png",
+        "image/webp"
       ]
     }
   },

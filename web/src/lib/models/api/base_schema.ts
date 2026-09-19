@@ -16,9 +16,11 @@ const RecordListOptionsSchema = RecordOptionsSchema.extend({
     requestKey: z.string().optional()
 })
 
+const RecordIdValueSchema = z.string().regex(/^[a-z0-9]{15}$/);
+
 const RecordIdSchema = z.object({
-    id: z.string().length(15)
+    id: RecordIdValueSchema
 })
 
 
-export { RecordOptionsSchema, RecordListOptionsSchema, RecordIdSchema }
+export { RecordOptionsSchema, RecordListOptionsSchema, RecordIdSchema, RecordIdValueSchema }

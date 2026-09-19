@@ -2,6 +2,7 @@ package pluginsystem
 
 import (
 	"fmt"
+	"mime"
 	"net/url"
 	"path"
 	"slices"
@@ -414,4 +415,22 @@ func validateExpectedResponse(expect ResponseExpect, permissions DownloadPermiss
 		}
 	}
 	return nil
+}
+
+// ValidateResponseContentType checks a response MIME type against a manifest
+// allowlist. An empty allowlist leaves the response unrestricted.
+func ValidateResponseContentType(contentType string, allowedContentTypes []string) error {
+	if len(allowedContentTypes) == 0 {
+		return nil
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil || mediaType == "" {
+		return fmt.Errorf("provider response has invalid content type")
+	}
+	for _, allowed := range allowedContentTypes {
+		if strings.EqualFold(mediaType, allowed) {
+			return nil
+		}
+	}
+	return fmt.Errorf("provider response content type %q is not allowed", mediaType)
 }
