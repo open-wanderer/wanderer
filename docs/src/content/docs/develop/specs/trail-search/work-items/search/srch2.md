@@ -16,7 +16,7 @@ spec:
   implementationDependsOn: [SRCH-COMP, IDX0]
   releaseGates: [SEC-VIS-0]
   normativeSources: [SRCH-V1-CONTRACT, TRAIL-SEARCH-SHARED]
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Metadaten
@@ -32,11 +32,11 @@ spec:
 
 Nutzer können den heutigen Datenbestand über die erhaltenen Filter und
 Sortierungen sowie eine echte Kategorie-/Subkategoriehierarchie durchsuchen.
-Belegte Fehlsemantiken werden korrigiert, ohne den vorhandenen
-Startpunktradius oder die gespeicherte Quellschwierigkeit zu entfernen. SRCH2
-besitzt dabei die Ende-zu-Ende-Korrektur für eine fehlende, leere oder
-ungültige Quellschwierigkeit: Sie bleibt unbekannt und wird weder als `easy`
-angezeigt noch so gefiltert.
+Die für SRCH0 bereits korrigierte Semantik bleibt erhalten, einschliesslich
+Startpunktradius und gespeicherter Quellschwierigkeit. Fehlende, leere oder
+ungültige Quellschwierigkeit bleibt unbekannt und wird weder als `easy`
+angezeigt noch so gefiltert. SRCH2 ergänzt die explizite Presence-Modellierung,
+Sortierung und deren versioniertes Indexprofil.
 
 ## Scope
 
@@ -59,12 +59,13 @@ angezeigt noch so gefiltert.
 - Keine disjunktiven Optionscounts oder Histogramme; diese gehören zu SRCH3.
 - Keine räumliche Suche entlang der Route; diese gehört zu G2–L4.
 
-## SRCH0-Delta-Overlay
+## SRCH0-Parität und zusätzliche Difficulty-Semantik
 
-SRCH2 konsumiert den unveränderten SRCH0-Referenzbestand, bindet sein Overlay
-an `SRCH0-GAP-DIFF-001` und hält die korrigierten Erwartungen in einem eigenen
-Ziel-Overlay. Es überschreibt keine Baseline-Goldens und deklariert
-ausschliesslich die Difficulty-Deltas:
+SRCH2 konsumiert die historischen Referenzfälle zusammen mit den aktiven
+SRCH0-Korrekturen. Die Unknown-Korrektur wird nicht bis SRCH2 aufgeschoben.
+Sein eigenes Overlay bindet `SRCH0-GAP-DIFF-001` und die betroffenen Case-IDs
+für zusätzliche Presence- und Sortiersemantik. Bereits korrigierte
+Ergebnisse bleiben Paritätsanforderungen:
 
 | Fallfamilie | SRCH2-Ziel |
 | --- | --- |
@@ -75,7 +76,9 @@ ausschliesslich die Difficulty-Deltas:
 | Sortierung auf-/absteigend | bekannte Werte vor Unknown, danach die gewählte Difficulty-Richtung |
 | Full-, Create- und Patch-Projektion | ein früherer Zahlenwert wird bei Wechsel auf Unknown gelöscht |
 
-Das Overlay trägt `delivery_owner: SRCH2`. Das interne Presence-Feld ist kein
+Das zusätzliche Overlay trägt `delivery_owner: SRCH2`. Es überschreibt weder
+historische Beobachtungen noch die bereits geltenden Korrektheitsregeln.
+Das interne Presence-Feld ist kein
 öffentliches DTO-Feld, kein akzeptierter Clientfilter und kein öffentlicher
 Sortkey. API-Negativfälle aus dem SRCH0-Korpus müssen seine Abfrage und Ausgabe
 vor dem Enginezugriff verhindern.
@@ -107,8 +110,8 @@ ihre normative Umsetzung selbst.
 
 ## Abnahme
 
-- Alle SRCH0-`preserve`-Fälle bleiben grün; ausserhalb des Difficulty-Overlays
-  entspricht jeder `known_gap`-Fall weiterhin seiner Baselinebeobachtung.
+- Alle aktiven SRCH0-Erwartungen und unabhängigen Properties bleiben grün;
+  auch ausserhalb des Difficulty-Overlays gelten die korrigierten Resultate.
 - Das SRCH2-Delta-Overlay ist für bekannte, fehlende, leere und ungültige
   Quellwerte sowie Default, Teilmenge, beide Sortierrichtungen und alle
   Trefferansichten grün.
@@ -133,3 +136,4 @@ ihre normative Umsetzung selbst.
 | 2026-08-30 | SRCH2 bleibt auf dem heutigen Indexpfad und liefert den Datenumfang für SRCH4a. |
 | 2026-09-01 | SRCH2 besitzt die Unknown-Difficulty-Korrektur samt Trailprofil, Backfill und SRCH0-Delta-Overlay; die Radiusbereinigung gehört SRCH-COMP. |
 | 2026-09-01 | Der vollständige Difficulty-Backfill verwendet IDX0s Offline-Rebuildmechanik; SRCH2 bleibt Owner von Builder, Profil und Zielsemantik. |
+| 2026-09-19 | Unknown-Fehler werden vor SRCH0-Abnahme behoben. SRCH2 erhält diese Korrekturen und ergänzt Presence-Sortierung sowie ihr versioniertes Profil und den erforderlichen Backfill. |

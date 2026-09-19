@@ -10,7 +10,7 @@ spec:
   kind: contract
   status: draft
   capability: FOUNDATION
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 Status: Normativer Entwurf, 1. September 2026
@@ -131,20 +131,26 @@ Pflichtrelation endet mit `source_projection_incomplete`.
 
 Das task-spezifische SEC-VIS-0-Ziel-Overlay referenziert
 `SRCH0-GAP-LIST-001` und die zugehörigen stabilen Case-IDs, ohne deren
-Baselineerwartungen zu ändern. Es erlaubt als fachliches Delta ausschliesslich
+historische Beobachtungen zu ändern. Es erlaubt als fachliches Delta ausschliesslich
 die fünf Aggregatwerte und deren unmittelbar gerenderte Darstellung.
 Pflichtfälle sind ein leerer Federation-Stub mit
 abweichendem Fake-Origin, eine vollständig lokal materialisierte Liste mit
 zwei Trails, der Übergang vom Stub zur Materialisierung und eine tatsächlich
 dangling persistierte Relation. Der erste Fall erwartet fünfmal `0` und in
 allen vier Fällen exakt null externe Projektionsrequests. Die sichtbare
-`0`-Semantik erhält einen Release-Hinweis. SRCH0 liefert nur Korpus und
-beobachtete Baseline; SRCH-COMP, SRCH2 und STATE1 besitzen dieses Delta nicht.
+`0`-Semantik erhält einen Release-Hinweis. SRCH0 liefert die bereits fachlich
+geprüfte Suchbasis. Ein Remoteaufruf allein beweist noch keinen aktuellen
+ACL-Fehler; die Umstellung auf rein lokale Aggregate bleibt dieses
+weitergehende SEC-VIS-0-Delta. SRCH-COMP, SRCH2 und STATE1 besitzen es nicht.
 
 Die allgemeine SEC-VIS-0-Accessmatrix bindet daneben
-`SRCH0-GAP-SEC-001`. Jede dort beobachtete ACL- oder Bypassabweichung wird
-ausschliesslich durch die Sichtbarkeits-, Proxy-, Netzwerk- und Tokenregeln
-dieses Vertrags geschlossen; das SRCH0-Golden bleibt historisch unverändert.
+`SRCH0-GAP-SEC-001`. Jede bereits im SRCH0-Prüfungsumfang nachgewiesene
+ACL- oder Bypassverletzung blockiert dessen Abnahme und wird durch eine
+vorgezogene Produktkorrektur geschlossen; die spätere SEC-VIS-0-Freigabe
+ist keine Erlaubnis, diesen Fehler bis dahin zu akzeptieren. Das historische
+Golden bleibt unverändert, die aktive Erwartung verlangt den zulässigen
+Zustand. Die darüber hinausgehenden Sichtbarkeits-, Proxy-, Netzwerk- und
+Tokenregeln dieses Vertrags bleiben eigenständige SEC-VIS-0-Releasegates.
 
 Später ersetzt die belegte Federation-Sichtbarkeit den pauschalen Ausschluss:
 

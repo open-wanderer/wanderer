@@ -16,7 +16,7 @@ spec:
   implementationDependsOn: []
   releaseGates: []
   normativeSources: [SRCH-V1-CONTRACT, TRAIL-SEARCH-SHARED]
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Metadaten
@@ -62,9 +62,14 @@ werden.
   Remoteaufruf ohne Context oder Timeout ausführen. Ein synchroner Bootstrap
   darf daran nicht unbegrenzt vor `Serve` hängen.
 
-Das ist beobachtetes Bestandsverhalten, aber kein zu bewahrendes
-Produktversprechen. SRCH0 hält es unter `SRCH0-GAP-BOOT-001` nur als Baseline
-fest; IDX0 besitzt die Korrektur.
+SRCH0 hält diese historische Diagnose unter `SRCH0-GAP-BOOT-001` fest und
+verlangt bereits vor seiner Abnahme Indexerhalt, erfolgreiche Initialisierung
+vor Suchbereitschaft, Fehlerweitergabe und Wiederaufnahme. Diese
+Bestandskorrektur darf unabhängig als Startup-Paket umgesetzt werden.
+IDX0 erhält deren geprüfte Eigenschaften und besitzt darüber hinaus den
+vollständigen Readinessproduzenten, Offline-Rebuild und Betriebsrollout.
+IDX0 muss nicht auf die SRCH0-Abnahme warten; umgekehrt setzt diese nicht den
+gesamten IDX0-Rollout voraus.
 
 ## Scope
 

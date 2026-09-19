@@ -16,7 +16,7 @@ spec:
   implementationDependsOn: [SRCH-V1, IDX0]
   releaseGates: [SEC-VIS-0]
   normativeSources: [SRCH-V1-CONTRACT, TRAIL-SEARCH-SHARED, FEDERATION-SECURITY-V1]
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Metadaten
@@ -33,10 +33,11 @@ spec:
 Nach dem Cutover erzeugt der Browser keine freien Meilisearch-Ausdrücke mehr.
 Alle heutigen Suchwege durchlaufen einen serverseitigen, allowlisteten V1-
 Normalisierer und Compiler. Beim Übersetzen des vorhandenen
-Startpunktzustands entfernt SRCH-COMP die zweite, identische
-`_geoRadius`-Klausel. Diese strukturelle Bereinigung ändert weder Treffer,
-`total`, Reihenfolge, Seite, Radius noch Punktquelle. Spätere Panel- und Geo-
-Slices erhalten eine erprobte API.
+Startpunktzustands erhält SRCH-COMP die bereits in SRCH0 geprüfte Semantik:
+genau eine `_geoRadius`-Klausel und gültige Nullkoordinaten. Die Migration
+erhält Treffer, `total`, Reihenfolge, Seite, Radius und Punktquelle der
+korrigierten Ausgangsbasis. Spätere Panel- und Geo-Slices erhalten eine
+erprobte API.
 
 ## Scope
 
@@ -69,9 +70,9 @@ Slices erhalten eine erprobte API.
 ## Nichtziele
 
 - Kein neuer Shadow-Index, kein Federation-Gateway und keine neuen Felder.
-- Keine Korrektur der Difficulty-Projektion und keine Änderung der
-  Listenaggregate; diese besitzen mit SRCH2 beziehungsweise SEC-VIS-0 eigene
-  Delivery-Owner.
+- Keine neue Difficulty-Projektion oder Listenaggregatsemantik; diese
+  Erweiterungen besitzen mit SRCH2 beziehungsweise SEC-VIS-0 eigene
+  Delivery-Owner. Bereits für SRCH0 behobene Fehler bleiben korrigiert.
 - Keine Counts oder Histogramme, die der heutige Pfad nicht vertragsgemäß
   berechnen kann.
 - Kein stilles Durchreichen generischer Enginefilter.
@@ -85,49 +86,38 @@ zurückschalten, solange kein neuer URL-State veröffentlicht wurde, den dieser
 nicht versteht. Nach öffentlicher Ausgabe neuer V1-Zustände bleibt der
 Legacyparser als Eingangsadapter erhalten.
 
-## SRCH0-Delta-Overlay
+## Korrigierte SRCH0-Basis und Adapter-Deltas
 
-SRCH-COMP dupliziert weder Referenzbestand noch Baselineerwartungen. Sein
-task-spezifisches Ziel-Overlay referenziert insbesondere
-`SRCH0-GAP-GEO-001` sowie die zugehörigen stabilen Bestands-Case-IDs und
-deklariert ausschliesslich folgendes Delta:
+SRCH-COMP konsumiert historische Basisfälle zusammen mit den abgenommenen
+aktiven Solländerungen und unabhängigen Properties. Radius-, Datums-,
+Karten-, Retrieval- und Storagefehler müssen bereits vor SRCH0-Abnahme
+behoben sein. Der Adapter erhält diese Ergebnisse:
 
-| Feld | Erwartung |
+| Referenz | Erhaltene Semantik beziehungsweise explizite V1-Erweiterung |
 | --- | --- |
-| Owner | `SRCH-COMP` |
-| Art | wirkungslosen Implementierungsunfall entfernen |
-| Baseline | zwei identische `_geoRadius`-Klauseln |
-| Ziel | genau eine `_geoRadius`-Klausel mit denselben Argumenten |
-| Unverändert | Treffer, `total`, Reihenfolge, Seite, Radius und Punktquelle |
-
-Andere Geo-Abweichungen, insbesondere eine Koordinate `0`, sind nicht Teil
-des `_geoRadius`-Overlays. Sie besitzen eigene SRCH-COMP-Overlays und werden
-nicht still mit diesem strukturellen Delta vermischt:
-
-| `gap_id` | SRCH-COMP-Ziel |
-| --- | --- |
-| `SRCH0-GAP-DATE-001` | inklusives Datumsende nach der V1-Kalendertagsemantik samt Warning und Releasehinweis |
+| `SRCH0-GAP-GEO-001` | genau eine Radiusklausel mit unveränderter fachlicher Wirkung |
+| `SRCH0-GAP-DATE-001` | vollständiges inklusives lokales Enddatum; die V1-Übersetzung ergänzt ihre vertraglichen Warnungen |
 | `SRCH0-GAP-GEO-002` | Latitude oder Longitude `0` bleibt ein gültiger Radiusanker |
 | `SRCH0-GAP-MAP-001` | Karten-Descent-Default verwendet den Descent- statt des Gain-Grenzwerts |
 | `SRCH0-GAP-DTO-001` | Retrievalfelder liegen in der vom Engineadapter tatsächlich ausgewerteten Optionsstruktur |
-| `SRCH0-GAP-SORT-001` | unbekannte Sortkeys und -richtungen enden typisiert vor dem Enginezugriff |
+| `SRCH0-GAP-SORT-001` | der geprüfte Legacy-Storagefallback bleibt erhalten; ungültige explizite V1-Aufträge enden typisiert vor dem Enginezugriff |
 
-Jedes Overlay bindet seine eigene SRCH0-Case-ID, erlaubt nur die genannten
-Ausgabedeltas und beweist alle nicht betroffenen Treffer-, ACL-, Paging- und
-URL-Dimensionen unverändert. Ein Golden-Update im SRCH0-Basisvertrag ist kein
-Ersatz für einen grünen Delta-Test.
+Neue Transport-, Validierungs- und URL-Semantik wird als eigenes Overlay
+gegen die korrigierte SRCH0-Basis beschrieben. Jedes Overlay bindet Case-ID
+und Basisdigest und beweist alle nicht betroffenen Treffer-, ACL-, Paging-
+und URL-Dimensionen unverändert. Historische Fehlresultate werden dadurch
+nicht wieder zu zulässigen Erwartungen.
 
 ## Abnahme
 
-- Alle SRCH0-`preserve`-Fälle einschliesslich ACL-Kontexten bleiben
-  unverändert; `known_gap`-Fälle ohne SRCH-COMP-Ownership behalten ihre
-  Baselinebeobachtung.
-- Das SRCH-COMP-Delta-Overlay weist genau eine `_geoRadius`-Klausel und für
-  seine Baseline-/Zielläufe identische Treffer, `total`, Reihenfolge und Seite
-  nach.
-- Die fünf weiteren an SRCH-COMP gerichteten `successor_ref`-Overlays bestehen
-  jeweils separat; keines erweitert freie Engineparameter oder die zulässige
-  Treffermenge.
+- Alle aktiven SRCH0-Erwartungen und unabhängigen Properties einschließlich
+  ACL-Kontexten bleiben grün. Historische `known_gap`-Ergebnisse sind kein
+  Rückfallziel.
+- Der Adapter erzeugt genau eine `_geoRadius`-Klausel und erhält Treffer,
+  `total`, Reihenfolge und Seite der korrigierten Legacyausführung.
+- Die erhaltenen Korrekturen und zusätzlichen V1-Adapter-Deltas werden
+  separat geprüft; kein Delta öffnet freie Engineparameter oder eine
+  unzulässige Treffermenge.
 - Keine freie Engine-Syntax erreicht den Compiler.
 - Normalisierung ist deterministisch und idempotent.
 - Kanonische URL, API-Auftrag und ausgeführter Suchauftrag bleiben nach
@@ -161,3 +151,4 @@ Ersatz für einen grünen Delta-Test.
 | 2026-08-31 | Kein `not_ready`-Zustand öffnet eine versteckte Engine-Nebenroute; jeder First-Party-Consumer scheitert im gemeinsamen Guard vor Token und Engine. |
 | 2026-09-01 | SRCH-COMP besitzt die Entfernung der doppelten `_geoRadius`-Klausel als eigenes SRCH0-Delta-Overlay; Difficulty- und Listenprojektion bleiben ausserhalb seines Scopes. |
 | 2026-09-01 | IDX0 produziert Bootstrapzustand und Readiness; SRCH-COMP konsumiert den bestehenden Wirevertrag für alle Legacyconsumer. |
+| 2026-09-19 | SRCH-COMP erhält die bereits für SRCH0 korrigierte Produktsemantik; seine eigenen Deltas betreffen den V1-Adapter. Die frühere Verschiebung der Bestandsfehler zu SRCH-COMP ist ersetzt. |

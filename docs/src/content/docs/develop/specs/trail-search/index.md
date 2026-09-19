@@ -10,7 +10,7 @@ spec:
   id: TRAIL-SEARCH-OVERVIEW
   kind: overview
   status: draft
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 Diese Spezifikation beschreibt, wie Wanderer von einer überwiegend statischen
@@ -65,7 +65,8 @@ Vorhaben den höchsten sichtbaren Nutzwert:
    ableiten statt die Leistungsgrenzen des Erstellers zu übernehmen.
 
 Diese Liste ist eine Wertpriorisierung. Die technische Baureihenfolge beginnt
-mit dem gemeinsamen Suchvertrag und einem einfacheren realen Verbraucher, damit
+mit einer fachlich korrekten Regressionsbasis für die bestehende Suche. Darauf
+folgen der gemeinsame Suchvertrag und ein einfacherer realer Verbraucher, damit
 die räumliche Integration nicht gleichzeitig Vertrag, UI, ACL, Federation,
 Cursor und Pagination erstmals erproben muss.
 
@@ -114,7 +115,8 @@ ohne eigene Filtersemantik oder zweiten Suchpfad.
 
 1. **Kein Bestandsfilter verschwindet.** Migrationen müssen heutige Filter,
    Sortierungen, URL-Zustände und ACL-Kontexte inventarisieren, nachweisen und
-   zurückrollen können.
+   zurückrollen können. Bekannte Fehler im SRCH0-Umfang werden vor dessen
+   Abnahme korrigiert; Bestandserhalt verpflichtet nicht zur Fehlerparität.
 2. **Keine vorgetäuschte Funktion.** Filter verwenden echte Daten; noch nicht
    unterstützte Counts, Histogramme oder Felder werden nicht durch feste
    Beispielwerte ersetzt.
@@ -142,8 +144,9 @@ gilt:
 
 ```text
 Such-/Panel-Linie:
-SRCH0 Bestandskorpus -> SRCH-V1 -> SRCH-COMP
-SRCH0 Bestandskorpus -> SEC-VIS-0
+SRCH0 Tests + integrierte Bestandskorrekturen -> SRCH0 Abnahme
+SRCH0 Abnahme -> SRCH-V1 -> SRCH-COMP
+SRCH0 Abnahme -> SEC-VIS-0
 IDX0 -> SRCH-COMP
 IDX0 -> SRCH2
 SRCH-COMP + SEC-VIS-0 -> kontrollierter Bestandsadapter live
@@ -164,9 +167,20 @@ SRCH3 + SRCH4a             -> SRCH4b
 SRCH3 + G3b                -> G3b-AGG
 ```
 
+SRCH0 bewahrt historische Beobachtungen unverändert als Evidenz. Für die
+Abnahme zählen fachlich korrigierte Erwartungen und unabhängige
+Korrektheitseigenschaften auf einer gemeinsamen Zielrevision. Die Tests und
+Bestandskorrekturen dürfen in getrennten PRs entstehen; SRCH0 bleibt bis zu
+ihrer Integration und einer grünen Gesamtsuite blockiert. Der Testbranch
+`feat/srch0` ist begonnen; die Korrekturen aus `fix/srch0-findings` und das
+noch fehlende Startup-Paket `fix/search-index-startup` sind einzubeziehen.
+
 [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) startet ohne
-Vorgänger und schützt den heutigen Indexbootstrap samt Readiness; seine
-SRCH0-Gap-Referenz ist keine Abhängigkeitskante. Der Meilisearch-
+Vorgänger und schützt den heutigen Indexbootstrap samt Readiness. SRCH0
+verlangt bereits Datenerhalt, abgeschlossene Initialisierung vor Suchfreigabe
+sowie geprüfte Fehler- und Retrypfade; der vollständige IDX0-Wrapper und seine
+Control Plane bleiben ein eigener Baustein. Daraus entsteht keine
+Rückabhängigkeit von SRCH0 auf spätere Such- oder Security-Bausteine. Der Meilisearch-
 Betriebsrelease M1 läuft ebenfalls parallel, qualifiziert aber getrennt den
 Engine-Upgradepfad und wird nicht mit einem neuen UI- oder Geo-Feature
 gebündelt. L3 ist eine eigenständige Providerlinie für typisierte

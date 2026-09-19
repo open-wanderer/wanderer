@@ -10,7 +10,7 @@ spec:
   kind: capability
   status: draft
   capability: FOUNDATION
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 > **Rolle:** Dieses Dokument beschreibt die fachliche Capability
@@ -69,45 +69,57 @@ Traildokument kopiert.
 
 ## 2. SRCH0 und Trail-Suchvertrag v1
 
-SRCH0 ist das Kompatibilitätsledger des heutigen Produkts. Es friert vor
-jeder UI-, Gateway-, Projektions- oder Indexmigration die tatsächlich
-unterstützte Matrix aus Filtern, Sortierungen, ACL-Kontexten, API- und
-URL-Zuständen ein. Die vollständige Bestandsliste besitzt SRCH0 selbst; die
-capability-übergreifenden Cutover-/Rollbackregeln stehen getrennt in den
+SRCH0 liefert die fachlich geprüfte Regressionsbaseline des heutigen Produkts.
+Es erfasst vor jeder UI-, Gateway-, Projektions- oder Indexmigration die
+tatsächlich unterstützte Matrix aus Filtern, Sortierungen, ACL-Kontexten,
+API- und URL-Zuständen und sichert deren korrektes Verhalten ab. Bekannte
+Fehler werden vor der Abnahme korrigiert. Die vollständige Bestandsliste
+besitzt SRCH0 selbst; die capability-übergreifenden Cutover-/Rollbackregeln
+stehen getrennt in den
 [gemeinsamen Invarianten](/develop/specs/trail-search/shared-invariants/).
 Der nicht normative
 [Bestandsaudit vom 30. August 2026](/develop/specs/trail-search/evidence/evidence-and-calibration/#bestandsaudit-vom-30-august-2026)
 liefert dafür den datierten Ausgangspunkt mit Codeankern; SRCH0 verifiziert ihn
-neu und ersetzt ihn durch ausführbare Evidenz.
+neu und ergänzt ihn durch ausführbare Evidenz.
 
 Jeder Altfall wird im SRCH0-Korpus als eine der folgenden Klassen erfasst:
 
 1. semantisch unverändert zu erhalten;
-2. als dokumentierter Fehler, dessen eigener Delivery-Owner Ziel-Overlay,
-   Migrationstest und gegebenenfalls Release-Hinweis liefert; oder
-3. als wirkungsloser Implementierungsunfall zu entfernen.
+2. als nachgewiesener Bestandsfehler vor der SRCH0-Abnahme zu korrigieren; oder
+3. als wirkungsloser Implementierungsunfall zu entfernen, mit Nachweis
+   unveränderter fachlicher Ergebnisse.
 
-SRCH0 besitzt keine Korrektursemantik und keinen Korrektur-Cutover. Es hält
-ausschliesslich Referenzdaten, beobachtete Baselineerwartungen und stabile
-Case-IDs. Ein nachfolgender Owner referenziert diese IDs in einem kleinen
-task-spezifischen Ziel-Overlay, statt die Baseline-Goldens umzuschreiben:
+Historische Referenzdaten, beobachtete Ergebnisse und stabile Case-IDs bleiben
+unverändert. Die aktiven Erwartungen beschreiben das fachlich korrekte
+Ergebnis, einschliesslich begründeter Korrekturen auf denselben Case-IDs.
+Unabhängige fachliche Eigenschaften sichern diese Erwartungen zusätzlich ab.
+Ein Vergleich mit historischen Fehlresultaten oder ein automatisch
+aktualisiertes Golden ist kein Korrektheitsnachweis.
 
-| Beobachtete Abweichung | Delivery-Owner |
-| --- | --- |
-| doppelt angehängte `_geoRadius`-Bedingung | [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) |
-| fehlende, leere oder ungültige Schwierigkeit wird als „leicht“ behandelt | [SRCH2](/develop/specs/trail-search/work-items/search/srch2/) |
-| föderierte Listenaggregate hängen von einem Live-Origin-Read ab | `SEC-VIS-0` gemäss [Security-Vertrag](/develop/specs/trail-search/contracts/federation-security/#31-sec-vis-lokale-sichtbarkeitseindämmung) |
-| Serve-Start leert und befüllt die live verwendeten Suchindizes ungeschützt neu | [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) |
+Jeder nachgewiesene Fehler im SRCH0-Bestandsumfang blockiert Abnahme und Merge,
+bis Produktkorrektur und Regressionstests auf demselben Integrationsstand
+bestehen. `knownViolation`, Skip oder erwartete Fehlschläge sind keine
+zulässigen Ausnahmen. Testkorpus und Korrekturen dürfen getrennte PRs sein;
+die Korrekturen bleiben Voraussetzungen der SRCH0-Abnahme.
+
+Damit gehören etwa fehlerhafte Radiusgrenzen, Unknown-Difficulty-Ergebnisse,
+Listenprojektionen oder ein destruktiver normaler Indexstart nicht erst in
+einen späteren Baselineverbraucher. [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/),
+[SRCH2](/develop/specs/trail-search/work-items/search/srch2/) und `SEC-VIS-0`
+konsumieren die korrigierte Baseline und besitzen ihre weiterführenden
+Vertrags-, Filter- und Sicherheitsänderungen. Neue Semantik benötigt ein
+begründetes Delta-Overlay; bereits bekannte Bestandsfehler dürfen darüber
+nicht vertagt werden.
 
 Die angegebene beziehungsweise importierte Schwierigkeit bleibt ein
-Bestandsfeld und wird nie in persönliche Schwierigkeit umgedeutet. In der
-Delivery-Richtung konsumieren die Korrektur-Owner den fertigen SRCH0-Korpus;
-SRCH0 hängt nicht von der Umsetzung dieser Korrekturen ab.
+Bestandsfeld und wird nie in persönliche Schwierigkeit umgedeutet.
 
-IDX0 ist davon unabhängig der kleine Runtimeowner für den heutigen
-Indexbootstrap und den Legacy-Produzenten von `SearchReadinessV1`. Seine
-Gap-Kante erzeugt keine Implementierungsabhängigkeit von SRCH0 und zieht weder
-STATE1 noch die M1-Enginemigration in den normalen App-Start.
+IDX0 bleibt unabhängig implementierbar und besitzt den heutigen Indexbootstrap
+sowie den Legacy-Produzenten von `SearchReadinessV1`. Nötige Korrekturen des
+Bestandsstarts werden bereits für SRCH0 nachgewiesen; die vollständige
+Readinessproduktion und ihre Betriebsregeln bleiben IDX0-Scope. Daraus
+entsteht keine Implementierungsabhängigkeit von IDX0 auf SRCH0, und weder
+STATE1 noch die M1-Enginemigration werden in den normalen App-Start gezogen.
 
 Der [Trail-Suchvertrag v1](/develop/specs/trail-search/contracts/trail-search-v1/)
 trennt den reproduzierbaren fachlichen Suchauftrag, die
@@ -532,9 +544,11 @@ Meilisearch-Fork.
 Eine `FOUNDATION`-Produktscheibe wird nur freigegeben, wenn alle für sie
 einschlägigen Punkte belegt sind:
 
-- Alle berührten SRCH0-`preserve`-Fälle bestehen unverändert. Jede bewusste
-  Abweichung ist ausschliesslich durch ein grünes, ownergebundenes Delta-
-  Overlay auf derselben Case-ID erlaubt.
+- Alle berührten aktiven SRCH0-Erwartungen und unabhängigen fachlichen
+  Eigenschaften bestehen, einschliesslich der korrigierten Bestandsfälle.
+  Historische Fehlresultate sind kein Paritätsziel. Bewusste neue Semantik
+  benötigt ein grünes, ownergebundenes Delta-Overlay auf derselben Case-ID;
+  ein bekannter Bestandsfehler darf dadurch nicht freigestellt werden.
 - Ein sichtbares Control verändert reale Suchresultate oder stellt einen
   klaren realen Zustand dar; Beispielwerte und funktionslose Controls sind
   ausgeschlossen.

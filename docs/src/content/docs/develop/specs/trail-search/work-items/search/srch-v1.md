@@ -13,17 +13,17 @@ spec:
   capability: FOUNDATION
   productSlice: search-foundation
   exposure: internal
-  implementationConditions: [SRCH0 Bestandskorpus vollständig]
+  implementationConditions: [SRCH0 korrigierte Suchbasis abgenommen]
   normativeSources: [SRCH-V1-CONTRACT, ADR-0001, FEDERATION-SECURITY-V1]
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Metadaten
 
 | Feld | Wert |
 | --- | --- |
-| Delivery-Status | blockiert bis zum vollständigen SRCH0-Bestandskorpus |
-| Implementierungsabhängigkeiten | keine Work-Item-Kante; Implementierungsbedingung `SRCH0 Bestandskorpus vollständig` |
+| Delivery-Status | blockiert bis zur abgenommenen korrigierten SRCH0-Suchbasis |
+| Implementierungsabhängigkeiten | keine Work-Item-Kante; Implementierungsbedingung `SRCH0 korrigierte Suchbasis abgenommen` |
 | Exposure | intern; noch kein Runtime-Cutover |
 | Normative Quelle | [Trail-Suchvertrag v1](/develop/specs/trail-search/contracts/trail-search-v1/) |
 
@@ -42,9 +42,9 @@ interpretieren.
   Capability-Schemas als versionierte Lieferartefakte bereitstellen.
 - Normalisierung, Defaults, `unknown`, Sortierung, Cursorbindung und URL-Codec
   eindeutig und testbar halten.
-- Legacyfälle der V1-Normalform zuordnen. Bewusste Korrekturen bleiben
-  Ziel-Overlays ihrer Delivery-Owner und ändern die historischen SRCH0-Goldens
-  nicht.
+- Korrigierte Legacyfälle der V1-Normalform zuordnen. Neue Vertragssemantik
+  benötigt eigene Ziel-Overlays; historische Beobachtungen bleiben Evidenz
+  und ersetzen die bereits geltenden SRCH0-Korrekturen nicht.
 - Golden Fixtures für semantisch identische Browser-, API- und URL-Aufträge
   definieren.
 
@@ -59,9 +59,9 @@ interpretieren.
 
 ## Abnahme
 
-- Jeder unterstützte SRCH0-Basisfall besitzt genau eine gültige V1-Normalform
-  oder einen typisierten Fehler; Owner-Overlays benennen jede erlaubte
-  Abweichung separat.
+- Jeder unterstützte SRCH0-Fall mit seiner aktiven Erwartung besitzt genau
+  eine gültige V1-Normalform oder einen typisierten Fehler; Owner-Overlays
+  benennen jede neue Vertragsabweichung separat.
 - JSON-Schemas und Anwendungstypen lehnen unbekannte Felder und unzulässige
   Capability-Kombinationen ab.
 - Browser-, App- und Chat-Beispiele erzeugen keine voneinander abweichenden
@@ -80,3 +80,4 @@ SRCH0-Matrix bestehen.
 | Datum | Entscheidung |
 | --- | --- |
 | 2026-08-30 | Der bestehende Trail-Suchvertrag ist normative Quelle; dieses Work Item operationalisiert ihn. |
+| 2026-09-19 | Voraussetzung ist die korrigierte, abgenommene SRCH0-Suchbasis; ein vollständiger Korpus mit bekannten ungefixten Fehlern reicht nicht aus. |

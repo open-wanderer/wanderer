@@ -10,10 +10,10 @@ spec:
   kind: contract
   status: draft
   capability: FOUNDATION
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
-Status: Normativer Entwurf, 1. September 2026
+Status: Normativer Entwurf, 19. September 2026
 
 Dieser Vertrag konkretisiert den fachlichen Suchauftrag aus [Erweiterte Trail-Suche und personalisierte Filter](/develop/specs/trail-search/). Der ergänzende [Vertrag für gespeicherte Trail-Suchen](/develop/specs/trail-search/contracts/saved-trail-search-v1/) persistiert genau diese Suchsprache und definiert keinen zweiten Suchpfad. Für `route_radius_ux_v1` ist die angenommene [ADR 0002](/develop/specs/trail-search/decisions/0002-geojson-direct-route-radius/) die höherrangige Architektur- und Produktentscheidung; abweichende frühere G1-Annahmen gelten nicht fort. Der [Vertrag der Federation-Sicherheits- und Publikationsvoraussetzungen](/develop/specs/trail-search/contracts/federation-security/) ist ein normatives Gate für jeden produktiven Cutover, blockiert aber weder Konzeptarbeit noch interne Parser, Backfills, Shadowprojektionen oder nicht ausstellbare Capability-Arbeit. Der Vertrag ist die gemeinsame fachliche Sprache von Filterpanel, Karten- und Listenansicht, API, Counts, Mobile-App, Chat und einem optionalen MCP-Adapter. Meilisearch-Requests, Datenbankabfragen und URL-Parameter sind Implementierungs- beziehungsweise Transportformate und keine alternative Suchsemantik. Priorisierung, konkrete Umsetzungsschnitte und Beiträge sind nicht Teil dieses API-Vertrags; sie werden im [Delivery- und Beitragskatalog](/develop/specs/trail-search/delivery/) geführt.
 
@@ -2019,7 +2019,11 @@ materialisiert; sie wird nicht mit URL-Filtern gemischt.
 
 ### 15.1 Legacy-Auswertung vor der Übersetzung
 
-Der Legacyadapter bildet zuerst das tatsächlich bisherige Verhalten nach und übersetzt erst dessen Ergebnis. Er verwendet diese Präzedenz:
+Der Legacyadapter wertet zuerst den bisherigen Zustand nach der korrigierten,
+abgenommenen SRCH0-Semantik aus und übersetzt erst dessen Ergebnis. Historische
+Fehlresultate sind kein Paritätsziel. Die folgenden Präzedenzregeln bleiben
+erhalten; Sanitizing, Storage-Sortierung und Filterauswertung wenden dabei
+bereits die aktiven SRCH0-Korrekturen an:
 
 1. Historische Defaultfilter einschliesslich der damals gespeicherten dynamischen Range-Limits erzeugen.
 2. Die URL-Keys `author`, `category` und `subcategory` jeweils mit First-Value-Semantik lesen.
@@ -2069,7 +2073,14 @@ Auch oberflächenabhängige Altdefaults bleiben im Adapter sichtbar: Die bisheri
 | Sortkey `created`, `date`; Order `+`, `-`                                       | `created_at`, `trail_date`; Direction `asc`, `desc`                                                                                   |
 | beliebige Legacy-Sortierung bei nichtleerem Text                                | `legacy_ranking_v0`, falls eine V1-Sortierung die Reihenfolge ändern würde                                                            |
 
-Die Datumsumstellung von inklusiver UTC-Mitternacht auf inklusive lokale Kalendertage, die Einbeziehung echter Unknown-Difficulty beim bisherigen „alle“-Default und die Korrektur von Koordinate `0` sind **bewusste Fehlerkorrekturen**. Sie erhalten jeweils Release-Hinweis, Migrationwarning und Golden Fixture. Die doppelte identische Radiusbedingung war wirkungslos und wird ohne sichtbaren Hinweis entfernt.
+Das vollständige inklusive lokale Enddatum, echte Unknown-Difficulty beim
+bisherigen „alle“-Default und der Radius bei Koordinate `0` gehören bereits
+zur korrigierten SRCH0-Basis. Ihre Behebung und Regressionstests werden nicht
+bis zur V1-Migration aufgeschoben. Dasselbe gilt für die wirkungslose doppelte
+Radiusklausel. Release-Hinweise gehören zur jeweiligen Produktkorrektur.
+Beim Import älterer gespeicherter Zustände können die unten aufgeführten
+Warnings eine tatsächlich geänderte Interpretation erklären; sie verlangen
+keine erneute Zustimmung zu bereits geltenden Fehlerkorrekturen.
 
 Für Distanz, Aufstieg und Abstieg gilt dieselbe Legacy-Rundung. Sobald nach der obigen Open-End-Erkennung mindestens eine Grenze aktiv bleibt, setzt der Adapter `missing: exclude`; auch ein positives Rohminimum, das durch `floor` zu `0` wird, bleibt dadurch von einem vollständig ausgelassenen Rangefilter unterscheidbar.
 
@@ -2077,7 +2088,14 @@ Nicht auflösbare Altwerte ergeben `legacy_filter_unresolved`, mehrdeutige Namen
 
 ### 15.3 URL-, Paging- und Rolloutregeln
 
-Eine semantisch identische Legacyseite darf nach erfolgreicher Übersetzung einmalig mit `history.replaceState` in die kanonische V1-URL überführt werden. Eine Seite mit bewusster Korrektur, Legacyranking oder nicht exakt reproduzierbarer Position bleibt im Legacyadapter, bis der Nutzer sichtbar „mit neuer Suche fortfahren“ wählt.
+Eine zur korrigierten SRCH0-Ausführung semantisch identische Legacyseite darf
+nach erfolgreicher Übersetzung einmalig mit `history.replaceState` in die
+kanonische V1-URL überführt werden. Erst eine zusätzliche fachliche Änderung
+durch die V1-Übersetzung, Legacyranking oder eine nicht exakt reproduzierbare
+Position verlangt den sichtbaren Wechsel „mit neuer Suche fortfahren“.
+Bis dahin bleibt die Seite im bereits korrigierten Legacyadapter; ein
+historischer Fehler wird weder erneut ausgeführt noch durch Nutzerzustimmung
+freigegeben.
 
 Ein gültiges `page=N` wird für die erste Adapterausführung mit der ermittelten historischen Seitengrösse in einen Offset übersetzt. Fehlt die Grösse, gelten `25` und Warning `legacy_page_size_assumed`. Der Adapter darf die benötigten vorherigen Cursor intern erzeugen; weder Seitennummer noch Cursor gelangen in die kanonische Share-URL. Ein Deep Link wird nicht automatisch umgeschrieben, solange seine Position unter V1 nicht identisch reproduziert ist.
 

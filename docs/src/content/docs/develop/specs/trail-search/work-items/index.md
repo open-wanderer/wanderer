@@ -10,7 +10,7 @@ spec:
   id: WORK-ITEMS
   kind: delivery
   status: draft
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 Ein Work Item ist der stabile fachliche und technische Scope eines geplanten
@@ -39,12 +39,22 @@ nicht, dass eine im Katalog genannte Abhängigkeit entfällt.
 
 | Work Item | Ziel | Stand |
 | --- | --- | --- |
-| [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) | neutraler Bestandsvertrag, stabile Case-IDs und ausführbarer Regressionskorpus | reviewable; Delivery-Kandidat ohne Runtime- oder Korrekturcutover |
-| [SRCH-V1](/develop/specs/trail-search/work-items/search/srch-v1/) | normativen Suchvertrag implementierbar verankern | wartet auf den vollständigen SRCH0-Bestandskorpus |
-| [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) | Compiler und Legacyadapter samt ownergebundenen SRCH0-Delta-Overlays | wartet auf SRCH-V1 und IDX0; sichtbare Aktivierung zusätzlich SEC-VIS-0 |
-| [SRCH2](/develop/specs/trail-search/work-items/search/srch2/) | Bestandsfelder, Subkategorien und Difficulty-Presence-/Unknown-Korrektur | wartet auf SRCH-COMP und IDX0 |
+| [SRCH0](/develop/specs/trail-search/work-items/search/srch0/) | fachlich korrekte Regressionsbasis, stabile Case-IDs und unveränderte historische Evidenz | reviewable; Delivery `blocked`: Tests begonnen, Bestandskorrekturen und Startup-Paket noch zu integrieren und gemeinsam grün nachzuweisen |
+| [SRCH-V1](/develop/specs/trail-search/work-items/search/srch-v1/) | normativen Suchvertrag implementierbar verankern | wartet auf die abgenommene SRCH0-Regressionsbasis |
+| [SRCH-COMP](/develop/specs/trail-search/work-items/search/srch-comp/) | Compiler und Legacyadapter unter Erhalt der korrigierten SRCH0-Semantik | wartet auf SRCH-V1 und IDX0; sichtbare Aktivierung zusätzlich SEC-VIS-0 |
+| [SRCH2](/develop/specs/trail-search/work-items/search/srch2/) | Bestandsfelder und Subkategorien sowie explizite Presence-/Unknown-Modellierung auf der korrigierten Basis | wartet auf SRCH-COMP und IDX0 |
 | [SRCH4a](/develop/specs/trail-search/work-items/search/srch4a/) | vollständiges Panel ohne Fake-Counts | wartet auf SRCH2; sichtbare Freigabe zusätzlich SEC-VIS-0 |
 | [SRCH-SAVED](/develop/specs/trail-search/work-items/search/srch-saved/) | benannte Suchen und Standardsuche für die Trail-Liste | Implementierung nach SRCH-COMP; sichtbare Freigabe nach SRCH4a und SEC-VIS-0; kein Geo-/Count-Gate |
+
+SRCH0 ist auf `feat/srch0` mit Ausgangsrevision `e9b7a8cad` vom
+7. September 2026 in Umsetzung. `fix/srch0-findings` enthält getrennte Produktkorrekturen;
+`fix/search-index-startup` besitzt noch kein Implementierungspaket. Diese
+Arbeitsteilung erlaubt parallele Implementierung, ersetzt aber keine Abnahme
+auf einer gemeinsamen Zielrevision. Bekannte Fehler im vereinbarten Umfang
+bleiben Merge- und Abnahmeblocker; `knownViolation`, `xfail` oder historische
+Fehlerausgaben dürfen die aktive Suite nicht grün machen. SRCH-COMP, SRCH2 und
+SEC-VIS-0 übernehmen die korrigierte Basis und ihre jeweiligen Erweiterungen;
+die notwendigen Bestandskorrekturen warten nicht auf diese Nachfolger.
 
 ## Parallele Index- und Engine-Schnitte
 
@@ -52,6 +62,11 @@ nicht, dass eine im Katalog genannte Abhängigkeit entfällt.
 | --- | --- | --- |
 | [IDX0](/develop/specs/trail-search/work-items/engine/idx0/) | sicherer Alltags-Bootstrap, Legacy-Readiness und dokumentierter erster Wrapper-Rollout | ohne Vorgänger sofort umsetzbar; kein Engineupgrade |
 | [M1](/develop/specs/trail-search/work-items/engine/m1/) | unterstützter Betreiber-Upgradepfad auf Meilisearch 1.53.1 | fachlich bereit; eigener Betriebsrelease |
+
+SRCH0 prüft schon vor seiner Abnahme Datenerhalt beim Startup, abgeschlossene
+Initialisierung vor Suchfreigabe und Fehler-/Retrypfade. Der vollständige
+IDX0-Wrapper samt Readiness-Control-Plane bleibt separat; IDX0 kann weiterhin
+ohne Vorgänger beginnen.
 
 ## Geo-Discovery
 

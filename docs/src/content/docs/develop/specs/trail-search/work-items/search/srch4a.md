@@ -16,7 +16,7 @@ spec:
   implementationDependsOn: [SRCH-COMP, SRCH2]
   releaseGates: [SEC-VIS-0]
   normativeSources: [SRCH-V1-CONTRACT, TRAIL-SEARCH-SHARED]
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Metadaten
@@ -46,7 +46,9 @@ Jede sichtbare Auswahl verändert echte Requests und Treffer.
 - Responsive Tastatur-, Fokus-, Screenreader- und Touchbedienung.
 - Entfernen aller fest codierten Beispielzahlen und funktionslosen
   Prototypfelder; dieses UI-Delta bindet `SRCH0-GAP-UI-001`, ohne andere
-  SRCH0-Baselineerwartungen umzuschreiben.
+  aktive SRCH0-Erwartungen oder deren historische Evidenz umzuschreiben.
+  Der Prototyp gehört nicht zur Produktbaseline `e9b7a8cad` und wird nicht
+  als funktionierende Suchfähigkeit in deren Korpus aufgenommen.
 
 ## Nichtziele
 
@@ -92,3 +94,4 @@ echter API-Anbindung und bestandenen Accessibility-/URL-Tests.
 | --- | --- |
 | 2026-08-30 | Das Panel ist der erste einfache reale Verbraucher des V1-Vertrags; Counts bleiben ein additiver Slice. |
 | 2026-09-01 | SRCH4a besitzt das UI-Overlay zu `SRCH0-GAP-UI-001`; der neutrale SRCH0-Basisfall bleibt unverändert. |
+| 2026-09-19 | SRCH4a erhält die korrigierte aktive SRCH0-Semantik. Das UI-Delta ersetzt ausschliesslich den separat dokumentierten Spec-Prototyp. |

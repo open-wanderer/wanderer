@@ -1,72 +1,83 @@
 ---
-title: SRCH0 — Bestandsvertrag und Testkorpus
-description: Datierter, ausführbarer Vertrag des beobachteten First-Party-Suchverhaltens vor der V1-Migration.
+title: SRCH0 — Korrekte Suchbasis und Testkorpus
+description: Reproduzierbarer Suchbestand, verbindliche Fehlerkorrekturen und gemeinsame Regressionstests vor der V1-Migration.
 editUrl: false
 sidebar:
   order: 1
-  badge: Review
+  badge: Blockiert
 spec:
   id: SRCH0
   kind: work-item
   status: reviewable
-  deliveryStatus: candidate
+  deliveryStatus: blocked
   capability: FOUNDATION
   productSlice: search-foundation
   exposure: internal
   implementationDependsOn: []
   releaseGates: []
   normativeSources: [TRAIL-SEARCH-SHARED]
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 ## Zweck
 
-SRCH0 friert das beobachtete Suchverhalten von Wanderer an einer datierten
-Ausgangsrevision als sprachneutralen, ausführbaren Testkorpus ein. Der Korpus
-macht sichtbar, welche Eingaben die vorhandenen First-Party-Oberflächen
-erzeugen, welche Dokumente der heutige Projektor schreibt und welche Treffer
-die vorhandenen Suchpfade zurückgeben.
+SRCH0 schafft eine fachlich geprüfte, korrigierte Ausgangsbasis für die
+Weiterentwicklung der Suche. Der gemeinsame Testkorpus prüft Eingaben der
+First-Party-Oberflächen, Indexprojektionen und tatsächliche Suchergebnisse.
+Ein reproduzierbarer Fehler ist kein zulässiges Regressionsergebnis.
 
-Der Vertrag ist absichtlich beobachtend. Ein festgehaltener Zustand ist nicht
-automatisch fachlich erwünscht. Bekannte Lücken werden mit stabiler Case-ID und
-einem `successor_ref` markiert, aber in SRCH0 weder korrigiert noch mit einer
-Zielsemantik überschrieben.
+Der Korpus unterscheidet drei Ebenen:
 
-Nachgelagerte Verträge, Compiler, Sicherheitsarbeiten und Indexprojektionen
-können dieselben Fälle konsumieren. Ihre erwarteten Änderungen werden als
-eigene Overlays neben dem unveränderten SRCH0-Basisfall beschrieben.
+1. **Historische Beobachtung:** `observed` hält nachvollziehbar fest, was der
+   gebundene Ausgangscommit tatsächlich getan hat.
+2. **Aktive Solländerung:** Ein separat gespeicherter, an Case-ID und
+   Basisdigest gebundener Korrekturfall beschreibt das fachlich richtige
+   Ergebnis. Er ersetzt im Produktprüfungslauf die historische Erwartung.
+3. **Unabhängige Eigenschaften:** Sichtbarkeit, Vollständigkeit, gültige
+   Werte und konsistente Zustände werden zusätzlich ohne Ableitung aus den
+   Goldens geprüft. Eine Solländerung darf diese Prüfungen nicht umgehen.
 
-SRCH0 verändert keine produktive Suche. Insbesondere definiert es keinen
-Reindex, keinen Cutover, keine Readinesslogik und keine Runtime-Control-Plane.
+Bekannte, nachgewiesene Produktfehler im geprüften Umfang blockieren Merge
+und Abnahme, bis die Korrekturen integriert sind und die betroffenen Tests
+bestehen. `known_gap`, ein `successor_ref` oder ein historisch grüner Lauf
+sind keine Ausnahme. Erst diese korrigierte Ausgangsbasis bildet den
+Kompatibilitätsvertrag für nachfolgende Arbeiten.
+
+Tests und Produktkorrekturen dürfen in getrennten PRs entstehen. SRCH0
+verantwortet den Korrektheitsnachweis; die Produkt-PRs liefern die dazu
+notwendigen Änderungen samt gegebenenfalls erforderlicher Bestandsreparatur.
+SRCH0 führt keine neue Suchfunktion oder Runtime-Control-Plane ein.
 
 ## Metadaten und Bestandsanker
 
 | Feld | Wert |
 | --- | --- |
 | Work Item | `SRCH0` |
-| Ergebnis | kanonischer Fixturekorpus und ausführbarer Bestandsbericht |
-| Ausgangsrevision | Git-Commit `e6db729cb73a490a939420e256b176acf9fd8fc3` |
-| Beobachtungsdatum | 30. August 2026 |
-| Dokumentrevision | 1. September 2026 |
+| Ergebnis | gemeinsamer Testkorpus und nachweislich korrigierte Suchbasis |
+| Ausgangsrevision | Git-Commit `e9b7a8cade980002acbcf2e2f5b2a083934f29d2` |
+| Beobachtungsdatum | 7. September 2026 |
+| Dokumentrevision | 19. September 2026 |
 | Engine-Ausgangsprofile | Meilisearch 1.11.3 und 1.36.0 mit den Settings der Ausgangsrevision |
-| Exposure | intern; Tests und Dokumentation, keine Produktaktivierung |
-| Implementierungsabhängigkeiten | keine |
+| Exposure | Testpaket intern; notwendige Produktkorrekturen in separaten PRs |
+| Implementierungsabhängigkeiten | keine für den Aufbau des Korpus und der Tests |
+| Abnahmevoraussetzung | alle nachgewiesenen Fehler im Prüfungsumfang behoben und am integrierten Zielcommit geprüft |
 | Nachfolger | IDX0, SRCH-V1, SRCH-COMP, SRCH2, SRCH4a, SEC-VIS-0 und IDX1 |
 
-Der Bestandsanker besteht aus Commit, Engineprofil, Fixture-Schema und
-Datasetrevision. Ein Ergebnis ohne diese vier Bindungen ist keine
-SRCH0-Evidenz.
+Der historische Bestandsanker besteht aus Commit, Engineprofil,
+Fixture-Schema und Datasetrevision. Die Produktabnahme bindet zusätzlich den
+tatsächlich geprüften Zielcommit, den Manifestdigest und den Digest der
+aktiven Solländerungen. Ein Ergebnis ohne diese Bindungen ist keine
+SRCH0-Abnahme. Der frühere Anker `e6db729c` bleibt historische Vorarbeit;
+Beobachtungen verschiedener Ausgangsrevisionen dürfen nicht vermischt werden.
 
 ### Bedeutung normativer Sprache
 
-`MUSS`, `DARF NICHT` und vergleichbare Formulierungen regeln in diesem
-Dokument ausschliesslich Form, Reproduzierbarkeit und Auswertung des Korpus.
-Sie verpflichten nicht die spätere Produktimplementierung, beobachtete Lücken
-beizubehalten.
-
-`observed` bezeichnet das am Ausgangscommit tatsächlich reproduzierte
-Ergebnis. Ein Nachfolgetask darf ein anderes Ergebnis fordern, aber den
-SRCH0-Basiswert nicht umschreiben.
+`MUSS`, `DARF NICHT` und vergleichbare Formulierungen regeln sowohl die
+Reproduzierbarkeit des Korpus als auch die fachliche Produktabnahme.
+`observed` ist historische Evidenz, keine Autorität über ein korrektes
+Sollresultat. Ohne Solländerung gilt der beobachtete Wert nur, sofern er die
+unabhängigen fachlichen Prüfungen besteht. Ein dabei neu gefundener Fehler
+blockiert den Lauf auch bei einem bislang als `preserve` markierten Fall.
 
 ## Scope
 
@@ -78,8 +89,8 @@ SRCH0 umfasst:
 - alle im First-Party-Code erzeugten Trailfilter und sichtbaren Sortierungen;
 - die bekannten Einzel- und Multi-Search-Aufträge;
 - die PocketBase-zu-Meilisearch-Projektionen für Trails, Listen und Actors;
-- die am Prozessstart beobachtete Settings-, Lösch- und Neuaufbaufolge dieser
-  drei Indizes samt währenddessen erreichbarer Suchpfade;
+- Indexerhalt, erfolgreiche Erstinitialisierung, Fehlerweitergabe und
+  Wiederaufnahme beim Prozessstart dieser drei Indizes;
 - Tenant-Token-Kontext und serverseitige Kategoriepräferenzen als beobachtete
   Eingaben der Treffermenge;
 - Trefferreihenfolge, Gleichstandsgruppen, `total`, Seite und Seitengrösse;
@@ -89,7 +100,8 @@ SRCH0 umfasst:
 - Create-, Update-, Delete- und Relationsmutationen, soweit sie heute
   Suchdokumente erzeugen oder verändern; und
 - einen gemeinsamen JSON-Korpus für Go-, Vitest-, Engine-, API- und
-  Browsertests.
+  Browsertests einschließlich aktiver Solländerungen und unabhängiger
+  Korrektheitsprüfungen.
 
 Der rohe Proxy `POST /api/v1/search/{index}` kann technisch mehr ausdrücken
 als die Anwendung selbst verwendet. SRCH0 inventarisiert nur nachweisbare
@@ -98,13 +110,16 @@ kein Bestandsvertrag.
 
 ## Nichtziele
 
-- Keine Korrektur eines beobachteten Verhaltens.
+- Keine neuen Produktfähigkeiten über die Korrektur der geprüften Suche hinaus.
 - Keine neue öffentliche Such-API oder V1-Requestgrammatik.
 - Keine V1-Normalisierung und kein kanonischer V1-URL-Codec.
-- Kein neues Indexschema und keine neue fachliche Projektion.
-- Kein Reindex-, Migrations-, Backfill-, Swap- oder Rollbackverfahren.
-- Keine Startup-, Liveness-, Readiness- oder Write-Admission-Regel.
-- Keine Taskbarriere, Epochenattestierung oder Engine-Tasküberwachung.
+- Kein neues typisiertes Zielindexschema oder allgemeines Migrationssystem;
+  notwendige Reparaturen bestehender Suchdokumente gehören zur jeweiligen
+  Produktkorrektur und müssen mitgeprüft werden.
+- Kein vollständiger IDX0-Readinessproduzent, Wrapper-Rollout oder
+  generationsgebundener Index-Lifecycle; verbindlich bleibt die unten
+  beschriebene Startup-Korrektheit.
+- Keine Epochenattestierung oder allgemeine Write-Admission-Control-Plane.
 - Keine Credentialrotation oder Festlegung produktiver Netzwerkgrenzen.
 - Keine neuen Filter, Sortierungen, Counts, Histogramme oder Geo-Funktionen.
 - Keine Paritätszusage für beliebige freie Meilisearch-Ausdrücke.
@@ -118,7 +133,8 @@ erhalten.
 
 ## Evidenzmodell
 
-Die Evidenz wird in folgender Reihenfolge bewertet:
+Für die historische Reproduktion wird die Evidenz in folgender Reihenfolge
+bewertet:
 
 1. ausführbarer Code am gebundenen Ausgangscommit;
 2. reproduzierbare Engineantwort am gebundenen Engineprofil;
@@ -132,9 +148,17 @@ Golden nicht automatisch aus der neuen Ausgabe aktualisiert werden. Zuerst
 muss geklärt werden, ob Ausgangscommit, Profil, Dataset oder Beobachtung falsch
 gebunden sind.
 
-Ein sicherheitswidriges Ergebnis wird als beobachteter `known_gap` erfasst.
-Die Erfassung macht es weder zulässig noch zu einer zu erhaltenden
-Produkteigenschaft.
+Für die Produktabnahme gelten die fachlichen Eigenschaften und begründeten
+aktiven Solländerungen. Ein historischer Goldenvergleich kann ihre Verletzung
+nicht freigeben. Ein sicherheitswidriges Ergebnis wird als `known_gap`
+dokumentiert und blockiert die Abnahme bis zur nachgewiesenen Behebung.
+
+Eine noch nicht umgesetzte neue Fähigkeit ist dagegen nicht allein deshalb
+ein Produktfehler. Beispielsweise beweist ein Remoteaufruf der heutigen
+Listenprojektion für sich keinen unzulässigen Datenabfluss. Neue
+Federation-, Snapshot- oder Routenradiusverträge behalten ihre eigenen
+Abnahmen; nachgewiesene Fehler des bereits geprüften Produkts dürfen nicht
+unter Berufung auf diese Folgearbeiten vertagt werden.
 
 ## Beobachteter Datenfluss
 
@@ -186,13 +210,30 @@ First-Party-Suchpfade besitzen keinen gemeinsamen Readiness-Guard. Damit kann
 ein Request bei jedem normalen Neustart einen leeren oder teilweise neu
 befüllten Index erreichen.
 
-Der Basisfall vergoldet ausschliesslich diese Auftrags- und
-Erreichbarkeitsfolge. Ihre Ablösung und die Produktion des normativen
-Readinesszustands gehören `IDX0`; SRCH0 definiert weder Ensure-Algorithmus noch
-Startupgate. Die zugehörigen Fixtures verwenden `family: mutation` und einen
-eigenen Startup-Consumer; sie führen keine siebte Fixturefamilie ein.
+Die historische Auftragsfolge bleibt als Diagnose erhalten. Der aktive
+Produkttest verlangt dagegen:
 
-## Beobachtete Legacy-Semantik
+- Ein normaler Neustart erhält vorhandene korrekte Indexdaten.
+- Fehlende oder unvollständig initialisierte Indizes werden kontrolliert
+  hergestellt; Suchbereitschaft setzt terminal erfolgreiche notwendige
+  Settings- und Dokumentaufträge voraus.
+- Fehler und Timeouts werden weitergegeben und dürfen keine vorgetäuschte
+  Suchbereitschaft erzeugen.
+- Ein abgebrochener Erstaufbau kann beim nächsten Start wiederaufgenommen
+  werden; Teilbestände gelten nicht still als vollständig.
+
+Die Produktkorrektur wird im Startup-Paket geliefert. `IDX0` besitzt darüber
+hinaus den normativen Readinessproduzenten, den Offline-Rebuild und den
+Betriebsrollout. Dessen vollständige Umsetzung ist keine Voraussetzung für
+den Aufbau der SRCH0-Tests; die genannten Startup-Eigenschaften sind jedoch
+Voraussetzung für ihre Abnahme. Die Fixtures verwenden `family: mutation`
+und einen eigenen Startup-Consumer, keine siebte Fixturefamilie.
+
+## Historisch beobachtete Legacy-Semantik
+
+Die folgenden Abschnitte dokumentieren den Ausgangscommit. Beschriebene
+Fehler sind keine Sollwerte der Produktabnahme; die aktiven Korrekturen und
+fachlichen Eigenschaften stehen im anschliessenden Fehlerkatalog.
 
 ### Zustand und Defaults
 
@@ -273,7 +314,8 @@ erhalten getrennte Fälle.
 
 Der Korpus speichert beobachtete Hits, `total` und DTO gemeinsam. Eine
 Sicherheitslücke darf nicht durch ein Golden verborgen werden; sie wird als
-`known_gap` an SEC-VIS-0 verwiesen.
+`known_gap` dokumentiert und muss vor SRCH0-Abnahme geschlossen werden.
+SEC-VIS-0 behält seine weitergehenden Freigabegates.
 
 ### Projektion und Trefferabbildung
 
@@ -321,30 +363,49 @@ Aufträge erhalten je eigene Consumerkennung. Zufallsausgaben werden nicht als
 bytegenaue Reihenfolge vergoldet; nur ihre beobachtete Eligibility ist
 stabiler Fixtureinhalt.
 
-## Bekannte Lücken und Nachfolger
+## Bekannte Fehler und verbindliche Korrekturen
 
-Eine Zeile dieser Tabelle beschreibt ausschliesslich den beobachteten Gap und
-seinen nächsten fachlichen Owner. Sie legt kein Zielresultat fest.
+Die stabilen Gap-IDs verbinden historische Beobachtungen, konkrete Case-IDs
+und Produktkorrekturen. Die folgenden Sollwerte gehören bereits zur
+SRCH0-Abnahme; Nachfolgetasks müssen sie erhalten.
 
-| Gap-ID | Beobachtung | `successor_refs` |
+| Gap-ID | Historischer Befund | Aktive Erwartung |
 | --- | --- | --- |
-| `SRCH0-GAP-GEO-001` | Startpunktsuche erzeugt zwei identische `_geoRadius`-Klauseln | `SRCH-COMP` |
-| `SRCH0-GAP-DIFF-001` | Missing, leer und unbekannt bleiben nicht an allen Grenzen als Unknown unterscheidbar | `SRCH2` |
-| `SRCH0-GAP-LIST-001` | Projektion bestimmter föderierter Listen liest Aggregate live von der Origininstanz | `SEC-VIS-0` |
-| `SRCH0-GAP-DATE-001` | inklusives Datumsende erfasst nur den Tagesbeginn | `SRCH-COMP` |
-| `SRCH0-GAP-GEO-002` | Latitude oder Longitude `0` deaktiviert den Startpunktradius durch Truthiness | `SRCH-COMP` |
-| `SRCH0-GAP-MAP-001` | Kartendefault verwendet für `elevationLossLimit` den Gain-Grenzwert | `SRCH-COMP` |
-| `SRCH0-GAP-DTO-001` | `attributesToRetrieve` liegt im allgemeinen Helper ausserhalb von `options` | `SRCH-COMP` |
-| `SRCH0-GAP-SORT-001` | unbekannte Storagewerte für Sortkey/-richtung gelangen raw zur Engine | `SRCH-COMP` |
-| `SRCH0-GAP-SEC-001` | beobachtete ACL- oder Bypassabweichungen gegen den Securityvertrag | `SEC-VIS-0` |
-| `SRCH0-GAP-UI-001` | `TrailFilterPreview` zeigt wirkungslose Beispielwerte | `SRCH4a` |
-| `SRCH0-GAP-BOOT-001` | jeder Serve-Start leert und befüllt die drei live verwendeten Indizes asynchron ohne Search-Admission neu | `IDX0` |
+| `SRCH0-GAP-GEO-001` | doppelte identische `_geoRadius`-Klausel | genau eine Klausel; diese strukturelle Bereinigung ändert Treffer, `total`, Reihenfolge und Seite nicht |
+| `SRCH0-GAP-DIFF-001` | fehlende oder ungültige Schwierigkeit wird als bekannte Stufe erfunden | Unknown bleibt in Projektion und Trefferdarstellung unbekannt; Defaultfilter schliesst Unknown ein, echte Teilmengen bekannter Stufen nicht |
+| `SRCH0-GAP-DATE-001` | inklusives Datumsende erfasst nur den Tagesbeginn | vollständiger lokaler Kalendertag einschliesslich 23-/25-Stunden-Tagen |
+| `SRCH0-GAP-GEO-002` | Koordinate `0` deaktiviert den Radius | Latitude und Longitude `0` bleiben gültige Anker |
+| `SRCH0-GAP-MAP-001` | Abstiegslimit verwendet den Aufstiegsgrenzwert | Abstieg verwendet den Abstiegsgrenzwert |
+| `SRCH0-GAP-DTO-001` | Feldauswahl erreicht die Engine nicht | beabsichtigte Retrievalfelder werden tatsächlich angewendet |
+| `SRCH0-GAP-SORT-001` | ungültige Storagewerte erreichen die Engine | gültiger dokumentierter Fallback vor dem Enginezugriff |
+| `SRCH0-GAP-SEC-001` | nachgewiesene unzulässige Sichtbarkeit oder Umgehung im geprüften Suchpfad | keine unzulässigen Treffer oder Counts im betreffenden Principal-Kontext |
+| `SRCH0-GAP-BOOT-001` | Startup leert live verwendete Indizes asynchron | Indexerhalt, terminal erfolgreiche Initialisierung, Fehlerweitergabe und Wiederaufnahme |
 
-Die drei ursprünglich gemeinsam behandelten Bestandskorrekturen besitzen
-bewusst keinen gemeinsamen Sammel-Task. SRCH-COMP, SRCH2 und SEC-VIS-0
-referenzieren jeweils die betroffene Case-ID und halten Zielsemantik,
-Migration und Freigabe in ihrem eigenen Overlay. Dadurch kann keine Korrektur
-die anderen beiden oder die Abnahme des neutralen Korpus blockieren.
+Der ausführbare Korpus ergänzt mindestens die auf `feat/srch0` belegten
+Fehlerfälle: SDK-HTTP-Statusweitergabe, Actor-Suchparameter, negative
+Thumbnailindizes, Erhalt verbleibender Shares, Aktualisierung abhängiger
+Actor-/Tag-/Kategoriemetadaten und vollständige Materialisierung fehlender
+Indexdokumente. Clustergrundlage und Upload-Duplikatprüfung müssen die gesamte
+zulässige Kandidatenmenge berücksichtigen; Engine-Defaultlimits und
+`maxTotalHits` dürfen kein erfolgreiches unvollständiges Ergebnis erzeugen.
+Ein Duplikat hinter Position 20 und tatsächlich indexierte 10'001 Trails
+gehören zum Nachweis.
+
+Zwei bestehende Referenzen bezeichnen weitergehende Folgearbeiten:
+
+- `SRCH0-GAP-LIST-001`: SEC-VIS-0 stellt Listenaggregate auf die lokale
+  Relation um und besitzt dafür Migration und Freigabe. Ein dabei in SRCH0
+  belegter aktueller ACL- oder Projektionsfehler muss bereits vor dessen
+  Abnahme behoben werden; der Remoteaufruf allein belegt keinen solchen Fehler.
+- `SRCH0-GAP-UI-001`: Der UI-Prototyp aus dem Spec-Branch ist nicht Teil des
+  Ausgangscommits `e9b7a8cad` und keine geprüfte Produktfähigkeit. SRCH4a
+  ersetzt ihn durch ein echtes Panel; Beispielwerte werden nicht als
+  korrekte Suchergebnisse in die Baseline aufgenommen.
+
+`successor_refs` dokumentieren die spätere Nutzung, keine Fristverlängerung
+für einen bekannten Fehler. Die Korrekturen des bisherigen Produkts werden
+vor den darauf aufbauenden Vertrags- und UI-Arbeiten geliefert. Damit
+entsteht keine zyklische Abhängigkeit zu SRCH-COMP, SRCH2 oder SEC-VIS-0.
 
 ## Kanonisches Artefaktlayout
 
@@ -352,6 +413,9 @@ die anderen beiden oder die Abnahme des neutralen Korpus blockieren.
 testdata/trail-search/srch0/v1/
   schema.json
   manifest.json
+  changes.json
+  inventory.json
+  sources.json
   README.md
   profiles/trails-legacy-v0.json
   profiles/lists-legacy-v0.json
@@ -365,21 +429,27 @@ testdata/trail-search/srch0/v1/
   cases/browser/*.json
 ```
 
-`schema.json` beschreibt nur SRCH0-Basisfälle. `manifest.json` bindet
-Dataset-, Profil- und Case-Digests, zählt die Pflichtfamilien und verhindert,
-dass ein leeres Verzeichnis als grün gilt.
+`schema.json` beschreibt die historischen SRCH0-Basisfälle. `changes.json`
+enthält die aktiven Solländerungen. `manifest.json` bindet Dataset-, Profil-,
+Case- und Änderungsdigests, zählt die Pflichtfamilien und verhindert, dass ein
+leeres Verzeichnis als grün gilt. Inventar und Quellanker machen fehlende
+Consumer und veränderte Produktionspfade prüfbar.
 
 Die drei Profile enthalten ausschliesslich am Ausgangscommit beobachtete
-Settings und Dokumentformen. Zielprofile, Reindexpläne, Verifikationsreports
-und Migrationsfälle gehören nicht in diesen Namensraum.
+Settings und Dokumentformen. Korrekturprüfungen verwenden die Produktsettings
+des Zielcommits; historische Profile dürfen keine zur Korrektur notwendige
+Produktänderung verdecken. Neue Generationenprofile und allgemeine
+Migrationspläne gehören weiterhin zum jeweiligen Folge-Work-Item.
 
 `README.md` ist eine aus Manifest und Fixtures erzeugte menschenlesbare
 Bestandsmatrix. CI lehnt Drift zwischen Darstellung und JSON-Artefakten ab.
 
 ## Fixture-Vertrag `wanderer.srch0/v1`
 
-Jede Fixturedatei ist genau ein JSON-Objekt mit
-`additionalProperties: false`.
+Jeder normalisierte Basisfall ist genau ein JSON-Objekt mit
+`additionalProperties: false`. Physische Dateien dürfen mehrere Fälle einer
+Gruppe mit gemeinsamen Metadaten enthalten; der Validator expandiert sie
+deterministisch vor Schema- und Digestprüfung.
 
 | Feld | Vertrag |
 | --- | --- |
@@ -400,10 +470,26 @@ ist die Liste leer. `non_contract` darf einen Nachfolger nennen, wenn dieser
 den wirkungslosen oder zufälligen Zustand entfernt, erhebt dessen Ausgabe aber
 nicht zum Bestandsversprechen.
 
-SRCH0-Basisfälle enthalten ausdrücklich keine Felder `expected`,
-`allowed_delta`, `delivery_owner` oder `activation_gate`. Ein Folgetask legt
-solche Werte in einem eigenen, auf `case_id` und Basisdigest gebundenen Overlay
-ab.
+SRCH0-Basisfälle enthalten weiterhin keine Felder `expected`,
+`allowed_delta`, `delivery_owner` oder `activation_gate`. Aktive Korrekturen
+liegen bereits in SRCH0 separat in `changes.json`; sie sind keine optionalen
+Erwartungen eines erst später zu liefernden Folgetasks.
+
+### Aktive Solländerungen
+
+`changes.json` verwendet `schema_version: wanderer.srch0.changes/v1`.
+Jeder Eintrag enthält eine eindeutige `id`, `case_id`, `basis_digest`,
+fachliche `reason`, `evidence` und die vollständige korrigierte Ergebnisform
+unter `observed`. Dieser Feldname bezeichnet hier den Ersatzwert für den
+Produktprüfungslauf, keine nachträgliche historische Beobachtung.
+
+Pro Fall ist höchstens eine aktive Änderung zulässig. Fehlende Referenzen,
+falsche Digests, mehrere konkurrierende Änderungen oder unvollständige
+Ersatzwerte lassen die Prüfung scheitern. Eine neue Korrektur verändert
+weder Eingabe noch historischen Basisfall. Im Produktprüfungslauf gilt der
+Ersatzwert; ohne Änderung gilt der historische Wert unter dem Vorbehalt der
+unabhängigen Eigenschaften. Ein nachgewiesener Fehler ohne Solländerung ist
+ein offener Blocker, kein implizit freigegebener Fall.
 
 Roh-URL und LocalStorage bleiben Strings. Doppelte Querykeys, ungültiges JSON
 und historische Präzedenz dürfen nicht durch vorgeparste Ersatzobjekte
@@ -448,7 +534,9 @@ Test gerade prüft. Jede Änderung an `observed` benötigt im selben Review:
 4. die Entscheidung, ob eine neue Korpusversion erforderlich ist; und
 5. unveränderte Case-ID oder eine explizit neue ID bei Bedeutungswechsel.
 
-Ein Zieloverlay darf das Basisfixture weder erzeugen noch ersetzen.
+Eine Solländerung darf das historische Basisfixture weder erzeugen noch
+überschreiben. Auch ihre Änderung benötigt eine fachliche Begründung und
+unabhängige Evidenz; der aktuelle Produktoutput allein genügt nicht.
 
 ## Synthetischer Referenzbestand
 
@@ -472,6 +560,13 @@ Der gemeinsame Datasetkorpus enthält keine Produktionsdaten und mindestens:
 IDs, Timestamps, Locale, Zeitzone und Katalogwerte sind feste, lesbare
 Testwerte. Kein Test bezieht Benutzer, Kategorien oder Zeit aus einer
 laufenden Entwicklerinstanz.
+
+PocketBase-Proben verwenden das reale Produktionsschema und seine
+Validierungsregeln. Nicht speicherbare Rohwerte werden als defensive
+Projektor-/Indexfälle gekennzeichnet und nicht als regulär erzeugbare
+Datenbankzustände ausgegeben. Ungültige Mutationen müssen ihre tatsächliche
+Ablehnung prüfen; vereinfachte Testcollections dürfen keine fiktiven
+Produktfehler erzeugen.
 
 Ein separat versionierter deterministischer Generator erzeugt 10'001
 abgeleitete Trails für Paging-, Cluster- und Lastgrenzen. Diese Masse wird
@@ -517,75 +612,111 @@ die allgemeine Suchmatrix abgedeckt.
 | SvelteKit/API-Integration | Tokenkontext, Präferenzfilter und bekannte Proxyformen | Browser-History |
 | Playwright | URL, Storage, Snapshot, Navigation, Liste und Karte | Engineversionsqualifikation |
 
-Alle Schichten konsumieren dieselben Basisfixtures. Eine Schicht darf
-familienfremde Felder ignorieren, aber keine eigene abweichende Kopie des
-Goldens pflegen.
+Alle Schichten konsumieren dieselben Basisfixtures und aktiven Solländerungen.
+Eine Schicht darf familienfremde Felder ignorieren, aber keine eigene
+abweichende Kopie des Goldens pflegen.
+
+Historische Reproduktion und Produktabnahme sind getrennte Laufarten. Ein
+erfolgreicher historischer Lauf sagt nur, dass die Beobachtung reproduziert
+wurde; er kann den aktuellen Produktlauf nicht ersetzen. Dieser prüft die
+integrierten Produktkorrekturen mit aktiven Erwartungen und unabhängigen
+Eigenschaften. Sichtbarkeit wird aus den Public-/Autor-/Sharebeziehungen des
+synthetischen Quelldatasets abgeleitet, nicht aus erwarteten Trefferlisten
+oder dem vom Produkt erzeugten Tenant-Filter. Weitere Properties prüfen
+Vollständigkeit, eindeutige IDs, konsistente Counts und Seiten, Werterhalt,
+Range-Monotonie und numerische Sortierung bei leerem Suchtext.
+
+Verletzungen schlagen immer fehl. `knownViolation`, erwartetes Fehlschlagen,
+Überspringen oder ein Golden-Update dürfen keinen bekannten Produktfehler
+grün machen. Eine nachgewiesene Redundanz ist von einem Ergebnisfehler zu
+unterscheiden; eine angenommene strukturelle Bereinigung erhält einen
+eigenen Delta-Test.
 
 Engineintegration läuft getrennt gegen 1.11.3 und 1.36.0. Der Bericht bindet
 Engineversion und Settings-Fingerprint. Eine versionsabhängige Beobachtung
 wird im Fixture explizit nach Profil diskriminiert und nicht durch eine
 gemeinsame Erwartung geglättet.
 
-Tests melden mindestens Case-ID, Familie, Basisdigest, Engineprofil und den
-kleinsten strukturellen Diff. Reports enthalten keine privaten
+Tests melden mindestens Case-ID, Familie, Basisdigest, Änderungsdigest,
+Zielcommit, Engineprofil und den kleinsten strukturellen Diff. Reports enthalten keine privaten
 Produktionswerte, Secrets oder aus einer realen Instanz übernommenen Actor-IDs.
 
 Schema-, Manifest-, Go- und Vitest-Suite laufen auf jedem Pull Request. Reale
 Engine-, API- und Browsertests dürfen in getrennten Jobs laufen, müssen aber
-aus demselben Manifest berichten. Ein alter grüner Lauf ist kein Beleg für
-ein geändertes Manifest.
+aus demselben Manifest und demselben Zielcommit berichten. Ein alter grüner
+Lauf ist kein Beleg für einen geänderten Korpus oder Produktstand.
 
 ## Abnahme
 
-SRCH0 ist inhaltlich abgenommen, wenn:
+SRCH0 ist erst mergebar und abgenommen, wenn:
 
 1. Schema, Manifest und generierte Bestandsmatrix ohne Drift vorliegen;
 2. alle Pflichtfamilien mindestens einen positiven, negativen und relevanten
    Randfall besitzen;
 3. alle inventarisierten First-Party-Consumer auf stabile Case-IDs zeigen;
-4. die gebundenen Engineprofile ihre jeweils deklarierten Beobachtungen
-   reproduzieren;
+4. historische Beobachtungen reproduzierbar gebunden sind und beide
+   Engineprofile die aktiven Produktprüfungen bestehen;
 5. State-, Compiler-, Projektions-, Search-, Mutation- und Browserharness
    denselben Datasetdigest konsumieren;
-6. jeder `known_gap` mindestens einen konkreten `successor_ref` besitzt;
-7. kein Basisfixture Zielwerte oder Freigabegates eines Nachfolgetasks enthält;
+6. alle nachgewiesenen Fehler im Prüfungsumfang eine begründete aktive
+   Korrektur und einen grünen unabhängigen Regressionstest besitzen;
+7. historische Basisfälle und aktive Solländerungen getrennt validiert sind;
 8. ein absichtlich verändertes Golden ohne Evidenzänderung von CI abgewiesen
    wird;
 9. eine entfernte Case-Datei nicht als verringerte Mindestabdeckung grün wird;
-10. der komplette Aufbau ausschliesslich synthetische Daten verwendet; und
-11. die Ausführung keine produktive Runtime, keinen Indexcutover und keine
-    Betreiberaktion voraussetzt.
+10. der komplette Aufbau ausschliesslich synthetische Daten und für
+    Datenbankproben die tatsächlichen Produktionsregeln verwendet;
+11. der Testaufbau weder eine reale Betreiberinstanz noch deren Daten benötigt;
+12. Startup-, API-, Engine- und Browsertests einschließlich der betroffenen
+    Bestandsreparaturen am tatsächlich integrierten Zielstand grün sind; und
+13. kein bekannter Fehler durch eine Ausnahme oder ausschliesslich durch den
+    Vergleich mit einem ebenfalls fehlerhaften Golden freigegeben wird.
 
-Die Abnahme von SRCH0 sagt ausschliesslich, dass der Bestand reproduzierbar
-beschrieben ist. Sie sagt nicht, dass bekannte Lücken behoben oder irgendein
-neuer Suchpfad freigegeben ist.
+Die Abnahme bestätigt Korrektheit im dokumentierten Prüfungsumfang. Sie ist
+weder ein Beweis für beliebige ACL-/Federationszustände noch die Freigabe
+eines neuen Suchpfads. Korpusvollständigkeit allein ist kein Abschluss.
+
+### Aktueller Umsetzungsbezug
+
+Stand 19. September 2026 liegt die Testsuite auf `feat/srch0`
+(`fc6e6c62b`), die übrigen Produktkorrekturen auf `fix/srch0-findings`
+(`dd1377608`). Das vorgesehene Startup-Paket auf `fix/search-index-startup`
+ist dort noch nicht implementiert; der Branch zeigt auf die Ausgangsrevision.
+Beide Korrekturpakete müssen vor SRCH0-Abnahme integriert und gemeinsam
+geprüft sein. Ein früherer grüner kombinierter Prüfbaum belegt nicht den
+verbliebenen Stand ohne Startup-Paket. Die Branches sind Arbeitsbezüge,
+keine zusätzlichen fachlichen Work Items oder bereits erteilte Freigaben.
 
 ## Abhängige Folgearbeiten
 
 | Nachfolger | Nutzung des SRCH0-Korpus |
 | --- | --- |
-| IDX0 | ersetzt den beobachteten ungeschützten Startup-Rebuild und bindet sein Ziel an `SRCH0-GAP-BOOT-001` |
+| IDX0 | erhält die geprüfte Startup-Korrektheit und ergänzt Readinessproduzent, Offline-Rebuild und Betriebsrollout |
 | SRCH-V1 | vergleicht die neue fachliche Sprache mit inventarisierten Bestandsfällen |
-| SRCH-COMP | bindet Legacyzustände an den typisierten Adapter und besitzt das `_geoRadius`-Overlay |
-| SRCH2 | verwendet Feld- und Projektionsfälle und besitzt das Unknown-Difficulty-Overlay samt Backfill |
+| SRCH-COMP | bindet korrigierte Legacyzustände an den typisierten Adapter und erhält die bestandenen Radius-, Datums- und Requestprüfungen |
+| SRCH2 | erhält korrekte Unknown-Behandlung und ergänzt typisierte Feld-/Presence-Semantik samt erforderlichem Backfill |
 | SRCH4a | verwendet Browserfälle und besitzt das Overlay zum Entfernen wirkungsloser Previewwerte |
 | SEC-VIS-0 | verwendet Access- und Listenfälle, besitzt das lokale Listenaggregat-Overlay und definiert selbst die zulässige Zielmenge |
 | IDX1 | verwendet Projektionsfixtures als Paritätsinput für das typisierte Read Model |
 
-Die Kante zeigt vom abgenommenen SRCH0-Korpus zum Nachfolger. SRCH0 wartet
-nicht auf Implementierung, Migration oder Livefreigabe dieser Bausteine.
+Die Kante zeigt von der abgenommenen korrigierten Suchbasis zum Nachfolger.
+Notwendige Korrekturen des geprüften Bestands werden vorgezogen; sie dürfen
+nicht erst einen solchen Nachfolger voraussetzen. Neue Fähigkeiten und
+weitergehende Runtimearchitektur bleiben unabhängige Folgearbeiten. IDX0
+kann ohne fertigen SRCH0-Korpus begonnen werden.
 
 ## Beitrags- und Änderungsregel
 
-SRCH0 besitzt drei reviewbare Schnitte:
+SRCH0 besitzt vier reviewbare Schnitte:
 
 1. Fixture-Schema, Manifestvalidator und Case-ID-Regel;
-2. synthetische Datasets und vollständige Bestandsmatrix; und
-3. gemeinsame Harnessadapter und reproduzierbarer Evidenzbericht.
+2. synthetische Datasets und vollständige Bestandsmatrix;
+3. gemeinsame Harnessadapter, aktive Solländerungen und Properties; und
+4. separate Produktkorrekturen mit gemeinsamem grünem Integrationsnachweis.
 
 Ein Pull Request, der produktive Semantik ändert, darf sein Ziel nicht durch
 Anpassung des SRCH0-`observed`-Werts legitimieren. Er referenziert den
-Basisfall, liefert ein Nachfolge-Overlay und lässt den historischen
+Basisfall, liefert eine aktive Solländerung und lässt den historischen
 Bestandsbeleg unverändert.
 
 Wird ein neuer bisher übersehener First-Party-Consumer am Ausgangscommit
@@ -604,3 +735,6 @@ SRCH0.
 | 2026-09-01 | Die drei Bestandskorrekturen wechseln getrennt zu SRCH-COMP, SRCH2 und SEC-VIS-0 | ihre Semantik und Auslieferung sind kein Bestandteil der Bestandsaufnahme und besitzen keinen gemeinsamen natürlichen Owner |
 | 2026-09-01 | Der beobachtete ungeschützte Startup-Rebuild verweist auf IDX0 | Bootstrap und Readiness erhalten einen Runtimeowner, ohne Teil von SRCH0 zu werden |
 | 2026-09-01 | Runtime-, Reindex- und Cutoverdesign ist nicht normativ archiviert | die technische Exploration bleibt erhalten, ohne SRCH0 aufzublähen |
+| 2026-09-19 | Fachlich korrekte aktive Erwartungen und unabhängige Properties bestimmen die Abnahme; historische Beobachtungen bleiben Evidenz | die rein beobachtende Abnahmeregel vom 1. September würde bekannte Fehler als grüne Ausgangsbasis festschreiben und ist ersetzt |
+| 2026-09-19 | Ausgangsrevision ist `e9b7a8cad` vom 7. September; Tests und Produktfixes bleiben getrennt reviewbar | die Spezifikation folgt dem ausführbaren Korpus auf `feat/srch0`, ohne dessen noch blockierten Stand als abgenommen auszugeben |
+| 2026-09-19 | Nachgewiesene Bestandsfehler einschließlich Startup werden vor SRCH0-Abnahme behoben | spätere Owner erhalten diese Korrekturen; ihre vollständige neue Architektur wird dadurch nicht zur zyklischen Voraussetzung |

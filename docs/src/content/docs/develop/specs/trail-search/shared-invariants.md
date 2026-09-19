@@ -9,7 +9,7 @@ spec:
   id: TRAIL-SEARCH-SHARED
   kind: shared
   status: draft
-  lastReviewed: '2026-09-01'
+  lastReviewed: '2026-09-19'
 ---
 
 > **Rolle:** Dieses Dokument ist der capability-übergreifende
@@ -68,7 +68,10 @@ Orchestrator ausgewertet.
 ## 2. Bestandsparität und additive Evolution
 
 Vor jeder Migration wird der tatsächlich produktive Bestand als
-Regressionstest-Matrix erfasst. Dazu gehören mindestens:
+Regressionstest-Matrix erfasst und fachlich geprüft. Die freigegebene
+SRCH0-Baseline sichert korrektes Bestandsverhalten ab; historische
+Fehlresultate bleiben als Evidenz erhalten, werden aber nicht zum
+Abnahmeziel. Dazu gehören mindestens:
 
 - Freitext, Autor, Kategorie, Subkategorie und Tags;
 - eigene, private, öffentliche und geteilte Trails;
@@ -91,18 +94,29 @@ Invarianten:
   Suchbereich“ erhält ein separates Requestfeld und deutet alte URLs nicht
   um.
 - Ein Cutover darf erst erfolgen, wenn Paritäts-E2E alle Bestandsfilter,
-  ACL-Kontexte und Sortierungen gegen den vorherigen Pfad bestanden haben.
+  ACL-Kontexte und Sortierungen gegen die fachlich geprüften, aktiven
+  SRCH0-Erwartungen bestanden haben. Gleichheit mit dem vorherigen Pfad
+  allein genügt nicht, wenn dieser einen nachgewiesenen Fehler enthält.
 - Ein Rollback aktiviert nur einen bis zum aktuellen Cutoff aufgeholten und
   bestätigten Kandidaten, der denselben Bestandsvertrag erfüllt.
-- Dokumentierte Fehler dürfen nur durch ihren benannten Delivery-Owner
-  korrigiert werden. SRCH0 hält dafür unveränderte Referenzdaten,
-  Baselineerwartungen und stabile Case-IDs; die korrigierte Erwartung liegt als
-  task-spezifisches Delta-Overlay beim Owner. SRCH-COMP besitzt die Entfernung
-  der wirkungslosen doppelten Radiusbedingung, SRCH2 die Unknown-Difficulty-
-  Semantik samt nötigem Trailbackfill und SEC-VIS-0 die deterministische lokale
-  Aggregatprojektion föderierter Listen. Jedes Overlay weist seine erlaubten
-  Deltas und alle unveränderten Resultate nach; ein Golden-Update der
-  SRCH0-Baseline ist kein Korrekturbeleg.
+- SRCH0 hält unveränderte historische Referenzdaten, beobachtete Ergebnisse
+  und stabile Case-IDs getrennt von den aktiven, fachlich begründeten
+  Erwartungen. Bei einem Fehler gilt die korrigierte Erwartung auf derselben
+  Case-ID. Unabhängige fachliche Eigenschaften müssen die Korrektur zusätzlich
+  belegen; ein Golden-Update aus der aktuellen Implementierung genügt nicht.
+- Jeder nachgewiesene Fehler innerhalb des SRCH0-Bestandsumfangs blockiert
+  dessen Abnahme und Merge, bis die Produktkorrektur und ihre Regressionstests
+  auf demselben Integrationsstand bestehen. `knownViolation`, Skip oder ein
+  erwarteter Fehlschlag dürfen diese Verpflichtung nicht umgehen. Testkorpus
+  und Produktkorrekturen dürfen in getrennten PRs entstehen; die Korrekturen
+  sind dann Voraussetzungen der SRCH0-Abnahme. Sie werden nicht auf
+  SRCH-COMP, SRCH2 oder SEC-VIS-0 verschoben, die die freigegebene Baseline
+  erst konsumieren.
+- Nachfolgende Tasks erhalten die aktive Baseline. Bewusste neue Semantik
+  benötigt ein ausdrücklich begründetes, auf stabile Case-IDs bezogenes
+  Delta-Overlay samt Nachweis aller unveränderten Resultate. Historische
+  Beobachtungen bleiben dabei unverändert; ein Overlay ist keine Freistellung
+  für einen bekannten Bestandsfehler.
 - Eine neue Oberfläche darf Controls neu ordnen oder verständlicher benennen,
   aber keine produktive Funktion still verbergen oder semantisch ersetzen.
   Ausschliesslich wirkungslose Prototypfelder und Beispielzahlen werden
@@ -370,8 +384,15 @@ freigegeben, wenn ihre betroffenen Gates aus dem Security-Vertrag bestanden
 sind. Ein interner Enabler darf vorher integriert werden, wird aber nicht als
 gelieferter Nutzermehrwert ausgegeben.
 
+Vorgezogene SRCH0-Korrekturen des bestehenden Suchpfads brauchen ihren eigenen
+Korrektheits- und Sichtbarkeitsnachweis. Sie aktivieren keine neue Suchscheibe
+und warten deshalb nicht auf den vollständigen späteren SEC-VIS-0-Rollout.
+
 Tests werden nach Verantwortung getrennt:
 
+- SRCH0-Tests für den fachlich geprüften Bestandsumfang, aktive korrigierte
+  Erwartungen und von Implementierung und Goldens unabhängige Eigenschaften;
+  historische Beobachtungen bleiben separat reproduzierbare Evidenz;
 - Unit-Tests für Compiler, Normalisierung und Fachalgorithmen;
 - Golden-Fixtures für GPX, Geometrie, Höhe, Dauer, Anstiege, Map-Matching,
   Snapshotzuordnung und Surface-Normalisierung;
