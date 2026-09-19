@@ -52,9 +52,29 @@ dieser Entscheidung diagnostisch und kein Abnahmehindernis; der aktuelle
 Suite-Status ist damit nicht automatisch grün. Die ausführbare
 Abnahmeauswertung muss diese begrenzte Einstufung berücksichtigen.
 
+## Abgerufene Suchfelder: kein SRCH0-Blocker, separat korrigiert
+
+Entscheidung vom 19. September 2026: `SRCH0-GAP-DTO-001` ist kein Merge- oder
+Abnahmeblocker. Die Korrektur begrenzt die Antwort auf die vorgesehenen Felder
+pro Treffer und vermeidet etwa die unnötige Übertragung der `polyline`.
+Treffermenge, Ranking und Zugriffsregeln ändern sich dadurch nicht; eine
+Beschleunigung ist bisher nicht gemessen.
+
+Die Korrektur liegt dennoch separat auf `fix/search-retrieved-fields`, Commit
+`8211e5598`, frisch ab `origin/dev` bei `c73966d6c`: Der Suchhelper setzt
+`attributesToRetrieve` unter `options`; eigene Feldlisten des Aufrufers bleiben
+erhalten. Lokal geprüft sind die Requests mit Standardfeldern, eigener und
+leerer Feldliste, alle 121 Webtests sowie `npm run check` ohne Fehler oder
+Warnungen. Kein Push, kein PR und keine Integration in `dev` oder `feat/srch0`.
+
+Der bestehende Nachweis `SRCH0-P-RETRIEVAL` bleibt erhalten. Wie bei der
+Sortierabsicherung betrifft die Nicht-Blockerentscheidung nur diesen Befund;
+die noch unveränderte Testauswertung muss Diagnose und Abnahme entsprechend
+trennen. Alle übrigen Blocker bleiben verbindlich.
+
 ## Gesamtabnahme bleibt offen
 
-Die genannten Testergebnisse gelten für den isolierten Radius-Fixcommit.
+Die genannten Testergebnisse gelten für die jeweils isolierten Fixcommits.
 Sie sind keine Abnahme der vollständigen SRCH0-Suite auf `feat/srch0`.
 Vor deren Abnahme müssen alle Produktkorrekturen im verbindlichen Umfang
 einschliesslich des noch ausstehenden Startup-Pakets integriert und am
