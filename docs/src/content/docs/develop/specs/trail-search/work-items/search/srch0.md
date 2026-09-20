@@ -15,7 +15,7 @@ spec:
   exposure: internal
   implementationDependsOn: []
   releaseGates: []
-  lastReviewed: '2026-09-19'
+  lastReviewed: '2026-09-20'
 ---
 
 ## Zweck und Aussagekraft
@@ -89,12 +89,15 @@ erfolgreich; dies ersetzt keine SRCH0-Gesamtabnahme. Details stehen in
 
 Die Weitergabe des API-Fehlerstatus und die Validierung der Actor-Suchparameter
 sind ebenfalls **keine SRCH0-Merge- oder Abnahmeblocker**. Die unabhängigen
-Branches `fix/search-api-error-status` (`8bcfe61df`) und
+Branches `fix/search-api-error-status` (`23d6b0204`) und
 `fix/search-actor-parameters` (`a72ff18df`) sind
-jeweils frisch ab `origin/dev` (`c73966d6c`) lokal ohne Push oder PR vorbereitet
-und noch nicht in `dev` oder `feat/srch0` integriert. Der erste Fix verwendet
-`response.status` des Meilisearch-SDK in den Suchrouten und im gemeinsamen
-Fehlerhandler, damit beispielsweise HTTP 400 erhalten bleibt. Der zweite
+auf der damaligen `origin/dev`-Basis `c73966d6c` lokal ohne Push oder PR
+vorbereitet und noch nicht in `dev` oder `feat/srch0` integriert. Die
+API-Reviewrevision ist ein Folgecommit. Nach der Reviewrevision
+vom 20. September erhält der erste Fix nur einen echten SDK-400 mit
+`invalid_search_filter` als HTTP 400. Andere Engine-, Transport- und
+Timeoutfehler werden generisches HTTP 502; unerwartete lokale Fehler bleiben
+500. Eigene HTTP- und PocketBase-Fehlerbehandlung bleiben erhalten. Der zweite
 liefert bei fehlendem `q` HTTP 400, übergibt gültige Limits als Zahlen und
 weist ungültige Limits mit HTTP 400 zurück; der Standard bleibt `3`.
 Fehlendes `q` ergab in der historischen Baseline HTTP 500, auf aktuellem
@@ -109,10 +112,19 @@ API-Fehlerstatus“ und „Kein Blocker: Actor-Suchparameter“.
 
 Die Vollständigkeit der Upload-Duplikatprüfung und die Vervollständigung der
 Clustergrundlage sind ebenfalls **keine SRCH0-Merge- oder Abnahmeblocker**.
-Der separate Fix `fix/upload-duplicate-check`, Commit `8f50fe9ac`, ist frisch
-ab `origin/dev` (`c73966d6c`) lokal ohne Push oder PR vorbereitet und noch
-nicht in `dev` oder `feat/srch0` integriert. Die Korrektur gehört fachlich zum Upload;
+Der separate Fix `fix/upload-duplicate-check` basiert auf dem damaligen
+`origin/dev` bei `c73966d6c`; `d0ede4520` ist der Reviewfolgecommit. Der Branch
+ist lokal ohne Push oder PR vorbereitet und noch nicht in `dev` oder
+`feat/srch0` integriert. Die Korrektur gehört fachlich zum Upload;
 dessen Meilisearch-Nutzung bleibt im SRCH0-Inventar und in der Evidenz.
+Seit der Reviewrevision vom 20. September wird genau eine Suchanfrage mit
+`_geoRadius(lat, lon, 100)`, strikt offenen ±50-Bereichen für Distanz, Auf-
+und Abstieg sowie `limit: 1` gestellt. Abgerufen werden nur `id`, `name`,
+`author_name` und `domain`; der Batchhelper samt Paging und `NOT IN` entfällt.
+Der inklusive, millimetergerundete Engine-Rand ersetzt bewusst das bisherige
+JS-`< 100`. Tenant-Client und erzwungener Upload bleiben unverändert.
+Die Status-/Batch-Goldens der unveränderten Suite müssen gezielt nachgeführt
+werden; die historische Evidenz und Nicht-Blocker-Einstufungen bleiben erhalten.
 Sie verändert keine Clusterabfrage. Für Cluster ist die bestehende
 Begrenzung als bekannte Grenze akzeptiert. Das Nachladen des Sammelfixes
 bleibt zurückgestellt, ohne separaten Clusterbranch oder Änderung an
@@ -443,3 +455,5 @@ Docs-Links und keine Voraussetzung, einen hier belegten Fehler zu korrigieren.
 | 2026-09-19 | Actor-Suchparameter sind kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/search-actor-parameters` korrigieren | Fehlendes `q` soll HTTP 400 ergeben und `limit` als validierte Zahl übergeben werden; Standard bleibt `3`. Die normale Oberfläche sendet `q` ohne eigenes `limit`. Historische Baseline und aktuelles `dev` liefern bei fehlendem `q` unterschiedliche falsche Statuscodes. Tests und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
 | 2026-09-19 | Upload-Duplikatprüfung ist kein SRCH0-Merge- oder Abnahmeblocker; unabhängig auf `fix/upload-duplicate-check` korrigieren | Die Erkennung hinter der ersten Engineantwort gehört fachlich zum Upload. Der Meilisearch-Consumer bleibt inventarisiert. Tests, Korpus und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
 | 2026-09-19 | Bestehende Clusterbegrenzung beibehalten; Vervollständigung ist kein SRCH0-Merge- oder Abnahmeblocker | Das Nachladen des Sammelfixes ist zurückgestellt. Kein separater Clusterbranch und keine Änderung an Clusterabfrage oder Oberfläche. Die begrenzte Antwort verspricht keine vollständige Abdeckung; alle 10'001 Touren nachzuweisen ist keine Abnahmevoraussetzung. `SRCH0-SEARCH-129` bleibt Clusterevidenz, `130` eine separate Listen-Grenzprobe. Tests und Erwartungen bleiben unverändert; die technische Einordnung als Diagnose steht aus. |
+| 2026-09-20 | API-Statusfix im Review auf eine Gateway-Policy begrenzen; nur SDK-400 mit `invalid_search_filter` bleibt 400, andere Engine-/Transport-/Timeoutfehler werden generisches 502 | Engine-403/404/503 beschreiben die interne Abhängigkeit und dürfen nicht unverändert als Status der Wanderer-Anfrage erscheinen. Eigene HTTP- und PocketBase-Fehlerbehandlung bleiben erhalten; die Nicht-Blocker-Einstufung gilt weiter. |
+| 2026-09-20 | Upload-Duplikatfix verwendet eine gefilterte Meilisearch-Anfrage mit 100-m-Radius, strikt offenen ±50-Metrikbereichen und `limit: 1`; Batch-Vollscan und Helper entfallen | Die Engine wählt passende sichtbare Kandidaten aus. Der inklusive, millimetergerundete Geo-Rand ersetzt bewusst das bisherige JS-`< 100`; Tenant-Client und erzwungener Upload bleiben unverändert. Alte Status-/Batch-Goldens müssen gezielt nachgeführt werden, die SRCH0-Abnahme bleibt offen. |

@@ -47,8 +47,10 @@ Andere Projektions-, Zugriffs- und Startup-Prüfungen bleiben verbindlich.
 Auch die Weitergabe des API-Fehlerstatus und die Validierung der
 Actor-Suchparameter sind **keine SRCH0-Merge- oder Abnahmeblocker**. Sie werden
 unabhängig auf `fix/search-api-error-status` und `fix/search-actor-parameters`
-korrigiert. Der erste Fix liest `response.status` des Meilisearch-SDK, damit
-beispielsweise HTTP 400 erhalten bleibt. Der zweite beantwortet fehlendes
+korrigiert. Nach der Reviewrevision vom 20. September bleibt nur ein echter
+SDK-400 mit `invalid_search_filter` als HTTP 400 erhalten; andere Engine-,
+Transport- und Timeoutfehler werden generisches HTTP 502. Eigene HTTP- und
+PocketBase-Fehlerbehandlung bleiben erhalten. Der zweite beantwortet fehlendes
 `q` mit HTTP 400 und validiert `limit` als Zahl; der Standard bleibt `3`.
 Ohne `q` lieferte die historische Baseline HTTP 500, aktuelles `dev` bereits
 HTTP 404. Die normale Actor-Suche übergibt `q` und kein eigenes `limit`;
@@ -60,7 +62,12 @@ Die Vollständigkeit der Upload-Duplikatprüfung und die Vervollständigung der
 Clustergrundlage sind ebenfalls **keine SRCH0-Merge- oder Abnahmeblocker**.
 Die Duplikatkorrektur entsteht unabhängig auf `fix/upload-duplicate-check`;
 fachlich gehört sie zum Upload, bleibt aber als Meilisearch-Consumer im
-SRCH0-Inventar. Für Cluster bleibt die bestehende Begrenzung akzeptiert:
+SRCH0-Inventar. Seit der Reviewrevision verwendet sie eine Suchanfrage mit
+`_geoRadius(lat, lon, 100)`, strikt offenen ±50-Bereichen für Distanz, Auf-
+und Abstieg sowie `limit: 1`; der Batch-Vollscan samt Helper entfällt. Der
+Geo-Rand folgt der inklusiven, millimetergerundeten Engine-Semantik statt
+dem bisherigen JS-`< 100`. Tenant-Client und erzwungener Upload bleiben
+unverändert. Für Cluster bleibt die bestehende Begrenzung akzeptiert:
 `SRCH0-SEARCH-129` belegt 1'000 zurückgegebene von 10'001 vorhandenen Trails.
 Das Nachladen des Sammelfixes ist zurückgestellt; es gibt keinen separaten
 Clusterbranch und keine Änderung an Clusterabfrage oder Oberfläche.
@@ -98,9 +105,14 @@ belegt keinen grünen SRCH0-Lauf. Umfang und betroffene Proben stehen unter
 [Upload-Duplikatprüfung](BEFUNDE.md#kein-blocker-upload-duplikatprüfung) und
 [begrenzte Clustergrundlage](BEFUNDE.md#kein-blocker-begrenzte-clustergrundlage).
 
+Die Status-Goldens zur direkten SDK-Weitergabe und die Batch-/Nachlade-
+Goldens bilden die Reviewrevision vom 20. September noch nicht ab. Sie
+müssen gezielt nachgeführt werden; historische Beobachtungen bleiben
+unverändert. Die bisherige Einstufung als Nicht-Blocker bleibt bestehen.
+
 Tests und Sollwerte werden auf `feat/srch0` gepflegt. Die Produktkorrekturen
 werden als einzelne fachliche Fixes mit ihren Regressionstests für separate
-PRs vorbereitet. Stand vom 19. September 2026:
+PRs vorbereitet. Stand vom 20. September 2026:
 
 - `fix/search-radius-filter` ist der erste einzelne Fix, Commit `398b45682`,
   frisch ab `origin/dev` (`c73966d6c`). Der Branch ist lokal und ungepusht, es
@@ -123,16 +135,18 @@ PRs vorbereitet. Stand vom 19. September 2026:
   `feat/srch0`. Diese Absicherung ist keine Voraussetzung für SRCH0.
   Umfang, Evidenz und erfolgreiche Einzelprüfungen stehen unter
   [negativer Thumbnailindex](BEFUNDE.md#kein-blocker-negativer-thumbnailindex).
-- `fix/search-api-error-status` (`8bcfe61df`) und
-  `fix/search-actor-parameters` (`a72ff18df`) sind jeweils frisch ab
-  `origin/dev` (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und
+- `fix/search-api-error-status` (`23d6b0204`) und
+  `fix/search-actor-parameters` (`a72ff18df`) basieren auf dem damaligen
+  `origin/dev` bei `c73966d6c`; die API-Reviewrevision ist ein Folgecommit.
+  Beide sind lokal vorbereitet, ohne Push oder PR und
   ohne Integration in `dev` oder `feat/srch0`. Keiner der beiden Fixes ist
   Voraussetzung für SRCH0. Umfang, Evidenz und erfolgreiche Einzelprüfungen
   stehen unter
   [API-Fehlerstatus](BEFUNDE.md#kein-blocker-api-fehlerstatus) und
   [Actor-Suchparameter](BEFUNDE.md#kein-blocker-actor-suchparameter).
-- `fix/upload-duplicate-check`, Commit `8f50fe9ac`, ist frisch ab `origin/dev`
-  (`c73966d6c`) lokal vorbereitet, ohne Push oder PR und ohne Integration in
+- `fix/upload-duplicate-check` basiert auf dem damaligen `origin/dev` bei
+  `c73966d6c`; `d0ede4520` ist der Reviewfolgecommit. Der Branch ist lokal
+  vorbereitet, ohne Push oder PR und ohne Integration in
   `dev` oder `feat/srch0`. Der Fix ist keine Voraussetzung für SRCH0 und
   verändert keine Clusterabfrage. Umfang, Evidenz und erfolgreiche
   Einzelprüfungen stehen unter
