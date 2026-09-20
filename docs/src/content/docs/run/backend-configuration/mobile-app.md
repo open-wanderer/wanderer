@@ -7,15 +7,15 @@ The <span class="-tracking-[0.075em]">wanderer</span> [mobile app](/app) is in p
 
 ## Run the `-app` images
 
-Both images carry a matching `-app` tag next to every regular release, e.g. `v0.20.0-app`. Pin **both** services to the same tag; the `web` image hosts the API proxy the app relies on, so mixing a `-app` backend with a regular frontend does not work.
+Both images carry a matching `-app` tag next to every regular release, e.g. `v0.21.0-app`. Pin **both** services to the same tag; the `web` image hosts the API proxy the app relies on, so mixing a `-app` backend with a regular frontend does not work.
 
 ```yaml
 services:
   db:
-    image: flomp/wanderer-db:v0.20.0-app
+    image: flomp/wanderer-db:v0.21.0-app
     # ...
   web:
-    image: flomp/wanderer-web:v0.20.0-app
+    image: flomp/wanderer-web:v0.21.0-app
     # ...
 ```
 

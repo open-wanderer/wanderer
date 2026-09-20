@@ -9,7 +9,7 @@ The <span class="-tracking-[0.075em]">wanderer</span> mobile app is a [Flutter](
 The app has not been merged into the main release line yet. Two consequences:
 
 - The `app/` folder only exists on the `feature/app` branch. Check that branch out.
-- The backend the app talks to needs endpoints (region catalogue, health probe, navigation, and more) that are only in the **`-app` Docker images**: `flomp/wanderer-db:<version>-app` and `flomp/wanderer-web:<version>-app`, e.g. `v0.20.0-app`. Both images must carry the same tag, because the web image hosts the `/api/v1/regions` proxy the app relies on. There are no `-app` git tags; a source checkout of `feature/app` contains the same backend code.
+- The backend the app talks to needs endpoints (region catalogue, health probe, navigation, and more) that are only in the **`-app` Docker images**: `flomp/wanderer-db:<version>-app` and `flomp/wanderer-web:<version>-app`, e.g. `v0.21.0-app`. Both images must carry the same tag, because the web image hosts the `/api/v1/regions` proxy the app relies on.
 :::
 
 ## Prerequisites
@@ -64,7 +64,7 @@ The app talks to the **SvelteKit frontend**, which proxies to PocketBase. Point 
 
 For security reasons the app only permits unencrypted (`http://`) connections to `127.0.0.1` (iOS additionally accepts `localhost`); plain HTTP to LAN or emulator-bridge addresses (such as `10.0.2.2`) is blocked on both platforms. To connect to a backend running on your development machine:
 
-- **Android (emulator or USB device):** forward the port with adb, then connect to `127.0.0.1`:
+**Android (emulator or USB device):** forward the port with adb, then connect to `127.0.0.1`:
 
   ```bash
   adb reverse tcp:5173 tcp:5173
@@ -72,9 +72,9 @@ For security reasons the app only permits unencrypted (`http://`) connections to
 
   Then enter `http://127.0.0.1:5173` as the instance URL (or port `3000` for a production-mode frontend).
 
-- **iOS simulator:** the simulator shares the host network; enter `http://127.0.0.1:5173` directly.
+**iOS simulator:** the simulator shares the host network; enter `http://127.0.0.1:5173` directly.
 
-- **Physical device without adb/USB:** expose your dev server via HTTPS (e.g. a reverse proxy or tunnel) and use that URL.
+**Physical device without adb/USB:** expose your dev server via HTTPS (e.g. a reverse proxy or tunnel) and use that URL.
 
 ## Project layout
 
