@@ -1,5 +1,6 @@
-import type { RequestEvent } from "@sveltejs/kit";
-import { MeilisearchApiError } from "meilisearch";
+import { error, type RequestEvent } from "@sveltejs/kit";
+import { MeilisearchApiError, MeilisearchRequestError, MeilisearchRequestTimeOutError } from "meilisearch";
+import { ClientResponseError } from "pocketbase";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as search } from "../../routes/api/v1/search/[index]/+server";
 import { POST as multiSearch } from "../../routes/api/v1/search/multi/+server";
@@ -36,19 +37,67 @@ describe.each(routes)("$name error status", ({ handler, body }) => {
     beforeEach(() => vi.spyOn(console, "error").mockImplementation(() => {}));
     afterEach(() => vi.restoreAllMocks());
 
-    it.each([400, 403, 404, 503])("preserves SDK status %i", async (status) => {
-        const failure = new MeilisearchApiError(new Response(null, { status }));
+    it("reports an invalid search filter as a client error", async () => {
+        const detail = { message: "Invalid filter", code: "invalid_search_filter", type: "invalid_request", link: "https://example.invalid/filter" };
+        const failure = new MeilisearchApiError(new Response(null, { status: 400 }), detail);
         const engineRequest = vi.fn().mockRejectedValue(failure);
 
-        await expect(handler(eventFor(body, engineRequest))).rejects.toMatchObject({ status });
+        await expect(handler(eventFor(body, engineRequest))).rejects.toMatchObject({ status: 400, body: detail });
         expect(engineRequest).toHaveBeenCalledOnce();
     });
 
-    it("reports transport failures as 500", async () => {
-        const engineRequest = vi.fn().mockRejectedValue(new Error("connection failed"));
+    it.each([
+        [403, "invalid_api_key"],
+        [404, "index_not_found"],
+        [503, "unavailable"],
+        [400, "invalid_search_sort"],
+        [400, "invalid_search_limit"],
+        [403, "invalid_search_filter"],
+    ] as const)("maps upstream %i (%s) to a generic 502", async (status, code) => {
+        const failure = new MeilisearchApiError(new Response(null, { status }), {
+            message: "Upstream access or configuration failure", code, type: "invalid_request", link: "https://example.invalid/internal",
+        });
+        const engineRequest = vi.fn().mockRejectedValue(failure);
+
+        const failureResponse = await handler(eventFor(body, engineRequest)).catch(e => e);
+
+        expect(failureResponse.status).toBe(502);
+        expect(failureResponse.body).toEqual({ message: "Search service unavailable" });
+        expect(engineRequest).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        new MeilisearchRequestError("http://internal-search:7700", new TypeError("fetch failed")),
+        new MeilisearchRequestTimeOutError(1000, {}),
+        new MeilisearchRequestError("http://internal-search:7700", new MeilisearchRequestTimeOutError(1000, {})),
+    ])("maps SDK transport and timeout failures to a generic 502", async (failure) => {
+        const engineRequest = vi.fn().mockRejectedValue(failure);
+
+        const failureResponse = await handler(eventFor(body, engineRequest)).catch(e => e);
+
+        expect(failureResponse.status).toBe(502);
+        expect(failureResponse.body).toEqual({ message: "Search service unavailable" });
+    });
+
+    it("keeps unknown local failures as 500", async () => {
+        const engineRequest = vi.fn().mockRejectedValue(new Error("Local processing failed"));
 
         await expect(handler(eventFor(body, engineRequest))).rejects.toMatchObject({ status: 500 });
         expect(engineRequest).toHaveBeenCalledOnce();
+    });
+
+    it("preserves locally raised HTTP errors", async () => {
+        let failure: unknown;
+        try { error(409, "Local conflict"); } catch (e) { failure = e; }
+        const engineRequest = vi.fn().mockRejectedValue(failure);
+
+        await expect(handler(eventFor(body, engineRequest))).rejects.toBe(failure);
+    });
+
+    it("preserves PocketBase error status", async () => {
+        const engineRequest = vi.fn().mockRejectedValue(new ClientResponseError({ status: 403, response: { message: "PocketBase access denied" } }));
+
+        await expect(handler(eventFor(body, engineRequest))).rejects.toMatchObject({ status: 403 });
     });
 });
 

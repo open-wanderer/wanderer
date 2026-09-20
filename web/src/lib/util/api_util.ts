@@ -2,7 +2,7 @@ import { error, isHttpError, json, type NumericRange, type RequestEvent } from "
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodSchema } from "zod";
 import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
-import { MeilisearchApiError } from "meilisearch";
+import { MeilisearchApiError, MeilisearchRequestError, MeilisearchRequestTimeOutError } from "meilisearch";
 
 export class APIError extends Error {
     status: number;
@@ -189,21 +189,41 @@ export async function remove(event: RequestEvent, collection: Collection) {
     return { 'acknowledged': r }
 }
 
-export function getHTTPErrorStatus(e: unknown): number {
-    const status = e instanceof MeilisearchApiError ? e.response.status
-        : e instanceof ClientResponseError ? e.status : 500;
-    return Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500;
+function meilisearchErrorResponse(e: unknown) {
+    if (e instanceof MeilisearchApiError) {
+        const detail = e.cause;
+        if (e.response.status === 400 && detail !== null && typeof detail === "object"
+            && !Array.isArray(detail) && detail.code === "invalid_search_filter") {
+            return { status: 400 as const, body: { ...detail, message: e.message } };
+        }
+    } else if (!(e instanceof MeilisearchRequestError) && !(e instanceof MeilisearchRequestTimeOutError)) {
+        return undefined;
+    }
+    return { status: 502 as const, body: { message: "Search service unavailable" } };
+}
+
+export function throwSearchError(e: any, body = e): never {
+    if (isHttpError(e)) {
+        throw e;
+    }
+    const searchError = meilisearchErrorResponse(e);
+    if (searchError) {
+        error(searchError.status, searchError.body);
+    }
+    const status = e instanceof ClientResponseError ? e.status : 500;
+    error(Number.isInteger(status) && status >= 400 && status <= 599 ? status : 500, body);
 }
 
 export function handleError(e: any) {
+    const searchError = meilisearchErrorResponse(e);
     if (isHttpError(e)) {
         throw e;
     } else if (e instanceof ZodError) {
         return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
         return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
-    } else if (e instanceof MeilisearchApiError) {
-        return json({ ...e.cause, message: e.message }, { status: getHTTPErrorStatus(e) });
+    } else if (searchError) {
+        return json(searchError.body, { status: searchError.status });
     } else if (e instanceof SyntaxError) {
         return json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {
