@@ -30,6 +30,7 @@ class Settings {
   privacy?: { account: "public" | "private", trails: "public" | "private", lists: "public" | "private" } | null
   notifications?: Record<NotificationType, { web: boolean, email: boolean }> | null
   behavior?: Behavior | null;
+  uploadDuplicateCheck?: UploadDuplicateCheck | null;
 
   constructor(
     unit: "metric" | "imperial",
@@ -56,6 +57,11 @@ export type Behavior = {
     allowAutoGeolocate: boolean;
     mapClusteringMaxZoom?: number;
     showTrailStartMarker?: boolean;
+}
+
+export type UploadDuplicateCheck = {
+  includePublic?: boolean;
+  includeShared?: boolean;
 }
 
 

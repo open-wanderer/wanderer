@@ -4,7 +4,7 @@ export type Upload = {
     file: File;
     status: "enqueued" | "uploading" | "cancelled" | "success" | "error" | "duplicate";
     error?: string;
-    duplicate?: { id: string, domain: string, name: string };
+    duplicate?: { id: string, domain: string, name: string, author?: string };
     progress: number;
     function: (f: File, ignoreDuplicates?: boolean, onProgress?: (p: number) => void) => Promise<unknown>
 };
@@ -42,7 +42,7 @@ export async function processUploadQueue(batchSize: number = 3, ignoreDuplicates
             const u = batch[i];
             if (r instanceof APIError && r.message == "Duplicate trail") {
                 u.status = "duplicate"
-                u.duplicate = { id: r.detail.id, domain: r.detail.domain, name: r.detail.name };
+                u.duplicate = { id: r.detail.id, domain: r.detail.domain, name: r.detail.name, author: r.detail.author };
             } else if (r instanceof APIError) {
                 u.status = "error"
                 u.error = r.message

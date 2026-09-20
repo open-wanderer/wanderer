@@ -7,6 +7,7 @@
     import { slide } from "svelte/transition";
     import { _ } from "svelte-i18n";
     import { goto } from "$app/navigation";
+    import { currentUser } from "$lib/stores/user_store";
 
     let minimized: boolean = $state(false);
 
@@ -153,8 +154,8 @@
                         {/if}
                         {#if u.status == "duplicate"}
                             <button
-                                title="Force upload"
-                                aria-label="Force upload"
+                                title={$_("upload-despite-duplicate")}
+                                aria-label={$_("upload-despite-duplicate")}
                                 onclick={() => reUpload(u, true)}
                                 ><i class="fa fa-upload text-sm"></i></button
                             >
@@ -178,15 +179,26 @@
                             {u.error}
                         </p>
                     {:else if u.duplicate}
-                        <p class="text-amber-400 text-xs">
-                            {$_("duplicate")}:
-                            <button
-                                class="underline"
-                                onclick={() =>
-                                    goto(`/trail/view/@${u.duplicate?.domain}/${u.duplicate!.id}`)}
-                                >{u.duplicate.name}</button
-                            >
-                        </p>
+                        <div class="text-amber-400 text-xs">
+                            <p>
+                                {$_("upload-duplicate-found")}:
+                                <button
+                                    class="underline text-left"
+                                    onclick={() =>
+                                        goto(`/trail/view/@${u.duplicate?.domain}/${u.duplicate!.id}`)}
+                                    >{u.duplicate.name}</button
+                                >
+                            </p>
+                            <p class="mt-1 font-medium break-words">
+                                {#if u.duplicate.author && u.duplicate.author === $currentUser?.actor}
+                                    {$_("upload-duplicate-own-trail")}
+                                {:else}
+                                    {$_("upload-duplicate-trail-owner", {
+                                        values: { owner: u.duplicate.domain },
+                                    })}
+                                {/if}
+                            </p>
+                        </div>
                     {/if}
                 </div>
             {/each}

@@ -1185,6 +1185,20 @@
  *           const: true
  *           description: Mark as read
  *
+ *     UploadDuplicateCheck:
+ *       type: object
+ *       nullable: true
+ *       description: Duplicate check scope for file and URL uploads. Own trails are always included. Missing or null settings check only own trails; each additional scope is enabled only by an explicit true flag.
+ *       properties:
+ *         includePublic:
+ *           type: boolean
+ *           default: false
+ *           description: Also check public trails belonging to other users during file and URL uploads.
+ *         includeShared:
+ *           type: boolean
+ *           default: false
+ *           description: Also check trails explicitly shared with the uploading user during file and URL uploads.
+ *
  *     Settings:
  *       type: object
  *       required:
@@ -1253,6 +1267,8 @@
  *               type: string
  *               enum: [public, private]
  *           nullable: true
+ *         uploadDuplicateCheck:
+ *           $ref: '#/components/schemas/UploadDuplicateCheck'
  *         created:
  *           type: string
  *           format: date-time
@@ -1322,6 +1338,8 @@
  *               type: string
  *               enum: [public, private]
  *           nullable: true
+ *         uploadDuplicateCheck:
+ *           $ref: '#/components/schemas/UploadDuplicateCheck'
  *
  *     TrailMergeSettings:
  *       type: object

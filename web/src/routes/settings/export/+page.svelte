@@ -1,9 +1,12 @@
 <script lang="ts">
+    import { page } from "$app/state";
     import emptyStateUploadDark from "$lib/assets/svgs/empty_states/empty_state_upload_dark.svg";
     import emptyStateUploadLight from "$lib/assets/svgs/empty_states/empty_state_upload_light.svg";
     import Button from "$lib/components/base/button.svelte";
-    import { } from "$lib/components/settings/upload_dialog.svelte";
+    import Toggle from "$lib/components/base/toggle.svelte";
     import TrailExportModal from "$lib/components/trail/trail_export_modal.svelte";
+    import type { Settings } from "$lib/models/settings";
+    import { settings_update } from "$lib/stores/settings_store";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { fetchGPX, trails_index, trails_upload } from "$lib/stores/trail_store";
@@ -13,12 +16,90 @@
     import { trail2gpx } from "$lib/util/gpx_util";
     import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
     import JSZip from "jszip";
-    import { onMount } from "svelte";
+    import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     let exportModal: TrailExportModal;
 
     let offerUpload: boolean = $state(false);
+
+    let settings = $derived(page.data.settings as Settings);
+    let draftSettingsId = $state<string | null | undefined>(page.data.settings?.id);
+    const initialDuplicateCheck = page.data.settings?.uploadDuplicateCheck;
+    let includePublic = $state(initialDuplicateCheck?.includePublic === true);
+    let includeShared = $state(initialDuplicateCheck?.includeShared === true);
+    let savedDuplicateCheck = $state({
+        includePublic: initialDuplicateCheck?.includePublic === true,
+        includeShared: initialDuplicateCheck?.includeShared === true,
+    });
+    let savingDuplicateCheck = $state(false);
+    let duplicateCheckSaveRevision = 0;
+    let duplicateCheckChanged = $derived(
+        includePublic !== savedDuplicateCheck.includePublic ||
+            includeShared !== savedDuplicateCheck.includeShared,
+    );
+
+    $effect(() => {
+        const settingsId = settings?.id;
+        const incoming = {
+            includePublic: settings?.uploadDuplicateCheck?.includePublic === true,
+            includeShared: settings?.uploadDuplicateCheck?.includeShared === true,
+        };
+
+        untrack(() => {
+            if (settingsId !== draftSettingsId) {
+                draftSettingsId = settingsId;
+                duplicateCheckSaveRevision += 1;
+                savingDuplicateCheck = false;
+            } else if (savingDuplicateCheck || duplicateCheckChanged) {
+                return;
+            }
+
+            includePublic = incoming.includePublic;
+            includeShared = incoming.includeShared;
+            savedDuplicateCheck = incoming;
+        });
+    });
+
+    async function saveDuplicateCheck() {
+        const settingsId = settings?.id;
+        if (savingDuplicateCheck || !settingsId || settingsId !== draftSettingsId) {
+            return;
+        }
+
+        const uploadDuplicateCheck = { includePublic, includeShared };
+        const saveRevision = ++duplicateCheckSaveRevision;
+        savingDuplicateCheck = true;
+        try {
+            await settings_update({
+                id: settingsId,
+                uploadDuplicateCheck,
+            });
+            if (saveRevision !== duplicateCheckSaveRevision || settings?.id !== settingsId) {
+                return;
+            }
+            savedDuplicateCheck = uploadDuplicateCheck;
+            show_toast({
+                type: "success",
+                icon: "check",
+                text: $_("settings-saved"),
+            });
+        } catch (e) {
+            console.error(e);
+            if (saveRevision !== duplicateCheckSaveRevision || settings?.id !== settingsId) {
+                return;
+            }
+            show_toast({
+                type: "error",
+                icon: "close",
+                text: $_("error-saving-settings"),
+            });
+        } finally {
+            if (saveRevision === duplicateCheckSaveRevision && settings?.id === settingsId) {
+                savingDuplicateCheck = false;
+            }
+        }
+    }
 
     function openFileBrowser() {
         document.getElementById("file-input")!.click();
@@ -137,6 +218,34 @@
 <div class="space-y-6">
     <h3 class="text-2xl font-semibold">{$_("import")}</h3>
     <hr class="mt-4 mb-6 border-input-border" />
+    <section aria-labelledby="upload-duplicate-check-heading" class="space-y-3">
+        <h4 id="upload-duplicate-check-heading" class="text-lg font-medium">
+            {$_("upload-duplicate-check-title")}
+        </h4>
+        <p class="text-sm text-gray-500">
+            {$_("upload-duplicate-check-hint")}
+        </p>
+        <div>
+            <Toggle
+                name="uploadDuplicateCheck.includePublic"
+                label={$_("upload-duplicate-check-public")}
+                bind:value={includePublic}
+                disabled={savingDuplicateCheck || !settings?.id}
+            />
+            <Toggle
+                name="uploadDuplicateCheck.includeShared"
+                label={$_("upload-duplicate-check-shared")}
+                bind:value={includeShared}
+                disabled={savingDuplicateCheck || !settings?.id}
+            />
+        </div>
+        <Button
+            secondary={true}
+            loading={savingDuplicateCheck}
+            disabled={!duplicateCheckChanged || !settings?.id}
+            onclick={saveDuplicateCheck}>{$_("save")}</Button
+        >
+    </section>
     <button
         class="drop-area relative h-64 w-full p-4 border border-content border-dashed rounded-xl flex items-center justify-center text-gray-500 bg-background cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
         class:border-2={offerUpload}

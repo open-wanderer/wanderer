@@ -11,9 +11,14 @@ vi.mock("$lib/stores/trail_store", () => ({ trails_create: external.trails_creat
 import { PUT } from "./+server";
 
 const trail = { name: "New upload", distance: 1000, elevation_gain: 200, elevation_loss: 150, lat: 47, lon: 8 };
-const duplicate = { id: "existing", name: "Existing route", author_name: "another-author", domain: "remote.example" };
+const duplicate = { id: "existing", name: "Existing route", author: "own-actor", author_name: "uploader", domain: "" };
 
-function request(hits: unknown[] = [], options: { force?: boolean; authenticated?: boolean } = {}) {
+function request(hits: unknown[] = [], options: {
+    force?: boolean;
+    authenticated?: boolean;
+    actor?: string | null;
+    scope?: { includePublic?: boolean; includeShared?: boolean } | null;
+} = {}) {
     const search = vi.fn().mockResolvedValue({ hits });
     const index = vi.fn(() => ({ search }));
     const form = new FormData();
@@ -22,8 +27,8 @@ function request(hits: unknown[] = [], options: { force?: boolean; authenticated
     const event = {
         request: new Request("http://localhost/api/v1/trail/upload", { method: "PUT", body: form }),
         locals: {
-            user: options.authenticated === false ? null : { id: "uploader", actor: "own-actor" },
-            settings: { privacy: { trails: "private" } },
+            user: options.authenticated === false ? null : { id: "uploader", actor: options.actor === undefined ? "own-actor" : options.actor },
+            settings: { privacy: { trails: "private" }, uploadDuplicateCheck: options.scope },
             ms: { index },
         },
         fetch: vi.fn(),
@@ -46,7 +51,7 @@ describe("targeted upload duplicate detection", () => {
 
         expect(response.status).toBe(400);
         expect(await response.json()).toMatchObject({
-            message: "Duplicate trail", id: duplicate.id, name: duplicate.name, domain: "another-author@remote.example",
+            message: "Duplicate trail", id: duplicate.id, name: duplicate.name, author: "own-actor", domain: "uploader",
         });
         expect(external.trails_create).not.toHaveBeenCalled();
         expect(index).toHaveBeenCalledWith("trails");
@@ -56,8 +61,9 @@ describe("targeted upload duplicate detection", () => {
                 "distance > 950 AND distance < 1050",
                 "elevation_gain > 150 AND elevation_gain < 250",
                 "elevation_loss > 100 AND elevation_loss < 200",
+                '(author = "own-actor")',
             ],
-            attributesToRetrieve: ["id", "name", "author_name", "domain"],
+            attributesToRetrieve: ["id", "name", "author", "author_name", "domain"],
             limit: 1,
         });
     });
@@ -88,11 +94,43 @@ describe("targeted upload duplicate detection", () => {
             "distance > -50 AND distance < 50",
             "elevation_gain > -50 AND elevation_gain < 50",
             "elevation_loss > -50 AND elevation_loss < 50",
+            '(author = "own-actor")',
         ]);
     });
 
+    it.each([
+        [null, '(author = "own-actor")'],
+        [{}, '(author = "own-actor")'],
+        [{ includePublic: false, includeShared: false }, '(author = "own-actor")'],
+        [{ includePublic: true }, '(author = "own-actor" OR public = true)'],
+        [{ includeShared: true }, '(author = "own-actor" OR shares = "own-actor")'],
+        [{ includePublic: true, includeShared: true }, '(author = "own-actor" OR public = true OR shares = "own-actor")'],
+    ] as const)("applies saved scope %j without changing the tenant client", async (scope, expected) => {
+        const { event, search } = request([], { scope });
+        expect((await PUT(event)).status).toBe(200);
+        expect(search).toHaveBeenCalledOnce();
+        expect(search.mock.calls[0][1].filter.at(-1)).toBe(expected);
+    });
+
+    it("includes the foreign owner's identity and full handle in the duplicate response", async () => {
+        const foreign = { ...duplicate, author: "other-actor", author_name: "other-user", domain: "remote.example" };
+        const { event } = request([foreign], { scope: { includeShared: true } });
+        const response = await PUT(event);
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({
+            id: foreign.id, author: "other-actor", domain: "other-user@remote.example",
+        });
+    });
+
+    it("does not broaden the search if the authenticated actor is missing", async () => {
+        const { event, index } = request([], { actor: null, scope: { includePublic: true } });
+        expect((await PUT(event)).status).toBe(500);
+        expect(index).not.toHaveBeenCalled();
+        expect(external.trails_create).not.toHaveBeenCalled();
+    });
+
     it("allows force upload without searching", async () => {
-        const { event, index } = request([duplicate], { force: true });
+        const { event, index } = request([duplicate], { force: true, scope: { includePublic: true, includeShared: true } });
         const response = await PUT(event);
         expect(response.status).toBe(200);
         expect(index).not.toHaveBeenCalled();

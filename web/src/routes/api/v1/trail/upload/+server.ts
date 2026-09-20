@@ -1,4 +1,5 @@
 import GPX from "$lib/models/gpx/gpx";
+import type { Settings } from "$lib/models/settings";
 import type { Trail, TrailSearchResult } from "$lib/models/trail";
 import { searchLocationReverse } from "$lib/stores/search_store";
 import { trails_create } from "$lib/stores/trail_store";
@@ -30,6 +31,8 @@ import { ClientResponseError } from "pocketbase";
  *                 type: string
  *               ignoreDuplicates:
  *                 type: boolean
+ *                 default: false
+ *                 description: Skip duplicate detection. Otherwise use the user's saved uploadDuplicateCheck settings (own trails only by default).
  *     responses:
  *       201:
  *         description: Trail created from GPX
@@ -70,12 +73,12 @@ export async function PUT(event: RequestEvent) {
         if (!ignoreDuplicates) {
             let duplicate: TrailSearchResult | null = null;
             try {
-                duplicate = await findDuplicate(event.locals.ms, trail)
+                duplicate = await findDuplicate(event.locals.ms, trail, event.locals.user.actor, event.locals.settings?.uploadDuplicateCheck)
             } catch (e: any) {
                 throw new ClientResponseError({ status: 500, response: { message: "Error checking for duplicates" } })
             }
             if (duplicate !== null) {
-                throw new ClientResponseError({ status: 400, response: { message: `Duplicate trail`, id: duplicate.id, name: duplicate.name, domain: `${duplicate.author_name}${duplicate.domain ? '@' + duplicate.domain : ''}` }, })
+                throw new ClientResponseError({ status: 400, response: { message: `Duplicate trail`, id: duplicate.id, name: duplicate.name, author: duplicate.author, domain: `${duplicate.author_name}${duplicate.domain ? '@' + duplicate.domain : ''}` }, })
             }
         }
 
@@ -121,11 +124,23 @@ export async function PUT(event: RequestEvent) {
     }
 }
 
-async function findDuplicate(ms: Meilisearch, t1: Trail) {
+async function findDuplicate(ms: Meilisearch, t1: Trail, actor: string | undefined, scope: Settings["uploadDuplicateCheck"]) {
+    if (!actor) {
+        throw new Error("Missing authenticated actor for duplicate detection");
+    }
+    const actorValue = JSON.stringify(actor);
+    const ownership = [`author = ${actorValue}`];
+    if (scope?.includePublic === true) {
+        ownership.push("public = true");
+    }
+    if (scope?.includeShared === true) {
+        ownership.push(`shares = ${actorValue}`);
+    }
     const distance = t1.distance ?? 0;
     const elevationGain = t1.elevation_gain ?? 0;
     const elevationLoss = t1.elevation_loss ?? 0;
-    // Filter before limiting so any matching, tenant-visible trail suffices.
+    // Narrow the tenant-visible candidates to the user's saved duplicate scope
+    // before limiting, so one matching trail suffices.
     // The 100 m radius follows Meilisearch's inclusive geo boundary; the
     // distance and elevation differences remain strictly less than 50 m.
     const response = await ms.index("trails").search<TrailSearchResult>("", {
@@ -134,8 +149,9 @@ async function findDuplicate(ms: Meilisearch, t1: Trail) {
             `distance > ${distance - 50} AND distance < ${distance + 50}`,
             `elevation_gain > ${elevationGain - 50} AND elevation_gain < ${elevationGain + 50}`,
             `elevation_loss > ${elevationLoss - 50} AND elevation_loss < ${elevationLoss + 50}`,
+            `(${ownership.join(" OR ")})`,
         ],
-        attributesToRetrieve: ["id", "name", "author_name", "domain"],
+        attributesToRetrieve: ["id", "name", "author", "author_name", "domain"],
         limit: 1,
     });
     return response.hits[0] ?? null;

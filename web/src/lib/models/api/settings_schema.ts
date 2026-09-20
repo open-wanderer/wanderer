@@ -27,6 +27,10 @@ const SettingsCreateSchema = z.object({
         mapClusteringMaxZoom: z.number().optional(),
         showTrailStartMarker: z.boolean().optional()
     }).optional().nullable(),
+    uploadDuplicateCheck: z.object({
+        includePublic: z.boolean().optional(),
+        includeShared: z.boolean().optional()
+    }).optional().nullable(),
 }) satisfies ZodType<Settings>
 
 export { SettingsCreateSchema };
