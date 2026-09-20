@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
@@ -12,6 +13,7 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
+	"github.com/pocketbase/pocketbase/tools/auth"
 
 	"pocketbase/commands"
 	"pocketbase/hooks"
@@ -69,6 +71,8 @@ func main() {
 
 	setupCommands(app)
 
+	configureOIDCScopes()
+
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -81,6 +85,50 @@ func initializeMeilisearch() meilisearch.ServiceManager {
 	)
 }
 
+// oidcScopesEnv maps each OIDC provider slot to the environment variable that
+// overrides its scopes.
+var oidcScopesEnv = map[string]string{
+	"oidc":  "OIDC_SCOPES",
+	"oidc2": "OIDC2_SCOPES",
+	"oidc3": "OIDC3_SCOPES",
+}
+
+// configureOIDCScopes overrides the scopes requested by the oidc, oidc2 and
+// oidc3 providers with the comma separated list in OIDC_SCOPES, OIDC2_SCOPES
+// and OIDC3_SCOPES respectively. A slot without an override keeps the
+// PocketBase defaults.
+//
+// PocketBase asks every OIDC provider for "openid", "profile" and "email".
+// Not all providers accept those: OpenStreetMap, for instance, rejects the
+// authorization request outright rather than ignoring the unknown scopes, so
+// login fails before the user ever sees a consent screen. Such providers need
+// their own scope list ("openid" in the OSM case).
+func configureOIDCScopes() {
+	for name, env := range oidcScopesEnv {
+		scopes := parseScopes(os.Getenv(env))
+		if len(scopes) == 0 {
+			continue
+		}
+
+		auth.Providers[name] = func() auth.Provider {
+			provider := auth.NewOIDCProvider()
+			provider.SetScopes(scopes)
+			return provider
+		}
+	}
+}
+
+// parseScopes splits a comma separated scope list, dropping empty entries.
+func parseScopes(raw string) []string {
+	scopes := []string{}
+	for _, scope := range strings.Split(raw, ",") {
+		if scope = strings.TrimSpace(scope); scope != "" {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
+}
+
 func registerMigrations(app *pocketbase.PocketBase) {
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Dir:         "migrations",
@@ -89,11 +137,15 @@ func registerMigrations(app *pocketbase.PocketBase) {
 }
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
+	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2UsernameHandler())
+
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
 	app.OnRecordAfterUpdateSuccess("users").BindFunc(hooks.UpdateUserHandler(client))
 
 	app.OnRecordAfterCreateSuccess("activitypub_actors").BindFunc(hooks.CreateActorHandler(client))
 	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
+	app.OnRecordDelete("activitypub_actors").BindFunc(hooks.CollectActorDeleteRecipientsHandler())
+	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.AnnounceActorDeleteHandler())
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
 
 	app.OnRecordCreateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
@@ -116,17 +168,18 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
+	app.OnRecordDelete("trails").BindFunc(hooks.CollectTrailDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
 
 	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.CreateSummitLogHandler(client))
 	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler())
-	app.OnRecordDeleteRequest("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
+	app.OnRecordAfterDeleteSuccess("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
 
 	app.OnRecordCreateRequest("waypoints").BindFunc(hooks.CreateWaypointHandler())
 
 	app.OnRecordCreateRequest("comments").BindFunc(hooks.CreateCommentHandler())
 	app.OnRecordUpdateRequest("comments").BindFunc(hooks.UpdateCommentHandler())
-	app.OnRecordDeleteRequest("comments").BindFunc(hooks.DeleteCommentHandler(client))
+	app.OnRecordAfterDeleteSuccess("comments").BindFunc(hooks.DeleteCommentHandler(client))
 
 	app.OnRecordCreateRequest("trail_share").BindFunc(hooks.CreateTrailShareHandler(client))
 	app.OnRecordUpdateRequest("trail_share").BindFunc(hooks.UpdateShareHandler("trails", "trail"))
@@ -138,6 +191,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordAfterCreateSuccess("lists").BindFunc(hooks.CreateListHandler(client))
 	app.OnRecordAfterUpdateSuccess("lists").BindFunc(hooks.UpdateListHandler(client))
+	app.OnRecordDelete("lists").BindFunc(hooks.CollectListDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("lists").BindFunc(hooks.DeleteListHandler(client))
 
 	app.OnRecordCreateRequest("list_share").BindFunc(hooks.CreateListShareHandler(client))

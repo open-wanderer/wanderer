@@ -21,37 +21,24 @@
 
     let filter: TrailFilter = $state(untrack(() => data.filter));
 
-    async function handleFilterUpdate() {
-        loading = true;
-        try {
-            trails = await profile_trails_index(
-                page.params.handle!,
-                filter,
-                pagination.page,
-                pagination.items,
-                fetch,
-            );
-        } catch (e) {
-            show_toast({
-                icon: "close",
-                text: "Error loading trails.",
-                type: "error",
-            });
-        } finally {
-            loading = false;
-        }
+    function handleFilterUpdate() {
+        return paginate(pagination.page);
     }
 
-    async function paginate(newPage: number, items?: number) {
-        pagination.page = newPage;
+    async function paginate(newPage: number, items: number = pagination.items) {
+        loading = true;
         try {
-            trails = await profile_trails_index(
+            const response = await profile_trails_index(
                 page.params.handle!,
                 filter,
                 newPage,
-                items ?? pagination.items,
+                items,
                 fetch,
             );
+            trails = response;
+            pagination.page = response.page;
+            pagination.totalPages = response.totalPages;
+            pagination.items = items;
         } catch (e) {
             show_toast({
                 icon: "close",
@@ -68,7 +55,7 @@
     <title>{$_("profile")} | wanderer</title>
 </svelte:head>
 <TrailList
-    {pagination}
+    bind:pagination
     {loading}
     fullWidthCards={true}
     bind:trails={trails.items}

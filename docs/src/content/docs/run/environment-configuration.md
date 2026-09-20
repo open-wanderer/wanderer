@@ -36,6 +36,9 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
 | REGION_ARCHIVE_CRON_SCHEDULE   | Valid cron expression (UTC). Sets when offline [region archives](/run/backend-configuration/region-catalogue) are rebuilt | 0 3 * * *             |
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
+| OIDC_SCOPES                    | Comma-separated OIDC scopes for the `oidc` provider. Only needed for providers that reject the defaults, such as OpenStreetMap (`openid`). See [Auth providers](/run/backend-configuration/auth-providers) | openid,profile,email |
+| OIDC2_SCOPES                   | Same as `OIDC_SCOPES`, for the `oidc2` provider                                                                   | openid,profile,email |
+| OIDC3_SCOPES                   | Same as `OIDC_SCOPES`, for the `oidc3` provider                                                                   | openid,profile,email |
 
 Plugins are not configured through an environment variable. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
