@@ -10,7 +10,7 @@ spec:
   kind: capability
   status: draft
   capability: FOUNDATION
-  lastReviewed: '2026-09-19'
+  lastReviewed: '2026-09-20'
 ---
 
 > **Rolle:** Dieses Dokument beschreibt die fachliche Capability
@@ -117,10 +117,19 @@ Die Vorschaubild-Absicherung wird ebenfalls separat korrigiert. Sie
 verhindert den nachgewiesenen Absturz bei negativen Indizes, die normale
 Fotoauswahl und JSON-API nicht zulassen, andere Schreibpfade jedoch erlauben.
 Statusweitergabe und Actor-Suchparameter erhalten zwei unabhängige Fixes:
-Der SDK-Fehlerstatus wird erhalten; fehlendes `q` und ungültige explizite
-Limits werden mit HTTP 400 abgewiesen, gültige Limits numerisch übergeben.
+Der Statusfix erhält nach der Reviewrevision vom 20. September nur
+SDK-400 mit `invalid_search_filter` als HTTP 400; andere Engine-, Transport-
+und Timeoutfehler werden generisches HTTP 502. Eigene HTTP- und
+PocketBase-Fehler bleiben erhalten. Der Actor-Parameterfix weist fehlendes
+`q` und ungültige explizite Limits mit HTTP 400 ab und übergibt gültige Limits
+numerisch.
 Die Duplikatprüfung wird als unabhängiger Importfix korrigiert, bleibt aber
-als technischer Meilisearch-Consumer inventarisiert. Das aktuelle Karten-Cap
+als technischer Meilisearch-Consumer inventarisiert. Seit der Reviewrevision
+verwendet sie eine gefilterte Anfrage mit 100-m-Geo-Radius, strikt offenen
+±50-Metrikbereichen und `limit: 1`; der Batch-Vollscan entfällt. Der inklusive,
+millimetergerundete Engine-Rand ist bewusst nicht bitgleich zum bisherigen
+JS-Vergleich `< 100`. Die Status-/Batch-Goldens sind noch nachzuführen.
+Das aktuelle Karten-Cap
 bleibt als bekannte Begrenzung akzeptiert; der Cluster-Nachladefix wird
 zurückgestellt, ohne eigenen Branch oder Produktänderung. Oberhalb des
 Caps wird für den aktuellen Kartenpfad keine Vollständigkeit zugesagt.

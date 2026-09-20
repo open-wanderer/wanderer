@@ -10,7 +10,7 @@ spec:
   id: TRAIL-SEARCH-OVERVIEW
   kind: overview
   status: draft
-  lastReviewed: '2026-09-19'
+  lastReviewed: '2026-09-20'
 ---
 
 Diese Spezifikation beschreibt, wie Wanderer von einer überwiegend statischen
@@ -213,10 +213,20 @@ grenzt diese Ausnahme ab; die Diagnose-/Abnahmetrennung in der Suite steht
 noch aus. Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben
 verbindlich. Der Fix ist noch nicht gepusht, als PR eingereicht oder integriert.
 
+Reviewrevision vom 20. September 2026: Der API-Fix erhält nur SDK-400 mit
+`invalid_search_filter` als HTTP 400; sonstige Engine-, Transport- und
+Timeoutfehler ergeben generisches HTTP 502. Eigene HTTP- und
+PocketBase-Fehlerbehandlung bleiben erhalten. Der Uploadfix nutzt genau eine
+Anfrage mit 100-m-Geo-Radius, strikt offenen ±50-Metrikbereichen und
+`limit: 1`, ohne Batch-Vollscan. Die Geo-Randsemantik folgt bewusst der Engine
+und ist nicht bitgleich zum bisherigen JS-`< 100`. Die Status-/Batch-Goldens
+der unveränderten SRCH0-Suite müssen noch gezielt nachgeführt werden.
+
 SDK-HTTP-Statusweitergabe und Actor-Suchparameter sind ebenfalls **keine
 SRCH0-Blocker**. Die unabhängigen lokalen Branches
-`fix/search-api-error-status` und `fix/search-actor-parameters` starten
-jeweils direkt ab `dev` (`c73966d6c`), ohne Push, PR oder Integration.
+`fix/search-api-error-status` und `fix/search-actor-parameters` wurden
+ursprünglich vom damaligen `dev` (`c73966d6c`) abgezweigt; die API-Reviewrevision
+ist ein Folgecommit. Push, PR und Integration sind noch nicht erfolgt.
 Die [Status-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-api-fehlerstatusweitergabe)
 und [Parameter-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-actor-suchparameter)
 begrenzen die Ausnahme auf Fehlerklassifikation sowie fehlendes `q` und
@@ -225,8 +235,9 @@ fehlgeschlagener Engineanfragen bleiben verbindlich; die technische
 Diagnose-/Abnahmetrennung der unveränderten Suite steht noch aus.
 
 Auch Upload-Duplikatprüfung und Clusterbegrenzung sind **keine SRCH0-Blocker**.
-Der separate Importfix `fix/upload-duplicate-check` startet direkt ab
-`dev` (`c73966d6c`), lokal ohne Push, PR oder Integration; der technische
+Der separate Importfix `fix/upload-duplicate-check` basiert auf dem damaligen
+`dev` (`c73966d6c`); die Reviewrevision ist ein Folgecommit. Er bleibt lokal
+ohne Push, PR oder Integration; der technische
 Meilisearch-Consumer bleibt in SRCH0 inventarisiert. Die aktuelle Karte
 behält ihr akzeptiertes Cap ohne Vollständigkeitsversprechen darüber hinaus.
 Der Cluster-Nachladefix bleibt zurückgestellt, ohne eigenen Branch,

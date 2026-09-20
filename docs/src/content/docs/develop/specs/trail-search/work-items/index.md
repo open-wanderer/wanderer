@@ -10,7 +10,7 @@ spec:
   id: WORK-ITEMS
   kind: delivery
   status: draft
-  lastReviewed: '2026-09-19'
+  lastReviewed: '2026-09-20'
 ---
 
 Ein Work Item ist der stabile fachliche und technische Scope eines geplanten
@@ -95,10 +95,20 @@ beschreibt den begrenzten Umfang und die noch ausstehende Diagnose-/Abnahmetrenn
 Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben verbindlich;
 Push, PR und Integration sind noch nicht erfolgt.
 
+Reviewrevision vom 20. September 2026: Der API-Fix erhält nur SDK-400 mit
+`invalid_search_filter` als HTTP 400; sonstige Engine-, Transport- und
+Timeoutfehler ergeben generisches HTTP 502. Eigene HTTP- und
+PocketBase-Fehlerbehandlung bleiben erhalten. Der Uploadfix nutzt genau eine
+Anfrage mit 100-m-Geo-Radius, strikt offenen ±50-Metrikbereichen und
+`limit: 1`, ohne Batch-Vollscan. Die Geo-Randsemantik folgt bewusst der Engine
+und ist nicht bitgleich zum bisherigen JS-`< 100`. Die Status-/Batch-Goldens
+der unveränderten SRCH0-Suite müssen noch gezielt nachgeführt werden.
+
 SDK-HTTP-Statusweitergabe und Actor-Suchparameter sind ebenfalls **keine
 SRCH0-Blocker**. Die unabhängigen lokalen Fixbranches
-`fix/search-api-error-status` und `fix/search-actor-parameters` basieren
-jeweils direkt auf `dev` (`c73966d6c`), ohne Push, PR oder Integration.
+`fix/search-api-error-status` und `fix/search-actor-parameters` basieren auf
+dem damaligen `dev` bei `c73966d6c`; die API-Reviewrevision ist ein Folgecommit.
+Push, PR und Integration sind noch nicht erfolgt.
 Die [Status-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-api-fehlerstatusweitergabe)
 und [Parameter-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-actor-suchparameter)
 nehmen nur Fehlerklassifikation, fehlendes `q` und explizite Limits aus.
@@ -108,8 +118,9 @@ die technische Diagnose-/Abnahmetrennung ist noch nachzuführen.
 
 Upload-Duplikatprüfung und Clusterbegrenzung sind ebenfalls **keine
 SRCH0-Blocker**. `fix/upload-duplicate-check` wird als unabhängiger
-Importfix direkt ab `dev` (`c73966d6c`) vorbereitet, lokal ohne Push, PR
-oder Integration. SRCH0 erfasst den technischen Meilisearch-Consumer
+Importfix auf der damaligen `dev`-Basis `c73966d6c` vorbereitet; die
+Reviewrevision ist ein Folgecommit. Er bleibt lokal ohne Push, PR oder
+Integration. SRCH0 erfasst den technischen Meilisearch-Consumer
 weiter. Für die aktuelle Karte bleibt das Cap als bekannte Begrenzung
 akzeptiert; der Cluster-Nachladefix erhält keinen eigenen Branch und
 bleibt ohne Produktänderung zurückgestellt. Ein UI-Signal, eine Änderung

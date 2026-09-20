@@ -9,7 +9,7 @@ spec:
   id: DELIVERY
   kind: delivery
   status: draft
-  lastReviewed: '2026-09-19'
+  lastReviewed: '2026-09-20'
 ---
 
 ## Zweck und Leseanleitung
@@ -212,10 +212,19 @@ hält den begrenzten Umfang und die noch nachzuführende Diagnose-/Abnahmetrennu
 fest. Andere Projektions-, Sichtbarkeits- und Startup-Prüfungen bleiben
 verbindlich; Push, PR oder Integration sind noch nicht erfolgt.
 
+Reviewrevision vom 20. September 2026: Der API-Fix erhält nur SDK-400 mit
+`invalid_search_filter` als HTTP 400; sonstige Engine-, Transport- und
+Timeoutfehler ergeben generisches HTTP 502. Eigene HTTP- und
+PocketBase-Fehlerbehandlung bleiben erhalten. Der Uploadfix nutzt genau eine
+Anfrage mit 100-m-Geo-Radius, strikt offenen ±50-Metrikbereichen und
+`limit: 1`, ohne Batch-Vollscan. Die Geo-Randsemantik folgt bewusst der Engine
+und ist nicht bitgleich zum bisherigen JS-`< 100`. Die Status-/Batch-Goldens
+der unveränderten SRCH0-Suite müssen noch gezielt nachgeführt werden.
+
 Auch SDK-HTTP-Statusweitergabe und Actor-Suchparameter sind **keine
-SRCH0-Blocker**. Dafür entstehen zwei unabhängige lokale Fixes direkt ab
-`dev` (`c73966d6c`): `fix/search-api-error-status` erhält den tatsächlichen
-SDK-Fehlerstatus; `fix/search-actor-parameters` behandelt fehlendes `q`
+SRCH0-Blocker**. Dafür entstanden zwei unabhängige lokale Fixbranches auf der
+damaligen `dev`-Basis `c73966d6c`; die API-Reviewrevision ist ein Folgecommit: `fix/search-api-error-status` klassifiziert Fehler der
+Suchengine; `fix/search-actor-parameters` behandelt fehlendes `q`
 und explizite Limits korrekt. Die normale Actor-Suchoberfläche setzt `q`
 und nutzt bereits das numerische Standardlimit `3`. Die
 [Status-Einstufung](/develop/specs/trail-search/work-items/search/srch0/#nicht-blockierende-api-fehlerstatusweitergabe)
@@ -227,8 +236,9 @@ Push, PR und Integration sind noch nicht erfolgt.
 
 Upload-Duplikatprüfung und Clusterbegrenzung sind ebenfalls **keine
 SRCH0-Blocker**. Die Duplikatprüfung erhält als Importkorrektur den
-unabhängigen lokalen Branch `fix/upload-duplicate-check`, frisch ab
-`dev` (`c73966d6c`); ihr technischer Meilisearch-Consumer bleibt in SRCH0
+unabhängigen lokalen Branch `fix/upload-duplicate-check` auf der damaligen
+`dev`-Basis `c73966d6c`; die Reviewrevision ist ein Folgecommit. Ihr technischer
+Meilisearch-Consumer bleibt in SRCH0
 erfasst. Das aktuelle Karten-Cap wird als bekannte Begrenzung akzeptiert,
 ohne Vollständigkeitsversprechen oberhalb des Caps. Der Cluster-Nachladefix
 aus der Sammelreferenz bleibt zurückgestellt: kein eigener Clusterbranch,
