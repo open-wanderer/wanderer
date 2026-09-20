@@ -382,19 +382,6 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	return nil
 }
 
-func UpdateTrailShares(trailId string, shares []string, client meilisearch.ServiceManager) error {
-	documents := []map[string]interface{}{
-		{
-			"id":     trailId,
-			"shares": shares,
-		},
-	}
-	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
-		return err
-	}
-	return nil
-}
-
 func UpdateTrailLikes(trailId string, likes []string, client meilisearch.ServiceManager) error {
 	documents := []map[string]interface{}{
 		{
@@ -487,19 +474,6 @@ func UpdateActor(r *core.Record, client meilisearch.ServiceManager) error {
 		return err
 	}
 
-	return nil
-}
-
-func UpdateListShares(listId string, shares []string, client meilisearch.ServiceManager) error {
-	documents := []map[string]interface{}{
-		{
-			"id":     listId,
-			"shares": shares,
-		},
-	}
-	if _, err := client.Index("lists").UpdateDocuments(documents, nil); err != nil {
-		return err
-	}
 	return nil
 }
 
