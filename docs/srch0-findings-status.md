@@ -1,6 +1,6 @@
 # SRCH0: Aufteilung der Produktkorrekturen
 
-Stand: 19. September 2026.
+Stand: 20. September 2026.
 
 `fix/srch0-findings` bleibt die Sammelreferenz der bereits implementierten
 Suchkorrekturen. Der Stand `754456831` enthält den Merge von `dev`
@@ -150,9 +150,21 @@ Suchfehlern ist **kein SRCH0-Merge- oder Abnahmeblocker**. Der bisherige
 Proxy liest `httpStatus`, obwohl das installierte Meilisearch-SDK den Status
 unter `response.status` liefert; der gemeinsame Fehlerhandler behandelt
 SDK-Fehler pauschal als 500. Dadurch erscheinen beispielsweise abgelehnte
-Anfragen mit Engine-Status 400 oder 403 als interne Serverfehler. Der Fix
-erhält den tatsächlichen Fehlerstatus, ändert aber weder erfolgreiche
-Suchergebnisse noch Zugriffsregeln oder die Fehleranzeige der Oberfläche.
+Anfragen mit Engine-Status 400 oder 403 als interne Serverfehler. Die
+direkte Weitergabe aller SDK-Statuscodes im ersten Fixstand wurde im Review
+durch eine gezielte Gateway-Policy ersetzt.
+
+**Reviewrevision vom 20. September 2026:** Die Engine ist eine interne
+Abhängigkeit. Nur ein echter `MeilisearchApiError` mit `response.status = 400`
+und `code = invalid_search_filter` wird als HTTP 400 weitergegeben. Andere
+Meilisearch-API-Fehler, einschliesslich Engine-403/404/503, sowie Transport-
+und Timeoutfehler ergeben HTTP 502 mit der generischen Meldung
+`Search service unavailable`; ihre internen Engineangaben werden nicht
+weitergereicht. Der erlaubte Filterfehler mit HTTP 400 behält seine Details.
+Unerwartete lokale
+Fehler bleiben HTTP 500; eigene SvelteKit-HTTP-Fehler und die bestehende
+PocketBase-Fehlerbehandlung bleiben erhalten. Der Tenant-Client wird nicht
+geändert. Erfolgreiche Suchantworten und Zugriffsregeln bleiben unverändert.
 
 Die Ausnahme betrifft `SRCH0-P-HTTP` und ausschliesslich die Statusweitergabe
 in `API-FIX-SRCH0-SEARCH-116` sowie `124` bis `127` und den zugehörigen
@@ -160,12 +172,15 @@ Suchendpunkt-/Fehlerhandlerprüfungen. Authentifizierung, Berechtigungen,
 Sichtbarkeit und die Ablehnung fehlerhafter Anfragen bleiben verbindlich;
 die betroffenen Fälle erhalten keine pauschale Ausnahme.
 
-Der unabhängige Fix liegt auf `fix/search-api-error-status`, Commit
-`8bcfe61df`, frisch ab `origin/dev` bei `c73966d6c`. Er umfasst die Einzel- und Mehrfachsuche,
-Kartencluster, Trail-Bounding-Box und den gemeinsamen Fehlerhandler.
-Er benötigt die Actor-Parameterkorrektur nicht. Vor der Korrektur schlagen
-19 gezielte Tests fehl; danach bestehen alle 25 neuen Regressionstests und
-sämtliche 146 Webtests. `npm run check` meldet keine Fehler oder Warnungen.
+Der unabhängige Fix liegt auf `fix/search-api-error-status`, ursprünglich
+abgezweigt vom damaligen `origin/dev` bei `c73966d6c`. `23d6b0204` ist der
+Reviewfolgecommit. Er umfasst die
+Einzel- und Mehrfachsuche, Kartencluster, Trail-Bounding-Box und den gemeinsamen
+Fehlerhandler. Er benötigt die Actor-Parameterkorrektur nicht.
+Die 80 gezielten Tests und sämtliche 194 Webtests bestehen;
+`npm run check` meldet keine Fehler oder Warnungen.
+Die früheren 25 Regressionstests und 146 Webtests qualifizierten `8bcfe61df`,
+nicht die revidierte Gateway-Policy. Lokal, ohne Push, PR oder Integration.
 
 ## Actor-Suchparameter: separat korrigiert, kein SRCH0-Blocker
 
@@ -208,17 +223,29 @@ Der Fehler bleibt nachgewiesen: Bisher wird nur die erste Suchantwort mit
 dem Standardlimit 20 geprüft. Ein passender sichtbarer Kandidat ausserhalb
 dieser Antwort kann deshalb übersehen werden.
 
-Der unabhängige Branch `fix/upload-duplicate-check`, Commit `8f50fe9ac`,
-basiert direkt auf `origin/dev` (`c73966d6c`). Er übernimmt ausschliesslich den Upload-Teil der
-Vervollständigung: Weitere Treffer werden in Paketen bis 500 nachgeladen,
-bereits gelesene IDs bei Folgeanfragen ausgeschlossen. Die Prüfung endet
-beim ersten Duplikat oder einer leeren Restmenge. Dadurch begrenzt auch
-`maxTotalHits` nicht mehr die gesamte geprüfte Menge. Die bestehende
-Ähnlichkeitsheuristik, Tenant-Zugriffsregeln und `ignoreDuplicates` bleiben
-erhalten. Die Karte verwendet diesen Helper auf dem isolierten Fixbranch
-nicht. Eine Prüfung ohne passenden Treffer kann weiterhin den gesamten
-sichtbaren Suchbestand durchlaufen; eine Leistungsoptimierung oder Garantie
-gegen parallele Imports bzw. Indexverzögerungen wird damit nicht zugesagt.
+Der unabhängige Branch `fix/upload-duplicate-check` basiert auf dem damaligen
+`origin/dev` bei `c73966d6c`; `d0ede4520` ist der Reviewfolgecommit.
+
+**Reviewrevision vom 20. September 2026:** Die Uploadroute stellt genau
+eine Suchanfrage mit `_geoRadius(lat, lon, 100)` und offenen Wertebereichen
+für `distance`, `elevation_gain` und `elevation_loss`: jeweils strikt grösser
+als der Uploadwert minus 50 und strikt kleiner als der Uploadwert plus 50.
+`limit: 1` genügt, weil die Engine bereits die passenden Kandidaten auswählt.
+Abgerufen werden nur `id`, `name`, `author_name` und `domain`. Der bisherige
+Batchhelper entfällt; es gibt weder Paging noch wachsende `NOT IN`-Listen
+oder einen Vollscan im Uploadcode. Der Tenant-Client und das erzwungene
+Hochladen über `ignoreDuplicates` bleiben unverändert.
+
+Die Geo-Regel bedeutet den 100-m-Radius der Engine, einschliesslich seines
+Rands. Meilisearch 1.36.0 vergleicht `_geo`-Punkte mit `<=` und verwendet eine
+auf Millimeter gerundete Haversine-Distanz. Das ist nicht bitgleich zur
+bisherigen JavaScript-Prüfung `< 100`: Auch unmittelbar am Rand und durch
+Rundung knapp darüber liegende Punkte können passen. Die drei numerischen
+Toleranzen bleiben strikt; ±50 selbst ist ausgeschlossen. Dies ist keine
+Garantie gegen parallele Imports oder verzögert aktualisierte Suchindizes.
+Die [Filterimplementierung von Meilisearch 1.36.0](https://github.com/meilisearch/meilisearch/blob/v1.36.0/crates/milli/src/search/facet/filter.rs#L685-L692)
+und die [verwendete Distanzfunktion](https://docs.rs/crate/geoutils/0.5.1/source/src/formula.rs)
+belegen diese Geo-Randsemantik.
 
 `SRCH0-SEARCH-117`, `API-FIX-SRCH0-SEARCH-117`, die Traversierungsanteile
 von `SRCH0-COMPILER-083/084` samt `WEB-FIX-`-Solländerungen sowie die
@@ -228,15 +255,31 @@ der ersten Antwort; Zugriffsregeln und andere Upload-Eigenschaften werden
 nicht pauschal aus der Abnahme genommen. Der Fix ist lokal vorbereitet,
 ohne Push oder PR und ohne Integration in `dev` oder `feat/srch0`.
 
-Die 15 neuen Uploadregressionen reproduzieren vor dem Fix sieben Fehler;
-danach bestehen alle 15 sowie sämtliche 136 Webtests. `npm run check`
-meldet keine Fehler oder Warnungen. Eine separate Probe des echten
-Batchhelpers gegen isoliertes Meilisearch 1.53.2 bestätigt 1'101 zulässige
-Treffer bei `maxTotalHits=1000` und 17 Treffer bei einem Cap von sieben,
-jeweils vollständig und unter Erhalt des Tenant-Scopes und zusätzlicher
-Filter. Die Uploadtests verwenden den echten Handler mit gemocktem
-GPX-Parsing und Speichern; die Engineprobe ersetzt keinen vollständigen
-Import- oder SRCH0-Gesamtlauf.
+Mit aktivierter Engineintegration bestehen sämtliche 140 Webtests, darunter
+8 Upload-Unitfälle und 11 Tests gegen eine isolierte Meilisearch-Instanz
+1.53.2. Die echte Uploadroute findet bei `maxTotalHits=1000` passende Treffer
+neben 20'000 unpassenden und 11 weiteren Testdokumenten mit genau einer
+Anfrage und `limit: 1`. Der Nachweis verwendet einen echten Tenant-Token und
+prüft private Treffer, Nullkoordinaten, alle sechs strikten ±50-Metrikgrenzen,
+einen weit entfernten Start und den inklusiven 100-m-Rand. Der bestandene 140er-Lauf umfasst 129 reguläre Tests und die
+11 nur
+bei aktivierter Engineintegration ausgeführten Fälle. `npm run check` meldet keine Fehler oder Warnungen. Dieser Lauf
+mit 1.53.2 ist vom obigen Quellbeleg für 1.36.0 getrennt; er ersetzt weder
+einen vollständigen Importablauf noch die SRCH0-Gesamtabnahme.
+Die früheren 15 Uploadregressionen, 136 Webtests und die Batchprobe gegen
+Meilisearch 1.53.2 qualifizierten `8f50fe9ac`, nicht den revidierten
+Anfrageansatz. Der alte Vollscan bleibt in diesem Sammelbranch nur als
+Implementierungsreferenz erhalten; diese Dokumentationsrevision übernimmt
+keine Produktänderung aus den isolierten Fixbranches.
+
+Historische Evidenz, SRCH0-Korpus, aktive Sollwerte und strikte Tests
+bleiben in dieser Dokumentationsrevision unverändert. Die bisherigen
+Status-Goldens zur direkten SDK-Weitergabe und die Batch-/Nachlade-Goldens
+bilden die revidierte Policy noch nicht ab und müssen gezielt nachgeführt
+werden, ohne historische Beobachtungen umzuschreiben. Die technische
+Trennung von Diagnose und verbindlicher Abnahme bleibt ebenfalls offen.
+Ein grüner SRCH0-Gesamtlauf wird nicht behauptet; die bisherigen
+Nicht-Blocker-Einstufungen und alle übrigen Anforderungen bleiben bestehen.
 
 ## Cluster-Trefferlimit: akzeptierte Begrenzung, kein SRCH0-Blocker
 
