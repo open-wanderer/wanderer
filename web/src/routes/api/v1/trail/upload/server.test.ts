@@ -2,43 +2,23 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const external = vi.hoisted(() => ({
-    fromFile: vi.fn(),
-    gpx2trail: vi.fn(),
-    searchLocationReverse: vi.fn(),
-    trails_create: vi.fn(),
+    fromFile: vi.fn(), gpx2trail: vi.fn(), searchLocationReverse: vi.fn(), trails_create: vi.fn(),
 }));
-
-vi.mock("$lib/util/gpx_util", () => ({
-    fromFile: external.fromFile,
-    gpx2trail: external.gpx2trail,
-}));
+vi.mock("$lib/util/gpx_util", () => ({ fromFile: external.fromFile, gpx2trail: external.gpx2trail }));
 vi.mock("$lib/stores/search_store", () => ({ searchLocationReverse: external.searchLocationReverse }));
 vi.mock("$lib/stores/trail_store", () => ({ trails_create: external.trails_create }));
 
 import { PUT } from "./+server";
 
-function candidate(id: string) {
-    return {
-        id, name: "Existing route", author_name: "another-author", domain: "remote.example",
-        distance: 1000, elevation_gain: 200, elevation_loss: 150,
-        _geo: { lat: 47, lng: 8 },
-    };
-}
+const trail = { name: "New upload", distance: 1000, elevation_gain: 200, elevation_loss: 150, lat: 47, lon: 8 };
+const duplicate = { id: "existing", name: "Existing route", author_name: "another-author", domain: "remote.example" };
 
-function unrelated(count: number, offset = 0) {
-    return Array.from({ length: count }, (_, i) => ({
-        ...candidate(`unrelated-${offset + i}`), distance: 10000 + i,
-    }));
-}
-
-function request(pages: unknown[][], options: { ignoreDuplicates?: string; authenticated?: boolean } = {}) {
-    const search = vi.fn();
-    for (const hits of pages) search.mockResolvedValueOnce({ hits });
-    search.mockResolvedValue({ hits: [] });
+function request(hits: unknown[] = [], options: { force?: boolean; authenticated?: boolean } = {}) {
+    const search = vi.fn().mockResolvedValue({ hits });
     const index = vi.fn(() => ({ search }));
     const form = new FormData();
     form.set("file", new File(["<gpx/>"], "upload.gpx"));
-    if (options.ignoreDuplicates !== undefined) form.set("ignoreDuplicates", options.ignoreDuplicates);
+    if (options.force) form.set("ignoreDuplicates", "true");
     const event = {
         request: new Request("http://localhost/api/v1/trail/upload", { method: "PUT", body: form }),
         locals: {
@@ -51,154 +31,89 @@ function request(pages: unknown[][], options: { ignoreDuplicates?: string; authe
     return { event, search, index };
 }
 
-async function expectDuplicate(response: Response, id = "match") {
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({
-        message: "Duplicate trail", id, name: "Existing route", domain: "another-author@remote.example",
-    });
-    expect(external.trails_create).not.toHaveBeenCalled();
-}
-
-describe("upload duplicate detection", () => {
+describe("targeted upload duplicate detection", () => {
     beforeEach(() => {
         vi.resetAllMocks();
         external.fromFile.mockResolvedValue({ gpxData: "<gpx/>", gpxFile: new Blob(["<gpx/>"]) });
-        external.gpx2trail.mockResolvedValue({
-            trail: { name: "New upload", distance: 1000, elevation_gain: 200, elevation_loss: 150, lat: 47, lon: 8 },
-        });
+        external.gpx2trail.mockResolvedValue({ trail: { ...trail } });
         external.searchLocationReverse.mockResolvedValue("Test location");
         external.trails_create.mockResolvedValue({ id: "created" });
     });
 
-    it.each([20, 1000])("finds a duplicate after %i unrelated visible search hits", async (count) => {
-        const preceding = unrelated(count);
-        const pages = [];
-        for (let offset = 0; offset < preceding.length; offset += 500) pages.push(preceding.slice(offset, offset + 500));
-        pages.push([candidate("match")]);
-        const { event, search, index } = request(pages);
-
-        await expectDuplicate(await PUT(event));
-
-        expect(index).toHaveBeenCalledWith("trails");
-        expect(search).toHaveBeenCalledTimes(pages.length);
-        expect(search).toHaveBeenNthCalledWith(1, "", {
-            attributesToRetrieve: ["id", "name", "author_name", "domain", "distance", "elevation_gain", "elevation_loss", "_geo"],
-            filter: [], offset: 0, limit: 500,
-        });
-        expect(search.mock.calls.at(-1)?.[1].filter).toEqual([
-            "id NOT IN " + JSON.stringify(preceding.map(hit => hit.id)),
-        ]);
-    });
-
-    it("continues after short pages and creates once only after an empty remainder", async () => {
-        const first = unrelated(3);
-        const second = unrelated(2, 3);
-        const { event, search } = request([first, second]);
-        search.mockImplementationOnce(async () => {
-            expect(external.trails_create).not.toHaveBeenCalled();
-            return { hits: [] };
-        });
-
+    it("asks the tenant search client for one matching candidate using every duplicate criterion", async () => {
+        const { event, index, search } = request([duplicate]);
         const response = await PUT(event);
 
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({
+            message: "Duplicate trail", id: duplicate.id, name: duplicate.name, domain: "another-author@remote.example",
+        });
+        expect(external.trails_create).not.toHaveBeenCalled();
+        expect(index).toHaveBeenCalledWith("trails");
+        expect(search).toHaveBeenCalledExactlyOnceWith("", {
+            filter: [
+                "_geoRadius(47, 8, 100)",
+                "distance > 950 AND distance < 1050",
+                "elevation_gain > 150 AND elevation_gain < 250",
+                "elevation_loss > 100 AND elevation_loss < 200",
+            ],
+            attributesToRetrieve: ["id", "name", "author_name", "domain"],
+            limit: 1,
+        });
+    });
+
+    it("creates once after one empty filtered answer, without paging through other trails", async () => {
+        const { event, search } = request();
+        const response = await PUT(event);
         expect(response.status).toBe(200);
         expect(await response.json()).toEqual({ id: "created" });
-        expect(search).toHaveBeenCalledTimes(3);
-        expect(search.mock.calls[2][1].filter).toEqual([
-            "id NOT IN " + JSON.stringify([...first, ...second].map(hit => hit.id)),
-        ]);
+        expect(search).toHaveBeenCalledOnce();
         expect(external.trails_create).toHaveBeenCalledOnce();
     });
 
-    it("stops searching immediately after a matching first page", async () => {
-        const { event, search } = request([[candidate("match")], unrelated(20)]);
-
-        await expectDuplicate(await PUT(event));
-
+    it.each([{ lat: 0, lon: 8 }, { lat: 47, lon: 0 }])("keeps zero coordinates for %j", async (coordinates) => {
+        external.gpx2trail.mockResolvedValue({ trail: { ...trail, ...coordinates } });
+        const { event, search } = request();
+        await PUT(event);
         expect(search).toHaveBeenCalledOnce();
+        expect(search.mock.calls[0][1].filter[0]).toBe(`_geoRadius(${coordinates.lat}, ${coordinates.lon}, 100)`);
     });
 
-    it("allows an explicit forced upload without searching", async () => {
-        const { event, index } = request([[candidate("match")]], { ignoreDuplicates: "true" });
+    it("retains zero defaults for absent track measurements", async () => {
+        external.gpx2trail.mockResolvedValue({ trail: { name: "Missing measurements" } });
+        const { event, search } = request();
+        await PUT(event);
+        expect(search.mock.calls[0][1].filter).toEqual([
+            "_geoRadius(0, 0, 100)",
+            "distance > -50 AND distance < 50",
+            "elevation_gain > -50 AND elevation_gain < 50",
+            "elevation_loss > -50 AND elevation_loss < 50",
+        ]);
+    });
 
+    it("allows force upload without searching", async () => {
+        const { event, index } = request([duplicate], { force: true });
         const response = await PUT(event);
-
         expect(response.status).toBe(200);
         expect(index).not.toHaveBeenCalled();
         expect(external.trails_create).toHaveBeenCalledOnce();
     });
 
-    it("requires authentication even when duplicate detection is bypassed", async () => {
-        const { event, index } = request([], { authenticated: false, ignoreDuplicates: "true" });
-
-        const response = await PUT(event);
-
-        expect(response.status).toBe(401);
+    it("requires authentication even for force upload", async () => {
+        const { event, index } = request([], { authenticated: false, force: true });
+        expect((await PUT(event)).status).toBe(401);
         expect(index).not.toHaveBeenCalled();
         expect(external.fromFile).not.toHaveBeenCalled();
         expect(external.trails_create).not.toHaveBeenCalled();
     });
 
-    it("does not create a trail when a later search request fails", async () => {
-        const { event, search } = request([unrelated(20)]);
-        search.mockRejectedValueOnce(new Error("Search unavailable"));
-
+    it("does not create a trail if the candidate search fails", async () => {
+        const { event, search } = request();
+        search.mockRejectedValue(new Error("Search unavailable"));
         const response = await PUT(event);
-
         expect(response.status).toBe(500);
         expect(await response.json()).toMatchObject({ message: "Error checking for duplicates" });
-        expect(search).toHaveBeenCalledTimes(2);
+        expect(search).toHaveBeenCalledOnce();
         expect(external.trails_create).not.toHaveBeenCalled();
-    });
-
-    it.each([
-        { name: "a repeated ID in a later page", pages: [[...unrelated(1)], [...unrelated(1)]], calls: 2 },
-        { name: "a repeated ID in the same page", pages: [[...unrelated(1), ...unrelated(1)]], calls: 1 },
-        { name: "a missing document ID", pages: [[{ ...unrelated(1)[0], id: undefined }]], calls: 1 },
-    ])("fails without creating a trail on $name", async ({ pages, calls }) => {
-        const { event, search } = request(pages);
-
-        const response = await PUT(event);
-
-        expect(response.status).toBe(500);
-        expect(await response.json()).toMatchObject({ message: "Error checking for duplicates" });
-        expect(search).toHaveBeenCalledTimes(calls);
-        expect(external.trails_create).not.toHaveBeenCalled();
-    });
-
-    it.each(["distance", "elevation_gain", "elevation_loss"] as const)(
-        "retains the strict 50 metre difference boundary for %s",
-        async (field) => {
-            const hit = candidate("boundary");
-            hit[field] += 50;
-            const { event } = request([[hit], []]);
-
-            const response = await PUT(event);
-
-            expect(response.status).toBe(200);
-            expect(external.trails_create).toHaveBeenCalledOnce();
-        },
-    );
-
-    it("does not consider a matching-length route with a distant start a duplicate", async () => {
-        const hit = candidate("distant-start");
-        hit._geo.lat += 0.002; // About 222 metres, safely beyond the 100 metre radius.
-        const { event } = request([[hit], []]);
-
-        const response = await PUT(event);
-
-        expect(response.status).toBe(200);
-        expect(external.trails_create).toHaveBeenCalledOnce();
-    });
-
-    it("preserves approximate matching regardless of author or name", async () => {
-        const hit = candidate("match");
-        hit.distance += 49;
-        hit.elevation_gain -= 49;
-        hit.elevation_loss += 49;
-        hit._geo.lat += 0.0005; // About 56 metres, inside the existing radius.
-        const { event } = request([[hit]]);
-
-        await expectDuplicate(await PUT(event));
     });
 });

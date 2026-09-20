@@ -1,10 +1,8 @@
 import GPX from "$lib/models/gpx/gpx";
-import { haversineDistance } from "$lib/models/gpx/utils";
 import type { Trail, TrailSearchResult } from "$lib/models/trail";
 import { searchLocationReverse } from "$lib/stores/search_store";
 import { trails_create } from "$lib/stores/trail_store";
 import { handleError } from "$lib/util/api_util";
-import { searchBatches } from "$lib/server/search_batches";
 import { fromFile, gpx2trail } from "$lib/util/gpx_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import type { Meilisearch } from "meilisearch";
@@ -124,24 +122,21 @@ export async function PUT(event: RequestEvent) {
 }
 
 async function findDuplicate(ms: Meilisearch, t1: Trail) {
-    const distanceThreshold = 100;
-    const elevationThreshhold = 50;
-    const lengthThreshhold = 50;
-
-    for await (const trails of searchBatches<TrailSearchResult>(ms.index("trails"), "", {
-        attributesToRetrieve: ["id", "name", "author_name", "domain", "distance", "elevation_gain", "elevation_loss", "_geo"],
-    })) {
-        for (const t2 of trails) {
-            const lengthDifference = Math.abs((t1.distance ?? 0) - (t2.distance ?? 0));
-            const elevationGainDifference = Math.abs((t1.elevation_gain ?? 0) - (t2.elevation_gain ?? 0));
-            const elevationLossDifference = Math.abs((t1.elevation_loss ?? 0) - (t2.elevation_loss ?? 0));
-            const startpointDifference = haversineDistance(t1.lat ?? 0, t1.lon ?? 0, t2._geo.lat ?? 0, t2._geo.lng ?? 0)
-
-            if (lengthDifference < lengthThreshhold && elevationGainDifference < elevationThreshhold && elevationLossDifference < elevationThreshhold && startpointDifference < distanceThreshold) {
-                return t2
-            }
-        }
-    }
-
-    return null
+    const distance = t1.distance ?? 0;
+    const elevationGain = t1.elevation_gain ?? 0;
+    const elevationLoss = t1.elevation_loss ?? 0;
+    // Filter before limiting so any matching, tenant-visible trail suffices.
+    // The 100 m radius follows Meilisearch's inclusive geo boundary; the
+    // distance and elevation differences remain strictly less than 50 m.
+    const response = await ms.index("trails").search<TrailSearchResult>("", {
+        filter: [
+            `_geoRadius(${t1.lat ?? 0}, ${t1.lon ?? 0}, 100)`,
+            `distance > ${distance - 50} AND distance < ${distance + 50}`,
+            `elevation_gain > ${elevationGain - 50} AND elevation_gain < ${elevationGain + 50}`,
+            `elevation_loss > ${elevationLoss - 50} AND elevation_loss < ${elevationLoss + 50}`,
+        ],
+        attributesToRetrieve: ["id", "name", "author_name", "domain"],
+        limit: 1,
+    });
+    return response.hits[0] ?? null;
 }
