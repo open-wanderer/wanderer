@@ -27,7 +27,7 @@ const TESTFLIGHT_URL = "https://testflight.apple.com/join/6VCR4QpV";
 const PLAY_OPEN_TEST_URL = "#play-open-test-pending";
 const APK_RELEASES_URL = "https://github.com/open-wanderer/wanderer/releases/latest";
 const APK_ASSET_PATTERN = "wanderer-<version>-android.apk";
-const MIN_BACKEND_VERSION = "v0.20.0-app";
+const MIN_BACKEND_VERSION = "v0.21.0-app";
 const BUG_REPORT_URL =
   "https://github.com/open-wanderer/wanderer/issues/new?template=app_bug_report.yml";
 
@@ -55,7 +55,7 @@ const installOptions = [
       "Open the TestFlight link on your device and tap Accept.",
       "Tap Install. TestFlight tells you when a new build is available.",
     ],
-    note: "Beta builds expire after 90 days; TestFlight prompts you to update before that. Use TestFlight's Send Beta Feedback to reach us, or file a bug on GitHub.",
+    note: "Beta builds expire after 90 days; TestFlight prompts you to update before that.",
   },
   {
     id: "play",
@@ -83,7 +83,7 @@ const installOptions = [
     platform: "Android without Google Play",
     requirement: "Android 8.0 or newer",
     steps: [
-      `Open the latest release and download the file named ${APK_ASSET_PATTERN}. Skip any .aab file; it is for the Play Store, not for installing.`,
+      `Open the latest release and download the file named ${APK_ASSET_PATTERN}.`,
       "Open the downloaded file. When Android asks, allow installs from this source.",
       "Tap Install.",
     ],
@@ -305,11 +305,7 @@ const legs = [
         <p class="node-tag">Public beta</p>
         <h2 class="waypoint-heading" id="install-heading">Install the beta.</h2>
         <p class="waypoint-body install-lead">
-          Pick your platform. You also need an account on a
-          <span class="tracking-[-0.075em]">wanderer</span> instance running
-          <code>{MIN_BACKEND_VERSION}</code> or newer: yours, your club's, or
-          <a class="inline-link" href="/servers">a public one</a>. Running an instance?
-          See <a class="inline-link" href="/run/backend-configuration/mobile-app">what it needs</a>.
+          Pick your platform. You also need an account on a <span class="tracking-[-0.075em]">wanderer</span> instance running <code>{MIN_BACKEND_VERSION}</code> or newer: yours, your club's, or <a class="inline-link" href="/servers">a public one</a>. Running an instance? See <a class="inline-link" href="/run/backend-configuration/mobile-app">what it needs</a>.
         </p>
 
         <ol class="install-grid">

@@ -24,6 +24,25 @@ body:
         - iOS (TestFlight)
     validations:
       required: true
+  - type: dropdown
+    id: activity
+    attributes:
+      label: What were you doing?
+      options:
+        - Browsing or searching trails
+        - Viewing a trail
+        - Recording a trail
+        - Navigating a trail
+        - Planning a route
+        - Importing a file
+        - Creating or editing a trail
+        - Downloading trails or offline maps
+        - Using the app offline
+        - Lists or profiles
+        - Settings, login or instance selection
+        - Something else
+    validations:
+      required: true
   - type: input
     id: device
     attributes:
@@ -36,7 +55,7 @@ body:
     attributes:
       label: App version
       description: Shown in TestFlight / Google Play, or the file name of the APK you installed.
-      placeholder: ex. 1.0.0 (42)
+      placeholder: ex. 0.1.0 (10)
     validations:
       required: true
   - type: input
@@ -44,11 +63,4 @@ body:
     attributes:
       label: Instance version
       description: The wanderer version of the instance the app is connected to. Ask your instance administrator if you don't know it.
-      placeholder: ex. v0.20.0-app
-  - type: checkboxes
-    id: context
-    attributes:
-      label: Context
-      options:
-        - label: The app was offline (no network) when this happened
-        - label: This happened while recording or navigating
+      placeholder: ex. v0.21.0-app
