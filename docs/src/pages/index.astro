@@ -3,6 +3,8 @@ import { Image } from "astro:assets";
 import featuresImg from "../assets/hero.png";
 import PageNav from "../components/page_nav.astro";
 import PageFooter from "../components/page_footer.astro";
+import AppBetaBar from "../components/app_beta_bar.astro";
+import { APP_BETA_ANNOUNCEMENT, APP_BETA_URL } from "../lib/site";
 
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/600.css";
@@ -16,7 +18,7 @@ import "@fontsource/ibm-plex-mono/600.css";
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>wanderer — Your trails. Your data. Your server.</title>
+    <title>wanderer: Your trails. Your data. Your server.</title>
     <meta
       name="description"
       content="The open-source, self-hosted trail catalogue. Organize, plan, and share GPS tracks without the algorithm, the paywall, or the subscription."
@@ -25,6 +27,8 @@ import "@fontsource/ibm-plex-mono/600.css";
   </head>
 
   <body>
+    <AppBetaBar />
+
     <!-- ─── NAV ──────────────────────────────────────────────────────────── -->
     <PageNav />
 
@@ -45,7 +49,6 @@ import "@fontsource/ibm-plex-mono/600.css";
           >
           Open source · AGPLv3 · Self-hosted
         </div>
-
         <h1
           class="hero-headline"
           aria-label="Your trails. Your data. Your server."
@@ -275,7 +278,7 @@ import "@fontsource/ibm-plex-mono/600.css";
             <h2 class="pillar-heading">Built on the open web.</h2>
             <p class="pillar-text">
               ActivityPub federation means your wanderer instance can share
-              trails with other instances. Follow explorers across servers — no
+              trails with other instances. Follow explorers across servers, no
               account needed on theirs.
             </p>
           </div>
@@ -293,7 +296,7 @@ import "@fontsource/ibm-plex-mono/600.css";
             </h2>
             <p class="section-body">
               From a post-hike GPX upload to a multi-week expedition plan,
-              wanderer gives you the full toolkit — without the commercial
+              wanderer gives you the full toolkit, without the commercial
               baggage.
             </p>
             <ul class="feature-list" aria-label="Feature list">
@@ -421,7 +424,17 @@ import "@fontsource/ibm-plex-mono/600.css";
                     d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
                   ></path></svg
                 >
-                <span>Mobile app for iOS and Android</span>
+                <span>
+                  {
+                    APP_BETA_ANNOUNCEMENT ? (
+                      <a class="feature-link" href={APP_BETA_URL}>
+                        Mobile app for iOS and Android (public beta)
+                      </a>
+                    ) : (
+                      "Mobile app for iOS and Android"
+                    )
+                  }
+                </span>
               </li>
               <li class="feature-item">
                 <svg
@@ -482,10 +495,10 @@ import "@fontsource/ibm-plex-mono/600.css";
               The social layer<br />for outdoor explorers.
             </h2>
             <p class="section-body">
-              wanderer is built on ActivityPub — the same open standard that
+              wanderer is built on ActivityPub, the same open standard that
               powers Mastodon and Pixelfed. Follow explorers on other instances
               and their public trails, comments, and summit logs appear in your
-              feed — no account on their server required.
+              feed, no account on their server required.
             </p>
             <p class="section-body">
               No walled gardens. No platform permission. Your data stays on your
@@ -762,7 +775,7 @@ import "@fontsource/ibm-plex-mono/600.css";
             </svg>
 
             <div class="fed-caption">
-              Follow an explorer on any instance — their public trails appear in
+              Follow an explorer on any instance and their public trails appear in
               your feed.
             </div>
           </div>
@@ -1256,6 +1269,35 @@ import "@fontsource/ibm-plex-mono/600.css";
     border-radius: 9999px;
     margin-bottom: 2.25rem;
     animation: badge-in 0.6s cubic-bezier(0.33, 1, 0.68, 1) both;
+  }
+
+  .hero-badge + .hero-badge {
+    margin-left: 0.5rem;
+  }
+  .hero-badge--link {
+    color: var(--white);
+    text-decoration: none;
+    animation-delay: 0.1s;
+  }
+  .hero-badge--link:hover {
+    border-color: var(--summit-fog);
+  }
+  .hero-badge--link:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
+  }
+  .feature-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--dusk-divide);
+  }
+  .feature-link:hover {
+    text-decoration-color: currentColor;
+  }
+  .feature-link:focus-visible {
+    outline: 2px solid var(--summit-fog);
+    outline-offset: 3px;
   }
 
   @keyframes badge-in {
@@ -2000,7 +2042,7 @@ import "@fontsource/ibm-plex-mono/600.css";
       return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
     }
 
-    // Fractional Brownian Motion — 3 octaves of value noise
+    // Fractional Brownian Motion: 3 octaves of value noise
     function fbm(x: number, y: number): number {
       const v =
         valueNoise(x, y) * 0.5 +
