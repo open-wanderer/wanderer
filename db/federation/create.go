@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -412,13 +413,16 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
 
 	var err error
-	if strings.Contains(activity.Object.GetID().String(), "/api/v1/trail") {
+	switch util.ObjectKindFromIRI(activity.Object.GetID().String()) {
+	case util.ObjectKindTrail:
 		err = processCreateOrUpdateTrailActivity(activity, app, actor, recipient)
-	} else if strings.Contains(activity.Object.GetID().String(), "/api/v1/summit-log") {
+	case util.ObjectKindSummitLog:
 		err = processCreateOrUpdateSummitLogActivity(activity, app, actor)
-	} else if strings.Contains(activity.Object.GetID().String(), "/api/v1/list") {
+	case util.ObjectKindList:
 		err = processCreateOrUpdateListActivity(activity, app, actor, recipient)
-	} else {
+	default:
+		// Unchanged fallback: anything else is treated as a comment, which is
+		// what lets replies from other ActivityPub software be accepted.
 		err = processCreateOrUpdateCommentActivity(activity, app, actor)
 	}
 
@@ -486,12 +490,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
-			trailObject, err := util.TrailObjectFromIRI(commentObject.InReplyTo.GetLink().String())
-			if err != nil {
-				return err
-			}
-			activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
-			trail, err = util.TrailFromActivity(*activity, app, actor)
+			trail, err = fetchTrail(app, actor, commentObject.InReplyTo.GetLink().String())
 			if err != nil {
 				return err
 			}
@@ -585,12 +584,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
-			trailObject, err := util.TrailObjectFromIRI(logObject.InReplyTo.GetLink().String())
-			if err != nil {
-				return err
-			}
-			activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
-			trail, err = util.TrailFromActivity(*activity, app, actor)
+			trail, err = fetchTrail(app, actor, logObject.InReplyTo.GetLink().String())
 			if err != nil {
 				return err
 			}
@@ -766,6 +760,59 @@ func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, acto
 	}
 
 	return err
+}
+
+// fetchTrailObject is util.TrailObjectFromIRI, replaceable in tests.
+var fetchTrailObject = util.TrailObjectFromIRI
+
+// fetchTrail stores a copy of the remote trail at iri that a comment or
+// summit log by sender replies to. The trail belongs to whoever it is
+// attributed to, not to the sender: a copy filed under the sender's name
+// would show up as theirs and would refuse the real author's Delete.
+//
+// The object is fetched from the trail's host without authentication, so
+// its attributedTo is only trusted for an actor on that same host: a
+// Wanderer trail is always its author's, and a host naming an actor
+// elsewhere would otherwise file content under a stranger's name.
+func fetchTrail(app core.App, sender *core.Record, iri string) (*core.Record, error) {
+	trailObject, err := fetchTrailObject(iri)
+	if err != nil {
+		return nil, err
+	}
+
+	var authorIRI string
+	if trailObject.AttributedTo != nil {
+		authorIRI = trailObject.AttributedTo.GetLink().String()
+	}
+	if authorIRI == "" {
+		return nil, fmt.Errorf("trail %s is attributed to nobody", iri)
+	}
+	if !sameHost(authorIRI, iri) {
+		return nil, fmt.Errorf("trail %s is attributed to %s on another host", iri, authorIRI)
+	}
+
+	author := sender
+	if authorIRI != sender.GetString("iri") {
+		ctx, err := util.GetSafeActorContext(nil, sender)
+		if err != nil {
+			return nil, err
+		}
+		// A cached actor comes back even when refreshing it failed, and is
+		// good enough to attribute the copy to.
+		author, err = GetActorByIRI(app, ctx, authorIRI, false)
+		if author == nil {
+			return nil, err
+		}
+	}
+
+	activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
+	return util.TrailFromActivity(*activity, app, author)
+}
+
+func sameHost(a, b string) bool {
+	ua, errA := url.Parse(a)
+	ub, errB := url.Parse(b)
+	return errA == nil && errB == nil && ua.Host != "" && strings.EqualFold(ua.Host, ub.Host)
 }
 
 func ActorsFromMentions(app core.App, ctx context.Context, htmlStr string) ([]*core.Record, error) {
