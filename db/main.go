@@ -179,9 +179,11 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdateRequest("comments").BindFunc(hooks.UpdateCommentHandler())
 	app.OnRecordAfterDeleteSuccess("comments").BindFunc(hooks.DeleteCommentHandler(client))
 
-	app.OnRecordCreateRequest("trail_share").BindFunc(hooks.CreateTrailShareHandler(client))
+	app.OnRecordCreateRequest("trail_share").BindFunc(hooks.CreateTrailShareHandler())
 	app.OnRecordUpdateRequest("trail_share").BindFunc(hooks.UpdateShareHandler("trails", "trail"))
-	app.OnRecordDeleteRequest("trail_share").BindFunc(hooks.DeleteTrailShareHandler(client))
+	app.OnRecordAfterCreateSuccess("trail_share").BindFunc(hooks.UpdateTrailShareIndexHandler(client))
+	app.OnRecordAfterUpdateSuccess("trail_share").BindFunc(hooks.UpdateTrailShareIndexHandler(client))
+	app.OnRecordAfterDeleteSuccess("trail_share").BindFunc(hooks.UpdateTrailShareIndexHandler(client))
 	app.OnRecordUpdateRequest("trail_link_share").BindFunc(hooks.UpdateShareHandler("trails", "trail"))
 
 	app.OnRecordAfterCreateSuccess("trail_like").BindFunc(hooks.CreateTrailLikeHandler(client))
@@ -192,9 +194,11 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordDelete("lists").BindFunc(hooks.CollectListDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("lists").BindFunc(hooks.DeleteListHandler(client))
 
-	app.OnRecordCreateRequest("list_share").BindFunc(hooks.CreateListShareHandler(client))
+	app.OnRecordCreateRequest("list_share").BindFunc(hooks.CreateListShareHandler())
 	app.OnRecordUpdateRequest("list_share").BindFunc(hooks.UpdateShareHandler("lists", "list"))
-	app.OnRecordDeleteRequest("list_share").BindFunc(hooks.DeleteListShareHandler(client))
+	app.OnRecordAfterCreateSuccess("list_share").BindFunc(hooks.UpdateListShareIndexHandler(client))
+	app.OnRecordAfterUpdateSuccess("list_share").BindFunc(hooks.UpdateListShareIndexHandler(client))
+	app.OnRecordAfterDeleteSuccess("list_share").BindFunc(hooks.UpdateListShareIndexHandler(client))
 
 	app.OnRecordCreateRequest("follows").BindFunc(hooks.CreateFollowHandler())
 	app.OnRecordDeleteRequest("follows").BindFunc(hooks.DeleteFollowHandler())
