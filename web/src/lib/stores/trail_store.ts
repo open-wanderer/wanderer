@@ -915,10 +915,12 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND completed = ${filter.completed}`;
     }
 
-    if (filter.near.lat && filter.near.lon && includeGeo) {
-        filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
-    }
-    if (filter.near.lat && filter.near.lon && includeGeo) {
+    if (includeGeo
+        && typeof filter.near.lat === "number" && Number.isFinite(filter.near.lat)
+        && Math.abs(filter.near.lat) <= 90
+        && typeof filter.near.lon === "number" && Number.isFinite(filter.near.lon)
+        && Math.abs(filter.near.lon) <= 180
+        && Number.isFinite(filter.near.radius) && filter.near.radius > 0) {
         filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
     }
 
