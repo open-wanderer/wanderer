@@ -142,6 +142,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordAfterCreateSuccess("activitypub_actors").BindFunc(hooks.CreateActorHandler(client))
 	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
+	app.OnRecordDelete("activitypub_actors").BindFunc(hooks.CollectActorDeleteRecipientsHandler())
+	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.AnnounceActorDeleteHandler())
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
 
 	app.OnRecordCreateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
@@ -164,17 +166,18 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
 	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
 	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
+	app.OnRecordDelete("trails").BindFunc(hooks.CollectTrailDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
 
 	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.CreateSummitLogHandler(client))
 	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler())
-	app.OnRecordDeleteRequest("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
+	app.OnRecordAfterDeleteSuccess("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
 
 	app.OnRecordCreateRequest("waypoints").BindFunc(hooks.CreateWaypointHandler())
 
 	app.OnRecordCreateRequest("comments").BindFunc(hooks.CreateCommentHandler())
 	app.OnRecordUpdateRequest("comments").BindFunc(hooks.UpdateCommentHandler())
-	app.OnRecordDeleteRequest("comments").BindFunc(hooks.DeleteCommentHandler(client))
+	app.OnRecordAfterDeleteSuccess("comments").BindFunc(hooks.DeleteCommentHandler(client))
 
 	app.OnRecordCreateRequest("trail_share").BindFunc(hooks.CreateTrailShareHandler(client))
 	app.OnRecordUpdateRequest("trail_share").BindFunc(hooks.UpdateShareHandler("trails", "trail"))
@@ -186,6 +189,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordAfterCreateSuccess("lists").BindFunc(hooks.CreateListHandler(client))
 	app.OnRecordAfterUpdateSuccess("lists").BindFunc(hooks.UpdateListHandler(client))
+	app.OnRecordDelete("lists").BindFunc(hooks.CollectListDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("lists").BindFunc(hooks.DeleteListHandler(client))
 
 	app.OnRecordCreateRequest("list_share").BindFunc(hooks.CreateListShareHandler(client))
