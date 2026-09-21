@@ -1,0 +1,52 @@
+---
+title: Getting started
+description: Install the wanderer app and connect it to your instance
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+import PhoneGrid from '../../../components/phone_grid.astro';
+import mapShot from '../../../assets/guides/wanderer_app_map.png';
+
+<BetaNotice />
+
+The <span class="-tracking-[0.075em]">wanderer</span> mobile app brings your instance to Android and iOS: browse and search trails, record hikes with GPS, plan routes, navigate turn-by-turn, and take entire map regions offline.
+
+## Install the beta
+
+The app is in public beta. Head to the [app page](/app#install) to install it: via TestFlight on iPhone and iPad, via the Google Play open test on Android, or as an APK download for Android phones without Google Play. You need iOS 15 or Android 8.0 or newer.
+
+Not everything from the web interface is in the app yet. [What works where](/app/what-works-where) lists what is, and where to do the rest.
+
+## Choose your instance
+
+Unlike most outdoor apps, <span class="-tracking-[0.075em]">wanderer</span> is not tied to one central service. On first launch the app asks which instance to connect to. That's the server your account lives on. The screen shows a list of public instances to pick from; if yours isn't listed (for example because you or your club run it), tap **Use custom URL instead** and type its address, such as `wanderer.example.com`. Your trails, lists, and profile all live on that instance.
+
+Your instance needs to run a version of <span class="-tracking-[0.075em]">wanderer</span> that supports the app. If you can log in but the map stays empty and most things fail, it doesn't yet; ask your instance's administrator to follow [Mobile app support](/run/backend-configuration/mobile-app).
+
+## Log in or register
+
+After selecting an instance, log in with your existing account. If the instance allows signups you can also register a new account directly from the app, or sign in with a third-party login (for example Google or GitHub) if the instance offers one.
+
+To switch to another instance or account later, log out from the bottom of the [settings](/app/settings#log-out) and pick again.
+
+## Finding your way around
+
+<PhoneGrid src={mapShot} alt="The trails map with a selected trail">
+
+The app is organized into four tabs plus a central action button:
+
+- **Trails**: the map: browse, search, and filter trails ([Find trails](/app/find-trails))
+- **Lists**: your trail collections ([Lists](/app/lists))
+- **Plus button** (center): create a new trail: plan, record, or import ([Record a trail](/app/record-a-trail))
+- **Library**: trails stored on this device: downloads, and anything you created that hasn't uploaded yet ([Offline use](/app/offline-use))
+- **Profile**: your profile, followers, and settings ([Profile](/app/profile))
+
+</PhoneGrid>
+
+## A few words you'll meet
+
+- **Instance**: a <span class="-tracking-[0.075em]">wanderer</span> server. Your account, trails and lists live on one instance; instances can talk to each other, so you may see users from other instances.
+- **Trail**: a route with a name, description, photos and stats. Trails are what you record, plan, download and navigate.
+- **Waypoint**: a point of interest along a trail: a viewpoint, a hut, a junction. Waypoints belong to a trail.
+- **Anchor**: a point you set while [planning a route](/app/plan-a-route). The planner connects anchors along paths; they are not waypoints.
+- **Region**: a downloadable piece of the map (a country or a part of one) for [offline use](/app/offline-use).
