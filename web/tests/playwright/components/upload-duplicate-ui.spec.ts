@@ -3,7 +3,6 @@ import { buildUploadDuplicateFixture, mountUploadDuplicateFixture } from './uplo
 
 const publicToggle = (page: Page) => page.getByRole('checkbox', { name: "Include other users' public trails" });
 const sharedToggle = (page: Page) => page.getByRole('checkbox', { name: 'Include trails shared with me' });
-const saveButton = (page: Page) => page.getByRole('button', { name: 'Save', exact: true });
 
 async function expectScope(page: Page, includePublic: boolean, includeShared: boolean) {
     await expect(publicToggle(page)).toBeChecked({ checked: includePublic });
@@ -25,81 +24,111 @@ for (const dev of [true, false]) {
         });
         test.afterEach(() => { expect(runtimeErrors).toEqual([]); });
 
-        test('defaults to own trails and independently persists both options across remounts', async ({ page }) => {
+        test('defaults to own trails and immediately persists each toggle across remounts', async ({ page }) => {
             const fixture = await mountUploadDuplicateFixture(page, bundle);
             await expectScope(page, false, false);
-            await expect(saveButton(page)).toBeDisabled();
-            for (const [includePublic, includeShared] of [[true, false], [false, true], [true, true], [false, false]]) {
-                await publicToggle(page).setChecked(includePublic);
-                await sharedToggle(page).setChecked(includeShared);
-                await saveButton(page).click();
-                await expect(saveButton(page)).toBeDisabled();
+            await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(0);
+            expect(fixture.saves).toEqual([]);
+            let expectedSaves = 0;
+            for (const [includePublic, includeShared] of [[true, false], [true, true], [false, true], [false, false]]) {
+                if (await publicToggle(page).isChecked() !== includePublic) await publicToggle(page).setChecked(includePublic);
+                if (await sharedToggle(page).isChecked() !== includeShared) await sharedToggle(page).setChecked(includeShared);
+                await expect.poll(() => fixture.saves.length).toBe(++expectedSaves);
                 await expect.poll(() => fixture.server.settings.uploadDuplicateCheck).toEqual({ includePublic, includeShared });
-                await expect.poll(() => page.evaluate(() => window.uploadDuplicateFixture.toasts.length)).toBe(fixture.saves.length);
+                await expect(publicToggle(page)).toBeEnabled();
+                await expect(sharedToggle(page)).toBeEnabled();
                 expect(fixture.saves.at(-1)).toEqual({ id: 'settings-a', uploadDuplicateCheck: { includePublic, includeShared } });
                 await fixture.remount();
                 await expectScope(page, includePublic, includeShared);
-                await expect(saveButton(page)).toBeDisabled();
             }
+            expect(await page.evaluate(() => window.uploadDuplicateFixture.toasts)).toEqual([]);
         });
 
-        test('keeps an unsaved draft after a failed save and allows retry', async ({ page }) => {
+        test('restores the latest server state after a failed save and retries by toggling again', async ({ page }) => {
             const fixture = await mountUploadDuplicateFixture(page, bundle, { id: 'settings-a', uploadDuplicateCheck: null });
             await expectScope(page, false, false);
-            await publicToggle(page).check();
             fixture.server.status = 500;
-            await saveButton(page).click();
+            let release!: () => void;
+            fixture.server.gate = new Promise<void>(resolve => { release = resolve; });
+            try {
+                await publicToggle(page).check();
+                await expect.poll(() => fixture.saves.length).toBe(1);
+                await expect(publicToggle(page)).toBeDisabled();
+                await expect(sharedToggle(page)).toBeDisabled();
+                await fixture.refresh({ id: 'settings-a', uploadDuplicateCheck: { includeShared: true } });
+                await expectScope(page, true, false);
+                await expect(publicToggle(page)).toBeDisabled();
+                await expect(sharedToggle(page)).toBeDisabled();
+            } finally {
+                release();
+            }
             await expect.poll(() => page.evaluate(() => window.uploadDuplicateFixture.toasts.at(-1)?.text)).toBe('Error saving settings');
-            await expectScope(page, true, false);
-            await expect(saveButton(page)).toBeEnabled();
-            expect(fixture.server.settings.uploadDuplicateCheck).toBeNull();
+            await expectScope(page, false, true);
+            await expect(publicToggle(page)).toBeEnabled();
+            await expect(sharedToggle(page)).toBeEnabled();
+            expect(fixture.server.settings.uploadDuplicateCheck).toEqual({ includeShared: true });
             expect(await page.evaluate(() => window.uploadDuplicateFixture.invalidations)).toBe(0);
             fixture.server.status = 200;
-            await saveButton(page).click();
-            await expect.poll(() => page.evaluate(() => window.uploadDuplicateFixture.toasts.at(-1)?.text)).toBe('Settings saved');
+            await publicToggle(page).check();
+            await expect.poll(() => fixture.saves.length).toBe(2);
+            await expect.poll(() => fixture.server.settings.uploadDuplicateCheck).toEqual({ includePublic: true, includeShared: true });
+            await expect(publicToggle(page)).toBeEnabled();
+            await expect(sharedToggle(page)).toBeEnabled();
             await fixture.remount();
-            await expectScope(page, true, false);
+            await expectScope(page, true, true);
+            expect(await page.evaluate(() => window.uploadDuplicateFixture.toasts.map(toast => ({ type: toast.type, text: toast.text })))).toEqual([
+                { type: 'error', text: 'Error saving settings' },
+            ]);
         });
 
-        test('refreshes clean settings, preserves local edits, and resets drafts for another settings ID', async ({ page }) => {
+        test('adopts server refreshes and another settings ID without saving them again', async ({ page }) => {
             const fixture = await mountUploadDuplicateFixture(page, bundle);
             await fixture.refresh({ id: 'settings-a', uploadDuplicateCheck: { includeShared: true } });
             await expectScope(page, false, true);
-            await expect(saveButton(page)).toBeDisabled();
-            await publicToggle(page).check();
             await fixture.refresh({ id: 'settings-a', uploadDuplicateCheck: { includePublic: true } });
-            await expectScope(page, true, true);
-            await expect(saveButton(page)).toBeEnabled();
+            await expectScope(page, true, false);
             await fixture.refresh({ id: 'settings-b', uploadDuplicateCheck: { includeShared: true } });
             await expectScope(page, false, true);
-            await expect(saveButton(page)).toBeDisabled();
+            await expect(publicToggle(page)).toBeEnabled();
+            await expect(sharedToggle(page)).toBeEnabled();
             expect(fixture.saves).toEqual([]);
+            expect(await page.evaluate(() => window.uploadDuplicateFixture.toasts)).toEqual([]);
         });
 
-        test('ignores a late save after switching settings IDs and preserves the new draft', async ({ page }) => {
+        test('locks both toggles per settings ID and ignores the old ID late save', async ({ page }) => {
             const fixture = await mountUploadDuplicateFixture(page, bundle);
             let release!: () => void;
             fixture.server.gate = new Promise<void>(resolve => { release = resolve; });
-            const invalidated = page.waitForResponse('**/fixture/settings');
             try {
                 await publicToggle(page).check();
-                await saveButton(page).click();
                 await expect.poll(() => fixture.saves.length).toBe(1);
                 await expect(publicToggle(page)).toBeDisabled();
                 await expect(sharedToggle(page)).toBeDisabled();
                 await fixture.refresh({ id: 'settings-b', uploadDuplicateCheck: { includeShared: true } });
                 await expectScope(page, false, true);
                 await expect(publicToggle(page)).toBeEnabled();
+                await expect(sharedToggle(page)).toBeEnabled();
+                fixture.server.gate = Promise.resolve();
                 await publicToggle(page).check();
+                await expect.poll(() => fixture.saves.length).toBe(2);
+                await expect.poll(() => fixture.server.settings.uploadDuplicateCheck).toEqual({ includePublic: true, includeShared: true });
+                await expect(publicToggle(page)).toBeEnabled();
+                await expect(sharedToggle(page)).toBeEnabled();
+                const invalidated = page.waitForResponse('**/fixture/settings');
+                release();
+                await (await invalidated).finished();
             } finally {
                 release();
             }
-            await expect.poll(() => page.evaluate(() => window.uploadDuplicateFixture.invalidations)).toBe(1);
-            await (await invalidated).finished();
+            await expect.poll(() => page.evaluate(() => window.uploadDuplicateFixture.invalidations)).toBe(2);
             await expectScope(page, true, true);
-            await expect(saveButton(page)).toBeEnabled();
+            await expect(publicToggle(page)).toBeEnabled();
+            await expect(sharedToggle(page)).toBeEnabled();
             expect(await page.evaluate(() => window.uploadDuplicateFixture.toasts)).toEqual([]);
-            expect(fixture.saves).toEqual([{ id: 'settings-a', uploadDuplicateCheck: { includePublic: true, includeShared: false } }]);
+            expect(fixture.saves).toEqual([
+                { id: 'settings-a', uploadDuplicateCheck: { includePublic: true, includeShared: false } },
+                { id: 'settings-b', uploadDuplicateCheck: { includePublic: true, includeShared: true } },
+            ]);
         });
 
         for (const duplicate of [

@@ -7,7 +7,7 @@ description: How to import and export trails in wanderer
 
 Open **Settings → Import/Export** to upload GPX, TCX, KML or FIT files. You can also use **Import → From URL** to import a trail file from a link.
 
-By default, duplicate detection compares the uploaded route with **your own trails**, including private ones. Under **Check for duplicates during import**, you can independently include public trails from other users and trails shared with you. Save the settings before importing; they apply to both file and URL imports.
+By default, duplicate detection compares the uploaded route with **your own trails**, including private ones. Under **Check for duplicates during import**, you can independently include public trails from other users and trails shared with you. Changes are saved automatically and apply to both file and URL imports.
 
 If a similar route is found, the upload panel links to it and identifies it as **Your trail** or **Trail by @username** (including the server domain for remote authors). To create your own trail anyway, wait for the import queue to finish and select **Upload as your own trail despite duplicate** on that entry.
 

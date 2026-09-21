@@ -24,20 +24,12 @@
     let offerUpload: boolean = $state(false);
 
     let settings = $derived(page.data.settings as Settings);
-    let draftSettingsId = $state<string | null | undefined>(page.data.settings?.id);
+    let displayedSettingsId = $state<string | null | undefined>(page.data.settings?.id);
     const initialDuplicateCheck = page.data.settings?.uploadDuplicateCheck;
     let includePublic = $state(initialDuplicateCheck?.includePublic === true);
     let includeShared = $state(initialDuplicateCheck?.includeShared === true);
-    let savedDuplicateCheck = $state({
-        includePublic: initialDuplicateCheck?.includePublic === true,
-        includeShared: initialDuplicateCheck?.includeShared === true,
-    });
     let savingDuplicateCheck = $state(false);
     let duplicateCheckSaveRevision = 0;
-    let duplicateCheckChanged = $derived(
-        includePublic !== savedDuplicateCheck.includePublic ||
-            includeShared !== savedDuplicateCheck.includeShared,
-    );
 
     $effect(() => {
         const settingsId = settings?.id;
@@ -47,23 +39,22 @@
         };
 
         untrack(() => {
-            if (settingsId !== draftSettingsId) {
-                draftSettingsId = settingsId;
+            if (settingsId !== displayedSettingsId) {
+                displayedSettingsId = settingsId;
                 duplicateCheckSaveRevision += 1;
                 savingDuplicateCheck = false;
-            } else if (savingDuplicateCheck || duplicateCheckChanged) {
+            } else if (savingDuplicateCheck) {
                 return;
             }
 
             includePublic = incoming.includePublic;
             includeShared = incoming.includeShared;
-            savedDuplicateCheck = incoming;
         });
     });
 
-    async function saveDuplicateCheck() {
+    async function updateDuplicateCheck() {
         const settingsId = settings?.id;
-        if (savingDuplicateCheck || !settingsId || settingsId !== draftSettingsId) {
+        if (savingDuplicateCheck || !settingsId || settingsId !== displayedSettingsId) {
             return;
         }
 
@@ -74,15 +65,6 @@
             await settings_update({
                 id: settingsId,
                 uploadDuplicateCheck,
-            });
-            if (saveRevision !== duplicateCheckSaveRevision || settings?.id !== settingsId) {
-                return;
-            }
-            savedDuplicateCheck = uploadDuplicateCheck;
-            show_toast({
-                type: "success",
-                icon: "check",
-                text: $_("settings-saved"),
             });
         } catch (e) {
             console.error(e);
@@ -96,6 +78,8 @@
             });
         } finally {
             if (saveRevision === duplicateCheckSaveRevision && settings?.id === settingsId) {
+                includePublic = settings?.uploadDuplicateCheck?.includePublic === true;
+                includeShared = settings?.uploadDuplicateCheck?.includeShared === true;
                 savingDuplicateCheck = false;
             }
         }
@@ -231,20 +215,16 @@
                 label={$_("upload-duplicate-check-public")}
                 bind:value={includePublic}
                 disabled={savingDuplicateCheck || !settings?.id}
+                onchange={updateDuplicateCheck}
             />
             <Toggle
                 name="uploadDuplicateCheck.includeShared"
                 label={$_("upload-duplicate-check-shared")}
                 bind:value={includeShared}
                 disabled={savingDuplicateCheck || !settings?.id}
+                onchange={updateDuplicateCheck}
             />
         </div>
-        <Button
-            secondary={true}
-            loading={savingDuplicateCheck}
-            disabled={!duplicateCheckChanged || !settings?.id}
-            onclick={saveDuplicateCheck}>{$_("save")}</Button
-        >
     </section>
     <button
         class="drop-area relative h-64 w-full p-4 border border-content border-dashed rounded-xl flex items-center justify-center text-gray-500 bg-background cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
