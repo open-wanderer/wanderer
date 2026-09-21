@@ -2,12 +2,17 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -71,9 +76,135 @@ func TestShareTargetUpdatesThroughRecordsAPI(t *testing.T) {
 	}
 }
 
+func TestShareIndexTracksRemainingRecipients(t *testing.T) {
+	for _, target := range []string{"trail", "list"} {
+		t.Run(target, func(t *testing.T) {
+			api := newShareTestAPI(t, target+"_share", target, "actor")
+			t.Run("share lifecycle", func(t *testing.T) {
+				api.newShare(t, api.publicObject, api.ownerActor.Id)
+				api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id)
+				t.Run("additional recipient", func(t *testing.T) {
+					share := api.newShare(t, api.publicObject, api.localActor.Id)
+					api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id, api.localActor.Id)
+					api.patch(t, share, map[string]string{"actor": api.remoteActor.Id}, http.StatusOK)
+					api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id, api.remoteActor.Id)
+					share.Set("actor", api.localActor.Id)
+					if err := api.app.Save(share); err != nil {
+						t.Fatal(err)
+					}
+					api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id, api.localActor.Id)
+				})
+				// Cleanup deletes the second share through the internal record API.
+				api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id)
+			})
+			api.index.assertShares(t, api.publicObject.Id)
+
+		})
+	}
+}
+
+func TestShareIndexPreservesRecipientsOnAPIDelete(t *testing.T) {
+	for _, target := range []string{"trail", "list"} {
+		t.Run(target, func(t *testing.T) {
+			api := newShareTestAPI(t, target+"_share", target, "actor")
+			api.newShare(t, api.publicObject, api.ownerActor.Id)
+			share := api.newShare(t, api.publicObject, api.localActor.Id)
+			path := "/api/collections/" + api.shares.Name + "/records/" + share.Id
+			updatesBefore := api.index.updateCount()
+			shareRequest(t, api.mux, http.MethodDelete, path, nil, api.readerToken, http.StatusNotFound)
+			if _, err := api.app.FindRecordById(api.shares.Name, share.Id); err != nil {
+				t.Fatalf("rejected delete removed share: %v", err)
+			}
+			if updates := api.index.updateCount(); updates != updatesBefore {
+				t.Fatalf("rejected delete changed index: updates = %d; want %d", updates, updatesBefore)
+			}
+			shareRequest(t, api.mux, http.MethodDelete, path, nil, api.ownerToken, http.StatusNoContent)
+			if _, err := api.app.FindRecordById(api.shares.Name, share.Id); !errors.Is(err, sql.ErrNoRows) {
+				t.Fatalf("deleted share lookup = %v; want no rows", err)
+			}
+			api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id)
+		})
+	}
+}
+
+func TestShareIndexTracksInternalTargetChange(t *testing.T) {
+	for _, target := range []string{"trail", "list"} {
+		t.Run(target, func(t *testing.T) {
+			api := newShareTestAPI(t, target+"_share", target, "actor")
+			api.newShare(t, api.publicObject, api.ownerActor.Id)
+			share := api.newShare(t, api.publicObject, api.localActor.Id)
+			api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id, api.localActor.Id)
+			share, err := api.app.FindRecordById(api.shares.Name, share.Id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			share.Set(target, api.privateObject.Id)
+			if err := api.app.Save(share); err != nil {
+				t.Fatal(err)
+			}
+			api.index.assertShares(t, api.publicObject.Id, api.ownerActor.Id)
+			api.index.assertShares(t, api.privateObject.Id, api.localActor.Id)
+		})
+	}
+}
+
+func TestShareIndexIgnoresRolledBackMutations(t *testing.T) {
+	for _, target := range []string{"trail", "list"} {
+		t.Run(target, func(t *testing.T) {
+			api := newShareTestAPI(t, target+"_share", target, "actor")
+			share := api.newShare(t, api.publicObject, api.localActor.Id)
+			for _, operation := range []string{"create", "update", "delete"} {
+				t.Run(operation, func(t *testing.T) {
+					updatesBefore := api.index.updateCount()
+					rollback := errors.New("test transaction rollback")
+					err := api.app.RunInTransaction(func(tx core.App) error {
+						if operation == "create" {
+							created := core.NewRecord(api.shares)
+							created.Load(map[string]any{target: api.publicObject.Id, "actor": api.ownerActor.Id, "permission": "view"})
+							if err := tx.Save(created); err != nil {
+								return err
+							}
+						} else {
+							stored, err := tx.FindRecordById(api.shares.Name, share.Id)
+							if err != nil {
+								return err
+							}
+							if operation == "update" {
+								stored.Set("actor", api.remoteActor.Id)
+								err = tx.Save(stored)
+							} else {
+								err = tx.Delete(stored)
+							}
+							if err != nil {
+								return err
+							}
+						}
+						return rollback
+					})
+					if !errors.Is(err, rollback) {
+						t.Fatalf("transaction result = %v; want rollback", err)
+					}
+					if updates := api.index.updateCount(); updates != updatesBefore {
+						t.Errorf("rolled back %s changed index: updates = %d; want %d", operation, updates, updatesBefore)
+					}
+					api.index.assertShares(t, api.publicObject.Id, api.localActor.Id)
+					stored, err := api.app.FindAllRecords(api.shares.Name)
+					if err != nil || len(stored) != 1 {
+						t.Fatalf("shares after rollback: count = %d, error = %v; want one share", len(stored), err)
+					}
+					if stored[0].Id != share.Id || stored[0].GetString("actor") != api.localActor.Id {
+						t.Errorf("rollback failed to preserve original share: %v", stored[0])
+					}
+				})
+			}
+		})
+	}
+}
+
 type shareTestAPI struct {
 	app                                        *core.BaseApp
 	mux                                        http.Handler
+	index                                      *shareTestIndex
 	target, recipient                          string
 	objects, shares                            *core.Collection
 	ownerActor, localActor, remoteActor        *core.Record
@@ -122,6 +253,7 @@ func newShareTestAPI(t *testing.T, collection, target, recipient string) *shareT
 	// Keep the production ownership and share-access paths.
 	shares.CreateRule = types.Pointer(target + ".author.user = @request.auth.id")
 	shares.UpdateRule = types.Pointer(target + ".author.user = @request.auth.id")
+	shares.DeleteRule = types.Pointer(target + ".author.user = @request.auth.id")
 	for _, collection := range []*core.Collection{actors, objects, shares} {
 		if err := app.Save(collection); err != nil {
 			t.Fatal(err)
@@ -163,8 +295,10 @@ func newShareTestAPI(t *testing.T, collection, target, recipient string) *shareT
 		t.Fatal(err)
 	}
 	// Seed fixtures first to avoid unrelated indexing/federation hooks.
-	// Use production registration, so missing share hooks break the tests.
-	setupEventHandlers(&pocketbase.PocketBase{App: app}, nil)
+	// Use production registration and record outgoing index updates, so missing
+	// authorization or successful-mutation hooks break the tests.
+	index, client := newShareTestIndex(t, objects.Name)
+	setupEventHandlers(&pocketbase.PocketBase{App: app}, client)
 	router, err := apis.NewRouter(app)
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +308,7 @@ func newShareTestAPI(t *testing.T, collection, target, recipient string) *shareT
 		t.Fatal(err)
 	}
 	return &shareTestAPI{
-		app: app, mux: mux, target: target, recipient: recipient, objects: objects, shares: shares,
+		app: app, mux: mux, index: index, target: target, recipient: recipient, objects: objects, shares: shares,
 		ownerActor: ownerActor, localActor: localActor, remoteActor: remoteActor,
 		privateObject: privateObject, publicObject: publicObject, foreignObject: foreignObject,
 		ownerToken: ownerToken, readerToken: readerToken,
@@ -189,7 +323,15 @@ func (api *shareTestAPI) newShare(t *testing.T, object *core.Record, recipient s
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if err := api.app.Delete(share); err != nil {
+		stored, err := api.app.FindRecordById(api.shares.Name, share.Id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return // Some lifecycle tests delete the share through the records API.
+		}
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if err := api.app.Delete(stored); err != nil {
 			t.Error(err)
 		}
 	})
@@ -199,11 +341,14 @@ func (api *shareTestAPI) newShare(t *testing.T, object *core.Record, recipient s
 func (api *shareTestAPI) patch(t *testing.T, share *core.Record, patch map[string]string, status int) {
 	t.Helper()
 	want := map[string]string{api.target: share.GetString(api.target), api.recipient: share.GetString(api.recipient), "permission": share.GetString("permission")}
+	updatesBefore := api.index.updateCount()
 	shareRequest(t, api.mux, http.MethodPatch, "/api/collections/"+api.shares.Name+"/records/"+share.Id, patch, api.ownerToken, status)
 	if status == http.StatusOK {
 		for field, value := range patch {
 			want[field] = value
 		}
+	} else if updates := api.index.updateCount(); updates != updatesBefore {
+		t.Errorf("rejected share update changed the index: updates = %d; want %d", updates, updatesBefore)
 	}
 	stored, err := api.app.FindRecordById(api.shares.Name, share.Id)
 	if err != nil {
@@ -214,6 +359,75 @@ func (api *shareTestAPI) patch(t *testing.T, share *core.Record, patch map[strin
 			t.Errorf("stored %s = %q; want %q", field, got, value)
 		}
 	}
+}
+
+type shareTestIndexUpdate struct {
+	ID     string   `json:"id"`
+	Shares []string `json:"shares"`
+}
+
+type shareTestIndex struct {
+	mu      sync.Mutex
+	updates []shareTestIndexUpdate
+}
+
+func newShareTestIndex(t *testing.T, collection string) (*shareTestIndex, meilisearch.ServiceManager) {
+	t.Helper()
+	index := &shareTestIndex{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/indexes/"+collection+"/documents" {
+			t.Errorf("unexpected index request: %s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		var updates []shareTestIndexUpdate
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&updates); err != nil {
+			t.Errorf("decode index update: %v", err)
+			http.Error(w, "invalid document update", http.StatusBadRequest)
+			return
+		}
+		for _, update := range updates {
+			if update.ID == "" || update.Shares == nil {
+				t.Errorf("incomplete share index update: %+v", update)
+				http.Error(w, "incomplete document update", http.StatusBadRequest)
+				return
+			}
+		}
+		index.mu.Lock()
+		index.updates = append(index.updates, updates...)
+		index.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"taskUid":1,"status":"enqueued","type":"documentAdditionOrUpdate"}`))
+	}))
+	t.Cleanup(server.Close)
+	return index, meilisearch.New(server.URL)
+}
+
+func (index *shareTestIndex) updateCount() int {
+	index.mu.Lock()
+	defer index.mu.Unlock()
+	return len(index.updates)
+}
+
+func (index *shareTestIndex) assertShares(t *testing.T, id string, want ...string) {
+	t.Helper()
+	index.mu.Lock()
+	defer index.mu.Unlock()
+	slices.Sort(want)
+	for i := len(index.updates) - 1; i >= 0; i-- {
+		if update := index.updates[i]; update.ID == id {
+			got := slices.Clone(update.Shares)
+			slices.Sort(got)
+			if !slices.Equal(got, want) {
+				t.Errorf("indexed shares for %s = %v; want %v", id, got, want)
+			}
+			return
+		}
+	}
+	t.Fatalf("no share index update for %s", id)
 }
 
 func shareRequest(t *testing.T, mux http.Handler, method, path string, body map[string]string, auth string, status int) {
