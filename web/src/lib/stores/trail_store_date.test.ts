@@ -57,57 +57,64 @@ afterEach(() => {
 
 describe("trail search date ranges", () => {
     it.each([
-        ["UTC", "2026-09-07T00:00:00Z", "2026-09-08T00:00:00Z"],
-        ["Europe/Zurich", "2026-09-06T22:00:00Z", "2026-09-07T22:00:00Z"],
-        ["America/Los_Angeles", "2026-09-07T07:00:00Z", "2026-09-08T07:00:00Z"],
-        ["Asia/Kathmandu", "2026-09-06T18:15:00Z", "2026-09-07T18:15:00Z"],
-    ])("sends the whole selected local day as epoch bounds in %s", async (timezone, start, end) => {
+        "UTC",
+        "Europe/Zurich",
+        "America/Los_Angeles",
+        "Asia/Kathmandu",
+    ])("sends UTC calendar-day bounds and includes stored dates in %s", async (timezone) => {
         vi.stubEnv("TZ", timezone);
 
-        expect(await listDateClauses({ startDate: "2026-09-07", endDate: "2026-09-07" })).toEqual([
-            `date >= ${Date.parse(start) / 1000}`,
-            `date < ${Date.parse(end) / 1000}`,
+        const clauses = await listDateClauses({ startDate: "2026-09-07", endDate: "2026-09-07" });
+        expect(clauses).toEqual([
+            `date >= ${Date.parse("2026-09-07T00:00:00Z") / 1000}`,
+            `date < ${Date.parse("2026-09-08T00:00:00Z") / 1000}`,
+        ]);
+
+        const [start, end] = clauses.map((clause) => Number(clause.split(" ").at(-1)));
+        const storedDates = [
+            "2026-09-06T23:59:59Z",
+            "2026-09-07T00:00:00Z", // A manually entered calendar date.
+            "2026-09-07T23:59:59Z", // An imported timestamp late on the end date.
+            "2026-09-08T00:00:00Z",
+        ];
+        expect(storedDates.filter((date) => {
+            const timestamp = Date.parse(date) / 1000;
+            return timestamp >= start && timestamp < end;
+        })).toEqual([
+            "2026-09-07T00:00:00Z",
+            "2026-09-07T23:59:59Z",
         ]);
     });
 
-    it("keeps the start inclusive and end exclusive across a daylight saving change", async () => {
-        vi.stubEnv("TZ", "Europe/Zurich");
-
-        expect(await listDateClauses({ startDate: "2026-03-28", endDate: "2026-03-30" })).toEqual([
-            `date >= ${Date.parse("2026-03-27T23:00:00Z") / 1000}`,
-            `date < ${Date.parse("2026-03-30T22:00:00Z") / 1000}`,
-        ]);
-    });
-
-    it("uses the same local-day bounds for the map search", async () => {
-        vi.stubEnv("TZ", "Europe/Zurich");
+    it("uses the same UTC calendar-day bounds for the map search", async () => {
+        vi.stubEnv("TZ", "America/Los_Angeles");
         const request = searchRequest();
         vi.stubGlobal("fetch", request);
 
         await trails_search_bounding_box(
             new LngLat(9, 48),
             new LngLat(7, 46),
-            trailFilter({ startDate: "2026-10-25", endDate: "2026-10-25" }),
+            trailFilter({ startDate: "2026-09-07", endDate: "2026-09-09" }),
             1, 11, 20, false,
         );
 
         expect(requestDateClauses(request)).toEqual([
-            `date >= ${Date.parse("2026-10-24T22:00:00Z") / 1000}`,
-            `date < ${Date.parse("2026-10-25T23:00:00Z") / 1000}`,
+            `date >= ${Date.parse("2026-09-07T00:00:00Z") / 1000}`,
+            `date < ${Date.parse("2026-09-10T00:00:00Z") / 1000}`,
         ]);
     });
 
     it("supports a start date without an end date", async () => {
         vi.stubEnv("TZ", "Europe/Zurich");
         expect(await listDateClauses({ startDate: "2026-09-07" })).toEqual([
-            `date >= ${Date.parse("2026-09-06T22:00:00Z") / 1000}`,
+            `date >= ${Date.parse("2026-09-07T00:00:00Z") / 1000}`,
         ]);
     });
 
     it("includes the whole end date without a start date", async () => {
         vi.stubEnv("TZ", "Europe/Zurich");
         expect(await listDateClauses({ endDate: "2026-09-07" })).toEqual([
-            `date < ${Date.parse("2026-09-07T22:00:00Z") / 1000}`,
+            `date < ${Date.parse("2026-09-08T00:00:00Z") / 1000}`,
         ]);
     });
 
