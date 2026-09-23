@@ -200,8 +200,12 @@ export class LayerManager {
                     this.map.off('mouseleave', id, listener.onLeave);
                 }
                 if (listener.onMouseDown) {
-                    this.addedListeners.delete("click-" + id)
-                    this.map.off('click', id, listener.onMouseDown);
+                    this.addedListeners.delete("mousedown-" + id)
+                    this.map.off('mousedown', id, listener.onMouseDown);
+                }
+                if (listener.onMouseUp) {
+                    this.addedListeners.delete("mouseup-" + id)
+                    this.map.off('mouseup', id, listener.onMouseUp);
                 }
                 if (listener.onMouseMove) {
                     this.addedListeners.delete("mousemove-" + id)
