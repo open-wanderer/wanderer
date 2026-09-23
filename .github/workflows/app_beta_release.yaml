@@ -1,0 +1,283 @@
+name: App Beta Release
+
+# Manual beta release of the mobile app: one run ships the same build to the
+# Google Play open test, TestFlight (external testers), and a GitHub
+# pre-release carrying the APK.
+#
+# The version name comes from app/pubspec.yaml and is not bumped here; only
+# the build number moves. It is the pubspec build number plus this workflow's
+# run_number, so it rises with every run and never falls below builds that
+# were uploaded by hand. Play versionCode and iOS CFBundleVersion must both
+# be monotonic, which is why this stays a single workflow file with a single
+# run counter.
+#
+# "Run workflow" only appears once this file is on the default branch (dev);
+# pick the branch to release from in the dispatch dialog.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: app-beta-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.44.2'
+  PACKAGE_NAME: com.openwanderer.wanderer
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      build: ${{ steps.meta.outputs.build }}
+      tag: ${{ steps.meta.outputs.tag }}
+      notes: ${{ steps.notes.outputs.notes }}
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compute version, build number and tag
+        id: meta
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          # "version: 0.1.0+10" -> name 0.1.0, base build 10
+          PUBSPEC_VERSION=$(sed -nE 's/^version: *([^ ]+).*/\1/p' pubspec.yaml)
+          VERSION=${PUBSPEC_VERSION%%+*}
+          BASE_BUILD=${PUBSPEC_VERSION#*+}
+          BUILD=$((BASE_BUILD + RUN_NUMBER))
+          TAG="app-v${VERSION}-beta.${BUILD}"
+
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+
+          {
+            echo "version=$VERSION"
+            echo "build=$BUILD"
+            echo "tag=$TAG"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG (build $BUILD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Collect release notes
+        id: notes
+        run: |
+          # Commits touching app/ since the previous beta tag.
+          PREV=$(git tag --list 'app-v*-beta.*' --sort=-v:refname | head -1)
+          if [ -n "$PREV" ]; then
+            NOTES=$(git log --no-merges --pretty='- %s' "$PREV..HEAD" -- .)
+          else
+            NOTES=$(git log --no-merges --pretty='- %s' -n 20 -- .)
+          fi
+          [ -z "$NOTES" ] && NOTES="- Maintenance build"
+
+          {
+            echo 'notes<<NOTES_EOF'
+            printf '%s\n' "$NOTES"
+            echo 'NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Analyze
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
+
+  android:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: app-release
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Write upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          # build.gradle.kts signs releases from key.properties; storeFile is
+          # resolved relative to android/app.
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          EOF
+
+      - name: Build app bundle and APK
+        env:
+          BUILD: ${{ needs.prepare.outputs.build }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          flutter build appbundle --release --build-number="$BUILD"
+          flutter build apk --release --build-number="$BUILD"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/wanderer-${VERSION}-beta.${BUILD}-android.apk"
+
+      - name: Write Play release notes
+        env:
+          NOTES: ${{ needs.prepare.outputs.notes }}
+        run: |
+          # Play caps "What's new" at 500 characters.
+          mkdir -p whatsnew
+          if [ ${#NOTES} -gt 500 ]; then
+            NOTES="${NOTES:0:497}..."
+          fi
+          printf '%s\n' "$NOTES" > whatsnew/whatsnew-en-US
+
+      - name: Upload to Google Play open test
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: app/build/app/outputs/bundle/release/app-release.aab
+          mappingFile: app/build/app/outputs/mapping/release/mapping.txt
+          whatsNewDirectory: app/whatsnew
+          # "beta" is the API name of the Open testing track.
+          track: beta
+          status: completed
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: app/dist/*.apk
+          retention-days: 7
+
+  ios:
+    needs: prepare
+    runs-on: macos-26
+    environment: app-release
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install signing certificate and provisioning profile
+        env:
+          CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          CERT_PATH=$RUNNER_TEMP/dist.p12
+          PROFILE_PATH=$RUNNER_TEMP/dist.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+
+          echo "$CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          echo "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          # Xcode 16+ reads profiles from UserData; older tools from
+          # MobileDevice. Install into both, named by UUID.
+          UUID=$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)
+          for dir in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
+                     "$HOME/Library/MobileDevice/Provisioning Profiles"; do
+            mkdir -p "$dir"
+            cp "$PROFILE_PATH" "$dir/$UUID.mobileprovision"
+          done
+
+      - name: Build IPA
+        env:
+          BUILD: ${{ needs.prepare.outputs.build }}
+        run: |
+          flutter build ipa --release --build-number="$BUILD" \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Upload to TestFlight and distribute to external testers
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          TESTFLIGHT_GROUPS: ${{ vars.TESTFLIGHT_GROUPS }}
+          NOTES: ${{ needs.prepare.outputs.notes }}
+        run: |
+          if [ -z "$TESTFLIGHT_GROUPS" ]; then
+            echo "::error::Repository variable TESTFLIGHT_GROUPS is not set"
+            exit 1
+          fi
+
+          KEY_JSON=$RUNNER_TEMP/asc_api_key.json
+          jq -n --arg id "$ASC_KEY_ID" --arg issuer "$ASC_ISSUER_ID" --arg key "$ASC_KEY_P8" \
+            '{key_id: $id, issuer_id: $issuer, key: $key, in_house: false}' > "$KEY_JSON"
+
+          IPAS=(build/ios/ipa/*.ipa)
+          IPA=${IPAS[0]}
+          # Waits for App Store Connect to process the build, then adds it to
+          # the external groups and submits it for beta review.
+          fastlane pilot upload \
+            --api_key_path "$KEY_JSON" \
+            --ipa "$IPA" \
+            --changelog "$NOTES" \
+            --distribute_external true \
+            --groups "$TESTFLIGHT_GROUPS" \
+            --notify_external_testers true
+
+  release:
+    needs: [prepare, android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: android-apk
+          path: dist
+
+      - name: Create GitHub pre-release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: wanderer app ${{ needs.prepare.outputs.version }} beta ${{ needs.prepare.outputs.build }}
+          body: ${{ needs.prepare.outputs.notes }}
+          files: dist/*.apk
+          prerelease: true
+          # Keep "Latest" pointing at the server release.
+          make_latest: false
