@@ -3,7 +3,7 @@
     import PhotoSwipeVideoPlugin from "$lib/vendor/photo-swipe-video-plugin";
     import type { DataSource } from "photoswipe";
     import PhotoSwipeLightbox from "photoswipe/lightbox";
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
 
     interface Props {
         photos: string[];
@@ -17,6 +17,15 @@
     }
     let lightbox: PhotoSwipeLightbox;
     let lightboxDataSource: DataSource;
+    let isHistoryPushed = false;
+    let isClosingFromPopstate = false;
+
+    function handlePopstate() {
+        if (lightbox?.pswp?.isOpen) {
+            isClosingFromPopstate = true;
+            lightbox.pswp.close();
+        }
+    }
 
     onMount(() => {
         lightboxDataSource = photos.map((p) => {
@@ -36,9 +45,13 @@
         });
         const videoPlugin = new PhotoSwipeVideoPlugin(lightbox);
 
-        lightbox.init();
+        window.addEventListener("popstate", handlePopstate);
 
         lightbox.on("beforeOpen", () => {
+            isHistoryPushed = true;
+            isClosingFromPopstate = false;
+            history.pushState({ pswp: true }, "");
+
             const pswp = lightbox.pswp;
             const ds = pswp?.options?.dataSource;
 
@@ -69,5 +82,30 @@
                 }
             }
         });
+
+        lightbox.on("close", () => {
+            if (isHistoryPushed && !isClosingFromPopstate) {
+                isHistoryPushed = false;
+                history.back();
+            }
+            isClosingFromPopstate = false;
+        });
+
+        lightbox.on("destroy", () => {
+            isHistoryPushed = false;
+            isClosingFromPopstate = false;
+        });
+
+        lightbox.init();
+    });
+
+    onDestroy(() => {
+        if (typeof window !== "undefined") {
+            window.removeEventListener("popstate", handlePopstate);
+        }
+        if (lightbox?.pswp?.isOpen) {
+            lightbox.pswp.close();
+        }
+        lightbox?.destroy();
     });
 </script>
