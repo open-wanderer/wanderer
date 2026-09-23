@@ -76,6 +76,18 @@ For security reasons the app only permits unencrypted (`http://`) connections to
 
 **Physical device without adb/USB:** expose your dev server via HTTPS (e.g. a reverse proxy or tunnel) and use that URL.
 
+:::caution[`ORIGIN` must match the URL you enter]
+The app does not persist the URL you type. After signing in it stores the server address derived from your user's ActivityPub actor IRI, which the backend builds from its `ORIGIN` environment variable, and it re-reads that stored address on every restart. If `ORIGIN` differs from what you entered (for example `http://localhost:5173` from the [local development guide](/develop/local-development) versus `http://127.0.0.1:5173` in the app), the first sign-in succeeds but the session is gone after the next app restart: the auth cookie was stored for `127.0.0.1`, while the app now looks for it under `localhost`, and on Android plain HTTP to `localhost` is blocked anyway.
+
+For app development set `ORIGIN` to exactly the URL you enter in the app, scheme, host and port included:
+
+```bash
+export ORIGIN=http://127.0.0.1:5173
+```
+
+Existing actors keep the IRI they were created with. Changing `ORIGIN` after the fact does not fix a user created under the old value; create a fresh user, or edit the user's `activitypub_actors` record (its `iri`, `inbox`, `outbox`, `followers` and `following` URLs) in the PocketBase dashboard.
+:::
+
 ## Project layout
 
 | Folder | Contents |
