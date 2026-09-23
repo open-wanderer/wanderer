@@ -31,10 +31,6 @@ func TestImportProviderDifficultyContract(t *testing.T) {
 		{"difficult", `,"difficulty":"difficult"`, "difficult"},
 		{"invalid string", `,"difficulty":"hard"`, ""},
 		{"wrong case", `,"difficulty":"Easy"`, ""},
-		{"number", `,"difficulty":1`, ""},
-		{"boolean", `,"difficulty":true`, ""},
-		{"array", `,"difficulty":["easy"]`, ""},
-		{"object", `,"difficulty":{"grade":"easy"}`, ""},
 	}
 	for _, test := range tests {
 		for _, kind := range []string{"planned", "completed"} {

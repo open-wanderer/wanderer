@@ -474,8 +474,9 @@ values. Swiss-hike maps its physical requirement (`tief`, `mittel`, `hoch`) to
 `easy`, `moderate`, `difficult`; it does not map technical hiking grades to this
 field. Plugins must leave unrecognized provider ratings unknown.
 
-The host ignores unsupported values and incorrect JSON types in this optional
-field without rejecting the import. A new trail then has an unknown difficulty.
+The host stores unsupported string values as an unknown difficulty, so such a
+trail is imported without a rating. The field must be a JSON string; any other
+type is invalid plugin output and the import fails.
 `metadata.difficulty` and other raw provider metadata do not set the stored
 difficulty. Existing imports are skipped by deduplication and keep their current
 difficulty, including empty values and user edits.

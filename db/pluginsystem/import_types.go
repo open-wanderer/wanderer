@@ -1,9 +1,6 @@
 package pluginsystem
 
-import (
-	"encoding/json"
-	"time"
-)
+import "time"
 
 type InstanceRef struct {
 	ID       string `json:"id"`
@@ -26,26 +23,6 @@ type TrailImport struct {
 	// Difficulty is the provider's coarse rating: easy, moderate, or difficult.
 	// Omit it when unknown; this is not a universal physical or technical scale.
 	Difficulty string `json:"difficulty,omitempty"`
-}
-
-// UnmarshalJSON keeps malformed optional difficulty values from rejecting an
-// otherwise valid import. All other fields retain their normal JSON validation.
-func (item *TrailImport) UnmarshalJSON(data []byte) error {
-	type trailImport TrailImport
-	var decoded trailImport
-	wire := struct {
-		*trailImport
-		Difficulty json.RawMessage `json:"difficulty"`
-	}{trailImport: &decoded}
-	if err := json.Unmarshal(data, &wire); err != nil {
-		return err
-	}
-	var difficulty string
-	if err := json.Unmarshal(wire.Difficulty, &difficulty); err == nil {
-		decoded.Difficulty = difficulty
-	}
-	*item = TrailImport(decoded)
-	return nil
 }
 
 type TrailSummary struct {
