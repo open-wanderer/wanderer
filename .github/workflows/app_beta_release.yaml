@@ -235,14 +235,8 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          TESTFLIGHT_GROUPS: ${{ vars.TESTFLIGHT_GROUPS }}
           NOTES: ${{ needs.prepare.outputs.notes }}
         run: |
-          if [ -z "$TESTFLIGHT_GROUPS" ]; then
-            echo "::error::Repository variable TESTFLIGHT_GROUPS is not set"
-            exit 1
-          fi
-
           KEY_JSON=$RUNNER_TEMP/asc_api_key.json
           jq -n --arg id "$ASC_KEY_ID" --arg issuer "$ASC_ISSUER_ID" --arg key "$ASC_KEY_P8" \
             '{key_id: $id, issuer_id: $issuer, key: $key, in_house: false}' > "$KEY_JSON"
@@ -256,7 +250,7 @@ jobs:
             --ipa "$IPA" \
             --changelog "$NOTES" \
             --distribute_external true \
-            --groups "$TESTFLIGHT_GROUPS" \
+            --groups wanderer \
             --notify_external_testers true
 
   release:
