@@ -73,7 +73,6 @@
     "maplibre-gl": "^6.4.1",
     "marked": "^18.0.5",
     "meilisearch": "^0.58.0",
-    "ngeohash": "^0.6.3",
     "nouislider": "^15.8.1",
     "photoswipe": "^5.4.4",
     "pocketbase": "^0.27.0",

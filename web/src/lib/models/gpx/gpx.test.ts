@@ -195,4 +195,24 @@ describe("GPX.parse", () => {
     ])("preserves errors from the existing XML parser: %s", (xml) => {
         expect(() => GPX.parse(xml)).toThrow();
     });
+
+    it("evaluates features lazily upon access", () => {
+        const xml = `<?xml version="1.0"?><gpx version="1.1" creator="x" xmlns="${GPX_NS}">${track("")}</gpx>`;
+        const gpx = GPX.parse(xml);
+
+        // Verify private field is not populated before access
+        expect((gpx as any)._features).toBeUndefined();
+
+        // toGeoJSON does not trigger features calculation
+        const geojson = gpx.toGeoJSON();
+        expect(geojson.type).toBe("FeatureCollection");
+        expect((gpx as any)._features).toBeUndefined();
+
+        // Accessing features computes and caches it
+        const features = gpx.features;
+        expect(features).toBeDefined();
+        expect(features.duration).toBe(60_000);
+        expect(features.distance).toBeDefined();
+        expect((gpx as any)._features).toBe(features);
+    });
 });
