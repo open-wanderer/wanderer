@@ -11,7 +11,7 @@
         type SearchItem,
     } from "$lib/components/base/search.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
+    import SegmentedControl from "$lib/components/base/segmented_control.svelte";
     import ConfirmModal from "$lib/components/confirm_modal.svelte";
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
     import { ListCreateSchema } from "$lib/models/api/list_schema.js";
@@ -88,6 +88,7 @@
         form,
         errors,
         data: formData,
+        setFields,
     } = createForm<z.infer<typeof ClientListCreateSchema>>({
         initialValues: getInitialFormValues(),
         extend: validator({
@@ -99,6 +100,10 @@
             }
         },
     });
+
+    function handlePublicChange(isPublic: boolean) {
+        setFields("public", isPublic);
+    }
 
     onMount(() => {
         trailsOnMap = [...(data.list.expand?.trails ?? [])];
@@ -333,11 +338,24 @@
             label={$_("description")}
             error={$errors.description}
         ></Editor>
-        <Toggle
+        <SegmentedControl
             name="public"
-            label={$formData.public ? $_("public") : $_("private")}
-            icon={$formData.public ? "globe" : "lock"}
-        ></Toggle>
+            label={$_("privacy")}
+            bind:value={$formData.public}
+            options={[
+                {
+                    value: false,
+                    label: $_("private"),
+                    icon: "lock",
+                },
+                {
+                    value: true,
+                    label: $_("public"),
+                    icon: "globe",
+                },
+            ]}
+            onchange={handlePublicChange}
+        ></SegmentedControl>
         <h3 class="text-xl font-semibold">
             {$_("trail", { values: { n: 2 } })}
         </h3>
