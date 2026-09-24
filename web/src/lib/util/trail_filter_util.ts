@@ -86,6 +86,26 @@ export function buildPocketBaseCategoryFilter(
         : "";
 }
 
+/** Convert a UTC calendar day into an inclusive start or exclusive end in seconds. */
+export function trailFilterDateBoundary(
+    value?: string,
+    nextDay = false,
+): number | undefined {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return undefined;
+    }
+
+    // Date-only trail values are stored at UTC midnight.
+    const calendarDate = new Date(`${value}T00:00:00Z`);
+    if (
+        !Number.isFinite(calendarDate.getTime()) ||
+        calendarDate.toISOString().split("T")[0] !== value
+    ) {
+        return undefined;
+    }
+    return calendarDate.getTime() / 1000 + (nextDay ? 86400 : 0);
+}
+
 const TRAIL_SORT_OPTIONS = new Set([
     "name",
     "distance",

@@ -1,0 +1,43 @@
+---
+title: Plan a route
+description: Draw new routes on the map with the wanderer app's trail planner
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+import PhoneGrid from '../../../components/phone_grid.astro';
+import plannerShot from '../../../assets/guides/wanderer_app_planner.png';
+import plannerElevationShot from '../../../assets/guides/wanderer_app_planner_elevation.png';
+
+<BetaNotice />
+
+The trail planner lets you draw a new route directly on the map, anchor by anchor. Open it via the **plus** button → **Open trail planner**. Routing runs on your instance, so the planner needs a connection.
+
+## Travel profiles
+
+Before you start, pick a travel profile: **Hiking** or one of the biking profiles (**Biking / Hybrid**, **Mountain**, **Cross**, **Road**). The profile determines which paths the router prefers and pre-selects the trail's category when you save. You can change it later from the planner's **Settings** tab.
+
+## Drawing a route
+
+<PhoneGrid src={plannerShot} alt="The route planner with four anchors">
+
+Tap the map to set anchor points. The planner automatically routes between them along suitable paths for your travel profile. Use the search field to jump to a location, and the undo/redo buttons to step back and forth through your edits.
+
+The **Route Anchors** tab lists every anchor with its location and the distance, duration, and ascent of the leg leading to it. From here you can delete individual anchors, press and hold one to drag it into a new order, **Reverse direction**, or **Delete all** and start over.
+
+Turn off **Auto-routing** in the **Settings** tab to connect anchors with straight lines instead, useful where there is no mapped path, for example across open terrain.
+
+</PhoneGrid>
+
+## Elevation
+
+<PhoneGrid src={plannerElevationShot} alt="The planner's elevation tab" side="left">
+
+The **Elevation** tab shows the elevation profile of the route as planned, together with its total duration, distance, and elevation gain and loss, so you can judge the effort before you ever set out.
+
+</PhoneGrid>
+
+## Finishing
+
+Once the route has at least two anchors, tap the **checkmark** in the top right. The trail editor opens with your planned route, where you add a name, description, category, and other details before saving it as a trail, ready to be [navigated](/app/navigate-a-trail) or shared.
+
+To change the route of an existing trail of yours, open it, choose **Edit**, and tap **Edit route** in the editor; the planner opens with the trail's route as anchors.
