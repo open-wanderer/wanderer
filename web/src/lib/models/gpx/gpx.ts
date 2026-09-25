@@ -274,8 +274,10 @@ export default class GPX {
 
     let xmlString = builder.buildObject(gpx);
 
-    // Ensure xmlns is present in the root element for Firefox
-    if (!xmlString.includes(`xmlns="${defaultAttributes["xmlns"]}"`)) {
+    // Ensure xmlns is present in the root element for Firefox.
+    // A file can keep its own namespace (GPX 1.0), and a second xmlns attribute makes the XML invalid.
+    const rootTag = xmlString.match(/<gpx\b[^>]*>/)?.[0] ?? "";
+    if (!/\sxmlns=/.test(rootTag)) {
       xmlString = xmlString.replace('<gpx', `<gpx xmlns="${defaultAttributes["xmlns"]}"`);
     }
 

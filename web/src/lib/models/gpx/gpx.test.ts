@@ -53,6 +53,15 @@ describe("GPX.parse", () => {
         expect(trackPointCount(GPX.parse(xml))).toBe(2);
     });
 
+    it("keeps a GPX 1.0 file readable after a parse/toString round trip", () => {
+        const xml = `<gpx version="1.0" creator="x" xmlns="http://www.topografix.com/GPX/1/0">${track("")}</gpx>`;
+
+        const out = GPX.parse(xml).toString();
+
+        expect(out.match(/\sxmlns="/g)).toHaveLength(1);
+        expect(trackPointCount(GPX.parse(out))).toBe(2);
+    });
+
     it("leaves foreign namespace prefixes untouched when no GPX prefix is bound", () => {
         const extensions = `<extensions><osmand:speed>1.2</osmand:speed><locus:activity>hike</locus:activity></extensions>`;
         const xml = `<gpx version="1.1" creator="x" xmlns="${GPX_NS}" xmlns:osmand="https://osmand.net" xmlns:locus="http://www.locusmap.eu">${track("", extensions)}</gpx>`;
