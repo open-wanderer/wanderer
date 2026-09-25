@@ -150,6 +150,7 @@
 
 <svelte:head>
     <title>Home | wanderer</title>
+    <meta property="og:image" content="/og-image.png" />
 </svelte:head>
 
 <svelte:window onscroll={onScroll} />
