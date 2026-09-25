@@ -193,6 +193,7 @@
                                         id: feedItem.item,
                                     },
                                     photo,
+                                    "600x0",
                                 )}
                                 alt=""
                             />

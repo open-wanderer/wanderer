@@ -44,7 +44,7 @@
             }),
         ).then((v) => {
             if (log.photos.length) {
-                thumbnail = getFileURL(log, log.photos[0]);
+                thumbnail = getFileURL(log, log.photos[0], "600x0");
             } else if (v.length) {
                 thumbnail = v[0];
             } else {

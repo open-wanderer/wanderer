@@ -79,7 +79,7 @@
             >
                 <img
                     class="object-cover h-full"
-                    src={getFileURL($currentUser, $currentUser.avatar) ||
+                    src={getFileURL($currentUser, $currentUser.avatar, "300x300") ||
                         `https://api.dicebear.com/7.x/initials/svg?seed=${$currentUser.username?.toLowerCase()}&backgroundType=gradientLinear`}
                     alt="avatar"
                 />

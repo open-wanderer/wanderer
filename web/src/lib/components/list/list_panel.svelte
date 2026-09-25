@@ -135,7 +135,7 @@
     <img
         class="w-full object-cover max-h-64"
         src={list.avatar
-            ? getFileURL(list, list.avatar)
+            ? getFileURL(list, list.avatar, "600x0")
             : $theme === "light"
               ? emptyStateTrailLight
               : emptyStateTrailDark}

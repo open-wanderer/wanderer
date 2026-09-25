@@ -75,7 +75,7 @@
             imgSrc = log.photos
                 .filter((_, i) => i < 3)
                 .reverse()
-                .map((p) => getFileURL(log, p));
+                .map((p) => getFileURL(log, p, "300x300"));
         } else {
             imgSrc = [];
         }

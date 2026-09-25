@@ -27,24 +27,33 @@ export function smoothElevations(positions: Position[], windowSize: number): Pos
     // Ensure windowSize is valid (at least 1)
     if (windowSize < 1) {
         console.warn("Window size must be at least 1.");
-        return positions
-    };
+        return positions;
+    }
 
-    // Create a new array with smoothed elevations
-    return positions.map((pos, i, arr) => {
-        const start = Math.max(0, i - Math.floor(windowSize / 2)); // Start index for the window
-        const end = Math.min(arr.length, i + Math.floor(windowSize / 2) + 1); // End index for the window
-        const segment = arr.slice(start, end); // Extract the positions in the window
+    const len = positions.length;
+    if (len === 0) {
+        return positions;
+    }
 
-        // Calculate the weighted moving average of elevations
-        const weights = segment.map((_, idx) => idx + 1); // Increasing weights: 1, 2, 3...
-        const elevations = segment.map(p => p[2]); // Extract elevations
-        const weightedSum = elevations.reduce((sum, elevation, idx) => sum + elevation * weights[idx], 0);
-        const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+    const half = Math.floor(windowSize / 2);
+    const result: Position[] = new Array(len);
 
-        const smoothedElevation = weightedSum / weightTotal; // Weighted average elevation       
+    for (let i = 0; i < len; i++) {
+        const start = Math.max(0, i - half);
+        const end = Math.min(len, i + half + 1);
 
-        // Return a new Position with the smoothed elevation
-        return [pos[0], pos[1], smoothedElevation] as Position;
-    });
+        let weightedSum = 0;
+        let weightTotal = 0;
+        let weight = 1;
+
+        for (let j = start; j < end; j++) {
+            weightedSum += (positions[j][2] ?? 0) * weight;
+            weightTotal += weight;
+            weight++;
+        }
+
+        result[i] = [positions[i][0], positions[i][1], weightedSum / weightTotal] as Position;
+    }
+
+    return result;
 }

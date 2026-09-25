@@ -163,7 +163,7 @@
                 >
                     <img
                         class="rounded-full w-10 aspect-square"
-                        src={getFileURL(navUser, navUser.avatar) ||
+                        src={getFileURL(navUser, navUser.avatar, "100x100") ||
                             `https://api.dicebear.com/7.x/initials/svg?seed=${navUser.username.toLowerCase()}&backgroundType=gradientLinear`}
                         alt="avatar"
                     />
@@ -265,7 +265,7 @@
                         >
                             <img
                                 class="rounded-full w-full h-full"
-                                src={getFileURL(navUser, navUser.avatar) ||
+                                src={getFileURL(navUser, navUser.avatar, "100x100") ||
                                     `https://api.dicebear.com/7.x/initials/svg?seed=${navUser.username.toLowerCase()}&backgroundType=gradientLinear`}
                                 alt="avatar"
                             />

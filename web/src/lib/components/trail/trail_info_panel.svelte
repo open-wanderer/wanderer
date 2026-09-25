@@ -239,7 +239,7 @@
 
     function getHeaderPhotos() {
         if (trail.photos.length) {
-            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p));
+            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p, "600x0"));
         } else {
             return $theme === "light"
                 ? [emptyStateTrailLight]
@@ -945,7 +945,7 @@
                                     <img
                                         class="rounded-xl cursor-pointer hover:scale-105 transition-transform"
                                         onclick={() => gallery.openGallery(i)}
-                                        src={getFileURL(trail, photo)}
+                                        src={getFileURL(trail, photo, "600x0")}
                                         alt=""
                                     />
                                 {/if}
@@ -964,6 +964,7 @@
                                     src={getFileURL(
                                         $currentUser,
                                         $currentUser.avatar,
+                                        "100x100",
                                     ) ||
                                         `https://api.dicebear.com/7.x/initials/svg?seed=${$currentUser.username?.toLowerCase()}&backgroundType=gradientLinear`}
                                     alt="avatar"

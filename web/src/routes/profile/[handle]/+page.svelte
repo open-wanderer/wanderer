@@ -115,7 +115,7 @@
                     <img
                         class="w-full h-full object-cover transition-transform group-hover:scale-110"
                         src={list.avatar
-                            ? getFileURL(list, list.avatar)
+                            ? getFileURL(list, list.avatar, "600x0")
                             : $theme === "light"
                               ? emptyStateTrailLight
                               : emptyStateTrailDark}
