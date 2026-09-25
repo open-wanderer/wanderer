@@ -19,13 +19,14 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/600.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BETA LINKS. TestFlight is live. The Play open test and the GitHub APK asset
-// are placeholders; swap the two values when they exist; nothing else on this
-// page needs to change. See PRODUCT.md → "Beta install links".
+// BETA LINKS. All three install paths are live and defined only here.
+// See PRODUCT.md → "Beta install links".
+// The APK link filters releases to app tags: releases/latest would open the
+// newest server release, and app betas are pre-releases, which "latest" skips.
 // ─────────────────────────────────────────────────────────────────────────────
 const TESTFLIGHT_URL = "https://testflight.apple.com/join/6VCR4QpV";
-const PLAY_OPEN_TEST_URL = "#play-open-test-pending";
-const APK_RELEASES_URL = "https://github.com/open-wanderer/wanderer/releases/latest";
+const PLAY_OPEN_TEST_URL = "https://play.google.com/apps/testing/com.openwanderer.wanderer";
+const APK_RELEASES_URL = "https://github.com/open-wanderer/wanderer/releases?q=app-v&expanded=true";
 const APK_ASSET_PATTERN = "wanderer-<version>-android.apk";
 const MIN_BACKEND_VERSION = "v0.21.0-app";
 const BUG_REPORT_URL =
