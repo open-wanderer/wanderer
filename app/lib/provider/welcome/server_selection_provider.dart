@@ -26,7 +26,16 @@ class ServerSelectionNotifier extends _$ServerSelectionNotifier {
   }
 
   void setSelectedServer(ServerInstance server) {
-    final newState = ServerState(state.requireValue.availableServers, server);
+    // A "Last used" entry (quick-260926-ijp) can be tapped while the
+    // servers.json fetch is still loading or has failed (e.g. wanderer.to is
+    // down but a self-hosted instance is up), so `requireValue` would throw
+    // here. Falling back to an empty list on that window is accepted: it is
+    // sub-second, and the user simply reselects if the fetch then overwrites
+    // this state.
+    final newState = ServerState(
+      state.value?.availableServers ?? const [],
+      server,
+    );
     state = AsyncValue.data(newState);
   }
 }

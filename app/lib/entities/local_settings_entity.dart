@@ -37,6 +37,16 @@ class LocalSettingsEntity {
   /// [mapStyleSourcesJson].
   String demTileTemplate;
 
+  /// `jsonEncode` of up to `kMaxRecentServers` (see `recent_servers.dart`)
+  /// instances the user has successfully signed in to, most recent first;
+  /// empty means none.
+  ///
+  /// Lives on this device-level row on purpose: its whole job is to survive
+  /// logout, and `account_data_purge.dart` never touches
+  /// [LocalSettingsEntity]. Stores only public instance metadata (url, name,
+  /// image), never credentials.
+  String recentServersJson;
+
   LocalSettingsEntity({
     this.themeMode = 'system',
     this.backgroundLocationAsked = false,
@@ -44,5 +54,6 @@ class LocalSettingsEntity {
     this.tileProxySecret = '',
     this.mapStyleSourcesJson = '',
     this.demTileTemplate = '',
+    this.recentServersJson = '',
   });
 }
