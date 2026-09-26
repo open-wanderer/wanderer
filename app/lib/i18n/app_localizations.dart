@@ -1712,6 +1712,12 @@ abstract class AppLocalizations {
   /// **'Enter server URL (e.g. wanderer.to)'**
   String get enter_server_url_hint;
 
+  /// No description provided for @last_used.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used'**
+  String get last_used;
+
   /// No description provided for @search_library.
   ///
   /// In en, this message translates to:

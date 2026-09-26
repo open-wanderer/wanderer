@@ -950,6 +950,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get enter_server_url_hint => 'Server-URL eingeben (z.B. wanderer.to)';
 
   @override
+  String get last_used => 'Zuletzt verwendet';
+
+  @override
   String get search_library => 'Bibliothek durchsuchen…';
 
   @override

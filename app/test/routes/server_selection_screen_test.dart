@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/server_instance.dart';
+import 'package:wanderer/provider/welcome/recent_servers_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
 
@@ -20,15 +23,28 @@ class _StubServerSelection extends ServerSelectionNotifier {
   Future<ServerState> build() async => ServerState(available, selected);
 }
 
+/// A servers.json fetch that never settles — used to prove the "Last used"
+/// section renders alongside the loading spinner, not only once data arrives.
+class _PendingServerSelection extends ServerSelectionNotifier {
+  @override
+  Future<ServerState> build() {
+    return Completer<ServerState>().future;
+  }
+}
+
 Widget _harness(
   ServerInstance? selected, {
   List<ServerInstance> available = const [],
+  List<ServerInstance> recent = const [],
+  ServerSelectionNotifier Function()? serverSelectionOverride,
 }) {
   return ProviderScope(
     overrides: [
       serverSelectionProvider.overrideWith(
-        () => _StubServerSelection(selected, available),
+        serverSelectionOverride ??
+            () => _StubServerSelection(selected, available),
       ),
+      recentServersProvider.overrideWithValue(recent),
     ],
     child: const MaterialApp(
       localizationsDelegates: [
@@ -83,4 +99,70 @@ void main() {
     // is the branch offering the custom-URL button.
     expect(find.textContaining('No servers match'), findsOneWidget);
   });
+
+  testWidgets('with no recorded servers, no Last used text is rendered', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(null));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last used'), findsNothing);
+  });
+
+  testWidgets(
+    'renders a Last used header and tiles for recorded servers, nameless-safe',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          null,
+          recent: const [
+            ServerInstance(url: 'https://self.hosted.example'),
+            ServerInstance(name: 'Wanderer', url: 'https://wanderer.to'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Last used'), findsOneWidget);
+      expect(find.text('self.hosted.example'), findsOneWidget);
+      expect(find.text('Wanderer'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Last used renders alongside the spinner while servers.json is loading',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          null,
+          recent: const [ServerInstance(url: 'https://self.hosted.example')],
+          serverSelectionOverride: _PendingServerSelection.new,
+        ),
+      );
+      // The stub notifier never completes, so pumpAndSettle would hang.
+      await tester.pump();
+
+      expect(find.text('Last used'), findsOneWidget);
+      expect(find.text('self.hosted.example'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a nameless entry in the remote list renders without a null-bang crash',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          null,
+          available: const [
+            ServerInstance(url: 'https://nameless.example'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('nameless.example'), findsOneWidget);
+    },
+  );
 }

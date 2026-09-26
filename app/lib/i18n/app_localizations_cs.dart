@@ -949,6 +949,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get enter_server_url_hint => 'Zadejte URL serveru (např. wanderer.to)';
 
   @override
+  String get last_used => 'Naposledy použité';
+
+  @override
   String get search_library => 'Prohledat knihovnu…';
 
   @override

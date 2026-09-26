@@ -941,6 +941,9 @@ class AppLocalizationsEu extends AppLocalizations {
   String get enter_server_url_hint => 'Enter server URL (e.g. wanderer.to)';
 
   @override
+  String get last_used => 'Last used';
+
+  @override
   String get search_library => 'Search library…';
 
   @override
