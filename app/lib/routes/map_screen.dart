@@ -366,7 +366,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final isOnline = ref.watch(onlineStatusProvider);
 
     sheetMinSize =
-        (56 + kBottomNavigationBarHeight + 48) /
+        (kBottomNavigationBarHeight +
+            MediaQuery.viewPaddingOf(context).bottom +
+            80) /
         MediaQuery.of(context).size.height;
 
     // Initial-focus fallback chain, lowest priority first: (0,0) world view,
