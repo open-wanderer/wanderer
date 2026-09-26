@@ -41,6 +41,20 @@ bool isBackendRequest(Dio dio, Uri uri) {
 
 @Riverpod(keepAlive: true)
 class Api extends _$Api {
+  /// The default [CancelToken] attached to any request that does not bring
+  /// its own — which is every ordinary API call (auth, feed, trail, profile).
+  /// [cancelPendingRequests] cancels this one and swaps in a fresh instance,
+  /// so `Auth.logout()` can abort whatever is still awaiting a response on
+  /// the shared client without disturbing callers that already manage their
+  /// own token, notably region/tile downloads and trail uploads
+  /// (`tile_repository_manager.dart`, `trail_download_service.dart`), which
+  /// must keep running across a logout per `account_scope_invalidation.dart`.
+  ///
+  /// Not `late final`: this field is assigned at construction and reassigned
+  /// by [cancelPendingRequests], never inside [build] — `build` can run again
+  /// on the same instance and a `late final` reassignment would throw.
+  CancelToken _sessionCancelToken = CancelToken();
+
   @override
   Dio build() {
     final cookieJar = ref.watch(cookieJarProvider);
@@ -56,6 +70,22 @@ class Api extends _$Api {
       BaseOptions(
         baseUrl: "$baseUrl/api/v1",
         connectTimeout: const Duration(seconds: 8),
+      ),
+    );
+
+    // Must run before CookieManager below: a request still awaiting its
+    // response when `Auth.logout()` calls `cancelPendingRequests()` must be
+    // aborted before CookieManager's `onResponse` can persist a Set-Cookie
+    // from it into the (just-cleared) jar. `web/src/hooks.server.ts` appends
+    // a fresh `pb_auth` Set-Cookie to every response, so any response landing
+    // after logout would otherwise resurrect the signed-out session. See
+    // `.planning/debug/app-relogin-after-logout.md`.
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.cancelToken ??= _sessionCancelToken;
+          handler.next(options);
+        },
       ),
     );
     dio.interceptors.add(CookieManager(cookieJar));
@@ -93,6 +123,31 @@ class Api extends _$Api {
     );
 
     return dio;
+  }
+
+  /// Aborts every request currently in flight on the shared client that did
+  /// not bring its own [CancelToken], then arms a fresh token for requests
+  /// issued from now on.
+  ///
+  /// Called from `Auth.logout()` before any local teardown, so a request
+  /// that was already awaiting a response — e.g. `_validateInBackground`'s
+  /// GET `/user/:id` — is aborted instead of allowed to land afterwards. A
+  /// request genuinely still awaiting network I/O at that point has its
+  /// underlying socket aborted (`dio`'s `IOHttpClientAdapter` ties
+  /// `CancelToken` to `HttpClientRequest.abort()`), so neither
+  /// `CookieManager` nor the caller ever sees a response to act on. See
+  /// `.planning/debug/app-relogin-after-logout.md` for the full mechanism.
+  ///
+  /// Deliberately scoped to the default token only: requests that already
+  /// carry their own `CancelToken` (region/tile downloads, trail uploads)
+  /// are untouched, since those are designed to survive a logout — see the
+  /// exclusion notes in `account_scope_invalidation.dart`.
+  void cancelPendingRequests() {
+    final expiring = _sessionCancelToken;
+    _sessionCancelToken = CancelToken();
+    if (!expiring.isCancelled) {
+      expiring.cancel('Signed out');
+    }
   }
 
   /// Points the shared client at [baseUrl].
