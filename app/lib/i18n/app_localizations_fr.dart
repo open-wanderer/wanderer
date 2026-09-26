@@ -946,7 +946,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get last_used => 'Last used';
 
   @override
-  String get all_instances => 'All instances';
+  String get community_instances => 'Community instances';
 
   @override
   String get search_library => 'Search library…';

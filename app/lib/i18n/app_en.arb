@@ -474,7 +474,7 @@
   "select_instance": "Select Instance",
   "enter_server_url_hint": "Enter server URL (e.g. wanderer.to)",
   "last_used": "Last used",
-  "all_instances": "All instances",
+  "community_instances": "Community instances",
   "search_library": "Search library…",
   "language_and_units": "{language} & {units}",
   "@language_and_units": {

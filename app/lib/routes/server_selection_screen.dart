@@ -240,7 +240,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                       ),
                     ),
                   ),
-                  _buildSectionHeader(context, l10n.all_instances),
+                  _buildSectionHeader(context, l10n.community_instances),
                 ],
 
                 ...severSelection.when(

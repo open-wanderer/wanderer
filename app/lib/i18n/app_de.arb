@@ -474,7 +474,7 @@
   "select_instance": "Instanz auswählen",
   "enter_server_url_hint": "Server-URL eingeben (z.B. wanderer.to)",
   "last_used": "Zuletzt verwendet",
-  "all_instances": "Alle Instanzen",
+  "community_instances": "Community-Instanzen",
   "search_library": "Bibliothek durchsuchen…",
   "language_and_units": "{language} & {units}",
   "@language_and_units": {

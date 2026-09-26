@@ -952,7 +952,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get last_used => 'Naposledy použité';
 
   @override
-  String get all_instances => 'Všechny instance';
+  String get community_instances => 'Komunitní instance';
 
   @override
   String get search_library => 'Prohledat knihovnu…';
