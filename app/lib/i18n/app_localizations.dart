@@ -1718,6 +1718,12 @@ abstract class AppLocalizations {
   /// **'Last used'**
   String get last_used;
 
+  /// No description provided for @all_instances.
+  ///
+  /// In en, this message translates to:
+  /// **'All instances'**
+  String get all_instances;
+
   /// No description provided for @search_library.
   ///
   /// In en, this message translates to:

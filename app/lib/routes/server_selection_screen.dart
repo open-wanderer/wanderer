@@ -216,17 +216,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                 // not depend on the servers.json AsyncValue, so it renders
                 // even while that fetch is loading or has failed.
                 if (recentServers.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      child: Text(
-                        l10n.last_used,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildSectionHeader(context, l10n.last_used),
                   SliverList.separated(
                     itemCount: recentServers.length,
                     separatorBuilder: (context, index) =>
@@ -234,7 +224,23 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                     itemBuilder: (context, index) =>
                         _buildServerTile(context, recentServers[index]),
                   ),
-                  const SliverToBoxAdapter(child: Divider()),
+                  // A filled band rather than a plain Divider: a hairline
+                  // reads as just another tile separator.
+                  SliverToBoxAdapter(
+                    child: Container(
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        border: Border.symmetric(
+                          horizontal: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  _buildSectionHeader(context, l10n.all_instances),
                 ],
 
                 ...severSelection.when(
@@ -307,6 +313,21 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String label) {
+    final theme = Theme.of(context);
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }

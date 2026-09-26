@@ -943,6 +943,9 @@ class AppLocalizationsHu extends AppLocalizations {
   String get last_used => 'Last used';
 
   @override
+  String get all_instances => 'All instances';
+
+  @override
   String get search_library => 'Search library…';
 
   @override

@@ -953,6 +953,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get last_used => 'Zuletzt verwendet';
 
   @override
+  String get all_instances => 'Alle Instanzen';
+
+  @override
   String get search_library => 'Bibliothek durchsuchen…';
 
   @override

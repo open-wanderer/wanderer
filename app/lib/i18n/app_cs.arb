@@ -474,6 +474,7 @@
   "select_instance": "Vybrat instanci",
   "enter_server_url_hint": "Zadejte URL serveru (např. wanderer.to)",
   "last_used": "Naposledy použité",
+  "all_instances": "Všechny instance",
   "search_library": "Prohledat knihovnu…",
   "language_and_units": "{language} a {units}",
   "@language_and_units": {

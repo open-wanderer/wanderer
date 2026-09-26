@@ -107,6 +107,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Last used'), findsNothing);
+    expect(find.text('All instances'), findsNothing);
   });
 
   testWidgets(
@@ -124,6 +125,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Last used'), findsOneWidget);
+      expect(find.text('All instances'), findsOneWidget);
       expect(find.text('self.hosted.example'), findsOneWidget);
       expect(find.text('Wanderer'), findsOneWidget);
     },
