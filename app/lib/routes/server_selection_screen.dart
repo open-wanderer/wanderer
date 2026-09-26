@@ -7,6 +7,7 @@ import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/server_instance.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/welcome/recent_servers_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 import 'package:wanderer/util/server_url.dart';
 
@@ -65,6 +66,10 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
   ///
   /// Unusable input (empty, or still hostless after normalisation) leaves the
   /// picker open rather than selecting something the client cannot talk to.
+  ///
+  /// Recording as "last used" happens only on a successful login/OAuth/register
+  /// (see `auth_provider.dart`'s `_recordLastUsedServer`) — merely selecting a
+  /// server here must NOT record it.
   void _selectAndGoBack(ServerInstance server) {
     final url = normalizeServerUrl(server.url);
     if (url == null) return;
@@ -77,10 +82,78 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
     context.pop();
   }
 
+  /// Strips a leading `https?://` for display, same regex as
+  /// `ServerSelector._displayUrl`-equivalent logic in `server_selctor.dart`.
+  String _displayUrl(String url) {
+    return url.replaceFirst(RegExp(r'https?://'), '');
+  }
+
+  /// The 48x48 fallback icon shown when a server has no image, or its image
+  /// fails to load.
+  Widget _buildServerIconFallback(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      color: theme.colorScheme.surfaceContainerHighest,
+      width: 48,
+      height: 48,
+      child: const Center(child: FaIcon(FontAwesomeIcons.server)),
+    );
+  }
+
+  /// A single server row, shared by the "Last used" section and the remote
+  /// list. Title falls back to the URL (scheme stripped) when there is no
+  /// name, and the leading image falls back to the server icon when there is
+  /// no image — so a nameless, image-less entry (a typed custom URL) renders
+  /// safely, with no request to `https://wanderer.to/null`.
+  Widget _buildServerTile(BuildContext context, ServerInstance server) {
+    final theme = Theme.of(context);
+    final hasImage = server.image != null && server.image!.isNotEmpty;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
+      leading: hasImage
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image(
+                image: CachedNetworkImageProvider(
+                  "https://wanderer.to/${server.image}",
+                ),
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildServerIconFallback(context),
+              ),
+            )
+          : _buildServerIconFallback(context),
+      title: Text(
+        server.name ?? _displayUrl(server.url),
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(server.url, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            children: server.category
+                .map((c) => _buildTinyTag(context, c))
+                .toList(),
+          ),
+        ],
+      ),
+      onTap: () => _selectAndGoBack(server),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final severSelection = ref.watch(serverSelectionProvider);
+    final recentServers = ref.watch(recentServersProvider);
     final l10n = AppLocalizations.of(context)!;
 
     // Late-resolution fallback for the initState prefill. Listener callbacks
@@ -135,96 +208,102 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
           const Divider(),
 
           Expanded(
-            child: severSelection.when(
-              data: (serverState) {
-                final filteredServers = serverState.availableServers
-                    .where(
-                      (s) =>
-                          s.name!.toLowerCase().contains(
-                            _searchQuery.toLowerCase(),
-                          ) ||
-                          s.url.toLowerCase().contains(
-                            _searchQuery.toLowerCase(),
-                          ),
-                    )
-                    .toList();
-
-                if (filteredServers.isEmpty && _searchQuery.isNotEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const FaIcon(
-                          FontAwesomeIcons.magnifyingGlass,
-                          size: 48,
+            child: CustomScrollView(
+              slivers: [
+                // The "Last used" section is intentionally NOT filtered by
+                // _searchQuery (the field is prefilled with the current
+                // selection's URL, which would routinely hide it) and does
+                // not depend on the servers.json AsyncValue, so it renders
+                // even while that fetch is loading or has failed.
+                if (recentServers.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Text(
+                        l10n.last_used,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(height: 16),
-                        Text(l10n.no_servers_match_query(_searchQuery)),
-                        TextButton(
-                          onPressed: () => _selectAndGoBack(
-                            ServerInstance(url: _urlController.text.trim()),
-                          ),
-                          child: Text(l10n.use_custom_url_instead),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  itemCount: filteredServers.length,
-                  separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final server = filteredServers[index];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
                       ),
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image(
-                          image: CachedNetworkImageProvider(
-                            "https://wanderer.to/${server.image}",
-                          ),
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            color: theme.colorScheme.surfaceContainerHighest,
-                            width: 48,
-                            height: 48,
-                            child: Center(
-                              child: const FaIcon(FontAwesomeIcons.server),
+                    ),
+                  ),
+                  SliverList.separated(
+                    itemCount: recentServers.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) =>
+                        _buildServerTile(context, recentServers[index]),
+                  ),
+                  const SliverToBoxAdapter(child: Divider()),
+                ],
+
+                ...severSelection.when(
+                  data: (serverState) {
+                    final filteredServers = serverState.availableServers
+                        .where(
+                          (s) =>
+                              (s.name ?? '').toLowerCase().contains(
+                                _searchQuery.toLowerCase(),
+                              ) ||
+                              s.url.toLowerCase().contains(
+                                _searchQuery.toLowerCase(),
+                              ),
+                        )
+                        .toList();
+
+                    if (filteredServers.isEmpty && _searchQuery.isNotEmpty) {
+                      return [
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const FaIcon(
+                                  FontAwesomeIcons.magnifyingGlass,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(l10n.no_servers_match_query(_searchQuery)),
+                                TextButton(
+                                  onPressed: () => _selectAndGoBack(
+                                    ServerInstance(
+                                      url: _urlController.text.trim(),
+                                    ),
+                                  ),
+                                  child: Text(l10n.use_custom_url_instead),
+                                ),
+                              ],
                             ),
                           ),
                         ),
+                      ];
+                    }
+
+                    return [
+                      SliverList.separated(
+                        itemCount: filteredServers.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
+                        itemBuilder: (context, index) =>
+                            _buildServerTile(context, filteredServers[index]),
                       ),
-                      title: Text(
-                        server.name!,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(server.url, style: theme.textTheme.bodySmall),
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 4,
-                            children: server.category
-                                .map((c) => _buildTinyTag(context, c))
-                                .toList(),
-                          ),
-                        ],
-                      ),
-                      onTap: () => _selectAndGoBack(server),
-                    );
+                    ];
                   },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => WandererError(err: err, stack: stack),
+                  loading: () => [
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ],
+                  error: (err, stack) => [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: WandererError(err: err, stack: stack),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
