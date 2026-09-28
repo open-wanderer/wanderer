@@ -96,6 +96,26 @@ func UpdateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 	}
 }
 
+const listDeleteRecipientsKey = "__delete_recipients"
+
+// CollectListDeleteRecipientsHandler is CollectTrailDeleteRecipientsHandler
+// for a list: the shares naming its recipients are cascaded away with it.
+func CollectListDeleteRecipientsHandler() func(e *core.RecordEvent) error {
+	return func(e *core.RecordEvent) error {
+		list := e.Record
+		audience, err := federation.ListDeleteRecipients(e.App, list, list.GetBool("public"))
+		if err != nil {
+			e.App.Logger().Error(
+				"could not collect recipients to announce list deletion to",
+				"list", list.Id, "error", err,
+			)
+			audience = federation.DeleteAudience{}
+		}
+		list.Set(listDeleteRecipientsKey, audience)
+		return e.Next()
+	}
+}
+
 func DeleteListHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
@@ -104,7 +124,8 @@ func DeleteListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
-		err = federation.CreateListDeleteActivity(e.App, record)
+		audience, _ := record.GetRaw(listDeleteRecipientsKey).(federation.DeleteAudience)
+		err = federation.CreateListDeleteActivity(e.App, record, audience)
 		if err != nil {
 			return err
 		}

@@ -115,5 +115,14 @@
         "region": ["Spain"],
         "language": ["Spanish", "Official Spanish Languages"],
         "category": ["Hiking", "Biking"]
+    },
+    {
+        "name": "Further Heights",
+        "url": "https://furtherheights.com",
+        "description": "A community instance for mapping trails and joining fellow hikers in the Pacific Northwest of North America. Trails from anywhere are welcome.",
+        "image": "/server/imgs/furtherheights.com.png",
+        "region": ["North America"],
+        "language": ["English"],
+        "category": ["General"]
     }
 ]

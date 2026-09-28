@@ -32,7 +32,7 @@ export const load: ServerLoad = async ({ fetch }) => {
         elevationGainLimit: filterValues.max_elevation_gain,
         elevationLossMin: 0,
         elevationLossMax: filterValues.max_elevation_loss,
-        elevationLossLimit: filterValues.max_elevation_gain,
+        elevationLossLimit: filterValues.max_elevation_loss,
         sort: "created",
         sortOrder: "-",
     };

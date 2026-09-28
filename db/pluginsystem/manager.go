@@ -25,20 +25,21 @@ type Manager struct {
 // PluginInfo is the UI-facing view of an installed plugin. It combines the
 // static manifest with runtime availability and embedded icon data.
 type PluginInfo struct {
-	ID           string   `json:"id"`
-	Type         string   `json:"type"`
-	Name         string   `json:"name"`
-	DisplayName  string   `json:"displayName,omitempty"`
-	Description  string   `json:"description,omitempty"`
-	Icon         string   `json:"icon,omitempty"`
-	IconDark     string   `json:"iconDark,omitempty"`
-	Version      string   `json:"version"`
-	Runtime      string   `json:"runtime"`
-	Path         string   `json:"path"`
-	Capabilities []string `json:"capabilities"`
-	Status       string   `json:"status"`
-	Error        string   `json:"error,omitempty"`
-	Manifest     Manifest `json:"manifest"`
+	ID             string               `json:"id"`
+	Type           string               `json:"type"`
+	Name           string               `json:"name"`
+	DisplayName    string               `json:"displayName,omitempty"`
+	Description    string               `json:"description,omitempty"`
+	Icon           string               `json:"icon,omitempty"`
+	IconDark       string               `json:"iconDark,omitempty"`
+	Version        string               `json:"version"`
+	Runtime        string               `json:"runtime"`
+	Path           string               `json:"path"`
+	Capabilities   []string             `json:"capabilities"`
+	Status         string               `json:"status"`
+	SetupErrorCode PluginSetupErrorCode `json:"setupErrorCode,omitempty"`
+	Error          string               `json:"error,omitempty"`
+	Manifest       Manifest             `json:"manifest"`
 }
 
 // NewManager creates a manager for the configured plugin directory. Tests can
@@ -99,20 +100,33 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	return mergePluginIssues(infos, infoByPath, issues), nil
+}
+
+// mergePluginIssues overlays current discovery failures on cached plugin
+// information. Setup error codes are intentionally derived from this fresh
+// discovery pass rather than reconstructed from cached raw diagnostics.
+func mergePluginIssues(
+	infos []PluginInfo,
+	infoByPath map[string]int,
+	issues []LocalPluginIssue,
+) []PluginInfo {
 	for _, issue := range issues {
 		if index, ok := infoByPath[filepath.Clean(issue.Dir)]; ok {
 			infos[index].Status = "error"
+			infos[index].SetupErrorCode = issue.SetupErrorCode
 			infos[index].Error = issue.Error
 			continue
 		}
 		infos = append(infos, PluginInfo{
-			ID:      issue.ID,
-			Type:    PluginTypeTrails,
-			Name:    issue.Name,
-			Path:    issue.Dir,
-			Status:  "error",
-			Error:   issue.Error,
-			Runtime: RuntimeWASM,
+			ID:             issue.ID,
+			Type:           PluginTypeTrails,
+			Name:           issue.Name,
+			Path:           issue.Dir,
+			Status:         "error",
+			SetupErrorCode: issue.SetupErrorCode,
+			Error:          issue.Error,
+			Runtime:        RuntimeWASM,
 			Manifest: Manifest{
 				ID:   issue.ID,
 				Type: PluginTypeTrails,
@@ -123,7 +137,7 @@ func (m *Manager) ListLocalPlugins(context.Context) ([]PluginInfo, error) {
 			},
 		})
 	}
-	return infos, nil
+	return infos
 }
 
 // pluginIcons embeds optional light/dark icon files from the plugin bundle as

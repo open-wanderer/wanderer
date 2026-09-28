@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { goto, invalidateAll } from "$app/navigation";
+    import { invalidateAll } from "$app/navigation";
     import { page } from "$app/state";
     import Button from "$lib/components/base/button.svelte";
     import ConfirmModal from "$lib/components/confirm_modal.svelte";
@@ -49,8 +49,8 @@
 
     async function deleteAccount() {
         await users_delete($currentUser!);
-        logout();
-        goto("/");
+        void logout();
+        window.location.assign("/");
     }
 
     async function updateEmail(email: string, currentPassword: string) {

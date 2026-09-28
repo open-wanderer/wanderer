@@ -6,7 +6,7 @@ import type { Waypoint } from "$lib/models/waypoint";
 import { APIError } from "$lib/util/api_util";
 import { deepEqual } from "$lib/util/deep_util";
 import { getFileURL, objectToFormData } from "$lib/util/file_util";
-import { noSubcategoryFilterCategory } from "$lib/util/trail_filter_util";
+import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "$lib/util/trail_filter_util";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -851,12 +851,14 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND likes = ${user?.actor}`
     }
 
-    if (filter.startDate) {
-        filterText += ` AND date >= ${new Date(filter.startDate).getTime() / 1000}`
+    const startDate = trailFilterDateBoundary(filter.startDate);
+    if (startDate !== undefined) {
+        filterText += ` AND date >= ${startDate}`
     }
 
-    if (filter.endDate) {
-        filterText += ` AND date <= ${new Date(filter.endDate).getTime() / 1000}`
+    const endDate = trailFilterDateBoundary(filter.endDate, true);
+    if (endDate !== undefined) {
+        filterText += ` AND date < ${endDate}`
     }
 
     const selectedSubcategoryIds = filter.subcategory ?? [];
@@ -915,10 +917,12 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND completed = ${filter.completed}`;
     }
 
-    if (filter.near.lat && filter.near.lon && includeGeo) {
-        filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
-    }
-    if (filter.near.lat && filter.near.lon && includeGeo) {
+    if (includeGeo
+        && typeof filter.near.lat === "number" && Number.isFinite(filter.near.lat)
+        && Math.abs(filter.near.lat) <= 90
+        && typeof filter.near.lon === "number" && Number.isFinite(filter.near.lon)
+        && Math.abs(filter.near.lon) <= 180
+        && Number.isFinite(filter.near.radius) && filter.near.radius > 0) {
         filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
     }
 

@@ -2,7 +2,6 @@
     import {
         beforeNavigate,
         goto,
-        invalidate,
         invalidateAll,
     } from "$app/navigation";
 
@@ -13,6 +12,7 @@
     import NavBar from "$lib/components/nav_bar.svelte";
     import PageLoadingBar from "$lib/components/page_loading_bar.svelte";
     import UploadDialog from "$lib/components/settings/upload_dialog.svelte";
+    import { getPb } from "$lib/pocketbase";
     import { currentUser } from "$lib/stores/user_store";
     import { load_plugin_data_once } from "$lib/stores/plugin_store";
     import { isRouteProtected } from "$lib/util/authorization_util";
@@ -22,8 +22,6 @@
     import "../css/components.css";
     import "../css/theme.css";
     import type { LayoutData } from "./$types";
-    import PocketBase from "pocketbase";
-    import { browser } from "$app/environment";
 
     interface Props {
         data: LayoutData;
@@ -48,9 +46,135 @@
         }
     });
 
+    type AuthIdentity = string | null;
+
+    interface ClientAuthSession {
+        identity: AuthIdentity;
+        key: string;
+    }
+
+    // This is deliberately not reactive. It is a guard against scheduling the
+    // same invalidation again when SvelteKit replaces `data` after a load but
+    // the server still rejects the client's auth identity.
+    let lastRequestedAuthSessionKey: string | undefined;
+    let queuedAuthSession: ClientAuthSession | undefined;
+    let authRefreshInFlight: Promise<void> | undefined;
+
+    function clientAuthSession(): ClientAuthSession | undefined {
+        if ($currentUser === undefined) {
+            return undefined;
+        }
+
+        const identity = $currentUser?.id ?? null;
+        return {
+            identity,
+            // Include the token so a same-user reauthentication cannot be
+            // mistaken for the session whose request is currently in flight.
+            key: `${identity ?? ""}\u0000${getPb().authStore.token}`,
+        };
+    }
+
+    function serverAuthIdentity(): AuthIdentity {
+        return data.user?.id ?? null;
+    }
+
+    async function runAuthRefreshQueue() {
+        while (queuedAuthSession !== undefined) {
+            const expectedClientSession = queuedAuthSession;
+            queuedAuthSession = undefined;
+
+            try {
+                await invalidateAll();
+            } catch {
+                // A later auth or data change may retry a failed load.
+                if (
+                    clientAuthSession()?.key === expectedClientSession.key &&
+                    lastRequestedAuthSessionKey === expectedClientSession.key
+                ) {
+                    lastRequestedAuthSessionKey = undefined;
+                }
+                continue;
+            }
+
+            const currentClientSession = clientAuthSession();
+            const pb = getPb();
+            if (currentClientSession?.key === expectedClientSession.key) {
+                // The server refresh may rotate the token even when the user ID
+                // stays the same. Keep LocalAuthStore aligned with the response
+                // cookie, including when the server rejected and cleared it.
+                pb.authStore.loadFromCookie(document.cookie);
+            } else if (currentClientSession) {
+                // A newer login/logout won the race. The older HTTP response may
+                // already have overwritten its cookie, so restore the current
+                // client session instead of importing the stale response.
+                document.cookie = pb.authStore.exportToCookie({
+                    httpOnly: false,
+                    secure: location.protocol === "https:",
+                    sameSite: "Lax",
+                });
+            }
+        }
+    }
+
+    function requestAuthRefresh(session: ClientAuthSession): Promise<void> {
+        // Keep at most one invalidation in flight. If auth changes during it,
+        // the queue performs one follow-up load for the latest session.
+        queuedAuthSession = session;
+        if (!authRefreshInFlight) {
+            authRefreshInFlight = runAuthRefreshQueue().finally(() => {
+                authRefreshInFlight = undefined;
+                if (queuedAuthSession !== undefined) {
+                    void requestAuthRefresh(queuedAuthSession);
+                }
+            });
+        }
+        return authRefreshInFlight;
+    }
+
+    // PocketBase propagates auth changes between tabs through localStorage.
+    // Keep server-loaded data aligned with the client auth identity.
+    $effect(() => {
+        const clientSession = clientAuthSession();
+        if (clientSession === undefined) {
+            return;
+        }
+
+        if (clientSession.identity === serverAuthIdentity()) {
+            lastRequestedAuthSessionKey = undefined;
+            return;
+        }
+
+        if (clientSession.key !== lastRequestedAuthSessionKey) {
+            lastRequestedAuthSessionKey = clientSession.key;
+            void requestAuthRefresh(clientSession);
+        }
+    });
+
+    async function handlePageShow(event: PageTransitionEvent) {
+        if (!event.persisted) {
+            return;
+        }
+
+        // A page restored from the browser's back-forward cache keeps its old
+        // JavaScript state. Reload auth from the current cookie before
+        // invalidating all server data so private records cannot survive a
+        // login/logout that happened while the page was cached.
+        const pb = getPb();
+        pb.authStore.loadFromCookie(document.cookie);
+
+        const restoredSession = clientAuthSession();
+        if (!restoredSession) {
+            return;
+        }
+        lastRequestedAuthSessionKey = restoredSession.key;
+        await requestAuthRefresh(restoredSession);
+    }
+
     let hideDemoHint = $state(false);
     let showWarning = $state(false);
 </script>
+
+<svelte:window onpageshow={handlePageShow} />
 
 {#if env.PUBLIC_IS_DEMO === "true" && !hideDemoHint}
     <div

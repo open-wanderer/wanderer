@@ -27,6 +27,7 @@ func tourImport(tour *detailedTour, routeImages []imageItem) (trailImport, error
 		Description:  tour.Description,
 		StartedAt:    tour.Date,
 		ActivityType: activityType(tour.Sport),
+		Difficulty:   difficultyFromGrade(tour.Difficulty.Grade),
 		Privacy:      &privacy,
 		Track: track{
 			Format:        "gpx",
@@ -44,6 +45,17 @@ func tourImport(tour *detailedTour, routeImages []imageItem) (trailImport, error
 			"difficulty":       tour.Difficulty.Grade,
 		},
 	}, nil
+}
+
+func difficultyFromGrade(grade string) string {
+	// Komoot's API uses "difficult" for the grade shown as "Hard" in English.
+	// Preserve only its recognized overall grades, not technical-scale values.
+	switch grade {
+	case "easy", "moderate", "difficult":
+		return grade
+	default:
+		return ""
+	}
 }
 
 func tourGPX(tour *detailedTour) ([]byte, error) {
@@ -124,10 +136,13 @@ func photos(tour *detailedTour, routeImages []imageItem) []photo {
 	if len(images) == 0 {
 		images = tour.Embedded.CoverImages.Embedded.Items
 	}
-	if len(images) == 0 && tour.MapImage.Src != "" {
-		images = []imageItem{{Src: tour.MapImage.Src, Type: "image/jpeg"}}
+	if len(images) > 0 {
+		return photosFromImages(images, "komoot-cover")
 	}
-	return photosFromImages(images, "komoot-photo.jpg")
+	if tour.MapImage.Src == "" {
+		return nil
+	}
+	return photosFromImages([]imageItem{{Src: tour.MapImage.Src, Type: "image/jpeg"}}, "komoot-map")
 }
 
 func waypointPhotos(item timelineItem) []photo {
@@ -136,10 +151,10 @@ func waypointPhotos(item timelineItem) []photo {
 	if ref.Embedded.FrontImage.Src != "" {
 		images = append([]imageItem{ref.Embedded.FrontImage}, images...)
 	}
-	return photosFromImages(images, "komoot-waypoint-photo.jpg")
+	return photosFromImages(images, "komoot-waypoint")
 }
 
-func photosFromImages(images []imageItem, fallbackFilename string) []photo {
+func photosFromImages(images []imageItem, filenamePrefix string) []photo {
 	result := make([]photo, 0, len(images))
 	seen := map[string]bool{}
 	for _, image := range images {
@@ -157,7 +172,7 @@ func photosFromImages(images []imageItem, fallbackFilename string) []photo {
 		seen[key] = true
 		result = append(result, photo{
 			ExternalID:  image.ID.String(),
-			Filename:    filenameForImage(image.ID, fallbackFilename),
+			Filename:    filenameForImage(image.ID, filenamePrefix),
 			ContentType: contentType(image.Type),
 			Lat:         optionalCoordinate(image.Location.Lat),
 			Lon:         optionalCoordinate(image.Location.Lng),
@@ -177,11 +192,11 @@ func expandImageURL(source string) string {
 	return source
 }
 
-func filenameForImage(id flexibleID, fallback string) string {
+func filenameForImage(id flexibleID, prefix string) string {
 	if id.String() == "" {
-		return fallback
+		return prefix + ".jpg"
 	}
-	return fmt.Sprintf("komoot-%s.jpg", id.String())
+	return fmt.Sprintf("%s-%s.jpg", prefix, id.String())
 }
 
 func contentType(value string) string {

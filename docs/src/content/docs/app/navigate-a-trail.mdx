@@ -1,0 +1,48 @@
+---
+title: Navigate a trail
+description: Turn-by-turn navigation along a trail with the wanderer app
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+import PhoneGrid from '../../../components/phone_grid.astro';
+import navigationShot from '../../../assets/guides/wanderer_app_navigation.png';
+
+<BetaNotice />
+
+Tap **Navigate** on any [trail's detail page](/app/trail-details) to follow it step by step.
+
+:::note[What navigation does and doesn't do in the beta]
+- Directions are shown **on screen only**. The app does not speak them.
+- The app **does not recalculate** the route if you leave the trail. It keeps showing the next turn of the original trail. Use the map to find your way back.
+- You need to have **downloaded the trail** beforehand to navigate without a network connection.
+:::
+
+## On the trail
+
+<PhoneGrid src={navigationShot} alt="The navigation screen with the next turn at the top">
+
+The navigation screen shows the trail and your live position on the map. The banner at the top shows the next turn with an icon, the instruction, and how far away it is ("In 300 m …"). When you reach the end of the trail, the banner changes to **You've arrived**.
+
+The map starts north-up and follows your position. Tap the **compass** to switch to heading-up mode, where the map rotates so your direction of travel points up; tap it again to return to north-up. If you drag the map away from your position, a **crosshair** button appears; tap it to recenter.
+
+Alongside the map you can keep an eye on your live stats (distance covered, speed, average speed, elevation gain and loss, and time in motion) and the trail's elevation profile with your current position on it.
+
+</PhoneGrid>
+
+Navigation keeps running in the background with a persistent notification, so your screen can stay off between turns. If the app is closed while navigating, it offers to resume on the next launch.
+
+## Stopping
+
+Tap the **close** button (the ✕ at the bottom of the screen) and the app asks "Stop navigation and return to the trail?":
+
+- **Cancel** keeps navigating.
+- **Exit** ends navigation and **discards** your recorded track.
+- **Save track** ends navigation and saves what you walked as a trail of your own (see below). This button only appears once you have moved far enough to have a track worth saving.
+
+## Recording while navigating
+
+Your movement along the trail is tracked, so when you finish (or stop early) you can save your actual track as a trail of your own, with the same **Save recording** options as a free [recording](/app/record-a-trail#saving).
+
+## Offline navigation
+
+Navigation works without a network connection for trails stored on your device: the turn-by-turn directions are saved together with the trail when you [download it](/app/offline-use#download-trails). For a base map, download the region the trail lies in as well. Your position comes from GPS, which needs no internet. A small cloud-off icon in the banner shows that you are currently offline.

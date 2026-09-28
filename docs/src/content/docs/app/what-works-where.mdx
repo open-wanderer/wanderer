@@ -1,0 +1,76 @@
+---
+title: What works where
+description: A side-by-side of the wanderer mobile app and the web interface during the beta
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+
+<BetaNotice />
+
+The app is built for the trail: finding trails, recording, navigating, and working without a connection. Managing your collection and talking to other people still mostly happen on the web. Both use the same account and the same data on your instance, so anything you do on one side shows up on the other.
+
+The goal is full parity with the web interface. The tables below show where the beta stands today. For how a feature works, see the linked pages in the sidebar.
+
+## Trails
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Browse, search, filter and sort trails | ✅ | ✅ |
+| Record a trail with GPS | ✅ | ❌ |
+| Plan a route on the map | ✅ | ✅ |
+| Import a file | ✅ | ✅ |
+| Create and edit trail details, photos, waypoints | ✅ | ✅ |
+| Create waypoints from geotagged photos | ✅ | ✅ |
+| Export a trail (GPX and other formats) | ❌ | ✅ |
+| Share a trail with other users or via link | ❌ | ✅ |
+| Merge trails | ❌ | ✅ |
+| Statistics | ❌ | ✅ |
+
+## Offline & navigation
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Download trails to your device | ✅ | ❌ |
+| Download map regions (base map, shaded relief) | ✅ | ❌ |
+| Turn-by-turn navigation | ✅ | ❌ |
+| Navigate offline | ✅ | ❌ |
+
+## Community
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Like a trail | ✅ | ✅ |
+| Read comments and summit logs | ✅ | ✅ |
+| Write a comment | ❌ | ✅ |
+| Add a summit log | ❌ | ✅ |
+| Follow users, view profiles and their feed | ✅ | ✅ |
+| Share your profile (QR code, link) | ✅ | ✅ |
+| Notification inbox | ❌ | ✅ |
+
+## Lists
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Browse lists, open their trails, view a list on the map | ✅ | ✅ |
+| Create, edit or delete a list | ❌ | ✅ |
+| Add or remove trails | ❌ | ✅ |
+| Share a list | ❌ | ✅ |
+
+## Account & settings
+
+| Feature | App | Web |
+| ------- | :-: | :-: |
+| Log in with password or a third-party login (OAuth) | ✅ | ✅ |
+| Register a new account | ✅ | ✅ |
+| Account, privacy, language & units, notification preferences, categories | ✅ | ✅ |
+| Appearance (light / dark) | ✅ | ✅ |
+| Delete your account | ✅ | ✅ |
+| API tokens | ❌ | ✅ |
+| Plugins (e.g. Strava import) | ❌ | ✅ |
+| Custom map styles and terrain | ❌ | ✅ |
+
+## One account, two sides
+
+- **Settings** made in the app apply on the web and vice versa, except the theme, which is stored per device.
+- **Trails you create in the app** are stored on your device first and uploaded to your instance automatically as soon as it is reachable. Until then they exist only on that phone.
+- **Trails you download** are copies. Editing happens on the instance; use **Update** in the trail's three-dot menu to refresh the device copy after the original changed.

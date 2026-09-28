@@ -11,6 +11,7 @@ import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
 import { handleError } from '$lib/util/api_util'
+import { apiErrorsAsJson, isApiRequest } from '$lib/server/api_errors'
 
 const SEARCH_TOKEN_VERSION = 1;
 
@@ -28,7 +29,7 @@ function csrf(allowedPaths: string[]): Handle {
 
     if (forbidden) {
       const message = `Cross-site ${request.method} form submissions are forbidden`;
-      if (request.headers.get("accept") === "application/json") {
+      if (isApiRequest(url) || request.headers.get("accept") === "application/json") {
         return json({ message }, { status: 403 });
       }
       return text(message, { status: 403 });
@@ -191,4 +192,4 @@ const removeLinkFromHeaders: Handle =
   }
 
 
-export const handle = sequence(csrf(['/api/v1']), auth, removeLinkFromHeaders)
+export const handle = sequence(apiErrorsAsJson, csrf(['/api/v1']), auth, removeLinkFromHeaders)

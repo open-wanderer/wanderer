@@ -25,6 +25,7 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
 | ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
 | POCKETBASE_ENCRYPTION_KEY      | Valid 32 character AES key. Used to encrypt secrets                                                               |                       |
+| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation is rejected (fail closed). |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
 | POCKETBASE_SMTP_SENDER_ADDRESS | The email address used as the "From" address in outgoing emails                                                   |                       |
@@ -33,6 +34,11 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_PORT           | The port number used to connect to the SMTP server                                                                |                       |
 | POCKETBASE_SMTP_USERNAME       | The username used to authenticate with the SMTP server                                                            |                       |
 | POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
+| OIDC_SCOPES                    | Comma-separated OIDC scopes for the `oidc` provider. Only needed for providers that reject the defaults, such as OpenStreetMap (`openid`). See [Auth providers](/run/backend-configuration/auth-providers) | openid,profile,email |
+| OIDC2_SCOPES                   | Same as `OIDC_SCOPES`, for the `oidc2` provider                                                                   | openid,profile,email |
+| OIDC3_SCOPES                   | Same as `OIDC_SCOPES`, for the `oidc3` provider                                                                   | openid,profile,email |
+| REGION_ARCHIVE_CRON_SCHEDULE   | Valid cron expression (UTC). Sets when offline [region archives](/run/backend-configuration/region-catalogue) are rebuilt | 0 3 * * *             |
+| REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
 
 Plugins are not configured through an environment variable. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
@@ -45,12 +51,23 @@ bundles and configuring self-hosted connector trust settings.
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
 | BODY_SIZE_LIMIT         | Maximum allowed upload size                                                      | Infinity                            |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
+| POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must match the value set on the `db` service. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
 | PUBLIC_PRIVATE_INSTANCE | Setting this to true will block visitors from viewing content without an account | false                               |
 | PUBLIC_MAP_MAX_POLYLINES | Maximum number of polylines (route previews) to show simultaneously on the map, based on result density | 100 |
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
+
+## Map tiles & assets
+
+These variables configure where the mobile app loads map vector tiles, fonts (glyphs), and sprites from. They are set on the `web` service. See [Custom map tiles & assets](/run/backend-configuration/map-tiles) for details.
+
+| Environment Variable | Description                                                                                          | Default                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| TILE_SERVER_URL      | Vector tile URL template (`{z}/{x}/{y}`) served to the mobile app                                    | Protomaps API (requires PROTOMAPS_API_KEY)     |
+| PROTOMAPS_API_KEY    | API key for the default Protomaps tile service; only used when TILE_SERVER_URL is unset              |                                                |
+| MAP_ASSETS_URL       | Base URL for map fonts (glyphs) and sprites                                                          | https://protomaps.github.io/basemaps-assets    |
 
 ## Geocoding & Routing
 

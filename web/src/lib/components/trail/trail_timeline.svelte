@@ -74,7 +74,7 @@
                                 wp.photos.length > 2
                                     ? 'row-span-2 h-80'
                                     : 'h-[159.5px]'}"
-                                src={getFileURL(wp, photo)}
+                                src={getFileURL(wp, photo, "600x0")}
                                 alt=""
                             />
                         {/if}

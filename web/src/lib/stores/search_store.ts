@@ -86,8 +86,10 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
         method: "POST",
         body: JSON.stringify({
             q,
-            attributesToRetrieve: defaultTrailSearchAttributes,
-            options
+            options: {
+                attributesToRetrieve: defaultTrailSearchAttributes,
+                ...options,
+            }
         }),
     });
 

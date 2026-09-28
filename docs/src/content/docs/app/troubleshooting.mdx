@@ -1,0 +1,95 @@
+---
+title: Troubleshooting
+description: What the wanderer app's messages mean and what to do about them
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+
+<BetaNotice />
+
+The messages below are quoted as the app shows them. If yours isn't here, or the fix doesn't help, [report it on GitHub](https://github.com/open-wanderer/wanderer/issues/new?template=app_bug_report.yml); the template asks for everything we need.
+
+## Connecting and logging in
+
+**The app can't reach my instance.**
+Type the address without anything in front of it (`wanderer.example.com`); the app adds `https://` itself. Instances must be reachable over HTTPS; connections to a plain `http://` address are blocked by the phone. If the address is right and the web interface works in your browser, check the next entry.
+
+**I can log in, but the map stays empty and most things fail.**
+The instance is running a version that doesn't support the app yet. Ask your administrator to follow [Mobile app support](/run/backend-configuration/mobile-app).
+
+**Login fails with the right password.**
+Log in on the web once to rule out the account itself, then try again. If your instance uses a third-party login (Google, GitHub, …), use the same button in the app.
+
+**I want to use a different instance or account.**
+Log out from the bottom of the [settings](/app/settings#log-out). The welcome screen lets you pick another instance.
+
+## Location and recording
+
+**"Location services are disabled. Please enable GPS to use navigation."**
+Location is switched off at the system level. Turn it on in your phone's quick settings or under Settings → Location.
+
+**"Location permission is required for navigation."** / **"Location permission is permanently denied. Please enable it in Settings."**
+Open your phone's Settings → Apps → wanderer → Permissions → Location and allow it. On Android choose **Allow all the time** so recordings continue with the screen off; on iOS choose **Always**.
+
+**My recording stopped when the screen locked.**
+Background location isn't allowed. See [Allow location access in the background](/app/record-a-trail#allow-location-access-in-the-background). The app only asks once; after that the permission has to be changed in the system settings.
+
+**"Unable to determine your location. Please try again."**
+The phone hasn't got a GPS fix yet. Step outside or away from tall buildings and wait a few seconds. Indoors, GPS can take a long time or fail entirely.
+
+**"Couldn't start navigation. Check your connection and try again."**
+Turn-by-turn directions are fetched from your instance when you start navigating a trail that isn't stored on the device. Either connect, or [download the trail](/app/offline-use#download-trails) while you still have a connection; the directions are saved with it.
+
+## Trails and files
+
+**"Only GPX files can be imported offline."**
+KML, KMZ, TCX and FIT files are converted by your instance. Connect, or convert the file to GPX first.
+
+**"Could not import file"** / **"Error reading file"**
+The file couldn't be read as a track. Check that it opens on the web; if it does, [file a bug](https://github.com/open-wanderer/wanderer/issues/new?template=app_bug_report.yml) and attach the file (renamed to `.txt`).
+
+**"Editing works on the server copy of this trail. Connect to the internet to edit it."** / **"This trail is already on the server. Connect to the internet to delete it."**
+The trail lives on your instance; changes and deletions are made there. Connect and try again.
+
+**"This trail is uploading right now. Wait for the upload to finish, then try again."**
+A recording or import is being sent to your instance. Wait for the sync chip to disappear.
+
+**"This trail is no longer on this device."**
+The device copy was removed (for example after logging out and in with another account). Download it again from its detail page.
+
+**The sync chip says "Upload failed · Tap to retry".**
+The last upload attempt didn't go through. Tap the chip once you have a connection. If it keeps failing, the trail may be larger than your instance allows (photos!). Try removing photos, or ask your administrator about the [upload limits](/run/backend-configuration/adjust-filesize-limits).
+
+**"Trail saved, but some waypoints failed to save."** / **"Trail saved, but N photos couldn't be saved."**
+The trail itself is on your instance. Open it, choose **Edit**, and add the missing waypoints or photos again.
+
+## Offline maps
+
+**"No offline regions available"** / **"Ask your Wanderer instance administrator to configure downloadable regions."**
+Your instance hasn't enabled any regions. Point your administrator to the [region catalogue](/run/backend-configuration/region-catalogue) page.
+
+**A region is greyed out with "Not yet available".**
+Your instance has enabled the region but is still preparing its map files. This can take a while for large regions; check back later.
+
+**A region shows "Build failed".**
+The instance couldn't prepare the region. Your administrator can see why in the server logs.
+
+**"Download map data first"** on the elevation data row.
+Elevation data can only be added to a region whose **Vector** map is already downloaded.
+
+**"Can't load regions"** / **"Connect to the internet to browse and manage downloadable regions."**
+The list of regions comes from your instance. Regions you already downloaded keep working offline.
+
+**The trail shows on an empty background.**
+The trail is downloaded, but the map region around it isn't. See [Download map regions](/app/offline-use#download-map-regions).
+
+## Navigation
+
+**The map doesn't rotate with me.**
+That's the default. Tap the **compass** to switch to heading-up mode; see [Navigate a trail](/app/navigate-a-trail#on-the-trail).
+
+**I left the trail and the directions don't change.**
+The app doesn't reroute in the beta; it keeps pointing at the next turn of the original trail. Use the map to get back onto it.
+
+**I don't hear any directions.**
+There is no voice guidance in the beta. Directions are shown in the banner at the top of the screen.

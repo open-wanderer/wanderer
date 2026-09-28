@@ -1,0 +1,22 @@
+---
+import { Aside } from '@astrojs/starlight/components';
+
+/**
+ * The beta disclaimer shown at the top of every page under /app/. One
+ * component so the wording is edited in a single place.
+ */
+---
+
+<Aside type="caution" title="Beta">
+	<p>
+		The <span class="-tracking-[0.075em]">wanderer</span> mobile app is currently in <strong>beta</strong>.
+		Expect rough edges and occasional bugs. Under no circumstances should you rely on the app as your
+		sole means of navigation during a hike. Always carry a backup, such as a paper map and compass or a
+		dedicated GPS device.
+	</p>
+	<p>
+		Not everything from the web interface is in the app yet; see{' '}
+		<a href="/app/what-works-where">what works where</a>. Found a bug?{' '}
+		<a href="https://github.com/open-wanderer/wanderer/issues/new?template=app_bug_report.yml">Report it on GitHub</a>.
+	</p>
+</Aside>

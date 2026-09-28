@@ -50,10 +50,11 @@ func LoadLocalPlugins(dir string) ([]LocalPlugin, error) {
 }
 
 type LocalPluginIssue struct {
-	ID    string
-	Name  string
-	Dir   string
-	Error string
+	ID             string
+	Name           string
+	Dir            string
+	SetupErrorCode PluginSetupErrorCode
+	Error          string
 }
 
 // DiscoverLocalPlugins reads direct child directories from the plugin directory
@@ -87,10 +88,11 @@ func DiscoverLocalPlugins(dir string) ([]LocalPlugin, []LocalPluginIssue, error)
 				continue
 			}
 			issues = append(issues, LocalPluginIssue{
-				ID:    entry.Name(),
-				Name:  entry.Name(),
-				Dir:   pluginDir,
-				Error: fmt.Sprintf("%s: %v", entry.Name(), err),
+				ID:             entry.Name(),
+				Name:           entry.Name(),
+				Dir:            pluginDir,
+				SetupErrorCode: pluginSetupErrorCode(err),
+				Error:          fmt.Sprintf("%s: %v", entry.Name(), err),
 			})
 			continue
 		}
@@ -110,24 +112,35 @@ func LoadLocalPlugin(dir string) (*LocalPlugin, error) {
 	manifestPath := filepath.Join(dir, "plugin.json")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
-		return nil, err
+		code := SetupErrorCodeManifestUnreadable
+		if os.IsNotExist(err) {
+			code = SetupErrorCodeManifestMissing
+		}
+		return nil, wrapPluginSetupError(code, err)
 	}
 
 	var manifest Manifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("parse plugin.json: %w", err)
+		return nil, wrapPluginSetupError(SetupErrorCodeManifestInvalid, fmt.Errorf("parse plugin.json: %w", err))
 	}
 	if err := ValidateManifest(manifest); err != nil {
-		return nil, err
+		return nil, wrapPluginSetupError(SetupErrorCodeManifestInvalid, err)
 	}
 
 	entrypoint := filepath.Clean(manifest.Runtime.Entrypoint)
 	if filepath.IsAbs(entrypoint) || strings.HasPrefix(entrypoint, ".."+string(filepath.Separator)) || entrypoint == ".." {
-		return nil, fmt.Errorf("runtime entrypoint must be relative to plugin directory")
+		return nil, wrapPluginSetupError(
+			SetupErrorCodeRuntimeEntrypointInvalid,
+			fmt.Errorf("runtime entrypoint must be relative to plugin directory"),
+		)
 	}
 	wasmPath := filepath.Join(dir, entrypoint)
 	if _, err := os.Stat(wasmPath); err != nil {
-		return nil, fmt.Errorf("runtime entrypoint: %w", err)
+		code := SetupErrorCodeRuntimeEntrypointUnreadable
+		if os.IsNotExist(err) {
+			code = SetupErrorCodeRuntimeEntrypointMissing
+		}
+		return nil, wrapPluginSetupError(code, fmt.Errorf("runtime entrypoint: %w", err))
 	}
 
 	return &LocalPlugin{

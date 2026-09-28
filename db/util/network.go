@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -112,24 +113,18 @@ func (t *safeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func isPrivateOrReservedIP(ip net.IP) bool {
-	if ip.IsLoopback() {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		// Fail closed: an address we cannot parse is one we cannot vet.
 		return true
 	}
 
-	if ip.IsPrivate() {
-		return true
-	}
-
-	if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return true
-	}
-
-	if ip.IsMulticast() {
-		return true
-	}
-
-	if ip.IsUnspecified() {
-		return true
+	// Both the literal address and any IPv4 it embeds via an IPv6 transition
+	// mechanism (NAT64, 6to4, Teredo, IPv4-compatible) must clear the policy.
+	for _, candidate := range policyCandidates(addr) {
+		if isReservedAddr(candidate) || candidate.IsPrivate() {
+			return true
+		}
 	}
 
 	return false

@@ -1,0 +1,43 @@
+---
+title: Create & edit a trail
+description: The trail editor in the wanderer app, with details, photos, waypoints, and the route
+---
+
+import BetaNotice from '../../../components/beta_notice.astro';
+
+<BetaNotice />
+
+Whichever way a trail starts, [recorded](/app/record-a-trail), [planned](/app/plan-a-route), or [imported](/app/record-a-trail#importing-a-file), it ends up in the trail editor before it is saved. The same editor opens when you choose **Edit** on one of your own trails.
+
+## Basic info
+
+- **Name** and **Description**: the description supports simple formatting (bold, italic, lists, quotes, links).
+- **Location**: a place name for the trail, free text.
+- **Date**: the day of the hike, used for the *Date* sort order and date filters.
+- **Tags**: free-form keywords other users can filter by.
+- **Category** and **Difficulty** (easy, moderate, difficult). A recording or planned route pre-selects the category from the travel profile you chose.
+- **Public / Private**: whether other users can see the trail. New trails start with the default from your [privacy settings](/app/settings#privacy).
+- **Completed / Not completed**: marks the trail as one you have done, for the *Completion status* filter. It does not create a summit log; those are written on the web for now.
+
+## Photos & videos
+
+Add photos and videos from your device. They are uploaded together with the trail; if some fail, the trail is still saved and the app tells you how many photos are missing. Choosing the cover image is done on the web for now.
+
+## Waypoints
+
+Waypoints are points of interest along the trail: a viewpoint, a hut, a junction.
+
+- **Create waypoint** opens a form with name, icon, description, coordinates, and photos. The waypoint's position along the trail is worked out from its coordinates.
+- **From Photos** lets you pick photos from your device; every photo with GPS coordinates in it becomes a waypoint at that spot, with the photo attached. Photos without location data are skipped ("No GPS data found in this photo").
+
+Tap a waypoint in the list to edit or remove it.
+
+## Route
+
+**Edit route** (the pencil on the map preview) opens the [planner](/app/plan-a-route) with the trail's route as anchors. Move, add or delete anchors and confirm with the checkmark to bring the changed route back into the editor.
+
+## Saving and offline
+
+**Save** stores the trail on your device first and uploads it to your instance right away. Without a connection the trail waits in your [Library](/app/offline-use#the-library) and uploads automatically later.
+
+Editing an existing trail that is already on your instance needs a connection, because the changes are made to the server copy. If you leave the editor with unsaved changes, the app asks whether to discard them.

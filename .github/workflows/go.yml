@@ -19,12 +19,12 @@ jobs:
   db-test:
     runs-on: ubuntu-latest
     env:
-      TINYGO_VERSION: '0.39.0'
+      TINYGO_VERSION: '0.41.1'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: '1.26'
       - name: Install TinyGo
         run: |
           curl -fsSL "https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_amd64.deb" -o /tmp/tinygo.deb

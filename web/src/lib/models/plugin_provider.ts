@@ -27,6 +27,9 @@ export interface PluginProvider {
     displayNames?: LocalizedTextMap;
     description?: string;
     descriptions?: LocalizedTextMap;
+    information?: LocalizedTextMap;
+    homepageUrl?: string;
+    donationUrl?: string;
     icon?: string;
     iconDark?: string;
     version?: string;
@@ -53,5 +56,6 @@ export interface PluginProvider {
         recommendedBatchSize?: number;
     };
     status: "available" | "disabled" | "error";
+    setupErrorCode?: string;
     error?: string;
 }

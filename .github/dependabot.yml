@@ -49,6 +49,17 @@ updates:
     cooldown:
       default-days: 7
   - package-ecosystem: "docker"
+    directory: "/db"
+    schedule:
+      interval: "monthly"
+    groups:
+      docker-db-backward-compatible:
+        update-types:
+          - minor
+          - patch
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "docker"
     directory: "/docs"
     schedule:
       interval: "monthly"

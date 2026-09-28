@@ -21,6 +21,8 @@
         showRoute?: boolean;
         showPhotos?: boolean;
         showMenu?: boolean;
+        compactElevationHeaders?: boolean;
+        categoryColorMap?: Record<string, string>;
         ondelete?: (summitLog: SummitLog) => void;
         onedit?: (summitLog: SummitLog) => void;
     }
@@ -34,6 +36,8 @@
         showRoute = false,
         showPhotos = false,
         showMenu = false,
+        compactElevationHeaders = false,
+        categoryColorMap = {},
         ondelete,
         onedit,
     }: Props = $props();
@@ -81,11 +85,50 @@
             {/if}
             <th>{$_("date")}</th>
             <th>{$_("distance")}</th>
-            <th>{$_("elevation-gain")}</th>
-            <th>{$_("elevation-loss")}</th>
+            <th
+                class:text-center={compactElevationHeaders}
+                class:w-12={compactElevationHeaders}
+            >
+                {#if compactElevationHeaders}
+                    <span
+                        class="inline-flex w-full justify-center"
+                        title={$_("elevation-gain")}
+                    >
+                        <i
+                            class="fa fa-arrow-trend-up text-base"
+                            aria-hidden="true"
+                        ></i>
+                        <span class="sr-only">{$_("elevation-gain")}</span>
+                    </span>
+                {:else}
+                    {$_("elevation-gain")}
+                {/if}
+            </th>
+            <th
+                class:text-center={compactElevationHeaders}
+                class:w-12={compactElevationHeaders}
+            >
+                {#if compactElevationHeaders}
+                    <span
+                        class="inline-flex w-full justify-center"
+                        title={$_("elevation-loss")}
+                    >
+                        <i
+                            class="fa fa-arrow-trend-down text-base"
+                            aria-hidden="true"
+                        ></i>
+                        <span class="sr-only">{$_("elevation-loss")}</span>
+                    </span>
+                {:else}
+                    {$_("elevation-loss")}
+                {/if}
+            </th>
             <th>{$_("duration")}</th>
             {#if showCategory}
-                <th>
+                <th
+                    class:min-w-40={compactElevationHeaders}
+                    class:w-full={compactElevationHeaders}
+                >
                     {$_("category")}
                 </th>
             {/if}
@@ -122,6 +165,7 @@
                 {showCategory}
                 {showTrail}
                 {showAuthor}
+                {categoryColorMap}
                 showPhotos={showPhotos &&
                     summitLogs.some((l) => l.photos.length)}
                 showDescription={summitLogs.some((l) => l.text?.length)}

@@ -1,13 +1,19 @@
-import type { SummitLog } from "$lib/models/summit_log";
-import { Collection, upload } from "$lib/util/api_util";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { assertFileField, handleError } from "$lib/util/api_util";
+import type { RequestEvent } from "@sveltejs/kit";
+import { POST as formPOST } from "../../form/[id]/+server";
+
+const fileFields = ["gpx", "photos"] as const;
 
 /**
  * @swagger
  * /api/v1/summit-log/{id}/file:
  *   post:
  *     summary: Upload summit log file
- *     description: Uploads a file (photo or GPX) for a summit log
+ *     deprecated: true
+ *     description: >
+ *       Deprecated alias of `POST /api/v1/summit-log/form/{id}`, which accepts the same multipart body and is the endpoint to use.
+ *       Kept for compatibility; behaves like the form endpoint, except that a body without a `gpx` or `photos` part
+ *       (PocketBase's `+`/`-` modifiers are accepted) is rejected with 400 `missing_file` instead of being applied as a no-op.
  *     tags:
  *       - Summit Logs
  *     parameters:
@@ -21,30 +27,27 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *       content:
  *         multipart/form-data:
  *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
+ *             $ref: '#/components/schemas/SummitLogUpdateInput'
  *     responses:
  *       200:
- *         description: File uploaded, summit log updated
+ *         description: Summit log updated
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SummitLog'
  *       400:
- *         description: Bad Request
+ *         description: Bad Request (no `gpx` or `photos` part in the body, invalid id, or body `id` differs from the path)
  *       404:
  *         description: Not Found
  *       500:
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
+    // The form handler reads the body itself, so validate a clone.
     try {
-        const r = await upload<SummitLog>(event, Collection.summit_logs);
-        return json(r);
-    } catch (e: any) {
-        throw error(e.status, e)
+        assertFileField(await event.request.clone().formData(), fileFields);
+    } catch (e) {
+        return handleError(e);
     }
+    return formPOST(event);
 }

@@ -24,13 +24,27 @@ func PluginSystemPluginsList(e *core.RequestEvent) error {
 	if err != nil {
 		return err
 	}
-	if !e.HasSuperuserAuth() {
-		for i := range plugins {
-			plugins[i].Path = ""
-		}
-	}
+	preparePluginInfoResponse(plugins, e.HasSuperuserAuth())
 
 	return e.JSON(http.StatusOK, map[string]any{"items": plugins})
+}
+
+func preparePluginInfoResponse(plugins []pluginsystem.PluginInfo, isSuperuser bool) {
+	if !isSuperuser {
+		redactPluginDiagnostics(plugins)
+	}
+}
+
+func redactPluginDiagnostics(plugins []pluginsystem.PluginInfo) {
+	for i := range plugins {
+		plugins[i].Path = ""
+		plugins[i].Error = ""
+		if plugins[i].Status == "error" {
+			plugins[i].SetupErrorCode = pluginsystem.PublicPluginSetupErrorCode(plugins[i].SetupErrorCode)
+		} else {
+			plugins[i].SetupErrorCode = ""
+		}
+	}
 }
 
 // localPlugin resolves an installed plugin from the cached installed_plugins

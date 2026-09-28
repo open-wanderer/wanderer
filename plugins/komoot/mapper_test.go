@@ -1,6 +1,64 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestTourImportDifficulty(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		grade string
+		want  string
+	}{
+		{name: "easy", grade: "easy", want: "easy"},
+		{name: "moderate", grade: "moderate", want: "moderate"},
+		{name: "difficult", grade: "difficult", want: "difficult"},
+		{name: "missing"},
+		{name: "unrecognized", grade: "extreme"},
+		{name: "technical grade", grade: "T3"},
+		{name: "display label", grade: "hard"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tour := &detailedTour{
+				ID:         123,
+				Name:       "Test tour",
+				Difficulty: difficulty{Grade: test.grade},
+				Embedded: detailedTourEmbedded{
+					Coordinates: coordinates{Items: []coordinate{{Lat: 47, Lng: 8}}},
+				},
+			}
+			item, err := tourImport(tour, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.Marshal(detailOutput{Item: item})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var wire struct {
+				Item map[string]json.RawMessage `json:"item"`
+			}
+			if err := json.Unmarshal(data, &wire); err != nil {
+				t.Fatal(err)
+			}
+			if test.want == "" {
+				if value, exists := wire.Item["difficulty"]; exists {
+					t.Fatalf("unknown difficulty must be omitted, got %s", value)
+				}
+			} else if string(wire.Item["difficulty"]) != `"`+test.want+`"` {
+				t.Fatalf("wire difficulty = %s, want %q", wire.Item["difficulty"], test.want)
+			}
+			var metadata map[string]any
+			if err := json.Unmarshal(wire.Item["metadata"], &metadata); err != nil {
+				t.Fatal(err)
+			}
+			if metadata["difficulty"] != test.grade {
+				t.Fatalf("raw grade = %v, want %q", metadata["difficulty"], test.grade)
+			}
+		})
+	}
+}
 
 func TestWaypointsFromEmbeddedWayPoints(t *testing.T) {
 	tour := &detailedTour{
@@ -101,6 +159,40 @@ func TestWaypointsIncludeFrontImage(t *testing.T) {
 	if points[0].Photos[0].ExternalID != "48446190" || points[0].Photos[0].Source.URL != "https://example.test/image.jpg" {
 		t.Fatalf("unexpected waypoint photo: %#v", points[0].Photos[0])
 	}
+	if points[0].Photos[0].Filename != "komoot-waypoint-48446190.jpg" {
+		t.Fatalf("unexpected waypoint photo filename: %q", points[0].Photos[0].Filename)
+	}
+}
+
+func TestTourPhotoFilenamesIdentifySource(t *testing.T) {
+	t.Run("cover with id", func(t *testing.T) {
+		tour := &detailedTour{Embedded: detailedTourEmbedded{CoverImages: coverImages{Embedded: imagesEmbedded{Items: []imageItem{{
+			ID:  flexibleID("123"),
+			Src: "https://example.test/cover.jpg",
+		}}}}}}
+		got := photos(tour, nil)
+		if len(got) != 1 || got[0].Filename != "komoot-cover-123.jpg" {
+			t.Fatalf("unexpected cover photos: %#v", got)
+		}
+	})
+
+	t.Run("cover without id", func(t *testing.T) {
+		tour := &detailedTour{Embedded: detailedTourEmbedded{CoverImages: coverImages{Embedded: imagesEmbedded{Items: []imageItem{{
+			Src: "https://example.test/cover.jpg",
+		}}}}}}
+		got := photos(tour, nil)
+		if len(got) != 1 || got[0].Filename != "komoot-cover.jpg" {
+			t.Fatalf("unexpected cover photos: %#v", got)
+		}
+	})
+
+	t.Run("map image", func(t *testing.T) {
+		tour := &detailedTour{MapImage: mapImage{Src: "https://example.test/map.jpg"}}
+		got := photos(tour, nil)
+		if len(got) != 1 || got[0].Filename != "komoot-map.jpg" {
+			t.Fatalf("unexpected map photos: %#v", got)
+		}
+	})
 }
 
 func TestWaypointPhotosDeduplicateFrontImage(t *testing.T) {

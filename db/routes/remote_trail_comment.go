@@ -10,7 +10,6 @@ import (
 	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
-	"strings"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -18,7 +17,6 @@ import (
 
 func RemoteTrailCommentsList(e *core.RequestEvent) error {
 	trailID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 	sort := e.Request.URL.Query().Get("sort")
 
 	if sort == "" {
@@ -89,12 +87,9 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 		return err
 	}
 
-	// 4. Handle Expand
-	if expandQuery != "" {
-		errs := e.App.ExpandRecords(filteredRecords, strings.Split(expandQuery, ","), nil)
-		if len(errs) > 0 {
-			fmt.Printf("Expand errors: %v\n", errs)
-		}
+	// 4. Apply view rules to every requested relation, including nested expands.
+	if err := enrichRemoteRecords(e, filteredRecords...); err != nil {
+		return err
 	}
 
 	// 5. Manually construct the response object

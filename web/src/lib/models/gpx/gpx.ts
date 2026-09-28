@@ -1,4 +1,5 @@
 import * as xml2js from 'isomorphic-xml2js';
+import { parseGpxXml } from './parse-xml';
 import Metadata from './metadata';
 import Route from './route';
 import Track from './track';
@@ -218,34 +219,17 @@ export default class GPX {
   }
 
   static parse(gpxString: string): GPX {
-    const sanitizedGPX = gpxString.replace(/\sxmlns=""/g, '').replace(/<!--[\s\S]*?-->/g, '');
-
-    return (function () {
-      let data = null, error = null;
-      xml2js.parseString(sanitizedGPX, {
-        explicitArray: false,
-        attrValueProcessors: [(str: string) => {
-          if (str.length && !isNaN(Number(str))) {
-            return Number.isInteger(Number(str)) ? parseInt(String(str), 10) : parseFloat(String(str));
-          }
-          return str;
-        }
-        ]
-      }, (err, xml) => {
-        error = err;
-        data = new GPX({
-          $: xml.gpx.$,
-          metadata: xml.gpx.metadata,
-          wpt: xml.gpx.wpt,
-          rte: xml.gpx.rte,
-          trk: xml.gpx.trk
-        });
-      });
-      if (error) {
-        throw error
-      };
-      return data;
-    }()) as unknown as GPX;
+    const xml = parseGpxXml(gpxString);
+    if (!xml || !Object.prototype.hasOwnProperty.call(xml, 'gpx')) {
+      throw new Error('Missing GPX root element');
+    }
+    return new GPX({
+      $: xml.gpx.$,
+      metadata: xml.gpx.metadata,
+      wpt: xml.gpx.wpt,
+      rte: xml.gpx.rte,
+      trk: xml.gpx.trk
+    });
   }
 
   toGeoJSON(includeRoute: boolean = false, includeWaypoints: boolean = false): GeoJSON.FeatureCollection {
@@ -290,8 +274,14 @@ export default class GPX {
 
     let xmlString = builder.buildObject(gpx);
 
-    // Ensure xmlns is present in the root element for Firefox
-    if (!xmlString.includes(`xmlns="${defaultAttributes["xmlns"]}"`)) {
+    // The browser builder creates elements with createElement, so the root is in
+    // no namespace and Firefox's XMLSerializer drops the xmlns attribute it was
+    // given. Put it back when the serialized root really has none: a file may
+    // keep its own namespace (GPX 1.0), and a second xmlns makes the XML invalid.
+    // Attribute values may contain an unescaped ">", so skip over quoted values
+    // instead of stopping at the first one.
+    const rootTag = xmlString.match(/<gpx(?:[^>"']|"[^"]*"|'[^']*')*>/)?.[0] ?? "";
+    if (!/\sxmlns=/.test(rootTag)) {
       xmlString = xmlString.replace('<gpx', `<gpx xmlns="${defaultAttributes["xmlns"]}"`);
     }
 

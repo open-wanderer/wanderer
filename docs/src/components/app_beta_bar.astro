@@ -1,0 +1,175 @@
+---
+import {
+	APP_BETA_ANNOUNCEMENT,
+	APP_BETA_ANNOUNCEMENT_ID,
+	APP_BETA_URL,
+} from "../lib/site";
+
+/**
+ * Announcement bar for the marketing pages. Sits in normal flow above the
+ * nav so it never shifts layout after paint; the whole bar is the link.
+ * Dismissal is remembered per browser for 30 days (localStorage, best
+ * effort; private windows simply see it again).
+ */
+---
+
+{
+	APP_BETA_ANNOUNCEMENT && (
+		<>
+		<div
+			class="beta-bar"
+			id="app-beta-bar"
+			data-announcement={APP_BETA_ANNOUNCEMENT_ID}
+			role="region"
+			aria-label="Announcement"
+		>
+			<a class="beta-bar-link" href={APP_BETA_URL}>
+				<span class="beta-bar-tag">Beta</span>
+				<span class="beta-bar-text">
+					The <span class="tracking-[-0.075em]">wanderer</span> app is now in public beta for iOS and
+					Android.
+				</span>
+				<span class="beta-bar-cta">
+					Get the beta
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M5 12h14M12 5l7 7-7 7" />
+					</svg>
+				</span>
+			</a>
+			<button class="beta-bar-close" type="button" aria-label="Dismiss announcement">
+				<svg
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M18 6L6 18M6 6l12 12" />
+				</svg>
+			</button>
+		</div>
+
+		{/* Runs synchronously right after the element so a dismissed bar never
+		    paints. Everything is wrapped: storage can throw or be empty. */}
+		<script is:inline>
+			(function () {
+				var bar = document.getElementById("app-beta-bar");
+				if (!bar) return;
+				var key = "wanderer:dismissed:" + bar.dataset.announcement;
+				var ttl = 30 * 24 * 60 * 60 * 1000;
+				try {
+					var until = Number(localStorage.getItem(key) || 0);
+					if (until > Date.now()) {
+						bar.hidden = true;
+						return;
+					}
+				} catch (_) {}
+				var close = bar.querySelector(".beta-bar-close");
+				if (!close) return;
+				close.addEventListener("click", function () {
+					bar.hidden = true;
+					try {
+						localStorage.setItem(key, String(Date.now() + ttl));
+					} catch (_) {}
+				});
+			})();
+		</script>
+		</>
+	)
+}
+
+<style>
+	.beta-bar {
+		display: flex;
+		align-items: stretch;
+		background: #12141c;
+		color: #ffffff;
+		border-bottom: 1px solid #374151;
+		font-family: "IBM Plex Sans", system-ui, sans-serif;
+		font-size: 0.875rem;
+		line-height: 1.4;
+	}
+	.beta-bar[hidden] {
+		display: none;
+	}
+	.beta-bar-link {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 0.5rem 0.875rem;
+		padding: 0.625rem clamp(1rem, 4vw, 2.5rem);
+		color: inherit;
+		text-decoration: none;
+	}
+	.beta-bar-link:hover .beta-bar-cta,
+	.beta-bar-link:focus-visible .beta-bar-cta {
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+	.beta-bar-link:focus-visible {
+		outline: 2px solid #94a3b8;
+		outline-offset: -2px;
+	}
+	.beta-bar-tag {
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		padding: 0.125rem 0.5rem;
+		border: 1px solid #94a3b8;
+		border-radius: 9999px;
+		color: #94a3b8;
+	}
+	.beta-bar-text {
+		color: #e5e7eb;
+	}
+	.beta-bar-cta {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.beta-bar-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.75rem;
+		flex-shrink: 0;
+		background: none;
+		border: 0;
+		border-left: 1px solid #374151;
+		color: #94a3b8;
+		cursor: pointer;
+	}
+	.beta-bar-close:hover {
+		color: #ffffff;
+	}
+	.beta-bar-close:focus-visible {
+		outline: 2px solid #94a3b8;
+		outline-offset: -2px;
+	}
+	@media (max-width: 480px) {
+		.beta-bar-text {
+			flex-basis: 100%;
+			text-align: center;
+		}
+	}
+</style>

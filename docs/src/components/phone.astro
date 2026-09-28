@@ -1,0 +1,24 @@
+---
+import { Image } from 'astro:assets';
+
+interface Props {
+	/** Imported image asset, e.g. `import shot from '../../../assets/guides/foo.png'` */
+	src: ImageMetadata;
+	/** Alt text describing the screenshot */
+	alt: string;
+	/** Side the frame floats to. Use `none` when a parent handles placement. */
+	side?: 'left' | 'right' | 'none';
+}
+
+const { src, alt, side = 'right' } = Astro.props;
+---
+
+{/* `not-content` opts out of Starlight's prose spacing, which would otherwise
+    add a margin-top to the screenshot (it follows the notch element) and leave
+    a gap between the screen and the top of the frame. */}
+<figure class:list={['phone', 'not-content', `phone--${side}`]}>
+	<div class="phone__body">
+		<div class="phone__notch"></div>
+		<Image src={src} alt={alt} widths={[260, 520]} sizes="260px" class="phone__screen" />
+	</div>
+</figure>

@@ -78,6 +78,10 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
         formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));
     }
 
+    if ([...formData.keys()].length === 0) {
+        return await r.json();
+    }
+
     r = await fetch(`/api/v1/waypoint/${newWaypoint.id!}/file`, {
         method: 'POST',
         body: formData,

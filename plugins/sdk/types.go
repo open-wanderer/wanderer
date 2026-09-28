@@ -149,6 +149,10 @@ type TrailImport struct {
 	Waypoints    []Waypoint        `json:"waypoints,omitempty"`
 	Photos       []Photo           `json:"photos,omitempty"`
 	Metadata     map[string]any    `json:"metadata,omitempty"`
+
+	// Difficulty is the provider's coarse rating: easy, moderate, or difficult.
+	// Omit it when unknown; this is not a universal physical or technical scale.
+	Difficulty string `json:"difficulty,omitempty"`
 }
 
 type TrailImportSource struct {

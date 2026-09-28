@@ -445,6 +445,19 @@
         "descriptions": {
           "$ref": "#/definitions/stringMap"
         },
+        "information": {
+          "$ref": "#/definitions/stringMap"
+        },
+        "homepageUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "donationUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
         "providerCategories": {
           "type": "object",
           "additionalProperties": {

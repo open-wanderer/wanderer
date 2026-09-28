@@ -3,6 +3,7 @@ package importer
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -514,15 +515,95 @@ func TestPhotoFile(t *testing.T) {
 
 	t.Run("empty url", func(t *testing.T) {
 		photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{Type: "url"}}
-		if _, _, err := photoFile(ctx, photo, Options{}, 1024); err == nil {
+		if _, _, err := photoFile(ctx, photo, Options{}, 1024, nil); err == nil {
 			t.Fatal("expected error for empty url")
 		}
 	})
 
 	t.Run("unsupported type", func(t *testing.T) {
 		photo := pluginsystem.Photo{Source: pluginsystem.MediaSource{Type: "carrier"}}
-		if _, _, err := photoFile(ctx, photo, Options{}, 1024); err == nil {
+		if _, _, err := photoFile(ctx, photo, Options{}, 1024, nil); err == nil {
 			t.Fatal("expected error for unsupported source type")
+		}
+	})
+}
+
+func TestValidatePhotoMimeType(t *testing.T) {
+	t.Run("allows detected image type", func(t *testing.T) {
+		jpegHeader := []byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}
+		if err := validatePhotoMimeType(jpegHeader, []string{"image/jpeg", "image/png"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("rejects response body with unsupported type", func(t *testing.T) {
+		err := validatePhotoMimeType([]byte("<html><body>not an image</body></html>"), []string{"image/jpeg", "image/png"})
+		if err == nil {
+			t.Fatal("expected unsupported MIME type error")
+		}
+		if !strings.Contains(err.Error(), "text/html") {
+			t.Fatalf("error should contain detected MIME type, got %q", err)
+		}
+	})
+
+	t.Run("skips validation without field restrictions", func(t *testing.T) {
+		if err := validatePhotoMimeType([]byte("not an image"), nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestFetchPluginMediaWithRetry(t *testing.T) {
+	t.Run("succeeds after transient failures", func(t *testing.T) {
+		attempts := 0
+		want := &util.SafeFetchResult{Body: []byte("ok")}
+		got, err := fetchPluginMediaWithRetry(context.Background(), []time.Duration{0, 0}, func() (*util.SafeFetchResult, error) {
+			attempts++
+			if attempts < 3 {
+				return nil, util.ValidatePluginMediaStatus(502)
+			}
+			return want, nil
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != want || attempts != 3 {
+			t.Fatalf("got result %#v after %d attempts", got, attempts)
+		}
+	})
+
+	t.Run("does not retry permanent status", func(t *testing.T) {
+		attempts := 0
+		_, err := fetchPluginMediaWithRetry(context.Background(), []time.Duration{0, 0}, func() (*util.SafeFetchResult, error) {
+			attempts++
+			return nil, util.ValidatePluginMediaStatus(404)
+		})
+		if err == nil || attempts != 1 {
+			t.Fatalf("got error %v after %d attempts", err, attempts)
+		}
+	})
+
+	t.Run("stops after configured retries", func(t *testing.T) {
+		attempts := 0
+		_, err := fetchPluginMediaWithRetry(context.Background(), []time.Duration{0, 0}, func() (*util.SafeFetchResult, error) {
+			attempts++
+			return nil, util.ValidatePluginMediaStatus(503)
+		})
+		if err == nil || attempts != 3 || !strings.Contains(err.Error(), "after 3 attempts") {
+			t.Fatalf("got error %v after %d attempts", err, attempts)
+		}
+	})
+
+	t.Run("stops retry wait when context is cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		attempts := 0
+		_, err := fetchPluginMediaWithRetry(ctx, []time.Duration{time.Hour}, func() (*util.SafeFetchResult, error) {
+			attempts++
+			cancel()
+			return nil, util.ValidatePluginMediaStatus(502)
+		})
+		if !errors.Is(err, context.Canceled) || attempts != 1 {
+			t.Fatalf("got error %v after %d attempts", err, attempts)
 		}
 	})
 }

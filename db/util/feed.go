@@ -41,11 +41,16 @@ func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string
 }
 
 func DeleteFromFeed(app core.App, itemId string) error {
-
-	record, err := app.FindFirstRecordByData("feed", "item", itemId)
+	records, err := app.FindAllRecords("feed", dbx.HashExp{"item": itemId})
 	if err != nil {
 		return err
 	}
 
-	return app.Delete(record)
+	for _, record := range records {
+		if err := app.Delete(record); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
