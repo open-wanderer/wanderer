@@ -152,12 +152,13 @@ jobs:
         env:
           NOTES: ${{ needs.prepare.outputs.notes }}
         run: |
-          # Play caps "What's new" at 500 characters.
+          # Play caps "What's new" at 500 characters, trailing newline
+          # included, so write it without one.
           mkdir -p whatsnew
           if [ ${#NOTES} -gt 500 ]; then
             NOTES="${NOTES:0:497}..."
           fi
-          printf '%s\n' "$NOTES" > whatsnew/whatsnew-en-US
+          printf '%s' "$NOTES" > whatsnew/whatsnew-en-US
 
       - name: Upload to Google Play open test
         uses: r0adkll/upload-google-play@v1
@@ -168,7 +169,7 @@ jobs:
           mappingFile: app/build/app/outputs/mapping/release/mapping.txt
           whatsNewDirectory: app/whatsnew
           # "beta" is the API name of the Open testing track.
-          track: beta
+          tracks: beta
           status: completed
 
       - uses: actions/upload-artifact@v7
