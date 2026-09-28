@@ -93,23 +93,25 @@ jobs:
       - name: Build Plugin Release Assets
         run: make plugins-package
       
+      # Written to a file and passed via body_path: echoing the notes into
+      # $GITHUB_OUTPUT with printf broke on the heredoc delimiter and on `%`.
       - name: Extract release notes
-        id: changelog
         env:
           VERSION: ${{ needs.publish.outputs.version }}
         run: |
-          # Clean 'v' from v0.12.0 for awk if your changelog uses 0.12.0
+          # Matches both "# 0.12.0" and "# v0.12.0" headings
           RAW_VER=${VERSION#v}
-          CHANGELOG=$(awk -v ver="$RAW_VER" 'BEGIN {in_section=0} /^# / {if (in_section) exit; if ($2 == ver) in_section=1} in_section {print}' CHANGELOG.md)
-          echo 'changelog<<EOF' >> $GITHUB_OUTPUT
-          printf "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          awk -v ver="$RAW_VER" 'BEGIN {in_section=0} /^# / {if (in_section) exit; v=$2; sub(/^v/, "", v); if (v == ver) in_section=1} in_section {print}' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "::error::No '# $RAW_VER' section found in CHANGELOG.md."
+            exit 1
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.publish.outputs.version }}
-          body: ${{ steps.changelog.outputs.changelog }}
+          body_path: release_notes.md
           files: |
             plugin_dist/*.tar.gz
             plugin_dist/SHA256SUMS
