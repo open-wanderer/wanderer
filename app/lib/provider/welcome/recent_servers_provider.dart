@@ -21,15 +21,23 @@ class RecentServersNotifier extends _$RecentServersNotifier {
   }
 
   /// Records [server] as the most recently used instance.
-  ///
+  void record(ServerInstance server) {
+    _persist(pushRecentServer(state, server));
+  }
+
+  /// Drops [server] from the list, e.g. from the picker's remove button.
+  void remove(ServerInstance server) {
+    final next = removeRecentServer(state, server);
+    if (identical(next, state)) return;
+    _persist(next);
+  }
+
   /// Re-reads the row fresh before writing — the same read-modify-write
   /// every other [LocalSettingsEntity] writer follows (see
   /// `local_settings_provider.dart`, `map_source_persistence.dart`) — so a
   /// concurrent write to another field on the singleton row is never
   /// clobbered.
-  void record(ServerInstance server) {
-    final next = pushRecentServer(state, server);
-
+  void _persist(List<ServerInstance> next) {
     final box = ref.read(objectBoxProvider).box<LocalSettingsEntity>();
     final entity = box.getAll().firstOrNull ?? LocalSettingsEntity();
     entity.recentServersJson = encodeRecentServers(next);

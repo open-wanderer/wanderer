@@ -105,15 +105,20 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
   /// name, and the leading image falls back to the server icon when there is
   /// no image — so a nameless, image-less entry (a typed custom URL) renders
   /// safely, with no request to `https://wanderer.to/null`.
-  Widget _buildServerTile(BuildContext context, ServerInstance server) {
+  ///
+  /// [onRemove], when given, adds a trailing X button — used only by the
+  /// "Last used" section.
+  Widget _buildServerTile(
+    BuildContext context,
+    ServerInstance server, {
+    VoidCallback? onRemove,
+  }) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final hasImage = server.image != null && server.image!.isNotEmpty;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: hasImage
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -145,6 +150,13 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
           ),
         ],
       ),
+      trailing: onRemove == null
+          ? null
+          : IconButton(
+              icon: const FaIcon(FontAwesomeIcons.xmark, size: 18),
+              tooltip: l10n.remove,
+              onPressed: onRemove,
+            ),
       onTap: () => _selectAndGoBack(server),
     );
   }
@@ -170,7 +182,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _urlController,
-              cursorColor: Theme.of(context).colorScheme.onSurface,
+              cursorColor: theme.colorScheme.onSurface,
               decoration: InputDecoration(
                 hintText: l10n.enter_server_url_hint,
                 hintStyle: TextStyle(color: Colors.grey),
@@ -188,14 +200,12 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
+                    color: theme.colorScheme.outlineVariant,
                   ),
                 ),
               ),
@@ -204,8 +214,6 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                   _selectAndGoBack(ServerInstance(url: value)),
             ),
           ),
-
-          const Divider(),
 
           Expanded(
             child: CustomScrollView(
@@ -217,29 +225,19 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                 // even while that fetch is loading or has failed.
                 if (recentServers.isNotEmpty) ...[
                   _buildSectionHeader(context, l10n.last_used),
-                  SliverList.separated(
+                  SliverList.builder(
                     itemCount: recentServers.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, index) =>
-                        _buildServerTile(context, recentServers[index]),
-                  ),
-                  // A filled band rather than a plain Divider: a hairline
-                  // reads as just another tile separator.
-                  SliverToBoxAdapter(
-                    child: Container(
-                      height: 8,
-                      margin: const EdgeInsets.only(top: 8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        border: Border.symmetric(
-                          horizontal: BorderSide(
-                            color: theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
+                    itemBuilder: (context, index) => _buildServerTile(
+                      context,
+                      recentServers[index],
+                      onRemove: () => ref
+                          .read(recentServersProvider.notifier)
+                          .remove(recentServers[index]),
                     ),
                   ),
+
+                  // A filled band rather than a plain Divider: a hairline
+                  // reads as just another tile separator.
                   _buildSectionHeader(context, l10n.community_instances),
                 ],
 
@@ -287,10 +285,9 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                     }
 
                     return [
-                      SliverList.separated(
+                      SliverList.builder(
                         itemCount: filteredServers.length,
-                        separatorBuilder: (context, index) =>
-                            const Divider(height: 1),
+
                         itemBuilder: (context, index) =>
                             _buildServerTile(context, filteredServers[index]),
                       ),

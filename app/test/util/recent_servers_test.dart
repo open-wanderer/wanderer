@@ -239,4 +239,40 @@ void main() {
       expect(decodeRecentServers('[1, 2, "x", null, {}]'), isEmpty);
     });
   });
+
+  group('removeRecentServer', () {
+    const list = [
+      ServerInstance(url: 'https://b.example'),
+      ServerInstance(url: 'https://a.example'),
+    ];
+
+    test('removes the matching entry and keeps the rest in order', () {
+      final result = removeRecentServer(
+        list,
+        const ServerInstance(url: 'https://b.example'),
+      );
+
+      expect(result.map((s) => s.url), ['https://a.example']);
+    });
+
+    test('matches by normalized URL, ignoring scheme and case', () {
+      final result = removeRecentServer(
+        list,
+        const ServerInstance(url: 'A.Example'),
+      );
+
+      expect(result.map((s) => s.url), ['https://b.example']);
+    });
+
+    test('returns the same list when nothing matches', () {
+      expect(
+        removeRecentServer(list, const ServerInstance(url: 'c.example')),
+        same(list),
+      );
+      expect(
+        removeRecentServer(list, const ServerInstance(url: '')),
+        same(list),
+      );
+    });
+  });
 }

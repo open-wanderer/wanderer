@@ -73,6 +73,21 @@ List<ServerInstance> pushRecentServer(
   return result.length > max ? result.sublist(0, max) : result;
 }
 
+/// Returns a new list without the entry sharing [server]'s dedupe key.
+///
+/// Returns [current] unchanged when `server.url` does not normalize or no
+/// entry matches. [current] is never mutated.
+List<ServerInstance> removeRecentServer(
+  List<ServerInstance> current,
+  ServerInstance server,
+) {
+  final key = _dedupeKey(server.url);
+  if (key == null) return current;
+  if (!current.any((entry) => _dedupeKey(entry.url) == key)) return current;
+
+  return current.where((entry) => _dedupeKey(entry.url) != key).toList();
+}
+
 /// Encodes [servers] for on-device persistence.
 String encodeRecentServers(List<ServerInstance> servers) {
   return jsonEncode(servers.map((s) => s.toJson()).toList());

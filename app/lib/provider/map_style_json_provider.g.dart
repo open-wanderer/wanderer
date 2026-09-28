@@ -8,8 +8,8 @@ part of 'map_style_json_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// The single style-JSON provider for the app (D-01, D-10). Loads the
-/// theme-appropriate MapLibre style asset and substitutes the operator's
+/// The app's single style-JSON provider. Loads the theme-appropriate
+/// MapLibre style asset and substitutes the operator's
 /// tile, glyph, and sprite endpoints from [mapStyleSourcesProvider], which
 /// resolves from the network when reachable and from its persisted copy when
 /// not — so this provider never blocks on connectivity.
@@ -28,8 +28,8 @@ part of 'map_style_json_provider.dart';
 @ProviderFor(mapStyleJson)
 final mapStyleJsonProvider = MapStyleJsonProvider._();
 
-/// The single style-JSON provider for the app (D-01, D-10). Loads the
-/// theme-appropriate MapLibre style asset and substitutes the operator's
+/// The app's single style-JSON provider. Loads the theme-appropriate
+/// MapLibre style asset and substitutes the operator's
 /// tile, glyph, and sprite endpoints from [mapStyleSourcesProvider], which
 /// resolves from the network when reachable and from its persisted copy when
 /// not — so this provider never blocks on connectivity.
@@ -48,8 +48,8 @@ final mapStyleJsonProvider = MapStyleJsonProvider._();
 final class MapStyleJsonProvider
     extends $FunctionalProvider<AsyncValue<String>, String, FutureOr<String>>
     with $FutureModifier<String>, $FutureProvider<String> {
-  /// The single style-JSON provider for the app (D-01, D-10). Loads the
-  /// theme-appropriate MapLibre style asset and substitutes the operator's
+  /// The app's single style-JSON provider. Loads the theme-appropriate
+  /// MapLibre style asset and substitutes the operator's
   /// tile, glyph, and sprite endpoints from [mapStyleSourcesProvider], which
   /// resolves from the network when reachable and from its persisted copy when
   /// not — so this provider never blocks on connectivity.
