@@ -15,12 +15,31 @@ jobs:
       pull-requests: write
 
     steps:
+      # Always cut the release from dev, regardless of the branch the workflow was dispatched from.
       - uses: actions/checkout@v7
-      
+        with:
+          ref: dev
+          fetch-depth: 0
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+
+      - name: Prepare release branch
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 0.12.0 (got '$VERSION')."
+            exit 1
+          fi
+          BRANCH="release/v$VERSION"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            echo "::error::$BRANCH already exists. Delete it (and close its PR) before requesting this release again."
+            exit 1
+          fi
+          git switch -c "$BRANCH"
 
       - name: Bump versions
         env:
@@ -29,12 +48,24 @@ jobs:
           cd web && npm version "$VERSION" --no-git-tag-version && cd ..
           cd docs && npm version "$VERSION" --no-git-tag-version && cd ..
 
+      # Pushed with plain git instead of peter-evans/create-pull-request: that action
+      # rebases the bump commit onto `base` (main), dropping everything from dev.
+      - name: Commit and push release branch
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: release v$VERSION"
+          git push origin "release/v$VERSION"
+
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v8
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: release v${{ github.event.inputs.version }}"
-          branch: "release/v${{ github.event.inputs.version }}"
-          title: "Release v${{ github.event.inputs.version }}"
-          body: "This PR bumps the version. Merging this will trigger Docker builds and a GitHub Release."
-          base: main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "release/v$VERSION" \
+            --title "Release v$VERSION" \
+            --body "This PR merges dev into main and bumps the version. Merging this will trigger Docker builds and a GitHub Release."
