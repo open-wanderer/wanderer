@@ -265,7 +265,9 @@ jobs:
           name: android-apk
           path: dist
 
-      - name: Create GitHub pre-release
+      # Releases are immutable here: assets can only be attached before a
+      # release is published. Create a draft with the APK, then publish it.
+      - name: Create draft pre-release with APK
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
@@ -273,6 +275,13 @@ jobs:
           name: wanderer app ${{ needs.prepare.outputs.version }} beta ${{ needs.prepare.outputs.build }}
           body: ${{ needs.prepare.outputs.notes }}
           files: dist/*.apk
+          draft: true
           prerelease: true
           # Keep "Latest" pointing at the server release.
           make_latest: false
+
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
