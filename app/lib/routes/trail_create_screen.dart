@@ -1235,10 +1235,16 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                     top: 40,
                   ),
                   controls: [
-                    const WandererMapCompass(
+                    WandererMapCompass(
                       hideIfRotatedNorth: true,
 
-                      padding: EdgeInsets.only(top: 112, right: 4),
+                      padding: EdgeInsets.only(
+                        top:
+                            MediaQuery.paddingOf(context).top +
+                            kToolbarHeight +
+                            8,
+                        right: 4,
+                      ),
                     ),
                   ],
                   onMapCreated: (controller) => _mapController = controller,

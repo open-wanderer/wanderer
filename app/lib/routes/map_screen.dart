@@ -323,7 +323,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         16,
         8,
         16,
-        kBottomNavigationBarHeight + 16 + 32,
+        MediaQuery.paddingOf(context).bottom + 24,
       ),
       children: [
         Center(
@@ -365,11 +365,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final savedCamera = ref.read(mapCameraProvider);
     final isOnline = ref.watch(onlineStatusProvider);
 
-    sheetMinSize =
-        (kBottomNavigationBarHeight +
-            MediaQuery.viewPaddingOf(context).bottom +
-            80) /
-        MediaQuery.of(context).size.height;
+    // Inside the shell's `extendBody` Scaffold this is the bottom app bar's
+    // full height, system inset included — anchor bottom overlays to it, not
+    // to kBottomNavigationBarHeight, or the docked FAB covers them on
+    // 3-button-nav devices.
+    final shellBottom = MediaQuery.paddingOf(context).bottom;
+
+    sheetMinSize = (shellBottom + 80) / MediaQuery.of(context).size.height;
 
     // Initial-focus fallback chain, lowest priority first: (0,0) world view,
     // then the user's saved home location, then a resolved GPS fix. Each of
@@ -615,8 +617,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   markers: unclusteredMarkers,
                 ),
               const LocationMarkerLayer(),
+              // Clears the search bar below the status bar.
               Positioned(
-                top: 124,
+                top: MediaQuery.paddingOf(context).top + 76,
                 right: 8,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -800,7 +803,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             16,
                             8,
                             16,
-                            kBottomNavigationBarHeight + 16 + 32,
+                            shellBottom + 24,
                           ),
                           controller: scrollController,
                           itemCount: 1 + (trails.isEmpty ? 1 : trails.length),
@@ -1004,7 +1007,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         ),
 
         Positioned(
-          bottom: kBottomNavigationBarHeight + 64,
+          bottom: shellBottom + 40,
           left: 0,
           right: 0,
           child: Center(
@@ -1030,7 +1033,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
         if (_selectedTrail != null)
           Positioned(
-            bottom: kBottomNavigationBarHeight + 16 + 45,
+            bottom: shellBottom + 37,
             left: 16,
             right: 16,
             child: Dismissible(

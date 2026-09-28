@@ -130,7 +130,14 @@ class _ListScreenState extends ConsumerState<ListScreen> {
                           }
                           return ListView.builder(
                             controller: _scrollController,
-                            padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+                            // The shell's bottom app bar (system inset
+                            // included) plus the docked FAB's overhang.
+                            padding: EdgeInsets.fromLTRB(
+                              0,
+                              0,
+                              0,
+                              MediaQuery.paddingOf(context).bottom + 24,
+                            ),
                             itemCount:
                                 state.lists.length + (state.hasMore ? 1 : 0),
                             itemBuilder: (context, i) {

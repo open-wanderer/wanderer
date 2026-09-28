@@ -206,7 +206,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
 
               if (_selectedTrail != null)
                 Positioned(
-                  bottom: 16,
+                  bottom: MediaQuery.paddingOf(context).bottom + 16,
                   left: 16,
                   right: 16,
                   child: Dismissible(

@@ -26,12 +26,15 @@ Future<RouteTravelBucket?> showTravelProfileSheet(BuildContext context) {
 
           // 5 cards can exceed the sheet height on smaller screens, so make
           // it scrollable instead of overflowing.
+          // Opened from the shell, so the sheet sits behind the bottom app
+          // bar: its padding here is the bar's full height, system inset
+          // included. 56 more clears the docked FAB's overhang.
           return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               16,
               16,
               16,
-              24 + kBottomNavigationBarHeight + 56,
+              MediaQuery.paddingOf(context).bottom + 56,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

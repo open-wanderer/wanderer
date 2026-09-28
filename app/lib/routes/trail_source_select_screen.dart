@@ -203,7 +203,13 @@ class _TrailSourceSelectScreenState
         automaticallyImplyLeading: false,
       ),
       body: ListView(
-        padding: EdgeInsets.symmetric(horizontal: 12),
+        // Clears the shell's bottom app bar and the docked FAB's overhang.
+        padding: EdgeInsets.fromLTRB(
+          12,
+          0,
+          12,
+          MediaQuery.paddingOf(context).bottom + 24,
+        ),
         children: [
           _SourceActionCard(
             icon: FontAwesomeIcons.route,

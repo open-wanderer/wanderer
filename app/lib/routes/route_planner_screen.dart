@@ -351,13 +351,16 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         // Top-right controls column hosts undo/redo; the search control
         // lives in the app-bar title (see _buildSearchBar) and the
         // auto-routing toggle lives in the Settings tab.
-        const WandererMapCompass(
+        WandererMapCompass(
           hideIfRotatedNorth: true,
 
-          padding: EdgeInsets.only(top: 236, right: 4),
+          padding: EdgeInsets.only(
+            top: MediaQuery.paddingOf(context).top + kToolbarHeight + 132,
+            right: 4,
+          ),
         ),
         Positioned(
-          top: 112,
+          top: MediaQuery.paddingOf(context).top + kToolbarHeight + 8,
           right: 0,
           child: Column(
             mainAxisSize: MainAxisSize.min,

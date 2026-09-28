@@ -322,7 +322,7 @@ class _LibraryEmptyState extends StatelessWidget {
           constraints: BoxConstraints(
             minHeight: math.max(
               0,
-              constraints.maxHeight - kBottomNavigationBarHeight,
+              constraints.maxHeight - MediaQuery.paddingOf(context).bottom,
             ),
           ),
           child: Padding(
