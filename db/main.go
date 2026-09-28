@@ -500,8 +500,8 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 		}
 
 		if err := util.IndexLists(app, lists, client); err != nil {
+			// Omit this page from the rebuild and advance to the next one.
 			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
-			continue
 		}
 
 		page++
@@ -527,8 +527,8 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 		}
 
 		if err := util.IndexActors(actors, client); err != nil {
+			// Omit this page from the rebuild and advance to the next one.
 			app.Logger().Warn(fmt.Sprintf("Unable to index actor page %d: %v", page, err))
-			continue
 		}
 
 		page++

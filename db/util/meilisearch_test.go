@@ -338,3 +338,142 @@ func (capture *meiliCapture) snapshot() []meiliRequest {
 	defer capture.mu.Unlock()
 	return slices.Clone(capture.requests)
 }
+
+// Deleting a bloated activitypub_actors row is the documented cleanup for the
+// duplicate-actor migration failure, and it leaves lists pointing at an id that
+// no longer resolves, exactly as it does for trails.
+func TestDocumentFromListRecordMissingAuthor(t *testing.T) {
+	list := newListRecord("listmissing0001", "actorgone000001")
+
+	for _, includeShares := range []bool{false, true} {
+		t.Run(includeSharesLabel(includeShares), func(t *testing.T) {
+			document, err := documentFromListRecord(list, nil, includeShares)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if document != nil {
+				t.Fatalf("document = %#v; want nil", document)
+			}
+			message := err.Error()
+			if !strings.Contains(message, list.Id) || !strings.Contains(message, "actorgone000001") || !strings.Contains(message, "missing author reference") {
+				t.Fatalf("error = %q; want list id and missing author reference", message)
+			}
+		})
+	}
+}
+
+func TestIndexListsRejectsMissingAuthorBeforeSubmit(t *testing.T) {
+	app, author := setupListIndexApp(t)
+	lists, err := app.FindCollectionByNameOrId("lists")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actors, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid := saveRecord(t, app, lists, map[string]any{"name": "Kept", "author": author.Id})
+	removed := saveRecord(t, app, actors, map[string]any{"preferred_username": "Removed author", "is_local": true})
+	orphan := saveRecord(t, app, lists, map[string]any{"name": "Orphan", "author": removed.Id})
+	result, err := app.NonconcurrentDB().Delete("activitypub_actors", dbx.HashExp{"id": removed.Id}).Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected != 1 {
+		t.Fatalf("deleted actor rows = %d, %v; want 1", affected, err)
+	}
+	valid, err = app.FindRecordById("lists", valid.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orphan, err = app.FindRecordById("lists", orphan.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if orphan.GetString("author") != removed.Id {
+		t.Fatalf("author reference = %q; want dangling %q", orphan.GetString("author"), removed.Id)
+	}
+
+	capture := &meiliCapture{}
+	server := httptest.NewServer(http.HandlerFunc(capture.serveHTTP))
+	t.Cleanup(server.Close)
+	err = IndexLists(app, []*core.Record{valid, orphan}, meilisearch.New(server.URL))
+	if err == nil {
+		t.Fatal("expected IndexLists to return the missing author error")
+	}
+	message := err.Error()
+	if !strings.Contains(message, orphan.Id) || !strings.Contains(message, removed.Id) {
+		t.Fatalf("error = %q; want list id and missing author reference", message)
+	}
+	if requests := capture.snapshot(); len(requests) != 0 {
+		t.Fatalf("submitted %d search requests; want none", len(requests))
+	}
+}
+
+func newListRecord(id, authorID string) *core.Record {
+	actors := core.NewBaseCollection("activitypub_actors")
+	lists := core.NewBaseCollection("lists")
+	lists.Fields.Add(
+		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
+		&core.TextField{Name: "name"},
+		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "public"},
+	)
+	record := core.NewRecord(lists)
+	record.Id = id
+	record.Set("author", authorID)
+	record.Set("name", "Weekend loops")
+	return record
+}
+
+func setupListIndexApp(t *testing.T) (*core.BaseApp, *core.Record) {
+	t.Helper()
+	app := core.NewBaseApp(core.BaseAppConfig{DataDir: t.TempDir()})
+	t.Cleanup(func() {
+		if err := app.ResetBootstrapState(); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := app.Bootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	app.Settings().Logs.MaxDays = 0
+
+	actors := core.NewBaseCollection("activitypub_actors")
+	actors.Fields.Add(
+		&core.TextField{Name: "preferred_username"},
+		&core.TextField{Name: "domain"},
+		&core.TextField{Name: "icon"},
+		&core.BoolField{Name: "is_local"},
+	)
+	trails := core.NewBaseCollection("trails")
+	trails.Fields.Add(
+		&core.TextField{Name: "name"},
+		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
+	)
+	lists := core.NewBaseCollection("lists")
+	lists.Fields.Add(
+		&core.TextField{Name: "name"},
+		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "public"},
+		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
+		&core.RelationField{Name: "trails", CollectionId: trails.Id, MaxSelect: 100},
+	)
+	shares := core.NewBaseCollection("list_share")
+	shares.Fields.Add(
+		&core.RelationField{Name: "list", CollectionId: lists.Id, MaxSelect: 1},
+		&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
+	)
+	for _, collection := range []*core.Collection{actors, trails, lists, shares} {
+		if err := app.Save(collection); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	author := saveRecord(t, app, actors, map[string]any{
+		"preferred_username": "Search author",
+		"is_local":           true,
+		"domain":             "ignored.example",
+	})
+	return app, author
+}
