@@ -473,8 +473,8 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 		}
 
 		if err := util.IndexTrails(app, trails, client); err != nil {
+			// Omit this page from the rebuild and advance to the next one.
 			app.Logger().Warn(fmt.Sprintf("Unable to index trails page %d: %v", page, err))
-			continue
 		}
 
 		page++
