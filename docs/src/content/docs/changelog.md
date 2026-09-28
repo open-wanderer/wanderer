@@ -2,6 +2,76 @@
 title: Changelog
 description: What changed in the last patch?
 ---
+## v0.21.0
+
+### Mobile app beta
+The wanderer mobile app for Android and iOS is now officially in public beta. Record and navigate trails, work offline with downloaded regions, and sync with your wanderer instance. Join via [TestFlight](https://testflight.apple.com/join/6VCR4QpV), the [Google Play open test](https://play.google.com/apps/testing/com.openwanderer.wanderer), or download the APK from the `app-v*` pre-releases on GitHub. Install instructions and a feature matrix are on the [app page](/app). Comments, summit logs, and lists are read-only in the app for now. (PR #1256, #1265)
+
+### Breaking Changes
+:::caution
+**New required environment variable `POCKETBASE_PROXY_SECRET`.** Inbound ActivityPub deliveries are now authenticated between the `web` and `db` services (GHSA-mr29-2qg5-m4fw, PR #1205). Set `POCKETBASE_PROXY_SECRET` to the **same** random value on both the `db` and the `web` service before you upgrade. If it is missing or the values differ, your instance rejects all incoming federation. Generate a value with, for example, `openssl rand -hex 32`. See the [environment configuration](/run/environment-configuration) docs and the sample `docker-compose.yml`.
+:::
+
+### Features
+- Statistics page: trails marked as completed now count as activities even without a summit log. Adds period presets, a custom date range, an independently browsable calendar, and an activity chart that adapts its granularity. (PR #1162, thanks @slothful-vassal)
+- Selecting a trail for a summit log now also fills in its date. (PR #1099, thanks @hhornburg)
+- Plugin imports now keep the provider's difficulty rating (Komoot supported) instead of always storing `easy`. (PR #1266, thanks @slothful-vassal)
+- Plugin settings have a new info modal showing a plugin's purpose, availability, version, homepage, and an optional donation link. (PR #1166, thanks @slothful-vassal)
+- New `OIDC_SCOPES` environment variable to override the scopes requested by the OIDC providers. (PR #1027, thanks @mfuhrmann)
+- OAuth2 signups now keep the provider username, transliterated to a valid wanderer username, instead of a generated `usersNNNNNN`. (PR #1159, thanks @mfuhrmann)
+- Added a privacy policy at `/privacy`, linked from the footer. (PR #1203)
+
+### Security
+- Remote actors can no longer delete local trails or lists they do not own via ActivityPub `Delete`. (GHSA-xcwc-jhv2-w4h6, PR #1205)
+- The inbox route no longer trusts a client-supplied `X-Forwarded-Path`. (GHSA-mr29-2qg5-m4fw, PR #1205)
+- `waypoints` creation now checks trail ownership. (GHSA-vj82-xj83-jp85, PR #1205)
+- `comments`, `summit_logs`, and `trail_like` now bind the author to the authenticated user, so content can no longer be created in another user's name. (GHSA-332v-mq7g-5hqf, PR #1205)
+- The SSRF filter now blocks IPv6 transition addresses that embed internal IPv4 addresses. (GHSA-8j93-xvwx-jjg3, PR #1205)
+- Anonymous requests and remote accounts can no longer read or change private trails, lists, comments, and shares. (PR #1232, #1238, thanks @slothful-vassal)
+- API responses no longer expand related records the caller is not allowed to view. (PR #1223, thanks @slothful-vassal)
+- Share updates can no longer grant access to another user's trail or list, and private cross-instance shares are rejected by the API. (PR #1222, #1234, thanks @slothful-vassal)
+
+### Performance
+- Cards, galleries, map popups, and avatars now load PocketBase thumbnails instead of full-resolution photos. (PR #1268, thanks @fparadise)
+- Faster elevation profile smoothing. (PR #1267, thanks @fparadise)
+- Plugin mime type and error handling optimized. (PR #1115, thanks @slothful-vassal)
+
+### Bug Fixes
+- Replacing a trail's track through the API now recalculates distance, duration, and elevation. (PR #1228)
+- `POST /api/v1/{trail,list,summit-log}/form/{id}` now updates the record named in the path. A body `id` that does not match the path returns `400 id_mismatch`. (PR #1225)
+- `POST /api/v1/{waypoint,user}/{id}/file` returns `400 missing_file` when no part matches a file field (`photos`, `avatar`) instead of silently doing nothing. The `/file` endpoints of trail, list, and summit-log are deprecated in favor of `form/{id}` and will be removed in a future release. (PR #1226)
+- Unknown paths under `/api` return a JSON `404` instead of an HTML page, and wrong methods return a JSON `405`. (PR #1227)
+- Fixed blank vector base maps after the MapLibre 6 upgrade. (PR #1243)
+- GPX 1.0 files no longer get a duplicate `xmlns` attribute after editing or exporting. (PR #1271, thanks @mrhard9090)
+- Trails whose author is missing no longer crash search initialization. (PR #1273, thanks @mvanhorn)
+- Trail date filters now include the whole selected days in your local time zone. (PR #1260, thanks @slothful-vassal)
+- Upload duplicate detection no longer misses matches outside the first 20 search results. (PR #1263, thanks @slothful-vassal)
+- Renaming a tag now updates trail search results. (PR #1262, thanks @slothful-vassal)
+- Radius filters now accept coordinates of 0 and no longer apply the same constraint twice. (PR #1259, thanks @slothful-vassal)
+- The map's elevation loss filter now uses the correct limit. (PR #1258, thanks @slothful-vassal)
+- Removing one share no longer hides a trail or list from its other recipients in search. (PR #1257, thanks @slothful-vassal)
+- Trail list pagination now stays correct when the page size or display mode changes. (PR #1250, thanks @slothful-vassal)
+- HTML-to-text previews and GPX parsing now use real parsers instead of regular expressions. (PR #1247, thanks @slothful-vassal)
+- Background sync no longer overwrites the local sync status or changes records while a request is being answered. (PR #1224, thanks @slothful-vassal)
+- Remote trails and lists fall back to cached data when the remote instance is unreachable. (PR #1103)
+- Videos in galleries and the lightbox no longer autoplay. (PR #1209, thanks @fparadise)
+- Fixed the actor endpoint failing on bios containing subdivision flag emoji. (PR #1186)
+- The fullscreen map now keeps the share token of a shared trail link. (PR #1172, thanks @pttydou)
+- Fixed a 500 error on public lists owned by a private profile. (PR #1156)
+- Fixed duplicated rendering of shared lists. (PR #1134, thanks @snowyukitty)
+
+### Documentation
+- Documentation for the mobile app beta: install page, what works where, creating and editing trails, and troubleshooting. (PR #1256)
+- Re-added Further Heights to the server list. (PR #1171, thanks @mozillamonks)
+
+### Maintenance
+- Built with Go 1.26 and TinyGo 0.41.1. Go 1.25 is no longer supported upstream. (PR #1195, thanks @slothful-vassal)
+- Upgraded MapLibre GL to v6. (PR #1211)
+- Removed the unused PDFKit dependency. (PR #1236, thanks @slothful-vassal)
+- Translation updates via Crowdin, including Czech and Italian. (PR #1135, thanks @mfortini)
+- Updated web, docs, and Docker dependencies.
+- The release workflow now cuts release branches from dev. (PR #1278)
+
 ## v0.20.0
 
 ### Breaking Changes
