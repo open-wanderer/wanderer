@@ -150,7 +150,7 @@
                 description: getListDescriptionPreview(list.description),
                 value: list,
                 icon: list.avatar
-                    ? getFileURL(list, list.avatar)
+                    ? getFileURL(list, list.avatar, "100x100")
                     : $theme === "light"
                       ? emptyStateTrailLight
                       : emptyStateTrailDark,
@@ -215,7 +215,7 @@
                             <img
                                 class="w-12 aspect-square rounded-full"
                                 src={list.avatar
-                                    ? getFileURL(list, list.avatar)
+                                    ? getFileURL(list, list.avatar, "100x100")
                                     : $theme === "light"
                                       ? emptyStateTrailLight
                                       : emptyStateTrailDark}

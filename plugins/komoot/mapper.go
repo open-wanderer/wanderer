@@ -27,6 +27,7 @@ func tourImport(tour *detailedTour, routeImages []imageItem) (trailImport, error
 		Description:  tour.Description,
 		StartedAt:    tour.Date,
 		ActivityType: activityType(tour.Sport),
+		Difficulty:   difficultyFromGrade(tour.Difficulty.Grade),
 		Privacy:      &privacy,
 		Track: track{
 			Format:        "gpx",
@@ -44,6 +45,17 @@ func tourImport(tour *detailedTour, routeImages []imageItem) (trailImport, error
 			"difficulty":       tour.Difficulty.Grade,
 		},
 	}, nil
+}
+
+func difficultyFromGrade(grade string) string {
+	// Komoot's API uses "difficult" for the grade shown as "Hard" in English.
+	// Preserve only its recognized overall grades, not technical-scale values.
+	switch grade {
+	case "easy", "moderate", "difficult":
+		return grade
+	default:
+		return ""
+	}
 }
 
 func tourGPX(tour *detailedTour) ([]byte, error) {

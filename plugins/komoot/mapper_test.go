@@ -1,6 +1,64 @@
 package main
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
+
+func TestTourImportDifficulty(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		grade string
+		want  string
+	}{
+		{name: "easy", grade: "easy", want: "easy"},
+		{name: "moderate", grade: "moderate", want: "moderate"},
+		{name: "difficult", grade: "difficult", want: "difficult"},
+		{name: "missing"},
+		{name: "unrecognized", grade: "extreme"},
+		{name: "technical grade", grade: "T3"},
+		{name: "display label", grade: "hard"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tour := &detailedTour{
+				ID:         123,
+				Name:       "Test tour",
+				Difficulty: difficulty{Grade: test.grade},
+				Embedded: detailedTourEmbedded{
+					Coordinates: coordinates{Items: []coordinate{{Lat: 47, Lng: 8}}},
+				},
+			}
+			item, err := tourImport(tour, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.Marshal(detailOutput{Item: item})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var wire struct {
+				Item map[string]json.RawMessage `json:"item"`
+			}
+			if err := json.Unmarshal(data, &wire); err != nil {
+				t.Fatal(err)
+			}
+			if test.want == "" {
+				if value, exists := wire.Item["difficulty"]; exists {
+					t.Fatalf("unknown difficulty must be omitted, got %s", value)
+				}
+			} else if string(wire.Item["difficulty"]) != `"`+test.want+`"` {
+				t.Fatalf("wire difficulty = %s, want %q", wire.Item["difficulty"], test.want)
+			}
+			var metadata map[string]any
+			if err := json.Unmarshal(wire.Item["metadata"], &metadata); err != nil {
+				t.Fatal(err)
+			}
+			if metadata["difficulty"] != test.grade {
+				t.Fatalf("raw grade = %v, want %q", metadata["difficulty"], test.grade)
+			}
+		})
+	}
+}
 
 func TestWaypointsFromEmbeddedWayPoints(t *testing.T) {
 	tour := &detailedTour{
