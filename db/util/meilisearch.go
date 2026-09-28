@@ -16,6 +16,10 @@ import (
 )
 
 func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
+	if author == nil {
+		return nil, fmt.Errorf("trail %s has missing author reference %q", r.Id, r.GetString("author"))
+	}
+
 	photos := r.GetStringSlice("photos")
 	thumbnail := ""
 	if len(photos) > 0 {
@@ -170,6 +174,9 @@ func getStoredBounds(r *core.Record) [4]float64 {
 }
 
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
+	if author == nil {
+		return nil, fmt.Errorf("list %s has missing author reference %q", r.Id, r.GetString("author"))
+	}
 
 	totalElevationGain := 0.0
 	totalElevationLoss := 0.0
