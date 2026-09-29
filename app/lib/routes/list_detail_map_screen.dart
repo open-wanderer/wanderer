@@ -2,7 +2,6 @@ import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/base/trail_collection_map.dart';
@@ -151,7 +150,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
             elevation: 0,
             scrolledUnderElevation: 0,
             leading: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
               style: IconButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.surface,

@@ -1154,7 +1154,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           leading: IconButton(
-            icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+            icon: const BackButtonIcon(),
             onPressed: () => _hasUnsavedChanges
                 ? _confirmDiscard(context)
                 : (context.canPop()

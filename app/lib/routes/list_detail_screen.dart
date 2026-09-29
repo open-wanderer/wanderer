@@ -78,7 +78,7 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           leading: IconButton(
-            icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+            icon: const BackButtonIcon(),
             onPressed: () => context.pop(),
             style: IconButton.styleFrom(
               backgroundColor: theme.colorScheme.surface.withValues(

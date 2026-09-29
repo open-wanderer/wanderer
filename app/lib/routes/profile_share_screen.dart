@@ -35,7 +35,7 @@ class ProfileShareScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         shadowColor: Colors.transparent,
         leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 16),
+          icon: const BackButtonIcon(),
           onPressed: () => context.pop(),
         ),
         title: Text(AppLocalizations.of(context)!.share_profile),

@@ -87,7 +87,7 @@ class RegisterScreen extends ConsumerWidget {
           Positioned.fill(child: TopographyBackground()),
           SafeArea(
             child: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
             ),
           ),

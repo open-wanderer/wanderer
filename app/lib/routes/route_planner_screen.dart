@@ -189,7 +189,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+          icon: const BackButtonIcon(),
           onPressed: () => context.canPop()
               ? context.pop()
               : context.pushReplacement('/map'),

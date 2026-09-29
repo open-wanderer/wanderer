@@ -119,7 +119,7 @@ class _SettingsSubcategoriesScreenState
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const BackButtonIcon(),
             onPressed: () => context.pop(),
           ),
           title: Text(widget.category.displayName(locale)),
@@ -192,7 +192,7 @@ class _SettingsSubcategoriesScreenState
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const BackButtonIcon(),
           onPressed: () => context.pop(),
         ),
         // Parent category's localized name.

@@ -97,7 +97,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
             ),
           ),
@@ -188,7 +188,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
           valueListenable: _appBarOpacity,
           builder: (context, opacity, _) => AppBar(
             leading: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
               style: IconButton.styleFrom(
                 backgroundColor: theme.colorScheme.surface.withValues(

@@ -159,7 +159,7 @@ class _SettingsOfflineRegionsMapScreenState
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+          icon: const BackButtonIcon(),
           onPressed: () => context.pop(),
           style: IconButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.surface,
