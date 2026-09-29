@@ -162,6 +162,10 @@ void main() {
           path: '/trail/create',
           builder: (context, routerState) => const Scaffold(),
         ),
+        GoRoute(
+          path: '/settings/account',
+          builder: (context, routerState) => const Scaffold(),
+        ),
       ],
     );
 
@@ -279,5 +283,36 @@ void main() {
     expect(find.text('Mock Trail Name'), findsWidgets);
     expect(find.text('alice has no activity yet.'), findsNothing);
     expect(find.text('You have no activity yet.'), findsNothing);
+  });
+
+  testWidgets('own profile without a bio offers an Add Bio button', (
+    tester,
+  ) async {
+    final router = await pumpScreen(
+      tester,
+      location: '/profile',
+      feed: () async => _emptyFeed,
+    );
+
+    expect(find.text('No bio yet.'), findsOneWidget);
+    expect(find.text('Add Bio'), findsOneWidget);
+
+    await tester.tap(find.text('Add Bio'));
+    await tester.pumpAndSettle();
+
+    expect(currentLocation(router), '/settings/account');
+  });
+
+  testWidgets('other profile without a bio has no Add Bio button', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      location: '/profile/@alice',
+      feed: () async => _emptyFeed,
+    );
+
+    expect(find.text('No bio yet.'), findsOneWidget);
+    expect(find.text('Add Bio'), findsNothing);
   });
 }

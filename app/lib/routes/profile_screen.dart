@@ -210,7 +210,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
 
           // Bio section
-          SliverToBoxAdapter(child: _BioSection(summary: actor.summary)),
+          SliverToBoxAdapter(
+            child: _BioSection(summary: actor.summary, isOwn: isOwn),
+          ),
 
           // Stats row — follower/following counts + follow button
           SliverToBoxAdapter(
@@ -316,8 +318,9 @@ class _ProfileHeaderBackground extends StatelessWidget {
 
 class _BioSection extends StatefulWidget {
   final String? summary;
+  final bool isOwn;
 
-  const _BioSection({required this.summary});
+  const _BioSection({required this.summary, required this.isOwn});
 
   @override
   State<_BioSection> createState() => _BioSectionState();
@@ -330,11 +333,23 @@ class _BioSectionState extends State<_BioSection> {
   Widget build(BuildContext context) {
     final summary = widget.summary;
     if (summary == null || summary.isEmpty) {
+      final l10n = AppLocalizations.of(context)!;
+      // Styled like _FeedEmptyState; your own profile gets a way to fill it.
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          AppLocalizations.of(context)!.no_bio_yet,
-          style: TextStyle(color: Colors.grey[600]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.no_bio_yet, style: Theme.of(context).textTheme.bodySmall),
+            if (widget.isOwn) ...[
+              const SizedBox(height: 12),
+              WandererButton(
+                primary: false,
+                onPressed: () => context.push('/settings/account'),
+                child: Text(l10n.add_bio),
+              ),
+            ],
+          ],
         ),
       );
     }
@@ -560,7 +575,7 @@ class _FeedEmptyState extends StatelessWidget {
               if (isOwn) ...[
                 const SizedBox(height: 12),
                 WandererButton(
-                  primary: true,
+                  primary: false,
                   onPressed: () => context.pushReplacement('/trail/create'),
                   child: Text(l10n.new_trail),
                 ),

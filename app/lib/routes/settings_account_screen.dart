@@ -315,6 +315,9 @@ class _BioSectionState extends ConsumerState<_BioSection> {
       await ref
           .read(settingsProvider.notifier)
           .saveToServer(settings.copyWith(bio: _current));
+      // The profile's bio is the actor summary, cached by the keepAlive
+      // ownProfileProvider; refresh it so the profile shows the new bio.
+      ref.invalidate(ownProfileProvider);
     } catch (_) {
       if (!mounted) return;
       ref
