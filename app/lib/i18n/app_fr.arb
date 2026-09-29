@@ -456,6 +456,20 @@
     "description": "Button label that collapses an expanded profile bio back to its truncated form"
   },
   "feed": "Feed",
+  "profile_feed_empty_own": "Vous n’avez encore aucune activité.",
+  "@profile_feed_empty_own": {
+    "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
+  },
+  "profile_feed_empty_other": "{username} n’a encore aucune activité.",
+  "@profile_feed_empty_other": {
+    "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "description": "Preferred username of the profile being viewed, for example alice"
+      }
+    }
+  },
   "no_trails_yet": "No trails yet.",
   "library_empty_title": "No downloaded trails",
   "library_empty_body": "Trails you download are kept here so you can open them offline.",
