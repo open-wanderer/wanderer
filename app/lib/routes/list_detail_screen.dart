@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
@@ -73,35 +75,41 @@ class _ListDetailScreenState extends ConsumerState<ListDetailScreen> {
     final listAsync = ref.watch(listProvider(widget.id));
     final theme = Theme.of(context);
 
-    return listAsync.when(
-      data: (list) => Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const BackButtonIcon(),
-            onPressed: () => context.pop(),
-            style: IconButton.styleFrom(
-              backgroundColor: theme.colorScheme.surface.withValues(
-                alpha: 1.0 - _appBarOpacity,
-              ),
+    if (listAsync.hasError) {
+      return Scaffold(
+        body: WandererError(err: listAsync.error!, stack: listAsync.stackTrace),
+      );
+    }
+
+    // Only the body goes through AsyncLoader, as on the trail detail screen:
+    // the app bar renders for real so the back button stays live during the
+    // fetch instead of being boned into a filled circle.
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          onPressed: () => context.pop(),
+          style: IconButton.styleFrom(
+            backgroundColor: theme.colorScheme.surface.withValues(
+              alpha: 1.0 - _appBarOpacity,
             ),
           ),
-          backgroundColor: theme.colorScheme.surface.withValues(
-            alpha: _appBarOpacity,
-          ),
-          shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
-          elevation: _appBarOpacity > 0 ? 2 : 0,
-          scrolledUnderElevation: 0,
         ),
-        body: SingleChildScrollView(
-          controller: _scrollController,
-          child: _ListHeader(list: list),
+        backgroundColor: theme.colorScheme.surface.withValues(
+          alpha: _appBarOpacity,
         ),
+        shadowColor: Colors.black.withValues(alpha: _appBarOpacity * 0.15),
+        elevation: _appBarOpacity > 0 ? 2 : 0,
+        scrolledUnderElevation: 0,
       ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (err, stack) => Scaffold(
-        body: WandererError(err: err, stack: stack),
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: AsyncLoader<WandererList>(
+          asyncValue: listAsync,
+          mockData: WandererList.mock(),
+          builder: (list) => _ListHeader(list: list),
+        ),
       ),
     );
   }
@@ -123,6 +131,9 @@ class _ListHeader extends ConsumerWidget {
     final unit = ref.watch(unitProvider);
     final theme = Theme.of(context);
     final l18n = AppLocalizations.of(context)!;
+    // True only while `AsyncLoader` skeletonizes this header over
+    // `WandererList.mock()`.
+    final isSkeleton = Skeletonizer.maybeOf(context)?.enabled ?? false;
 
     final avatarUrl = list.getFileUrl(
       user?.serverUrl ?? '',
@@ -204,28 +215,46 @@ class _ListHeader extends ConsumerWidget {
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: [
-                  StatChip(
-                    icon: FontAwesomeIcons.ruler,
-                    label: formatDistance(list.distance, unit: unit),
-                  ),
-                  if (list.duration != null && list.duration! > 0)
-                    StatChip(
-                      icon: FontAwesomeIcons.clock,
-                      label: Duration(seconds: list.duration!.toInt()).pretty(
-                        abbreviated: true,
-                        tersity: DurationTersity.minute,
-                      ),
-                    ),
-                  StatChip(
-                    icon: FontAwesomeIcons.arrowTrendUp,
-                    label: formatElevation(list.elevationGain, unit: unit),
-                  ),
-                  StatChip(
-                    icon: FontAwesomeIcons.arrowTrendDown,
-                    label: formatElevation(list.elevationLoss, unit: unit),
-                  ),
-                ],
+                children:
+                    [
+                          StatChip(
+                            icon: FontAwesomeIcons.ruler,
+                            label: formatDistance(list.distance, unit: unit),
+                          ),
+                          if (list.duration != null && list.duration! > 0)
+                            StatChip(
+                              icon: FontAwesomeIcons.clock,
+                              label: Duration(seconds: list.duration!.toInt())
+                                  .pretty(
+                                    abbreviated: true,
+                                    tersity: DurationTersity.minute,
+                                  ),
+                            ),
+                          StatChip(
+                            icon: FontAwesomeIcons.arrowTrendUp,
+                            label: formatElevation(
+                              list.elevationGain,
+                              unit: unit,
+                            ),
+                          ),
+                          StatChip(
+                            icon: FontAwesomeIcons.arrowTrendDown,
+                            label: formatElevation(
+                              list.elevationLoss,
+                              unit: unit,
+                            ),
+                          ),
+                        ]
+                        // One clean pill per chip rather than a pill with two
+                        // bones inside it, as in `TrailPanel`. Inert when the
+                        // skeleton is off.
+                        .map(
+                          (chip) => Skeleton.unite(
+                            borderRadius: BorderRadius.circular(32),
+                            child: chip,
+                          ),
+                        )
+                        .toList(),
               ),
             ],
           ),
@@ -247,7 +276,15 @@ class _ListHeader extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                html.Html(data: list.description),
+                // Replaced while loading: Skeletonizer merges Html's rich
+                // text into one notched blob, as in `TrailPanel`. The size is
+                // passed only while skeletonizing, since `Skeleton.replace`
+                // wraps its child in the SizedBox either way.
+                Skeleton.replace(
+                  width: isSkeleton ? double.infinity : null,
+                  height: isSkeleton ? 60 : null,
+                  child: html.Html(data: list.description),
+                ),
               ],
               Text(
                 l18n.map,
@@ -257,41 +294,58 @@ class _ListHeader extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               if (trails.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: SizedBox(
-                    height: 200,
-                    child: Material(
-                      child: Stack(
-                        children: [
-                          _ListMap(list: list, trails: trails),
-                          Align(
-                            alignment: Alignment.topRight,
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: IconButton(
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).canvasColor,
+                // The mock trails have no geometry, and mounting a map for
+                // them would fetch tiles for nothing. A block of the same
+                // geometry holds the space instead.
+                if (isSkeleton)
+                  Skeleton.leaf(
+                    child: Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      height: 200,
+                      child: Material(
+                        child: Stack(
+                          children: [
+                            _ListMap(list: list, trails: trails),
+                            Align(
+                              alignment: Alignment.topRight,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: IconButton(
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).canvasColor,
+                                  ),
+                                  icon: FaIcon(
+                                    FontAwesomeIcons
+                                        .upRightAndDownLeftFromCenter,
+                                    size: 18,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                  ),
+                                  onPressed: () =>
+                                      context.push('/list/${list.id}/map'),
                                 ),
-                                icon: FaIcon(
-                                  FontAwesomeIcons.upRightAndDownLeftFromCenter,
-                                  size: 18,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                ),
-                                onPressed: () =>
-                                    context.push('/list/${list.id}/map'),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 16),
                 Text(
                   l18n.trail(2),

@@ -74,6 +74,20 @@ abstract class WandererList
       expand?.author?.id ??
       (author.isNotEmpty && author != "000000000000000" ? author : null);
 
+  /// Placeholder the list detail screen skeletonizes while the real one
+  /// loads (`AsyncLoader.mockData`) -- same convention as [Trail.mock].
+  ///
+  /// No `avatar` and no expanded author, so a fake list never triggers an
+  /// image fetch. The three trails give the header its count and stat chips
+  /// and the screen a trail list to bone; `ListDetailScreen` draws a
+  /// skeleton-only block where the map would go, so they never mount one.
+  factory WandererList.mock() => WandererList(
+    id: 'mock-list-id',
+    name: 'Mock List Name',
+    description: 'Mock list description.',
+    expand: ListExpand(trails: List.generate(3, (_) => Trail.mock())),
+  );
+
   factory WandererList.fromJson(Map<String, dynamic> json) =>
       _$WandererListFromJson(json);
 }
