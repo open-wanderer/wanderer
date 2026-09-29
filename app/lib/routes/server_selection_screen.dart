@@ -268,7 +268,10 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
                                   size: 48,
                                 ),
                                 const SizedBox(height: 16),
-                                Text(l10n.no_servers_match_query(_searchQuery)),
+                                Text(
+                                  l10n.no_servers_match_query(_searchQuery),
+                                  textAlign: TextAlign.center,
+                                ),
                                 TextButton(
                                   onPressed: () => _selectAndGoBack(
                                     ServerInstance(
