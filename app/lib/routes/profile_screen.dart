@@ -229,7 +229,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // Feed
           if (h != null)
             SliverToBoxAdapter(
-              child: _FeedSection(handle: h, actor: actor),
+              child: _FeedSection(handle: h, actor: actor, isOwn: isOwn),
             ),
 
           // Bottom padding
@@ -437,8 +437,13 @@ class _ListsPreview extends ConsumerWidget {
 class _FeedSection extends ConsumerWidget {
   final String handle;
   final Actor actor;
+  final bool isOwn;
 
-  const _FeedSection({required this.handle, required this.actor});
+  const _FeedSection({
+    required this.handle,
+    required this.actor,
+    required this.isOwn,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -451,13 +456,7 @@ class _FeedSection extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              AppLocalizations.of(context)!.feed,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-          ),
+          const _FeedHeading(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Text(
@@ -473,21 +472,24 @@ class _FeedSection extends ConsumerWidget {
       asyncValue: feedAsync,
       mockData: ProfileFeedState.mock(),
       builder: (state) {
-        if (state.items.isEmpty) return const SizedBox.shrink();
+        final loading = feedAsync.isLoading;
+        if (state.items.isEmpty && !loading) {
+          return _FeedEmptyState(
+            isOwn: isOwn,
+            username: actor.preferredUsername,
+          );
+        }
+        // An already-empty feed being pull-to-refreshed hands us its previous
+        // (empty) value while loading; show the skeleton items instead, so a
+        // refresh looks like the first load and never flashes the empty state.
+        final items = state.items.isEmpty
+            ? ProfileFeedState.mock().items
+            : state.items;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                AppLocalizations.of(context)!.feed,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            ...state.items.map(
+            const _FeedHeading(),
+            ...items.map(
               (item) => FeedItemCard(item: item, profileActor: actor),
             ),
             // Gated on the fetch actually being in flight, never on `hasMore`
@@ -506,6 +508,67 @@ class _FeedSection extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _FeedHeading extends StatelessWidget {
+  const _FeedHeading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Text(
+        AppLocalizations.of(context)!.feed,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+/// Shown under the Feed heading once the feed has loaded with zero items.
+///
+/// Mirrors the web profile (profile/[handle]/+page.svelte): another user's
+/// profile says they have no activity yet, while your own profile gets a
+/// New Trail call to action, since that is the one thing that fills it. The
+/// button goes where the bottom-bar FAB goes, so both behave identically.
+class _FeedEmptyState extends StatelessWidget {
+  final bool isOwn;
+  final String username;
+
+  const _FeedEmptyState({required this.isOwn, required this.username});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _FeedHeading(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isOwn
+                    ? l10n.profile_feed_empty_own
+                    : l10n.profile_feed_empty_other(username),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (isOwn) ...[
+                const SizedBox(height: 12),
+                WandererButton(
+                  primary: true,
+                  onPressed: () => context.pushReplacement('/trail/create'),
+                  child: Text(l10n.new_trail),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
