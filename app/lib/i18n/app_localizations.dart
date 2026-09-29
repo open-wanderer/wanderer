@@ -1658,6 +1658,18 @@ abstract class AppLocalizations {
   /// **'Feed'**
   String get feed;
 
+  /// Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it.
+  ///
+  /// In en, this message translates to:
+  /// **'You have no activity yet.'**
+  String get profile_feed_empty_own;
+
+  /// Shown under the Feed heading on another user profile when it has no activity yet.
+  ///
+  /// In en, this message translates to:
+  /// **'{username} has no activity yet.'**
+  String profile_feed_empty_other(String username);
+
   /// No description provided for @no_trails_yet.
   ///
   /// In en, this message translates to:

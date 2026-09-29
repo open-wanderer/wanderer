@@ -456,6 +456,20 @@
     "description": "Button label that collapses an expanded profile bio back to its truncated form"
   },
   "feed": "Kanál",
+  "profile_feed_empty_own": "Zatím nemáte žádnou aktivitu.",
+  "@profile_feed_empty_own": {
+    "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
+  },
+  "profile_feed_empty_other": "{username} zatím nemá žádnou aktivitu.",
+  "@profile_feed_empty_other": {
+    "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "description": "Preferred username of the profile being viewed, for example alice"
+      }
+    }
+  },
   "no_trails_yet": "Zatím žádné trasy.",
   "library_empty_title": "Žádné stažené trasy",
   "library_empty_body": "Stažené trasy jsou uloženy zde, abyste je mohli otevírat offline.",

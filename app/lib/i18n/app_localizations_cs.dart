@@ -918,6 +918,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get feed => 'Kanál';
 
   @override
+  String get profile_feed_empty_own => 'Zatím nemáte žádnou aktivitu.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username zatím nemá žádnou aktivitu.';
+  }
+
+  @override
   String get no_trails_yet => 'Zatím žádné trasy.';
 
   @override

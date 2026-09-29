@@ -908,6 +908,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get feed => 'Feed';
 
   @override
+  String get profile_feed_empty_own => 'У вас ещё нет активностей.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return 'У $username ещё нет активностей.';
+  }
+
+  @override
   String get no_trails_yet => 'No trails yet.';
 
   @override

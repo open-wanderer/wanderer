@@ -910,6 +910,14 @@ class AppLocalizationsPl extends AppLocalizations {
   String get feed => 'Feed';
 
   @override
+  String get profile_feed_empty_own => 'Nie masz jeszcze aktywności.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username nie ma jeszcze aktywności.';
+  }
+
+  @override
   String get no_trails_yet => 'No trails yet.';
 
   @override

@@ -898,6 +898,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get feed => 'Feed';
 
   @override
+  String get profile_feed_empty_own => '你还没有活动。';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username还没有活动。';
+  }
+
+  @override
   String get no_trails_yet => 'No trails yet.';
 
   @override

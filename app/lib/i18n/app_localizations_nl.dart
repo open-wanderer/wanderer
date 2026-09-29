@@ -911,6 +911,14 @@ class AppLocalizationsNl extends AppLocalizations {
   String get feed => 'Feed';
 
   @override
+  String get profile_feed_empty_own => 'Je hebt nog geen activiteit.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username heeft nog geen activiteit.';
+  }
+
+  @override
   String get no_trails_yet => 'No trails yet.';
 
   @override
