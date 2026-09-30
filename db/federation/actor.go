@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"pocketbase/util"
+	"regexp"
 	"strings"
 	"time"
 
@@ -519,18 +520,20 @@ func CollectionNext(collectionURL string, page *pub.OrderedCollectionPage, n int
 // scheme, host and path, and only its query may differ.
 func FetchCollectionCursor(app core.App, ctx context.Context, collectionURL, cursor string) (*pub.OrderedCollectionPage, error) {
 	base, err := url.Parse(collectionURL)
+	if err != nil || !base.IsAbs() || base.Opaque != "" || base.User != nil {
+		return nil, fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
+	}
+	base.RawQuery, base.Fragment = "", ""
+
+	// The cursor must be the collection URL itself, optionally followed by a
+	// query. Matching the raw string also rules out userinfo, other ports and
+	// escaped path tricks.
+	pattern, err := regexp.Compile(`^` + regexp.QuoteMeta(base.String()) + `(\?[^#\s]*)?$`)
 	if err != nil {
 		return nil, fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
 	}
-	target, err := url.Parse(cursor)
-	if err != nil {
-		return nil, fmt.Errorf("%w: unparsable", ErrInvalidCursor)
-	}
-	if !target.IsAbs() || target.Opaque != "" || target.User != nil {
-		return nil, fmt.Errorf("%w: must be an absolute url", ErrInvalidCursor)
-	}
-	if target.Scheme != base.Scheme || target.Host != base.Host || target.EscapedPath() != base.EscapedPath() {
+	if !pattern.MatchString(cursor) {
 		return nil, fmt.Errorf("%w: leaves the collection", ErrInvalidCursor)
 	}
-	return FetchCollection(app, ctx, target.String())
+	return FetchCollection(app, ctx, cursor)
 }

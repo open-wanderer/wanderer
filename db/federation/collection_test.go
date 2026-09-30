@@ -263,6 +263,10 @@ func TestFetchCollectionCursorRejects(t *testing.T) {
 		"other port":   "http://" + hostname + ":1/users/alice/followers?page=2",
 		"userinfo":     "http://evil@" + host + "/users/alice/followers?page=2",
 		"escaped path": srvURL + "/users/alice%2Ffollowers?page=2",
+		"longer path":  collURL + "/../../admin?page=2",
+		"path suffix":  collURL + "-evil?page=2",
+		"fragment":     collURL + "?page=2#x",
+		"newline":      collURL + "?page=2\nHost: elsewhere.example",
 	}
 	for name, cursor := range cursors {
 		t.Run(name, func(t *testing.T) {
