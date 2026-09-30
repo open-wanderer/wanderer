@@ -14,7 +14,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ProfileFollowsState {
 
- List<Actor> get items; int get page; int get totalPages;
+ List<Actor> get items; int get page; int get totalPages;/// Cursor for the next page, null on the last page.
+ String? get next;/// Whether the backend sent a `next` key at all.
+ bool get cursorPaging;
 /// Create a copy of ProfileFollowsState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +27,16 @@ $ProfileFollowsStateCopyWith<ProfileFollowsState> get copyWith => _$ProfileFollo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFollowsState&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFollowsState&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.next, next) || other.next == next)&&(identical(other.cursorPaging, cursorPaging) || other.cursorPaging == cursorPaging));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,totalPages);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,totalPages,next,cursorPaging);
 
 @override
 String toString() {
-  return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages)';
+  return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages, next: $next, cursorPaging: $cursorPaging)';
 }
 
 
@@ -45,7 +47,7 @@ abstract mixin class $ProfileFollowsStateCopyWith<$Res>  {
   factory $ProfileFollowsStateCopyWith(ProfileFollowsState value, $Res Function(ProfileFollowsState) _then) = _$ProfileFollowsStateCopyWithImpl;
 @useResult
 $Res call({
- List<Actor> items, int page, int totalPages
+ List<Actor> items, int page, int totalPages, String? next, bool cursorPaging
 });
 
 
@@ -62,12 +64,14 @@ class _$ProfileFollowsStateCopyWithImpl<$Res>
 
 /// Create a copy of ProfileFollowsState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? totalPages = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? totalPages = null,Object? next = freezed,Object? cursorPaging = null,}) {
   return _then(_self.copyWith(
 items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<Actor>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
-as int,
+as int,next: freezed == next ? _self.next : next // ignore: cast_nullable_to_non_nullable
+as String?,cursorPaging: null == cursorPaging ? _self.cursorPaging : cursorPaging // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -152,10 +156,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Actor> items,  int page,  int totalPages)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Actor> items,  int page,  int totalPages,  String? next,  bool cursorPaging)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProfileFollowsState() when $default != null:
-return $default(_that.items,_that.page,_that.totalPages);case _:
+return $default(_that.items,_that.page,_that.totalPages,_that.next,_that.cursorPaging);case _:
   return orElse();
 
 }
@@ -173,10 +177,10 @@ return $default(_that.items,_that.page,_that.totalPages);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Actor> items,  int page,  int totalPages)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Actor> items,  int page,  int totalPages,  String? next,  bool cursorPaging)  $default,) {final _that = this;
 switch (_that) {
 case _ProfileFollowsState():
-return $default(_that.items,_that.page,_that.totalPages);case _:
+return $default(_that.items,_that.page,_that.totalPages,_that.next,_that.cursorPaging);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -193,10 +197,10 @@ return $default(_that.items,_that.page,_that.totalPages);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Actor> items,  int page,  int totalPages)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Actor> items,  int page,  int totalPages,  String? next,  bool cursorPaging)?  $default,) {final _that = this;
 switch (_that) {
 case _ProfileFollowsState() when $default != null:
-return $default(_that.items,_that.page,_that.totalPages);case _:
+return $default(_that.items,_that.page,_that.totalPages,_that.next,_that.cursorPaging);case _:
   return null;
 
 }
@@ -208,7 +212,7 @@ return $default(_that.items,_that.page,_that.totalPages);case _:
 
 
 class _ProfileFollowsState extends ProfileFollowsState {
-  const _ProfileFollowsState({required final  List<Actor> items, required this.page, required this.totalPages}): _items = items,super._();
+  const _ProfileFollowsState({required final  List<Actor> items, required this.page, required this.totalPages, this.next, this.cursorPaging = false}): _items = items,super._();
   
 
  final  List<Actor> _items;
@@ -220,6 +224,10 @@ class _ProfileFollowsState extends ProfileFollowsState {
 
 @override final  int page;
 @override final  int totalPages;
+/// Cursor for the next page, null on the last page.
+@override final  String? next;
+/// Whether the backend sent a `next` key at all.
+@override@JsonKey() final  bool cursorPaging;
 
 /// Create a copy of ProfileFollowsState
 /// with the given fields replaced by the non-null parameter values.
@@ -231,16 +239,16 @@ _$ProfileFollowsStateCopyWith<_ProfileFollowsState> get copyWith => __$ProfileFo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFollowsState&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFollowsState&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.next, next) || other.next == next)&&(identical(other.cursorPaging, cursorPaging) || other.cursorPaging == cursorPaging));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,totalPages);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,totalPages,next,cursorPaging);
 
 @override
 String toString() {
-  return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages)';
+  return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages, next: $next, cursorPaging: $cursorPaging)';
 }
 
 
@@ -251,7 +259,7 @@ abstract mixin class _$ProfileFollowsStateCopyWith<$Res> implements $ProfileFoll
   factory _$ProfileFollowsStateCopyWith(_ProfileFollowsState value, $Res Function(_ProfileFollowsState) _then) = __$ProfileFollowsStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<Actor> items, int page, int totalPages
+ List<Actor> items, int page, int totalPages, String? next, bool cursorPaging
 });
 
 
@@ -268,12 +276,14 @@ class __$ProfileFollowsStateCopyWithImpl<$Res>
 
 /// Create a copy of ProfileFollowsState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? items = null,Object? page = null,Object? totalPages = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? items = null,Object? page = null,Object? totalPages = null,Object? next = freezed,Object? cursorPaging = null,}) {
   return _then(_ProfileFollowsState(
 items: null == items ? _self._items : items // ignore: cast_nullable_to_non_nullable
 as List<Actor>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
-as int,
+as int,next: freezed == next ? _self.next : next // ignore: cast_nullable_to_non_nullable
+as String?,cursorPaging: null == cursorPaging ? _self.cursorPaging : cursorPaging // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
