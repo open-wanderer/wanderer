@@ -130,8 +130,8 @@ import "@fontsource/ibm-plex-mono/600.css";
         </div>
         <h2 class="path-heading">Run your own instance.</h2>
         <p class="path-body">
-          Your data, your rules, your server. Download the compose file and
-          start it. Wanderer is up in under 90 seconds.
+          Your data, your rules, your server. Run the setup script and start
+          it. Wanderer is up in under 90 seconds.
         </p>
         <div
           class="code-block"
@@ -140,11 +140,11 @@ import "@fontsource/ibm-plex-mono/600.css";
         >
           <div class="code-block-header">
             <span class="code-lang">bash</span>
-            <span class="code-comment"># download &amp; launch</span>
+            <span class="code-comment"># set up &amp; launch</span>
           </div>
           <pre
-            class="code-pre"><code class="code-content"><span class="code-comment-line"># Download the compose file</span>
-<span class="code-cmd">wget</span> https://raw.githubusercontent.com/open-wanderer/wanderer/main/docker-compose.yml
+            class="code-pre"><code class="code-content"><span class="code-comment-line"># Create docker-compose.yml with fresh secrets</span>
+<span class="code-cmd">/bin/bash</span> -c "$(curl -fsSL https://wanderer.to/setup.sh)"
 
 <span class="code-comment-line"># Start wanderer</span>
 <span class="code-cmd">docker</span> compose up -d</code></pre>
