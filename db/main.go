@@ -396,7 +396,7 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 			FilterableAttributes: []string{
 				"id", "_geo", "author", "category_id", "subcategory_id",
 				"is_federated", "completed", "date", "difficulty", "distance",
-				"elevation_gain", "elevation_loss", "likes", "public", "shares",
+				"elevation_gain", "elevation_loss", "iri", "likes", "public", "shares",
 				"tags", "min_lat", "max_lat", "min_lon", "max_lon", "bounding_box_diagonal",
 			},
 			SortableAttributes: []string{
@@ -408,7 +408,7 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 		},
 		"lists": {
 			SearchableAttributes: []string{"*"},
-			FilterableAttributes: []string{"author", "public", "shares"},
+			FilterableAttributes: []string{"id", "author", "public", "shares"},
 			SortableAttributes:   []string{"created", "name"},
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},

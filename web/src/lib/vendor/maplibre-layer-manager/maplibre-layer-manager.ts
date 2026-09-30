@@ -97,13 +97,76 @@ export class LayerManager {
         this.map.setStyle(layer);
     }
 
+    private removeLayerListeners(layer: BaseLayer) {
+        if (!layer.listeners) {
+            return;
+        }
+        for (const [id, listener] of Object.entries(layer.listeners)) {
+            if (listener.onEnter) {
+                this.addedListeners.delete("mouseenter-" + id)
+                this.map.off('mouseenter', id, listener.onEnter);
+            }
+
+            if (listener.onLeave) {
+                this.addedListeners.delete("mouseleave-" + id)
+                this.map.off('mouseleave', id, listener.onLeave);
+            }
+            if (listener.onMouseDown) {
+                this.addedListeners.delete("mousedown-" + id)
+                this.map.off('mousedown', id, listener.onMouseDown);
+            }
+            if (listener.onMouseUp) {
+                this.addedListeners.delete("mouseup-" + id)
+                this.map.off('mouseup', id, listener.onMouseUp);
+            }
+            if (listener.onMouseMove) {
+                this.addedListeners.delete("mousemove-" + id)
+                this.map.off('mousemove', id, listener.onMouseMove);
+            }
+        }
+    }
+
+    private addLayerListeners(layer: BaseLayer) {
+        if (!layer.listeners) {
+            return;
+        }
+        for (const [id, listener] of Object.entries(layer.listeners)) {
+            if (listener.onEnter && !this.addedListeners.has("mouseenter-" + id)) {
+                this.addedListeners.add("mouseenter-" + id)
+                this.map.on('mouseenter', id, listener.onEnter);
+            }
+
+            if (listener.onLeave && !this.addedListeners.has("mouseleave-" + id)) {
+                this.addedListeners.add("mouseleave-" + id)
+                this.map.on('mouseleave', id, listener.onLeave);
+            }
+
+            if (listener.onMouseDown && !this.addedListeners.has("mousedown-" + id)) {
+                this.addedListeners.add("mousedown-" + id)
+                this.map.on('mousedown', id, listener.onMouseDown);
+            }
+
+            if (listener.onMouseUp && !this.addedListeners.has("mouseup-" + id)) {
+                this.addedListeners.add("mouseup-" + id)
+                this.map.on('mouseup', id, listener.onMouseUp);
+            }
+
+            if (listener.onMouseMove && !this.addedListeners.has("mousemove-" + id)) {
+                this.addedListeners.add("mousemove-" + id)
+                this.map.on('mousemove', id, listener.onMouseMove);
+            }
+        }
+    }
+
 
     addLayer(id: string, layer: BaseLayer) {
         if (!layer.spec) {
             return;
         }
         if (this.layers[id] && this.map.getLayer(id)) {
-            // update sources and return
+            // update sources; refresh listeners so overview ↔ list swaps
+            // do not leave stale or duplicated handlers attached
+            this.removeLayerListeners(this.layers[id]);
             for (const [sourceId, s] of Object.entries(layer.spec.sources)) {
                 if (s.type != "geojson" || !this.map.getSource(sourceId)) {
                     continue;
@@ -113,6 +176,7 @@ export class LayerManager {
                 source.setData(s.data)
             }
             this.layers[id] = layer
+            this.addLayerListeners(layer);
             return;
         }
         for (const [id, s] of Object.entries(layer.spec.sources)) {
@@ -135,34 +199,7 @@ export class LayerManager {
             }
         }
 
-        if (layer.listeners) {
-            for (const [id, listener] of Object.entries(layer.listeners)) {
-                if (listener.onEnter && !this.addedListeners.has("mouseenter-" + id)) {
-                    this.addedListeners.add("mouseenter-" + id)
-                    this.map.on('mouseenter', id, listener.onEnter);
-                }
-
-                if (listener.onLeave && !this.addedListeners.has("onleave-" + id)) {
-                    this.addedListeners.add("mouseleave-" + id)
-                    this.map.on('mouseleave', id, listener.onLeave);
-                }
-
-                if (listener.onMouseDown && !this.addedListeners.has("mousedown-" + id)) {
-                    this.addedListeners.add("mousedown-" + id)
-                    this.map.on('mousedown', id, listener.onMouseDown);
-                }
-
-                if (listener.onMouseUp && !this.addedListeners.has("mouseup-" + id)) {
-                    this.addedListeners.add("mouseup-" + id)
-                    this.map.on('mouseup', id, listener.onMouseUp);
-                }
-
-                if (listener.onMouseMove && !this.addedListeners.has("mousemove-" + id)) {
-                    this.addedListeners.add("mousemove-" + id)
-                    this.map.on('mousemove', id, listener.onMouseMove);
-                }
-            }
-        }
+        this.addLayerListeners(layer);
 
         if (layer.filter && !this.map.getFilter(id)) {
             this.map.setFilter(id, layer.filter)
@@ -188,27 +225,7 @@ export class LayerManager {
             }
         }
 
-        if (layer.listeners) {
-            for (const [id, listener] of Object.entries(layer.listeners)) {
-                if (listener.onEnter) {
-                    this.addedListeners.delete("mouseenter-" + id)
-                    this.map.off('mouseenter', id, listener.onEnter);
-                }
-
-                if (listener.onLeave) {
-                    this.addedListeners.delete("mouseleave-" + id)
-                    this.map.off('mouseleave', id, listener.onLeave);
-                }
-                if (listener.onMouseDown) {
-                    this.addedListeners.delete("click-" + id)
-                    this.map.off('click', id, listener.onMouseDown);
-                }
-                if (listener.onMouseMove) {
-                    this.addedListeners.delete("mousemove-" + id)
-                    this.map.off('mousemove', id, listener.onMouseMove);
-                }
-            }
-        }
+        this.removeLayerListeners(layer);
 
         delete this.layers[id]
 
