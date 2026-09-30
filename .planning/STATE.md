@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 Phase: 39 (unified-tile-model) — EXECUTING
 Plan: 9 of 9
 Status: Ready to execute
-Last activity: 2026-09-29 - Completed quick task 260929-n4d: Add an empty state for profiles without a feed
+Last activity: 2026-09-30 - Completed quick task 260930-s3w: Cursor-based paging for remote follower lists
 
 ## v1.8 Phases — SHIPPED 2026-08-07
 
@@ -532,6 +532,7 @@ Recent decisions affecting current work:
 | 260912-m1i | Show the user's current position on the elevation profile while navigating a track (new `TrackPositionMatcher` over the raw GPX polyline, opt-in `livePositionMeters` marker on `ElevationProfile`, wired into `NavigationScreen` from the same fix as the map marker). Not verified on device. | 2026-09-12 | aafe3544,957abe8f,60245b83 | Needs Review | [260912-m1i-…](./quick/260912-m1i-show-current-user-position-on-elevation/) |
 | 260926-ijp | Persist a "Last used" section (max 2, most recent first, deduped by normalized URL) in the instance picker, between the URL field and the remote list; recorded on successful password/OAuth login (register covered via login), stored in `LocalSettingsEntity.recentServersJson` so it survives logout. Also makes `setSelectedServer` tolerant of an unloaded servers.json and fixes the `s.name!` crash on nameless entries. Not verified on device. | 2026-09-26 | 81923e64..e59f35e5 | Needs Review | [260926-ijp-…](./quick/260926-ijp-persist-successful-custom-server-urls-to/) |
 | 260929-n4d | Empty state for profile feeds with zero items in the app's `_FeedSection` (was `SizedBox.shrink()`): other profiles show "{username} has no activity yet.", own profile shows "You have no activity yet." plus a New Trail button. Never shown while loading or on error. New keys in all 14 ARB locales; 5 widget tests. `flutter test` 1186 passed. Not verified on device. | 2026-09-29 | e846aa47,59692beb | Needs Review | [260929-n4d-…](./quick/260929-n4d-add-an-empty-state-for-profiles-without-/) |
+| 260930-s3w | Cursor-based paging for remote follower/following lists: backend returns the remote `next` link and accepts it back as a strictly validated `cursor` (same scheme/host/path, else 400), so each page costs one remote request instead of re-walking from the root (k(k+3)/2 → k for k pages). Legacy `?page=N` walk kept for old clients. Backend + web on `fix/federation-cursor-paging` (off dev), app on `feature/app`. Go/svelte-check/flutter test green; not verified live. | 2026-09-30 | 9361ee36,1303a41e (fix/federation-cursor-paging), eeac540a (feature/app) | Needs Review | [260930-s3w-…](./quick/260930-s3w-cursor-based-paging-for-remote-follower-/) |
 
 ## Deferred Items
 
