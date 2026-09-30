@@ -10,8 +10,13 @@ You can install <span class="-tracking-[0.075em]">wanderer</span> components eit
 <span class="-tracking-[0.075em]">wanderer</span> uses several secrets for database access, to encrypt passwords, private keys, and to secure communication. The secrets are: `MEILI_MASTER_KEY`, `POCKETBASE_ENCRYPTION_KEY` and `POCKETBASE_PROXY_SECRET`. You need to generate these secrets. For example using:
 
 ```bash
+# MEILI_MASTER_KEY and POCKETBASE_PROXY_SECRET (one each)
 openssl rand -hex 32
 # Example output: 1e85a99427bd2543aacc24c99419183756eaeccd0e3485c9ac2ac2ab110e72f1
+
+# POCKETBASE_ENCRYPTION_KEY (must be exactly 32 characters)
+openssl rand -hex 16
+# Example output: ce7f0ddb97100c42e6409a8537c11e23
 ```
 
 :::caution
