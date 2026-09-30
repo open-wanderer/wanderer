@@ -25,6 +25,7 @@ import (
 
 var ErrProfilePrivate = errors.New("profile is private")
 var ErrInvalidActorResponse = errors.New("invalid or incomplete actor response")
+var ErrInvalidCursor = errors.New("invalid collection cursor")
 
 type WebfingerResponse struct {
 	Subject string `json:"subject"`
@@ -500,4 +501,36 @@ func collectionLink(collectionURL string, link pub.Item, n int) string {
 		return fallback
 	}
 	return target.String()
+}
+
+// CollectionNext returns the cursor for page n+1: the resolved next link of
+// page n, or "" on the last page. It goes through collectionLink, so the
+// result always passes FetchCollectionCursor's validation.
+func CollectionNext(collectionURL string, page *pub.OrderedCollectionPage, n int) string {
+	if page == nil || page.Next == nil || page.Next.GetLink().String() == "" {
+		return ""
+	}
+	return collectionLink(collectionURL, page.Next, max(n, 1)+1)
+}
+
+// FetchCollectionCursor fetches the one page a cursor names, in a single
+// request. The cursor is client input sent with the user's signature, so
+// unlike collectionLink it gets no fallback: it must stay on the collection's
+// scheme, host and path, and only its query may differ.
+func FetchCollectionCursor(app core.App, ctx context.Context, collectionURL, cursor string) (*pub.OrderedCollectionPage, error) {
+	base, err := url.Parse(collectionURL)
+	if err != nil {
+		return nil, fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
+	}
+	target, err := url.Parse(cursor)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unparsable", ErrInvalidCursor)
+	}
+	if !target.IsAbs() || target.Opaque != "" || target.User != nil {
+		return nil, fmt.Errorf("%w: must be an absolute url", ErrInvalidCursor)
+	}
+	if target.Scheme != base.Scheme || target.Host != base.Host || target.EscapedPath() != base.EscapedPath() {
+		return nil, fmt.Errorf("%w: leaves the collection", ErrInvalidCursor)
+	}
+	return FetchCollection(app, ctx, target.String())
 }
