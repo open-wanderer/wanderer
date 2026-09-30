@@ -152,7 +152,7 @@ export class ElevationProfileControl implements IControl {
         }
 
         const waypointContainer = document.createElement("div")
-        waypointContainer.className = "absolute w-full"
+        waypointContainer.className = "absolute w-full overflow-visible z-20 pointer-events-none"
         waypointContainer.id = "waypoint-container"
 
         this.profileContainer.append(waypointContainer);
