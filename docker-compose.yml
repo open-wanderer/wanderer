@@ -1,15 +1,19 @@
-version: '3'
+# Settings live in .env (copy .env.example). db and web receive all of it;
+# the values here only connect the services.
 
-x-common-env: &cenv
+x-env: &env
   MEILI_URL: http://search:7700
-  MEILI_MASTER_KEY: vODkljPcfFANYNepCHyDyGjzAMPcdHnrb6X5KyXQPWo
+  MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY in .env}
+  ORIGIN: ${ORIGIN:?set ORIGIN in .env}
+  POCKETBASE_ENCRYPTION_KEY: ${POCKETBASE_ENCRYPTION_KEY:?set POCKETBASE_ENCRYPTION_KEY in .env}
+  POCKETBASE_PROXY_SECRET: ${POCKETBASE_PROXY_SECRET:?set POCKETBASE_PROXY_SECRET in .env}
 
 services:
   search:
     container_name: wanderer-search
     image: getmeili/meilisearch:v1.36.0
     environment:
-      <<: *cenv
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY in .env}
       MEILI_NO_ANALYTICS: "true"
     ports:
       - 7700:7700
@@ -30,11 +34,9 @@ services:
     depends_on:
       search:
         condition: service_healthy
+    env_file: .env
     environment:
-      <<: *cenv
-      POCKETBASE_ENCRYPTION_KEY: fde406459dc1f6ca6f348e1f44a9a2af
-      POCKETBASE_PROXY_SECRET: dev-proxy-secret-change-me
-      ORIGIN: http://localhost:3000
+      <<: *env
     ports:
       - "8090:8090"
     networks:
@@ -57,20 +59,12 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+    env_file: .env
     environment:
-      <<: *cenv
-      ORIGIN: http://localhost:3000
-      BODY_SIZE_LIMIT: Infinity
-      POCKETBASE_PROXY_SECRET: dev-proxy-secret-change-me
+      <<: *env
       PUBLIC_POCKETBASE_URL: http://db:8090
-      PUBLIC_DISABLE_SIGNUP: "false"
       UPLOAD_FOLDER: /app/uploads
-      UPLOAD_USER:
-      UPLOAD_PASSWORD:
-      OVERPASS_API_URL: https://overpass-api.de
-      VALHALLA_URL: https://valhalla1.openstreetmap.de
-      NOMINATIM_URL: https://nominatim.openstreetmap.org
-      PUBLIC_MAP_MAX_POLYLINES: 100
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-Infinity}
     volumes:
       - ./data/uploads:/app/uploads
       # - ./data/about.md:/app/build/client/md/about.md

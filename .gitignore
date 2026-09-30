@@ -12,6 +12,7 @@ build*.sh
 start*.*
 
 data*/
+.env
 
 plugins/*/dist/
 plugin_dist/

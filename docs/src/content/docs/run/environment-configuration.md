@@ -3,7 +3,7 @@ title: Environment configuration
 description: How to configure <span class="-tracking-[0.075em]">wanderer</span> with environment variables
 ---
 
-Global settings for <span class="-tracking-[0.075em]">wanderer</span> can be adjusted via environment variables. If you deployed <span class="-tracking-[0.075em]">wanderer</span> with docker you can change the environment variables directly in the `docker-compose.yaml`. If you deployed <span class="-tracking-[0.075em]">wanderer</span> on bare-metal you can change the environment variables in the launch script.
+Global settings for <span class="-tracking-[0.075em]">wanderer</span> can be adjusted via environment variables. If you deployed <span class="-tracking-[0.075em]">wanderer</span> with docker you can set them in the `.env` file next to your `docker-compose.yml` (see [`.env.example`](https://github.com/open-wanderer/wanderer/blob/main/.env.example)). If you deployed <span class="-tracking-[0.075em]">wanderer</span> on bare-metal you can change the environment variables in the launch script.
 
 ## Common
 These variables are shared between all three services.
@@ -11,7 +11,7 @@ These variables are shared between all three services.
 | Environment Variable | Description                                                      | Default                                     |
 | -------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
 | MEILI_URL            | IP or hostname (including the port) of your meilisearch instance | http://search:7700                          |
-| MEILI_MASTER_KEY     | Master API key for your meilisearch instance                     | vODkljPcfFANYNepCHyDyGjzAMPcdHnrb6X5KyXQPWo |
+| MEILI_MASTER_KEY     | **Required.** Master API key for your meilisearch instance. Generate with `openssl rand -hex 32` |                                             |
 
 ## Meilisearch
 Since we use an unmodified installation of meilisearch you can use all variables listed in meilisearch's documentation. You can find a full list over [here](https://www.meilisearch.com/docs/learn/configuration/instance_options).
@@ -24,8 +24,8 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | Environment Variable           | Description                                                                                                       | Default               |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
 | ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
-| POCKETBASE_ENCRYPTION_KEY      | Valid 32 character AES key. Used to encrypt secrets                                                               |                       |
-| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation is rejected (fail closed). |                       |
+| POCKETBASE_ENCRYPTION_KEY      | **Required.** Valid 32 character AES key. Used to encrypt secrets. Generate with `openssl rand -hex 16`. Never change it after the first start, or stored secrets can no longer be decrypted |                       |
+| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation is rejected (fail closed). Generate with `openssl rand -hex 32` |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
 | POCKETBASE_SMTP_SENDER_ADDRESS | The email address used as the "From" address in outgoing emails                                                   |                       |
