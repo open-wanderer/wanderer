@@ -109,7 +109,7 @@
         const listItems = (r[1]?.hits || []).map((t: ListSearchResult) => ({
             text: t.name,
             description: `List, ${t.trails} ${$_("trail", { values: { n: t.trails } })}`,
-            value: t.id,
+            value: `@${t.author_name}${t.domain ? `@${t.domain}` : ""}/${t.id}`,
             icon: "layer-group",
         }));
         const cityItems = (r[2]?.hits || []).map((c: LocationSearchResult) => ({
@@ -126,7 +126,7 @@
         if (item.icon == "route") {
             goto(`/map/trail/${item.value}`);
         } else if (item.icon == "layer-group") {
-            goto(`/lists?list=${item.value}`);
+            goto(`/lists/${item.value}`);
         } else {
             map?.setCenter([item.value.lon, item.value.lat]);
             map?.setZoom(14);
