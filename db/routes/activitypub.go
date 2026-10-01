@@ -165,6 +165,9 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 func ActivitypubActorFollow(e *core.RequestEvent) error {
 	id := e.Request.PathValue("id")
 	followType := e.Request.PathValue("follow")
+	if followType != "followers" && followType != "following" {
+		return e.NotFoundError("unknown type: "+followType, nil)
+	}
 	page := e.Request.URL.Query().Get("page")
 	intPage := 0
 
