@@ -1,4 +1,4 @@
-FROM curlimages/curl:8.18.0 AS download-env
+FROM curlimages/curl:8.22.0 AS download-env
 
 # renovate: datasource=github-releases depName=stunnel/static-curl packageName=stunnel/static-curl
 ENV CURL_VERSION=8.18.0
