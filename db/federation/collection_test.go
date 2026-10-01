@@ -294,3 +294,28 @@ func TestCollectionNextEmpty(t *testing.T) {
 		}
 	}
 }
+
+func TestCollectionNextPassesValidation(t *testing.T) {
+	collURL := "https://remote.example/users/alice/followers"
+	for _, next := range []string{
+		"?page=2",
+		"/users/alice/followers?max_id=9",
+		"https://remote.example/users/alice/followers?page=2",
+		"http://remote.example/users/alice/followers?page=2",
+		"https://u@remote.example/users/alice/followers?page=2",
+		"https://remote.example/users/alice/followers?page=2#x",
+		"https://remote.example/users/%61lice/followers?page=2",
+		"https://remote.example/users/alice/outbox?page=2",
+		"https://elsewhere.example/users/alice/followers?page=2",
+	} {
+		t.Run(next, func(t *testing.T) {
+			cursor := CollectionNext(collURL, &pub.OrderedCollectionPage{Next: pub.IRI(next)}, 1)
+			if cursor == "" {
+				t.Fatal("next = \"\", want a cursor")
+			}
+			if err := validateCursor(collURL, cursor); err != nil {
+				t.Errorf("cursor %q: %v", cursor, err)
+			}
+		})
+	}
+}

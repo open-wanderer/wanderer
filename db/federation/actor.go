@@ -505,35 +505,61 @@ func collectionLink(collectionURL string, link pub.Item, n int) string {
 }
 
 // CollectionNext returns the cursor for page n+1: the resolved next link of
-// page n, or "" on the last page. It goes through collectionLink, so the
-// result always passes FetchCollectionCursor's validation.
+// page n, or "" on the last page. Only the link's query is kept, so the result
+// always passes validateCursor.
 func CollectionNext(collectionURL string, page *pub.OrderedCollectionPage, n int) string {
 	if page == nil || page.Next == nil || page.Next.GetLink().String() == "" {
 		return ""
 	}
-	return collectionLink(collectionURL, page.Next, max(n, 1)+1)
+	base, err := cursorBase(collectionURL)
+	if err != nil {
+		return ""
+	}
+	target, err := url.Parse(collectionLink(collectionURL, page.Next, max(n, 1)+1))
+	if err != nil || target.RawQuery == "" {
+		return base
+	}
+	return base + "?" + target.RawQuery
 }
 
 // FetchCollectionCursor fetches the one page a cursor names, in a single
 // request. The cursor is client input sent with the user's signature, so
-// unlike collectionLink it gets no fallback: it must stay on the collection's
-// scheme, host and path, and only its query may differ.
+// unlike collectionLink it gets no fallback: see validateCursor.
 func FetchCollectionCursor(app core.App, ctx context.Context, collectionURL, cursor string) (*pub.OrderedCollectionPage, error) {
+	if err := validateCursor(collectionURL, cursor); err != nil {
+		return nil, err
+	}
+	return FetchCollection(app, ctx, cursor)
+}
+
+// cursorBase returns the collection URL without query or fragment, the
+// prefix every cursor must start with.
+func cursorBase(collectionURL string) (string, error) {
 	base, err := url.Parse(collectionURL)
 	if err != nil || !base.IsAbs() || base.Opaque != "" || base.User != nil {
-		return nil, fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
+		return "", fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
 	}
 	base.RawQuery, base.Fragment = "", ""
+	return base.String(), nil
+}
+
+// validateCursor checks that a cursor stays on the collection's scheme, host
+// and path, and only its query may differ.
+func validateCursor(collectionURL, cursor string) error {
+	base, err := cursorBase(collectionURL)
+	if err != nil {
+		return err
+	}
 
 	// The cursor must be the collection URL itself, optionally followed by a
 	// query. Matching the raw string also rules out userinfo, other ports and
 	// escaped path tricks.
-	pattern, err := regexp.Compile(`^` + regexp.QuoteMeta(base.String()) + `(\?[^#\s]*)?$`)
+	pattern, err := regexp.Compile(`^` + regexp.QuoteMeta(base) + `(\?[^#\s]*)?$`)
 	if err != nil {
-		return nil, fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
+		return fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
 	}
 	if !pattern.MatchString(cursor) {
-		return nil, fmt.Errorf("%w: leaves the collection", ErrInvalidCursor)
+		return fmt.Errorf("%w: leaves the collection", ErrInvalidCursor)
 	}
-	return FetchCollection(app, ctx, cursor)
+	return nil
 }
