@@ -552,9 +552,9 @@ func validateCursor(collectionURL, cursor string) error {
 	}
 
 	// The cursor must be the collection URL itself, optionally followed by a
-	// query. Matching the raw string also rules out userinfo, other ports and
-	// escaped path tricks.
-	pattern, err := regexp.Compile(`^` + regexp.QuoteMeta(base) + `(\?[^#\s]*)?$`)
+	// query. Matching the raw string also rules out userinfo, other ports,
+	// escaped path tricks and control characters.
+	pattern, err := regexp.Compile(`^` + regexp.QuoteMeta(base) + `(\?[^#\s\x00-\x1f\x7f]*)?$`)
 	if err != nil {
 		return fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
 	}

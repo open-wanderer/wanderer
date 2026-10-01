@@ -267,6 +267,9 @@ func TestFetchCollectionCursorRejects(t *testing.T) {
 		"path suffix":  collURL + "-evil?page=2",
 		"fragment":     collURL + "?page=2#x",
 		"newline":      collURL + "?page=2\nHost: elsewhere.example",
+		"nul":          collURL + "?page=2\x00",
+		"vertical tab": collURL + "?page=2\v",
+		"del":          collURL + "?page=2\x7f",
 	}
 	for name, cursor := range cursors {
 		t.Run(name, func(t *testing.T) {
