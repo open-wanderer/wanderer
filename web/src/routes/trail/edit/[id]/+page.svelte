@@ -3,7 +3,7 @@
     import Datepicker from "$lib/components/base/datepicker.svelte";
     import Select from "$lib/components/base/select.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
+    import SegmentedControl from "$lib/components/base/segmented_control.svelte";
     import ListSearchModal from "$lib/components/list/list_search_modal.svelte";
     import SummitLogCard from "$lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "$lib/components/summit_log/summit_log_modal.svelte";
@@ -2078,6 +2078,10 @@
         }
     }
 
+    function handlePublicChange(isPublic: boolean) {
+        setFields("public", isPublic);
+    }
+
     function markTrailAsCompleted() {
         setFields("completed", true);
         ensureCompletedAt(oldestSummitLogDate());
@@ -2324,12 +2328,24 @@
             ></CategoryPicker>
         </div>
 
-        <Toggle
+        <SegmentedControl
             name="completed"
-            label={$formData.completed ? $_("completed") : $_("not-completed")}
-            icon={$formData.completed ? "flag-checkered" : "compass-drafting"}
+            label={$_("completion-status")}
+            bind:value={$formData.completed}
+            options={[
+                {
+                    value: false,
+                    label: $_("not-completed"),
+                    icon: "compass-drafting",
+                },
+                {
+                    value: true,
+                    label: $_("completed"),
+                    icon: "flag-checkered",
+                },
+            ]}
             onchange={handleCompletedChange}
-        ></Toggle>
+        ></SegmentedControl>
         {#if $formData.completed}
             <Datepicker
                 name="completed_at"
@@ -2338,11 +2354,24 @@
                 bind:value={$formData.completed_at}
             ></Datepicker>
         {/if}
-        <Toggle
+        <SegmentedControl
             name="public"
-            label={$formData.public ? $_("public") : $_("private")}
-            icon={$formData.public ? "globe" : "lock"}
-        ></Toggle>
+            label={$_("privacy")}
+            bind:value={$formData.public}
+            options={[
+                {
+                    value: false,
+                    label: $_("private"),
+                    icon: "lock",
+                },
+                {
+                    value: true,
+                    label: $_("public"),
+                    icon: "globe",
+                },
+            ]}
+            onchange={handlePublicChange}
+        ></SegmentedControl>
         <hr class="border-separator" />
         <h3 class="text-xl font-semibold">
             {$_("waypoints", { values: { n: 2 } })}
