@@ -21,11 +21,19 @@
         totalPages: data.follows.totalPages,
     });
 
+    // `next` decides when the backend sends it, older backends only send totalPages
+    function hasMore(): boolean {
+        if ("next" in follows) {
+            return !!follows.next;
+        }
+        return pagination.page < pagination.totalPages;
+    }
+
     async function onListScroll(e: Event) {
         if (
             window.innerHeight + window.scrollY >=
                 0.8 * document.body.offsetHeight &&
-            pagination.page !== pagination.totalPages &&
+            hasMore() &&
             !loading
         ) {
             loading = true;
@@ -35,14 +43,16 @@
     }
 
     async function loadNextPage() {
-        pagination.page += 1;
+        const nextPage = pagination.page + 1;
         try {
             follows = await profile_follows_index(
                 page.params.handle!,
                 page.params.type as "followers" | "following",
-                pagination.page,
+                nextPage,
                 fetch,
+                follows.next || undefined,
             );
+            pagination.page = nextPage;
         } catch (e) {
             if (e instanceof APIError) {
                 show_toast({

@@ -147,10 +147,11 @@ export async function profile_stats_index(handle: string, filter: SummitLogFilte
 
 }
 
-export async function profile_follows_index(handle: string, type: "followers" | "following", page: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function profile_follows_index(handle: string, type: "followers" | "following", page: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, cursor?: string) {
     const r = await f(`/api/v1/profile/${handle}/follows?` + new URLSearchParams({
         type,
         page: page.toString(),
+        ...(cursor ? { cursor } : {}),
     }), {
         method: 'GET',
     })
@@ -160,7 +161,7 @@ export async function profile_follows_index(handle: string, type: "followers" | 
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    const fetchedFollows: ListResult<Actor> = await r.json();
+    const fetchedFollows: ListResult<Actor> & { next?: string } = await r.json();
 
     const result = page > 1 ? [...follows, ...fetchedFollows.items] : fetchedFollows.items
 
