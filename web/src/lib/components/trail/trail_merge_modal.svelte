@@ -30,6 +30,9 @@
 
     let { title = $_("link-as-summit-log"), onmerge: onmerge }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `merge-modal-${uid}`;
+
     const STORAGE_KEY_SETTINGS = "trail_merge_settings";
     const STORAGE_KEY_REMEMBER = "trail_merge_remember";
 
@@ -369,7 +372,7 @@
     );
 </script>
 
-<Modal id="merge-modal" title={modalTitle} size="min-w-md" bind:this={modal}>
+<Modal id={modalId} title={modalTitle} size="min-w-md" bind:this={modal}>
     {#snippet content()}
         <div>
             {#if loading}
@@ -418,68 +421,68 @@
             <h4 class="font-semibold mb-2">{$_("copy-include-elements")}</h4>
             <div class="mb-2">
                 <input
-                    id="include-summit-log-checkbox"
+                    id={`${modalId}-include-summit-log-checkbox`}
                     type="checkbox"
                     bind:checked={settings.summitLog}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-summit-log-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-summit-log-checkbox`} class="ms-2 text-sm"
                     >{$_("summit-log", { values: { n: 2 } })}</label
                 >
             </div>
             <div class="mb-2">
                 <input
-                    id="include-photos-checkbox"
+                    id={`${modalId}-include-photos-checkbox`}
                     type="checkbox"
                     bind:checked={settings.photos}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-photos-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-photos-checkbox`} class="ms-2 text-sm"
                     >{$_("photos")}</label
                 >
             </div>
             <div class="mb-2">
                 <input
-                    id="include-comments-checkbox"
+                    id={`${modalId}-include-comments-checkbox`}
                     type="checkbox"
                     bind:checked={settings.comments}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-comments-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-comments-checkbox`} class="ms-2 text-sm"
                     >{$_("comment", { values: { n: 2 } })}</label
                 >
             </div>
             <div class="mb-2">
                 <input
-                    id="include-tags-checkbox"
+                    id={`${modalId}-include-tags-checkbox`}
                     type="checkbox"
                     bind:checked={settings.tags}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-tags-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-tags-checkbox`} class="ms-2 text-sm"
                     >{$_("tags")}</label
                 >
             </div>
             <div class="mb-2">
                 <input
-                    id="include-likes-checkbox"
+                    id={`${modalId}-include-likes-checkbox`}
                     type="checkbox"
                     bind:checked={settings.likes}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-likes-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-likes-checkbox`} class="ms-2 text-sm"
                     >{$_("likes")}</label
                 >
             </div>
             <h4 class="font-semibold mt-4 mb-2">{$_("linked-trails")}</h4>
             <div class="mb-2">
                 <input
-                    id="include-trail-delete-checkbox"
+                    id={`${modalId}-include-trail-delete-checkbox`}
                     type="checkbox"
                     bind:checked={settings.delete}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-trail-delete-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-trail-delete-checkbox`} class="ms-2 text-sm"
                     >{$_("delete-linked-trails")}</label
                 >
             </div>
@@ -488,9 +491,9 @@
     {/snippet}
     {#snippet footer()}
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <label for="remember-merge-settings-checkbox" class="flex items-center gap-2 text-sm">
+            <label for={`${modalId}-remember-merge-settings-checkbox`} class="flex items-center gap-2 text-sm">
                 <input
-                    id="remember-merge-settings-checkbox"
+                    id={`${modalId}-remember-merge-settings-checkbox`}
                     type="checkbox"
                     bind:checked={rememberSettings}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"

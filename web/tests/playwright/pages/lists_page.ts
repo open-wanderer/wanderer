@@ -35,8 +35,10 @@ export class ListsPage {
 
     this.dropdownButton = page.getByLabel('Open dropdown');
 
-    this.confirmModal = page.locator("#confirm-modal");
-    this.confirmModalConfirmButton = this.confirmModal.locator("button").filter({ hasText: "Delete" });
+    this.confirmModal = page.locator("dialog[open]").filter({
+      has: page.locator('button[name="delete"]')
+    });
+    this.confirmModalConfirmButton = this.confirmModal.locator('button[name="delete"]');
   }
 
   async goto() {
