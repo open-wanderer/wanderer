@@ -30,6 +30,9 @@
         onapply,
     }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `trail-bulk-edit-modal-${uid}`;
+
     let modal: Modal;
     let applyCategory = $state(false);
     let applyDifficulty = $state(false);
@@ -95,7 +98,7 @@
 </script>
 
 <Modal
-    id="trail-bulk-edit-modal"
+    id={modalId}
     title={$_("adjust")}
     size="md:min-w-sm"
     bind:this={modal}
