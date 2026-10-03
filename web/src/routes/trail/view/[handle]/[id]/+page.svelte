@@ -9,6 +9,17 @@
     let { data } = $props();
 </script>
 
+<svelte:head>
+    {#if data.trail?.gpx}
+        <link
+            rel="preload"
+            href={getFileURL(data.trail, data.trail.gpx)}
+            as="fetch"
+            crossorigin="anonymous"
+        />
+    {/if}
+</svelte:head>
+
 {#if data.trail}
     <MetaTags
         title={`${data.trail.name} | ${$_("trail", { values: { n: 1 } })} | wanderer`}

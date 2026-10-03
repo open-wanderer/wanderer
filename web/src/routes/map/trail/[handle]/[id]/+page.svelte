@@ -16,6 +16,17 @@
     let markers: M.Marker[] = $state([]);
 </script>
 
+<svelte:head>
+    {#if data.trail?.gpx}
+        <link
+            rel="preload"
+            href={getFileURL(data.trail, data.trail.gpx)}
+            as="fetch"
+            crossorigin="anonymous"
+        />
+    {/if}
+</svelte:head>
+
 
 <MetaTags
     title={`${data.trail.name} | ${$_("map")} | wanderer`}
@@ -50,6 +61,7 @@
             activeTrail={0}
             bind:markers
             showTerrain={true}
+            lazyLoadGpx={true}
         ></MapWithElevationMaplibre>
     </div>
 </main>

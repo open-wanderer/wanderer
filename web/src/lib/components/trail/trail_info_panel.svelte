@@ -159,6 +159,10 @@
         ),
     );
 
+    let gpxLoading: boolean = $state(
+        untrack(() => Boolean(initTrail?.gpx && !initTrail?.expand?.gpx_data)),
+    );
+
     onMount(async () => {});
 
     function openMarkerPopup(i: number) {
@@ -871,8 +875,21 @@
                     {$_("route", { values: { n: 1 } })}
                 </h4>
                 {#if mode === "overview"}
+                    {#if gpxLoading}
+                        <div class="h-44 rounded-xl border border-input-border p-4 mb-6 flex flex-col justify-center items-center gap-3 bg-menu-background/30 animate-pulse">
+                            <div class="h-3 w-1/3 bg-input-border/60 rounded"></div>
+                            <div class="h-20 w-full bg-input-border/40 rounded"></div>
+                        </div>
+                    {/if}
                     <div
-                        class="relative border border-input-border rounded-xl p-2 mb-6 text-xs"
+                        class="relative rounded-xl text-xs transition-all"
+                        class:border={!gpxLoading}
+                        class:border-input-border={!gpxLoading}
+                        class:p-2={!gpxLoading}
+                        class:mb-6={!gpxLoading}
+                        class:h-0={gpxLoading}
+                        class:overflow-hidden={gpxLoading}
+                        class:invisible={gpxLoading}
                         id="epc-container"
                     ></div>
                 {/if}
@@ -1033,6 +1050,8 @@
                         mapOptions={{ attributionControl: { compact: true } }}
                         onfullscreen={toggleMapFullScreen}
                         bind:markers
+                        onloadingchange={(loading) => (gpxLoading = loading)}
+                        lazyLoadGpx={true}
                     ></MapWithElevationMaplibre>
                 </div>
             {/if}

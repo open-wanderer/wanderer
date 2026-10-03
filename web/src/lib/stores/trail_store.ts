@@ -677,15 +677,19 @@ export async function trails_upload(file: File, ignoreDuplicates: boolean = fals
     });
 }
 
-export async function fetchGPX(trail: { gpx?: string } & Record<string, any>, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function fetchGPX(
+    trail: { gpx?: string } & Record<string, any>,
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
+    signal?: AbortSignal,
+) {
     if (!trail.gpx) {
         return "";
     }
     const gpxUrl = getFileURL(trail, trail.gpx);
-    const response: Response = await f(gpxUrl);
+    const response: Response = await f(gpxUrl, signal ? { signal } : undefined);
     const gpxData = await response.text();
 
-    return gpxData
+    return gpxData;
 }
 
 export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Promise<Trail[]> {

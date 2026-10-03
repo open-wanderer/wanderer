@@ -4,7 +4,7 @@ import { error, type NumericRange, type ServerLoad } from "@sveltejs/kit";
 
 export const load: ServerLoad = async ({ params, url, fetch }) => {
     try {
-        const trail = await trails_show(params.id!, params.handle, url.searchParams.get("share") ?? undefined, true, fetch)
+        const trail = await trails_show(params.id!, params.handle, url.searchParams.get("share") ?? undefined, false, fetch)
         return { trail };
     } catch (e) {
         if (e instanceof APIError) {

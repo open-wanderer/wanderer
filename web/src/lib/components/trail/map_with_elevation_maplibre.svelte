@@ -5,7 +5,9 @@
     import type { Trail } from "$lib/models/trail";
     import type { Waypoint } from "$lib/models/waypoint";
     import { theme } from "$lib/stores/theme_store";
-    import { findStartAndEndPoints } from "$lib/util/geojson_util";
+    import { fetchGPX } from "$lib/stores/trail_store";
+    import { gpxWorkerService } from "$lib/services/gpx_worker_service";
+    import { bbox, findStartAndEndPoints } from "$lib/util/geojson_util";
     import {
         createMarkerFromWaypoint,
         createPopupFromTrail,
@@ -29,6 +31,7 @@
     import "maplibre-gl/dist/maplibre-gl.css";
     import "$lib/util/maplibre_worker";
     import { onDestroy, onMount, untrack } from "svelte";
+    import { _ } from "svelte-i18n";
 
     interface Props {
         trails?: Trail[];
@@ -75,6 +78,8 @@
         oninit?: (map: M.Map) => void;
         autoGeolocateOnDrawing?: boolean;
         buildPoiAnchorAction?: OverpassPopupActionFactory;
+        onloadingchange?: (loading: boolean) => void;
+        lazyLoadGpx?: boolean;
     }
 
     let {
@@ -96,6 +101,8 @@
         mapOptions = undefined,
         activeTrail = $bindable(0),
         clusterTrails = false,
+        onloadingchange = undefined,
+        lazyLoadGpx = false,
         onmarkerdragend,
         onsegmentdragend,
         onsegmentclick,
@@ -143,14 +150,16 @@
 
     let clusterPopup: M.Popup | null = null;
 
-    let mapData = $derived(getData(trails, serverClusters));
-    let gpxDataMap = $derived(mapData[0]);
-    let clusterData = $derived(mapData[1]);
-    let previewData = $derived(mapData[2]);
+    let gpxDataMap: Record<string, FeatureCollection> = $state.raw({});
+    let staticMapData = $derived(getStaticMapData(trails, serverClusters));
+    let clusterData = $derived(staticMapData[0]);
+    let previewData = $derived(staticMapData[1]);
 
     $effect(() => {
         // Track dependencies for Svelte 5
-        mapData;
+        gpxDataMap;
+        clusterData;
+        previewData;
 
         if (map && mapLoaded) {
             untrack(() => initMap(map?.loaded() ?? false));
@@ -203,14 +212,177 @@
         });
     });
 
-    function getData(
+    function polylineToFeatureCollection(polyline: string): FeatureCollection {
+        const coords = decodePolyline(polyline, 5);
+        const fc: FeatureCollection = {
+            type: "FeatureCollection",
+            features: [
+                {
+                    type: "Feature",
+                    properties: { is_polyline: true },
+                    geometry: {
+                        type: "LineString",
+                        coordinates: coords,
+                    },
+                },
+            ],
+        };
+        fc.bbox = bbox(fc);
+        return fc;
+    }
+
+    function tagBoundingBox(fc: FeatureCollection, diagonal?: number) {
+        if (diagonal !== undefined) {
+            fc.features.forEach((f) => {
+                if (f.properties) {
+                    f.properties.bounding_box_diagonal = diagonal;
+                }
+            });
+        }
+    }
+
+    const loadingTrailIds = new Set<string>();
+    const activeAbortControllers = new Map<string, AbortController>();
+    let loadingTrailCount = $state(0);
+    let isGpxLoading = $derived(loadingTrailCount > 0);
+
+    $effect(() => {
+        const loading = isGpxLoading;
+        let active = true;
+        queueMicrotask(() => {
+            if (active) {
+                onloadingchange?.(loading);
+            }
+        });
+        return () => {
+            active = false;
+        };
+    });
+
+    $effect(() => {
+        const currentTrails = trails;
+        if (!currentTrails || currentTrails.length === 0) {
+            return;
+        }
+
+        untrack(() => {
+            for (const [id, controller] of activeAbortControllers.entries()) {
+                if (!currentTrails.some((cur) => cur.id === id)) {
+                    controller.abort();
+                    activeAbortControllers.delete(id);
+                }
+            }
+
+            currentTrails.forEach((t) => {
+                const trailId = t.id;
+                if (!trailId) return;
+
+                const cacheKey = t.gpx || trailId;
+                const currentData = gpxDataMap[trailId];
+                const isCurrentlyPolyline = currentData?.features?.[0]?.properties?.is_polyline;
+                const currentKey = (currentData as any)?.gpxKey;
+
+                // 0. If full GPX data is already loaded in map for this exact file version, nothing to do
+                if (currentData && !isCurrentlyPolyline && (!currentKey || currentKey === cacheKey)) {
+                    return;
+                }
+
+                // 1. If already cached by worker
+                const cached = gpxWorkerService.getCached(cacheKey);
+                if (cached) {
+                    (cached as any).gpxKey = cacheKey;
+                    tagBoundingBox(cached, t.bounding_box_diagonal);
+                    gpxDataMap = { ...gpxDataMap, [trailId]: cached };
+                    return;
+                }
+
+                // 2. If full GPX object already provided
+                if (t.expand?.gpx) {
+                    const fc = t.expand.gpx.toGeoJSON();
+                    (fc as any).gpxKey = cacheKey;
+                    tagBoundingBox(fc, t.bounding_box_diagonal);
+                    gpxDataMap = { ...gpxDataMap, [trailId]: fc };
+                    return;
+                }
+
+                // 3. Immediate fallback to coarse polyline if available (only for trails where full GPX will be parsed)
+                const willParseGpx = Boolean(t.expand?.gpx_data || (lazyLoadGpx && t.gpx));
+                if (t.polyline && !currentData && willParseGpx) {
+                    const polylineFc = polylineToFeatureCollection(t.polyline);
+                    tagBoundingBox(polylineFc, t.bounding_box_diagonal);
+                    gpxDataMap = { ...gpxDataMap, [trailId]: polylineFc };
+                    // Intentionally no return: fall through to step 4 to parse full GPX in background
+                }
+
+                // 4. Parse full GPX via worker in background (fetching GPX client-side if needed)
+                if (willParseGpx && (!currentData || isCurrentlyPolyline || currentKey !== cacheKey) && !loadingTrailIds.has(trailId)) {
+                    loadingTrailIds.add(trailId);
+                    loadingTrailCount++;
+
+                    let abortController: AbortController | undefined;
+                    if (lazyLoadGpx && t.gpx && !t.expand?.gpx_data) {
+                        abortController = new AbortController();
+                        activeAbortControllers.set(trailId, abortController);
+                    }
+
+                    const loadGpxString = async (): Promise<string> => {
+                        if (t.expand?.gpx_data) {
+                            return t.expand.gpx_data;
+                        }
+                        if (lazyLoadGpx && t.gpx) {
+                            const data = await fetchGPX(t, fetch, abortController?.signal);
+                            if (!t.expand) {
+                                t.expand = {};
+                            }
+                            t.expand.gpx_data = data;
+                            return data;
+                        }
+                        throw new Error("No GPX data available");
+                    };
+
+                    void loadGpxString()
+                        .then((gpxString) => gpxWorkerService.parseGpxToGeoJSON(cacheKey, gpxString))
+                        .then((fc) => {
+                            if (!trails.some((cur) => cur.id === trailId)) {
+                                return;
+                            }
+                            (fc as any).gpxKey = cacheKey;
+                            tagBoundingBox(fc, t.bounding_box_diagonal);
+                            gpxDataMap = { ...gpxDataMap, [trailId]: fc };
+                        })
+                        .catch((err) => {
+                            if (err instanceof DOMException && err.name === "AbortError") {
+                                return;
+                            }
+                            console.error(`Failed to load/parse GPX for trail ${trailId}`, err);
+                        })
+                        .finally(() => {
+                            activeAbortControllers.delete(trailId);
+                            loadingTrailIds.delete(trailId);
+                            loadingTrailCount--;
+                        });
+                }
+            });
+
+            const currentIds = new Set(currentTrails.map((t) => t.id).filter(Boolean));
+            let changed = false;
+            const nextMap = { ...gpxDataMap };
+            for (const id of Object.keys(nextMap)) {
+                if (!currentIds.has(id)) {
+                    delete nextMap[id];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                gpxDataMap = nextMap;
+            }
+        });
+    });
+
+    function getStaticMapData(
         trails: Trail[],
         serverClusters?: GeoJSON.FeatureCollection
-    ): [
-        Record<string, FeatureCollection>,
-        FeatureCollection,
-        FeatureCollection,
-    ] {
+    ): [FeatureCollection, FeatureCollection] {
         let clusterData: FeatureCollection = serverClusters ?? {
             type: "FeatureCollection",
             features: [],
@@ -219,28 +391,8 @@
             type: "FeatureCollection",
             features: [],
         };
-        let gpxDataMap: Record<string, FeatureCollection> = {};
 
         trails.forEach((t) => {
-            if (t.id) {
-                let fc: FeatureCollection | null = null;
-                if (t.expand?.gpx) {
-                    fc = t.expand.gpx.toGeoJSON();
-                } else if (t.expand?.gpx_data) {
-                    fc = GPX.parse(t.expand.gpx_data).toGeoJSON();
-                }
-
-                if (fc) {
-                    fc.features.forEach((f) => {
-                        if (f.properties) {
-                            f.properties.bounding_box_diagonal =
-                                t.bounding_box_diagonal;
-                        }
-                    });
-                    gpxDataMap[t.id] = fc;
-                }
-            }
-
             if (clusterTrails) {
                 if (!serverClusters && t.lat !== undefined && t.lon !== undefined) {
                     clusterData.features.push({
@@ -280,7 +432,7 @@
             }
         });
 
-        return [gpxDataMap, clusterData, previewData];
+        return [clusterData, previewData];
     }
 
     function initMap(mapLoaded: boolean) {
@@ -357,15 +509,24 @@
     export function refreshElevationProfile() {
         const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
         if (activeId && gpxDataMap[activeId]) {
-            epc?.setData(gpxDataMap[activeId]!, waypoints);
+            const fc = gpxDataMap[activeId]!;
+            if (fc.features?.[0]?.properties?.is_polyline) {
+                return;
+            }
+            epc?.setData(fc, waypoints);
         }
     }
 
     function syncElevationProfileVisibility() {
+        const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
+        const currentData = activeId ? gpxDataMap[activeId] : null;
+        const isPolyline = currentData?.features?.[0]?.properties?.is_polyline;
+
         if (
             showElevation &&
             Object.keys(gpxDataMap).length &&
             activeTrail !== null &&
+            !isPolyline &&
             elevationProfileVisibilityPreference !== false
         ) {
             epc?.showProfile();
@@ -1066,6 +1227,8 @@
     }
 
     onDestroy(() => {
+        activeAbortControllers.forEach((controller) => controller.abort());
+        activeAbortControllers.clear();
         map?.remove();
     });
 
@@ -1125,7 +1288,30 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
-<div id="map" bind:this={mapContainer}></div>
+<div class="relative w-full h-full bg-menu-background">
+    <div
+        id="map"
+        bind:this={mapContainer}
+        class:opacity-0={!mapLoaded}
+        class="transition-opacity duration-300 w-full h-full"
+    ></div>
+    {#if !mapLoaded}
+        <div
+            class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-menu-background border border-input-border rounded-xl animate-pulse text-text-muted"
+            aria-hidden="true"
+        >
+            <i class="fa fa-map text-3xl opacity-25"></i>
+        </div>
+    {/if}
+    {#if isGpxLoading}
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none transition-opacity duration-300">
+            <div class="flex items-center gap-2 bg-menu-background/85 dark:bg-menu-background/85 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md border border-input-border text-xs text-text-muted">
+                <i class="fa fa-circle-notch fa-spin text-primary"></i>
+                <span>{$_("loading-hd-route", { default: "Loading HD route..." })}</span>
+            </div>
+        </div>
+    {/if}
+</div>
 
 <style lang="postcss">
     @reference "tailwindcss";
