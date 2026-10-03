@@ -17,6 +17,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
+	"github.com/pocketbase/pocketbase/tools/security"
 )
 
 const (
@@ -186,6 +187,18 @@ func attachmentFileName(finalURL string) string {
 	return name
 }
 
+// setAttachmentName names f after name, keeping a random suffix like
+// PocketBase does. Without an extension in name, the extension detected from
+// the content is used.
+func setAttachmentName(f *filesystem.File, name string) {
+	ext := filepath.Ext(name)
+	if ext == "" {
+		ext = filepath.Ext(f.Name)
+	}
+	f.OriginalName = name
+	f.Name = strings.TrimSuffix(name, ext) + "_" + security.RandomStringWithAlphabet(10, "abcdefghijklmnopqrstuvwxyz0123456789") + ext
+}
+
 // attachmentOriginPort returns the hostname and port of origin. ok is false for
 // ports 80 and 443.
 func attachmentOriginPort(origin string) (hostname string, port int, ok bool) {
@@ -317,16 +330,12 @@ func DownloadRemoteFile(ctx context.Context, rawURL string, maxBytes int64, orig
 		return nil, noop, err
 	}
 
-	named := filepath.Join(dir, attachmentFileName(finalURL))
-	if err := os.Rename(payload, named); err != nil {
-		cleanup()
-		return nil, noop, err
-	}
-	f, err := filesystem.NewFileFromPath(named)
+	f, err := filesystem.NewFileFromPath(payload)
 	if err != nil {
 		cleanup()
 		return nil, noop, err
 	}
+	setAttachmentName(f, attachmentFileName(finalURL))
 	if f.Size == 0 {
 		cleanup()
 		return nil, noop, fmt.Errorf("cannot create an empty file")

@@ -38,7 +38,7 @@ func signatureParams(h http.Header) (map[string]string, error) {
 	for _, p := range strings.Split(raw, ",") {
 		kv := strings.SplitN(p, "=", 2)
 		if len(kv) != 2 {
-			return nil, fmt.Errorf("malformed http signature parameter: %v", kv)
+			return nil, fmt.Errorf("malformed http signature parameter")
 		}
 		params[kv[0]] = strings.Trim(kv[1], `"`)
 	}
