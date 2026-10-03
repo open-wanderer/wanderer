@@ -198,7 +198,7 @@ export function handleError(e: any) {
     } else if (e instanceof SyntaxError) {
         return json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {
-        return json({ message: e.message }, { status: 500 })
+        return json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
     } else {
         const message = typeof e?.message === "string"
             ? e.message
