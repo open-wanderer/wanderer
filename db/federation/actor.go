@@ -62,6 +62,18 @@ func validateActorResponse(actor *pub.Actor) error {
 	return nil
 }
 
+// checkActorIDHost rejects an actor document whose id is on a different host
+// than the IRI it was fetched from.
+func checkActorIDHost(requestedIRI string, actor *pub.Actor) error {
+	if actor == nil || actor.GetID().String() == "" {
+		return fmt.Errorf("%w: missing actor id", ErrInvalidActorResponse)
+	}
+	if !sameHost(requestedIRI, actor.GetID().String()) {
+		return fmt.Errorf("actor id host mismatch: requested %s, got %s", requestedIRI, actor.GetID())
+	}
+	return nil
+}
+
 func GetActorByHandle(app core.App, ctx context.Context, handle string, includeFollows bool) (*core.Record, error) {
 	username, domain := util.SplitHandle(handle)
 
@@ -167,6 +179,10 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
+	if dbActor.GetBool("is_local") && dbActor.GetString("actor_type") == "instance" {
+		// The instance actor has no user record.
+		return dbActor, nil
+	}
 	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {
@@ -259,6 +275,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		dbActor.Set("published", pubActor.Published.String())
 		dbActor.Set("public_key", pubActor.PublicKey.PublicKeyPem)
 		dbActor.Set("last_fetched", time.Now())
+		if pubActor.Type == pub.ApplicationType {
+			dbActor.Set("actor_type", "instance")
+		} else {
+			dbActor.Set("actor_type", "person")
+		}
 
 		if includeFollows {
 			dbActor.Set("follower_count", int(followers.TotalItems))
@@ -285,7 +306,7 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 		return nil, nil, nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
 	}
 
-	client := util.SafeHTTPClient()
+	client := newHTTPClient()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", iri, nil)
 	if err != nil {
@@ -338,11 +359,17 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: %v", err)
-	} else if resp.StatusCode != http.StatusOK {
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: status %v", resp.StatusCode)
 	}
 
-	defer resp.Body.Close()
+	// Reject actor documents served from another host after a redirect.
+	if resp.Request != nil && resp.Request.URL != nil && !sameHost(iri, resp.Request.URL.String()) {
+		return nil, nil, nil, fmt.Errorf("actor fetch for %s was redirected to another host", iri)
+	}
 
 	var pubActor pub.Actor
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&pubActor); err != nil {
@@ -352,6 +379,10 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	// Validate actor response has required fields
 	if err := validateActorResponse(&pubActor); err != nil {
 		return nil, nil, nil, fmt.Errorf("actor validation failed for %s: %w", iri, err)
+	}
+
+	if err := checkActorIDHost(iri, &pubActor); err != nil {
+		return nil, nil, nil, err
 	}
 
 	var followers, following pub.OrderedCollectionPage

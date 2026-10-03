@@ -251,6 +251,74 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 	})
 }
 
+func seedInstanceActor(t *testing.T, app core.App) *core.Record {
+	t.Helper()
+	actors, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance := core.NewRecord(actors)
+	instance.Set("preferred_username", "instance")
+	instance.Set("actor_type", "instance")
+	instance.Set("is_local", true)
+	if err := app.Save(instance); err != nil {
+		t.Fatal(err)
+	}
+	return instance
+}
+
+func TestInitMeilisearchDocumentsSkipsInstanceActor(t *testing.T) {
+	t.Run("instance actor alongside author", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		author := seedTrails(t, app, 1)
+		instance := seedInstanceActor(t, app)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), []searchInitCall{
+			{method: http.MethodDelete, index: "trails"},
+			{method: http.MethodPost, index: "trails"},
+			{method: http.MethodDelete, index: "lists"},
+			{method: http.MethodDelete, index: "actors"},
+			{method: http.MethodPost, index: "actors"},
+		})
+		var ids []string
+		for _, batch := range state.actorDocs() {
+			for _, document := range batch {
+				id, _ := document["id"].(string)
+				ids = append(ids, id)
+			}
+		}
+		if len(ids) != 1 || ids[0] != author.Id {
+			t.Fatalf("indexed actor ids = %v; want exactly [%s] (instance actor %s must be skipped)", ids, author.Id, instance.Id)
+		}
+		assertLaterSearchPhases(t, logText)
+	})
+
+	t.Run("only instance actor", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedInstanceActor(t, app)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), []searchInitCall{
+			{method: http.MethodDelete, index: "trails"},
+			{method: http.MethodDelete, index: "lists"},
+			{method: http.MethodDelete, index: "actors"},
+		})
+		if len(state.actorDocs()) != 0 {
+			t.Fatalf("actor batches = %v; want none", state.actorDocs())
+		}
+		assertLaterSearchPhases(t, logText)
+	})
+}
+
 func assertLaterSearchPhases(t *testing.T, logText string) {
 	t.Helper()
 	if strings.Contains(logText, "Unable to index list page") || strings.Contains(logText, "Unable to index actor page") {
@@ -348,6 +416,7 @@ func newSearchInitApp(t *testing.T) *core.BaseApp {
 		&core.TextField{Name: "preferred_username"},
 		&core.TextField{Name: "domain"},
 		&core.TextField{Name: "icon"},
+		&core.TextField{Name: "actor_type"},
 		&core.BoolField{Name: "is_local"},
 	)
 	categories := core.NewBaseCollection("categories")
@@ -465,6 +534,7 @@ type searchInitServer struct {
 	overflow             chan struct{}
 	callsLog             []searchInitCall
 	trailBatches         [][]map[string]any
+	actorBatches         [][]map[string]any
 	rejectedTrailBatches int
 	rejectTrailIDs       map[string]bool
 }
@@ -492,6 +562,12 @@ func (state *searchInitServer) batches() ([][]map[string]any, int) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	return slices.Clone(state.trailBatches), state.rejectedTrailBatches
+}
+
+func (state *searchInitServer) actorDocs() [][]map[string]any {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return slices.Clone(state.actorBatches)
 }
 
 func (state *searchInitServer) serveHTTP(w http.ResponseWriter, r *http.Request) {
@@ -532,6 +608,9 @@ func (state *searchInitServer) serveHTTP(w http.ResponseWriter, r *http.Request)
 		} else {
 			state.trailBatches = append(state.trailBatches, documents)
 		}
+	}
+	if !overLimit && r.Method == http.MethodPost && indexName == "actors" {
+		state.actorBatches = append(state.actorBatches, documents)
 	}
 	state.mu.Unlock()
 

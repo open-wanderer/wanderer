@@ -88,6 +88,32 @@ func (rl *RateLimiter) CheckRateLimit(identifier string, host string) error {
 
 var ActivityPubRateLimiter = NewRateLimiter(30, time.Minute)
 
+type rateLimitIdentifierKey struct{}
+
+// WithRateLimitIdentifier sets the identifier SafeHTTPClient rate-limits
+// outbound fetches under. The "actor" context value is left unchanged.
+func WithRateLimitIdentifier(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, rateLimitIdentifierKey{}, id)
+}
+
+// RateLimitIdentifier returns the rate-limit identifier for ctx: the
+// WithRateLimitIdentifier override, else the "actor" value, else "system".
+func RateLimitIdentifier(ctx context.Context) string {
+	if id, _ := ctx.Value(rateLimitIdentifierKey{}).(string); id != "" {
+		return id
+	}
+	if id, _ := ctx.Value("actor").(string); id != "" {
+		return id
+	}
+	return "system"
+}
+
+// CheckActivityPubRateLimit counts one outbound fetch to host against the
+// identifier carried by ctx.
+func CheckActivityPubRateLimit(ctx context.Context, host string) error {
+	return ActivityPubRateLimiter.CheckRateLimit(RateLimitIdentifier(ctx), host)
+}
+
 type safeTransport struct {
 	transport http.RoundTripper
 }
@@ -127,6 +153,16 @@ func isPrivateOrReservedIP(ip net.IP) bool {
 		}
 	}
 
+	// Convert to netip.Addr so IsSpecialPurposeIP can check the prefix table.
+	if addr, ok := netip.AddrFromSlice(ip); ok {
+		a := addr
+		if a.Is4In6() {
+			a = a.Unmap()
+		}
+		if IsSpecialPurposeIP(a) {
+			return true
+		}
+	}
 	return false
 }
 
@@ -138,12 +174,7 @@ func SafeHTTPClient() *http.Client {
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				host, port, _ := net.SplitHostPort(addr)
 
-				identifier, _ := ctx.Value("actor").(string)
-				if identifier == "" {
-					identifier = "system"
-				}
-
-				if err := ActivityPubRateLimiter.CheckRateLimit(identifier, host); err != nil {
+				if err := CheckActivityPubRateLimit(ctx, host); err != nil {
 					return nil, err
 				}
 

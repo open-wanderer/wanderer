@@ -103,7 +103,7 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 }
 
 func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
-	client := util.SafeHTTPClient()
+	client := newRemoteSyncHTTPClient()
 
 	var userActor *core.Record
 	if e.Auth != nil {
@@ -146,27 +146,50 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 			remoteIRI, _ := raw["iri"].(string)
 			if remoteIRI == "" {
 				remoteID, _ := raw["id"].(string)
+				if remoteID == "" {
+					continue
+				}
 				remoteIRI = fmt.Sprintf("%s://%s/api/v1/comment/%s", u.Scheme, u.Host, remoteID)
 			}
 
-			// Find existing record by IRI or ID to avoid duplicates
-			commentRecord, _ := txApp.FindFirstRecordByData("comments", "iri", remoteIRI)
+			skip := func(err error) {
+				txApp.Logger().Warn("skipping pulled object", "collection", "comments", "iri", remoteIRI, "trail", trailIRI, "error", err)
+			}
+
+			authorIRI := ""
+			if expand, ok := raw["expand"].(map[string]any); ok {
+				if author, ok := expand["author"].(map[string]any); ok {
+					authorIRI, _ = author["iri"].(string)
+				}
+			}
+
+			// Only accept objects from the trail's origin, before fetching or writing.
+			commentRecord, err := federation.CheckPulledObject(txApp, "comments", remoteIRI, authorIRI, trail)
+			if err != nil {
+				skip(err)
+				continue
+			}
+			if authorIRI == "" {
+				skip(errors.New("comment has no author"))
+				continue
+			}
+
+			actor, err := federation.GetActorByIRI(txApp, ctx, authorIRI, false)
+			if err != nil {
+				skip(err)
+				continue
+			}
+			if _, err := federation.CheckRemoteObjectOwnership(txApp, "comments", remoteIRI, actor); err != nil {
+				skip(err)
+				continue
+			}
+
 			if commentRecord == nil {
 				commentRecord = core.NewRecord(collection)
 				commentRecord.Set("iri", remoteIRI)
 				commentRecord.Set("trail", trail.Id)
 			}
-
-			// Resolve federated author
-			if expand, ok := raw["expand"].(map[string]any); ok {
-				if author, ok := expand["author"].(map[string]any); ok {
-					authorIRI, _ := author["iri"].(string)
-					actor, err := federation.GetActorByIRI(txApp, ctx, authorIRI, false)
-					if err == nil {
-						raw["author"] = actor.Id
-					}
-				}
-			}
+			raw["author"] = actor.Id
 
 			delete(raw, "id")
 			delete(raw, "trail")
