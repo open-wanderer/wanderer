@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -76,23 +77,27 @@ func TestFetchTrailAttributesToTrailAuthor(t *testing.T) {
 	remote.Location = &pub.Place{Name: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Somewhere"))}
 	remote.StartTime = time.Now()
 
+	trailAuthorRefusals.reset()
 	orig := fetchTrailObject
-	fetchTrailObject = func(iri string) (*pub.Object, error) {
+	fetchTrailObject = func(ctx context.Context, iri string) (*pub.Object, error) {
 		if iri != trailIRI {
 			t.Fatalf("fetched %q, want %q", iri, trailIRI)
 		}
 		return remote, nil
 	}
-	t.Cleanup(func() { fetchTrailObject = orig })
+	t.Cleanup(func() {
+		fetchTrailObject = orig
+		trailAuthorRefusals.reset()
+	})
 
 	// The host serving the trail may only attribute it to one of its own.
 	remote.AttributedTo = pub.IRI("https://elsewhere.example/api/v1/activitypub/user/victim")
-	if _, err := fetchTrail(app, logger, trailIRI); err == nil {
+	if _, err := fetchTrail(app, context.Background(), logger, trailIRI); err == nil {
 		t.Fatal("accepted a trail attributed to an actor on another host")
 	}
 	remote.AttributedTo = pub.IRI(owner.GetString("iri"))
 
-	trail, err := fetchTrail(app, logger, trailIRI)
+	trail, err := fetchTrail(app, context.Background(), logger, trailIRI)
 	if err != nil {
 		t.Fatal(err)
 	}

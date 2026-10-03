@@ -32,7 +32,7 @@ func CreateUnfollowActivity(app core.App, follow *core.Record) error {
 	}
 
 	// find the original follow activity
-	followActivityRecord, err := app.FindFirstRecordByFilter("activitypub_activities", "actor={:actor}&&object={:object}&&type={:type}", dbx.Params{"actor": followerActor.GetString("iri"), "object": followeeActor.GetString("iri"), "type": string(pub.FollowType)})
+	followActivityRecord, err := findFollowActivityRecord(app, follow, followerActor.GetString("iri"), followeeActor.GetString("iri"))
 	if err != nil {
 		return err
 	}
@@ -128,6 +128,9 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 }
 
 func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	if activity.Object == nil {
+		return fmt.Errorf("undo: missing object")
+	}
 
 	if activity.Object.GetType() == pub.FollowType {
 		return processUnfollowActivity(app, actor, activity)
@@ -138,29 +141,39 @@ func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity
 	}
 }
 
+// processUnfollowActivity removes the follows row an Undo{Follow} refers to,
+// in one transaction.
 func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	// this was a local follow
 	if actor.GetBool("is_local") {
 		return nil
 	}
 
-	followActivity := activity.Object.(*pub.Activity)
+	followActivity, ok := activity.Object.(*pub.Activity)
+	if !ok {
+		return fmt.Errorf("undo: follow object is not *pub.Activity")
+	}
 
 	followee, err := app.FindFirstRecordByData("activitypub_actors", "iri", followActivity.Object)
 	if err != nil {
 		return err
 	}
 
-	follow, err := app.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": followee.Id})
-	if err != nil {
-		return err
-	}
+	return app.RunInTransaction(func(txApp core.App) error {
+		follow, err := txApp.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": followee.Id})
+		if err != nil {
+			return err
+		}
 
-	err = app.Delete(follow)
-	if err != nil {
-		return err
-	}
-	return nil
+		// An Undo for a superseded Follow does not remove the newer one.
+		if current := follow.GetString("activity_iri"); isSupersededFollow(current, followActivity) {
+			txApp.Logger().Info("ignoring Undo for a superseded Follow",
+				"undone", followActivity.GetID().String(), "current", current)
+			return nil
+		}
+
+		return txApp.Delete(follow)
+	})
 }
 
 func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activity) error {

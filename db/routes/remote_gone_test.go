@@ -135,6 +135,24 @@ func (f *goneFixture) get(t *testing.T, id string) *httptest.ResponseRecorder {
 	return response
 }
 
+// waitBackgroundSyncDone blocks until the background refresh of the trail or
+// list with this IRI has finished (its key is removed from trailSyncing or
+// listSyncing on exit).
+func waitBackgroundSyncDone(t *testing.T, iri string) {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		_, trail := trailSyncing.Load(iri)
+		_, list := listSyncing.Load(iri)
+		if !trail && !list {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("background sync of %s did not finish", iri)
+}
+
 func (f *goneFixture) waitGone(t *testing.T, id string) {
 	t.Helper()
 
@@ -158,7 +176,8 @@ func TestRemoteGetKeepsCopyOnForbidden(t *testing.T) {
 		record := f.cached(t, needsFullSync)
 
 		f.get(t, record.Id)
-		time.Sleep(200 * time.Millisecond) // a background refresh would drop it asynchronously
+		// Wait for the background refresh before the fixture restores the client.
+		waitBackgroundSyncDone(t, record.GetString("iri"))
 		if _, err := f.app.FindRecordById("trails", record.Id); err != nil {
 			t.Fatalf("copy dropped on a 403 (needs_full_sync=%v)", needsFullSync)
 		}
@@ -202,6 +221,7 @@ func TestRemoteGetDropsCopyReportedGone(t *testing.T) {
 					t.Fatalf("status = %d, want 200 from the cached copy", got)
 				}
 				f.waitGone(t, record.Id)
+				waitBackgroundSyncDone(t, record.GetString("iri"))
 			})
 		}
 	}

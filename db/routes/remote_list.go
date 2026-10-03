@@ -272,32 +272,68 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 
 	localTrails := make([]string, 0, len(trails))
 
+	listAuthor, err := txApp.FindRecordById("activitypub_actors", list.GetString("author"))
+	if err != nil {
+		return err
+	}
+
 	for _, tData := range trails {
-		raw := tData.(map[string]any)
+		raw, ok := tData.(map[string]any)
+		if !ok {
+			continue
+		}
 		tID, _ := raw["id"].(string)
 		iri, _ := raw["iri"].(string)
 		if iri == "" {
 			iri = fmt.Sprintf("%s/api/v1/trail/%s", origin, tID)
 		}
 
-		trail, _ := txApp.FindFirstRecordByData("trails", "iri", iri)
+		// Only trails on the list origin's host may be written; others are linked if
+		// already stored, otherwise skipped.
+		authorIRI := ""
+		if expand, ok := raw["expand"].(map[string]any); ok {
+			if authorMap, ok := expand["author"].(map[string]any); ok {
+				authorIRI, _ = authorMap["iri"].(string)
+			}
+		}
+		checkedAuthorIRI := authorIRI
+		if checkedAuthorIRI == "" {
+			checkedAuthorIRI = listAuthor.GetString("iri")
+		}
+
+		trail, writable, err := federation.CheckPulledListTrail(txApp, iri, checkedAuthorIRI, list.GetString("iri"))
+		if err != nil {
+			txApp.Logger().Warn("skipping pulled trail", "iri", iri, "list", list.GetString("iri"), "error", err)
+			continue
+		}
+		if !writable {
+			if trail != nil {
+				localTrails = append(localTrails, trail.Id)
+			} else {
+				txApp.Logger().Warn("skipping pulled trail not on the list origin's host", "iri", iri, "list", list.GetString("iri"))
+			}
+			continue
+		}
+
+		actor := listAuthor
+		if authorIRI != "" {
+			actor, err = federation.GetActorByIRI(txApp, ctx, authorIRI, false)
+			if err != nil {
+				return err
+			}
+		}
+		if _, err := federation.CheckRemoteObjectOwnership(txApp, "trails", iri, actor); err != nil {
+			txApp.Logger().Warn("skipping pulled trail", "iri", iri, "list", list.GetString("iri"), "error", err)
+			continue
+		}
+		author := actor.Id
+
 		if trail == nil {
 			trail = core.NewRecord(col)
 			trail.Set("needs_full_sync", true)
 		}
 
 		syncTrailMetadata(txApp, trail, raw)
-
-		author := list.GetString("author")
-		if expand, ok := raw["expand"].(map[string]any); ok {
-			if authorMap, ok := expand["author"].(map[string]any); ok {
-				actor, err := federation.GetActorByIRI(txApp, ctx, authorMap["iri"].(string), false)
-				if err != nil {
-					return err
-				}
-				author = actor.Id
-			}
-		}
 
 		trail.Set("author", author)
 		trail.Set("iri", iri)

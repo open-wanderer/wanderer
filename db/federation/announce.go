@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -103,7 +104,10 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 }
 
 // process incoming announce activity
-func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+func ProcessAnnounceActivity(app core.App, ctx context.Context, actor *core.Record, activity pub.Activity) error {
+	ctx, cancel := util.WithRemoteAttachmentBudget(ctx)
+	defer cancel()
+
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -113,16 +117,16 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 
 	switch util.ObjectKindFromIRI(object) {
 	case util.ObjectKindTrail:
-		return processTrailAnnounceActivity(app, actor, activity)
+		return processTrailAnnounceActivity(app, ctx, actor, activity)
 	case util.ObjectKindList:
-		return processListAnnounceActivity(app, actor, activity)
+		return processListAnnounceActivity(app, ctx, actor, activity)
 	default:
 		return fmt.Errorf("unknown announce type")
 	}
 
 }
 
-func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+func processTrailAnnounceActivity(app core.App, ctx context.Context, actor *core.Record, activity pub.Activity) error {
 
 	objectActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", activity.To[0].GetID().String())
 	if err != nil {
@@ -131,7 +135,7 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 
 	var trail *core.Record
 	if !actor.GetBool("is_local") {
-		trail, err = util.TrailFromActivity(activity, app, actor)
+		trail, err = util.TrailFromActivity(ctx, activity, app, actor)
 		if err != nil {
 			return err
 		}
@@ -200,7 +204,7 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 	return nil
 }
 
-func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+func processListAnnounceActivity(app core.App, ctx context.Context, actor *core.Record, activity pub.Activity) error {
 
 	objectActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", activity.To[0].GetID().String())
 	if err != nil {
@@ -209,7 +213,7 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 
 	var list *core.Record
 	if !actor.GetBool("is_local") {
-		list, err = util.ListFromActivity(activity, app, actor)
+		list, err = util.ListFromActivity(ctx, activity, app, actor)
 		if err != nil {
 			return err
 		}

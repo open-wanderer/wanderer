@@ -13,14 +13,16 @@ const (
 	SummitLogFeed FeedType = "summit_log"
 )
 
+// InsertIntoFeed adds an item to an actor's feed and returns the feed row. An
+// item appears at most once per actor; if a concurrent insert of the same item
+// wins, its row is returned.
 func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string, feedType FeedType) (*core.Record, error) {
 	// an item appears at most once in an actor's feed — repeated Update
 	// activities for an already-known item must not create duplicate entries
-	existing, err := app.FindFirstRecordByFilter(
-		"feed",
-		"actor = {:actor} && item = {:item}",
-		dbx.Params{"actor": actorId, "item": itemId},
-	)
+	const filter = "actor = {:actor} && item = {:item}"
+	params := dbx.Params{"actor": actorId, "item": itemId}
+
+	existing, err := app.FindFirstRecordByFilter("feed", filter, params)
 	if err == nil && existing != nil {
 		return existing, nil
 	}
@@ -37,7 +39,15 @@ func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string
 	record.Set("item", itemId)
 	record.Set("type", string(feedType))
 
-	return record, app.Save(record)
+	if saveErr := app.Save(record); saveErr != nil {
+		// a concurrent insert of the same item won
+		if winner, findErr := app.FindFirstRecordByFilter("feed", filter, params); findErr == nil && winner != nil {
+			return winner, nil
+		}
+		return record, saveErr
+	}
+
+	return record, nil
 }
 
 func DeleteFromFeed(app core.App, itemId string) error {

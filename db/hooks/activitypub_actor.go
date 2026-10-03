@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"log"
 	"pocketbase/federation"
 	"pocketbase/util"
 	"time"
@@ -17,6 +16,10 @@ func CreateActorHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
+		if util.IsInstanceActor(e.Record) {
+			return nil
+		}
+
 		return util.IndexActors([]*core.Record{e.Record}, client)
 	}
 }
@@ -26,6 +29,10 @@ func UpdateActorHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		err := e.Next()
 		if err != nil {
 			return err
+		}
+
+		if util.IsInstanceActor(e.Record) {
+			return nil
 		}
 
 		return util.UpdateActor(e.Record, client)
@@ -83,15 +90,16 @@ func AnnounceActorDeleteHandler() func(e *core.RecordEvent) error {
 
 func DeleteActorHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
+		// Search index errors are logged, not fatal.
 		task, err := client.Index("actors").DeleteDocument(e.Record.Id, nil)
 		if err != nil {
-			return err
+			e.App.Logger().Error("deleting actor from search index", "actor", e.Record.Id, "err", err)
+			return e.Next()
 		}
 
 		interval := 500 * time.Millisecond
-		_, err = client.WaitForTask(task.TaskUID, interval)
-		if err != nil {
-			log.Fatalf("Error waiting for task completion: %v", err)
+		if _, err := client.WaitForTask(task.TaskUID, interval); err != nil {
+			e.App.Logger().Error("waiting for actor index delete", "actor", e.Record.Id, "err", err)
 		}
 		return e.Next()
 	}

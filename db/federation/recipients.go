@@ -189,6 +189,14 @@ func deleteRecipients(app core.App, record *core.Record, public bool, holders st
 		if err != nil {
 			return audience, err
 		}
+
+		// Instance-actor peers received the public object through instance
+		// federation, so they are told alongside the followers.
+		instanceInboxes, err := instanceFollowerInboxes(app)
+		if err != nil {
+			return audience, err
+		}
+		audience.Followers = append(audience.Followers, instanceInboxes...)
 	}
 
 	others, err := holderInboxes(app, holders, record.Id, record.GetString("iri"))

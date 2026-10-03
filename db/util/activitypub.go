@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -73,6 +74,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	}
 	domain := strings.TrimPrefix(url.Hostname(), "www.")
 
+	record.Set("actor_type", "person")
 	record.Set("username", u.GetString("username"))
 	record.Set("preferred_username", strings.ToLower(u.GetString("username")))
 	record.Set("domain", domain)
@@ -101,6 +103,11 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 }
 
 func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	return GenerateRSAKeyPair()
+}
+
+// GenerateRSAKeyPair generates a 2048-bit RSA key pair.
+func GenerateRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
@@ -223,7 +230,12 @@ func IsLocalIRI(iri string) bool {
 	return strings.EqualFold(u.Host, o.Host)
 }
 
-func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
+// TrailFromActivity stores the trail an activity describes. ctx bounds the
+// downloads of its GPX file and photos.
+func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
+	ctx, cancel := WithRemoteAttachmentBudget(ctx)
+	defer cancel()
+
 	t, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return nil, err
@@ -365,6 +377,8 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 
 		photoURLs := []string{}
+		photoLimit := RemotePhotoLimit(app, "trails")
+		ignoredPhotos := 0
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
@@ -374,30 +388,49 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
 				gpxURL = attachment.URL.GetLink().String()
 			} else if attachment.Type == pub.ImageType {
+				if len(photoURLs) >= photoLimit {
+					ignoredPhotos++
+					continue
+				}
 				photoURLs = append(photoURLs, attachment.URL.GetLink().String())
 			}
 		}
-
-		if len(photoURLs) > 0 {
-			photos := []*filesystem.File{}
-			for _, purl := range photoURLs {
-				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
-				if err != nil {
-					continue
-				}
-				photos = append(photos, photo)
-			}
-
-			record.Set("photos", photos)
+		if ignoredPhotos > 0 {
+			app.Logger().Info("ignoring remote trail photos past the collection limit",
+				"iri", iri, "limit", photoLimit, "ignored", ignoredPhotos)
 		}
 
+		// Download the GPX before the photos.
 		if gpxURL != "" {
-			gpx, err := filesystem.NewFileFromURL(context.Background(), gpxURL)
+			gpx, cleanup, err := DownloadRemoteFile(ctx, gpxURL, RemoteGPXMaxBytes, actor.GetString("iri"))
+			defer cleanup()
 			if err != nil {
 				return nil, err
 			}
 
 			record.Set("gpx", gpx)
+		}
+
+		if len(photoURLs) > 0 {
+			photos := []*filesystem.File{}
+			overBudget := 0
+			for _, purl := range photoURLs {
+				photo, cleanup, err := DownloadRemoteFile(ctx, purl, RemotePhotoMaxBytes, actor.GetString("iri"))
+				defer cleanup()
+				if err != nil {
+					if errors.Is(err, ErrRemoteAttachmentBudgetExhausted) {
+						overBudget++
+					}
+					continue
+				}
+				photos = append(photos, photo)
+			}
+			if overBudget > 0 {
+				app.Logger().Info("skipping remote photos past the activity attachment budget",
+					"iri", iri, "skipped", overBudget)
+			}
+
+			record.Set("photos", photos)
 		}
 	}
 
@@ -618,7 +651,12 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 	return trailObject, nil
 }
 
-func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
+// ListFromActivity stores the list an activity describes. ctx bounds the
+// download of its avatar.
+func ListFromActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
+	ctx, cancel := WithRemoteAttachmentBudget(ctx)
+	defer cancel()
+
 	l, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return nil, err
@@ -657,6 +695,10 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 
 		record.Set("needs_full_sync", true)
 
+		if err := app.Save(record); err != nil {
+			return nil, err
+		}
+
 		return record, nil
 	}
 
@@ -686,8 +728,8 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		}
 
 		if avatarURL != "" {
-			avatar, err := filesystem.NewFileFromURL(context.Background(), avatarURL)
-
+			avatar, cleanup, err := DownloadRemoteFile(ctx, avatarURL, RemoteAvatarMaxBytes, actor.GetString("iri"))
+			defer cleanup()
 			if err != nil {
 				return nil, err
 			}
@@ -773,12 +815,19 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	return commentObject, nil
 }
 
-func TrailObjectFromIRI(iri string) (*pub.Object, error) {
+// TrailObjectMaxBytes is the largest trail object TrailObjectFromIRI reads.
+const TrailObjectMaxBytes int64 = 1 << 20
+
+// trailObjectHTTPClient builds the client TrailObjectFromIRI uses. Replaced in
+// tests.
+var trailObjectHTTPClient = SafeHTTPClient
+
+func TrailObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
 	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
 
-	client := SafeHTTPClient()
+	client := trailObjectHTTPClient()
 
-	req, err := http.NewRequest(http.MethodGet, fetchURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -795,9 +844,12 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 		return nil, fmt.Errorf("fetching trail %s returned: %d", fetchURL, resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, TrailObjectMaxBytes+1))
 	if err != nil {
 		return nil, err
+	}
+	if int64(len(body)) > TrailObjectMaxBytes {
+		return nil, fmt.Errorf("trail %s is larger than %d bytes", fetchURL, TrailObjectMaxBytes)
 	}
 
 	var object pub.Object
@@ -812,7 +864,9 @@ func TrailObjectFromIRI(iri string) (*pub.Object, error) {
 	return &object, nil
 }
 
-func VerifySignature(app core.App, req *http.Request, publicKeyPem string) (bool, error) {
+// VerifySignature verifies the HTTP signature of an inbox delivery against
+// publicKeyPem. body must be the exact bytes received.
+func VerifySignature(app core.App, req *http.Request, body []byte, publicKeyPem string) (bool, error) {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return false, fmt.Errorf("ORIGIN not set")
@@ -836,6 +890,19 @@ func VerifySignature(app core.App, req *http.Request, publicKeyPem string) (bool
 
 	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
+		return false, err
+	}
+
+	// Check the signed time and, if present, the Digest.
+	params, err := signatureParams(req.Header)
+	if err != nil {
+		return false, err
+	}
+	signed := signedHeaderNames(params)
+	if err := checkSignatureTime(req.Header, params, signed, time.Now()); err != nil {
+		return false, err
+	}
+	if err := verifyBodyDigest(req.Header, body, signed); err != nil {
 		return false, err
 	}
 
