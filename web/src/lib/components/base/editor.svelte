@@ -45,6 +45,11 @@
         searchListPosition = "absolute",
     }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `editor-modal-${uid}`;
+    const wrapperId = `editor-wrapper-${uid}`;
+    const mentionListId = `mention-list-${uid}`;
+
     const fontSizes: SelectItem[] = [
         { text: $_("paragraph"), value: "p" },
         { text: `${$_("heading")} 1`, value: "h1" },
@@ -130,14 +135,14 @@
                             let component: DropdownList;
                             const componentState: any = $state({
                                 items: [],
-                                id: "mention-list",
+                                id: mentionListId,
                             });
 
                             function updatePosition({
                                 clientRect,
                             }: SuggestionProps) {
                                 const searchListElement =
-                                    document.getElementById("mention-list");
+                                    document.getElementById(mentionListId);
                                 if (!clientRect || !searchListElement) return;
                                 const box = clientRect();
                                 if (!box) {
@@ -336,7 +341,7 @@
     }
 </script>
 
-<div id="editor-wrapper">
+<div id={wrapperId}>
     {#if label.length}
         <p class="text-sm font-medium mb-1">
             {label}
@@ -451,7 +456,7 @@
     {/if}
 </div>
 <Modal
-    id="editor-modal"
+    id={modalId}
     title={"Insert/edit link"}
     size="md:min-w-lg"
     bind:this={modal}
