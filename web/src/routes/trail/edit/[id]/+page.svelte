@@ -91,6 +91,7 @@
     import { designSelectableCategories } from "$lib/util/category_util";
     import { dateInputValue } from "$lib/util/date_util";
     import { getIconForLocation } from "$lib/util/icon_util.js";
+    import { normalizeNewTagName } from "$lib/util/tag_name";
     import {
         createAnchorMarker,
         createEditTrailMapPopup,
@@ -2299,6 +2300,7 @@
         ></Editor>
         <Combobox
             bind:value={getTrailTags, setTrailTags}
+            normalizeNewItemText={normalizeNewTagName}
             onupdate={searchTags}
             items={tagItems}
             label={$_("tags")}

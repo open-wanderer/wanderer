@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	federatedTagFirstID = "aaaaaaaaaaaaaaa"
-	federatedTagOtherID = "zzzzzzzzzzzzzzz"
-	federatedTagLiteral = "🥾 👩‍👩‍👧‍👦 <b>[.*]</b> &amp; ' || id != ''"
+	federatedTagFirstID       = "aaaaaaaaaaaaaaa"
+	federatedTagOtherID       = "zzzzzzzzzzzzzzz"
+	federatedTagLiteral       = "🥾 👩‍👩‍👧‍👦 <b>[.*]</b> &amp; ' || id != ''"
+	federatedTagCleanName     = "Berg Tour"
+	federatedTagSpacedLiteral = " " + federatedTagLiteral + " "
 )
 
 func setupFederatedTagImport(t *testing.T) (*pbtests.TestApp, *core.Collection, *core.Record) {
@@ -45,7 +47,7 @@ func setupFederatedTagImport(t *testing.T) (*pbtests.TestApp, *core.Collection, 
 	for _, id := range []string{federatedTagOtherID, federatedTagFirstID} {
 		record := core.NewRecord(tags)
 		record.Id = id
-		record.Set("name", "ab")
+		record.Set("name", federatedTagCleanName)
 		save(record)
 	}
 	empty := core.NewRecord(tags)
@@ -98,7 +100,7 @@ func assertFederatedTagNames(t *testing.T, app core.App, trailID string, want []
 		if err != nil || tag.GetString("name") != want[i] {
 			t.Fatalf("tag %d = %v, %v; want %q", i, tag, err, want[i])
 		}
-		if want[i] == "ab" && id != federatedTagFirstID {
+		if want[i] == federatedTagCleanName && id != federatedTagFirstID {
 			t.Fatalf("duplicate-name selection = %s, want smallest ID", id)
 		}
 	}
@@ -111,9 +113,11 @@ func TestActivityPubTrailImportNormalizesTags(t *testing.T) {
 		tags []string
 		want []string
 	}{
-		{"controls collisions and literal text", []string{"a\tb", "ab", "\n\t\x7f", "\n" + federatedTagLiteral + "\x00"}, []string{"ab", federatedTagLiteral}},
-		{"control-only is omitted", []string{"\n\t\x7f", ""}, nil},
-		{"failed tag does not abort import", []string{strings.Repeat("a", tagname.MaxLength+1), "a\tb"}, []string{"ab"}},
+		{"controls collisions and literal text", []string{"Berg\tTour", "Berg\nTour", "Berg\vTour", "Berg\fTour", "Berg\rTour", "Ber\x00g Tour\x7f", federatedTagCleanName, "\t\n\v\f\r\x7f", "\n" + federatedTagLiteral + "\t\x00"}, []string{federatedTagCleanName, federatedTagSpacedLiteral}},
+		{"control-only and ASCII spaces are omitted", []string{"\t\n\v\f\r\x7f", "\x00\x01\x1f\x7f", "   ", ""}, nil},
+		{"spaces are not collapsed", []string{"Berg\t \nTour"}, []string{"Berg   Tour"}},
+		{"Unicode whitespace is preserved", []string{"\u00a0"}, []string{"\u00a0"}},
+		{"failed tag does not abort import", []string{strings.Repeat("a", tagname.MaxLength+1), "Berg\tTour"}, []string{federatedTagCleanName}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			app, _, actor := setupFederatedTagImport(t)
@@ -152,16 +156,19 @@ func TestRemoteTrailFullSyncNormalizesTags(t *testing.T) {
 		want []string
 		keep bool
 	}{
-		{"controls collisions and literal text", []any{map[string]any{"name": "a\tb"}, map[string]any{"name": "ab"}, map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": "\n" + federatedTagLiteral}}, []string{"ab", federatedTagLiteral}, false},
-		{"control-only retains previous relations", []any{map[string]any{"name": "\n\t\x7f"}}, []string{"ab"}, true},
-		{"explicit empty list retains previous relations", []any{}, []string{"ab"}, true},
-		{"missing tags retain previous relations", nil, []string{"ab"}, true},
-		{"malformed list retains previous relations", "not-a-list", []string{"ab"}, true},
-		{"malformed items retain previous relations", []any{nil, map[string]any{"name": 42}}, []string{"ab"}, true},
-		{"all failed saves retain previous relations", []any{map[string]any{"name": overlong}}, []string{"ab"}, true},
-		{"empty name and failed save retain previous relations", []any{map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": overlong}}, []string{"ab"}, true},
-		{"empty name and malformed item retain previous relations", []any{map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": 42}}, []string{"ab"}, true},
-		{"partial success remains tolerant", []any{map[string]any{"name": overlong}, map[string]any{"name": "a\tb"}}, []string{"ab"}, false},
+		{"controls collisions and literal text", []any{map[string]any{"name": "Berg\tTour"}, map[string]any{"name": "Berg\nTour"}, map[string]any{"name": "Berg\vTour"}, map[string]any{"name": "Berg\fTour"}, map[string]any{"name": "Berg\rTour"}, map[string]any{"name": "Ber\x00g Tour\x7f"}, map[string]any{"name": federatedTagCleanName}, map[string]any{"name": "\t\n\v\f\r\x7f"}, map[string]any{"name": "\n" + federatedTagLiteral + "\t"}}, []string{federatedTagCleanName, federatedTagSpacedLiteral}, false},
+		{"control-only retains previous relations", []any{map[string]any{"name": "\t\n\v\f\r\x7f"}}, []string{federatedTagCleanName}, true},
+		{"ASCII spaces retain previous relations", []any{map[string]any{"name": "   "}}, []string{federatedTagCleanName}, true},
+		{"spaces are not collapsed", []any{map[string]any{"name": "Berg\t \nTour"}}, []string{"Berg   Tour"}, false},
+		{"Unicode whitespace is preserved", []any{map[string]any{"name": "\u00a0"}}, []string{"\u00a0"}, false},
+		{"explicit empty list retains previous relations", []any{}, []string{federatedTagCleanName}, true},
+		{"missing tags retain previous relations", nil, []string{federatedTagCleanName}, true},
+		{"malformed list retains previous relations", "not-a-list", []string{federatedTagCleanName}, true},
+		{"malformed items retain previous relations", []any{nil, map[string]any{"name": 42}}, []string{federatedTagCleanName}, true},
+		{"all failed saves retain previous relations", []any{map[string]any{"name": overlong}}, []string{federatedTagCleanName}, true},
+		{"empty name and failed save retain previous relations", []any{map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": overlong}}, []string{federatedTagCleanName}, true},
+		{"empty name and malformed item retain previous relations", []any{map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": 42}}, []string{federatedTagCleanName}, true},
+		{"partial success remains tolerant", []any{map[string]any{"name": overlong}, map[string]any{"name": "Berg\tTour"}}, []string{federatedTagCleanName}, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			app, collection, actor := setupFederatedTagImport(t)

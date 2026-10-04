@@ -2,19 +2,21 @@ package util
 
 import (
 	"pocketbase/tagname"
+	"strings"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 // ResolveFederatedTag normalizes an incoming plain-text name before lookup or
-// creation. Empty normalized names are intentionally omitted. Existing tags
-// are never renamed or merged; duplicate names resolve to the smallest ID.
+// creation. Empty and ASCII-space-only normalized names are intentionally
+// omitted, without trimming other names. Existing tags are never renamed or
+// merged; duplicate names resolve to the smallest ID.
 // Failures are logged without remote text or database error details so callers
 // can retain the federation import's tolerant behavior.
 func ResolveFederatedTag(app core.App, name string) (*core.Record, error) {
 	name = tagname.Normalize(name)
-	if name == "" {
+	if strings.Trim(name, " ") == "" {
 		return nil, nil
 	}
 

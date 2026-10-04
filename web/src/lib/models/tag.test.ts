@@ -4,11 +4,12 @@ import { describe, expect, it } from "vitest";
 
 describe("new UI tags before trail-form validation", () => {
     it.each([
-        ["pasted tab", "Grü\tnezi", "Grünezi"],
+        ["pasted tab", "Grü\tnezi", "Grü nezi"],
         ["DEL and C0", "a\u007f\u001fb", "ab"],
-        ["control-only name", "\t\u007f", ""],
+        ["control-only name", "\t\u007f", " "],
         ["unmodified plain text", "  e\u0301 👩‍👩‍👧‍👦 &lt;img&gt; \u0085\u2028  ", "  e\u0301 👩‍👩‍👧‍👦 &lt;img&gt; \u0085\u2028  "],
-        ["length checked after cleaning", "🌍".repeat(5000) + "\t", "🌍".repeat(5000)],
+        ["length checked after cleaning", "🌍".repeat(5000) + "\u0000", "🌍".repeat(5000)],
+        ["whitespace at the length boundary", "🌍".repeat(4999) + "\t", "🌍".repeat(4999) + " "],
     ])("passes the editor's strict tag validation for %s", (_label, name, expectedName) => {
         const tag = new Tag(name);
         expect(TagCreateSchema.parse(tag).name).toBe(expectedName);
@@ -17,5 +18,11 @@ describe("new UI tags before trail-form validation", () => {
 
     it("still rejects control characters in direct API inputs", () => {
         expect(TagCreateSchema.safeParse({ name: "Grü\tnezi" }).success).toBe(false);
+    });
+
+    it("rejects the 5001-code-point result without truncating", () => {
+        const tag = new Tag("🌍".repeat(5000) + "\t");
+        expect(tag.name).toBe("🌍".repeat(5000) + " ");
+        expect(TagCreateSchema.safeParse(tag).success).toBe(false);
     });
 });

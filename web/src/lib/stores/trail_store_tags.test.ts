@@ -20,13 +20,14 @@ describe("saving trails with pasted tag names", () => {
                 if (!payload.success) {
                     return Response.json({ message: "Invalid tag", detail: payload.error.message }, { status: 400 });
                 }
+                expect(payload.data.name).toBe("Grü nezi");
                 return Response.json({ ...payload.data, id: tagID });
             }
             expect(path).toBe(mode === "create" ? "/api/v1/trail/form" : "/api/v1/trail/form/createdtrail001");
             expect(options?.method).toBe(mode === "create" ? "PUT" : "POST");
             expect(options?.body).toBeInstanceOf(FormData);
             expect((options!.body as FormData).getAll("tags")).toEqual([tagID]);
-            return Response.json({ ...trail, id: "createdtrail001", expand: { tags: [{ id: tagID, name: "Grünezi" }] } });
+            return Response.json({ ...trail, id: "createdtrail001", expand: { tags: [{ id: tagID, name: "Grü nezi" }] } });
         });
         vi.stubGlobal("fetch", request);
         const user: AuthRecord = {
@@ -40,6 +41,6 @@ describe("saving trails with pasted tag names", () => {
 
         expect(request).toHaveBeenCalledTimes(2);
         expect(result.tags).toEqual([tagID]);
-        expect(result.expand?.tags?.[0].name).toBe("Grünezi");
+        expect(result.expand?.tags?.[0].name).toBe("Grü nezi");
     });
 });

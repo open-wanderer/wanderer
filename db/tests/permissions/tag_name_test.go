@@ -19,14 +19,14 @@ func TestTagNameSchemaKeepsUnicodeAndPlainMarkup(t *testing.T) {
 	if field.Max != 5000 || field.Pattern != `^[^\x00-\x1f\x7f]*$` || field.Required || field.Min != 0 || len(collection.Indexes) != 0 {
 		t.Fatalf("unexpected tag length/empty-name contract: %#v", field)
 	}
-	for _, name := range []string{"Grüezi", "日本語", "مرحبا", "e\u0301", "👩‍👩‍👧‍👦", "[route].* (test)", "O'Brien", "<img src=x>", "&lt;img&gt;", "", strings.Repeat("🌍", 5000)} {
+	for _, name := range []string{"Grüezi", "日本語", "مرحبا", "e\u0301", "👩‍👩‍👧‍👦", "[route].* (test)", "O'Brien", "<img src=x>", "&lt;img&gt;", "", "   ", strings.Repeat("🌍", 5000)} {
 		record := saveRulesTestRecord(t, app, "tags", map[string]any{"name": name})
 		fresh, err := app.FindRecordById("tags", record.Id)
 		if err != nil || fresh.GetString("name") != name {
 			t.Fatalf("valid tag text changed: %v", err)
 		}
 	}
-	for _, name := range []string{"null\x00byte", "line\nfeed", "tab\tname", "del\x7f", "trailing\n", "trailing\r", "\n", strings.Repeat("🌍", 5001)} {
+	for _, name := range []string{"null\x00byte", "line\nfeed", "tab\tname", "vertical\vtab", "form\ffeed", "del\x7f", "trailing\n", "trailing\r", "\n", strings.Repeat("🌍", 5001)} {
 		record := core.NewRecord(collection)
 		record.Set("name", name)
 		if err := app.Save(record); err == nil {
@@ -50,10 +50,15 @@ func TestTagNameMigrationPreservesIDsRelationsAndLegitimateNames(t *testing.T) {
 	legacy := []struct{ before, after string }{
 		{"Grüezi 🌍", "Grüezi 🌍"}, {"e\u0301 👩‍👩‍👧‍👦 مرحبا", "e\u0301 👩‍👩‍👧‍👦 مرحبا"},
 		{"<img src=x>", "<img src=x>"}, {"&lt;img&gt;", "&lt;img&gt;"},
-		{"", ""}, {"\n\t\x7f", ""}, {"same", "same"}, {"\x00same", "same"},
-		{"Grü\nnezi", "Grünezi"},
+		{"", ""}, {"\x00\x01\x1f\x7f", ""}, {"\n\t\x7f", "  "}, {"   ", "   "},
+		{"same", "same"}, {"\x00same", "same"},
+		{"Berg Tour", "Berg Tour"}, {"Berg\tTour", "Berg Tour"}, {"Berg\nTour", "Berg Tour"},
+		{"Berg\vTour", "Berg Tour"}, {"Berg\fTour", "Berg Tour"}, {"Berg\rTour", "Berg Tour"},
+		{"Grü\nnezi", "Grü nezi"}, {"\t Berg\t \nTour\r", "  Berg   Tour "},
 		{" leading and trailing spaces ", " leading and trailing spaces "},
 		{strings.Repeat("🌍", 5000), strings.Repeat("🌍", 5000)},
+		{strings.Repeat("Berg\t", 1000), strings.Repeat("Berg ", 1000)},
+		{strings.Repeat("\t", 5000), strings.Repeat(" ", 5000)},
 	}
 	ids := make([]string, 0, len(legacy))
 	expected := map[string]string{}
@@ -65,11 +70,11 @@ func TestTagNameMigrationPreservesIDsRelationsAndLegitimateNames(t *testing.T) {
 		updated[record.Id] = record.GetString("updated")
 	}
 	// Cross the backfill's batch boundary with more old names, without changing
-	// or merging IDs when cleanup results in duplicate or empty names.
+	// or merging IDs when cleanup results in duplicate, empty or space-only names.
 	for i := range 205 {
 		name := fmt.Sprintf("tag\t%03d", i)
 		record := saveRulesTestRecord(t, app, "tags", map[string]any{"name": name})
-		expected[record.Id] = strings.ReplaceAll(name, "\t", "")
+		expected[record.Id] = fmt.Sprintf("tag %03d", i)
 		updated[record.Id] = record.GetString("updated")
 	}
 	owner := saveRulesTestRecord(t, app, "users", map[string]any{
@@ -144,6 +149,6 @@ func TestTagNameMigrationPreservesIDsRelationsAndLegitimateNames(t *testing.T) {
 	if err := apply(app); err != nil {
 		t.Fatal(err)
 	}
-	expected[postDown.Id] = "postdown"
+	expected[postDown.Id] = "post down"
 	assertStoredData("up after down")
 }

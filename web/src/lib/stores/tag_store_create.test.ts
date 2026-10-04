@@ -7,11 +7,14 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("tag creation", () => {
     it.each([
-        ["pasted tab", "Grü\tnezi", "Grünezi"],
-        ["all C0 and DEL", "a" + String.fromCharCode(...Array.from({ length: 32 }, (_, i) => i), 127) + "b", "ab"],
-        ["controls only", "\t\u0000\u007f", ""],
+        ["pasted tab", "Grü\tnezi", "Grü nezi"],
+        ["all C0 and DEL", "a" + String.fromCharCode(...Array.from({ length: 32 }, (_, i) => i), 127) + "b", "a     b"],
+        ["controls only", "\t\u0000\u007f", " "],
+        ["empty API name", "\u0000\u007f", ""],
+        ["CRLF keeps two boundaries", "word\r\nword", "word  word"],
         ["literal Unicode and whitespace", "  🇨🇭 👩‍👩‍👧‍👦 <b>[.*]</b> &amp; e\u0301 \u0085\u00a0\u2028\u200d  ", "  🇨🇭 👩‍👩‍👧‍👦 <b>[.*]</b> &amp; e\u0301 \u0085\u00a0\u2028\u200d  "],
-        ["length checked after cleaning", "🌍".repeat(5000) + "\t", "🌍".repeat(5000)],
+        ["length checked after cleaning", "🌍".repeat(5000) + "\u0000", "🌍".repeat(5000)],
+        ["whitespace at the length boundary", "🌍".repeat(4999) + "\t", "🌍".repeat(4999) + " "],
     ])("sends an API-valid copy for %s", async (_label, name, expectedName) => {
         const tag: Tag = Object.freeze({ id: "tag000000000001", name });
         const request = vi.fn(async (_input: RequestInfo | URL, options?: RequestInit) => {
@@ -30,10 +33,10 @@ describe("tag creation", () => {
     });
 
     it("keeps the API error and does not truncate an overlong name", async () => {
-        const name = "🌍".repeat(5001) + "\t";
+        const name = "🌍".repeat(5000) + "\t";
         const request = vi.fn(async (_input: RequestInfo | URL, options?: RequestInit) => {
             const payload = JSON.parse(String(options?.body));
-            expect(payload.name).toBe("🌍".repeat(5001));
+            expect(payload.name).toBe("🌍".repeat(5000) + " ");
             expect(TagCreateSchema.safeParse(payload).success).toBe(false);
             return Response.json({ message: "Invalid tag", detail: "too-long" }, { status: 400 });
         });

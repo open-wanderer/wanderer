@@ -10,10 +10,14 @@ const (
 	Pattern   = `^[^\x00-\x1f\x7f]*$`
 )
 
-// Normalize removes C0 and DEL control characters. All other text, including
-// whitespace, Unicode, punctuation, markup and entities, is preserved.
+// Normalize maps TAB, LF, VT, FF and CR to one ASCII space per character and
+// removes the remaining C0 and DEL controls. All other text is preserved;
+// names are never trimmed, collapsed or truncated.
 func Normalize(name string) string {
 	return strings.Map(func(r rune) rune {
+		if r >= 9 && r <= 13 {
+			return ' '
+		}
 		if r < 0x20 || r == 0x7f {
 			return -1
 		}
