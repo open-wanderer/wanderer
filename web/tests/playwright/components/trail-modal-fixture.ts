@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { extname, resolve } from 'node:path';
 import { compile } from 'svelte/compiler';
@@ -8,7 +9,7 @@ import { expect, type Page } from '@playwright/test';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
 // Keep the real dialogs, controls and API stores; replace unrelated app state.
-export async function buildTrailModalFixture(dev: boolean, pairSource?: string) {
+export async function buildTrailModalFixture(dev: boolean, pairSource?: string, sourceStubs: Record<string, string> = {}) {
     const result = await build({
         root,
         configFile: false,
@@ -23,7 +24,10 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string) 
                 if (id === '$app/state') return '\0fixture:state';
                 if (id === 'svelte-i18n') return '\0fixture:i18n';
                 if (id === '$lib/stores/toast_store.svelte') return '\0fixture:toast';
-                if (id.startsWith('$lib/')) return resolve(root, 'src/lib', id.slice(5) + (extname(id) ? '' : '.ts'));
+                if (id.startsWith('$lib/')) {
+                    const path = resolve(root, 'src/lib', id.slice(5) + (extname(id) ? '' : '.ts'));
+                    return path.endsWith('.js') && !existsSync(path) ? path.slice(0, -3) + '.ts' : path;
+                }
             },
             async load(id) {
                 if (id === '\0fixture:entry') return `
@@ -54,7 +58,8 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string) 
                 if (id === '\0fixture:toast') return 'export function show_toast() {}';
 
                 let source: string;
-                if (id === '\0fixture:pair.svelte') source = pairSource ?? `
+                if (id in sourceStubs) source = sourceStubs[id];
+                else if (id === '\0fixture:pair.svelte') source = pairSource ?? `
                     <script>
                         import Duplicate from '$lib/components/trail/trail_duplicate_modal.svelte';
                         import Export from '$lib/components/trail/trail_export_modal.svelte';
