@@ -351,8 +351,8 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	}
 
 	// Resolve Tags
-	localTagIds := resolveAndSyncTags(app, data)
-	if len(localTagIds) > 0 {
+	localTagIds, applyTags := resolveAndSyncTags(app, data)
+	if applyTags {
 		record.Set("tags", localTagIds)
 	}
 
@@ -372,20 +372,24 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	record.Load(data)
 }
 
-func resolveAndSyncTags(app core.App, data map[string]any) []string {
-	var localTagIds []string
+func resolveAndSyncTags(app core.App, data map[string]any) ([]string, bool) {
+	localTagIds := []string{}
 
 	expand, ok := data["expand"].(map[string]any)
 	if !ok {
-		return localTagIds
+		return localTagIds, false
 	}
 
 	remoteTags, ok := expand["tags"].([]any)
 	if !ok {
-		return localTagIds
+		return localTagIds, false
 	}
 
-	tagCol, _ := app.FindCollectionByNameOrId("tags")
+	// An explicit empty list, or a successfully handled name that normalizes
+	// to empty, clears previous relations. Missing/malformed input and a list
+	// of only failed lookups/saves retain the previous tolerant behavior.
+	applyTags := len(remoteTags) == 0
+	seenTags := make(map[string]struct{})
 
 	for _, t := range remoteTags {
 		tagMap, ok := t.(map[string]any)
@@ -393,26 +397,26 @@ func resolveAndSyncTags(app core.App, data map[string]any) []string {
 			continue
 		}
 
-		tagName, _ := tagMap["name"].(string)
-		if tagName == "" {
+		tagName, ok := tagMap["name"].(string)
+		if !ok {
 			continue
 		}
-
-		localTag, _ := app.FindFirstRecordByData("tags", "name", tagName)
-
-		if localTag == nil {
-			localTag = core.NewRecord(tagCol)
-			localTag.Set("name", tagName)
-
-			if err := app.Save(localTag); err != nil {
-				continue
-			}
+		localTag, err := util.ResolveFederatedTag(app, tagName)
+		if err != nil {
+			continue
 		}
-
+		applyTags = true
+		if localTag == nil {
+			continue
+		}
+		if _, seen := seenTags[localTag.Id]; seen {
+			continue
+		}
+		seenTags[localTag.Id] = struct{}{}
 		localTagIds = append(localTagIds, localTag.Id)
 	}
 
-	return localTagIds
+	return localTagIds, applyTags
 }
 
 func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, origin string, waypoints []any) error {
