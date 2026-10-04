@@ -108,3 +108,14 @@ func TestAuthTokenStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthTokenLookupFailureIsServerError(t *testing.T) {
+	app := setupAuthTokenTest(t)
+	if _, err := app.DB().NewQuery("DROP TABLE api_tokens").Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := postAuthToken(t, app, `{"api_token":"wanderer_key_valid"}`); got != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", got)
+	}
+}

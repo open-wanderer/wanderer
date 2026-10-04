@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -25,8 +27,13 @@ func AuthToken(e *core.RequestEvent) error {
 		map[string]any{"hash": hashedAPIToken},
 	)
 
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
 		return apis.NewUnauthorizedError("Invalid or revoked API token", nil)
+	}
+	if err != nil {
+		// A failed lookup says nothing about the token; a 401 would make
+		// clients discard a token that is still valid.
+		return apis.NewInternalServerError("Failed to look up API token", err)
 	}
 	if !tokenRecord.GetDateTime("expiration").IsZero() &&
 		tokenRecord.GetDateTime("expiration").Time().Before(time.Now()) {
