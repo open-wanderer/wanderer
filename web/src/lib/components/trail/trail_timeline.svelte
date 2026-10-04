@@ -88,9 +88,9 @@
                     ><i class="fa fa-location-dot mr-1"></i>
                     {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}</span
                 >
-                <p class="whitespace-pre-line">
+                <div class="whitespace-pre-line">
                     {@html sanitizeHTML(wp.description)}
-                </p>
+                </div>
             </div>
         </div>
     {/each}
