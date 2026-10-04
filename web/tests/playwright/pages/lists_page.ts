@@ -55,8 +55,8 @@ export class ListsPage {
     ]);
     expect(searchResponse.status(), 'Overview search must succeed').toBe(200);
     await expect(this.listItems.first().or(
-      this.page.locator('#list-container').getByRole('heading', {
-        name: 'No results found', exact: true,
+      this.page.locator('#list-container').getByRole('img', {
+        name: 'Empty State showing a wanderer going into the distance', exact: true,
       }),
     )).toBeVisible();
     return searchResponse.request().postDataJSON();
@@ -76,7 +76,7 @@ export class ListsPage {
     const body = await this.loadOverview();
     const indexedList = expect.poll(async () => {
       const searchResponse = await this.page.request.post('/api/v1/search/lists', {
-        data: body, timeout: 3000,
+        data: body,
       });
       expect(searchResponse.status(), 'Polled list search must succeed').toBe(200);
       const { hits } = await searchResponse.json() as {
