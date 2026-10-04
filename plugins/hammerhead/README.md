@@ -32,3 +32,10 @@ replace the installed `data/plugins/hammerhead` bundle, including both
 information dialog in Plugins settings to check for version 0.1.2. Updating the
 Docker image alone does not replace an installed plugin bundle. Previously
 imported GPX files are preserved.
+
+## Development
+
+```sh
+GOCACHE=/tmp/wanderer-go-cache go test ./...
+make manifest
+```
