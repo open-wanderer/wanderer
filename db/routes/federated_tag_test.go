@@ -159,6 +159,8 @@ func TestRemoteTrailFullSyncNormalizesTags(t *testing.T) {
 		{"malformed list retains previous relations", "not-a-list", []string{"ab"}, true},
 		{"malformed items retain previous relations", []any{nil, map[string]any{"name": 42}}, []string{"ab"}, true},
 		{"all failed saves retain previous relations", []any{map[string]any{"name": overlong}}, []string{"ab"}, true},
+		{"empty name and failed save retain previous relations", []any{map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": overlong}}, []string{"ab"}, true},
+		{"empty name and malformed item retain previous relations", []any{map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": 42}}, []string{"ab"}, true},
 		{"partial success remains tolerant", []any{map[string]any{"name": overlong}, map[string]any{"name": "a\tb"}}, []string{"ab"}, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -385,24 +385,29 @@ func resolveAndSyncTags(app core.App, data map[string]any) ([]string, bool) {
 		return localTagIds, false
 	}
 
-	// An explicit empty list, or a successfully handled name that normalizes
-	// to empty, clears previous relations. Missing/malformed input and a list
-	// of only failed lookups/saves retain the previous tolerant behavior.
+	// An explicit empty list, or a fully handled list of names that normalize
+	// to empty, clears previous relations. With no resolved IDs, malformed
+	// input or failed lookups/saves retain previous relations. Partial actual
+	// success keeps the federation import's tolerant behavior.
 	applyTags := len(remoteTags) == 0
+	hasErrors := false
 	seenTags := make(map[string]struct{})
 
 	for _, t := range remoteTags {
 		tagMap, ok := t.(map[string]any)
 		if !ok {
+			hasErrors = true
 			continue
 		}
 
 		tagName, ok := tagMap["name"].(string)
 		if !ok {
+			hasErrors = true
 			continue
 		}
 		localTag, err := util.ResolveFederatedTag(app, tagName)
 		if err != nil {
+			hasErrors = true
 			continue
 		}
 		applyTags = true
@@ -416,7 +421,7 @@ func resolveAndSyncTags(app core.App, data map[string]any) ([]string, bool) {
 		localTagIds = append(localTagIds, localTag.Id)
 	}
 
-	return localTagIds, applyTags
+	return localTagIds, applyTags && (len(localTagIds) > 0 || !hasErrors)
 }
 
 func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, origin string, waypoints []any) error {
