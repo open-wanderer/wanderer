@@ -149,13 +149,15 @@
  *       properties:
  *         name:
  *           type: string
- *           description: Tag name
+ *           maxLength: 5000
+ *           description: Plain-text tag name. Unicode and punctuation are allowed; C0 and DEL control characters are rejected.
  *
  *     TagUpdateInput:
  *       type: object
  *       properties:
  *         name:
  *           type: string
+ *           maxLength: 5000
  *           description: Tag name
  *
  *     CategoryTranslation:
