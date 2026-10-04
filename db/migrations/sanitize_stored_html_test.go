@@ -21,7 +21,7 @@ func TestSanitizeStoredHTMLBackfillIsBatchedSilentAndIdempotent(t *testing.T) {
 		"activitypub_actors": "summary", "comments": "text", "lists": "description", "settings": "bio",
 		"summit_logs": "text", "trails": "description", "waypoints": "description",
 	}
-	type savedText struct{ collection, id, field, updated string }
+	type savedText struct{ collection, id, field, updated, want string }
 	var records []savedText
 	for name, field := range fields {
 		collection := core.NewBaseCollection(name)
@@ -46,7 +46,33 @@ func TestSanitizeStoredHTMLBackfillIsBatchedSilentAndIdempotent(t *testing.T) {
 			if err := app.SaveNoValidate(record); err != nil {
 				t.Fatal(err)
 			}
-			records = append(records, savedText{name, record.Id, field, record.GetString("updated")})
+			records = append(records, savedText{name, record.Id, field, record.GetString("updated"), ""})
+		}
+		maximum := limit
+		if maximum == 0 {
+			maximum = 5000
+		}
+		quotes := strings.Repeat(`'"`, 2028) + "x"
+		for i, input := range []string{
+			quotes,
+			strings.Repeat("x", maximum-3) + "&&",
+		} {
+			record := core.NewRecord(collection)
+			record.Id = fmt.Sprintf("%015d", count+i+1)
+			record.Set("name", "unchanged")
+			record.Set("updated", "2020-01-02 03:04:05.000Z")
+			record.Set(field, input)
+			// These historical values were valid under the original schema.
+			if err := app.Save(record); err != nil {
+				t.Fatalf("valid historical text could not be stored before the backfill: %v", err)
+			}
+			want := quotes
+			if i == 1 {
+				// Required entity escaping exceeds the limit. The explicitly
+				// bounded migration drops both trailing ampersands completely.
+				want = strings.Repeat("x", maximum-3)
+			}
+			records = append(records, savedText{name, record.Id, field, record.GetString("updated"), want})
 		}
 	}
 	updates := 0
@@ -64,8 +90,11 @@ func TestSanitizeStoredHTMLBackfillIsBatchedSilentAndIdempotent(t *testing.T) {
 			t.Fatal(err)
 		}
 		value := stored.GetString(record.field)
-		if strings.Contains(value, "blocked()") || !strings.Contains(value, "<strong>text</strong>") {
+		if strings.Contains(value, "blocked()") || (record.want == "" && !strings.Contains(value, "<strong>text</strong>")) {
 			t.Fatalf("historical content not cleaned: %.100s", value)
+		}
+		if record.want != "" && value != record.want {
+			t.Fatalf("%s: historical text was unnecessarily escaped or not explicitly bounded: output length %d, want %d", record.collection, len(value), len(record.want))
 		}
 		if err := app.Validate(stored); err != nil {
 			t.Fatalf("backfilled HTML exceeds field constraints: %v", err)

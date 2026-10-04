@@ -55,7 +55,10 @@ func upSanitizeStoredHTML1791110000(app core.App) error {
 			for _, record := range records {
 				cursor = record.Id
 				before := record.GetString(entry.field)
-				after := util.SanitizeHTMLText(before, limit)
+				// Historical cleanup deliberately keeps stored HTML within the
+				// field limit, even when required escaping makes it grow. Normal
+				// user writes reject oversized values instead of shortening them.
+				after := util.SanitizeHTMLTextWithLimit(before, limit)
 				if after == before {
 					continue
 				}

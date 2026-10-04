@@ -9,7 +9,6 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tests"
 	"pocketbase/pluginsystem"
-	"pocketbase/util"
 )
 
 func TestImportTrailSanitizesRichTextBeforeFieldValidation(t *testing.T) {
@@ -18,7 +17,8 @@ func TestImportTrailSanitizesRichTextBeforeFieldValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
-	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
+	// No global sanitizing hook: importing must explicitly sanitize and bound
+	// provider text before PocketBase validates each destination field.
 
 	collection := func(name string, fields ...core.Field) *core.Collection {
 		t.Helper()
@@ -59,7 +59,7 @@ func TestImportTrailSanitizesRichTextBeforeFieldValidation(t *testing.T) {
 		&core.AutodateField{Name: "created", OnCreate: true},
 	)
 
-	// Quotes and ampersands expand during sanitization. The stored serialization,
+	// Ampersands expand during sanitization. The stored serialization,
 	// including closing tags, must fit both the trail and waypoint field limits.
 	longText := `<p onclick="blocked()"><strong>Safe ` + strings.Repeat(`'"&山🚲`, 3000) + `</strong></p>`
 	item := pluginsystem.TrailImport{

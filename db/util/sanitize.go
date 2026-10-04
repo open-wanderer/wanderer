@@ -1,7 +1,6 @@
 package util
 
 import (
-	"html"
 	"strings"
 	"unicode/utf8"
 
@@ -32,21 +31,40 @@ var richTextPolicy = func() *bluemonday.Policy {
 	return p
 }()
 
-// SanitizedHTMLChanges returns only changed rich-text fields, using the same
-// serialized-rune limits as PocketBase. TextField.Max=0 means 5,000, not unlimited.
+// SanitizedHTMLChanges returns changed rich-text fields without truncating them.
+// PocketBase validates the complete sanitized serialization on ordinary writes.
 func SanitizedHTMLChanges(record *core.Record) map[string]string {
+	return sanitizedHTMLChanges(record, false)
+}
+
+// SanitizeHTMLFieldsWithLimits explicitly bounds imported or derived rich text
+// before saving it. TextField.Max=0 means PocketBase's 5,000-character default.
+// Ordinary user writes use SanitizeHTML instead and fail validation if too long.
+func SanitizeHTMLFieldsWithLimits(record *core.Record) {
+	for field, value := range sanitizedHTMLChanges(record, true) {
+		record.Set(field, value)
+	}
+}
+
+func sanitizedHTMLChanges(record *core.Record, bounded bool) map[string]string {
 	changes := map[string]string{}
 	for _, name := range htmlFields[record.Collection().Name] {
 		field, ok := record.Collection().Fields.GetByName(name).(*core.TextField)
 		if !ok {
 			continue
 		}
-		limit := field.Max
-		if limit == 0 {
-			limit = 5000
-		}
 		before := record.GetString(name)
-		if after := SanitizeHTMLText(before, limit); after != before {
+		var after string
+		if bounded {
+			limit := field.Max
+			if limit == 0 {
+				limit = 5000
+			}
+			after = SanitizeHTMLTextWithLimit(before, limit)
+		} else {
+			after = SanitizeHTMLText(before)
+		}
+		if after != before {
 			changes[name] = after
 		}
 	}
@@ -55,6 +73,7 @@ func SanitizedHTMLChanges(record *core.Record) map[string]string {
 
 // SanitizeHTML runs before PocketBase field validation on every model save,
 // including provider imports, federation, merges and direct collection writes.
+// It never silently shortens a value to satisfy the field's length constraint.
 func SanitizeHTML() func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		for field, value := range SanitizedHTMLChanges(e.Record) {
@@ -64,9 +83,18 @@ func SanitizeHTML() func(e *core.RecordEvent) error {
 	}
 }
 
-// SanitizeHTMLText limits the sanitized serialization, rather than the input.
+// SanitizeHTMLText sanitizes a complete value without shortening its safe text.
+func SanitizeHTMLText(value string) string {
+	return serializeSanitizedHTML(value, 0)
+}
+
+// SanitizeHTMLTextWithLimit explicitly limits the sanitized serialization.
 // Complete entities and tags are retained; closing tags also consume the budget.
-func SanitizeHTMLText(value string, maxRunes int) string {
+func SanitizeHTMLTextWithLimit(value string, maxRunes int) string {
+	return serializeSanitizedHTML(value, maxRunes)
+}
+
+func serializeSanitizedHTML(value string, maxRunes int) string {
 	safe := richTextPolicy.Sanitize(value)
 	nodes, err := htmlparser.ParseFragment(strings.NewReader(safe), &htmlparser.Node{
 		Type: htmlparser.ElementNode, Data: "div", DataAtom: atom.Div,
@@ -100,7 +128,17 @@ func (b *boundedHTML) appendNode(node *htmlparser.Node) {
 	switch node.Type {
 	case htmlparser.TextNode:
 		for _, r := range node.Data {
-			encoded := html.EscapeString(string(r))
+			// Quotes are ordinary text here. Attribute values are escaped by
+			// htmlparser.Token.String below, where their quoting matters.
+			encoded := string(r)
+			switch r {
+			case '&':
+				encoded = "&amp;"
+			case '<':
+				encoded = "&lt;"
+			case '>':
+				encoded = "&gt;"
+			}
 			cost := utf8.RuneCountInString(encoded)
 			if !b.fits(cost) {
 				b.stopped = true

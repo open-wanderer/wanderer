@@ -125,6 +125,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		record.Set("photos", photos)
 	}
 
+	util.SanitizeHTMLFieldsWithLimits(record)
 	if err := app.Save(record); err != nil {
 		return nil, err
 	}
@@ -496,6 +497,7 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		if len(photos) > 0 {
 			record.Set("photos", photos)
 		}
+		util.SanitizeHTMLFieldsWithLimits(record)
 		if err := app.Save(record); err != nil {
 			return err
 		}
