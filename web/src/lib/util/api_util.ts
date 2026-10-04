@@ -156,9 +156,16 @@ const immutableUpdateFields: Partial<Record<Collection, readonly string[]>> = {
     [Collection.waypoints]: ["author", "trail"],
     [Collection.summit_logs]: ["author", "trail"],
     [Collection.plugin_instances]: ["user", "plugin_id"],
+    [Collection.trail_share]: ["trail"],
+    [Collection.list_share]: ["list"],
+    [Collection.trail_link_share]: ["trail"],
+    [Collection.follows]: ["follower"],
+    [Collection.settings]: ["user"],
+    [Collection.user_category_preferences]: ["user"],
+    [Collection.user_subcategory_preferences]: ["user"],
 };
 
-// API update bodies cannot change ownership or move content between trails.
+// API update bodies cannot change ownership or protected relation bindings.
 // Include PocketBase's modifiers and its JSON part inside multipart bodies.
 function stripImmutableUpdateFields(collection: Collection, data: FormData) {
     const fields = immutableUpdateFields[collection];

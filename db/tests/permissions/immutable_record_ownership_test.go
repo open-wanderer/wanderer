@@ -7,20 +7,27 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
 	"strings"
 	"testing"
+
+	"pocketbase/hooks"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 type ownershipFixture struct {
-	app                              *core.BaseApp
-	handler                          http.Handler
-	owner, editor, stranger          *core.Record
-	ownerActor, editorActor          *core.Record
-	trail, otherTrail, list          *core.Record
-	comment, waypoint, log, instance *core.Record
+	app                                           *core.BaseApp
+	handler                                       http.Handler
+	owner, editor, stranger                       *core.Record
+	ownerActor, editorActor, strangerActor        *core.Record
+	trail, otherTrail, list, otherList            *core.Record
+	comment, waypoint, log, instance              *core.Record
+	trailShare, listShare, link, follow, settings *core.Record
+	categoryPreference, subcategoryPreference     *core.Record
+	otherCategory, otherSubcategory               *core.Record
 }
 
 func newOwnershipFixture(t *testing.T) ownershipFixture {
@@ -39,15 +46,18 @@ func newOwnershipFixture(t *testing.T) ownershipFixture {
 			"iri": "https://example.com/" + name, "inbox": "https://example.com/" + name + "/inbox",
 		})
 	}
-	ownerActor, editorActor := newActor("owner", owner.Id), newActor("editor", editor.Id)
+	ownerActor, editorActor, strangerActor := newActor("owner", owner.Id), newActor("editor", editor.Id), newActor("stranger", stranger.Id)
 	trail := saveRulesTestRecord(t, app, "trails", map[string]any{
-		"name": "Owner trail", "author": ownerActor.Id, "public": true,
+		"name": "Owner trail", "author": ownerActor.Id, "public": false,
 	})
 	otherTrail := saveRulesTestRecord(t, app, "trails", map[string]any{
-		"name": "Other trail", "author": editorActor.Id, "public": true,
+		"name": "Other private trail", "author": strangerActor.Id, "public": false,
 	})
 	list := saveRulesTestRecord(t, app, "lists", map[string]any{
-		"name": "Owner list", "author": ownerActor.Id, "public": true, "trails": []string{trail.Id},
+		"name": "Owner list", "author": ownerActor.Id, "public": false, "trails": []string{trail.Id},
+	})
+	otherList := saveRulesTestRecord(t, app, "lists", map[string]any{
+		"name": "Other private list", "author": strangerActor.Id, "public": false, "trails": []string{otherTrail.Id},
 	})
 	comment := saveRulesTestRecord(t, app, "comments", map[string]any{
 		"author": ownerActor.Id, "trail": trail.Id, "text": "Original comment",
@@ -61,12 +71,36 @@ func newOwnershipFixture(t *testing.T) ownershipFixture {
 	instance := saveRulesTestRecord(t, app, "plugin_instances", map[string]any{
 		"user": owner.Id, "plugin_id": "hammerhead", "status": "configured",
 	})
-	for collection, data := range map[string]map[string]any{
-		"trail_share": {"trail": trail.Id, "actor": editorActor.Id, "permission": "edit"},
-		"list_share":  {"list": list.Id, "actor": editorActor.Id, "permission": "edit"},
-	} {
-		saveRulesTestRecord(t, app, collection, data)
-	}
+	trailShare := saveRulesTestRecord(t, app, "trail_share", map[string]any{
+		"trail": trail.Id, "actor": editorActor.Id, "permission": "edit",
+	})
+	listShare := saveRulesTestRecord(t, app, "list_share", map[string]any{
+		"list": list.Id, "actor": editorActor.Id, "permission": "edit",
+	})
+	link := saveRulesTestRecord(t, app, "trail_link_share", map[string]any{
+		"trail": trail.Id, "permission": "view", "token": strings.Repeat("a", 32),
+	})
+	follow := saveRulesTestRecord(t, app, "follows", map[string]any{
+		"follower": ownerActor.Id, "followee": editorActor.Id, "status": "accepted",
+	})
+	settings := saveRulesTestRecord(t, app, "settings", map[string]any{
+		"user": owner.Id, "language": "en", "unit": "metric", "mapFocus": "trails",
+	})
+	category := saveRulesTestRecord(t, app, "categories", map[string]any{"name": "Ownership category"})
+	otherCategory := saveRulesTestRecord(t, app, "categories", map[string]any{"name": "Other ownership category"})
+	subcategory := saveRulesTestRecord(t, app, "subcategories", map[string]any{"name": "Ownership subcategory", "category": category.Id})
+	otherSubcategory := saveRulesTestRecord(t, app, "subcategories", map[string]any{"name": "Other ownership subcategory", "category": otherCategory.Id})
+	categoryPreference := saveRulesTestRecord(t, app, "user_category_preferences", map[string]any{
+		"user": owner.Id, "category": category.Id, "visible": true, "priority": 1,
+	})
+	subcategoryPreference := saveRulesTestRecord(t, app, "user_subcategory_preferences", map[string]any{
+		"user": owner.Id, "subcategory": subcategory.Id, "visible": true, "priority": 1,
+	})
+	// Share request hooks stay unregistered to prove that the migrated rules
+	// protect targets independently. Preference validators preserve the real
+	// API contract for permitted updates.
+	app.OnRecordUpdateRequest("user_category_preferences").BindFunc(hooks.ValidateUserCategoryPreferenceHandler())
+	app.OnRecordUpdateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
 	router, err := apis.NewRouter(app)
 	if err != nil {
 		t.Fatal(err)
@@ -75,11 +109,18 @@ func newOwnershipFixture(t *testing.T) ownershipFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ownershipFixture{app, mux, owner, editor, stranger, ownerActor, editorActor,
-		trail, otherTrail, list, comment, waypoint, log, instance}
+	return ownershipFixture{
+		app: app, handler: mux, owner: owner, editor: editor, stranger: stranger,
+		ownerActor: ownerActor, editorActor: editorActor, strangerActor: strangerActor,
+		trail: trail, otherTrail: otherTrail, list: list, otherList: otherList,
+		comment: comment, waypoint: waypoint, log: log, instance: instance,
+		trailShare: trailShare, listShare: listShare, link: link, follow: follow, settings: settings,
+		categoryPreference: categoryPreference, subcategoryPreference: subcategoryPreference,
+		otherCategory: otherCategory, otherSubcategory: otherSubcategory,
+	}
 }
 
-func ownershipRequest(t *testing.T, handler http.Handler, record, auth *core.Record, method, format string, body map[string]any) *httptest.ResponseRecorder {
+func ownershipRequest(t *testing.T, handler http.Handler, record, auth *core.Record, method, format string, body map[string]any, shareToken ...string) *httptest.ResponseRecorder {
 	t.Helper()
 	var data bytes.Buffer
 	contentType := "application/json"
@@ -110,6 +151,9 @@ func ownershipRequest(t *testing.T, handler http.Handler, record, auth *core.Rec
 		contentType = writer.FormDataContentType()
 	}
 	path := "/api/collections/" + record.Collection().Name + "/records/" + record.Id
+	if len(shareToken) > 0 {
+		path += "?share=" + url.QueryEscape(shareToken[0])
+	}
 	request := httptest.NewRequest(method, path, &data)
 	request.Header.Set("Content-Type", contentType)
 	if auth != nil {
@@ -141,10 +185,17 @@ func TestImmutableOwnershipAPI(t *testing.T) {
 		{f.log, "trail", f.otherTrail.Id},
 		{f.instance, "user", f.editor.Id},
 		{f.instance, "plugin_id", "komoot"},
+		{f.trailShare, "trail", f.otherTrail.Id},
+		{f.listShare, "list", f.otherList.Id},
+		{f.link, "trail", f.otherTrail.Id},
+		{f.follow, "follower", f.editorActor.Id},
+		{f.settings, "user", f.editor.Id},
+		{f.categoryPreference, "user", f.editor.Id},
+		{f.subcategoryPreference, "user", f.editor.Id},
 	} {
 		for _, format := range []string{"json", "multipart", "multipart-json"} {
 			original := target.record.GetString(target.field)
-			for _, mutation := range []struct {
+			mutations := []struct {
 				name string
 				body map[string]any
 			}{
@@ -154,10 +205,30 @@ func TestImmutableOwnershipAPI(t *testing.T) {
 				{"prefix-append", map[string]any{"+" + target.field: target.replacement}},
 				{"prefix-remove", map[string]any{"-" + target.field: original}},
 				{"echo-and-remove", map[string]any{target.field: original, target.field + "-": original}},
-			} {
+			}
+			content := map[string]map[string]any{
+				"trail_share":                  {"actor": f.strangerActor.Id, "permission": "view"},
+				"list_share":                   {"actor": f.strangerActor.Id, "permission": "view"},
+				"trail_link_share":             {"token": strings.Repeat("b", 32), "permission": "edit"},
+				"follows":                      {"followee": f.strangerActor.Id, "status": "pending"},
+				"settings":                     {"language": "de", "unit": "imperial"},
+				"user_category_preferences":    {"category": f.otherCategory.Id, "visible": false},
+				"user_subcategory_preferences": {"subcategory": f.otherSubcategory.Id, "visible": false},
+			}[target.record.Collection().Name]
+			if content != nil {
+				body := map[string]any{target.field: target.replacement}
+				for key, value := range content {
+					body[key] = value
+				}
+				mutations = append(mutations, struct {
+					name string
+					body map[string]any
+				}{"replace-with-content", body})
+			}
+			for _, mutation := range mutations {
 				t.Run(target.record.Collection().Name+"/"+target.field+"/"+format+"/"+mutation.name, func(t *testing.T) {
 					response := ownershipRequest(t, f.handler, target.record, f.owner, http.MethodPatch, format, mutation.body)
-					if mutation.name == "replace" && response.Code != http.StatusNotFound {
+					if strings.HasPrefix(mutation.name, "replace") && response.Code != http.StatusNotFound {
 						t.Errorf("status = %d; want 404: %s", response.Code, response.Body.String())
 					}
 					fresh, err := f.app.FindRecordById(target.record.Collection().Name, target.record.Id)
@@ -169,43 +240,52 @@ func TestImmutableOwnershipAPI(t *testing.T) {
 					if got := fresh.GetString(target.field); got != original {
 						t.Fatalf("protected field changed from %q to %q (HTTP %d)", original, got, response.Code)
 					}
+					for key := range content {
+						if got, want := fresh.Get(key), target.record.Get(key); !reflect.DeepEqual(got, want) {
+							t.Errorf("rejected binding change altered %s: got %v; want %v", key, got, want)
+						}
+					}
+					if target.record.Collection().Name == "trail_share" || target.record.Collection().Name == "list_share" || target.record.Collection().Name == "trail_link_share" {
+						assertOwnershipShareAccess(t, f, target.record)
+					}
 				})
 			}
 		}
 	}
 }
 
-func TestImmutableOwnershipKeepsAuthorizedUpdates(t *testing.T) {
-	f := newOwnershipFixture(t)
-	for _, target := range []struct {
+func assertOwnershipShareAccess(t *testing.T, f ownershipFixture, share *core.Record) {
+	t.Helper()
+	original, foreign, reader := f.trail, f.otherTrail, f.editor
+	var token []string
+	if share.Collection().Name == "list_share" {
+		original, foreign = f.list, f.otherList
+	} else if share.Collection().Name == "trail_link_share" {
+		reader = nil
+		token = []string{share.GetString("token")}
+	}
+	for _, check := range []struct {
 		record *core.Record
-		body   map[string]any
+		status int
 	}{
-		{f.trail, map[string]any{"name": "Updated trail", "author": f.ownerActor.Id}},
-		{f.list, map[string]any{"name": "Updated list", "author": f.ownerActor.Id}},
-		{f.comment, map[string]any{"text": "Updated comment", "author": f.ownerActor.Id, "trail": f.trail.Id}},
-		{f.waypoint, map[string]any{"name": "Updated waypoint", "author": f.ownerActor.Id, "trail": f.trail.Id}},
-		{f.log, map[string]any{"text": "Updated log", "author": f.ownerActor.Id, "trail": f.trail.Id}},
-		{f.instance, map[string]any{"status": "disabled", "user": f.owner.Id, "plugin_id": "hammerhead"}},
+		{original, http.StatusOK},
+		{foreign, http.StatusNotFound},
 	} {
-		for _, format := range []string{"json", "multipart", "multipart-json"} {
-			t.Run(target.record.Collection().Name+"/"+format, func(t *testing.T) {
-				response := ownershipRequest(t, f.handler, target.record, f.owner, http.MethodPatch, format, target.body)
-				if response.Code != http.StatusOK {
-					t.Fatalf("status = %d; want 200: %s", response.Code, response.Body.String())
-				}
-				fresh, err := f.app.FindRecordById(target.record.Collection().Name, target.record.Id)
-				if err != nil {
-					t.Fatal(err)
-				}
-				for key, value := range target.body {
-					if got := fresh.GetString(key); got != value {
-						t.Errorf("%s = %q; want %q", key, got, value)
-					}
-				}
-			})
+		response := ownershipRequest(t, f.handler, check.record, reader, http.MethodGet, "json", nil, token...)
+		if response.Code != check.status {
+			t.Errorf("share recipient GET %s: status = %d; want %d: %s", check.record.GetString("name"), response.Code, check.status, response.Body.String())
 		}
 	}
+	for _, auth := range []*core.Record{f.owner, f.editor} {
+		response := ownershipRequest(t, f.handler, foreign, auth, http.MethodPatch, "json", map[string]any{"name": "Unauthorized foreign edit"})
+		if response.Code != http.StatusNotFound {
+			t.Errorf("foreign object update by %s: status = %d; want 404: %s", auth.GetString("username"), response.Code, response.Body.String())
+		}
+	}
+}
+
+func TestImmutableOwnershipKeepsAuthorizedUpdates(t *testing.T) {
+	f := newOwnershipFixture(t)
 	for _, record := range []*core.Record{f.trail, f.list} {
 		for _, format := range []string{"json", "multipart", "multipart-json"} {
 			t.Run("edit-share/"+record.Collection().Name+"/"+format, func(t *testing.T) {
@@ -234,9 +314,62 @@ func TestImmutableOwnershipKeepsAuthorizedUpdates(t *testing.T) {
 			})
 		}
 	}
+	for _, target := range []struct {
+		record   *core.Record
+		body     map[string]any
+		bindings map[string]any
+	}{
+		{f.trail, map[string]any{"name": "Updated trail"}, map[string]any{"author": f.ownerActor.Id}},
+		{f.list, map[string]any{"name": "Updated list"}, map[string]any{"author": f.ownerActor.Id}},
+		{f.comment, map[string]any{"text": "Updated comment"}, map[string]any{"author": f.ownerActor.Id, "trail": f.trail.Id}},
+		{f.waypoint, map[string]any{"name": "Updated waypoint"}, map[string]any{"author": f.ownerActor.Id, "trail": f.trail.Id}},
+		{f.log, map[string]any{"text": "Updated log"}, map[string]any{"author": f.ownerActor.Id, "trail": f.trail.Id}},
+		{f.instance, map[string]any{"status": "disabled"}, map[string]any{"user": f.owner.Id, "plugin_id": "hammerhead"}},
+		{f.trailShare, map[string]any{"actor": f.strangerActor.Id, "permission": "view"}, map[string]any{"trail": f.trail.Id}},
+		{f.listShare, map[string]any{"actor": f.strangerActor.Id, "permission": "view"}, map[string]any{"list": f.list.Id}},
+		{f.link, map[string]any{"token": strings.Repeat("b", 32), "permission": "edit"}, map[string]any{"trail": f.trail.Id}},
+		{f.follow, map[string]any{"followee": f.strangerActor.Id, "status": "pending"}, map[string]any{"follower": f.ownerActor.Id}},
+		{f.settings, map[string]any{"language": "de", "unit": "imperial", "mapFocus": "location"}, map[string]any{"user": f.owner.Id}},
+		{f.categoryPreference, map[string]any{"category": f.otherCategory.Id, "visible": false}, map[string]any{"user": f.owner.Id}},
+		{f.subcategoryPreference, map[string]any{"subcategory": f.otherSubcategory.Id, "visible": false}, map[string]any{"user": f.owner.Id}},
+	} {
+		for _, format := range []string{"json", "multipart", "multipart-json"} {
+			for _, bindingMode := range []string{"omitted", "unchanged"} {
+				t.Run(target.record.Collection().Name+"/"+format+"/"+bindingMode, func(t *testing.T) {
+					body := make(map[string]any, len(target.body)+len(target.bindings))
+					for key, value := range target.body {
+						body[key] = value
+					}
+					if bindingMode == "unchanged" {
+						for key, value := range target.bindings {
+							body[key] = value
+						}
+					}
+					response := ownershipRequest(t, f.handler, target.record, f.owner, http.MethodPatch, format, body)
+					if response.Code != http.StatusOK {
+						t.Fatalf("status = %d; want 200: %s", response.Code, response.Body.String())
+					}
+					fresh, err := f.app.FindRecordById(target.record.Collection().Name, target.record.Id)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, values := range []map[string]any{target.body, target.bindings} {
+						for key, value := range values {
+							if got := fresh.Get(key); !reflect.DeepEqual(got, value) {
+								t.Errorf("%s = %v; want %v", key, got, value)
+							}
+						}
+					}
+					if (fresh.Collection().Name == "user_category_preferences" || fresh.Collection().Name == "user_subcategory_preferences") && fresh.GetInt("priority") != 1 {
+						t.Errorf("preference priority = %d; want 1", fresh.GetInt("priority"))
+					}
+				})
+			}
+		}
+	}
 }
 
-func TestImmutableOwnershipKeepsTrustedSavesAndSuperusers(t *testing.T) {
+func TestImmutableOwnershipRulesKeepTrustedSavesAndSuperusers(t *testing.T) {
 	f := newOwnershipFixture(t)
 	// Merge and federation paths use model saves rather than the records API.
 	f.log.Set("author", f.editorActor.Id)
@@ -251,12 +384,21 @@ func TestImmutableOwnershipKeepsTrustedSavesAndSuperusers(t *testing.T) {
 	superuser := saveRulesTestRecord(t, f.app, "_superusers", map[string]any{
 		"email": "admin@example.com", "password": "test-password",
 	})
+	// This checks PocketBase's rule bypass only. Production share request hooks
+	// still reject target changes, including requests made by superusers.
 	for _, target := range []struct {
 		record *core.Record
 		body   map[string]any
 	}{
 		{f.trail, map[string]any{"author": f.editorActor.Id}},
 		{f.instance, map[string]any{"user": f.editor.Id, "plugin_id": "komoot"}},
+		{f.trailShare, map[string]any{"trail": f.otherTrail.Id}},
+		{f.listShare, map[string]any{"list": f.otherList.Id}},
+		{f.link, map[string]any{"trail": f.otherTrail.Id}},
+		{f.follow, map[string]any{"follower": f.editorActor.Id}},
+		{f.settings, map[string]any{"user": f.editor.Id}},
+		{f.categoryPreference, map[string]any{"user": f.editor.Id}},
+		{f.subcategoryPreference, map[string]any{"user": f.editor.Id}},
 	} {
 		response := ownershipRequest(t, f.handler, target.record, superuser, http.MethodPatch, "json", target.body)
 		if response.Code != http.StatusOK {
@@ -276,11 +418,35 @@ func TestImmutableOwnershipKeepsTrustedSavesAndSuperusers(t *testing.T) {
 
 func TestImmutableOwnershipMigrationIsIdempotentAndKeepsLockedRules(t *testing.T) {
 	app := newRulesTestApp(t)
-	collection, err := app.FindCollectionByNameOrId("comments")
-	if err != nil {
-		t.Fatal(err)
+	targets := []struct {
+		collection string
+		fields     []string
+	}{
+		{"trails", []string{"author"}},
+		{"lists", []string{"author"}},
+		{"comments", []string{"author", "trail"}},
+		{"waypoints", []string{"author", "trail"}},
+		{"summit_logs", []string{"author", "trail"}},
+		{"plugin_instances", []string{"user", "plugin_id"}},
+		{"trail_share", []string{"trail"}},
+		{"list_share", []string{"list"}},
+		{"trail_link_share", []string{"trail"}},
+		{"follows", []string{"follower"}},
+		{"settings", []string{"user"}},
+		{"user_category_preferences", []string{"user"}},
+		{"user_subcategory_preferences", []string{"user"}},
 	}
-	before := *collection.UpdateRule
+	before := make(map[string]string, len(targets))
+	for _, target := range targets {
+		collection, err := app.FindCollectionByNameOrId(target.collection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if collection.UpdateRule == nil {
+			t.Fatalf("%s update rule unexpectedly locked", target.collection)
+		}
+		before[target.collection] = *collection.UpdateRule
+	}
 	var apply func(core.App) error
 	for _, migration := range core.AppMigrations.Items() {
 		if migration.File == "1791110001_immutable_record_ownership.go" {
@@ -294,22 +460,38 @@ func TestImmutableOwnershipMigrationIsIdempotentAndKeepsLockedRules(t *testing.T
 	if err := apply(app); err != nil {
 		t.Fatal(err)
 	}
-	collection, err = app.FindCollectionByNameOrId("comments")
-	if err != nil || *collection.UpdateRule != before {
-		t.Fatalf("migration changed the already guarded rule: %v", err)
-	}
-	if strings.Count(before, "@request.body.author:changed") != 1 {
-		t.Fatal("ownership guard must occur once")
-	}
-	collection.UpdateRule = nil
-	if err := app.Save(collection); err != nil {
-		t.Fatal(err)
+	for _, target := range targets {
+		t.Run("idempotent/"+target.collection, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(target.collection)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if collection.UpdateRule == nil || *collection.UpdateRule != before[target.collection] {
+				t.Fatal("migration changed the already guarded rule")
+			}
+			for _, field := range target.fields {
+				if strings.Count(*collection.UpdateRule, "@request.body."+field+":changed") != 1 {
+					t.Errorf("%s ownership guard must occur once", field)
+				}
+			}
+			collection.UpdateRule = nil
+			if err := app.Save(collection); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 	if err := apply(app); err != nil {
 		t.Fatal(err)
 	}
-	collection, err = app.FindCollectionByNameOrId("comments")
-	if err != nil || collection.UpdateRule != nil {
-		t.Fatalf("migration unlocked a locked API: %v", err)
+	for _, target := range targets {
+		t.Run("locked/"+target.collection, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(target.collection)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if collection.UpdateRule != nil {
+				t.Fatal("migration unlocked a locked API")
+			}
+		})
 	}
 }

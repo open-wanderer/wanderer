@@ -113,6 +113,13 @@ describe("immutable multipart update fields", () => {
         [Collection.waypoints, ["author", "trail"]],
         [Collection.summit_logs, ["author", "trail"]],
         [Collection.plugin_instances, ["user", "plugin_id"]],
+        [Collection.trail_share, ["trail"]],
+        [Collection.list_share, ["list"]],
+        [Collection.trail_link_share, ["trail"]],
+        [Collection.follows, ["follower"]],
+        [Collection.settings, ["user"]],
+        [Collection.user_category_preferences, ["user"]],
+        [Collection.user_subcategory_preferences, ["user"]],
     ];
 
     it.each(targets)("removes ownership fields and modifiers for %s while preserving content", async (collection, fields) => {
@@ -162,6 +169,27 @@ describe("immutable multipart update fields", () => {
             { text: "Authorized edit", "photos-": ["old.jpg"] },
             { name: "Still allowed" },
         ]);
+    });
+
+    const shares: [Collection, string, Record<string, string>][] = [
+        [Collection.trail_share, "trail", { actor: "recipient", permission: "edit" }],
+        [Collection.list_share, "list", { actor: "recipient", permission: "view" }],
+        [Collection.trail_link_share, "trail", { token: "new-link-token", permission: "view" }],
+    ];
+    it.each(shares)("keeps recipient and permission changes for %s", async (collection, target, editable) => {
+        const data = new FormData();
+        data.set(target, "foreign-target");
+        for (const [key, value] of Object.entries(editable)) data.set(key, value);
+        data.set("@jsonPayload", JSON.stringify({ [target]: "foreign-target", [`${target}+`]: "foreign-target", ...editable }));
+        const { event, update } = uploadEvent(data);
+
+        await uploadUpdate(event, collection);
+
+        expect(update).toHaveBeenCalledOnce();
+        const forwarded = update.mock.calls[0][1] as FormData;
+        expect(forwarded.has(target)).toBe(false);
+        for (const [key, value] of Object.entries(editable)) expect(forwarded.get(key)).toBe(value);
+        expect(JSON.parse(String(forwarded.get("@jsonPayload")))).toEqual(editable);
     });
 
     it.each(["{", "null", "[]", "123", '"text"'])("rejects an invalid JSON payload %s before forwarding", async (payload) => {

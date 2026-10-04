@@ -30,6 +30,13 @@ func guardRecordOwnership1791110001(app core.App) error {
 			{"waypoints", []string{"author", "trail"}},
 			{"summit_logs", []string{"author", "trail"}},
 			{"plugin_instances", []string{"user", "plugin_id"}},
+			{"trail_share", []string{"trail"}},
+			{"list_share", []string{"list"}},
+			{"trail_link_share", []string{"trail"}},
+			{"follows", []string{"follower"}},
+			{"settings", []string{"user"}},
+			{"user_category_preferences", []string{"user"}},
+			{"user_subcategory_preferences", []string{"user"}},
 		} {
 			collection, err := tx.FindCollectionByNameOrId(target.collection)
 			if err != nil {

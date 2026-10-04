@@ -7,8 +7,8 @@ import (
 )
 
 // Two rules protect private trails and lists from being exposed through
-// shares. Both are enforced here, in request hooks, because the collection
-// rules cannot express them:
+// shares. Both are enforced here, in request hooks; collection update rules
+// also enforce the immutable target:
 //
 //  1. A share stays bound to its target. PocketBase checks update rules
 //     against the stored record before loading request data, so changing the
