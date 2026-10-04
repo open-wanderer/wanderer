@@ -48,7 +48,7 @@ describe("API token authentication", () => {
 
     beforeEach(() => {
         requests = [];
-        status = 404;
+        status = 401;
         message = "Invalid or revoked API token.";
     });
 
@@ -69,7 +69,13 @@ describe("API token authentication", () => {
         return { event, resolve };
     }
 
-    it.each(["/api/v1/api-token", "/api/v1/trail/upload", "/api/v1/category"])("returns JSON 401 for an invalid or revoked token at %s", async path => {
+    it.each([
+        ["/api/v1/api-token", "Invalid or revoked API token."],
+        ["/api/v1/trail/upload", "Invalid or revoked API token."],
+        ["/api/v1/category", "Invalid or revoked API token."],
+        ["/api/v1/api-token", "Key has expired."],
+    ])("returns JSON 401 for a rejected token at %s: %s", async (path, backendMessage) => {
+        message = backendMessage;
         const { event, resolve } = request(path);
         const response = await handle({ event, resolve });
 

@@ -26,11 +26,11 @@ func AuthToken(e *core.RequestEvent) error {
 	)
 
 	if err != nil {
-		return apis.NewNotFoundError("Invalid or revoked API token", nil)
+		return apis.NewUnauthorizedError("Invalid or revoked API token", nil)
 	}
 	if !tokenRecord.GetDateTime("expiration").IsZero() &&
 		tokenRecord.GetDateTime("expiration").Time().Before(time.Now()) {
-		return apis.NewBadRequestError("Key has expired", nil)
+		return apis.NewUnauthorizedError("Key has expired", nil)
 	}
 
 	tokenRecord.Set("last_used", time.Now())

@@ -71,9 +71,9 @@ const auth: Handle = async ({ event, resolve }) => {
         })
         pb.authStore.save(authData.token, authData.record)
       } catch (e) {
-        // A missing auth endpoint or a backend failure is not a token rejection.
-        if (e instanceof ClientResponseError && e.status === 404 &&
-          e.response.message === "Invalid or revoked API token.") {
+        // Only a 401 rejects the token; a missing auth endpoint or a backend
+        // failure is not a token rejection.
+        if (e instanceof ClientResponseError && e.status === 401) {
           return json({ message: "invalid_token" }, {
             status: 401,
             headers: { "WWW-Authenticate": 'Bearer error="invalid_token"' },
