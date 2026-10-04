@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { extname, resolve } from 'node:path';
 import { compile } from 'svelte/compiler';
@@ -21,9 +22,13 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string) 
                 if (id.startsWith('fixture:')) return `\0${id}`;
                 if (id === '$app/environment') return '\0fixture:environment';
                 if (id === '$app/state') return '\0fixture:state';
+                if (id === '$app/navigation') return '\0fixture:navigation';
                 if (id === 'svelte-i18n') return '\0fixture:i18n';
                 if (id === '$lib/stores/toast_store.svelte') return '\0fixture:toast';
-                if (id.startsWith('$lib/')) return resolve(root, 'src/lib', id.slice(5) + (extname(id) ? '' : '.ts'));
+                if (id.startsWith('$lib/')) {
+                    const path = resolve(root, 'src/lib', id.slice(5));
+                    return extname(id) ? path : [path + '.ts', path + '.js', resolve(path, 'index.ts'), resolve(path, 'index.js')].find(existsSync);
+                }
             },
             async load(id) {
                 if (id === '\0fixture:entry') return `
@@ -36,6 +41,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string) 
                 `;
                 if (id === '\0fixture:environment') return 'export const browser = true;';
                 if (id === '\0fixture:state') return 'export const page = { url: new URL(location.href), params: {}, data: {} };';
+                if (id === '\0fixture:navigation') return 'export function pushState() {}';
                 if (id === '\0fixture:i18n') return `
                     import { writable } from 'svelte/store';
                     export const _ = writable(key => key);

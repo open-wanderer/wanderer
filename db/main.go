@@ -216,8 +216,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreate("api_tokens").BindFunc(hooks.CreateAPITokenHandler())
 
-	app.OnRecordCreateRequest().BindFunc(util.SanitizeHTML())
-	app.OnRecordUpdateRequest().BindFunc(util.SanitizeHTML())
+	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
 
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import Tabs from "$lib/components/base/tabs.svelte";
@@ -860,7 +861,7 @@
                             >
                         {:else}
                             <div class="prose dark:prose-invert">
-                                {@html trail.description}
+                                {@html sanitizeHTML(trail.description)}
                             </div>
                         {/if}
                     </article>
