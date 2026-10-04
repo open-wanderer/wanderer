@@ -1,8 +1,8 @@
 import { test as base, expect } from '@playwright/test';
 import { ListsPage } from '../../pages/lists_page';
 
-// Run tests serially to avoid race conditions with shared list data
-base.describe.configure({ mode: 'serial' });
+// Serial CRUD and cleanup may each wait for asynchronous search indexing.
+base.describe.configure({ mode: 'serial', timeout: 60_000 });
 
 const test = base.extend<{ listsPage: ListsPage }>({
     listsPage: async ({ page }, use) => {
