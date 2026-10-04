@@ -32,10 +32,6 @@ To update a plugin, replace its entire installed bundle, including both
 version on the Plugins settings page after restarting. Updating the Docker
 image alone does not replace installed bundles.
 
-Hammerhead 0.1.2 uses manifest 1.0 and works with wanderer v0.21.0. It corrects
-the elevation scale for newly imported Dashboard activities. Existing imported
-GPX files are preserved; installing this bundle does not repair them.
-
 There is no built-in plugin store. Community plugins can be installed the same
 way, but only install plugin bundles from sources you trust.
 

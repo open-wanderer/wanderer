@@ -1,4 +1,4 @@
-package pluginsystem
+package routes
 
 import (
 	"context"
@@ -9,24 +9,38 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"pocketbase/pluginsystem"
 )
+
+// The test binary can run the production worker without a separate backend
+// build. Ordinary test execution is unchanged; the runtime's optional
+// WANDERER_PLUGIN_WORKER_BIN override can still select an external backend.
+func init() {
+	if len(os.Args) == 2 && os.Args[1] == "plugin-worker" {
+		os.Exit(pluginsystem.RunPluginWorker(context.Background(), os.Stdin, os.Stdout, os.Stderr))
+	}
+}
 
 // This opt-in test executes the release bundle through the actual backend
 // worker. Ordinary Go tests do not require TinyGo or a backend executable.
-func TestHammerheadDashboardBuiltWASMElevations(t *testing.T) {
-	bundle := os.Getenv("WANDERER_HAMMERHEAD_BUNDLE")
-	worker := os.Getenv("WANDERER_PLUGIN_WORKER_BIN")
-	if bundle == "" || worker == "" {
-		t.Skip("set WANDERER_HAMMERHEAD_BUNDLE and WANDERER_PLUGIN_WORKER_BIN")
+func TestHammerheadBuiltWASMDashboardElevations(t *testing.T) {
+	wasmPath := os.Getenv("WANDERER_HAMMERHEAD_WASM")
+	if wasmPath == "" {
+		t.Skip("set WANDERER_HAMMERHEAD_WASM to the freshly built Hammerhead guest")
 	}
-	plugin, err := LoadLocalPlugin(bundle)
+	plugin, err := pluginsystem.LoadLocalPlugin(filepath.Dir(wasmPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plugin.Manifest.ManifestVersion != "1.0" || plugin.Manifest.Version != "0.1.2" {
-		t.Fatalf("expected Dashboard bundle 0.1.2/manifest 1.0, got %s/%s", plugin.Manifest.Version, plugin.Manifest.ManifestVersion)
+	// LoadLocalPlugin validates host/manifest compatibility. Use the exact
+	// requested guest without tying this behavioral test to a bundle version.
+	plugin.WASMPath, err = filepath.Abs(wasmPath)
+	if err != nil {
+		t.Fatal(err)
 	}
 	// Production HTTP policy rejects loopback even with allowPrivate. Keep that
 	// policy intact and bind the synthetic provider to a private interface.
@@ -68,10 +82,16 @@ func TestHammerheadDashboardBuiltWASMElevations(t *testing.T) {
 	defer server.Close()
 	// Only the resolved endpoint binding changes; guest, manifest permissions,
 	// HTTP policy, and backend runtime remain the production implementations.
-	policy := testHostPolicy(t, server.URL)
+	policy := pluginInstancePolicy(*plugin, nil)
+	connector, ok := policy.Connectors["api"]
+	if !ok {
+		t.Fatal("Hammerhead Dashboard connector is unavailable")
+	}
+	connector.BaseURL, connector.BasePath, connector.AllowPrivate = server.URL, "/", true
+	policy.Connectors["api"] = connector
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	session, err := (WorkerRuntime{Executable: worker}).OpenSession(ctx, *plugin, policy)
+	session, err := pluginsystem.NewWorkerRuntime().OpenSession(ctx, *plugin, policy)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,9 +105,9 @@ func TestHammerheadDashboardBuiltWASMElevations(t *testing.T) {
 	} {
 		t.Run(tt.kind, func(t *testing.T) {
 			input, err := json.Marshal(map[string]any{
-				"instance": InstanceRef{ID: "synthetic", PluginID: "hammerhead"},
+				"instance": pluginsystem.InstanceRef{ID: "synthetic", PluginID: "hammerhead"},
 				"auth":     map[string]any{"email": "test@example.invalid", "password": "synthetic-password"},
-				"summary":  TrailSummary{Kind: tt.kind, Source: TrailImportSource{Provider: "hammerhead", ExternalID: tt.id}},
+				"summary":  pluginsystem.TrailSummary{Kind: tt.kind, Source: pluginsystem.TrailImportSource{Provider: "hammerhead", ExternalID: tt.id}},
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -97,12 +117,12 @@ func TestHammerheadDashboardBuiltWASMElevations(t *testing.T) {
 				t.Fatal(err)
 			}
 			var detail struct {
-				Item TrailImport `json:"item"`
+				Item pluginsystem.TrailImport `json:"item"`
 			}
 			if err := json.Unmarshal(output, &detail); err != nil {
 				t.Fatal(err)
 			}
-			if detail.Item.Kind != tt.kind || detail.Item.Source.ExternalID != tt.id || detail.Item.Track.Format != "gpx" {
+			if detail.Item.Kind != tt.kind || detail.Item.Source.Provider != "hammerhead" || detail.Item.Source.ExternalID != tt.id || detail.Item.Track.Format != "gpx" {
 				t.Fatalf("unexpected import identity: kind=%s id=%s format=%s", detail.Item.Kind, detail.Item.Source.ExternalID, detail.Item.Track.Format)
 			}
 			data, err := base64.StdEncoding.DecodeString(detail.Item.Track.ContentBase64)

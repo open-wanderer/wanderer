@@ -44,3 +44,5 @@ jobs:
       - run: make db-test
       - run: make plugins-test
       - run: make plugins-build
+      - name: Test built Hammerhead guest against the host
+        run: make -C plugins/hammerhead test-integration

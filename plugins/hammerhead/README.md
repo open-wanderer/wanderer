@@ -1,6 +1,7 @@
 # wanderer Hammerhead WASM plugin
 
 WASM/Extism version of the Hammerhead provider for wanderer.
+This WASM plugin is supported by wanderer from v0.21.0 onwards.
 
 This plugin exports the wanderer plugin-system ABI:
 
@@ -24,7 +25,7 @@ install all bundled plugins locally.
 ## Updating to 0.1.2
 
 Version 0.1.2 fixes the elevation scale in new Dashboard activity imports and
-uses the existing manifest 1.0 contract, compatible with wanderer v0.21.0.
+uses the existing manifest 1.0 contract.
 Download and extract the Hammerhead archive from the release assets, then
 replace the installed `data/plugins/hammerhead` bundle, including both
 `plugin.json` and `plugin.wasm`. Restart the backend and open Hammerhead's
@@ -39,16 +40,25 @@ GOCACHE=/tmp/wanderer-go-cache go test ./...
 make manifest
 ```
 
-To check the built bundle through the real backend worker, build the backend
-and run this from the repository root:
+With TinyGo installed, run this from the repository root to build the bundle
+and check it through the real backend worker:
 
 ```sh
+make -C plugins/hammerhead test-integration
+```
+
+The target runs `make build` first. For a manual test run, build the guest
+before setting the path to its WASM file:
+
+```sh
+make -C plugins/hammerhead build
 cd db
-go build -o /tmp/wanderer-hammerhead-worker .
-WANDERER_PLUGIN_WORKER_BIN=/tmp/wanderer-hammerhead-worker \
-WANDERER_HAMMERHEAD_BUNDLE="$(pwd)/../plugins/hammerhead/dist/hammerhead" \
-go test ./pluginsystem -run TestHammerheadDashboardBuiltWASMElevations -count=1
+WANDERER_HAMMERHEAD_WASM="$(pwd)/../plugins/hammerhead/dist/hammerhead/plugin.wasm" \
+go test ./routes -run '^TestHammerheadBuiltWASM' -count=1
 ```
 
 This uses only a synthetic local provider and requires a private non-loopback
 network interface. Both activity and planned-route exports are checked.
+By default, the test binary starts the production worker in a child process.
+Optionally set `WANDERER_PLUGIN_WORKER_BIN` to a built wanderer backend to test
+the same bundle against that worker.
