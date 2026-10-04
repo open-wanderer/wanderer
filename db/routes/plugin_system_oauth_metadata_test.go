@@ -231,6 +231,24 @@ func (f *oauthMetadataFixture) storedAuth(t *testing.T) (*core.Record, map[strin
 	return instance, auth
 }
 
+func (f *oauthMetadataFixture) assertAuthFieldsAbsent(t *testing.T, stage string, fields ...string) {
+	t.Helper()
+	instance, stored := f.storedAuth(t)
+	response := f.request(t, http.MethodGet, "/api/collections/plugin_instances/records/"+f.instanceID, nil)
+	for name, auth := range map[string]map[string]any{
+		"stored auth":  pluginsystem.JSONMapFromRecord(instance, "auth"),
+		"decoded auth": stored,
+		"plugin input": pluginsystem.PluginInputAuth(f.plugin, stored),
+		"GET auth":     response["auth"].(map[string]any),
+	} {
+		for _, field := range fields {
+			if value, present := auth[field]; present {
+				t.Errorf("%s: %s retained cleared %s as %#v", stage, name, field, value)
+			}
+		}
+	}
+}
+
 // Match initialAuth/pluginInstanceFromForm: only manifest input fields leave
 // the modal, and censored secret values are empty placeholders.
 func (f *oauthMetadataFixture) modalPayload(t *testing.T) map[string]any {
@@ -316,7 +334,11 @@ func TestOAuthMetadataOpenModalBeforeRefreshKeepsLatestGrant(t *testing.T) {
 }
 
 func TestOAuthMetadataOpenModalBeforeRevokeKeepsGrantRemoved(t *testing.T) {
-	f := newOAuthMetadataFixture(t)
+	f := newOAuthMetadataFixture(t, func(auth map[string]any) {
+		auth["oauthState"] = "old-oauth-state"
+		auth["oauthCodeVerifier"] = "old-oauth-verifier"
+		auth["oauthRedirectURI"] = "https://wanderer.example/settings/plugins/oauth/callback"
+	})
 	payload := f.modalPayload(t)
 	f.request(t, http.MethodPost, "/api/plugin-system/oauth/revoke", map[string]any{"instanceId": f.instanceID})
 	for _, stage := range []string{"revoke", "old modal save", "repeated modal save"} {
@@ -324,11 +346,7 @@ func TestOAuthMetadataOpenModalBeforeRevokeKeepsGrantRemoved(t *testing.T) {
 			f.saveModal(t, payload)
 		}
 		_, auth := f.storedAuth(t)
-		for _, field := range []string{"accessToken", "refreshToken", "expiresAt", "tokenType", "oauthContext", "scope", "oauthState", "oauthCodeVerifier", "oauthRedirectURI"} {
-			if value := auth[field]; value != nil {
-				t.Errorf("%s restored cleared %s: %#v", stage, field, value)
-			}
-		}
+		f.assertAuthFieldsAbsent(t, stage, "accessToken", "refreshToken", "expiresAt", "tokenType", "oauthContext", "scope", "oauthState", "oauthCodeVerifier", "oauthRedirectURI")
 		if auth["clientId"] != "strava-test-client" || auth["clientSecret"] != "strava-test-client-secret" {
 			t.Errorf("%s removed client credentials", stage)
 		}
@@ -353,13 +371,25 @@ func TestOAuthMetadataCallbackClearsPersistedFlow(t *testing.T) {
 		"instanceId": f.instanceID, "state": start["state"], "code": "test-authorization-code",
 	})
 	_, saved := f.storedAuth(t)
-	for _, field := range pluginsystem.InternalOAuthTransientFields() {
-		if saved[field] != nil {
-			t.Errorf("callback restored cleared flow field %s", field)
-		}
-	}
+	f.assertAuthFieldsAbsent(t, "successful callback", "oauthState", "oauthCodeVerifier", "oauthRedirectURI")
 	if saved["accessToken"] != "strava-test-access-rotated" || saved["oauthContext"] != "oauth_access_token" {
 		t.Error("callback did not preserve the new grant")
+	}
+	// A completed authorization must consume the state, even when a second
+	// callback has the same valid code and the provider would exchange it again.
+	replay, err := json.Marshal(map[string]any{
+		"instanceId": f.instanceID, "state": start["state"], "code": "test-authorization-code",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/plugin-system/oauth/callback", bytes.NewReader(replay))
+	req.Header.Set("Authorization", f.authToken)
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	f.handler.ServeHTTP(response, req)
+	if response.Code != http.StatusBadRequest || f.tokenRequests.Load() != 1 {
+		t.Errorf("completed OAuth state was reusable: replay status %d, token requests %d", response.Code, f.tokenRequests.Load())
 	}
 }
 
@@ -383,6 +413,9 @@ func TestOAuthMetadataSettingsCredentialEditsRemainEffective(t *testing.T) {
 			if saved["clientId"] != "replacement-strava-client" || saved["clientSecret"] != tc.secret {
 				t.Error("settings save restored credentials that were explicitly replaced or removed")
 			}
+			if tc.secret == nil {
+				f.assertAuthFieldsAbsent(t, "explicit credential removal", "clientSecret")
+			}
 			for _, field := range []string{"expiresAt", "tokenType", "oauthContext", "scope"} {
 				if saved[field] != before[field] {
 					t.Errorf("credential edit lost omitted %s", field)
@@ -399,7 +432,58 @@ func TestOAuthMetadataSettingsDoesNotInventMissingExpiry(t *testing.T) {
 	if _, exists := saved["expiresAt"]; exists {
 		t.Error("settings save invented expiry metadata for a previously affected grant")
 	}
+	f.assertAuthFieldsAbsent(t, "unknown expiry", "expiresAt")
 	if pluginsystem.OAuthNeedsRefresh(saved) {
 		t.Error("missing expiry was treated as a known expiry")
+	}
+}
+
+func TestOAuthMetadataExplicitNullFieldsAreConsumed(t *testing.T) {
+	fields := []string{"expiresAt", "tokenType", "oauthContext", "scope", "clientSecret", "unusedAuthNote"}
+	t.Run("create", func(t *testing.T) {
+		f := newOAuthMetadataFixture(t, func(auth map[string]any) {
+			for _, field := range fields {
+				auth[field] = nil
+			}
+		})
+		f.assertAuthFieldsAbsent(t, "create", fields...)
+	})
+	t.Run("settings save", func(t *testing.T) {
+		f := newOAuthMetadataFixture(t)
+		payload := f.modalPayload(t)
+		for _, field := range fields {
+			payload["auth"].(map[string]any)[field] = nil
+		}
+		f.saveModal(t, payload)
+		f.assertAuthFieldsAbsent(t, "explicit null", fields...)
+		_, stored := f.storedAuth(t)
+		if stored["accessToken"] != "strava-test-access" || stored["refreshToken"] != "strava-test-refresh" {
+			t.Error("explicit metadata removal changed the remaining encrypted grant")
+		}
+		// Omission after the explicit removal must not resurrect the fields.
+		f.saveModal(t, map[string]any{"auth": map[string]any{"clientId": "strava-test-client"}})
+		f.assertAuthFieldsAbsent(t, "later omitted fields", fields...)
+	})
+}
+
+func TestOAuthMetadataNeedsAuthStatusDoesNotProveRevocation(t *testing.T) {
+	f := newOAuthMetadataFixture(t)
+	instance, before := f.storedAuth(t)
+	instance.Set("status", "needs_auth")
+	if err := f.app.Save(instance); err != nil {
+		t.Fatal(err)
+	}
+	f.saveModal(t, f.modalPayload(t))
+	f.request(t, http.MethodPost, "/api/plugin-system/oauth/start", map[string]any{
+		"pluginId": "strava", "instanceId": f.instanceID, "redirectUri": "https://wanderer.example/settings/plugins/oauth/callback",
+	})
+	instance, saved := f.storedAuth(t)
+	for _, field := range []string{"accessToken", "refreshToken", "expiresAt", "tokenType", "oauthContext", "scope"} {
+		if saved[field] != before[field] {
+			t.Errorf("needs_auth settings/start changed an existing %s without proof of revocation", field)
+		}
+	}
+	if instance.GetString("status") != "needs_auth" || f.tokenRequests.Load() != 0 {
+		t.Error("settings/start repaired or refreshed an ambiguous historical grant")
 	}
 }
