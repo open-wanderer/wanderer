@@ -1,5 +1,6 @@
 import { type Tag } from "$lib/models/tag";
 import { APIError } from "$lib/util/api_util";
+import { normalizeTagName } from "$lib/util/tag_name";
 import type { ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 
@@ -29,7 +30,7 @@ export async function tags_index(name: string, f: (url: RequestInfo | URL, confi
 export async function tags_create(tag: Tag) {
     let r = await fetch('/api/v1/tag', {
         method: 'PUT',
-        body: JSON.stringify(tag),
+        body: JSON.stringify({ ...tag, name: normalizeTagName(tag.name) }),
     })
 
     if (!r.ok) {

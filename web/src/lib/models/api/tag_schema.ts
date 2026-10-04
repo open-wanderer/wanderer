@@ -1,11 +1,12 @@
 import { z, ZodType } from "zod";
 import type { Tag } from "../tag";
+import { normalizeTagName } from "$lib/util/tag_name";
 
 // Match PocketBase's existing 5000-character limit (Unicode code points, not
 // UTF-16 units). Reject only C0/DEL; retain empty names, other Unicode,
-// punctuation and literal markup without trimming or normalization.
+// punctuation and literal markup without trimming or Unicode normalization.
 const TagNameSchema = z.string()
-    .refine(name => !/[\u0000-\u001f\u007f]/u.test(name), "invalid-tag-name")
+    .refine(name => normalizeTagName(name) === name, "invalid-tag-name")
     .refine(name => Array.from(name).length <= 5000, "too-long");
 
 const TagCreateSchema = z.object({
