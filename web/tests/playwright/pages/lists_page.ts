@@ -42,7 +42,24 @@ export class ListsPage {
   }
 
   async goto() {
-    await this.page.goto('/lists', { waitUntil: 'networkidle' });
+    await this.loadOverview();
+  }
+
+  private async loadOverview() {
+    const [searchResponse] = await Promise.all([
+      this.page.waitForResponse(
+        response => new URL(response.url()).pathname === '/api/v1/search/lists'
+          && response.request().method() === 'POST',
+      ),
+      this.page.goto('/lists', { waitUntil: 'domcontentloaded' }),
+    ]);
+    expect(searchResponse.status(), 'Overview search must succeed').toBe(200);
+    await expect(this.listItems.first().or(
+      this.page.locator('#list-container').getByRole('heading', {
+        name: 'No results found', exact: true,
+      }),
+    )).toBeVisible();
+    return searchResponse.request().postDataJSON();
   }
 
   private async selectDropdownAction(action: string) {
@@ -50,35 +67,37 @@ export class ListsPage {
     await this.page.locator(".menu .menu-item").filter({ hasText: action }).click();
   }
 
-  private async reloadUntilIndexed(
+  private async waitUntilIndexed(
     id: string,
     expected?: { name: string; description?: string },
   ) {
-    // A successful save/delete only enqueues the search-index update. Reload
-    // the overview on each attempt so a stale result is actually queried again.
-    await expect(async () => {
-      const [searchResponse] = await Promise.all([
-        this.page.waitForResponse(
-          response => new URL(response.url()).pathname === '/api/v1/search/lists'
-            && response.request().method() === 'POST'
-            && response.status() === 200,
-          { timeout: 3000 },
-        ),
-        this.page.goto('/lists', { waitUntil: 'networkidle', timeout: 3000 }),
-      ]);
+    // Reuse the overview's actual filter and the browser's current cookies.
+    // Poll only the search API: map/image traffic must not delay indexing checks.
+    const body = await this.loadOverview();
+    const indexedList = expect.poll(async () => {
+      const searchResponse = await this.page.request.post('/api/v1/search/lists', {
+        data: body, timeout: 3000,
+      });
+      expect(searchResponse.status(), 'Polled list search must succeed').toBe(200);
       const { hits } = await searchResponse.json() as {
         hits: { id: string; name: string; description?: string }[];
       };
-      const indexedList = hits.find(item => item.id === id);
-      if (expected) {
-        expect(indexedList).toMatchObject(expected);
-        await expect(this.listItems.filter({
-          has: this.page.getByRole('heading', { name: expected.name, exact: true }),
-        }).first()).toBeVisible({ timeout: 1000 });
-      } else {
-        expect(indexedList).toBeUndefined();
-      }
-    }).toPass({ timeout: 15000, intervals: [100, 250, 500] });
+      return hits.find(item => item.id === id);
+    }, {
+      timeout: 15000, intervals: [100, 250, 500],
+      message: `List ${id} must ${expected ? 'match its saved values' : 'leave the search index'}`,
+    });
+    if (expected) {
+      await indexedList.toMatchObject(expected);
+    } else {
+      await indexedList.toBeUndefined();
+    }
+    await this.goto();
+    if (expected) {
+      await expect(this.listItems.filter({
+        has: this.page.getByRole('heading', { name: expected.name, exact: true }),
+      }).first()).toBeVisible();
+    }
   }
 
   async create(name: string = "Test List") {
@@ -88,13 +107,13 @@ export class ListsPage {
       "./tests/playwright/fixtures/avatar.webp"
     ]);
 
-    const [response] = await Promise.all([
+    const [createdList] = await Promise.all([
       this.page.waitForResponse(resp => resp.url().includes('/api/v1/list')
-        && resp.request().method() === 'PUT' && resp.status() === 200),
+        && resp.request().method() === 'PUT' && resp.status() === 200)
+        .then(response => response.json() as Promise<{ id: string }>),
       this.listFormSaveButton.click()
     ]);
-    const createdList = await response.json() as { id: string };
-    await this.reloadUntilIndexed(createdList.id, { name });
+    await this.waitUntilIndexed(createdList.id, { name });
   }
 
   async update(name: string = "Updated List", description = "New Description") {
@@ -105,13 +124,13 @@ export class ListsPage {
     await this.listFormName.fill(name);
     await this.listFormDescription.fill(description);
 
-    const [response] = await Promise.all([
+    const [updatedList] = await Promise.all([
       this.page.waitForResponse(resp => resp.url().includes('/api/v1/list')
-        && resp.request().method() === 'POST' && resp.status() === 200),
+        && resp.request().method() === 'POST' && resp.status() === 200)
+        .then(response => response.json() as Promise<{ id: string; description: string }>),
       this.listFormSaveButton.click()
     ]);
-    const updatedList = await response.json() as { id: string; description: string };
-    await this.reloadUntilIndexed(updatedList.id, { name, description: updatedList.description });
+    await this.waitUntilIndexed(updatedList.id, { name, description: updatedList.description });
   }
 
   async delete() {
@@ -124,7 +143,7 @@ export class ListsPage {
       this.confirmModalConfirmButton.click()
     ]);
     const deletedId = new URL(response.url()).pathname.split('/').at(-1)!;
-    await this.reloadUntilIndexed(deletedId);
+    await this.waitUntilIndexed(deletedId);
   }
 
   async removeAll() {
