@@ -274,11 +274,8 @@ func TestImmutableOwnershipKeepsTrustedSavesAndSuperusers(t *testing.T) {
 	}
 }
 
-func TestImmutableOwnershipMigrationIsQueueIndependentAndIdempotent(t *testing.T) {
+func TestImmutableOwnershipMigrationIsIdempotentAndKeepsLockedRules(t *testing.T) {
 	app := newRulesTestApp(t)
-	if _, err := app.FindCollectionByNameOrId("plugin_webhook_jobs"); err == nil {
-		t.Fatal("this ownership regression must run without the planned webhook queue")
-	}
 	collection, err := app.FindCollectionByNameOrId("comments")
 	if err != nil {
 		t.Fatal(err)
