@@ -1,15 +1,16 @@
 import { type Tag } from "$lib/models/tag";
 import { APIError } from "$lib/util/api_util";
 import { normalizeTagName } from "$lib/util/tag_name";
-import type { ListResult } from "pocketbase";
+import PocketBase, { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 
 let tags: Writable<Tag[]> = writable([]);
+const filterBuilder = new PocketBase();
 
 
 export async function tags_index(name: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/tag?' + new URLSearchParams({
-        filter: `name~'${name}'`,
+        filter: filterBuilder.filter("name ~ {:name}", { name }),
     }), {
         method: 'GET',
     })
