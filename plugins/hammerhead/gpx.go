@@ -22,7 +22,8 @@ func activityGPX(activity *activity) ([]byte, error) {
 		}
 		elevation := 0.0
 		if i < len(activity.RecordData.Elevation) {
-			elevation = activity.RecordData.Elevation[i] / 1000.0
+			// Dashboard record elevations are already expressed in metres.
+			elevation = activity.RecordData.Elevation[i]
 		}
 		pointTime := time.Unix(int64(timestamp), 0).UTC()
 		points = append(points, sdkgpx.Point{
