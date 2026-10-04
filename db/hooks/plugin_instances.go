@@ -181,6 +181,14 @@ func encryptPluginInstanceAuth(app core.App, r *core.Record) error {
 			}
 			if encryptAll || secretFields[key] {
 				auth[key] = value
+				continue
+			}
+			// Settings submit only editable credentials. Keep the accompanying
+			// host-managed OAuth metadata too; an explicit nil still clears it.
+			switch key {
+			case pluginsystem.AuthFieldExpiresAt, pluginsystem.AuthFieldTokenType,
+				pluginsystem.AuthFieldOAuthContext, pluginsystem.AuthFieldScope:
+				auth[key] = value
 			}
 		}
 	}

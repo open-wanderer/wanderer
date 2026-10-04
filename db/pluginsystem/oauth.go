@@ -260,10 +260,12 @@ func StoreOAuthToken(auth map[string]any, contextName string, token *OAuthTokenR
 	}
 }
 
-// ClearOAuthToken removes persisted OAuth token material and transient OAuth
-// flow fields from an auth map.
+// ClearOAuthToken explicitly clears persisted OAuth token material, metadata,
+// and transient flow fields. Nil markers prevent the update hook from restoring
+// these fields as omitted credentials or metadata.
 func ClearOAuthToken(auth map[string]any) {
 	for _, key := range []string{
+		AuthFieldOAuthContext,
 		AuthFieldAccessToken,
 		AuthFieldRefreshToken,
 		AuthFieldTokenType,
@@ -273,7 +275,7 @@ func ClearOAuthToken(auth map[string]any) {
 		AuthFieldOAuthCodeVerifier,
 		AuthFieldOAuthRedirectURI,
 	} {
-		delete(auth, key)
+		auth[key] = nil
 	}
 }
 
