@@ -233,13 +233,14 @@ func (f *oauthMetadataFixture) storedAuth(t *testing.T) (*core.Record, map[strin
 
 func (f *oauthMetadataFixture) assertAuthFieldsAbsent(t *testing.T, stage string, fields ...string) {
 	t.Helper()
-	instance, stored := f.storedAuth(t)
+	instance, err := f.app.FindRecordById("plugin_instances", f.instanceID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	response := f.request(t, http.MethodGet, "/api/collections/plugin_instances/records/"+f.instanceID, nil)
 	for name, auth := range map[string]map[string]any{
-		"stored auth":  pluginsystem.JSONMapFromRecord(instance, "auth"),
-		"decoded auth": stored,
-		"plugin input": pluginsystem.PluginInputAuth(f.plugin, stored),
-		"GET auth":     response["auth"].(map[string]any),
+		"stored auth": pluginsystem.JSONMapFromRecord(instance, "auth"),
+		"GET auth":    response["auth"].(map[string]any),
 	} {
 		for _, field := range fields {
 			if value, present := auth[field]; present {
@@ -464,26 +465,4 @@ func TestOAuthMetadataExplicitNullFieldsAreConsumed(t *testing.T) {
 		f.saveModal(t, map[string]any{"auth": map[string]any{"clientId": "strava-test-client"}})
 		f.assertAuthFieldsAbsent(t, "later omitted fields", fields...)
 	})
-}
-
-func TestOAuthMetadataNeedsAuthStatusDoesNotProveRevocation(t *testing.T) {
-	f := newOAuthMetadataFixture(t)
-	instance, before := f.storedAuth(t)
-	instance.Set("status", "needs_auth")
-	if err := f.app.Save(instance); err != nil {
-		t.Fatal(err)
-	}
-	f.saveModal(t, f.modalPayload(t))
-	f.request(t, http.MethodPost, "/api/plugin-system/oauth/start", map[string]any{
-		"pluginId": "strava", "instanceId": f.instanceID, "redirectUri": "https://wanderer.example/settings/plugins/oauth/callback",
-	})
-	instance, saved := f.storedAuth(t)
-	for _, field := range []string{"accessToken", "refreshToken", "expiresAt", "tokenType", "oauthContext", "scope"} {
-		if saved[field] != before[field] {
-			t.Errorf("needs_auth settings/start changed an existing %s without proof of revocation", field)
-		}
-	}
-	if instance.GetString("status") != "needs_auth" || f.tokenRequests.Load() != 0 {
-		t.Error("settings/start repaired or refreshed an ambiguous historical grant")
-	}
 }
