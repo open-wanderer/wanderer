@@ -32,36 +32,3 @@ replace the installed `data/plugins/hammerhead` bundle, including both
 information dialog in Plugins settings to check for version 0.1.2. Updating the
 Docker image alone does not replace an installed plugin bundle. Previously
 imported GPX files are preserved.
-
-## Development
-
-```sh
-GOCACHE=/tmp/wanderer-go-cache go test ./...
-make manifest
-```
-
-With TinyGo installed, run this from the repository root to build the bundle
-and check it through the real backend worker:
-
-```sh
-make -C plugins/hammerhead test-integration
-```
-
-The target runs `make build` first. For a manual test run, build the guest
-before setting the path to its WASM file:
-
-```sh
-make -C plugins/hammerhead build
-cd db
-WANDERER_HAMMERHEAD_WASM="$(pwd)/../plugins/hammerhead/dist/hammerhead/plugin.wasm" \
-go test ./routes -run '^TestHammerheadBuiltWASM' -count=1
-```
-
-When the bundle has already been built, as in CI after `make plugins-build`,
-run `make -C plugins/hammerhead test-integration-built` to reuse it.
-
-This uses only a synthetic local provider and requires a private non-loopback
-network interface. Both activity and planned-route exports are checked.
-By default, the test binary starts the production worker in a child process.
-Optionally set `WANDERER_PLUGIN_WORKER_BIN` to a built wanderer backend to test
-the same bundle against that worker.
