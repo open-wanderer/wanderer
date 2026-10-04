@@ -20,7 +20,7 @@ import (
 // build. Ordinary test execution is unchanged; the runtime's optional
 // WANDERER_PLUGIN_WORKER_BIN override can still select an external backend.
 func init() {
-	if len(os.Args) == 2 && os.Args[1] == "plugin-worker" {
+	if os.Getenv("WANDERER_PLUGIN_TEST_WORKER") == "1" && len(os.Args) == 2 && os.Args[1] == "plugin-worker" {
 		os.Exit(pluginsystem.RunPluginWorker(context.Background(), os.Stdin, os.Stdout, os.Stderr))
 	}
 }
@@ -32,6 +32,7 @@ func TestHammerheadBuiltWASMDashboardElevations(t *testing.T) {
 	if wasmPath == "" {
 		t.Skip("set WANDERER_HAMMERHEAD_WASM to the freshly built Hammerhead guest")
 	}
+	t.Setenv("WANDERER_PLUGIN_TEST_WORKER", "1")
 	plugin, err := pluginsystem.LoadLocalPlugin(filepath.Dir(wasmPath))
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +124,7 @@ func TestHammerheadBuiltWASMDashboardElevations(t *testing.T) {
 				t.Fatal(err)
 			}
 			if detail.Item.Kind != tt.kind || detail.Item.Source.Provider != "hammerhead" || detail.Item.Source.ExternalID != tt.id || detail.Item.Track.Format != "gpx" {
-				t.Fatalf("unexpected import identity: kind=%s id=%s format=%s", detail.Item.Kind, detail.Item.Source.ExternalID, detail.Item.Track.Format)
+				t.Fatalf("unexpected import identity: kind=%s provider=%s id=%s format=%s", detail.Item.Kind, detail.Item.Source.Provider, detail.Item.Source.ExternalID, detail.Item.Track.Format)
 			}
 			data, err := base64.StdEncoding.DecodeString(detail.Item.Track.ContentBase64)
 			if err != nil {

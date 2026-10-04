@@ -1,7 +1,7 @@
 PLUGIN_ID := hammerhead
 DIST_DIR := dist/$(PLUGIN_ID)
 
-.PHONY: build manifest test-integration clean
+.PHONY: build manifest test-integration test-integration-built clean
 
 build: manifest
 	tinygo build -target=wasi -scheduler=none -no-debug -o $(DIST_DIR)/plugin.wasm .
@@ -13,6 +13,9 @@ manifest:
 	cp assets/icon_dark.svg $(DIST_DIR)/icon_dark.svg
 
 test-integration: build
+	$(MAKE) test-integration-built
+
+test-integration-built:
 	cd ../../db && WANDERER_HAMMERHEAD_WASM="$(CURDIR)/$(DIST_DIR)/plugin.wasm" go test ./routes -run '^TestHammerheadBuiltWASM' -count=1
 
 clean:

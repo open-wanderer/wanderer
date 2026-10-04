@@ -1,7 +1,6 @@
 # wanderer Hammerhead WASM plugin
 
 WASM/Extism version of the Hammerhead provider for wanderer.
-This WASM plugin is supported by wanderer from v0.21.0 onwards.
 
 This plugin exports the wanderer plugin-system ABI:
 
@@ -26,6 +25,7 @@ install all bundled plugins locally.
 
 Version 0.1.2 fixes the elevation scale in new Dashboard activity imports and
 uses the existing manifest 1.0 contract.
+0.1.2 is tested with wanderer v0.21.0.
 Download and extract the Hammerhead archive from the release assets, then
 replace the installed `data/plugins/hammerhead` bundle, including both
 `plugin.json` and `plugin.wasm`. Restart the backend and open Hammerhead's
@@ -56,6 +56,9 @@ cd db
 WANDERER_HAMMERHEAD_WASM="$(pwd)/../plugins/hammerhead/dist/hammerhead/plugin.wasm" \
 go test ./routes -run '^TestHammerheadBuiltWASM' -count=1
 ```
+
+When the bundle has already been built, as in CI after `make plugins-build`,
+run `make -C plugins/hammerhead test-integration-built` to reuse it.
 
 This uses only a synthetic local provider and requires a private non-loopback
 network interface. Both activity and planned-route exports are checked.
