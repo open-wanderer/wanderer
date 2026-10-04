@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private'
 import { env as envPub } from '$env/dynamic/public'
 import type { Settings } from '$lib/models/settings'
 
-import PocketBase from 'pocketbase'
+import PocketBase, { ClientResponseError } from 'pocketbase'
 import { isRouteProtected } from '$lib/util/authorization_util'
 import { error, json, redirect, text, type Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
@@ -71,6 +71,14 @@ const auth: Handle = async ({ event, resolve }) => {
         })
         pb.authStore.save(authData.token, authData.record)
       } catch (e) {
+        // A missing auth endpoint or a backend failure is not a token rejection.
+        if (e instanceof ClientResponseError && e.status === 404 &&
+          e.response.message === "Invalid or revoked API token.") {
+          return json({ message: "invalid_token" }, {
+            status: 401,
+            headers: { "WWW-Authenticate": 'Bearer error="invalid_token"' },
+          })
+        }
         throw error(500, "Failed to verify API token " + e)
       }
 
