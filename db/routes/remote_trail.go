@@ -351,8 +351,8 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	}
 
 	// Resolve Tags
-	localTagIds, applyTags := resolveAndSyncTags(app, data)
-	if applyTags {
+	localTagIds := resolveAndSyncTags(app, data)
+	if len(localTagIds) > 0 {
 		record.Set("tags", localTagIds)
 	}
 
@@ -372,46 +372,33 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 	record.Load(data)
 }
 
-func resolveAndSyncTags(app core.App, data map[string]any) ([]string, bool) {
+func resolveAndSyncTags(app core.App, data map[string]any) []string {
 	localTagIds := []string{}
 
 	expand, ok := data["expand"].(map[string]any)
 	if !ok {
-		return localTagIds, false
+		return localTagIds
 	}
 
 	remoteTags, ok := expand["tags"].([]any)
 	if !ok {
-		return localTagIds, false
+		return localTagIds
 	}
 
-	// An explicit empty list, or a fully handled list of names that normalize
-	// to empty, clears previous relations. With no resolved IDs, malformed
-	// input or failed lookups/saves retain previous relations. Partial actual
-	// success keeps the federation import's tolerant behavior.
-	applyTags := len(remoteTags) == 0
-	hasErrors := false
 	seenTags := make(map[string]struct{})
 
 	for _, t := range remoteTags {
 		tagMap, ok := t.(map[string]any)
 		if !ok {
-			hasErrors = true
 			continue
 		}
 
 		tagName, ok := tagMap["name"].(string)
 		if !ok {
-			hasErrors = true
 			continue
 		}
 		localTag, err := util.ResolveFederatedTag(app, tagName)
-		if err != nil {
-			hasErrors = true
-			continue
-		}
-		applyTags = true
-		if localTag == nil {
+		if err != nil || localTag == nil {
 			continue
 		}
 		if _, seen := seenTags[localTag.Id]; seen {
@@ -421,7 +408,7 @@ func resolveAndSyncTags(app core.App, data map[string]any) ([]string, bool) {
 		localTagIds = append(localTagIds, localTag.Id)
 	}
 
-	return localTagIds, applyTags && (len(localTagIds) > 0 || !hasErrors)
+	return localTagIds
 }
 
 func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, origin string, waypoints []any) error {

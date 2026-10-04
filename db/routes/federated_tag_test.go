@@ -153,8 +153,8 @@ func TestRemoteTrailFullSyncNormalizesTags(t *testing.T) {
 		keep bool
 	}{
 		{"controls collisions and literal text", []any{map[string]any{"name": "a\tb"}, map[string]any{"name": "ab"}, map[string]any{"name": "\n\t\x7f"}, map[string]any{"name": "\n" + federatedTagLiteral}}, []string{"ab", federatedTagLiteral}, false},
-		{"control-only clears previous relations", []any{map[string]any{"name": "\n\t\x7f"}}, nil, false},
-		{"explicit empty list clears previous relations", []any{}, nil, false},
+		{"control-only retains previous relations", []any{map[string]any{"name": "\n\t\x7f"}}, []string{"ab"}, true},
+		{"explicit empty list retains previous relations", []any{}, []string{"ab"}, true},
 		{"missing tags retain previous relations", nil, []string{"ab"}, true},
 		{"malformed list retains previous relations", "not-a-list", []string{"ab"}, true},
 		{"malformed items retain previous relations", []any{nil, map[string]any{"name": 42}}, []string{"ab"}, true},
@@ -180,13 +180,7 @@ func TestRemoteTrailFullSyncNormalizesTags(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			previousClient := newRemoteSyncHTTPClient
-			newRemoteSyncHTTPClient = func() *http.Client { return &http.Client{Transport: federatedTagTransport(body)} }
-			t.Cleanup(func() { newRemoteSyncHTTPClient = previousClient })
-			requestURL, _ := url.Parse("https://local.example/api/v1/trail/tags?expand=tags")
-			if _, err := performFullSync(app, context.Background(), requestURL, trail); err != nil {
-				t.Fatal(err)
-			}
+			syncFederatedTagTestResponse(t, app, trail, body)
 			if tt.keep {
 				reloaded, err := app.FindRecordById("trails", trail.Id)
 				if err != nil || !slices.Equal(reloaded.GetStringSlice("tags"), []string{federatedTagOtherID}) {
@@ -196,5 +190,65 @@ func TestRemoteTrailFullSyncNormalizesTags(t *testing.T) {
 				assertFederatedTagNames(t, app, trail.Id, tt.want)
 			}
 		})
+	}
+}
+
+func TestRemoteTrailFullSyncEmptyPocketBaseTagsRetainsRelations(t *testing.T) {
+	t.Setenv("ORIGIN", "https://local.example")
+	app, collection, actor := setupFederatedTagImport(t)
+	trail := core.NewRecord(collection)
+	trail.Set("iri", "https://remote.example/api/v1/trail/tags")
+	trail.Set("author", actor.Id)
+	trail.Set("tags", []string{federatedTagOtherID})
+	if err := app.Save(trail); err != nil {
+		t.Fatal(err)
+	}
+
+	// Use PocketBase's real expansion and serialization: an empty relation
+	// appears in tags, but its expansion is absent from the expand object.
+	remote := core.NewRecord(collection)
+	remote.Id = "remotetrail00001"
+	remote.Set("name", "Updated trail")
+	if errs := app.ExpandRecord(remote, []string{"tags"}, nil); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	body, err := json.Marshal(remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatal(err)
+	}
+	ids, ok := payload["tags"].([]any)
+	if !ok || len(ids) != 0 {
+		t.Fatalf("PocketBase tags = %v, want an empty array", payload["tags"])
+	}
+	expand, ok := payload["expand"].(map[string]any)
+	if !ok {
+		t.Fatalf("PocketBase expand = %v, want an object", payload["expand"])
+	}
+	if _, present := expand["tags"]; present {
+		t.Fatalf("PocketBase unexpectedly included expand.tags: %v", expand)
+	}
+
+	syncFederatedTagTestResponse(t, app, trail, body)
+	reloaded, err := app.FindRecordById("trails", trail.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(reloaded.GetStringSlice("tags"), []string{federatedTagOtherID}) {
+		t.Fatalf("previous relation was not retained: %v", reloaded.GetStringSlice("tags"))
+	}
+}
+
+func syncFederatedTagTestResponse(t *testing.T, app core.App, trail *core.Record, body []byte) {
+	t.Helper()
+	previousClient := newRemoteSyncHTTPClient
+	newRemoteSyncHTTPClient = func() *http.Client { return &http.Client{Transport: federatedTagTransport(body)} }
+	t.Cleanup(func() { newRemoteSyncHTTPClient = previousClient })
+	requestURL, _ := url.Parse("https://local.example/api/v1/trail/tags?expand=tags")
+	if _, err := performFullSync(app, context.Background(), requestURL, trail); err != nil {
+		t.Fatal(err)
 	}
 }
