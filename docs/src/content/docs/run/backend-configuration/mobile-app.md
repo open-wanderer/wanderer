@@ -40,6 +40,6 @@ The app can download map regions for offline use, but only the ones you enable. 
 
 ## What users see when an instance isn't ready
 
-The app does not check the instance version up front. On an instance without the `-app` images, users can log in, but the map stays empty and recording, navigation, file import, settings, and offline regions fail with errors. The [Getting started](/app/getting-started#choose-your-instance) page tells them to ask their administrator, which is you.
+The app does not check the instance version up front. On an instance without the `-app` images, users can select it, but logging in fails with `type 'List<dynamic>' is not a subtype of type 'Map<String, dynamic>' in type cast`, for password and third-party logins alike. The [Getting started](/app/getting-started#choose-your-instance) page tells them to ask their administrator, which is you.
 
 Users pick your instance from the public server list on wanderer.to or type its address; there is nothing to register on your side.
