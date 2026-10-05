@@ -34,12 +34,18 @@ The `-app` builds contain everything the regular release of the same version doe
 
 The app refuses plain `http://` connections to anything but `127.0.0.1`. Your instance must be reachable over HTTPS with a certificate the phone trusts; self-signed certificates do not work unless they are installed on the device.
 
+## A map tile source
+
+The app's online map loads tiles from wherever your instance tells it to. By default that is the Protomaps API, which needs an API key: set `PROTOMAPS_API_KEY` on the `web` service, or point `TILE_SERVER_URL` at your own tile server. Without either, the app's online map stays blank. See [Custom map tiles & assets](/run/backend-configuration/map-tiles).
+
 ## Optional: offline map regions
 
 The app can download map regions for offline use, but only the ones you enable. Nothing is built or served until you do; see [Region catalogue](/run/backend-configuration/region-catalogue). Without any enabled region, users can still download trails and navigate them offline, just without a base map.
 
 ## What users see when an instance isn't ready
 
-The app does not check the instance version up front. On an instance without the `-app` images, users can log in, but the map stays empty and recording, navigation, file import, settings, and offline regions fail with errors. The [Getting started](/app/getting-started#choose-your-instance) page tells them to ask their administrator, which is you.
+The app does not check the instance version up front. On an instance without the `-app` images, users can select it, but logging in fails with `type 'List<dynamic>' is not a subtype of type 'Map<String, dynamic>' in type cast`, for password and third-party logins alike. The [Getting started](/app/getting-started#choose-your-instance) page tells them to ask their administrator, which is you.
+
+If everything else works but the map is blank, the instance has no [map tile source](#a-map-tile-source) configured.
 
 Users pick your instance from the public server list on wanderer.to or type its address; there is nothing to register on your side.
