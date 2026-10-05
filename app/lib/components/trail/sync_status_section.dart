@@ -42,7 +42,7 @@ class SyncStatusSection extends ConsumerWidget {
 
     final Widget leading;
     final String title;
-    String? body;
+    final String body;
     final actions = <Widget>[];
 
     switch (display) {
@@ -78,9 +78,10 @@ class SyncStatusSection extends ConsumerWidget {
           color: colors.icon,
         );
         title = l10n.sync_pending;
-        if (!isOnline) {
-          body = l10n.sync_section_pending_offline_body;
-        } else if (localId != null) {
+        body = isOnline
+            ? l10n.sync_section_pending_online_body
+            : l10n.sync_section_pending_offline_body;
+        if (isOnline && localId != null) {
           actions.add(
             ElevatedButton(
               // retry, not drainIfOnline: an explicit tap must also clear a
@@ -98,6 +99,7 @@ class SyncStatusSection extends ConsumerWidget {
           child: CircularProgressIndicator(strokeWidth: 2, color: colors.icon),
         );
         title = l10n.sync_uploading;
+        body = l10n.sync_section_uploading_body;
       case TrailSyncState.failed:
         leading = FaIcon(
           FontAwesomeIcons.triangleExclamation,
@@ -105,6 +107,7 @@ class SyncStatusSection extends ConsumerWidget {
           color: colors.icon,
         );
         title = l10n.sync_section_failed_title;
+        body = l10n.sync_section_failed_body;
         if (localId != null) {
           actions.add(
             ElevatedButton(
@@ -116,56 +119,94 @@ class SyncStatusSection extends ConsumerWidget {
         }
     }
 
-    // Flat by doctrine: a filled block, no shadow, elevation or border.
+    // Every state renders the same skeleton -- a one-line title, a body
+    // reserved at two lines and a fixed-height action row (empty when the
+    // state has no action) -- so moving between states (pending -> uploading
+    // -> failed) never changes the block's height and the panel below it
+    // never jumps. Line heights are explicit so the reserved space is exact
+    // under any text scale.
+    final textScaler = MediaQuery.textScalerOf(context);
+    final titleStyle = theme.textTheme.titleSmall!.copyWith(
+      fontWeight: FontWeight.w600,
+      color: colors.onContainer,
+      height: _lineHeight,
+    );
+    final bodyStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: colors.onContainer,
+      height: _lineHeight,
+    );
+    double linesOf(TextStyle style, int lines) =>
+        textScaler.scale(style.fontSize!) * _lineHeight * lines;
+
+    // Flat by doctrine: a full-bleed filled band, no radius, shadow or border.
     return Container(
       key: const ValueKey('sync-status-section-block'),
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.container,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      color: colors.container,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              leading,
+              SizedBox(
+                height: linesOf(titleStyle, 1),
+                child: Center(child: leading),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.onContainer,
+                    SizedBox(
+                      height: linesOf(titleStyle, 1),
+                      child: Text(
+                        title,
+                        style: titleStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (body != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: linesOf(bodyStyle, 2),
+                      child: Text(
                         body,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colors.onContainer,
-                        ),
+                        style: bodyStyle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          if (actions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
-          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            height: _actionRowHeight,
+            child: Row(
+              children: [
+                for (final (i, action) in actions.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  action,
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
+  /// Explicit line height for title and body, so the reserved text space is
+  /// computable rather than font-metric dependent.
+  static const double _lineHeight = 1.4;
+
+  /// Fixed height of the action row: a Material button's 48dp tap target.
+  /// Reserved even when the state has no action.
+  static const double _actionRowHeight = 48;
 
   /// Confirms, then discards a draft through the guarded
   /// `TrailSync.discardDraft` and pops the detail screen.

@@ -480,7 +480,9 @@ void main() {
           final block = tester.widget<Container>(
             find.byKey(const ValueKey('sync-status-section-block')),
           );
-          expect((block.decoration as BoxDecoration).color, expected.container);
+          expect(block.color, expected.container);
+          // Full-bleed band: square corners, no decoration at all.
+          expect(block.decoration, isNull);
 
           final chipLabel = tester.widget<Text>(
             find.descendant(
@@ -500,6 +502,43 @@ void main() {
           expect(sectionTitle.style?.color, expected.onContainer);
         });
       }
+    }
+  });
+
+  group('layout stability', () {
+    for (final textScale in [1.0, 1.5]) {
+      testWidgets('every state renders at the same height (scale $textScale)', (
+        tester,
+      ) async {
+        tester.platformDispatcher.textScaleFactorTestValue = textScale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        final heights = <String, double>{};
+        for (final (state, online) in [
+          (TrailSyncState.draft, true),
+          (TrailSyncState.pending, true),
+          (TrailSyncState.pending, false),
+          (TrailSyncState.uploading, true),
+          (TrailSyncState.failed, true),
+        ]) {
+          final rig = _Rig(online: online);
+          await tester.pumpWidget(
+            rig.harness(
+              SyncStatusSection(
+                trail: _FakeTrail(syncState: state, localId: 'local-h'),
+              ),
+            ),
+          );
+          await tester.pump();
+          heights['${state.name}/${online ? 'online' : 'offline'}'] = tester
+              .getSize(find.byKey(const ValueKey('sync-status-section-block')))
+              .height;
+        }
+        expect(
+          heights.values.toSet(),
+          hasLength(1),
+          reason: 'heights per state: $heights',
+        );
+      });
     }
   });
 }

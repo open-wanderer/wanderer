@@ -409,21 +409,20 @@ class TrailPanel extends ConsumerWidget {
                             )
                             .toList(),
                   ),
-                  // Gated on isUnsyncedState (rather than relying on the
-                  // section's own synced self-suppression) so a downloaded or
-                  // synced trail's widget tree is provably unchanged -- nothing
-                  // constructed at all. On the detail screen this replaces the
-                  // title chip; trail_card.dart and trail_list_item.dart keep
-                  // SyncStatusChip.
-                  if (isUnsyncedState(trail.syncState)) ...[
-                    const SizedBox(height: 16),
-                    SyncStatusSection(trail: trail),
-                  ],
                 ],
               ),
             ),
 
             const SizedBox(height: 16),
+
+            // Outside the 20px content padding on purpose: the section is a
+            // full-bleed band. Gated on isUnsyncedState (rather than relying
+            // on the section's own synced self-suppression) so a downloaded or
+            // synced trail's widget tree is provably unchanged -- nothing
+            // constructed at all. On the detail screen this replaces the title
+            // chip; trail_card.dart and trail_list_item.dart keep
+            // SyncStatusChip.
+            if (isUnsyncedState(trail.syncState)) SyncStatusSection(trail: trail),
 
             const Divider(height: 1, thickness: 1),
             if (showsServerTabs)
