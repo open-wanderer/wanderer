@@ -23,6 +23,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
+import 'package:wanderer/services/user_ca_trust.dart';
 import 'package:wanderer/provider/account_scope_invalidation.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
@@ -40,6 +41,13 @@ import 'actions/import_trail_file.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // On Android, dart:io trusts only system CAs, so self-hosted instances
+  // behind a user-installed private root CA fail TLS (#1255). This must run
+  // before the tile proxy or any HTTP client connects. Certificates are read
+  // once per launch, so a CA installed while the app runs needs a restart.
+  // Best-effort: never throws.
+  await trustUserCaCertificates();
 
   final appDocDir = await getApplicationDocumentsDirectory();
 
