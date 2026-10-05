@@ -373,7 +373,7 @@ func syncTrailMetadata(app core.App, record *core.Record, data map[string]any) {
 }
 
 func resolveAndSyncTags(app core.App, data map[string]any) []string {
-	var localTagIds []string
+	localTagIds := []string{}
 
 	expand, ok := data["expand"].(map[string]any)
 	if !ok {
@@ -385,7 +385,7 @@ func resolveAndSyncTags(app core.App, data map[string]any) []string {
 		return localTagIds
 	}
 
-	tagCol, _ := app.FindCollectionByNameOrId("tags")
+	seenTags := make(map[string]struct{})
 
 	for _, t := range remoteTags {
 		tagMap, ok := t.(map[string]any)
@@ -393,22 +393,18 @@ func resolveAndSyncTags(app core.App, data map[string]any) []string {
 			continue
 		}
 
-		tagName, _ := tagMap["name"].(string)
-		if tagName == "" {
+		tagName, ok := tagMap["name"].(string)
+		if !ok {
 			continue
 		}
-
-		localTag, _ := app.FindFirstRecordByData("tags", "name", tagName)
-
-		if localTag == nil {
-			localTag = core.NewRecord(tagCol)
-			localTag.Set("name", tagName)
-
-			if err := app.Save(localTag); err != nil {
-				continue
-			}
+		localTag, err := util.ResolveFederatedTag(app, tagName)
+		if err != nil || localTag == nil {
+			continue
 		}
-
+		if _, seen := seenTags[localTag.Id]; seen {
+			continue
+		}
+		seenTags[localTag.Id] = struct{}{}
 		localTagIds = append(localTagIds, localTag.Id)
 	}
 

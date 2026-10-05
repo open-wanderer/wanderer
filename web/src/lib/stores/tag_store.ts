@@ -1,5 +1,6 @@
 import { type Tag } from "$lib/models/tag";
 import { APIError } from "$lib/util/api_util";
+import { normalizeTagName } from "$lib/util/tag_name";
 import PocketBase, { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 
@@ -28,9 +29,26 @@ export async function tags_index(name: string, f: (url: RequestInfo | URL, confi
 }
 
 export async function tags_create(tag: Tag) {
+    const name = normalizeTagName(tag.name);
+    const lookup = await fetch('/api/v1/tag/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+    });
+
+    if (!lookup.ok) {
+        const response = await lookup.json();
+        throw new APIError(lookup.status, response.message, response.detail);
+    }
+
+    const existing: { items: Tag[] } = await lookup.json();
+    if (existing.items.length) {
+        return existing.items[0];
+    }
+
     let r = await fetch('/api/v1/tag', {
         method: 'PUT',
-        body: JSON.stringify(tag),
+        body: JSON.stringify({ ...tag, name }),
     })
 
     if (!r.ok) {

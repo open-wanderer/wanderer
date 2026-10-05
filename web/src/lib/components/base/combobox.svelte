@@ -23,6 +23,7 @@
         extraClasses?: string;
         onchange?: ChangeEventHandler<HTMLInputElement>;
         onupdate?: (q: string) => void;
+        normalizeNewItemText?: (text: string) => string | null;
     }
 
     let {
@@ -37,6 +38,7 @@
         extraClasses = "",
         onchange,
         onupdate,
+        normalizeNewItemText,
     }: Props = $props();
 
     let searching: boolean = $state(false);
@@ -87,21 +89,28 @@
             if (!inputValue.length) {
                 return;
             }
-            if ((value as ComboboxItem[]).some((i) => i.text == inputValue)) {
+            let matchingItemFromSuggestions = items.find(
+                (i) => i.text == inputValue,
+            );
+            const newItemText = matchingItemFromSuggestions
+                ? matchingItemFromSuggestions.text
+                : normalizeNewItemText
+                  ? normalizeNewItemText(inputValue)
+                  : inputValue;
+            if (newItemText === null || (value as ComboboxItem[]).some((i) => i.text == newItemText)) {
                 inputValue = "";
                 return;
             }
-
-            const matchingItemFromSuggestions = items.find(
-                (i) => i.text == inputValue,
-            );
+            if (!matchingItemFromSuggestions && normalizeNewItemText) {
+                matchingItemFromSuggestions = items.find((i) => i.text == newItemText);
+            }
 
             value = [
                 ...(value as ComboboxItem[]),
                 matchingItemFromSuggestions
                     ? matchingItemFromSuggestions
                     : {
-                          text: inputValue,
+                          text: newItemText,
                           value: null,
                       },
             ];
