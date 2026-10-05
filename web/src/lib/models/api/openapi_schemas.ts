@@ -149,14 +149,18 @@
  *       properties:
  *         name:
  *           type: string
- *           description: Tag name
+ *           maxLength: 5000
+ *           pattern: '^[^\u0000-\u001f\u007f]*$(?![\s\S])'
+ *           description: Plain-text tag name. Empty names, Unicode, punctuation, and literal markup are preserved. C0 and DEL controls are rejected. Length is measured in Unicode code points.
  *
  *     TagUpdateInput:
  *       type: object
  *       properties:
  *         name:
  *           type: string
- *           description: Tag name
+ *           maxLength: 5000
+ *           pattern: '^[^\u0000-\u001f\u007f]*$(?![\s\S])'
+ *           description: Plain-text tag name. Empty names, Unicode, punctuation, and literal markup are preserved. C0 and DEL controls are rejected. Length is measured in Unicode code points.
  *
  *     CategoryTranslation:
  *       type: object

@@ -73,6 +73,7 @@
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
     import { withShareToken } from "$lib/util/url_util";
+    import { normalizeNewTagName } from "$lib/util/tag_name";
 
     interface Props {
         initTrail: Trail;
@@ -542,6 +543,7 @@
                     <div class="flex-1">
                         <Combobox
                             bind:value={tagDraftItems}
+                            normalizeNewItemText={normalizeNewTagName}
                             onupdate={searchTags}
                             items={tagItems}
                             placeholder={`${$_("tags")}...`}

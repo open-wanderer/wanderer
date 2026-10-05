@@ -287,6 +287,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	var distance, duration, elevation_gain, elevation_loss float64
 	var diffculty string
 	trailTags := []string{}
+	seenTags := make(map[string]struct{})
 	tags, err := pub.ToItemCollection(t.Tag)
 	if err != nil {
 		return nil, err
@@ -312,24 +313,14 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		case "distance":
 			distance, err = strconv.ParseFloat(content[:len(content)-1], 64)
 		case "tag":
-			existingTag, err := app.FindFirstRecordByData("tags", "name", content)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					collection, err := app.FindCollectionByNameOrId("tags")
-					if err != nil {
-						continue
-					}
-					existingTag = core.NewRecord(collection)
-					existingTag.Set("name", content)
-					err = app.Save(existingTag)
-					if err != nil {
-						continue
-					}
-				} else {
-					continue
-				}
+			existingTag, tagErr := ResolveFederatedTag(app, content)
+			if tagErr != nil || existingTag == nil {
+				continue
 			}
-
+			if _, seen := seenTags[existingTag.Id]; seen {
+				continue
+			}
+			seenTags[existingTag.Id] = struct{}{}
 			trailTags = append(trailTags, existingTag.Id)
 		}
 		if err != nil {

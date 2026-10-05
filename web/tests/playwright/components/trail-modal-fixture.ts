@@ -9,7 +9,7 @@ import { expect, type Page } from '@playwright/test';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
 // Keep the real dialogs, controls and API stores; replace unrelated app state.
-export async function buildTrailModalFixture(dev: boolean, pairSource?: string) {
+export async function buildTrailModalFixture(dev: boolean, pairSource?: string, sourceStubs: Record<string, string> = {}) {
     const result = await build({
         root,
         configFile: false,
@@ -27,7 +27,8 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string) 
                 if (id === '$lib/stores/toast_store.svelte') return '\0fixture:toast';
                 if (id.startsWith('$lib/')) {
                     const path = resolve(root, 'src/lib', id.slice(5));
-                    return extname(id) ? path : [path + '.ts', path + '.js', resolve(path, 'index.ts'), resolve(path, 'index.js')].find(existsSync);
+                    if (extname(id)) return path.endsWith('.js') && !existsSync(path) ? path.slice(0, -3) + '.ts' : path;
+                    return [path + '.ts', path + '.js', resolve(path, 'index.ts'), resolve(path, 'index.js')].find(existsSync);
                 }
             },
             async load(id) {
@@ -60,7 +61,8 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string) 
                 if (id === '\0fixture:toast') return 'export function show_toast() {}';
 
                 let source: string;
-                if (id === '\0fixture:pair.svelte') source = pairSource ?? `
+                if (id in sourceStubs) source = sourceStubs[id];
+                else if (id === '\0fixture:pair.svelte') source = pairSource ?? `
                     <script>
                         import Duplicate from '$lib/components/trail/trail_duplicate_modal.svelte';
                         import Export from '$lib/components/trail/trail_export_modal.svelte';
