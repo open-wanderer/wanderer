@@ -20,6 +20,11 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *         schema:
  *           type: integer
  *       - in: query
+ *         name: cursor
+ *         description: The `next` value of the previous page
+ *         schema:
+ *           type: string
+ *       - in: query
  *         name: perPage
  *         schema:
  *           type: integer
