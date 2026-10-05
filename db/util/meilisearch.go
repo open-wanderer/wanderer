@@ -15,6 +15,16 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+// SearchDocumentVersions identifies the shape of the documents each index is
+// built from. Bump an index's version whenever its document builder changes,
+// so instances rebuild that index on their next start instead of keeping
+// documents in the old shape.
+var SearchDocumentVersions = map[string]int{
+	"trails": 1,
+	"lists":  1,
+	"actors": 1,
+}
+
 func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	if author == nil {
 		return nil, fmt.Errorf("trail %s has missing author reference %q", r.Id, r.GetString("author"))

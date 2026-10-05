@@ -301,7 +301,9 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	initMeilisearchConfig(client)
 	go func() {
 		backfillPolylines(app)
-		initMeilisearchDocuments(app, client)
+		if err := initMeilisearchDocuments(app, client); err != nil {
+			app.Logger().Error(fmt.Sprintf("Unable to initialize search documents: %v", err))
+		}
 	}()
 	return nil
 }
@@ -447,92 +449,4 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 			log.Printf("Settings synced for index [%s]", indexName)
 		}
 	}
-}
-
-func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
-	// --- Trails ---
-	const pageSize int64 = 100
-	var page int64 = 0
-
-	// Clear index before re-indexing
-	if _, err := client.Index("trails").DeleteAllDocuments(nil); err != nil {
-		return err
-	}
-
-	for {
-		trails := []*core.Record{}
-		err := app.RecordQuery("trails").
-			Limit(pageSize).
-			Offset(page * pageSize).
-			All(&trails)
-		if err != nil {
-			return err
-		}
-		if len(trails) == 0 {
-			break
-		}
-
-		if err := util.IndexTrails(app, trails, client); err != nil {
-			// Omit this page from the rebuild and advance to the next one.
-			app.Logger().Warn(fmt.Sprintf("Unable to index trails page %d: %v", page, err))
-		}
-
-		page++
-	}
-
-	// --- Lists ---
-	if _, err := client.Index("lists").DeleteAllDocuments(nil); err != nil {
-		return err
-	}
-
-	page = 0
-	for {
-		lists := []*core.Record{}
-		err := app.RecordQuery("lists").
-			Limit(pageSize).
-			Offset(page * pageSize).
-			All(&lists)
-		if err != nil {
-			return err
-		}
-		if len(lists) == 0 {
-			break
-		}
-
-		if err := util.IndexLists(app, lists, client); err != nil {
-			// Omit this page from the rebuild and advance to the next one.
-			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
-		}
-
-		page++
-	}
-
-	// --- Actors ---
-	if _, err := client.Index("actors").DeleteAllDocuments(nil); err != nil {
-		return err
-	}
-
-	page = 0
-	for {
-		actors := []*core.Record{}
-		err := app.RecordQuery("activitypub_actors").
-			Limit(pageSize).
-			Offset(page * pageSize).
-			All(&actors)
-		if err != nil {
-			return err
-		}
-		if len(actors) == 0 {
-			break
-		}
-
-		if err := util.IndexActors(actors, client); err != nil {
-			// Omit this page from the rebuild and advance to the next one.
-			app.Logger().Warn(fmt.Sprintf("Unable to index actor page %d: %v", page, err))
-		}
-
-		page++
-	}
-
-	return nil
 }

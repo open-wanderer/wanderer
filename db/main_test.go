@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -17,6 +18,8 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/auth"
+
+	"pocketbase/util"
 )
 
 func TestConfigureOIDCScopes(t *testing.T) {
@@ -251,6 +254,180 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 	})
 }
 
+func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
+	trailCount := int64(searchInitPageSize) + 1
+	// seedTrails stores one author actor next to the trails.
+	const actorCount int64 = 1
+
+	t.Run("current indexes are kept", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		state.documentCounts["actors"] = actorCount
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), nil)
+		for _, index := range []string{"trails", "lists", "actors"} {
+			if !strings.Contains(logText, "Search index "+index+" is current") {
+				t.Fatalf("log = %s; want %s kept", logText, index)
+			}
+		}
+	})
+
+	t.Run("a missing document rebuilds only that index", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), []searchInitCall{
+			{method: http.MethodDelete, index: "actors"},
+			{method: http.MethodPost, index: "actors"},
+		})
+	})
+
+	t.Run("queued tasks leave a current index to finish", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		state.pendingTasks["actors"] = 3
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), nil)
+		if canceled := state.canceledIndexes(); len(canceled) != 0 {
+			t.Fatalf("canceled = %v; want none", canceled)
+		}
+	})
+
+	t.Run("a queued settings update does not keep an empty index", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		state.settingsTasks["actors"] = 1
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), []searchInitCall{
+			{method: http.MethodDelete, index: "actors"},
+			{method: http.MethodPost, index: "actors"},
+		})
+		if !strings.Contains(logText, "Search index actors holds 0 documents for 1 records") {
+			t.Fatalf("log = %s; want the count mismatch", logText)
+		}
+	})
+
+	t.Run("a failed rebuild drops its recorded version", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		state.failDeleteIndexes["actors"] = true
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err == nil || !strings.Contains(err.Error(), "rebuild search index actors") {
+			t.Fatalf("initMeilisearchDocuments error = %v; want the actors rebuild failure\n%s", err, logText)
+		}
+		want := maps.Clone(util.SearchDocumentVersions)
+		delete(want, "actors")
+		if got := readSearchIndexVersions(app); !maps.Equal(got, want) {
+			t.Fatalf("recorded versions = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("an older version cancels queued tasks and rebuilds", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		versions := maps.Clone(util.SearchDocumentVersions)
+		versions["actors"]--
+		recordSearchIndexVersions(t, app, versions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		state.documentCounts["actors"] = actorCount
+		state.pendingTasks["actors"] = 5
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), []searchInitCall{
+			{method: http.MethodDelete, index: "actors"},
+			{method: http.MethodPost, index: "actors"},
+		})
+		if canceled := state.canceledIndexes(); !slices.Equal(canceled, []string{"actors"}) {
+			t.Fatalf("canceled = %v; want [actors]", canceled)
+		}
+		if types := state.canceledTypes; len(types) != 1 || types[0] != "documentAdditionOrUpdate,documentDeletion" {
+			t.Fatalf("canceled task types = %v; want document writes only", types)
+		}
+		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
+		}
+	})
+
+	t.Run("a first start records every version", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		_, client, overflow := newSearchInitClient(t, nil)
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
+		}
+	})
+}
+
+func TestInitMeilisearchDocumentsBatchesActorsByThousand(t *testing.T) {
+	app := newSearchInitApp(t)
+	actors, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 1001; i++ {
+		actor := core.NewRecord(actors)
+		actor.Set("preferred_username", fmt.Sprintf("actor%04d", i))
+		if err := app.Save(actor); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	state, client, overflow := newSearchInitClient(t, nil)
+	logText, err := runSearchInit(t, app, client, overflow)
+	if err != nil {
+		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+	}
+	if got := state.actorBatches(); !slices.Equal(got, []int{1000, 1}) {
+		t.Fatalf("actor batch sizes = %v; want [1000 1]", got)
+	}
+}
+
+func recordSearchIndexVersions(t *testing.T, app core.App, versions map[string]int) {
+	t.Helper()
+	if err := writeSearchIndexVersions(app, versions); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func assertLaterSearchPhases(t *testing.T, logText string) {
 	t.Helper()
 	if strings.Contains(logText, "Unable to index list page") || strings.Contains(logText, "Unable to index actor page") {
@@ -465,17 +642,30 @@ type searchInitServer struct {
 	overflow             chan struct{}
 	callsLog             []searchInitCall
 	trailBatches         [][]map[string]any
+	actorBatchSizes      []int
 	rejectedTrailBatches int
 	rejectTrailIDs       map[string]bool
+	// pendingTasks (document writes), settingsTasks and documentCounts
+	// answer the task and stats queries the rebuild check makes, per index.
+	pendingTasks      map[string]int64
+	settingsTasks     map[string]int64
+	documentCounts    map[string]int64
+	canceled          []string
+	canceledTypes     []string
+	failDeleteIndexes map[string]bool
 }
 
 func newSearchInitClient(t *testing.T, rejectTrailIDs map[string]bool) (*searchInitServer, meilisearch.ServiceManager, <-chan struct{}) {
 	t.Helper()
 	overflow := make(chan struct{}, 1)
 	state := &searchInitServer{
-		limit:          12,
-		overflow:       overflow,
-		rejectTrailIDs: rejectTrailIDs,
+		limit:             12,
+		overflow:          overflow,
+		rejectTrailIDs:    rejectTrailIDs,
+		pendingTasks:      map[string]int64{},
+		settingsTasks:     map[string]int64{},
+		documentCounts:    map[string]int64{},
+		failDeleteIndexes: map[string]bool{},
 	}
 	server := httptest.NewServer(http.HandlerFunc(state.serveHTTP))
 	t.Cleanup(server.Close)
@@ -494,7 +684,64 @@ func (state *searchInitServer) batches() ([][]map[string]any, int) {
 	return slices.Clone(state.trailBatches), state.rejectedTrailBatches
 }
 
+func (state *searchInitServer) canceledIndexes() []string {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return slices.Clone(state.canceled)
+}
+
+func (state *searchInitServer) actorBatches() []int {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return slices.Clone(state.actorBatchSizes)
+}
+
+// serveTaskOrStats answers the task, cancel and stats requests, and reports
+// whether the request was one of them.
+func (state *searchInitServer) serveTaskOrStats(w http.ResponseWriter, r *http.Request) bool {
+	index := r.URL.Query().Get("indexUids")
+	types := r.URL.Query().Get("types")
+	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/tasks":
+		state.mu.Lock()
+		var pending int64
+		if types == "" || strings.Contains(types, "documentAdditionOrUpdate") {
+			pending += state.pendingTasks[index]
+		}
+		if types == "" || strings.Contains(types, "settingsUpdate") {
+			pending += state.settingsTasks[index]
+		}
+		state.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"results":[],"total":%d,"limit":1,"from":null,"next":null}`, pending)
+	case r.Method == http.MethodPost && r.URL.Path == "/tasks/cancel":
+		state.mu.Lock()
+		state.canceled = append(state.canceled, index)
+		state.canceledTypes = append(state.canceledTypes, types)
+		state.pendingTasks[index] = 0
+		state.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"taskUid":7,"indexUid":null,"status":"enqueued","type":"taskCancelation","enqueuedAt":"2026-09-19T00:00:00Z"}`))
+	case r.Method == http.MethodGet && r.URL.Path == "/tasks/7":
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"uid":7,"indexUid":null,"status":"succeeded","type":"taskCancelation","enqueuedAt":"2026-09-19T00:00:00Z"}`))
+	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/indexes/") && strings.HasSuffix(r.URL.Path, "/stats"):
+		index = strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/indexes/"), "/stats")
+		state.mu.Lock()
+		count := state.documentCounts[index]
+		state.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"numberOfDocuments":%d,"isIndexing":false,"fieldDistribution":{}}`, count)
+	default:
+		return false
+	}
+	return true
+}
+
 func (state *searchInitServer) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if state.serveTaskOrStats(w, r) {
+		return
+	}
 	var documents []map[string]any
 	if r.Method == http.MethodPost {
 		if err := json.NewDecoder(r.Body).Decode(&documents); err != nil {
@@ -533,12 +780,20 @@ func (state *searchInitServer) serveHTTP(w http.ResponseWriter, r *http.Request)
 			state.trailBatches = append(state.trailBatches, documents)
 		}
 	}
+	if !overLimit && r.Method == http.MethodPost && indexName == "actors" {
+		state.actorBatchSizes = append(state.actorBatchSizes, len(documents))
+	}
 	state.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	if overLimit {
 		w.WriteHeader(http.StatusTooManyRequests)
 		_, _ = w.Write([]byte(`{"message":"too many requests","code":"too_many_requests","type":"internal"}`))
+		return
+	}
+	if !overLimit && r.Method == http.MethodDelete && state.failDeleteIndexes[indexName] {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"delete failed","code":"internal","type":"internal"}`))
 		return
 	}
 	if indexName == "" || (r.Method != http.MethodDelete && r.Method != http.MethodPost) {
