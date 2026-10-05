@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/record.dart';
@@ -189,10 +190,7 @@ void main() {
       );
       String? retried;
       await tester.pumpWidget(
-        _harness(
-          SyncStatusChip(trail: trail),
-          onRetry: (id) => retried = id,
-        ),
+        _harness(SyncStatusChip(trail: trail), onRetry: (id) => retried = id),
       );
       await tester.pumpAndSettle();
 
@@ -209,6 +207,59 @@ void main() {
       expect(retried, 'local-3');
     },
   );
+
+  testWidgets('a draft trail renders a pen icon and the Draft label, no '
+      'spinner', (tester) async {
+    final trail = _FakeTrail(
+      syncState: TrailSyncState.draft,
+      localId: 'local-5',
+    );
+    await tester.pumpWidget(_harness(SyncStatusChip(trail: trail)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draft'), findsOneWidget);
+    final icon = tester.widget<FaIcon>(find.byType(FaIcon));
+    expect(icon.icon?.codePoint, FontAwesomeIcons.pen.codePoint);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('a draft chip is not tappable and never retries', (tester) async {
+    final trail = _FakeTrail(
+      syncState: TrailSyncState.draft,
+      localId: 'local-5',
+    );
+    String? retried;
+    await tester.pumpWidget(
+      _harness(SyncStatusChip(trail: trail), onRetry: (id) => retried = id),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(SyncStatusChip),
+        matching: find.byType(InkWell),
+      ),
+      findsNothing,
+    );
+    await tester.tap(find.text('Draft'));
+    await tester.pumpAndSettle();
+    expect(retried, isNull);
+  });
+
+  testWidgets('a draft whose local id is (impossibly) in flight still reads '
+      'Draft', (tester) async {
+    final trail = _FakeTrail(
+      syncState: TrailSyncState.draft,
+      localId: 'local-6',
+    );
+    await tester.pumpWidget(
+      _harness(SyncStatusChip(trail: trail), inFlight: {'local-6'}),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draft'), findsOneWidget);
+    expect(find.text('Uploading…'), findsNothing);
+  });
 
   testWidgets(
     'a pending trail whose local id is in the in-flight set renders as Uploading',

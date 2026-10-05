@@ -6,13 +6,17 @@ import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 
-/// The four-state sync-status indicator rendered below a trail's title on
+/// The five-state sync-status indicator rendered below a trail's title on
 /// both `TrailCard` and `TrailListItem`.
 ///
 /// Renders nothing at all when the trail is [TrailSyncState.synced]
 /// -- an always-present chip would make every ordinary trail noisier, and
 /// it deliberately does not join the public/shared badge group:
 /// "is this on the server yet" is a separate axis from visibility.
+///
+/// A [TrailSyncState.draft] (a finished recording saved on this device) shows
+/// a non-tappable "Draft" chip: it is not queued for upload until the user
+/// saves it in the edit form.
 class SyncStatusChip extends ConsumerWidget {
   final TrailSummary trail;
 
@@ -22,6 +26,20 @@ class SyncStatusChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (trail.syncState == TrailSyncState.synced) {
       return const SizedBox.shrink();
+    }
+
+    // A draft is never a drain candidate, so it is never in flight; checking
+    // it before the in-flight/uploading test keeps it non-tappable and
+    // correctly labelled regardless.
+    if (trail.syncState == TrailSyncState.draft) {
+      return _Chip(
+        leading: FaIcon(
+          FontAwesomeIcons.pen,
+          size: 11,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
+        label: AppLocalizations.of(context)!.sync_draft,
+      );
     }
 
     // The in-flight drain set is the authoritative in-the-moment signal --
@@ -61,8 +79,8 @@ class SyncStatusChip extends ConsumerWidget {
       );
     }
 
-    // TrailSyncState.pending -- the only state left once synced/uploading/
-    // failed are handled above.
+    // TrailSyncState.pending -- the only state left once synced/draft/
+    // uploading/failed are handled above.
     return _Chip(
       leading: FaIcon(
         FontAwesomeIcons.cloudArrowUp,
