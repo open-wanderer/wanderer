@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/theme/colors.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/record.dart';
@@ -208,20 +209,35 @@ void main() {
     },
   );
 
-  testWidgets('a draft trail renders a pen icon and the Draft label, no '
-      'spinner', (tester) async {
-    final trail = _FakeTrail(
-      syncState: TrailSyncState.draft,
-      localId: 'local-5',
-    );
-    await tester.pumpWidget(_harness(SyncStatusChip(trail: trail)));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'a draft trail renders a pen-to-square icon and the Draft label, no '
+    'spinner',
+    (tester) async {
+      final trail = _FakeTrail(
+        syncState: TrailSyncState.draft,
+        localId: 'local-5',
+      );
+      await tester.pumpWidget(_harness(SyncStatusChip(trail: trail)));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Draft'), findsOneWidget);
-    final icon = tester.widget<FaIcon>(find.byType(FaIcon));
-    expect(icon.icon?.codePoint, FontAwesomeIcons.pen.codePoint);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-  });
+      expect(find.text('Draft'), findsOneWidget);
+      final icon = tester.widget<FaIcon>(find.byType(FaIcon));
+      expect(icon.icon?.codePoint, FontAwesomeIcons.penToSquare.codePoint);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      final brightness = Theme.of(
+        tester.element(find.text('Draft')),
+      ).brightness;
+      final chip = tester.widget<Container>(
+        find.ancestor(of: find.text('Draft'), matching: find.byType(Container)),
+      );
+      expect(
+        (chip.decoration as BoxDecoration).color,
+        AppColors.draftContainer(brightness),
+      );
+      expect(icon.color, AppColors.onDraftContainer(brightness));
+    },
+  );
 
   testWidgets('a draft chip is not tappable and never retries', (tester) async {
     final trail = _FakeTrail(

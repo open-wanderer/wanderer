@@ -5,6 +5,7 @@ import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
+import 'package:wanderer/theme/colors.dart';
 
 /// The five-state sync-status indicator rendered below a trail's title on
 /// both `TrailCard` and `TrailListItem`.
@@ -32,13 +33,17 @@ class SyncStatusChip extends ConsumerWidget {
     // it before the in-flight/uploading test keeps it non-tappable and
     // correctly labelled regardless.
     if (trail.syncState == TrailSyncState.draft) {
+      final brightness = Theme.of(context).brightness;
+      final foreground = AppColors.onDraftContainer(brightness);
       return _Chip(
         leading: FaIcon(
-          FontAwesomeIcons.pen,
+          FontAwesomeIcons.penToSquare,
           size: 11,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+          color: foreground,
         ),
         label: AppLocalizations.of(context)!.sync_draft,
+        labelColor: foreground,
+        backgroundColor: AppColors.draftContainer(brightness),
       );
     }
 
@@ -98,12 +103,14 @@ class _Chip extends StatelessWidget {
   final Widget leading;
   final String label;
   final Color? labelColor;
+  final Color? backgroundColor;
   final VoidCallback? onTap;
 
   const _Chip({
     required this.leading,
     required this.label,
     this.labelColor,
+    this.backgroundColor,
     this.onTap,
   });
 
@@ -112,7 +119,9 @@ class _Chip extends StatelessWidget {
     final content = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color:
+            backgroundColor ??
+            Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
