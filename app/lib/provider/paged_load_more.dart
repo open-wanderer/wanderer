@@ -52,13 +52,27 @@ abstract interface class PagedState {
 mixin PagedLoadMore<S extends PagedState> on $AsyncNotifier<S> {
   bool _inFlight = false;
 
-  /// Clears the in-flight flag. Must be called at the top of every `build()`.
+  /// Bumped by [resetPaging]; a page fetched under an older generation
+  /// belongs to a list that has since been replaced.
+  int _generation = 0;
+
+  /// Starts a new list: clears the in-flight flag and orphans any page still
+  /// being fetched. Must be called at the top of every `build()` and of any
+  /// method that replaces the list with a fresh page 1, such as `search()`.
   ///
   /// The notifier instance survives rebuilds, so a flag left true by a fetch
   /// that was still running when the provider was invalidated would wedge
   /// pagination permanently -- every later `loadNextPage` returning at the
   /// guard, the list silently never growing again.
-  void resetPaging() => _inFlight = false;
+  ///
+  /// The orphaned fetch must not land either. `state` writes go through the
+  /// element's current ref, which a rebuild remounts, so Riverpod lets a
+  /// stale `loadNextPage` overwrite the refreshed list with the old one plus
+  /// its next page -- a pull-to-refresh that appears to do nothing.
+  void resetPaging() {
+    _generation++;
+    _inFlight = false;
+  }
 
   /// Fetches [nextPage] and returns [current] with that page merged in.
   ///
@@ -101,6 +115,7 @@ mixin PagedLoadMore<S extends PagedState> on $AsyncNotifier<S> {
       return;
     }
 
+    final generation = _generation;
     _inFlight = true;
     try {
       // Still no `AsyncLoading` here -- the seamless AsyncData -> AsyncData
@@ -119,11 +134,14 @@ mixin PagedLoadMore<S extends PagedState> on $AsyncNotifier<S> {
       final next = await AsyncValue.guard(
         () => appendPage(current, current.page + 1),
       );
+      // A refresh or search replaced the list while this page was in flight.
+      if (generation != _generation) return;
       state = next.whenData((v) => withLoadingMore(v, false));
     } finally {
       // `finally`, so a failed page does not wedge pagination the way a bare
-      // reset after the await would have.
-      _inFlight = false;
+      // reset after the await would have. Only for this generation: after a
+      // reset the flag belongs to whatever fetch the new list started.
+      if (generation == _generation) _inFlight = false;
     }
   }
 }
