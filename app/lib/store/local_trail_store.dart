@@ -233,6 +233,14 @@ ServerDeleteOutcome resolveServerDeleteOutcome({
   return ServerDeleteOutcome.abortAndReport;
 }
 
+/// The sync state a row takes when the edit form saves it in place.
+///
+/// A form save is the user's explicit "this is ready" signal and the only
+/// thing that may promote a [TrailSyncState.draft] into the upload queue
+/// ([TrailSyncState.pending]). Every other state is carried forward unchanged.
+TrailSyncState syncStateAfterLocalEdit(TrailSyncState existing) =>
+    existing == TrailSyncState.draft ? TrailSyncState.pending : existing;
+
 /// Whether [entity]'s upload is due to run now.
 ///
 /// True only for a row whose [TrailEntity.syncState] is [TrailSyncState.pending]
@@ -242,6 +250,9 @@ ServerDeleteOutcome resolveServerDeleteOutcome({
 /// A [TrailSyncState.failed] row is deliberately NEVER due: a row that
 /// exhausted its retry budget is parked for manual retry only
 /// ([resetDrainBackoff]), not automatic pickup by the next drain pass.
+///
+/// A [TrailSyncState.draft] row is never due either: it waits for the user to
+/// save the edit form, which promotes it to pending.
 bool isDrainDue(TrailEntity entity, DateTime now) {
   final isUploadable =
       entity.syncState == TrailSyncState.pending ||
@@ -324,7 +335,8 @@ DrainFailureOutcome resolveDrainFailureOutcome({
 /// stamped onto both [TrailEntity.id] (so the row has a collision-free
 /// identity) and [TrailEntity.localId] (its permanent local identity),
 /// [ownerAccountId] onto [TrailEntity.owner], the sync bookkeeping reset to
-/// a fresh [TrailSyncState.pending] row, and [trailLocalPhotos] /
+/// a fresh [TrailSyncState.pending] row (or [TrailSyncState.draft] when
+/// [asDraft] is true), and [trailLocalPhotos] /
 /// [waypointLocalPhotosByKey] onto the trail's and each waypoint's
 /// `localPhotos`.
 ///
@@ -332,6 +344,10 @@ DrainFailureOutcome resolveDrainFailureOutcome({
 /// exists locally, is linked as `entity.author.target` on a best-effort
 /// basis ONLY -- so the card shows the hiker's own name instead of
 /// "Unknown". A missing actor row is not an error.
+///
+/// [asDraft] stores the row as [TrailSyncState.draft] instead of pending, so
+/// the upload drain skips it until the edit form promotes it. Used when a
+/// recording ends and must survive process death before the user saves it.
 String saveNewLocalTrail(
   Store store, {
   required Trail trail,
@@ -340,13 +356,14 @@ String saveNewLocalTrail(
   required String localId,
   required List<String> trailLocalPhotos,
   required Map<String, List<String>> waypointLocalPhotosByKey,
+  bool asDraft = false,
 }) {
   store.runInTransaction(TxMode.write, () {
     final entity = TrailEntity.fromModel(trail, store: store);
     entity.id = localId;
     entity.localId = localId;
     entity.owner = ownerAccountId;
-    entity.syncState = TrailSyncState.pending;
+    entity.syncState = asDraft ? TrailSyncState.draft : TrailSyncState.pending;
     entity.syncAttempts = 0;
     entity.syncNextAttemptAt = null;
     entity.localPhotos = trailLocalPhotos;
@@ -382,6 +399,28 @@ String saveNewLocalTrail(
   return localId;
 }
 
+/// Writes a draft row via [writeDraft], and only after it returned releases
+/// the active-navigation session via [clearSession]. Returns the localId
+/// [writeDraft] returned.
+///
+/// The active-navigation row is the only durable copy of the breadcrumb until
+/// the draft row exists, so it may only be released after the draft write
+/// committed. Clearing first and holding the draft in memory was the data-loss
+/// bug: an OS kill in that window lost the recording. Nothing is caught here:
+/// an exception from [writeDraft] propagates before [clearSession] ever runs,
+/// leaving the session intact.
+///
+/// Deliberately Store-free and dependency-free: there is no ObjectBox in
+/// `flutter test`, so this lets the ordering be unit-tested with fakes.
+String persistDraftThenClearSession({
+  required String Function() writeDraft,
+  required void Function() clearSession,
+}) {
+  final localId = writeDraft();
+  clearSession();
+  return localId;
+}
+
 /// What [updateLocalTrail] did, so the caller can tell a completed write
 /// apart from a declined one instead of assuming success.
 enum LocalUpdateOutcome {
@@ -412,7 +451,9 @@ enum LocalUpdateOutcome {
 /// `id`, `owner`, `localId`, `syncState`, `syncAttempts`,
 /// `syncNextAttemptAt`, `savedByUserIds` and `photos` are carried forward
 /// onto it before the put, so a metadata re-edit never changes the row's
-/// identity or ownership.
+/// identity or ownership. The single exception is `syncState`: a
+/// [TrailSyncState.draft] is promoted to pending ([syncStateAfterLocalEdit]),
+/// since this write is the user's explicit save.
 ///
 /// REFUSES to write, returning [LocalUpdateOutcome.alreadySynced], when the
 /// existing row is [TrailSyncState.synced]. Writing would carry that `synced`
@@ -466,7 +507,7 @@ LocalUpdateOutcome updateLocalTrail(
     entity.id = existing.id;
     entity.owner = existing.owner;
     entity.localId = existing.localId;
-    entity.syncState = existing.syncState;
+    entity.syncState = syncStateAfterLocalEdit(existing.syncState);
     entity.syncAttempts = existing.syncAttempts;
     entity.syncNextAttemptAt = existing.syncNextAttemptAt;
     entity.savedByUserIds = existing.savedByUserIds;
@@ -1167,7 +1208,7 @@ List<Trail> readOwnLocalTrails(
 }
 
 /// Counts [accountId]'s not-yet-synced local trails. Used by the sign-out
-/// warning.
+/// warning. Drafts are included on purpose.
 int countUnsyncedTrails(Store store, String accountId) {
   final query = store
       .box<TrailEntity>()
@@ -1188,6 +1229,7 @@ int countUnsyncedTrails(Store store, String accountId) {
 /// orphan sweep, which must not delete a signed-out account's still-pending
 /// photos just because that account is not the currently signed-in one
 /// (account scoping hides another account's content, it never deletes it).
+/// Drafts are included on purpose: a draft's photo dir must survive the sweep.
 Set<String> unsyncedLocalIds(Store store) {
   final query = store
       .box<TrailEntity>()
@@ -1211,6 +1253,10 @@ Set<String> unsyncedLocalIds(Store store) {
 ///
 /// Returns entities, not models, because the drain needs the live rows to
 /// pass into the bookkeeping writes below.
+///
+/// Drafts are excluded at the query: app start, app resume and connectivity
+/// changes all call drainIfOnline, and a draft must never upload before the
+/// user saves it. [isDrainDue] stays as the second layer.
 List<TrailEntity> selectDrainCandidates(
   Store store, {
   required String accountId,
@@ -1220,7 +1266,8 @@ List<TrailEntity> selectDrainCandidates(
       .box<TrailEntity>()
       .query(
         TrailEntity_.owner.equals(accountId) &
-            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index) &
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.draft.index),
       )
       .build();
   final candidates = query.find().where((e) => isDrainDue(e, now)).toList();
@@ -1383,6 +1430,10 @@ void recordDrainFailure(
 /// data": `SyncStatusChip`'s retry tap reaches this with the same kind of
 /// value [deleteLocalTrailRow] guards against -- a `localId` that may have
 /// survived an account switch.
+///
+/// A [TrailSyncState.draft] row is left untouched: the manual retry must never
+/// promote a draft into the upload queue, because only the edit-form save does
+/// that.
 void resetDrainBackoff(
   Store store,
   String localId, {
@@ -1399,6 +1450,7 @@ void resetDrainBackoff(
     final entity = query.findFirst();
     query.close();
     if (entity == null) return;
+    if (entity.syncState == TrailSyncState.draft) return;
 
     entity.syncState = TrailSyncState.pending;
     entity.syncAttempts = 0;
