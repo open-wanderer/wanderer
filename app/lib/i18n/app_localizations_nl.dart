@@ -730,6 +730,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get summit_book => 'Bergtopboek';
 
   @override
+  String get sync_discard_draft_confirm =>
+      'Delete this recording? It hasn\'t been uploaded anywhere.';
+
+  @override
   String get sync_draft => 'Draft';
 
   @override
@@ -737,6 +741,29 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get sync_pending => 'Waiting to upload';
+
+  @override
+  String get sync_section_draft_body =>
+      'This recording is only on this device.';
+
+  @override
+  String get sync_section_draft_title => 'Not uploaded yet';
+
+  @override
+  String get sync_section_failed_title => 'Upload failed';
+
+  @override
+  String get sync_section_pending_offline_body =>
+      'Uploads when you\'re back online';
+
+  @override
+  String get sync_section_retry => 'Retry';
+
+  @override
+  String get sync_section_upload => 'Upload';
+
+  @override
+  String get sync_section_upload_now => 'Upload now';
 
   @override
   String get sync_uploading => 'Uploading…';

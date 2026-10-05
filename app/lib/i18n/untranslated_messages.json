@@ -8,7 +8,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "de": [
@@ -31,7 +39,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "eu": [
@@ -43,7 +59,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "fr": [
@@ -55,7 +79,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "hu": [
@@ -67,7 +99,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "it": [
@@ -79,7 +119,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "nl": [
@@ -91,7 +139,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "no": [
@@ -103,7 +159,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "pl": [
@@ -115,7 +179,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "pt": [
@@ -127,7 +199,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "ru": [
@@ -139,7 +219,15 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ],
 
   "zh": [
@@ -151,6 +239,14 @@
     "about_privacy_policy",
     "about_report_bug",
     "about_version",
-    "sync_draft"
+    "sync_discard_draft_confirm",
+    "sync_draft",
+    "sync_section_draft_body",
+    "sync_section_draft_title",
+    "sync_section_failed_title",
+    "sync_section_pending_offline_body",
+    "sync_section_retry",
+    "sync_section_upload",
+    "sync_section_upload_now"
   ]
 }

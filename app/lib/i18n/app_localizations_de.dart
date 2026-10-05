@@ -736,6 +736,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get summit_book => 'Gipfelbuch';
 
   @override
+  String get sync_discard_draft_confirm =>
+      'Diese Aufnahme löschen? Sie wurde nirgends hochgeladen.';
+
+  @override
   String get sync_draft => 'Entwurf';
 
   @override
@@ -743,6 +747,29 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get sync_pending => 'Warten auf Upload';
+
+  @override
+  String get sync_section_draft_body =>
+      'Diese Aufnahme ist nur auf diesem Gerät gespeichert.';
+
+  @override
+  String get sync_section_draft_title => 'Noch nicht hochgeladen';
+
+  @override
+  String get sync_section_failed_title => 'Upload fehlgeschlagen';
+
+  @override
+  String get sync_section_pending_offline_body =>
+      'Wird hochgeladen, sobald du wieder online bist';
+
+  @override
+  String get sync_section_retry => 'Erneut versuchen';
+
+  @override
+  String get sync_section_upload => 'Hochladen';
+
+  @override
+  String get sync_section_upload_now => 'Jetzt hochladen';
 
   @override
   String get sync_uploading => 'Wird hochgeladen…';

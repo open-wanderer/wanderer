@@ -1358,6 +1358,12 @@ abstract class AppLocalizations {
   /// **'Summit Book'**
   String get summit_book;
 
+  /// No description provided for @sync_discard_draft_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this recording? It hasn\'t been uploaded anywhere.'**
+  String get sync_discard_draft_confirm;
+
   /// No description provided for @sync_draft.
   ///
   /// In en, this message translates to:
@@ -1375,6 +1381,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Waiting to upload'**
   String get sync_pending;
+
+  /// No description provided for @sync_section_draft_body.
+  ///
+  /// In en, this message translates to:
+  /// **'This recording is only on this device.'**
+  String get sync_section_draft_body;
+
+  /// No description provided for @sync_section_draft_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Not uploaded yet'**
+  String get sync_section_draft_title;
+
+  /// No description provided for @sync_section_failed_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload failed'**
+  String get sync_section_failed_title;
+
+  /// No description provided for @sync_section_pending_offline_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploads when you\'re back online'**
+  String get sync_section_pending_offline_body;
+
+  /// No description provided for @sync_section_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get sync_section_retry;
+
+  /// No description provided for @sync_section_upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get sync_section_upload;
+
+  /// No description provided for @sync_section_upload_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload now'**
+  String get sync_section_upload_now;
 
   /// No description provided for @sync_uploading.
   ///
