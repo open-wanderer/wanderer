@@ -11,7 +11,9 @@ import 'package:wanderer/store/local_trail_store.dart';
 // source level (see the plan's grep-based acceptance criteria) or verified
 // on-device. The one exception is persistDraftThenClearSession: it is
 // Store-free by design, so its write-then-clear ordering is covered
-// behaviourally with fakes.
+// behaviourally with fakes. promoteDraftToPending and isOwnDraftRow are
+// covered at source level (test/store/local_trail_draft_gate_test.dart) and
+// their decision, isOwnDraft, behaviourally.
 // ---------------------------------------------------------------------------
 
 void main() {
@@ -735,6 +737,54 @@ void main() {
       );
 
       expect(isLiveCaptureRow(entity), isFalse);
+    });
+  });
+
+  group('isOwnDraft', () {
+    TrailEntity buildEntity({
+      String? owner,
+      required TrailSyncState syncState,
+    }) {
+      return TrailEntity(
+        id: 'server-id',
+        name: 'Test Trail',
+        created: DateTime(2026, 1, 1),
+        updated: DateTime(2026, 1, 1),
+        owner: owner,
+        localId: 'local-1-0',
+        syncState: syncState,
+      );
+    }
+
+    test('is false for a null entity', () {
+      expect(isOwnDraft(null, accountId: 'a'), isFalse);
+    });
+
+    test("is true for the account's own draft", () {
+      final entity = buildEntity(owner: 'a', syncState: TrailSyncState.draft);
+      expect(isOwnDraft(entity, accountId: 'a'), isTrue);
+    });
+
+    for (final state in [
+      TrailSyncState.pending,
+      TrailSyncState.uploading,
+      TrailSyncState.failed,
+      TrailSyncState.synced,
+    ]) {
+      test('is false for an own ${state.name} row', () {
+        final entity = buildEntity(owner: 'a', syncState: state);
+        expect(isOwnDraft(entity, accountId: 'a'), isFalse);
+      });
+    }
+
+    test("is false for another account's draft", () {
+      final entity = buildEntity(owner: 'b', syncState: TrailSyncState.draft);
+      expect(isOwnDraft(entity, accountId: 'a'), isFalse);
+    });
+
+    test('is false for an owner-less draft', () {
+      final entity = buildEntity(owner: null, syncState: TrailSyncState.draft);
+      expect(isOwnDraft(entity, accountId: 'a'), isFalse);
     });
   });
 }

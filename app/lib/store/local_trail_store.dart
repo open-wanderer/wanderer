@@ -233,13 +233,28 @@ ServerDeleteOutcome resolveServerDeleteOutcome({
   return ServerDeleteOutcome.abortAndReport;
 }
 
-/// The sync state a row takes when the edit form saves it in place.
+/// The sync state a row takes when the user explicitly marks it ready.
 ///
-/// A form save is the user's explicit "this is ready" signal and the only
-/// thing that may promote a [TrailSyncState.draft] into the upload queue
-/// ([TrailSyncState.pending]). Every other state is carried forward unchanged.
+/// A [TrailSyncState.draft] is promoted into the upload queue
+/// ([TrailSyncState.pending]) by exactly two explicit user actions: the edit
+/// form's save ([updateLocalTrail]) and the detail screen's Upload
+/// ([promoteDraftToPending]). Nothing else may promote one. Every other state
+/// is carried forward unchanged.
 TrailSyncState syncStateAfterLocalEdit(TrailSyncState existing) =>
     existing == TrailSyncState.draft ? TrailSyncState.pending : existing;
+
+/// Whether [entity] is a draft owned by [accountId].
+///
+/// The single predicate that gates BOTH the detail screen's Upload
+/// (promotion) and Discard (deletion). It is evaluated on the raw row, never
+/// a `Trail` model, because the shared cache row can carry another account's
+/// `localId` (same reasoning as [isOwnLiveCapture]). A null entity, another
+/// account's row, an owner-less row and every non-draft state are all false.
+bool isOwnDraft(TrailEntity? entity, {required String accountId}) {
+  return entity != null &&
+      entity.owner == accountId &&
+      entity.syncState == TrailSyncState.draft;
+}
 
 /// Whether [entity]'s upload is due to run now.
 ///
@@ -252,7 +267,8 @@ TrailSyncState syncStateAfterLocalEdit(TrailSyncState existing) =>
 /// ([resetDrainBackoff]), not automatic pickup by the next drain pass.
 ///
 /// A [TrailSyncState.draft] row is never due either: it waits for the user to
-/// save the edit form, which promotes it to pending.
+/// save the edit form or tap Upload on the detail screen, either of which
+/// promotes it to pending.
 bool isDrainDue(TrailEntity entity, DateTime now) {
   final isUploadable =
       entity.syncState == TrailSyncState.pending ||
@@ -419,6 +435,47 @@ String persistDraftThenClearSession({
   final localId = writeDraft();
   clearSession();
   return localId;
+}
+
+/// Promotes the draft row for [localId], owned by [accountId], to
+/// [TrailSyncState.pending] so the next drain uploads it as is.
+///
+/// Returns `true` when a draft was promoted and `false` for a no-op (no such
+/// row, another account's row, or a row that is no longer a draft). The
+/// owner-scoped query AND the [isOwnDraft] re-check inside the write
+/// transaction mean another account's row, or a non-draft row, is never
+/// promoted. Only the sync state and its attempt bookkeeping change: name,
+/// public flag, photos and waypoints go up as they are.
+///
+/// The CALLER must read [accountId] fresh via `currentAccountId(store)` at the
+/// point of use. This and [updateLocalTrail] are the only draft-to-pending
+/// writes, pinned by a gate test. It never uploads anything itself; the
+/// caller drains.
+bool promoteDraftToPending(
+  Store store,
+  String localId, {
+  required String accountId,
+}) {
+  return store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box
+        .query(
+          TrailEntity_.localId.equals(localId) &
+              TrailEntity_.owner.equals(accountId),
+        )
+        .build();
+    final entity = query.findFirst();
+    query.close();
+    if (!isOwnDraft(entity, accountId: accountId)) return false;
+
+    entity!.syncState = syncStateAfterLocalEdit(entity.syncState);
+    // A fresh queue entry, the same bookkeeping saveNewLocalTrail gives a new
+    // pending row.
+    entity.syncAttempts = 0;
+    entity.syncNextAttemptAt = null;
+    box.put(entity);
+    return true;
+  });
 }
 
 /// What [updateLocalTrail] did, so the caller can tell a completed write
@@ -1147,6 +1204,31 @@ bool isOwnLiveCapture(
   return entity != null && isLiveCaptureRow(entity);
 }
 
+/// [isOwnDraft], scoped to the row identified by [localId] and owned by
+/// [accountId].
+///
+/// Runs the same owner-scoped raw-row query [isOwnLiveCapture] runs and
+/// evaluates [isOwnDraft] against it -- deliberately NOT via
+/// `entity.toModel()`, for the same reason [readLocalTrailServerId] avoids
+/// it: a destructive-action gate must not flip because the row's cached GPX
+/// stopped parsing.
+bool isOwnDraftRow(
+  Store store, {
+  required String localId,
+  required String accountId,
+}) {
+  final query = store
+      .box<TrailEntity>()
+      .query(
+        TrailEntity_.localId.equals(localId) &
+            TrailEntity_.owner.equals(accountId),
+      )
+      .build();
+  final entity = query.findFirst();
+  query.close();
+  return isOwnDraft(entity, accountId: accountId);
+}
+
 /// Every trail [accountId] can see in its own-trails list: trails it
 /// captured on this device (not yet uploaded, or uploaded already, or
 /// downloaded), plus any downloaded trail it happens to have authored
@@ -1432,8 +1514,8 @@ void recordDrainFailure(
 /// survived an account switch.
 ///
 /// A [TrailSyncState.draft] row is left untouched: the manual retry must never
-/// promote a draft into the upload queue, because only the edit-form save does
-/// that.
+/// promote a draft into the upload queue, because only the two explicit user
+/// actions ([updateLocalTrail] and [promoteDraftToPending]) do that.
 void resetDrainBackoff(
   Store store,
   String localId, {

@@ -466,6 +466,10 @@ class TrailSync extends _$TrailSync {
         maxAttempts: kMaxSyncAttempts,
         backoff: syncBackoffDelay,
       );
+      // A mounted detail screen must re-read the row's new failed or
+      // backed-off state, otherwise its sync section keeps showing a stale
+      // pending state with an Upload now button.
+      ref.invalidate(localTrailProvider(localId));
     } finally {
       state = {...state}..remove(localId);
     }
@@ -550,6 +554,44 @@ class TrailSync extends _$TrailSync {
     if (accountId == null) return;
     resetDrainBackoff(store, localId, accountId: accountId);
     await drainIfOnline();
+  }
+
+  /// The detail screen's explicit Upload for a local draft: promotes it to
+  /// pending ([promoteDraftToPending], owner-scoped) and drains.
+  ///
+  /// Returns whether a draft was promoted. Offline, [drainIfOnline] bails and
+  /// the now-pending row uploads on the next connectivity, resume or start
+  /// trigger. A double tap is harmless: the second promote is a no-op, and
+  /// [drainIfOnline]'s re-entrancy guard holds.
+  Future<bool> uploadDraft(String localId) async {
+    final store = ref.read(objectBoxProvider);
+    // Read fresh, never cached.
+    final accountId = currentAccountId(store);
+    if (accountId == null) return false;
+
+    final promoted = promoteDraftToPending(
+      store,
+      localId,
+      accountId: accountId,
+    );
+    // Always, so a stale detail screen re-reads even on a no-op.
+    ref.invalidate(localTrailProvider(localId));
+    if (promoted) {
+      ref.invalidate(trailLibraryProvider);
+      final userQuery = store
+          .box<UserEntity>()
+          .query(UserEntity_.id.equals(accountId))
+          .build();
+      final userEntity = userQuery.findFirst();
+      userQuery.close();
+      if (userEntity != null) {
+        ref.invalidate(
+          profileTrailsProvider('@${userEntity.preferredUsername}'),
+        );
+      }
+      await drainIfOnline();
+    }
+    return promoted;
   }
 
   /// Deletes the local row and its photo copies for [localId] --
@@ -718,5 +760,28 @@ class TrailSync extends _$TrailSync {
     }
 
     return UnsyncedDeleteResult.deleted;
+  }
+
+  /// The guarded entry for the detail screen's Discard of a local draft.
+  ///
+  /// The row is re-read at execution time ([isOwnDraftRow]), so a row that was
+  /// promoted, uploaded or switched account in the meantime is never deleted
+  /// through this door. [deleteUnsynced] does the row, photo-dir and
+  /// list-provider work exactly as the menu's delete does. A draft has no
+  /// server id, so no network call is made.
+  Future<bool> discardDraft(String localId) async {
+    final store = ref.read(objectBoxProvider);
+    // Read fresh, never cached.
+    final accountId = currentAccountId(store);
+    if (accountId == null) return false;
+
+    if (!isOwnDraftRow(store, localId: localId, accountId: accountId)) {
+      debugPrint(
+        'trail_sync_provider: discardDraft("$localId") is not a draft owned '
+        'by account "$accountId"; refusing',
+      );
+      return false;
+    }
+    return await deleteUnsynced(localId) == UnsyncedDeleteResult.deleted;
   }
 }
