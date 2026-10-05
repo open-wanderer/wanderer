@@ -24,6 +24,7 @@ import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
@@ -33,13 +34,18 @@ import 'package:wanderer/provider/navigation_provider.dart';
 import 'package:wanderer/provider/navigation_stats_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/profile/profile_trails_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
+import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
+import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
+import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/util/region/proxy_style_rewriter.dart';
@@ -934,10 +940,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// everywhere else in this file — a different seed would resolve a
   /// different (split-brain) provider instance.
   ///
+  /// Durability: the converted trail is first written as a local
+  /// [TrailSyncState.draft] row and only THEN is the active-navigation row
+  /// cleared ([persistDraftThenClearSession]), so the recording survives the
+  /// OS killing the app before the user taps Save in the create form. The
+  /// form opens on that draft's localId, and its save promotes the same row
+  /// to pending.
+  ///
   /// Guarded by [_savingTrack] so a double-tap can't fire two concurrent
   /// conversions/navigations (mirrors `route_planner_screen.dart`'s
   /// `_finishing`). On failure (e.g. offline), shows an error toast and
-  /// leaves the session intact so the user can retry — matching
+  /// leaves the session intact (this includes a failed draft write) so the user can retry — matching
   /// `import_trail_file.dart`'s `importTrailFile` precedent for this same
   /// toast-and-stay behaviour.
   ///
@@ -1091,11 +1104,51 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         movingDuration: navStats.elapsed,
       );
 
-      active_nav.clear(_store);
+      // Durability ordering: the draft row is written BEFORE the session row
+      // is released, so an OS kill in between can never lose the recording.
+      final localId = persistDraftThenClearSession(
+        writeDraft: () {
+          // Read fresh at the point of use, never from a cached field.
+          final accountId = currentAccountId(_store);
+          if (accountId == null) {
+            throw StateError(
+              'navigation_screen: no signed-in account for a recording draft',
+            );
+          }
+          return saveNewLocalTrail(
+            _store,
+            trail: trail,
+            ownerAccountId: accountId,
+            authorActorId: ref.read(authProvider).value?.actorId,
+            localId: mintLocalId(),
+            trailLocalPhotos: const [],
+            waypointLocalPhotosByKey: const {},
+            asDraft: true,
+          );
+        },
+        clearSession: () {
+          // Stops the periodic _persistNow from re-writing the session row
+          // during the pushReplacement transition. Kept inside clearSession
+          // so a failed draft write leaves the timer running.
+          _persistTimer?.cancel();
+          active_nav.clear(_store);
+        },
+      );
 
-      pendingImportedTrail = trail;
+      final draftTrail = trail.copyWith(
+        localId: localId,
+        syncState: TrailSyncState.draft,
+      );
+
+      ref.invalidate(trailLibraryProvider);
+      final username = ref.read(authProvider).value?.preferredUsername;
+      if (username != null) {
+        ref.invalidate(profileTrailsProvider('@$username'));
+      }
+
+      pendingImportedTrail = draftTrail;
       if (context.mounted) {
-        context.pushReplacement('/trail/create/edit', extra: trail);
+        context.pushReplacement('/trail/create/edit', extra: draftTrail);
       }
     } catch (_) {
       if (!context.mounted) return;
