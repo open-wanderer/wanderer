@@ -13,7 +13,7 @@ import 'package:wanderer/components/trail/comment_list.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
-import 'package:wanderer/components/trail/sync_status_chip.dart';
+import 'package:wanderer/components/trail/sync_status_section.dart';
 import 'package:wanderer/components/trail/summit_log_list.dart';
 import 'package:wanderer/components/trail/trail_timeline.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -313,24 +313,6 @@ class TrailPanel extends ConsumerWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // Gated on isUnsyncedState (rather than relying on
-                  // SyncStatusChip's own synced self-suppression) so a
-                  // downloaded trail's widget tree is provably unchanged --
-                  // no extra SizedBox, no zero-height Align, nothing
-                  // constructed at all. Placed below the title rather than
-                  // inside the badge Row above: that Row has no overflow
-                  // protection and already holds the date Text, so adding a
-                  // ~180px "Upload failed · Tap to retry" chip to it would
-                  // overflow on a narrow screen. Below-the-title also
-                  // matches both existing call sites
-                  // (trail_list_item.dart, trail_card.dart).
-                  if (isUnsyncedState(trail.syncState)) ...[
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: SyncStatusChip(trail: trail),
-                    ),
-                  ],
                   if (trail.expand?.author != null)
                     InkWell(
                       // The profile screen is server-only -- it has no cached
@@ -427,6 +409,16 @@ class TrailPanel extends ConsumerWidget {
                             )
                             .toList(),
                   ),
+                  // Gated on isUnsyncedState (rather than relying on the
+                  // section's own synced self-suppression) so a downloaded or
+                  // synced trail's widget tree is provably unchanged -- nothing
+                  // constructed at all. On the detail screen this replaces the
+                  // title chip; trail_card.dart and trail_list_item.dart keep
+                  // SyncStatusChip.
+                  if (isUnsyncedState(trail.syncState)) ...[
+                    const SizedBox(height: 16),
+                    SyncStatusSection(trail: trail),
+                  ],
                 ],
               ),
             ),
