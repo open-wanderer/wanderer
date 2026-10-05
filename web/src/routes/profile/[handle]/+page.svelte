@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
@@ -78,7 +79,7 @@
             {/if}
         </h4>
         {#if data.profile.bio.length}
-            <p class="prose dark:prose-invert">{@html data.profile.bio}</p>
+            <div class="prose dark:prose-invert">{@html sanitizeHTML(data.profile.bio)}</div>
         {:else if data.isOwnProfile}
             <a class="btn-primary inline-block" href="/settings/profile"
                 >+ {$_("add-bio")}</a

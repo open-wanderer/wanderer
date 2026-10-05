@@ -282,6 +282,7 @@ func performFullSync(app core.App, ctx context.Context, reqURL *url.URL, localTr
 		localTrail.Set("needs_full_sync", false)
 		localTrail.Set("full_sync_completed", true)
 
+		util.SanitizeHTMLFieldsWithLimits(localTrail)
 		if err := txApp.Save(localTrail); err != nil {
 			return err
 		}
@@ -436,6 +437,7 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 		wp.Set("trail", trail.Id)
 		wp.Set("iri", iri)
 
+		util.SanitizeHTMLFieldsWithLimits(wp)
 		if err := txApp.Save(wp); err != nil {
 			return err
 		}
@@ -481,6 +483,7 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 		sl.Set("trail", trail.Id)
 		sl.Set("iri", iri)
 
+		util.SanitizeHTMLFieldsWithLimits(sl)
 		if err := txApp.Save(sl); err != nil {
 			return err
 		}

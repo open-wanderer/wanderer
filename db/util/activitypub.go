@@ -92,6 +92,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	record.Set("user", u.Id)
 	record.Set("last_fetched", time.Now())
 
+	SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 	if err != nil {
 		return nil, err
@@ -392,6 +393,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 	}
 
+	SanitizeHTMLFieldsWithLimits(record)
 	return record, app.Save(record)
 }
 
@@ -687,6 +689,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		}
 	}
 
+	SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 
 	return record, err

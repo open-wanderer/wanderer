@@ -174,6 +174,7 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 			delete(raw, "iri")
 			commentRecord.Load(raw)
 
+			util.SanitizeHTMLFieldsWithLimits(commentRecord)
 			if err := txApp.Save(commentRecord); err != nil {
 				continue
 			}
