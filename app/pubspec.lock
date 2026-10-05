@@ -519,10 +519,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_rust_bridge
-      sha256: e87d6b9ee934dcd24a128ccb2bd91905d2d5fe5c06245d6a8f5477d4907a437a
+      sha256: ec69331e2335ab4d456c0a9fc700892c2c85b72b9c0cb39df3ecfe8833d5d5c8
       url: "https://pub.dev"
     source: hosted
-    version: "2.12.0"
+    version: "2.13.0"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -1637,42 +1637,42 @@ packages:
     dependency: "direct main"
     description:
       name: tracelet
-      sha256: eb3a291b3405398b47884d0f8acfcd6de82c358e8313301eee4423e8b2a2fb3b
+      sha256: "061a97ca7e1c33e88c99bb203884bf98844d0224441033f3e95cdac9d850b80a"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.0"
+    version: "3.8.8"
   tracelet_android:
     dependency: transitive
     description:
       name: tracelet_android
-      sha256: "087705ebbcd061eebd4b5a3540ee09f3e66c3ef2dd433b51beb7a60b4e1e760d"
+      sha256: "4ef1183c48aad095f9ad2bb7f68dd41c9fdc900a052df2c665f1b9e7dcdb68be"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.0"
+    version: "3.8.8"
   tracelet_ios:
     dependency: transitive
     description:
       name: tracelet_ios
-      sha256: "8e64a87dfaf1d37f3de4a1979bb5d0c6ab89d2e44cc319792784069fadd87946"
+      sha256: "660cb9301602693f8fedce3ccfeafbd3892e07d174c2af0a2a6cf178a5f59b9c"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.0"
+    version: "3.8.8"
   tracelet_platform_interface:
     dependency: transitive
     description:
       name: tracelet_platform_interface
-      sha256: a38d0306c9966c5e5fdb26ff5fd8b3ae145533c0a09755e86b1e364db5d4bf84
+      sha256: "2e2d064de55ace961f28ef32300d46ec688ac948c3753fc7509665c6b0083e55"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.0"
+    version: "3.8.8"
   tracelet_web:
     dependency: transitive
     description:
       name: tracelet_web
-      sha256: d0ab014c0110a73d39de38d8afe0bbdce1eaa4b6e68d202a8be4a3f85539334b
+      sha256: "41a7210be768de406a9bc70aa01923e2e8b7c52ec9499a6cde7dfaa4a09a9847"
       url: "https://pub.dev"
     source: hosted
-    version: "3.5.0"
+    version: "3.8.8"
   typed_data:
     dependency: transitive
     description:

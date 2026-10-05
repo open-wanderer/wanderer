@@ -52,8 +52,11 @@ Future<int> backfillSessionGap(ActiveNavigationEntity row) async {
   final List<tl.Location> stored;
   try {
     // Fetched unfiltered and narrowed here: tracelet does not export SQLQuery.
-    // Retention is bounded by PersistenceConfig.maxDaysToPersist (1 by
-    // default), so the set stays small.
+    // Retention is bounded by PersistenceConfig.maxDaysToPersist, 3 days by
+    // default since tracelet 3.8.3, so the set stays small. Note the cap was
+    // enforced by nothing at all before 3.8.x (tracelet #361) — the queue grew
+    // unbounded — so on a long-lived install the first run after the upgrade
+    // may see a much larger set than this comment used to imply.
     stored = await tl.Tracelet.getLocations();
   } catch (_) {
     return 0;

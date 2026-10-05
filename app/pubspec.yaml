@@ -57,7 +57,7 @@ dependencies:
   timeago: ^3.7.1
   tiptap_flutter:
     path: vendor/tiptap_flutter
-  tracelet: ^3.5.0
+  tracelet: ^3.8.8
   url_launcher: ^6.3.2
   xml: ^6.3.0
   cached_network_image: ^3.4.1
