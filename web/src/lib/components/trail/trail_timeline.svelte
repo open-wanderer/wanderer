@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import type { Trail } from "$lib/models/trail";
     import { getFileURL, isVideoURL } from "$lib/util/file_util";
     import { formatDistance } from "$lib/util/format_util";
@@ -87,9 +88,9 @@
                     ><i class="fa fa-location-dot mr-1"></i>
                     {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}</span
                 >
-                <p class="whitespace-pre-line">
-                    {@html wp.description}
-                </p>
+                <div class="whitespace-pre-line">
+                    {@html sanitizeHTML(wp.description)}
+                </div>
             </div>
         </div>
     {/each}

@@ -9,6 +9,7 @@
 !plugins
 !pluginsystem
 !routes
+!tagname
 !templates
 !services
 !util

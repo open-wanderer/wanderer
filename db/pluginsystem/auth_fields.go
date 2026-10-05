@@ -27,6 +27,18 @@ func InternalOAuthTransientFields() []string {
 	}
 }
 
+// InternalOAuthMetadataFields are host-managed token metadata, rather than
+// editable credentials. Omitted values survive settings saves; explicit nil
+// values are consumed as removal instructions by the instance update hook.
+func InternalOAuthMetadataFields() []string {
+	return []string{
+		AuthFieldExpiresAt,
+		AuthFieldTokenType,
+		AuthFieldOAuthContext,
+		AuthFieldScope,
+	}
+}
+
 func PluginInputAuthBlockedFields() []string {
 	return []string{
 		AuthFieldRefreshToken,

@@ -268,6 +268,7 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		}
 	}
 
+	util.SanitizeHTMLFieldsWithLimits(dbActor)
 	err := app.Save(dbActor)
 	if err != nil {
 		return nil, err

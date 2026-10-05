@@ -6,8 +6,6 @@ import Track from './track';
 import { allDatesToISOString, haversineDistance, removeEmpty } from './utils';
 import Waypoint from './waypoint';
 import GpxMetricsComputation from './gpx-metrics-computation';
-//@ts-ignore
-import geohash from "ngeohash"
 import { encodePolyline } from '$lib/util/polyline_util';
 import { APIError } from '$lib/util/api_util';
 import type { ValhallaHeightResponse } from '../valhalla';
@@ -31,7 +29,7 @@ type GPXFeature = {
   elevationGain?: number;
   elevationLoss?: number;
   duration: number;
-  hash: string; // MinHash or Geohash for track shape
+  hash?: string;
 };
 
 export default class GPX {
@@ -47,7 +45,18 @@ export default class GPX {
   wpt?: Waypoint[];
   rte?: Route[];
   trk?: Track[];
-  features: GPXFeature
+  private _features?: GPXFeature;
+
+  get features(): GPXFeature {
+    if (!this._features) {
+      this._features = this.getTotals();
+    }
+    return this._features;
+  }
+
+  set features(value: GPXFeature | undefined) {
+    this._features = value;
+  }
 
   constructor(object: {
     $?: {
@@ -89,8 +98,6 @@ export default class GPX {
       }
       this.trk = object.trk.filter(trk => typeof trk === 'object').map(trk => new Track(trk))
     }
-
-    this.features = this.getTotals();
 
     removeEmpty(this);
   }
@@ -152,8 +159,7 @@ export default class GPX {
       cumulativeDistance: metrics.cumulativeDistance,
       elevationGain: totalElevationGain,
       elevationLoss: totalElevationLoss,
-      duration: Math.abs(totalDuration),
-      hash: this.generateMinHash(allPoints)
+      duration: Math.abs(totalDuration)
     }
   }
 
@@ -169,11 +175,6 @@ export default class GPX {
     });
 
     return points;
-  }
-
-  private generateMinHash(points: Waypoint[]): string {
-    const hashes = points.map(pt => geohash.encode(pt.$.lat, pt.$.lon));
-    return hashes.sort().join('').slice(0, 10);
   }
 
   async correctElevation(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {

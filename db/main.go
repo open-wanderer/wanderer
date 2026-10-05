@@ -216,8 +216,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreate("api_tokens").BindFunc(hooks.CreateAPITokenHandler())
 
-	app.OnRecordCreateRequest().BindFunc(util.SanitizeHTML())
-	app.OnRecordUpdateRequest().BindFunc(util.SanitizeHTML())
+	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
 
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
 
@@ -245,6 +244,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/auth/token", routes.AuthToken)
 	se.Router.POST("/user/email", routes.UserEmailChange)
 	se.Router.POST("/waypoint/cluster", routes.WaypointCluster)
+	se.Router.POST("/tags/lookup", routes.TagLookup)
 	se.Router.POST("/category-preferences/reorder", routes.CategoryPreferencesReorder)
 	se.Router.POST("/subcategory-preferences/reorder", routes.SubcategoryPreferencesReorder)
 

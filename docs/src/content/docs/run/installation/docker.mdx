@@ -3,26 +3,29 @@ title: Manual Docker Setup
 description: Detailed installation instructions for Docker
 ---
 
-You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./installation-from-source).
+You can install <span class="-tracking-[0.075em]">wanderer</span> components either via Docker ([Quick Setup](./quick) or [Manual Setup](./docker)) or [from source](./from-source).
 
 ## Prerequisites
 
-<span class="-tracking-[0.075em]">wanderer</span> uses encrypted secrets such as passwords and private keys. To support this, you must set an encryption key using the `POCKETBASE_ENCRYPTION_KEY` [environment variable](/run/environment-configuration#pocketbase). You can generate one using:
+<span class="-tracking-[0.075em]">wanderer</span> uses several secrets for database access, to encrypt passwords, private keys, and to secure communication. The secrets are: `MEILI_MASTER_KEY`, `POCKETBASE_ENCRYPTION_KEY` and `POCKETBASE_PROXY_SECRET`. You need to generate these secrets. For example using:
 
 ```bash
+# MEILI_MASTER_KEY and POCKETBASE_PROXY_SECRET (one each)
+openssl rand -hex 32
+# Example output: 1e85a99427bd2543aacc24c99419183756eaeccd0e3485c9ac2ac2ab110e72f1
+
+# POCKETBASE_ENCRYPTION_KEY (must be exactly 32 characters)
 openssl rand -hex 16
 # Example output: ce7f0ddb97100c42e6409a8537c11e23
 ```
 
 :::caution
-Do not share this key with anyone!
+Do not share these keys with anyone!
 :::
-
-Once you have set the encryption key, you can proceed to install <span class="-tracking-[0.075em]">wanderer</span>.
 
 ## Start
 
-After cloning the repository, you will find a [`docker-compose.yml`](https://github.com/open-wanderer/wanderer/blob/main/docker-compose.yml) file in the root directory. This file sets up all necessary components. Start everything by running:
+After cloning the repository, you will find a [`docker-compose.yml`](https://github.com/open-wanderer/wanderer/blob/main/docker-compose.yml) file in the root directory. This file sets up all necessary components. Update the secrets in your copy, then start everything by running:
 
 ```bash
 docker compose up -d
@@ -47,12 +50,12 @@ version: '3'
 
 x-common-env: &cenv
   MEILI_URL: http://search:7700
-  MEILI_MASTER_KEY: vODkljPcfFANYNepCHyDyGjzAMPcdHnrb6X5KyXQPWo
+  MEILI_MASTER_KEY: <YOUR_MEILI_KEY_HERE>
 
 services:
   search:
     container_name: wanderer-search
-    image: getmeili/meilisearch:v1.11.3
+    image: getmeili/meilisearch:v1.36.0
     environment:
       <<: *cenv
       MEILI_NO_ANALYTICS: "true"
@@ -79,6 +82,7 @@ services:
     environment:
       <<: *cenv
       POCKETBASE_ENCRYPTION_KEY: <YOUR_ENCRYPTION_KEY_HERE>
+      POCKETBASE_PROXY_SECRET: <YOUR_PROXY_KEY_HERE>
       ORIGIN: http://localhost:3000
     ports:
       - "8090:8090"
@@ -87,6 +91,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/pb_data:/pb_data
+      - ./data/plugins:/data/plugins
     healthcheck:
       test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s
@@ -106,6 +111,7 @@ services:
       <<: *cenv
       ORIGIN: http://localhost:3000
       BODY_SIZE_LIMIT: Infinity
+      POCKETBASE_PROXY_SECRET: <YOUR_PROXY_KEY_HERE>
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
       UPLOAD_FOLDER: /app/uploads
@@ -114,6 +120,7 @@ services:
       OVERPASS_API_URL: https://overpass-api.de
       VALHALLA_URL: https://valhalla1.openstreetmap.de
       NOMINATIM_URL: https://nominatim.openstreetmap.org
+      PUBLIC_MAP_MAX_POLYLINES: 100
       # Optional: trust private CAs for server-side API calls
       # NODE_EXTRA_CA_CERTS: /etc/ssl/private-ca/ca.pem
     volumes:
@@ -126,7 +133,7 @@ services:
       - wanderer
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "/curl", "--fail", "http://localhost:3000/"]
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/"]
       interval: 15s
       retries: 10
       start_period: 20s
@@ -147,10 +154,12 @@ Make sure to set the `ORIGIN` environment variable to the full public URL (inclu
 
 ## Volumes
 
-By default, two volumes are mounted:
+By default, four volumes are mounted:
 
 - Meilisearch index data: `./data/data.ms`
 - PocketBase data: `./data/pb_data`
+- Installed plugins: `./data/plugins`
+- Uploads: `./data/uploads`
 
 These can be changed to bind mounts or other volume strategies if needed.
 
@@ -159,7 +168,7 @@ These can be changed to bind mounts or other volume strategies if needed.
 The default Docker configuration defines all necessary environment variables. You can extend or override them as needed. For advanced options, refer to the [environment configuration documentation](/run/environment-configuration).
 
 :::caution
-Ensure you replace the default `MEILI_MASTER_KEY` with a strong, unique value in production environments. Also, remember to set the `POCKETBASE_ENCRYPTION_KEY` to the key you generated [before](#prerequisites).
+Replace `MEILI_MASTER_KEY`, `POCKETBASE_ENCRYPTION_KEY` and `POCKETBASE_PROXY_SECRET` with the secrets you generated [before](#prerequisites). `POCKETBASE_PROXY_SECRET` must have the same value on the `db` and `web` services.
 :::
 
 ## Updating
