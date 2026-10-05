@@ -747,6 +747,18 @@ class AppLocalizationsCs extends AppLocalizations {
   String get sync_pending => 'Čeká na nahrání';
 
   @override
+  String get sync_section_failed_body =>
+      'The upload didn\'t go through. Try again.';
+
+  @override
+  String get sync_section_pending_online_body =>
+      'Uploads automatically in a moment.';
+
+  @override
+  String get sync_section_uploading_body =>
+      'Sending this trail to your server.';
+
+  @override
   String get sync_section_draft_body =>
       'This recording is only on this device.';
 

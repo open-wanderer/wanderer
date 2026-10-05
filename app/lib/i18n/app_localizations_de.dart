@@ -749,6 +749,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sync_pending => 'Warten auf Upload';
 
   @override
+  String get sync_section_failed_body =>
+      'Der Upload hat nicht geklappt. Versuche es erneut.';
+
+  @override
+  String get sync_section_pending_online_body =>
+      'Wird gleich automatisch hochgeladen.';
+
+  @override
+  String get sync_section_uploading_body =>
+      'Diese Route wird an deinen Server gesendet.';
+
+  @override
   String get sync_section_draft_body =>
       'Diese Aufnahme ist nur auf diesem Gerät gespeichert.';
 

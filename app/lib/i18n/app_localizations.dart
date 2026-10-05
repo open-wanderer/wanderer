@@ -1382,6 +1382,24 @@ abstract class AppLocalizations {
   /// **'Waiting to upload'**
   String get sync_pending;
 
+  /// No description provided for @sync_section_failed_body.
+  ///
+  /// In en, this message translates to:
+  /// **'The upload didn\'t go through. Try again.'**
+  String get sync_section_failed_body;
+
+  /// No description provided for @sync_section_pending_online_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploads automatically in a moment.'**
+  String get sync_section_pending_online_body;
+
+  /// No description provided for @sync_section_uploading_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending this trail to your server.'**
+  String get sync_section_uploading_body;
+
   /// No description provided for @sync_section_draft_body.
   ///
   /// In en, this message translates to:
