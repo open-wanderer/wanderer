@@ -68,6 +68,12 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/settings/appearance'),
           ),
+          ListTile(
+            leading: const FaIcon(FontAwesomeIcons.circleInfo, size: 18),
+            title: Text(l10n.about),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/settings/about'),
+          ),
           Divider(),
           SizedBox(height: 16),
           Padding(

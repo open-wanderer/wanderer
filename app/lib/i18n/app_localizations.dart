@@ -122,11 +122,59 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both.
+  /// Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them.
   ///
   /// In en, this message translates to:
   /// **'About'**
   String get about;
+
+  /// About screen: link to the wanderer changelog website.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get about_changelog;
+
+  /// About screen: subtitle under the 'Discord' link.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat with the community'**
+  String get about_discord_subtitle;
+
+  /// About screen: subtitle under the 'GitHub' link.
+  ///
+  /// In en, this message translates to:
+  /// **'Source code, issues and contributions'**
+  String get about_github_subtitle;
+
+  /// About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses).
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get about_license;
+
+  /// About screen: opens the list of licenses of the libraries the app uses.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source licenses'**
+  String get about_licenses;
+
+  /// About screen: link to the privacy policy website.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get about_privacy_policy;
+
+  /// About screen: opens the app bug report form on GitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Report a bug'**
+  String get about_report_bug;
+
+  /// About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String about_version(String version);
 
   /// No description provided for @appearance.
   ///
@@ -1309,6 +1357,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Summit Book'**
   String get summit_book;
+
+  /// No description provided for @sync_draft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get sync_draft;
 
   /// No description provided for @sync_failed.
   ///

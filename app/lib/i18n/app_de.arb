@@ -341,6 +341,7 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Gipfelbuch",
+  "sync_draft": "Entwurf",
   "sync_failed": "Upload fehlgeschlagen · Zum Wiederholen tippen",
   "sync_pending": "Warten auf Upload",
   "sync_uploading": "Wird hochgeladen…",

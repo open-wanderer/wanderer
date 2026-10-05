@@ -12,6 +12,32 @@ class AppLocalizationsCs extends AppLocalizations {
   String get about => 'O aplikaci';
 
   @override
+  String get about_changelog => 'What\'s new';
+
+  @override
+  String get about_discord_subtitle => 'Chat with the community';
+
+  @override
+  String get about_github_subtitle => 'Source code, issues and contributions';
+
+  @override
+  String get about_license => 'License';
+
+  @override
+  String get about_licenses => 'Open source licenses';
+
+  @override
+  String get about_privacy_policy => 'Privacy policy';
+
+  @override
+  String get about_report_bug => 'Report a bug';
+
+  @override
+  String about_version(String version) {
+    return 'Version $version';
+  }
+
+  @override
   String get appearance => 'Vzhled';
 
   @override
@@ -706,6 +732,9 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get summit_book => 'Vrcholová kniha';
+
+  @override
+  String get sync_draft => 'Draft';
 
   @override
   String get sync_failed => 'Nahrávání selhalo · Klepnutím opakujete';

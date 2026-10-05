@@ -43,6 +43,7 @@ dependencies:
   meta: ^1.18.0
   objectbox: ^5.3.1
   objectbox_flutter_libs: ^5.3.1
+  package_info_plus: ^9.0.1
   path: ^1.9.1
   path_provider: ^2.1.5
   pmtiles: ^1.2.0

@@ -1,1 +1,156 @@
-{}
+{
+  "cs": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "de": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version"
+  ],
+
+  "es": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "eu": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "fr": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "hu": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "it": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "nl": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "no": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "pl": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "pt": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "ru": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ],
+
+  "zh": [
+    "about_changelog",
+    "about_discord_subtitle",
+    "about_github_subtitle",
+    "about_license",
+    "about_licenses",
+    "about_privacy_policy",
+    "about_report_bug",
+    "about_version",
+    "sync_draft"
+  ]
+}
