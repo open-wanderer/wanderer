@@ -23,6 +23,8 @@ Without any configuration, tiles are loaded from the [Protomaps API](https://pro
 
 All three variables are set on the `web` service.
 
+The style-sources endpoint hands the full tile URL, key included, to every logged-in app user, so treat `PROTOMAPS_API_KEY` as public, not as a secret.
+
 ## Self-hosting tiles
 
 Set `TILE_SERVER_URL` to any tile server that serves [Protomaps basemap](https://docs.protomaps.com/basemaps/downloads)-flavored vector tiles, using `{z}/{x}/{y}` placeholders:
