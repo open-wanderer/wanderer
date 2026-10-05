@@ -44,16 +44,26 @@
 
     async function loadNextPage() {
         const nextPage = pagination.page + 1;
+        // Navigating to another list replaces `follows`; a response for the
+        // old one must not overwrite it or its cursor
+        const list = follows;
         try {
-            follows = await profile_follows_index(
+            const next = await profile_follows_index(
                 page.params.handle!,
                 page.params.type as "followers" | "following",
                 nextPage,
                 fetch,
-                follows.next || undefined,
+                list.next || undefined,
             );
+            if (follows !== list) {
+                return;
+            }
+            follows = { ...next, items: [...list.items, ...next.items] };
             pagination.page = nextPage;
         } catch (e) {
+            if (follows !== list) {
+                return;
+            }
             if (e instanceof APIError) {
                 show_toast({
                     icon: "close",

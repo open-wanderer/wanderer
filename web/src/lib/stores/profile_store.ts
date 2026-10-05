@@ -12,7 +12,6 @@ import type { Actor } from "$lib/models/activitypub/actor";
 import type { StatisticActivity } from "$lib/models/statistic_activity";
 
 let feed: FeedItem[] = []
-let follows: Actor[] = [];
 
 export async function profile_show(handle: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     let r = await f('/api/v1/profile/' + handle, {
@@ -161,11 +160,8 @@ export async function profile_follows_index(handle: string, type: "followers" | 
         throw new APIError(r.status, response.message, response.detail)
     }
 
+    // Only this page's items; the caller owns the list it appends them to
     const fetchedFollows: ListResult<Actor> & { next?: string } = await r.json();
 
-    const result = page > 1 ? [...follows, ...fetchedFollows.items] : fetchedFollows.items
-
-    follows = result;
-
-    return { ...fetchedFollows, items: result };
+    return fetchedFollows;
 }
