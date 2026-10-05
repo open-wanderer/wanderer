@@ -9,8 +9,9 @@
 /// the index is what gets persisted, so a new value goes LAST.
 ///
 /// `draft` means "durably stored on this device, deliberately never uploaded
-/// automatically". A draft becomes `pending` only through an explicit save in
-/// the edit form.
+/// automatically". A draft becomes `pending` only through an explicit user
+/// action: saving the edit form, or tapping Upload in the detail screen's sync
+/// section (`promoteDraftToPending`).
 enum TrailSyncState { synced, pending, uploading, failed, draft }
 
 /// Whether [state] represents a trail that has not (yet, or not
@@ -23,3 +24,29 @@ enum TrailSyncState { synced, pending, uploading, failed, draft }
 /// warning, delete gating, the live-capture checks and the orphan-photo sweep
 /// must all protect a draft.
 bool isUnsyncedState(TrailSyncState state) => state != TrailSyncState.synced;
+
+/// The single resolver both `SyncStatusChip` and `SyncStatusSection` use to
+/// decide which state to show, so the two surfaces can never disagree.
+///
+/// The in-flight drain set is the authoritative in-the-moment signal -- a row
+/// still persisted as `pending` (or `failed`) reads as Uploading the instant
+/// its drain starts, before the row's own write lands. A restart mid-drain
+/// (no active in-flight entry) still reads as Uploading from the persisted
+/// state alone.
+///
+/// A draft is never a drain candidate, so it is never in flight; checking it
+/// before the in-flight test keeps it labelled Draft regardless.
+TrailSyncState resolveSyncDisplayState(
+  TrailSyncState persisted, {
+  required String? localId,
+  required Set<String> inFlight,
+}) {
+  if (persisted == TrailSyncState.synced) return TrailSyncState.synced;
+  if (persisted == TrailSyncState.draft) return TrailSyncState.draft;
+  if ((localId != null && inFlight.contains(localId)) ||
+      persisted == TrailSyncState.uploading) {
+    return TrailSyncState.uploading;
+  }
+  if (persisted == TrailSyncState.failed) return TrailSyncState.failed;
+  return TrailSyncState.pending;
+}

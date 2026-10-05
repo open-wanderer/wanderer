@@ -1,15 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:wanderer/theme/colors.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
+import 'package:wanderer/theme/sync_state_colors.dart';
+import 'package:wanderer/theme/theme.dart';
 
 /// Minimal `TrailSummary` fake -- only `syncState`/`localId` vary per test,
 /// every other getter returns an inert default.
@@ -113,6 +116,7 @@ Widget _harness(
   Widget child, {
   Set<String> inFlight = const {},
   void Function(String)? onRetry,
+  ThemeData? theme,
 }) {
   return ProviderScope(
     overrides: [
@@ -129,6 +133,7 @@ Widget _harness(
       ],
       supportedLocales: AppLocalizations.supportedLocales,
       locale: const Locale('en'),
+      theme: theme,
       home: Scaffold(body: child),
     ),
   );
@@ -225,17 +230,15 @@ void main() {
       expect(icon.icon?.codePoint, FontAwesomeIcons.penToSquare.codePoint);
       expect(find.byType(CircularProgressIndicator), findsNothing);
 
-      final brightness = Theme.of(
-        tester.element(find.text('Draft')),
-      ).brightness;
+      final colors = syncStateColors(
+        TrailSyncState.draft,
+        Theme.of(tester.element(find.text('Draft'))),
+      );
       final chip = tester.widget<Container>(
         find.ancestor(of: find.text('Draft'), matching: find.byType(Container)),
       );
-      expect(
-        (chip.decoration as BoxDecoration).color,
-        AppColors.draftContainer(brightness),
-      );
-      expect(icon.color, AppColors.onDraftContainer(brightness));
+      expect((chip.decoration as BoxDecoration).color, colors.container);
+      expect(icon.color, colors.onContainer);
     },
   );
 
@@ -295,4 +298,111 @@ void main() {
       expect(find.text('Uploading…'), findsOneWidget);
     },
   );
+
+  for (final brightness in Brightness.values) {
+    testWidgets('a failed chip has the red container and no hardcoded red '
+        '(${brightness.name})', (tester) async {
+      final theme = AppTheme.createTheme(brightness);
+      final trail = _FakeTrail(
+        syncState: TrailSyncState.failed,
+        localId: 'local-3',
+      );
+      await tester.pumpWidget(
+        _harness(SyncStatusChip(trail: trail), theme: theme),
+      );
+      await tester.pumpAndSettle();
+
+      final colors = syncStateColors(TrailSyncState.failed, theme);
+      final container = tester.widget<Container>(
+        find.ancestor(
+          of: find.text('Upload failed · Tap to retry'),
+          matching: find.byType(Container),
+        ),
+      );
+      expect((container.decoration as BoxDecoration).color, colors.container);
+      final label = tester.widget<Text>(
+        find.text('Upload failed · Tap to retry'),
+      );
+      expect(label.style?.color, colors.onContainer);
+      final icon = tester.widget<FaIcon>(find.byType(FaIcon));
+      expect(icon.color, colors.onContainer);
+    });
+  }
+
+  testWidgets('a pending chip takes its colors from the helper', (
+    tester,
+  ) async {
+    final theme = AppTheme.createTheme(Brightness.light);
+    final trail = _FakeTrail(
+      syncState: TrailSyncState.pending,
+      localId: 'local-1',
+    );
+    await tester.pumpWidget(
+      _harness(SyncStatusChip(trail: trail), theme: theme),
+    );
+    await tester.pumpAndSettle();
+
+    final colors = syncStateColors(TrailSyncState.pending, theme);
+    final container = tester.widget<Container>(
+      find.ancestor(
+        of: find.text('Waiting to upload'),
+        matching: find.byType(Container),
+      ),
+    );
+    expect((container.decoration as BoxDecoration).color, colors.container);
+    expect(
+      tester.widget<Text>(find.text('Waiting to upload')).style?.color,
+      colors.onContainer,
+    );
+    expect(tester.widget<FaIcon>(find.byType(FaIcon)).color, colors.icon);
+  });
+
+  testWidgets('an uploading chip spinner uses the helper icon color', (
+    tester,
+  ) async {
+    final theme = AppTheme.createTheme(Brightness.dark);
+    final trail = _FakeTrail(
+      syncState: TrailSyncState.uploading,
+      localId: 'local-2',
+    );
+    await tester.pumpWidget(
+      _harness(SyncStatusChip(trail: trail), theme: theme),
+    );
+    await tester.pump();
+
+    final spinner = tester.widget<CircularProgressIndicator>(
+      find.byType(CircularProgressIndicator),
+    );
+    expect(
+      spinner.color,
+      syncStateColors(TrailSyncState.uploading, theme).icon,
+    );
+  });
+
+  test('the chip source resolves state and colors through the shared '
+      'helpers', () {
+    final libDir = Directory('lib');
+    expect(
+      libDir.existsSync(),
+      isTrue,
+      reason: 'Run with the working directory set to "app/".',
+    );
+    final code = File('lib/components/trail/sync_status_chip.dart')
+        .readAsStringSync()
+        .split('\n')
+        .where((l) => !RegExp(r'^\s*//').hasMatch(l))
+        .join('\n');
+    expect(code.contains('resolveSyncDisplayState('), isTrue);
+    expect(code.contains('syncStateColors('), isTrue);
+    expect(
+      code.contains('Colors.red'),
+      isFalse,
+      reason: 'The failed color must come from syncStateColors only.',
+    );
+    expect(
+      code.contains('AppColors.'),
+      isFalse,
+      reason: 'Sync-state colors live in sync_state_colors.dart only.',
+    );
+  });
 }
