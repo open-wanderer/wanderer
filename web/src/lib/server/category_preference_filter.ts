@@ -102,7 +102,7 @@ export async function withTrailPreferenceMeiliFilter(
 ): Promise<MeiliFilter> {
     const parts = meiliFilterParts(filter);
     if (!event.locals.user || isIdOnlyDetailQuery(parts)) {
-        return filter;
+        return parts.length ? parts : undefined;
     }
 
     const { hiddenCategoryIds, hiddenSubcategoryIds } =
