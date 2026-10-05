@@ -6,7 +6,7 @@
     import type { Trail } from "$lib/models/trail";
     import { theme } from "$lib/stores/theme_store";
     import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL } from "$lib/util/file_util";
+    import { getFileSrcset, getFileURL } from "$lib/util/file_util";
     import {
         formatDistance,
         formatElevation,
@@ -140,6 +140,8 @@
             : $theme === "light"
               ? emptyStateTrailLight
               : emptyStateTrailDark}
+        srcset={getFileSrcset(list, list.avatar, [600, 1200])}
+        sizes="(min-width: 768px) 430px, 100vw"
         alt="avatar"
     />
 </div>

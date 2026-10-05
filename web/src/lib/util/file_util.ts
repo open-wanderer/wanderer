@@ -11,6 +11,17 @@ export function getFileURL(record: { [key: string]: any; }, filename?: string, t
     return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumbQuery}`;
 }
 
+// Width-only thumbnails (Wx0) as a srcset, so the browser can pick a sharper
+// variant on wide or HiDPI layouts. Every width has to be registered on the
+// file field, otherwise PocketBase serves the original for it.
+export function getFileSrcset(record: { [key: string]: any; }, filename: string | undefined, widths: number[]) {
+    if (!filename || isURL(filename) || isVideoURL(filename)) {
+        return undefined;
+    }
+
+    return widths.map((w) => `${getFileURL(record, filename, `${w}x0`)} ${w}w`).join(", ");
+}
+
 export function isURL(value: string) {
     let url
     try {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getFileURL, isURL, isVideoURL } from "./file_util";
+import { getFileSrcset, getFileURL, isURL, isVideoURL } from "./file_util";
 
 describe("file_util", () => {
     describe("getFileURL", () => {
@@ -86,6 +86,26 @@ describe("file_util", () => {
 
         it("does not treat object URLs as videos", () => {
             expect(isVideoURL("blob:http://localhost/8f2a-4c11")).toBe(false);
+        });
+    });
+
+    describe("getFileSrcset", () => {
+        const dummyRecord = {
+            collectionId: "e864strfxo14pm4",
+            id: "253ac8164a00ad3",
+        };
+
+        it("lists one width-only thumbnail per width", () => {
+            expect(getFileSrcset(dummyRecord, "photo.jpg", [600, 1200])).toBe(
+                "/api/v1/files/e864strfxo14pm4/253ac8164a00ad3/photo.jpg?thumb=600x0 600w, " +
+                    "/api/v1/files/e864strfxo14pm4/253ac8164a00ad3/photo.jpg?thumb=1200x0 1200w",
+            );
+        });
+
+        it("returns undefined for files that have no thumbnails", () => {
+            expect(getFileSrcset(dummyRecord, undefined, [600])).toBeUndefined();
+            expect(getFileSrcset(dummyRecord, "clip.mp4", [600])).toBeUndefined();
+            expect(getFileSrcset(dummyRecord, "https://example.com/photo.jpg", [600])).toBeUndefined();
         });
     });
 });

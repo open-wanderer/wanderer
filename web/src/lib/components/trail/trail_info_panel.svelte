@@ -16,7 +16,7 @@
         comments_update,
     } from "$lib/stores/comment_store";
     import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
+    import { getFileSrcset, getFileURL, isVideoURL } from "$lib/util/file_util";
     import {
         formatDistance,
         formatElevation,
@@ -239,14 +239,32 @@
         commentDeleteLoading = false;
     }
 
-    function getHeaderPhotos() {
+    function getHeaderPhotos(): { src: string; srcset?: string }[] {
         if (trail.photos.length) {
-            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p, "600x0"));
+            return trail.photos.slice(0, 3).map((p) => ({
+                src: getFileURL(trail, p, "600x0"),
+                srcset: getFileSrcset(trail, p, [600, 1200]),
+            }));
         } else {
-            return $theme === "light"
-                ? [emptyStateTrailLight]
-                : [emptyStateTrailDark];
+            return [
+                {
+                    src:
+                        $theme === "light"
+                            ? emptyStateTrailLight
+                            : emptyStateTrailDark,
+                },
+            ];
         }
+    }
+
+    // Rendered widths at the panel's 76rem maximum, split 8fr / 5fr.
+    function getHeaderPhotoSizes(i: number) {
+        if (headerPhotos.length == 1) {
+            return "(min-width: 76rem) 76rem, 100vw";
+        }
+        return i == 0
+            ? "(min-width: 76rem) 47rem, 62vw"
+            : "(min-width: 76rem) 29rem, 38vw";
     }
 
     const headerPhotos = getHeaderPhotos();
@@ -504,33 +522,38 @@
             <div
                 class="grid gap-px {headerPhotos.length > 1
                     ? 'grid-cols-[8fr_5fr]'
-                    : 'grid-cols-1'} h-80 rounded-t-3xl overflow-hidden cursor-pointer"
+                    : 'grid-cols-1'} {headerPhotos.length > 2
+                    ? 'grid-rows-2'
+                    : 'grid-rows-1'} h-80 rounded-t-3xl overflow-hidden cursor-pointer"
             >
                 <PhotoGallery
                     photos={trail.photos.map((p) => getFileURL(trail, p))}
                     bind:this={gallery}
                 ></PhotoGallery>
                 {#each headerPhotos as photo, i}
-                    {#if isVideoURL(photo)}
+                    {#if isVideoURL(photo.src)}
                         <!-- svelte-ignore a11y_media_has_caption -->
                         <video
-                            class="object-cover h-full w-full"
+                            class="object-cover h-full w-full min-h-0"
                             onclick={trail.photos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
+                            class:row-span-2={i == 0 && headerPhotos.length > 2}
                             loop
-                            src={photo}
+                            src={photo.src}
                         ></video>
                     {:else}
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                         <img
-                            class="object-cover h-full w-full"
+                            class="object-cover h-full w-full min-h-0"
                             onclick={trail.photos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
                             class:row-span-2={i == 0 && headerPhotos.length > 2}
-                            src={photo}
+                            src={photo.src}
+                            srcset={photo.srcset}
+                            sizes={photo.srcset ? getHeaderPhotoSizes(i) : undefined}
                             alt=""
                         />
                     {/if}

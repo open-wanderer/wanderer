@@ -33,11 +33,13 @@ var requestedThumbs = []struct {
 	usedBy     string
 }{
 	{"trails", "photos", "600x0", "trail_info_panel header and photo grid, maplibre_util, feed_card, activity_card, photo_picker, lists/edit"},
+	{"trails", "photos", "1200x0", "trail_info_panel header srcset"},
 	{"users", "avatar", "100x100", "nav_bar, trail_info_panel comment box"},
 	{"users", "avatar", "300x300", "settings/profile"},
 	{"lists", "avatar", "100x100", "list_search_modal, trail/edit"},
 	{"lists", "avatar", "300x300", "list_card, lists/edit load"},
 	{"lists", "avatar", "600x0", "list_panel, profile/[handle]"},
+	{"lists", "avatar", "1200x0", "list_panel srcset"},
 	{"waypoints", "photos", "300x300", "waypoint_card"},
 	{"waypoints", "photos", "600x0", "trail_timeline, photo_picker"},
 	{"summit_logs", "photos", "300x300", "summit_log_table_row"},
