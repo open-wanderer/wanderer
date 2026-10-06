@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"context"
 	"pocketbase/federation"
 	"pocketbase/util"
 	"time"
@@ -90,16 +91,21 @@ func AnnounceActorDeleteHandler() func(e *core.RecordEvent) error {
 
 func DeleteActorHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
-		// Search index errors are logged, not fatal.
-		task, err := client.Index("actors").DeleteDocument(e.Record.Id, nil)
+		ctx, cancel := context.WithTimeout(e.Context, 5*time.Second)
+		defer cancel()
+		task, err := client.Index("actors").DeleteDocumentWithContext(ctx, e.Record.Id, nil)
 		if err != nil {
-			e.App.Logger().Error("deleting actor from search index", "actor", e.Record.Id, "err", err)
-			return e.Next()
-		}
-
-		interval := 500 * time.Millisecond
-		if _, err := client.WaitForTask(task.TaskUID, interval); err != nil {
-			e.App.Logger().Error("waiting for actor index delete", "actor", e.Record.Id, "err", err)
+			e.App.Logger().Warn("actor deletion could not be queued in search index",
+				"actor", e.Record.Id, "error", err)
+		} else {
+			completed, err := client.WaitForTaskWithContext(ctx, task.TaskUID, 50*time.Millisecond)
+			if err != nil {
+				e.App.Logger().Warn("actor deletion not confirmed by search index",
+					"actor", e.Record.Id, "task", task.TaskUID, "error", err)
+			} else if completed.Status != meilisearch.TaskStatusSucceeded {
+				e.App.Logger().Error("search index failed to delete actor",
+					"actor", e.Record.Id, "task", task.TaskUID, "status", completed.Status)
+			}
 		}
 		return e.Next()
 	}

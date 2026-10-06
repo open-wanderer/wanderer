@@ -9,6 +9,7 @@
 <script lang="ts">
     import type { ChangeEventHandler } from "svelte/elements";
     import Chip from "./chip.svelte";
+    import { textMatchSegments } from "$lib/util/text_match";
 
     interface Props {
         name?: string;
@@ -22,6 +23,7 @@
         extraClasses?: string;
         onchange?: ChangeEventHandler<HTMLInputElement>;
         onupdate?: (q: string) => void;
+        normalizeNewItemText?: (text: string) => string | null;
     }
 
     let {
@@ -36,6 +38,7 @@
         extraClasses = "",
         onchange,
         onupdate,
+        normalizeNewItemText,
     }: Props = $props();
 
     let searching: boolean = $state(false);
@@ -49,33 +52,7 @@
             searching,
     );
 
-    $effect(() => {
-        items;
-        makeMatchesBold();
-    });
-
-    async function makeMatchesBold() {
-        const dropdownMenu = document.querySelector(".menu");
-
-        const relevantValue = multiple ? inputValue : (value as string);
-
-        if (dropdownMenu) {
-            for (let i = 0; i < dropdownMenu.children.length; i++) {
-                const li = dropdownMenu.children[i];
-                const textNode = li.getElementsByTagName("p")[0];
-                if(!textNode) {
-                    return
-                }
-                textNode.innerHTML = items[i].text;
-
-                const text = textNode.innerText.replace(
-                    new RegExp(relevantValue, "gi"),
-                    (match) => `<strong>${match}</strong>`,
-                );
-                textNode.innerHTML = text;
-            }
-        }
-    }
+    let relevantValue = $derived(multiple ? inputValue : ((value as string) ?? ""));
 
     async function onSearchType() {
         const relevantValue = multiple ? inputValue : (value as string);
@@ -112,21 +89,28 @@
             if (!inputValue.length) {
                 return;
             }
-            if ((value as ComboboxItem[]).some((i) => i.text == inputValue)) {
+            let matchingItemFromSuggestions = items.find(
+                (i) => i.text == inputValue,
+            );
+            const newItemText = matchingItemFromSuggestions
+                ? matchingItemFromSuggestions.text
+                : normalizeNewItemText
+                  ? normalizeNewItemText(inputValue)
+                  : inputValue;
+            if (newItemText === null || (value as ComboboxItem[]).some((i) => i.text == newItemText)) {
                 inputValue = "";
                 return;
             }
-
-            const matchingItemFromSuggestions = items.find(
-                (i) => i.text == inputValue,
-            );
+            if (!matchingItemFromSuggestions && normalizeNewItemText) {
+                matchingItemFromSuggestions = items.find((i) => i.text == newItemText);
+            }
 
             value = [
                 ...(value as ComboboxItem[]),
                 matchingItemFromSuggestions
                     ? matchingItemFromSuggestions
                     : {
-                          text: inputValue,
+                          text: newItemText,
                           value: null,
                       },
             ];
@@ -219,7 +203,11 @@
                     {#if item.icon}
                         <i class="fa fa-{item.icon} mr-6"></i>
                     {/if}
-                    <p class="text-ellipsis">{item.text}</p>
+                    <p class="text-ellipsis">
+                        {#each textMatchSegments(item.text, relevantValue) as segment}
+                            {#if segment.matched}<strong>{segment.text}</strong>{:else}{segment.text}{/if}
+                        {/each}
+                    </p>
                 </li>
             {/each}
         </ul>

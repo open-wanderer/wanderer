@@ -168,6 +168,9 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 func ActivitypubActorFollow(e *core.RequestEvent) error {
 	id := e.Request.PathValue("id")
 	followType := e.Request.PathValue("follow")
+	if followType != "followers" && followType != "following" {
+		return e.NotFoundError("unknown type: "+followType, nil)
+	}
 	page := e.Request.URL.Query().Get("page")
 	intPage := 0
 
@@ -202,14 +205,26 @@ func ActivitypubActorFollow(e *core.RequestEvent) error {
 	if url == "" {
 		return e.BadRequestError("unknown type: "+followType, nil)
 	}
-	collection, err := federation.FetchCollectionPage(e.App, ctx, url, intPage)
+	var collection *pub.OrderedCollectionPage
+	if cursor := e.Request.URL.Query().Get("cursor"); cursor != "" {
+		collection, err = federation.FetchCollectionCursor(e.App, ctx, url, cursor)
+	} else {
+		collection, err = federation.FetchCollectionPage(e.App, ctx, url, intPage)
+	}
 	if err != nil {
-		if errors.Is(err, federation.ErrProfilePrivate) {
+		if errors.Is(err, federation.ErrInvalidCursor) {
+			return e.BadRequestError("Invalid cursor", err)
+		} else if errors.Is(err, federation.ErrProfilePrivate) {
 			return e.JSON(http.StatusNotFound, map[string]any{"error": "profile is private"})
 		} else if errors.Is(err, util.ErrRateLimited) {
 			return e.TooManyRequestsError("Too many requests", err)
 		}
 		return err
+	}
+	if next := federation.CollectionNext(url, collection, intPage); next != "" {
+		collection.Next = pub.IRI(next)
+	} else {
+		collection.Next = nil
 	}
 	return e.JSON(http.StatusOK, collection)
 }

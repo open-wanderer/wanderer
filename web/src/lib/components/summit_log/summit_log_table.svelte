@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import type { SummitLog } from "$lib/models/summit_log";
     import { onMount, tick } from "svelte";
     import Modal from "../base/modal.svelte";
@@ -202,7 +203,7 @@
     bind:this={textModal}
 >
     {#snippet content()}
-        <div class="prose dark:prose-invert">{@html currentText}</div>
+        <div class="prose dark:prose-invert">{@html sanitizeHTML(currentText)}</div>
     {/snippet}
 </Modal>
 

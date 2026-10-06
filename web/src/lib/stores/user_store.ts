@@ -55,8 +55,6 @@ export async function login(user: User) {
 }
 
 export async function oauth_login(data: { name: string, code: string, codeVerifier: string }) {
-    const pb = getPb();
-
     const r = await fetch('/api/v1/auth/oauth', {
         method: 'POST',
         body: JSON.stringify(data)
@@ -65,9 +63,6 @@ export async function oauth_login(data: { name: string, code: string, codeVerifi
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
     }
-
-    pb.authStore.loadFromCookie(document.cookie)
-
 }
 
 

@@ -691,6 +691,7 @@ func processCreateOrUpdateCommentActivity(ctx context.Context, activity pub.Acti
 	record.Set("author", actor.Id)
 	record.Set("trail", trail.Id)
 
+	util.SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 	if err != nil {
 		return err
@@ -913,6 +914,7 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 		}
 	}
 
+	util.SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 	if err != nil {
 		return err

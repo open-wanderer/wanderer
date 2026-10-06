@@ -243,6 +243,7 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 			}
 		}
 
+		util.SanitizeHTMLFieldsWithLimits(localList)
 		if err := txApp.Save(localList); err != nil {
 			return err
 		}
@@ -377,6 +378,7 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 		trail.Set("author", author)
 		trail.Set("iri", iri)
 
+		util.SanitizeHTMLFieldsWithLimits(trail)
 		if err := txApp.Save(trail); err != nil {
 			return err
 		}

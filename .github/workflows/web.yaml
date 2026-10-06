@@ -36,3 +36,14 @@ jobs:
       - run: make web-playwright-install
       - run: make web-check
       - run: make web-test
+
+      - name: Upload Playwright results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

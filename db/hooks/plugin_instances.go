@@ -3,6 +3,7 @@ package hooks
 import (
 	"encoding/json"
 	"os"
+	"slices"
 
 	"github.com/pocketbase/dbx"
 	"pocketbase/util"
@@ -174,18 +175,27 @@ func encryptPluginInstanceAuth(app core.App, r *core.Record) error {
 
 	secretFields := pluginInstanceSecretFields(app, r.GetString("plugin_id"))
 	encryptAll := len(secretFields) == 0
+	oauthMetadataFields := pluginsystem.InternalOAuthMetadataFields()
 	if originalAuth != nil {
 		for key, value := range originalAuth {
 			if _, ok := auth[key]; ok {
 				continue
 			}
-			if encryptAll || secretFields[key] {
+			// Settings submit only editable credentials. Keep the accompanying
+			// host-managed OAuth metadata too; an explicit nil bypasses merging.
+			if encryptAll || secretFields[key] || slices.Contains(oauthMetadataFields, key) {
 				auth[key] = value
 			}
 		}
 	}
 
 	for key, value := range auth {
+		if value == nil {
+			// Consume removal markers only after merging: deleting them earlier
+			// would make the fields look omitted and restore their old values.
+			delete(auth, key)
+			continue
+		}
 		secret, ok := value.(string)
 		if !ok {
 			continue

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -54,8 +55,17 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 	}
 
 	// 2. Fetch the requested page, following the collection's own links
-	collection, err := federation.FetchCollectionPage(e.App, ctx, collectionIRI, page)
+	// A cursor names the page directly and costs one remote request
+	var collection *pub.OrderedCollectionPage
+	if cursor := e.Request.URL.Query().Get("cursor"); cursor != "" {
+		collection, err = federation.FetchCollectionCursor(e.App, ctx, collectionIRI, cursor)
+	} else {
+		collection, err = federation.FetchCollectionPage(e.App, ctx, collectionIRI, page)
+	}
 	if err != nil {
+		if errors.Is(err, federation.ErrInvalidCursor) {
+			return e.BadRequestError("Invalid cursor", err)
+		}
 		if errors.Is(err, util.ErrRateLimited) {
 			return e.TooManyRequestsError("Too many requests", err)
 		}
@@ -123,5 +133,6 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 		"totalItems": totalItems,
 		"totalPages": math.Ceil(float64(totalItems) / float64(perPage)),
 		"items":      resolvedItems,
+		"next":       federation.CollectionNext(collectionIRI, collection, page),
 	})
 }

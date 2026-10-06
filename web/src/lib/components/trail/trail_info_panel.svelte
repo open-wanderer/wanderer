@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import Tabs from "$lib/components/base/tabs.svelte";
@@ -72,6 +73,7 @@
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
     import { withShareToken } from "$lib/util/url_util";
+    import { normalizeNewTagName } from "$lib/util/tag_name";
 
     interface Props {
         initTrail: Trail;
@@ -541,6 +543,7 @@
                     <div class="flex-1">
                         <Combobox
                             bind:value={tagDraftItems}
+                            normalizeNewItemText={normalizeNewTagName}
                             onupdate={searchTags}
                             items={tagItems}
                             placeholder={`${$_("tags")}...`}
@@ -860,7 +863,7 @@
                             >
                         {:else}
                             <div class="prose dark:prose-invert">
-                                {@html trail.description}
+                                {@html sanitizeHTML(trail.description)}
                             </div>
                         {/if}
                     </article>
