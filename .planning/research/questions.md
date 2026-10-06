@@ -61,3 +61,20 @@ Both incumbents show per-item inline sync state in the normal trail list rather 
 "Pending" screen. Confirm the trail card / trail list item can carry that state without
 overloading the existing `isOffline` badge, which means something different (downloaded for
 offline use, not awaiting upload).
+
+## Image pipeline overhaul (2026-10-06, see notes/image-pipeline-overhaul.md)
+
+### 1. HEIC: decode server-side or convert client-side?
+
+Uploads accept `image/heic`, but PocketBase doesn't thumb it and Chrome/Firefox can't display it.
+Server-side decoding means libheif (cgo, breaks the `FROM scratch` / `CGO_ENABLED=0` build) or a
+WASM build, plus unresolved HEVC patent/licensing exposure for a self-hosted OSS project. Client-side
+conversion (browser canvas / Flutter `image_picker` output format) avoids both but leaves existing
+HEIC uploads unconverted. Which, and what happens to legacy HEIC files?
+
+### 2. Does Flutter render AVIF reliably on real devices?
+
+Flutter decodes JPEG/PNG/GIF/WebP/BMP natively; anything else falls through to the platform codec
+(Android 12+, iOS 16+), or needs a plugin such as `piksel_avif`. Unverified on our minimum targets
+(Android API 21, iOS 12). Answer decides whether AVIF can ever be more than a web-only `<picture>`
+source.
