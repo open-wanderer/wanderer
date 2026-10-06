@@ -63,9 +63,6 @@ type searchIndexSource struct {
 	pageLabel  string
 	pageSize   int64
 	document   func(r *core.Record) (map[string]any, error)
-	// repairDocument replaces document for the nightly repair; nil uses
-	// document.
-	repairDocument func(r *core.Record) (map[string]any, error)
 	// repairFields limits the nightly comparison to these fields; nil
 	// compares the whole document.
 	repairFields []string
@@ -79,8 +76,7 @@ func searchIndexSources(app core.App) []searchIndexSource {
 		},
 		{
 			index: "lists", collection: "lists", pageLabel: "list", pageSize: 100,
-			document:       func(r *core.Record) (map[string]any, error) { return util.ListSearchDocument(app, r) },
-			repairDocument: func(r *core.Record) (map[string]any, error) { return util.ListRepairDocument(app, r) },
+			document: func(r *core.Record) (map[string]any, error) { return util.ListSearchDocument(app, r) },
 		},
 		{
 			// Actor documents hold only the actor's own fields, so they do
@@ -311,9 +307,6 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 		return nil
 	}
 
-	if source.repairDocument != nil {
-		source.document = source.repairDocument
-	}
 	var fields []string
 	if source.repairFields != nil {
 		fields = append([]string{"id"}, source.repairFields...)

@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -347,7 +348,7 @@ func TestDocumentFromListRecordMissingAuthor(t *testing.T) {
 
 	for _, includeShares := range []bool{false, true} {
 		t.Run(includeSharesLabel(includeShares), func(t *testing.T) {
-			document, err := documentFromListRecord(list, nil, includeShares, false)
+			document, err := documentFromListRecord(list, nil, includeShares)
 			if err == nil {
 				t.Fatal("expected an error")
 			}
@@ -478,77 +479,47 @@ func setupListIndexApp(t *testing.T) (*core.BaseApp, *core.Record) {
 	return app, author
 }
 
-func TestDocumentFromListRecordRemoteTotals(t *testing.T) {
+// A remote list's totals come from the local copies of its trails, which a
+// full sync stores; building its document never contacts the remote instance.
+func TestDocumentFromListRecordRemoteTotalsAreLocal(t *testing.T) {
+	contacted := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contacted = true
+	}))
+	defer server.Close()
+
 	author := newActorRecord("remoteauthor001", "remote", false, "remote.example")
+	list := newListRecord("remotelist00001", author.Id)
+	list.Set("iri", server.URL+"/api/v1/list/remote")
 
-	cases := []struct {
-		name string
-		hit  string
-		// wantDistance is the distance a lenient build reports; strict
-		// builds must fail wherever the remote totals are unusable.
-		wantDistance float64
-		strictFails  bool
-	}{
-		{
-			name:         "complete totals",
-			hit:          `{"id":"remote","elevation_gain":10,"elevation_loss":5,"distance":1200,"duration":60,"trails":3}`,
-			wantDistance: 1200,
-		},
-		{
-			name:        "missing trail count",
-			hit:         `{"id":"remote","elevation_gain":10,"elevation_loss":5,"distance":1200,"duration":60}`,
-			strictFails: true,
-		},
-		{
-			name:        "non-numeric distance",
-			hit:         `{"id":"remote","elevation_gain":10,"elevation_loss":5,"distance":"far","duration":60,"trails":3}`,
-			strictFails: true,
-		},
+	trails := core.NewBaseCollection("trails")
+	trails.Fields.Add(
+		&core.NumberField{Name: "distance"},
+		&core.NumberField{Name: "elevation_gain"},
+		&core.NumberField{Name: "elevation_loss"},
+		&core.NumberField{Name: "duration"},
+	)
+	var synced []*core.Record
+	for i, distance := range []float64{1200, 800} {
+		trail := core.NewRecord(trails)
+		trail.Id = fmt.Sprintf("syncedtrail0000%d", i)
+		trail.Set("distance", distance)
+		trail.Set("elevation_gain", 100)
+		trail.Set("elevation_loss", 50)
+		trail.Set("duration", 30)
+		synced = append(synced, trail)
 	}
+	list.Set("trails", []string{synced[0].Id, synced[1].Id})
+	list.SetExpand(map[string]any{"trails": synced})
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"hits":[` + c.hit + `]}`))
-			}))
-			defer server.Close()
-
-			list := newListRecord("remotelist00001", author.Id)
-			list.Set("iri", server.URL+"/api/v1/list/remote")
-
-			lenient, err := documentFromListRecord(list, author, false, false)
-			if err != nil {
-				t.Fatalf("lenient build: %v", err)
-			}
-			if lenient["distance"] != c.wantDistance {
-				t.Fatalf("lenient distance = %v; want %v", lenient["distance"], c.wantDistance)
-			}
-
-			strict, err := documentFromListRecord(list, author, false, true)
-			if c.strictFails {
-				if err == nil {
-					t.Fatalf("strict build = %#v; want an error", strict)
-				}
-				return
-			}
-			if err != nil || strict["trails"] != 3 {
-				t.Fatalf("strict build = %#v, %v; want 3 trails", strict, err)
-			}
-		})
+	document, err := documentFromListRecord(list, author, false)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	t.Run("unreachable instance", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-		server.Close()
-
-		list := newListRecord("remotelist00002", author.Id)
-		list.Set("iri", server.URL+"/api/v1/list/remote")
-		if _, err := documentFromListRecord(list, author, false, true); err == nil {
-			t.Fatal("strict build succeeded for an unreachable instance")
-		}
-		if document, err := documentFromListRecord(list, author, false, false); err != nil || document["distance"] != 0.0 {
-			t.Fatalf("lenient build = %#v, %v; want zero totals", document, err)
-		}
-	})
+	if contacted {
+		t.Fatal("building a remote list's document contacted its instance")
+	}
+	if document["distance"] != 2000.0 || document["elevation_gain"] != 200.0 || document["trails"] != 2 || document["domain"] != "remote.example" {
+		t.Fatalf("document = %#v; want totals of the two synced trails", document)
+	}
 }
