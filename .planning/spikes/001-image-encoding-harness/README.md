@@ -3,7 +3,7 @@ spike: 001
 name: image-encoding-ladder
 type: comparison
 validates: "Given a 12/24 MP camera JPEG on a Raspberry Pi 5, when one CGO-free worker decodes, auto-orients, resizes (CatmullRom) to a 2048/1280/800/400 long-edge ladder and encodes, then a photo finishes in a few seconds with peak RSS well under 512 MB"
-verdict: VALIDATED (stdlib JPEG) / PARTIAL (WebP, jpegli)
+verdict: WINNER WebP (chosen in spike 003); stdlib JPEG VALIDATED; jpegli PARTIAL
 related: [002, 003]
 tags: [images, go, cgo-free, webp, jpegli, arm64, performance]
 ---
@@ -107,7 +107,7 @@ only stage that scales with cores (`imaging` parallelises across `GOMAXPROCS`).
 
 - **001a stdlib JPEG — VALIDATED.** Fastest, smallest memory, no side effects. Use q75 to match the
   others' q80 quality. Worst case 2.7 s per 24 MP photo on one Pi 5 core.
-- **001b WebP — PARTIAL.** Works CGO-free and wins on graphics, but costs ~2× the CPU of stdlib for
+- **001b WebP — WINNER (chosen in spike 003, q80).** Originally assessed as PARTIAL: Works CGO-free and wins on graphics, but costs ~2× the CPU of stdlib for
   only 7–12% fewer bytes on photos, and visibly blocks smooth sky gradients at q80 (see spike 003).
   Worth it only for non-photographic images (map snapshots) if at all.
 - **001c jpegli — PARTIAL.** Best bytes at equal quality for +0.3–0.5 s per photo, but **must not be

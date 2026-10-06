@@ -3,7 +3,7 @@ spike: 003
 name: quality-side-by-side
 type: standard
 validates: "Given the variants from spike 001 at equal SSIM, when viewed side by side at 1x/2x against a lossless reference, then a format and quality can be picked by eye"
-verdict: PENDING
+verdict: VALIDATED
 related: [001]
 tags: [images, quality, webp, jpegli, viewer]
 ---
@@ -36,6 +36,12 @@ reference. Captions show KB, Δ vs stdlib JPEG q75, and SSIM.
 - Early observation (12 MP, 1280 px, 2×): WebP q80 bands the blue sky gradient into visible blocks at
   the same SSIM where jpegli q80 stays smooth.
 
+- At 4× on cloud texture, WebP q80 smooths fine detail that WebP q85 keeps (181 KB vs 145 KB at
+  1280 px); jpegli q80 sits in between at 142 KB.
+
 ## Results
 
-Pending the user's visual verdict.
+**VALIDATED — decision (user, 2026-10-06): WebP q80 for all variants.** WebP was preferred as the widely
+accepted standard (native in every current browser and in Flutter), over jpegli's slightly better
+bytes-per-quality and its registry landmine. q80 accepted knowing it softens fine texture at high zoom;
+at 1× the variants are visually indistinguishable from the reference in normal viewing.
