@@ -1,3 +1,4 @@
+import { forwardableHeaders } from '$lib/server/http';
 import { handleError } from '$lib/util/api_util';
 import { env as privateEnv } from '$env/dynamic/private';
 import { json, type RequestEvent } from '@sveltejs/kit';
@@ -36,13 +37,8 @@ export async function POST(event: RequestEvent) {
             return json("Bad request", { status: 400 });
         }
 
-        // Clone original headers, excluding content-length.
-        const originalHeaders: Record<string, string> = {};
-        event.request.headers.forEach((value, key) => {
-            if (key.toLowerCase() !== 'content-length') {
-                originalHeaders[key] = value;
-            }
-        });
+        // Clone original headers (the backend verifies the signature)
+        const originalHeaders = forwardableHeaders(event.request.headers);
 
         // Set the forwarded path so the Go handler can reconstruct the signed inbox IRI.
         originalHeaders['X-Forwarded-Path'] = event.url.pathname;
