@@ -347,7 +347,7 @@ func TestDocumentFromListRecordMissingAuthor(t *testing.T) {
 
 	for _, includeShares := range []bool{false, true} {
 		t.Run(includeSharesLabel(includeShares), func(t *testing.T) {
-			document, err := documentFromListRecord(list, nil, includeShares)
+			document, err := documentFromListRecord(list, nil, includeShares, false)
 			if err == nil {
 				t.Fatal("expected an error")
 			}
@@ -476,4 +476,79 @@ func setupListIndexApp(t *testing.T) (*core.BaseApp, *core.Record) {
 		"domain":             "ignored.example",
 	})
 	return app, author
+}
+
+func TestDocumentFromListRecordRemoteTotals(t *testing.T) {
+	author := newActorRecord("remoteauthor001", "remote", false, "remote.example")
+
+	cases := []struct {
+		name string
+		hit  string
+		// wantDistance is the distance a lenient build reports; strict
+		// builds must fail wherever the remote totals are unusable.
+		wantDistance float64
+		strictFails  bool
+	}{
+		{
+			name:         "complete totals",
+			hit:          `{"id":"remote","elevation_gain":10,"elevation_loss":5,"distance":1200,"duration":60,"trails":3}`,
+			wantDistance: 1200,
+		},
+		{
+			name:        "missing trail count",
+			hit:         `{"id":"remote","elevation_gain":10,"elevation_loss":5,"distance":1200,"duration":60}`,
+			strictFails: true,
+		},
+		{
+			name:        "non-numeric distance",
+			hit:         `{"id":"remote","elevation_gain":10,"elevation_loss":5,"distance":"far","duration":60,"trails":3}`,
+			strictFails: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"hits":[` + c.hit + `]}`))
+			}))
+			defer server.Close()
+
+			list := newListRecord("remotelist00001", author.Id)
+			list.Set("iri", server.URL+"/api/v1/list/remote")
+
+			lenient, err := documentFromListRecord(list, author, false, false)
+			if err != nil {
+				t.Fatalf("lenient build: %v", err)
+			}
+			if lenient["distance"] != c.wantDistance {
+				t.Fatalf("lenient distance = %v; want %v", lenient["distance"], c.wantDistance)
+			}
+
+			strict, err := documentFromListRecord(list, author, false, true)
+			if c.strictFails {
+				if err == nil {
+					t.Fatalf("strict build = %#v; want an error", strict)
+				}
+				return
+			}
+			if err != nil || strict["trails"] != 3 {
+				t.Fatalf("strict build = %#v, %v; want 3 trails", strict, err)
+			}
+		})
+	}
+
+	t.Run("unreachable instance", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		server.Close()
+
+		list := newListRecord("remotelist00002", author.Id)
+		list.Set("iri", server.URL+"/api/v1/list/remote")
+		if _, err := documentFromListRecord(list, author, false, true); err == nil {
+			t.Fatal("strict build succeeded for an unreachable instance")
+		}
+		if document, err := documentFromListRecord(list, author, false, false); err != nil || document["distance"] != 0.0 {
+			t.Fatalf("lenient build = %#v, %v; want zero totals", document, err)
+		}
+	})
 }

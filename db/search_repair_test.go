@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
@@ -115,6 +116,64 @@ func TestRepairSearchIndexes(t *testing.T) {
 		}
 	})
 
+	t.Run("a rejected document does not stop the repair", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, int(searchInitPageSize)+1)
+		search, client := newMemorySearch(t)
+		search.store(t, "trails", map[string]any{"id": "deletedtrail000"})
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		bad := trails[0].Id
+		search.rejected["trails"] = map[string]bool{bad: true}
+
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		err := repairSearchIndexes(&searchInitLogApp{App: app, logger: logger}, client)
+		if err == nil || !strings.Contains(err.Error(), bad) {
+			t.Fatalf("repairSearchIndexes error = %v; want the rejected trail %s", err, bad)
+		}
+		for _, trail := range trails {
+			stored := search.document("trails", trail.Id) != nil
+			if stored == (trail.Id == bad) {
+				t.Fatalf("trail %s stored = %v; want every trail but the rejected one", trail.Id, stored)
+			}
+		}
+		if search.document("trails", "deletedtrail000") != nil {
+			t.Fatal("orphan was not removed after the rejected batch")
+		}
+	})
+
+	t.Run("an index with queued document tasks is skipped", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		search.pending["trails"] = 3
+		drainTimeout, pollInterval := searchQueueDrainTimeout, searchQueuePollInterval
+		searchQueueDrainTimeout, searchQueuePollInterval = 30*time.Millisecond, 10*time.Millisecond
+		t.Cleanup(func() { searchQueueDrainTimeout, searchQueuePollInterval = drainTimeout, pollInterval })
+
+		logText := runRepair(t, app, client)
+		if writes, _ := search.changes(); len(writes) != 0 {
+			t.Fatalf("writes = %v; want trails %v left alone", writes, trails)
+		}
+		if !strings.Contains(logText, "Search repair trails skipped") {
+			t.Fatalf("log = %s", logText)
+		}
+	})
+
+	t.Run("a panic is logged and releases the indexes", func(t *testing.T) {
+		app, _, _ := newSearchRepairApp(t, 1)
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+		runSearchRepair(&searchInitLogApp{App: app, logger: logger}, panickingSearchClient{})
+		if !strings.Contains(buf.String(), "Search repair panicked") {
+			t.Fatalf("log = %s", buf.String())
+		}
+		if !searchIndexLock.TryLock() {
+			t.Fatal("the search indexes are still locked after the panic")
+		}
+		searchIndexLock.Unlock()
+	})
+
 	t.Run("a run is skipped while the indexes are being written", func(t *testing.T) {
 		app, _, _ := newSearchRepairApp(t, 1)
 		search, client := newMemorySearch(t)
@@ -143,6 +202,11 @@ func TestReindexSearchTrails(t *testing.T) {
 	if writes, _ := search.changes(); !sameBatches(writes["trails"], []string{trails[1].Id}) {
 		t.Fatalf("writes = %v; want only %s", writes, trails[1].Id)
 	}
+}
+
+// panickingSearchClient panics on any call, as a nil client would.
+type panickingSearchClient struct {
+	meilisearch.ServiceManager
 }
 
 func sameBatches(got [][]string, want ...[]string) bool {
@@ -210,11 +274,21 @@ type memorySearch struct {
 	waited    []int64
 	requests  int
 	nextTask  int64
+	// rejected documents make the batch carrying them fail, per index.
+	rejected map[string]map[string]bool
+	// pending is the number of queued document tasks reported per index.
+	pending map[string]int64
+	failed  map[int64]bool
 }
 
 func newMemorySearch(t *testing.T) (*memorySearch, meilisearch.ServiceManager) {
 	t.Helper()
-	search := &memorySearch{documents: map[string]map[string]map[string]any{}}
+	search := &memorySearch{
+		documents: map[string]map[string]map[string]any{},
+		rejected:  map[string]map[string]bool{},
+		pending:   map[string]int64{},
+		failed:    map[int64]bool{},
+	}
 	search.reset()
 	server := httptest.NewServer(http.HandlerFunc(search.serveHTTP))
 	t.Cleanup(server.Close)
@@ -295,10 +369,17 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 	switch {
+	case r.Method == http.MethodGet && path == "/tasks":
+		_, _ = fmt.Fprintf(w, `{"results":[],"total":%d,"limit":1,"from":null,"next":null}`, search.pending[r.URL.Query().Get("indexUids")])
+
 	case r.Method == http.MethodGet && strings.HasPrefix(path, "/tasks/"):
 		var uid int64
 		fmt.Sscan(strings.TrimPrefix(path, "/tasks/"), &uid)
 		search.waited = append(search.waited, uid)
+		if search.failed[uid] {
+			_, _ = fmt.Fprintf(w, `{"uid":%d,"status":"failed","type":"documentAdditionOrUpdate","error":{"message":"invalid document","code":"invalid_document_geo_field","type":"invalid_request","link":""},"enqueuedAt":"2026-10-06T00:00:00Z"}`, uid)
+			return
+		}
 		_, _ = fmt.Fprintf(w, `{"uid":%d,"status":"succeeded","type":"documentAdditionOrUpdate","enqueuedAt":"2026-10-06T00:00:00Z"}`, uid)
 
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/documents/fetch"):
@@ -362,9 +443,19 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ids := make([]string, len(documents))
+		reject := false
 		for i, document := range documents {
-			search.put(index, document)
 			ids[i], _ = document["id"].(string)
+			reject = reject || search.rejected[index][ids[i]]
+		}
+		if reject {
+			// Meilisearch applies a batch whole or not at all.
+			search.acceptTask(w, index)
+			search.failed[search.nextTask] = true
+			return
+		}
+		for _, document := range documents {
+			search.put(index, document)
 		}
 		search.writes[index] = append(search.writes[index], ids)
 		search.acceptTask(w, index)

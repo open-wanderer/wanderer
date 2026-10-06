@@ -302,7 +302,7 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		}
 	})
 
-	t.Run("a failed rebuild drops its recorded version", func(t *testing.T) {
+	t.Run("a failed delete keeps the recorded version", func(t *testing.T) {
 		app := newSearchInitApp(t)
 		seedTrails(t, app, int(trailCount))
 		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
@@ -314,10 +314,30 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "rebuild search index actors") {
 			t.Fatalf("initMeilisearchDocuments error = %v; want the actors rebuild failure\n%s", err, logText)
 		}
-		want := maps.Clone(util.SearchDocumentVersions)
-		delete(want, "actors")
-		if got := readSearchIndexVersions(app); !maps.Equal(got, want) {
-			t.Fatalf("recorded versions = %v; want %v", got, want)
+		// The index still holds its documents, so it is not marked for a
+		// rebuild on the next start.
+		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
+		}
+	})
+
+	t.Run("an unreachable Meilisearch leaves the indexes alone", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.failStats = true
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), nil)
+		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
+		}
+		if !strings.Contains(logText, "leaving it for the nightly repair") {
+			t.Fatalf("log = %s", logText)
 		}
 	})
 
@@ -612,6 +632,7 @@ type searchInitServer struct {
 	canceled          []string
 	canceledTypes     []string
 	failDeleteIndexes map[string]bool
+	failStats         bool
 }
 
 func newSearchInitClient(t *testing.T, rejectTrailIDs map[string]bool) (*searchInitServer, meilisearch.ServiceManager, <-chan struct{}) {
@@ -686,6 +707,11 @@ func (state *searchInitServer) serveTaskOrStats(w http.ResponseWriter, r *http.R
 		_, _ = w.Write([]byte(`{"uid":7,"indexUid":null,"status":"succeeded","type":"taskCancelation","enqueuedAt":"2026-09-19T00:00:00Z"}`))
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/indexes/") && strings.HasSuffix(r.URL.Path, "/stats"):
 		index = strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/indexes/"), "/stats")
+		if state.failStats {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"message":"unavailable","code":"internal","type":"internal"}`))
+			return true
+		}
 		state.mu.Lock()
 		count := state.documentCounts[index]
 		state.mu.Unlock()

@@ -32,6 +32,14 @@ const (
 	searchRepairIDPageSize = 10000
 )
 
+// searchQueueDrainTimeout and searchQueuePollInterval bound how long the
+// repair waits for an index's queued document tasks before skipping it. A
+// live write clears in milliseconds; only a backlog makes the repair skip.
+var (
+	searchQueueDrainTimeout = 10 * time.Minute
+	searchQueuePollInterval = 5 * time.Second
+)
+
 var pendingSearchTaskStatuses = []meilisearch.TaskStatus{
 	meilisearch.TaskStatusEnqueued,
 	meilisearch.TaskStatusProcessing,
@@ -55,6 +63,9 @@ type searchIndexSource struct {
 	pageLabel  string
 	pageSize   int64
 	document   func(r *core.Record) (map[string]any, error)
+	// repairDocument replaces document for the nightly repair; nil uses
+	// document.
+	repairDocument func(r *core.Record) (map[string]any, error)
 	// repairFields limits the nightly comparison to these fields; nil
 	// compares the whole document.
 	repairFields []string
@@ -68,7 +79,8 @@ func searchIndexSources(app core.App) []searchIndexSource {
 		},
 		{
 			index: "lists", collection: "lists", pageLabel: "list", pageSize: 100,
-			document: func(r *core.Record) (map[string]any, error) { return util.ListSearchDocument(app, r) },
+			document:       func(r *core.Record) (map[string]any, error) { return util.ListSearchDocument(app, r) },
+			repairDocument: func(r *core.Record) (map[string]any, error) { return util.ListRepairDocument(app, r) },
 		},
 		{
 			// Actor documents hold only the actor's own fields, so they do
@@ -102,21 +114,27 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 		if built[source.index] == version {
 			empty, err := searchIndexEmpty(app, client, source)
 			if err != nil {
-				app.Logger().Warn(fmt.Sprintf("Unable to check search index %s, rebuilding it: %v", source.index, err))
-			} else if !empty {
+				// Meilisearch may not be up yet. Rebuilding now would fail
+				// too, and the nightly repair covers the index meanwhile.
+				app.Logger().Warn(fmt.Sprintf("Unable to check search index %s, leaving it for the nightly repair: %v", source.index, err))
+				continue
+			}
+			if !empty {
 				app.Logger().Info(fmt.Sprintf("Search index %s is current, skipping rebuild", source.index))
 				continue
 			}
 		}
 
 		app.Logger().Info(fmt.Sprintf("Rebuilding search index %s", source.index))
-		// Drop the entry while the rebuild runs, so a start that interrupts
-		// it rebuilds again instead of keeping a half-filled index.
-		delete(built, source.index)
-		if err := writeSearchIndexVersions(app, built); err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to record search index versions: %v", err))
-		}
-		complete, err := rebuildSearchIndex(app, client, source)
+		complete, err := rebuildSearchIndex(app, client, source, func() {
+			// Drop the entry once the index is cleared, so a start that
+			// interrupts the rebuild rebuilds again instead of keeping a
+			// half-filled index.
+			delete(built, source.index)
+			if err := writeSearchIndexVersions(app, built); err != nil {
+				app.Logger().Warn(fmt.Sprintf("Unable to record search index versions: %v", err))
+			}
+		})
 		if err != nil {
 			errs = append(errs, fmt.Errorf("rebuild search index %s: %w", source.index, err))
 			continue
@@ -150,11 +168,11 @@ func searchIndexEmpty(app core.App, client meilisearch.ServiceManager, source se
 	return records > 0, nil
 }
 
-// rebuildSearchIndex replaces every document of an index. It reports the
-// rebuild complete only when Meilisearch accepted every page; a record that
-// cannot be turned into a document is left out and logged, and the nightly
-// repair tries it again.
-func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source searchIndexSource) (bool, error) {
+// rebuildSearchIndex replaces every document of an index, calling cleared
+// once the old documents are gone. It reports the rebuild complete only when
+// Meilisearch accepted every page; a record that cannot be turned into a
+// document is left out and logged, and the nightly repair tries it again.
+func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source searchIndexSource, cleared func()) (bool, error) {
 	// A rebuild interrupted by a restart leaves its batches queued; cancel
 	// them so they do not run ahead of this one.
 	if err := cancelPendingSearchTasks(client, source.index); err != nil {
@@ -164,6 +182,7 @@ func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source 
 	if _, err := client.Index(source.index).DeleteAllDocuments(nil); err != nil {
 		return false, err
 	}
+	cleared()
 
 	complete := true
 	var page int64
@@ -249,6 +268,13 @@ func runSearchRepair(app core.App, client meilisearch.ServiceManager) {
 		return
 	}
 	defer searchIndexLock.Unlock()
+	// PocketBase runs cron jobs without recovering panics, so one would take
+	// the whole server down.
+	defer func() {
+		if r := recover(); r != nil {
+			app.Logger().Error(fmt.Sprintf("Search repair panicked: %v", r))
+		}
+	}()
 
 	if err := repairSearchIndexes(app, client); err != nil {
 		app.Logger().Error(fmt.Sprintf("Search repair failed: %v", err))
@@ -269,15 +295,33 @@ func repairSearchIndexes(app core.App, client meilisearch.ServiceManager) error 
 // rebuilding it. Each page of records is compared with the stored documents,
 // and only missing or differing documents are written, one batch at a time,
 // so live writes queued meanwhile are not held up behind the whole repair.
-// Documents whose record no longer exists are removed afterwards.
+// Documents whose record no longer exists are removed afterwards. A page that
+// fails is logged and skipped, so one bad document cannot stop the repair of
+// the rest of the index.
 func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source searchIndexSource) error {
+	// Document tasks still queued, such as a startup rebuild Meilisearch is
+	// working through, would make the stored documents look stale and keep
+	// every repair batch waiting behind them.
+	drained, err := searchQueueDrained(client, source.index)
+	if err != nil {
+		return err
+	}
+	if !drained {
+		app.Logger().Warn(fmt.Sprintf("Search repair %s skipped: document tasks are still queued", source.index))
+		return nil
+	}
+
+	if source.repairDocument != nil {
+		source.document = source.repairDocument
+	}
 	var fields []string
 	if source.repairFields != nil {
 		fields = append([]string{"id"}, source.repairFields...)
 	}
 
+	var errs []error
 	rewritten := 0
-	err := forEachRecordPage(app, source.collection, source.pageSize, func(records []*core.Record) error {
+	err = forEachRecordPage(app, source.collection, source.pageSize, func(records []*core.Record) error {
 		expected := searchDocuments(app, source, records)
 		if len(expected) == 0 {
 			return nil
@@ -289,7 +333,8 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 
 		stored, err := storedSearchDocuments(client, source.index, ids, fields)
 		if err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("read documents: %w", err))
+			return nil
 		}
 
 		var stale []map[string]any
@@ -303,27 +348,76 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 			return nil
 		}
 
-		task, err := client.Index(source.index).AddDocuments(stale, nil)
+		written, err := writeSearchRepairBatch(app, client, source, stale)
+		rewritten += written
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
-		if err := waitForSearchRepairTask(client, task.TaskUID); err != nil {
-			return err
-		}
-		rewritten += len(stale)
 		return nil
 	})
 	if err != nil {
-		return err
+		errs = append(errs, err)
 	}
 
 	removed, err := removeOrphanSearchDocuments(app, client, source)
 	if err != nil {
-		return err
+		errs = append(errs, fmt.Errorf("remove orphaned documents: %w", err))
 	}
 
-	app.Logger().Info(fmt.Sprintf("Search repair %s: %d documents rewritten, %d removed", source.index, rewritten, removed))
-	return nil
+	app.Logger().Info(fmt.Sprintf("Search repair %s: %d documents rewritten, %d removed, %d errors", source.index, rewritten, removed, len(errs)))
+	return errors.Join(errs...)
+}
+
+// writeSearchRepairBatch writes a batch of documents and waits for it. When
+// Meilisearch rejects the batch, its documents are written one at a time, so
+// only the documents it rejects are left out.
+func writeSearchRepairBatch(app core.App, client meilisearch.ServiceManager, source searchIndexSource, documents []map[string]any) (int, error) {
+	err := writeSearchDocuments(client, source.index, documents)
+	if err == nil {
+		return len(documents), nil
+	}
+	if !errors.Is(err, errSearchTaskFailed) || len(documents) == 1 {
+		return 0, fmt.Errorf("write documents: %w", err)
+	}
+
+	written := 0
+	var errs []error
+	for _, document := range documents {
+		if err := writeSearchDocuments(client, source.index, []map[string]any{document}); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to repair %s %v: %v", source.pageLabel, document["id"], err))
+			errs = append(errs, fmt.Errorf("write %s %v: %w", source.pageLabel, document["id"], err))
+			continue
+		}
+		written++
+	}
+	return written, errors.Join(errs...)
+}
+
+func writeSearchDocuments(client meilisearch.ServiceManager, index string, documents []map[string]any) error {
+	task, err := client.Index(index).AddDocuments(documents, nil)
+	if err != nil {
+		return err
+	}
+	return waitForSearchRepairTask(client, task.TaskUID)
+}
+
+// searchQueueDrained waits for an index's queued document tasks to finish,
+// and reports whether they did within searchQueueDrainTimeout.
+func searchQueueDrained(client meilisearch.ServiceManager, index string) (bool, error) {
+	deadline := time.Now().Add(searchQueueDrainTimeout)
+	for {
+		pending, err := pendingSearchTasks(client, index)
+		if err != nil {
+			return false, err
+		}
+		if pending == 0 {
+			return true, nil
+		}
+		if time.Now().Add(searchQueuePollInterval).After(deadline) {
+			return false, nil
+		}
+		time.Sleep(searchQueuePollInterval)
+	}
 }
 
 // storedSearchDocuments fetches the stored documents with the given ids,
@@ -446,6 +540,10 @@ func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager
 	return len(orphans), nil
 }
 
+// errSearchTaskFailed marks a task Meilisearch processed and rejected, as
+// opposed to one that could not be waited for.
+var errSearchTaskFailed = errors.New("search task failed")
+
 func waitForSearchRepairTask(client meilisearch.ServiceManager, taskUID int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), searchRepairTaskTimeout)
 	defer cancel()
@@ -454,7 +552,7 @@ func waitForSearchRepairTask(client meilisearch.ServiceManager, taskUID int64) e
 		return err
 	}
 	if task.Status == meilisearch.TaskStatusFailed {
-		return fmt.Errorf("task %d failed: %s", taskUID, task.Error.Message)
+		return fmt.Errorf("%w: task %d: %s", errSearchTaskFailed, taskUID, task.Error.Message)
 	}
 	return nil
 }

@@ -183,7 +183,51 @@ func getStoredBounds(r *core.Record) [4]float64 {
 	return [4]float64{minLat, maxLat, minLon, maxLon}
 }
 
-func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
+// remoteSearchTimeout bounds a request to another instance's search index.
+const remoteSearchTimeout = 10 * time.Second
+
+type listTotals struct {
+	elevationGain, elevationLoss, distance, duration float64
+	trails                                           int
+}
+
+// remoteListTotals reads a remote list's totals from its instance's search
+// index.
+func remoteListTotals(r *core.Record) (listTotals, error) {
+	doc, err := documentFromRemoteRecord(r, "lists")
+	if err != nil {
+		return listTotals{}, err
+	}
+
+	var totals listTotals
+	fields := []struct {
+		name  string
+		value *float64
+	}{
+		{"elevation_gain", &totals.elevationGain},
+		{"elevation_loss", &totals.elevationLoss},
+		{"distance", &totals.distance},
+		{"duration", &totals.duration},
+	}
+	for _, field := range fields {
+		value, ok := doc[field.name].(float64)
+		if !ok {
+			return listTotals{}, fmt.Errorf("remote list %s has no numeric %s", r.Id, field.name)
+		}
+		*field.value = value
+	}
+	trails, ok := doc["trails"].(float64)
+	if !ok {
+		return listTotals{}, fmt.Errorf("remote list %s has no numeric trails", r.Id)
+	}
+	totals.trails = int(trails)
+	return totals, nil
+}
+
+// documentFromListRecord builds a list's search document. A remote list's
+// totals come from its own instance; when they cannot be read, requireRemote
+// fails the document, and otherwise it is built with zero totals.
+func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool, requireRemote bool) (map[string]any, error) {
 	if author == nil {
 		return nil, fmt.Errorf("list %s has missing author reference %q", r.Id, r.GetString("author"))
 	}
@@ -195,14 +239,15 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	trails := len(r.GetStringSlice("trails"))
 
 	if r.GetString("iri") != "" && !author.GetBool("is_local") {
-		doc, err := documentFromRemoteRecord(r, "lists")
+		totals, err := remoteListTotals(r)
 		if err == nil {
-			totalElevationGain = doc["elevation_gain"].(float64)
-			totalElevationLoss = doc["elevation_loss"].(float64)
-			totalDistance = doc["distance"].(float64)
-			totalDuration = doc["duration"].(float64)
-
-			trails = int(doc["trails"].(float64))
+			totalElevationGain = totals.elevationGain
+			totalElevationLoss = totals.elevationLoss
+			totalDistance = totals.distance
+			totalDuration = totals.duration
+			trails = totals.trails
+		} else if requireRemote {
+			return nil, err
 		}
 
 	} else {
@@ -280,7 +325,7 @@ func documentFromActorRecord(r *core.Record) (map[string]any, error) {
 }
 
 func documentFromRemoteRecord(r *core.Record, index string) (map[string]any, error) {
-	client := &http.Client{}
+	client := &http.Client{Timeout: remoteSearchTimeout}
 
 	if r.GetString("iri") == "" {
 		return nil, fmt.Errorf("record has no iri")
@@ -425,6 +470,17 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 // ListSearchDocument builds the full search document of a list, as a
 // rebuild indexes it.
 func ListSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
+	return listSearchDocument(app, r, false)
+}
+
+// ListRepairDocument is ListSearchDocument for the nightly repair. It fails
+// when a remote list's totals cannot be read, so the repair leaves the stored
+// document alone instead of overwriting its totals with zeros.
+func ListRepairDocument(app core.App, r *core.Record) (map[string]any, error) {
+	return listSearchDocument(app, r, true)
+}
+
+func listSearchDocument(app core.App, r *core.Record, requireRemote bool) (map[string]any, error) {
 	errs := app.ExpandRecord(r, []string{"trails"}, nil)
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("failed to expand trails: %v", errs)
@@ -438,7 +494,7 @@ func ListSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to expand author: %v", errs)
 	}
 
-	return documentFromListRecord(r, r.ExpandedOne("author"), true)
+	return documentFromListRecord(r, r.ExpandedOne("author"), true, requireRemote)
 }
 
 func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceManager) error {
@@ -464,7 +520,7 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 		return fmt.Errorf("failed to expand trails: %v", errs)
 	}
 
-	documents, err := documentFromListRecord(r, author, false)
+	documents, err := documentFromListRecord(r, author, false, false)
 	if err != nil {
 		return err
 	}
