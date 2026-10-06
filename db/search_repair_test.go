@@ -418,6 +418,12 @@ func TestRepairSearchIndexes(t *testing.T) {
 		search.missing["trails"] = true
 
 		runRepair(t, app, client)
+		search.mu.Lock()
+		created := slices.Clone(search.created)
+		search.mu.Unlock()
+		if !slices.Equal(created, []string{"trails"}) {
+			t.Fatalf("created indexes = %v; want trails recreated with its settings", created)
+		}
 		for _, trail := range trails {
 			if search.document("trails", trail.Id) == nil {
 				t.Fatalf("trail %s was not written to the missing index", trail.Id)
@@ -596,8 +602,9 @@ type memorySearch struct {
 	failed  map[int64]bool
 	// onFetch runs, with the lock held, when documents are fetched by id.
 	onFetch func(index string)
-	// missing indexes do not exist until a document is written to them.
+	// missing indexes do not exist until they are created.
 	missing map[string]bool
+	created []string
 	// stuck indexes never finish their tasks.
 	stuck     map[string]bool
 	taskIndex map[int64]string
@@ -711,6 +718,27 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_, _ = fmt.Fprintf(w, `{"uid":%d,"status":"succeeded","type":"documentAdditionOrUpdate","enqueuedAt":"2026-10-06T00:00:00Z"}`, uid)
 
+	case r.Method == http.MethodGet && strings.HasPrefix(path, "/indexes/") && !strings.Contains(strings.TrimPrefix(path, "/indexes/"), "/"):
+		index := strings.TrimPrefix(path, "/indexes/")
+		if search.missing[index] {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprintf(w, `{"message":"Index %s not found.","code":"index_not_found","type":"invalid_request","link":""}`, index)
+			return
+		}
+		_, _ = fmt.Fprintf(w, `{"uid":%q,"primaryKey":"id","createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}`, index)
+
+	case r.Method == http.MethodPost && path == "/indexes":
+		var config struct {
+			UID string `json:"uid"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&config)
+		delete(search.missing, config.UID)
+		search.created = append(search.created, config.UID)
+		search.acceptTask(w, config.UID)
+
+	case r.Method == http.MethodPatch && strings.HasSuffix(path, "/settings"):
+		search.acceptTask(w, strings.TrimSuffix(strings.TrimPrefix(path, "/indexes/"), "/settings"))
+
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/documents/fetch"):
 		index := strings.TrimSuffix(strings.TrimPrefix(path, "/indexes/"), "/documents/fetch")
 		var query meilisearch.DocumentsQuery
@@ -794,7 +822,6 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, document := range documents {
 			search.put(index, document)
 		}
-		delete(search.missing, index)
 		search.writes[index] = append(search.writes[index], ids)
 		search.acceptTask(w, index)
 

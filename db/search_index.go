@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,8 +38,10 @@ type searchIndexState struct {
 // for the night instead of waiting the same again per batch.
 var searchRepairTaskTimeout = 5 * time.Minute
 
+// searchTaskCancelTimeout bounds the wait for a startup cancel.
+var searchTaskCancelTimeout = 30 * time.Second
+
 const (
-	searchTaskCancelTimeout = 30 * time.Second
 	// searchRepairIDPageSize is how many document ids the orphan scan reads
 	// from Meilisearch per request.
 	searchRepairIDPageSize = 10000
@@ -218,7 +222,7 @@ func searchIndexCreatedAt(client meilisearch.ServiceManager, index string) (stri
 func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source searchIndexSource, cleared func()) (bool, error) {
 	// A rebuild interrupted by a restart leaves its batches queued; cancel
 	// them so they do not run ahead of this one.
-	if err := cancelPendingSearchTasks(client, source.index); err != nil {
+	if err := cancelPendingSearchTasks(app, client, source.index); err != nil {
 		return false, err
 	}
 
@@ -232,7 +236,7 @@ func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source 
 	err := forEachRecordPage(app, source.collection, source.pageSize, func(records []*core.Record) error {
 		documents := searchDocuments(app, source, records)
 		if len(documents) > 0 {
-			if _, err := client.Index(source.index).AddDocuments(documents, nil); err != nil {
+			if _, err := client.Index(source.index).AddDocuments(documents, util.SearchWriteOptions); err != nil {
 				// Omit this page from the rebuild and advance to the next one.
 				app.Logger().Warn(fmt.Sprintf("Unable to index %s page %d: %v", source.pageLabel, page, err))
 				complete = false
@@ -323,7 +327,7 @@ func reindexSearchTrails(app core.App, client meilisearch.ServiceManager, ids []
 		if len(documents) == 0 {
 			continue
 		}
-		if _, err := client.Index(source.index).AddDocuments(documents, nil); err != nil {
+		if _, err := client.Index(source.index).AddDocuments(documents, util.SearchWriteOptions); err != nil {
 			return err
 		}
 	}
@@ -494,7 +498,7 @@ func unchangedSearchDocuments(app core.App, source searchIndexSource, documents 
 }
 
 // writeSearchRepairBatch writes a batch of documents and waits for it. When
-// Meilisearch rejects the batch, it is split in halves and each half written
+// Meilisearch rejects the batch for one of its documents, it is split in halves and each half written
 // again, so only the documents it rejects are left out, found in about as
 // many rounds as it takes to halve the batch down to one document.
 func writeSearchRepairBatch(app core.App, client meilisearch.ServiceManager, source searchIndexSource, documents []map[string]any) (int, error) {
@@ -502,7 +506,7 @@ func writeSearchRepairBatch(app core.App, client meilisearch.ServiceManager, sou
 	if err == nil {
 		return len(documents), nil
 	}
-	if !errors.Is(err, errSearchTaskFailed) {
+	if !errors.Is(err, errSearchDocumentRejected) {
 		return 0, fmt.Errorf("write documents: %w", err)
 	}
 	if len(documents) == 1 {
@@ -520,7 +524,7 @@ func writeSearchRepairBatch(app core.App, client meilisearch.ServiceManager, sou
 }
 
 func writeSearchDocuments(client meilisearch.ServiceManager, index string, documents []map[string]any) error {
-	task, err := client.Index(index).AddDocuments(documents, nil)
+	task, err := client.Index(index).AddDocuments(documents, util.SearchWriteOptions)
 	if err != nil {
 		return err
 	}
@@ -556,7 +560,11 @@ func storedSearchDocuments(client meilisearch.ServiceManager, index string, ids 
 		Limit:  int64(len(ids)),
 	}, &result)
 	if searchIndexNotFound(err) {
-		// Writing the documents creates the index again.
+		// Recreate the index with its primary key and settings, as startup
+		// does, so filtering works again before the next start.
+		if err := ensureSearchIndex(client, index, searchIndexSettings()[index]); err != nil {
+			return nil, err
+		}
 		return map[string]map[string]any{}, nil
 	}
 	if err != nil {
@@ -591,11 +599,54 @@ func searchDocumentMatches(expected, stored map[string]any, fields []string) boo
 	}
 	for _, field := range fields {
 		storedValue, ok := stored[field]
-		if !ok || !reflect.DeepEqual(normalized[field], storedValue) {
+		if !ok || !searchValuesEqual(normalized[field], storedValue) {
 			return false
 		}
 	}
 	return true
+}
+
+// searchFloatTolerance is the relative difference below which two numbers
+// count as equal. Meilisearch returns some floats one unit in the last place
+// off what it was given, such as 1913.4985448154225 as 1913.4985448154223.
+const searchFloatTolerance = 1e-12
+
+// searchValuesEqual compares two JSON-decoded values, treating numbers that
+// differ only by Meilisearch's float round trip as equal.
+func searchValuesEqual(a, b any) bool {
+	switch a := a.(type) {
+	case float64:
+		b, ok := b.(float64)
+		if !ok {
+			return false
+		}
+		return a == b || math.Abs(a-b) <= searchFloatTolerance*math.Max(math.Abs(a), math.Abs(b))
+	case map[string]any:
+		b, ok := b.(map[string]any)
+		if !ok || len(a) != len(b) {
+			return false
+		}
+		for key, value := range a {
+			other, ok := b[key]
+			if !ok || !searchValuesEqual(value, other) {
+				return false
+			}
+		}
+		return true
+	case []any:
+		b, ok := b.([]any)
+		if !ok || len(a) != len(b) {
+			return false
+		}
+		for i := range a {
+			if !searchValuesEqual(a[i], b[i]) {
+				return false
+			}
+		}
+		return true
+	default:
+		return reflect.DeepEqual(a, b)
+	}
 }
 
 // searchIndexNotFound reports whether err says the index does not exist, as
@@ -686,6 +737,10 @@ func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager
 // opposed to one that could not be waited for.
 var errSearchTaskFailed = errors.New("search task failed")
 
+// errSearchDocumentRejected marks a failed task whose error is about one of
+// its documents, which writing the batch in parts can isolate.
+var errSearchDocumentRejected = errors.New("search document rejected")
+
 // errSearchTaskTimeout marks a task that did not finish within
 // searchRepairTaskTimeout.
 var errSearchTaskTimeout = errors.New("search task did not finish in time")
@@ -701,6 +756,9 @@ func waitForSearchRepairTask(client meilisearch.ServiceManager, taskUID int64) e
 		return err
 	}
 	if task.Status == meilisearch.TaskStatusFailed {
+		if strings.HasPrefix(task.Error.Code, "invalid_document") {
+			return fmt.Errorf("%w: %w: task %d: %s", errSearchTaskFailed, errSearchDocumentRejected, taskUID, task.Error.Message)
+		}
 		return fmt.Errorf("%w: task %d: %s", errSearchTaskFailed, taskUID, task.Error.Message)
 	}
 	return nil
@@ -719,7 +777,13 @@ func pendingSearchTasks(client meilisearch.ServiceManager, index string) (int64,
 	return tasks.Total, nil
 }
 
-func cancelPendingSearchTasks(client meilisearch.ServiceManager, index string) error {
+// cancelPendingSearchTasks cancels the document tasks still queued for an
+// index. Meilisearch fixes the tasks a cancel covers when it accepts it and
+// applies it whenever it gets to it, so once accepted the cancel happens
+// whether or not the wait for it succeeds: a failed wait is only logged, and
+// the caller must go on to rewrite the index, or the live writes the cancel
+// covers are lost. Writes queued after the cancel are not covered by it.
+func cancelPendingSearchTasks(app core.App, client meilisearch.ServiceManager, index string) error {
 	pending, err := pendingSearchTasks(client, index)
 	if err != nil || pending == 0 {
 		return err
@@ -736,8 +800,21 @@ func cancelPendingSearchTasks(client meilisearch.ServiceManager, index string) e
 
 	ctx, cancel := context.WithTimeout(context.Background(), searchTaskCancelTimeout)
 	defer cancel()
-	_, err = client.WaitForTaskWithContext(ctx, task.TaskUID, 500*time.Millisecond)
-	return err
+	if _, err := client.WaitForTaskWithContext(ctx, task.TaskUID, 500*time.Millisecond); err != nil {
+		app.Logger().Warn(fmt.Sprintf("Cancel of queued %s tasks still pending, rebuilding behind it: %v", index, err))
+	}
+	return nil
+}
+
+// registerSearchBackupHooks keeps the search index state out of backups. The
+// state describes the Meilisearch indexes, which a backup does not contain:
+// restored with the records, it would make the indexes from before the
+// restore look current, and startup would not rebuild them.
+func registerSearchBackupHooks(app core.App) {
+	app.OnBackupCreate().BindFunc(func(e *core.BackupEvent) error {
+		e.Exclude = append(e.Exclude, searchIndexVersionsFile, searchIndexVersionsFile+".tmp")
+		return e.Next()
+	})
 }
 
 func readSearchIndexVersions(app core.App) map[string]searchIndexState {

@@ -135,6 +135,7 @@ func registerMigrations(app *pocketbase.PocketBase) {
 }
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
+	registerSearchBackupHooks(app)
 	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2UsernameHandler())
 
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
@@ -409,8 +410,9 @@ func initCategories(app core.App) error {
 	return util.PrepopulateDefaultCategoryIcons(app)
 }
 
-func initMeilisearchConfig(client meilisearch.ServiceManager) {
-	configs := map[string]meilisearch.Settings{
+// searchIndexSettings are the settings of each search index.
+func searchIndexSettings() map[string]meilisearch.Settings {
+	return map[string]meilisearch.Settings{
 		"trails": {
 			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
 			FilterableAttributes: []string{
@@ -439,32 +441,37 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},
 	}
+}
 
-	for indexName, settings := range configs {
-		_, err := client.GetIndex(indexName)
-		if err != nil {
-			log.Printf("Index [%s] not found, creating it...", indexName)
-			task, err := client.CreateIndex(&meilisearch.IndexConfig{
-				Uid:        indexName,
-				PrimaryKey: "id",
-			})
-			if err != nil {
-				log.Printf("Failed to create index [%s]: %v", indexName, err)
-				continue
-			}
-
-			_, err = client.WaitForTask(task.TaskUID, 0)
-			if err != nil {
-				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
-				continue
-			}
+func initMeilisearchConfig(client meilisearch.ServiceManager) {
+	for indexName, settings := range searchIndexSettings() {
+		if err := ensureSearchIndex(client, indexName, settings); err != nil {
+			log.Printf("Failed to set up index [%s]: %v", indexName, err)
+			continue
 		}
+		log.Printf("Settings synced for index [%s]", indexName)
+	}
+}
 
-		_, err = client.Index(indexName).UpdateSettings(&settings)
+// ensureSearchIndex creates an index that does not exist, with id as its
+// primary key, and applies its settings.
+func ensureSearchIndex(client meilisearch.ServiceManager, indexName string, settings meilisearch.Settings) error {
+	if _, err := client.GetIndex(indexName); err != nil {
+		log.Printf("Index [%s] not found, creating it...", indexName)
+		task, err := client.CreateIndex(&meilisearch.IndexConfig{
+			Uid:        indexName,
+			PrimaryKey: "id",
+		})
 		if err != nil {
-			log.Printf("Failed to sync settings for index [%s]: %v", indexName, err)
-		} else {
-			log.Printf("Settings synced for index [%s]", indexName)
+			return fmt.Errorf("create index: %w", err)
+		}
+		if _, err := client.WaitForTask(task.TaskUID, 0); err != nil {
+			return fmt.Errorf("wait for index creation: %w", err)
 		}
 	}
+
+	if _, err := client.Index(indexName).UpdateSettings(&settings); err != nil {
+		return fmt.Errorf("sync settings: %w", err)
+	}
+	return nil
 }

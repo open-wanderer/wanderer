@@ -58,7 +58,8 @@ If you backed up your data by copying the pb_data folder directly, restoring is 
 
 1. Stop the running <span class="-tracking-[0.075em]">wanderer</span> instance (e.g. using docker compose down).
 2. Replace the contents of your current pb_data folder with your backup copy.
-3. Start <span class="-tracking-[0.075em]">wanderer</span> again (docker compose up -d or equivalent).
+3. Delete `meilisearch_index_versions.json` from the restored pb_data folder, if it is there.
+4. Start <span class="-tracking-[0.075em]">wanderer</span> again (docker compose up -d or equivalent).
 
-Just like with the dashboard method, the Meilisearch index will be rebuilt automatically from the restored PocketBase data.
+Just like with the dashboard method, the Meilisearch index will then be rebuilt automatically from the restored PocketBase data. If you skipped step 3, run the `search-repair` job from the Crons page of the PocketBase dashboard instead.
 

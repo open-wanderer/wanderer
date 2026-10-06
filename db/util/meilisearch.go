@@ -10,6 +10,11 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+// SearchWriteOptions is passed with every document write. Naming the primary
+// key keeps a write into a missing index from failing: trail documents have
+// several fields ending in "id", so Meilisearch cannot infer it.
+var SearchWriteOptions = &meilisearch.DocumentOptions{PrimaryKey: meilisearch.StringPtr("id")}
+
 // SearchDocumentVersions identifies the shape of the documents each index is
 // built from. Bump an index's version whenever its document builder changes,
 // or a migration rewrites indexed fields without running hooks, so instances
@@ -325,7 +330,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 		documents[i] = doc
 	}
 
-	if _, err := client.Index("trails").AddDocuments(documents, nil); err != nil {
+	if _, err := client.Index("trails").AddDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -348,7 +353,7 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	}
 	documents := []map[string]interface{}{doc}
 
-	if _, err = client.Index("trails").UpdateDocuments(documents, nil); err != nil {
+	if _, err = client.Index("trails").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -379,7 +384,7 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 			"likes":      likes,
 		},
 	}
-	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
+	if _, err := client.Index("trails").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 	return nil
@@ -414,7 +419,7 @@ func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceMa
 		}
 		documents[i] = doc
 	}
-	if _, err := client.Index("lists").AddDocuments(documents, nil); err != nil {
+	if _, err := client.Index("lists").AddDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -432,7 +437,7 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 		return err
 	}
 
-	if _, err = client.Index("lists").UpdateDocuments(documents, nil); err != nil {
+	if _, err = client.Index("lists").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -450,7 +455,7 @@ func IndexActors(actors []*core.Record, client meilisearch.ServiceManager) error
 		}
 		documents[i] = doc
 	}
-	if _, err := client.Index("actors").AddDocuments(documents, nil); err != nil {
+	if _, err := client.Index("actors").AddDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -463,7 +468,7 @@ func UpdateActor(r *core.Record, client meilisearch.ServiceManager) error {
 		return err
 	}
 
-	if _, err = client.Index("actors").UpdateDocuments(documents, nil); err != nil {
+	if _, err = client.Index("actors").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
