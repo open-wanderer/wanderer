@@ -1,17 +1,20 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.8
-milestone_name: milestone
+current_phase: 39
+current_phase_name: unified-tile-model
 status: executing
-stopped_at: Completed 39-08-PLAN.md
-last_updated: "2026-09-10T06:24:24.328Z"
-last_activity: 2026-09-09 -- Phase 39 execution started
+stopped_at: Phase 40 context gathered
+last_updated: "2026-10-06T10:40:32.654Z"
+last_activity: 2026-10-05
+last_activity_desc: "Completed quick task 261005-pwz: Sync status banner on the trail detail screen"
+state_head: f35d4286e6091ae0f274737de732dd80be56d761
 progress:
-  total_phases: 8
+  total_phases: 6
   completed_phases: 5
-  total_plans: 53
+  total_plans: 44
   completed_plans: 53
-  percent: 63
+milestone_name: milestone
 ---
 
 # Project State
@@ -632,9 +635,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-09-09T22:21:57.761Z
-Stopped at: Completed 39-08-PLAN.md
-Resume file: None
+Last session: 2026-10-06T10:40:31.069Z
+Stopped at: Phase 40 context gathered
+Resume file: .planning/phases/40-photo-metadata-into-the-database/40-CONTEXT.md
 
 ## Operator Next Steps
 
