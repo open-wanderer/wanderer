@@ -290,6 +290,15 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 			app.Logger().Error(warning)
 		}
 	})
+
+	repairSchedule := os.Getenv("POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE")
+	if len(repairSchedule) == 0 {
+		repairSchedule = "0 4 * * *"
+	}
+
+	app.Cron().MustAdd("search-repair", repairSchedule, func() {
+		runSearchRepair(app, client)
+	})
 }
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
@@ -300,9 +309,13 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	initPlugins(app)
 	initMeilisearchConfig(client)
 	go func() {
-		backfillPolylines(app)
+		backfilled := backfillPolylines(app)
 		if err := initMeilisearchDocuments(app, client); err != nil {
 			app.Logger().Error(fmt.Sprintf("Unable to initialize search documents: %v", err))
+		}
+		// The backfill saves without hooks, so its trails are reindexed here.
+		if err := reindexSearchTrails(app, client, backfilled); err != nil {
+			app.Logger().Error(fmt.Sprintf("Unable to reindex trails with backfilled polylines: %v", err))
 		}
 	}()
 	return nil
@@ -317,11 +330,13 @@ func initPlugins(app core.App) {
 	}
 }
 
-func backfillPolylines(app core.App) {
+// backfillPolylines returns the ids of the trails it updated.
+func backfillPolylines(app core.App) []string {
 	const pageSize int64 = 100
 	var lastID string
 	var processed int
 	var failed int
+	var backfilled []string
 
 	log.Printf("backfill polyline started")
 	defer func() {
@@ -353,10 +368,13 @@ func backfillPolylines(app core.App) {
 				log.Printf("backfill polyline failed for trail %s (%q), gpx=%q: %v", r.Id, r.GetString("name"), r.GetString("gpx"), err)
 			} else {
 				processed++
+				backfilled = append(backfilled, r.Id)
 			}
 			lastID = r.Id
 		}
 	}
+
+	return backfilled
 }
 
 func initCategories(app core.App) error {

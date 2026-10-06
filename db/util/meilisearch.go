@@ -17,8 +17,8 @@ import (
 
 // SearchDocumentVersions identifies the shape of the documents each index is
 // built from. Bump an index's version whenever its document builder changes,
-// so instances rebuild that index on their next start instead of keeping
-// documents in the old shape.
+// or a migration rewrites indexed fields without running hooks, so instances
+// rebuild that index on their next start.
 var SearchDocumentVersions = map[string]int{
 	"trails": 1,
 	"lists":  1,
@@ -259,6 +259,11 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	return document, nil
 }
 
+// ActorSearchDocument builds the search document of an actor.
+func ActorSearchDocument(r *core.Record) (map[string]any, error) {
+	return documentFromActorRecord(r)
+}
+
 func documentFromActorRecord(r *core.Record) (map[string]any, error) {
 
 	document := map[string]any{
@@ -334,34 +339,38 @@ func documentFromRemoteRecord(r *core.Record, index string) (map[string]any, err
 	return document, nil
 }
 
+// TrailSearchDocument builds the full search document of a trail, as a
+// rebuild indexes it.
+func TrailSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
+	errs := app.ExpandRecord(r, []string{"tags"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand tags: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"category"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand category: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"trail_share_via_trail"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trail_share_via_trail: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"trail_like_via_trail"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trail_like_via_trail: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"author"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand author: %v", errs)
+	}
+
+	return documentFromTrailRecord(r, r.ExpandedOne("author"), true)
+}
+
 func IndexTrails(app core.App, trails []*core.Record, client meilisearch.ServiceManager) error {
 	documents := make([]map[string]any, len(trails))
 
 	for i, r := range trails {
-		errs := app.ExpandRecord(r, []string{"tags"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand tags: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"category"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand category: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"trail_share_via_trail"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand trail_share_via_trail: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"trail_like_via_trail"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand trail_like_via_trail: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"author"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand author: %v", errs)
-		}
-
-		author := r.ExpandedOne("author")
-
-		doc, err := documentFromTrailRecord(r, author, true)
+		doc, err := TrailSearchDocument(app, r)
 		if err != nil {
 			return err
 		}
@@ -413,26 +422,30 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 	return nil
 }
 
+// ListSearchDocument builds the full search document of a list, as a
+// rebuild indexes it.
+func ListSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
+	errs := app.ExpandRecord(r, []string{"trails"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trails: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"list_share_via_list"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand list_share_via_list: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"author"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand author: %v", errs)
+	}
+
+	return documentFromListRecord(r, r.ExpandedOne("author"), true)
+}
+
 func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceManager) error {
 	documents := make([]map[string]any, len(lists))
 
 	for i, r := range lists {
-		errs := app.ExpandRecord(r, []string{"trails"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand trails: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"list_share_via_list"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand list_share_via_list: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"author"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand author: %v", errs)
-		}
-
-		author := r.ExpandedOne("author")
-
-		doc, err := documentFromListRecord(r, author, true)
+		doc, err := ListSearchDocument(app, r)
 		if err != nil {
 			return err
 		}

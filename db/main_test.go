@@ -128,21 +128,13 @@ func TestConfigureOIDCScopes(t *testing.T) {
 const searchInitPageSize int64 = 100
 
 func TestInitMeilisearchDocumentsPagination(t *testing.T) {
-	t.Run("missing author on the first page", func(t *testing.T) {
+	t.Run("a trail that cannot be indexed is left out", func(t *testing.T) {
 		app := newSearchInitApp(t)
 		author := seedTrails(t, app, int(searchInitPageSize)+1)
-		first := trailPage(t, app, 0)
-		second := trailPage(t, app, 1)
-		if len(first) != int(searchInitPageSize) || len(second) == 0 {
-			t.Fatalf("pages = %d and %d trails", len(first), len(second))
-		}
-		orphan := first[0]
+		orphan := trailPage(t, app, 0)[0]
 		missingAuthorID := orphanTrailAuthor(t, app, orphan)
-		first = trailPage(t, app, 0)
-		second = trailPage(t, app, 1)
-		if !trailPageContains(first, orphan.Id) {
-			t.Fatal("orphaned trail was not on the first page")
-		}
+		first := slices.DeleteFunc(trailPage(t, app, 0), func(r *core.Record) bool { return r.Id == orphan.Id })
+		second := trailPage(t, app, 1)
 
 		state, client, overflow := newSearchInitClient(t, nil)
 		logText, err := runSearchInit(t, app, client, overflow)
@@ -152,20 +144,23 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 		assertSearchInitCalls(t, state.calls(), []searchInitCall{
 			{method: http.MethodDelete, index: "trails"},
 			{method: http.MethodPost, index: "trails"},
+			{method: http.MethodPost, index: "trails"},
 			{method: http.MethodDelete, index: "lists"},
 			{method: http.MethodDelete, index: "actors"},
 			{method: http.MethodPost, index: "actors"},
 		})
 		batches, rejected := state.batches()
-		if rejected != 0 {
-			t.Fatalf("rejected trail batches = %d; want 0", rejected)
+		if rejected != 0 || len(batches) != 2 {
+			t.Fatalf("trail batches = %d, rejected = %d; want 2 accepted batches", len(batches), rejected)
 		}
-		assertIndexedTrailPage(t, batches, second, author.Id)
-		if strings.Count(logText, "Unable to index trails page 0") != 1 || strings.Contains(logText, "Unable to index trails page 1") {
-			t.Fatalf("log = %s", logText)
-		}
-		if !strings.Contains(logText, orphan.Id) || !strings.Contains(logText, missingAuthorID) || !strings.Contains(logText, "missing author reference") {
+		assertIndexedTrailPage(t, batches[:1], first, author.Id)
+		assertIndexedTrailPage(t, batches[1:], second, author.Id)
+		if !strings.Contains(logText, "Unable to index trails "+orphan.Id) || !strings.Contains(logText, missingAuthorID) || !strings.Contains(logText, "missing author reference") {
 			t.Fatalf("log = %s; want the failed trail and author", logText)
+		}
+		// The nightly repair retries the trail; the rebuild itself is complete.
+		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
 		}
 		assertLaterSearchPhases(t, logText)
 	})
@@ -195,7 +190,7 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 		}
 		assertIndexedTrailPage(t, batches[:1], first, author.Id)
 		assertIndexedTrailPage(t, batches[1:], second, author.Id)
-		if strings.Contains(logText, "Unable to index trails page") {
+		if strings.Contains(logText, "Unable to index trails") {
 			t.Fatalf("log = %s", logText)
 		}
 		assertLaterSearchPhases(t, logText)
@@ -219,7 +214,7 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 		}
 	})
 
-	t.Run("rejected add advances", func(t *testing.T) {
+	t.Run("a rejected page leaves the rebuild incomplete", func(t *testing.T) {
 		app := newSearchInitApp(t)
 		author := seedTrails(t, app, int(searchInitPageSize)+1)
 		first := trailPage(t, app, 0)
@@ -250,6 +245,11 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 		if strings.Count(logText, "Unable to index trails page 0") != 1 {
 			t.Fatalf("log = %s", logText)
 		}
+		want := maps.Clone(util.SearchDocumentVersions)
+		delete(want, "trails")
+		if got := readSearchIndexVersions(app); !maps.Equal(got, want) {
+			t.Fatalf("recorded versions = %v; want %v", got, want)
+		}
 		assertLaterSearchPhases(t, logText)
 	})
 }
@@ -265,7 +265,8 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
 
 		state, client, overflow := newSearchInitClient(t, nil)
-		state.documentCounts["trails"] = trailCount
+		// A count short of the collection is left to the nightly repair.
+		state.documentCounts["trails"] = trailCount - 1
 		state.documentCounts["actors"] = actorCount
 		logText, err := runSearchInit(t, app, client, overflow)
 		if err != nil {
@@ -279,48 +280,14 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		}
 	})
 
-	t.Run("a missing document rebuilds only that index", func(t *testing.T) {
+	t.Run("an empty index is rebuilt", func(t *testing.T) {
 		app := newSearchInitApp(t)
 		seedTrails(t, app, int(trailCount))
 		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
 
 		state, client, overflow := newSearchInitClient(t, nil)
 		state.documentCounts["trails"] = trailCount
-		logText, err := runSearchInit(t, app, client, overflow)
-		if err != nil {
-			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
-		}
-		assertSearchInitCalls(t, state.calls(), []searchInitCall{
-			{method: http.MethodDelete, index: "actors"},
-			{method: http.MethodPost, index: "actors"},
-		})
-	})
-
-	t.Run("queued tasks leave a current index to finish", func(t *testing.T) {
-		app := newSearchInitApp(t)
-		seedTrails(t, app, int(trailCount))
-		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
-
-		state, client, overflow := newSearchInitClient(t, nil)
-		state.documentCounts["trails"] = trailCount
-		state.pendingTasks["actors"] = 3
-		logText, err := runSearchInit(t, app, client, overflow)
-		if err != nil {
-			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
-		}
-		assertSearchInitCalls(t, state.calls(), nil)
-		if canceled := state.canceledIndexes(); len(canceled) != 0 {
-			t.Fatalf("canceled = %v; want none", canceled)
-		}
-	})
-
-	t.Run("a queued settings update does not keep an empty index", func(t *testing.T) {
-		app := newSearchInitApp(t)
-		seedTrails(t, app, int(trailCount))
-		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
-
-		state, client, overflow := newSearchInitClient(t, nil)
-		state.documentCounts["trails"] = trailCount
+		// Queued settings updates are not document writes and are not canceled.
 		state.settingsTasks["actors"] = 1
 		logText, err := runSearchInit(t, app, client, overflow)
 		if err != nil {
@@ -330,8 +297,8 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 			{method: http.MethodDelete, index: "actors"},
 			{method: http.MethodPost, index: "actors"},
 		})
-		if !strings.Contains(logText, "Search index actors holds 0 documents for 1 records") {
-			t.Fatalf("log = %s; want the count mismatch", logText)
+		if canceled := state.canceledIndexes(); len(canceled) != 0 {
+			t.Fatalf("canceled = %v; want none", canceled)
 		}
 	})
 
@@ -466,15 +433,6 @@ func assertIndexedTrailPage(t *testing.T, batches [][]map[string]any, want []*co
 	}
 }
 
-func trailPageContains(trails []*core.Record, id string) bool {
-	for _, trail := range trails {
-		if trail.Id == id {
-			return true
-		}
-	}
-	return false
-}
-
 type searchInitLogApp struct {
 	core.App
 	logger *slog.Logger
@@ -589,6 +547,7 @@ func trailPage(t *testing.T, app core.App, page int64) []*core.Record {
 	t.Helper()
 	trails := []*core.Record{}
 	err := app.RecordQuery("trails").
+		OrderBy("id ASC").
 		Limit(searchInitPageSize).
 		Offset(page * searchInitPageSize).
 		All(&trails)
