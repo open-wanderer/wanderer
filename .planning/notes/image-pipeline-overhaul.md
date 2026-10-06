@@ -82,7 +82,9 @@ underlying pipeline is the problem, not the individual sizes:
 - Variant storage: beside PocketBase's `thumbs_<file>/` dirs under the record path (deleted with the
   record?) vs. a separate `image_variants` collection — affects backups, deletion and federation
   cleanup. Verify what PocketBase deletes on record/file removal before choosing.
-- Format: WebP (WASM encode) vs. stdlib JPEG — decided by the spike.
+- ~~Format~~ **Decided 2026-10-06 (spikes 001–003): WebP q80 via `gen2brain/webp` (wasm2go, `-tags nodynamic`).**
+  Pi 5: 5.7 s per 24 MP photo on one core, 258 MB peak. Never link `gen2brain/jpegli` (hijacks the
+  global `"jpeg"` decoder). See `.planning/spikes/MANIFEST.md`.
 - HEIC decode (libheif needs cgo; HEVC licensing) vs. converting client-side before upload.
 - Exact ladder/quality, and whether `1200x0` requests from released app builds get mapped onto the
   ladder (they currently receive originals; layer 4 changes that).
