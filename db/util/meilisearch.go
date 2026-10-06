@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
@@ -117,34 +118,16 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 	}
 
 	if includeShares {
-		trailShares := r.ExpandedAll("trail_share_via_trail")
-		if trailShares != nil {
-			sharedIDs := make([]string, len(trailShares))
-			for i, v := range trailShares {
-				sharedIDs[i] = v.GetString("actor")
-			}
-
-			document["shares"] = sharedIDs
-
-		} else {
-			document["shares"] = []string{}
-		}
+		document["shares"] = sharedActorIDs(r.ExpandedAll("trail_share_via_trail"))
 
 		trailLikes := r.ExpandedAll("trail_like_via_trail")
-		if trailLikes != nil {
-			likeIDs := make([]string, len(trailLikes))
-			for i, v := range trailLikes {
-				likeIDs[i] = v.GetString("actor")
-			}
-
-			document["likes"] = likeIDs
-			document["like_count"] = len(trailLikes)
-
-		} else {
-			document["likes"] = []string{}
-			document["like_count"] = 0
+		likeIDs := make([]string, len(trailLikes))
+		for i, v := range trailLikes {
+			likeIDs[i] = v.GetString("actor")
 		}
-
+		slices.Sort(likeIDs)
+		document["likes"] = likeIDs
+		document["like_count"] = len(trailLikes)
 	}
 
 	return document, nil
@@ -225,18 +208,7 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	}
 
 	if includeShares {
-		listShares := r.ExpandedAll("list_share_via_list")
-		if listShares != nil {
-			sharedIDs := make([]string, len(listShares))
-			for i, v := range listShares {
-				sharedIDs[i] = v.GetString("actor")
-			}
-
-			document["shares"] = sharedIDs
-
-		} else {
-			document["shares"] = []string{}
-		}
+		document["shares"] = sharedActorIDs(r.ExpandedAll("list_share_via_list"))
 	}
 
 	return document, nil
@@ -260,6 +232,58 @@ func documentFromActorRecord(r *core.Record) (map[string]any, error) {
 	}
 
 	return document, nil
+}
+
+// trailSearchExpands are the relations a trail's full search document reads.
+var trailSearchExpands = []string{"tags", "category", "trail_share_via_trail", "trail_like_via_trail", "author"}
+
+// TrailSearchDocuments builds the full search documents of a page of trails,
+// expanding their relations together. documents[i] is nil when errs[i] says
+// why record i could not be indexed.
+func TrailSearchDocuments(app core.App, records []*core.Record) (documents []map[string]any, errs []error) {
+	return searchDocumentsOf(app, records, trailSearchExpands,
+		func(r *core.Record) (map[string]any, error) {
+			return documentFromTrailRecord(r, r.ExpandedOne("author"), true)
+		},
+		func(r *core.Record) (map[string]any, error) { return TrailSearchDocument(app, r) })
+}
+
+// listSearchExpands are the relations a list's full search document reads.
+var listSearchExpands = []string{"trails", "list_share_via_list", "author"}
+
+// ListSearchDocuments is TrailSearchDocuments for lists.
+func ListSearchDocuments(app core.App, records []*core.Record) (documents []map[string]any, errs []error) {
+	return searchDocumentsOf(app, records, listSearchExpands,
+		func(r *core.Record) (map[string]any, error) {
+			return documentFromListRecord(r, r.ExpandedOne("author"), true)
+		},
+		func(r *core.Record) (map[string]any, error) { return ListSearchDocument(app, r) })
+}
+
+// ActorSearchDocuments is TrailSearchDocuments for actors, which have no
+// relations to expand.
+func ActorSearchDocuments(records []*core.Record) (documents []map[string]any, errs []error) {
+	documents = make([]map[string]any, len(records))
+	errs = make([]error, len(records))
+	for i, r := range records {
+		documents[i], errs[i] = documentFromActorRecord(r)
+	}
+	return documents, errs
+}
+
+// searchDocumentsOf expands a page of records at once and builds each
+// document. When the shared expand fails, every record is built on its own,
+// so the error is reported against the records it concerns.
+func searchDocumentsOf(app core.App, records []*core.Record, expands []string, build, buildAlone func(*core.Record) (map[string]any, error)) ([]map[string]any, []error) {
+	if len(app.ExpandRecords(records, expands, nil)) > 0 {
+		build = buildAlone
+	}
+	documents := make([]map[string]any, len(records))
+	errs := make([]error, len(records))
+	for i, r := range records {
+		documents[i], errs[i] = build(r)
+	}
+	return documents, errs
 }
 
 // TrailSearchDocument builds the full search document of a trail, as a
@@ -331,7 +355,23 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	return nil
 }
 
+// sharedActorIDs lists the actors of a record's shares sorted and without
+// duplicates, the form the share hooks write, so a rebuilt document compares
+// equal to one the hooks kept up to date.
+func sharedActorIDs(shares []*core.Record) []string {
+	actors := make([]string, 0, len(shares))
+	for _, share := range shares {
+		if actor := share.GetString("actor"); actor != "" {
+			actors = append(actors, actor)
+		}
+	}
+	slices.Sort(actors)
+	return slices.Compact(actors)
+}
+
+// UpdateTrailLikes writes a trail's likes, sorted as a rebuild writes them.
 func UpdateTrailLikes(trailId string, likes []string, client meilisearch.ServiceManager) error {
+	likes = slices.Sorted(slices.Values(likes))
 	documents := []map[string]interface{}{
 		{
 			"id":         trailId,

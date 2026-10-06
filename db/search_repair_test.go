@@ -329,6 +329,164 @@ func TestRepairSearchIndexes(t *testing.T) {
 		}
 	})
 
+	t.Run("a share revoked after the documents are built stays revoked", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		shares, err := app.FindCollectionByNameOrId("trail_share")
+		if err != nil {
+			t.Fatal(err)
+		}
+		share := core.NewRecord(shares)
+		share.Set("trail", trails[0].Id)
+		share.Set("actor", actors[0].Id)
+		if err := app.Save(share); err != nil {
+			t.Fatal(err)
+		}
+		search, client := newMemorySearch(t)
+		documents := trailDocuments(t, app, trails)
+		documents[0]["name"] = "drifted"
+		search.store(t, "trails", documents...)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		afterSearchRepairBuild = func() {
+			afterSearchRepairBuild = func() {}
+			// The share hook deletes the share and patches the document.
+			if err := app.Delete(share); err != nil {
+				t.Error(err)
+			}
+			search.mu.Lock()
+			search.documents["trails"][trails[0].Id]["shares"] = []any{}
+			search.mu.Unlock()
+		}
+		t.Cleanup(func() { afterSearchRepairBuild = func() {} })
+
+		runRepair(t, app, client)
+		if shared := search.document("trails", trails[0].Id)["shares"]; len(shared.([]any)) != 0 {
+			t.Fatalf("stored shares = %v; want the revoked share kept out", shared)
+		}
+	})
+
+	t.Run("shares stored in hook order are current", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 1)
+		actorCollection, err := app.FindCollectionByNameOrId("activitypub_actors")
+		if err != nil {
+			t.Fatal(err)
+		}
+		shares, err := app.FindCollectionByNameOrId("trail_share")
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Shared in the reverse of the order the share hook sorts them in.
+		var sharedWith []string
+		for _, id := range []string{"zzzzzzzzzzzzzzz", "aaaaaaaaaaaaaaa"} {
+			actor := core.NewRecord(actorCollection)
+			actor.Id = id
+			actor.Set("preferred_username", id)
+			if err := app.Save(actor); err != nil {
+				t.Fatal(err)
+			}
+			share := core.NewRecord(shares)
+			share.Set("trail", trails[0].Id)
+			share.Set("actor", id)
+			if err := app.Save(share); err != nil {
+				t.Fatal(err)
+			}
+			sharedWith = append(sharedWith, id)
+		}
+		search, client := newMemorySearch(t)
+		document := trailDocuments(t, app, trails)[0]
+		slices.Sort(sharedWith)
+		document["shares"] = sharedWith
+		search.store(t, "trails", document)
+		all, err := app.FindAllRecords("activitypub_actors")
+		if err != nil {
+			t.Fatal(err)
+		}
+		search.store(t, "actors", actorDocuments(t, all)...)
+
+		runRepair(t, app, client)
+		if writes, _ := search.changes(); len(writes) != 0 {
+			t.Fatalf("writes = %v; want sorted shares to compare equal", writes)
+		}
+		_ = actors
+	})
+
+	t.Run("a missing index is filled", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		search.missing["trails"] = true
+
+		runRepair(t, app, client)
+		for _, trail := range trails {
+			if search.document("trails", trail.Id) == nil {
+				t.Fatalf("trail %s was not written to the missing index", trail.Id)
+			}
+		}
+	})
+
+	t.Run("a rejected document is found by halving the batch", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, int(searchInitPageSize))
+		search, client := newMemorySearch(t)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		bad := trails[37].Id
+		search.rejected["trails"] = map[string]bool{bad: true}
+
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		err := repairSearchIndexes(&searchInitLogApp{App: app, logger: logger}, client)
+		if err == nil || !strings.Contains(err.Error(), bad) {
+			t.Fatalf("repairSearchIndexes error = %v; want the rejected trail %s", err, bad)
+		}
+		// One full batch, then two halves per level down to the one document.
+		if attempts := len(search.issuedTasks()); attempts > 1+2*7 {
+			t.Fatalf("write attempts = %d; want the batch halved, not retried per document", attempts)
+		}
+		for _, trail := range trails {
+			if stored := search.document("trails", trail.Id) != nil; stored == (trail.Id == bad) {
+				t.Fatalf("trail %s stored = %v; want every trail but the rejected one", trail.Id, stored)
+			}
+		}
+	})
+
+	t.Run("lists are repaired", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		lists, err := app.FindCollectionByNameOrId("lists")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var saved []*core.Record
+		for i := 0; i < 2; i++ {
+			list := core.NewRecord(lists)
+			list.Set("name", fmt.Sprintf("List %d", i))
+			list.Set("author", actors[0].Id)
+			list.Set("trails", []string{trails[0].Id, trails[1].Id})
+			if err := app.Save(list); err != nil {
+				t.Fatal(err)
+			}
+			saved = append(saved, list)
+		}
+		slices.SortFunc(saved, func(a, b *core.Record) int { return strings.Compare(a.Id, b.Id) })
+		documents, errs := util.ListSearchDocuments(app, saved)
+		for _, err := range errs {
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		documents[1]["trails"] = 1
+		search, client := newMemorySearch(t)
+		search.store(t, "trails", trailDocuments(t, app, trails)...)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		search.store(t, "lists", documents...)
+
+		runRepair(t, app, client)
+		writes, _ := search.changes()
+		if !sameBatches(writes["lists"], []string{saved[1].Id}) || len(writes["trails"]) != 0 {
+			t.Fatalf("writes = %v; want only list %s rewritten", writes, saved[1].Id)
+		}
+		if count := search.document("lists", saved[1].Id)["trails"]; count != 2.0 {
+			t.Fatalf("stored trail count = %v; want 2", count)
+		}
+	})
+
 	t.Run("a run is skipped while the indexes are being written", func(t *testing.T) {
 		app, _, _ := newSearchRepairApp(t, 1)
 		search, client := newMemorySearch(t)
@@ -436,6 +594,8 @@ type memorySearch struct {
 	failed  map[int64]bool
 	// onFetch runs, with the lock held, when documents are fetched by id.
 	onFetch func(index string)
+	// missing indexes do not exist until a document is written to them.
+	missing map[string]bool
 	// stuck indexes never finish their tasks.
 	stuck     map[string]bool
 	taskIndex map[int64]string
@@ -449,6 +609,7 @@ func newMemorySearch(t *testing.T) (*memorySearch, meilisearch.ServiceManager) {
 		pending:   map[string]int64{},
 		failed:    map[int64]bool{},
 		stuck:     map[string]bool{},
+		missing:   map[string]bool{},
 		taskIndex: map[int64]string{},
 	}
 	search.reset()
@@ -555,6 +716,11 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if search.missing[index] {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprintf(w, `{"message":"Index %s not found.","code":"index_not_found","type":"invalid_request","link":""}`, index)
+			return
+		}
 		if search.onFetch != nil && query.Ids != nil {
 			search.onFetch(index)
 		}
@@ -626,6 +792,7 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, document := range documents {
 			search.put(index, document)
 		}
+		delete(search.missing, index)
 		search.writes[index] = append(search.writes[index], ids)
 		search.acceptTask(w, index)
 

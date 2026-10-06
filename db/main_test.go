@@ -572,7 +572,12 @@ func newSearchInitApp(t *testing.T) *core.BaseApp {
 		&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
 	)
 	lists := core.NewBaseCollection("lists")
-	lists.Fields.Add(&core.TextField{Name: "name"})
+	lists.Fields.Add(
+		&core.TextField{Name: "name"},
+		&core.BoolField{Name: "public"},
+		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
+		&core.RelationField{Name: "trails", CollectionId: trails.Id, MaxSelect: 100},
+	)
 	// The real collections carry these, and the search repair reads updated.
 	for _, collection := range []*core.Collection{actors, trails, lists} {
 		collection.Fields.Add(
@@ -581,6 +586,16 @@ func newSearchInitApp(t *testing.T) *core.BaseApp {
 		)
 	}
 	for _, collection := range []*core.Collection{tags, actors, categories, trails, shares, likes, lists} {
+		if err := app.Save(collection); err != nil {
+			t.Fatal(err)
+		}
+	}
+	listShares := core.NewBaseCollection("list_share")
+	listShares.Fields.Add(
+		&core.RelationField{Name: "list", CollectionId: lists.Id, MaxSelect: 1},
+		&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
+	)
+	for _, collection := range []*core.Collection{listShares} {
 		if err := app.Save(collection); err != nil {
 			t.Fatal(err)
 		}

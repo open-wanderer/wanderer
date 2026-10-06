@@ -14,7 +14,6 @@ import (
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/types"
 
 	"pocketbase/util"
 )
@@ -74,7 +73,9 @@ type searchIndexSource struct {
 	collection string
 	pageLabel  string
 	pageSize   int64
-	document   func(r *core.Record) (map[string]any, error)
+	// documents builds the documents of a page of records; documents[i] is
+	// nil when errs[i] says why record i could not be indexed.
+	documents func(records []*core.Record) (documents []map[string]any, errs []error)
 	// repairFields limits the nightly comparison to these fields; nil
 	// compares the whole document.
 	repairFields []string
@@ -84,11 +85,15 @@ func searchIndexSources(app core.App) []searchIndexSource {
 	return []searchIndexSource{
 		{
 			index: "trails", collection: "trails", pageLabel: "trails", pageSize: 100,
-			document: func(r *core.Record) (map[string]any, error) { return util.TrailSearchDocument(app, r) },
+			documents: func(records []*core.Record) ([]map[string]any, []error) {
+				return util.TrailSearchDocuments(app, records)
+			},
 		},
 		{
 			index: "lists", collection: "lists", pageLabel: "list", pageSize: 100,
-			document: func(r *core.Record) (map[string]any, error) { return util.ListSearchDocument(app, r) },
+			documents: func(records []*core.Record) ([]map[string]any, []error) {
+				return util.ListSearchDocuments(app, records)
+			},
 		},
 		{
 			// Actor documents hold only the actor's own fields, so they do
@@ -99,7 +104,7 @@ func searchIndexSources(app core.App) []searchIndexSource {
 			// Actor documents are a few hundred bytes each, so they go in
 			// larger batches to keep the number of queued tasks down.
 			index: "actors", collection: "activitypub_actors", pageLabel: "actor", pageSize: 1000,
-			document:     util.ActorSearchDocument,
+			documents:    util.ActorSearchDocuments,
 			repairFields: []string{"preferred_username"},
 		},
 	}
@@ -242,14 +247,14 @@ func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source 
 // searchDocuments builds the documents of a page of records, leaving out and
 // logging the records that fail.
 func searchDocuments(app core.App, source searchIndexSource, records []*core.Record) []map[string]any {
+	built, errs := source.documents(records)
 	documents := make([]map[string]any, 0, len(records))
-	for _, r := range records {
-		document, err := source.document(r)
-		if err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to index %s %s: %v", source.pageLabel, r.Id, err))
+	for i, r := range records {
+		if errs[i] != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to index %s %s: %v", source.pageLabel, r.Id, errs[i]))
 			continue
 		}
-		documents = append(documents, document)
+		documents = append(documents, built[i])
 	}
 	return documents
 }
@@ -398,17 +403,10 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 		}
 
 		var stale []map[string]any
-		built := make(map[string]types.DateTime, len(records))
-		for _, r := range records {
-			document, err := source.document(r)
-			if err != nil {
-				app.Logger().Warn(fmt.Sprintf("Unable to index %s %s: %v", source.pageLabel, r.Id, err))
-				continue
-			}
-			current, ok := stored[r.Id]
+		for _, document := range searchDocuments(app, source, records) {
+			current, ok := stored[document["id"].(string)]
 			if !ok || !searchDocumentMatches(document, current, source.repairFields) {
 				stale = append(stale, document)
-				built[r.Id] = r.GetDateTime("updated")
 			}
 		}
 		if len(stale) == 0 {
@@ -416,7 +414,7 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 		}
 
 		afterSearchRepairBuild()
-		stale, err = unchangedSearchDocuments(app, source.collection, stale, built)
+		stale, err = unchangedSearchDocuments(app, source, stale)
 		if err != nil {
 			return err
 		}
@@ -454,34 +452,37 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 // checking them against the database; tests change records there.
 var afterSearchRepairBuild = func() {}
 
-// unchangedSearchDocuments drops the documents whose record was changed or
-// deleted after the document was built, which built maps to the record's
-// updated time. A live write already brought those documents up to date, and
+// unchangedSearchDocuments rebuilds the given documents from their records
+// as they are now, and keeps only those that come out the same. A record
+// changed or deleted after the document was built, or a change to its shares,
+// likes or other relations, was written to the index by its own hook, and
 // writing the older copy over it could, for one, make a trail just made
-// private searchable again.
-func unchangedSearchDocuments(app core.App, collection string, documents []map[string]any, built map[string]types.DateTime) ([]map[string]any, error) {
-	ids := make([]any, 0, len(documents))
-	for _, document := range documents {
-		ids = append(ids, document["id"])
+// private, or a share just revoked, searchable again.
+func unchangedSearchDocuments(app core.App, source searchIndexSource, documents []map[string]any) ([]map[string]any, error) {
+	ids := make([]string, len(documents))
+	for i, document := range documents {
+		ids[i], _ = document["id"].(string)
 	}
-	var rows []struct {
-		ID      string         `db:"id"`
-		Updated types.DateTime `db:"updated"`
-	}
-	err := app.DB().Select("id", "updated").From(collection).Where(dbx.In("id", ids...)).All(&rows)
+	records, err := app.FindRecordsByIds(source.collection, ids)
 	if err != nil {
 		return nil, err
 	}
-	current := make(map[string]types.DateTime, len(rows))
-	for _, row := range rows {
-		current[row.ID] = row.Updated
+	rebuilt := make(map[string]map[string]any, len(records))
+	current, errs := source.documents(records)
+	for i, r := range records {
+		if errs[i] == nil {
+			rebuilt[r.Id] = current[i]
+		}
 	}
 
 	unchanged := documents[:0]
-	for _, document := range documents {
-		id, _ := document["id"].(string)
-		updated, ok := current[id]
-		if ok && updated.Equal(built[id]) {
+	for i, document := range documents {
+		now, ok := rebuilt[ids[i]]
+		if !ok {
+			continue
+		}
+		normalized, err := normalizeSearchDocument(document)
+		if err == nil && searchDocumentMatches(now, normalized, nil) {
 			unchanged = append(unchanged, document)
 		}
 	}
@@ -489,28 +490,29 @@ func unchangedSearchDocuments(app core.App, collection string, documents []map[s
 }
 
 // writeSearchRepairBatch writes a batch of documents and waits for it. When
-// Meilisearch rejects the batch, its documents are written one at a time, so
-// only the documents it rejects are left out.
+// Meilisearch rejects the batch, it is split in halves and each half written
+// again, so only the documents it rejects are left out, found in about as
+// many rounds as it takes to halve the batch down to one document.
 func writeSearchRepairBatch(app core.App, client meilisearch.ServiceManager, source searchIndexSource, documents []map[string]any) (int, error) {
 	err := writeSearchDocuments(client, source.index, documents)
 	if err == nil {
 		return len(documents), nil
 	}
-	if !errors.Is(err, errSearchTaskFailed) || len(documents) == 1 {
+	if !errors.Is(err, errSearchTaskFailed) {
 		return 0, fmt.Errorf("write documents: %w", err)
 	}
-
-	written := 0
-	var errs []error
-	for _, document := range documents {
-		if err := writeSearchDocuments(client, source.index, []map[string]any{document}); err != nil {
-			app.Logger().Warn(fmt.Sprintf("Unable to repair %s %v: %v", source.pageLabel, document["id"], err))
-			errs = append(errs, fmt.Errorf("write %s %v: %w", source.pageLabel, document["id"], err))
-			continue
-		}
-		written++
+	if len(documents) == 1 {
+		app.Logger().Warn(fmt.Sprintf("Unable to repair %s %v: %v", source.pageLabel, documents[0]["id"], err))
+		return 0, fmt.Errorf("write %s %v: %w", source.pageLabel, documents[0]["id"], err)
 	}
-	return written, errors.Join(errs...)
+
+	half := len(documents) / 2
+	first, firstErr := writeSearchRepairBatch(app, client, source, documents[:half])
+	if errors.Is(firstErr, errSearchTaskTimeout) {
+		return first, firstErr
+	}
+	second, secondErr := writeSearchRepairBatch(app, client, source, documents[half:])
+	return first + second, errors.Join(firstErr, secondErr)
 }
 
 func writeSearchDocuments(client meilisearch.ServiceManager, index string, documents []map[string]any) error {
@@ -549,6 +551,10 @@ func storedSearchDocuments(client meilisearch.ServiceManager, index string, ids 
 		Fields: fields,
 		Limit:  int64(len(ids)),
 	}, &result)
+	if searchIndexNotFound(err) {
+		// Writing the documents creates the index again.
+		return map[string]map[string]any{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -588,6 +594,13 @@ func searchDocumentMatches(expected, stored map[string]any, fields []string) boo
 	return true
 }
 
+// searchIndexNotFound reports whether err says the index does not exist, as
+// after Meilisearch's data was wiped while this server kept running.
+func searchIndexNotFound(err error) bool {
+	var meiliErr *meilisearch.Error
+	return errors.As(err, &meiliErr) && meiliErr.MeilisearchApiError.Code == "index_not_found"
+}
+
 func normalizeSearchDocument(document map[string]any) (map[string]any, error) {
 	data, err := json.Marshal(document)
 	if err != nil {
@@ -610,6 +623,9 @@ func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager
 			Limit:  searchRepairIDPageSize,
 			Offset: offset,
 		}, &result)
+		if searchIndexNotFound(err) {
+			break
+		}
 		if err != nil {
 			return 0, err
 		}
