@@ -150,12 +150,14 @@ func TestRepairSearchIndexes(t *testing.T) {
 		searchQueueDrainTimeout, searchQueuePollInterval = 30*time.Millisecond, 10*time.Millisecond
 		t.Cleanup(func() { searchQueueDrainTimeout, searchQueuePollInterval = drainTimeout, pollInterval })
 
-		logText := runRepair(t, app, client)
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		err := repairSearchIndexes(&searchInitLogApp{App: app, logger: logger}, client)
+		if err == nil || !strings.Contains(err.Error(), "repair search index trails: skipped") {
+			t.Fatalf("repairSearchIndexes error = %v; want the skipped trails index reported", err)
+		}
 		if writes, _ := search.changes(); len(writes) != 0 {
 			t.Fatalf("writes = %v; want trails %v left alone", writes, trails)
-		}
-		if !strings.Contains(logText, "Search repair trails skipped") {
-			t.Fatalf("log = %s", logText)
 		}
 	})
 

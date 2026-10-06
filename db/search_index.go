@@ -377,8 +377,9 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 		return err
 	}
 	if !drained {
-		app.Logger().Warn(fmt.Sprintf("Search repair %s skipped: document tasks are still queued", source.index))
-		return nil
+		// An error rather than a warning: a backlog that never drains would
+		// otherwise skip the repair night after night unnoticed.
+		return fmt.Errorf("skipped: document tasks still queued after %s", searchQueueDrainTimeout)
 	}
 
 	var fields []string
@@ -457,7 +458,10 @@ var afterSearchRepairBuild = func() {}
 // changed or deleted after the document was built, or a change to its shares,
 // likes or other relations, was written to the index by its own hook, and
 // writing the older copy over it could, for one, make a trail just made
-// private, or a share just revoked, searchable again.
+// private, or a share just revoked, searchable again. A change committed in
+// the moment between this check and queueing the batch can still be
+// overwritten; that needs a user to edit an already stale document during
+// those milliseconds, and the next repair fixes it.
 func unchangedSearchDocuments(app core.App, source searchIndexSource, documents []map[string]any) ([]map[string]any, error) {
 	ids := make([]string, len(documents))
 	for i, document := range documents {
@@ -663,17 +667,19 @@ func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager
 		}
 	}
 
+	removed := 0
 	for start := 0; start < len(orphans); start += searchRepairIDPageSize {
 		end := min(start+searchRepairIDPageSize, len(orphans))
 		task, err := client.Index(source.index).DeleteDocuments(orphans[start:end], nil)
 		if err != nil {
-			return 0, err
+			return removed, err
 		}
 		if err := waitForSearchRepairTask(client, task.TaskUID); err != nil {
-			return 0, err
+			return removed, err
 		}
+		removed = end
 	}
-	return len(orphans), nil
+	return removed, nil
 }
 
 // errSearchTaskFailed marks a task Meilisearch processed and rejected, as
