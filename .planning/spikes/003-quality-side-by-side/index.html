@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Encoder Side by Side</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --text: #1d232b; --muted: #5d6673; --border: #d5dae1;
+    --accent: #3b6e8f; --good: #2f7a4f; --bad: #a3442f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14181d; --panel: #1c2128; --text: #e6e9ee; --muted: #9aa3ae; --border: #2e353f;
+      --accent: #7fb0d1; --good: #6cc492; --bad: #e08a74; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; }
+  h1 { font-size: 16px; margin: 0 24px 0 0; font-weight: 600; }
+  label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+  select, button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; padding: 8px 16px 0; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; padding: 12px 16px 24px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .view { position: relative; height: 340px; overflow: hidden; cursor: grab; background: repeating-conic-gradient(#8881 0 25%, transparent 0 50%) 0 0/16px 16px; }
+  .view:active { cursor: grabbing; }
+  .view img { position: absolute; left: 0; top: 0; transform-origin: 0 0; image-rendering: pixelated; user-select: none; -webkit-user-drag: none; }
+  figcaption { padding: 8px 10px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); }
+  .name { font-weight: 600; }
+  .stats { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .delta.good { color: var(--good); } .delta.bad { color: var(--bad); }
+  figure.blink .view { outline: 2px solid var(--accent); outline-offset: -2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Encoder side by side</h1>
+  <label>Photo <select id="input"></select></label>
+  <label>Variant width <select id="width"><option>2048</option><option selected>1280</option><option>800</option></select></label>
+  <label>Zoom <select id="zoom"><option value="1">1× (device pixels)</option><option value="2" selected>2×</option><option value="4">4×</option></select></label>
+  <label>Blink <button id="blink" aria-pressed="false">Hold B to flip to reference</button></label>
+</header>
+<p class="hint">Drag any panel to pan all of them together. Hold <kbd>B</kbd> to swap every panel to the lossless reference. Sizes are bytes of that variant; Δ is against stdlib JPEG q75. SSIM is luma-only, 8×8 windows.</p>
+<main id="grid"></main>
+<script src="manifest.js"></script>
+<script>
+  const M = window.MANIFEST;
+  const label = { reference: "Reference (lossless PNG)", jpeg: "stdlib JPEG", jpegli: "jpegli", webp: "WebP" };
+  const inputs = [...new Set(M.map((m) => m.input))];
+  const $ = (id) => document.getElementById(id);
+  for (const i of inputs) $("input").add(new Option(i === "route" ? "route preview (WebP original)" : i, i));
+
+  let pan = { x: 0, y: 0 };
+  let centered = false;
+  let blinking = false;
+
+  function file(m, w) {
+    const codec = m.codec === "reference" ? "reference" : `${m.codec}-q${m.q}`;
+    return `images/${m.input}__${codec}__${w}.${m.ext}`;
+  }
+
+  function render() {
+    const input = $("input").value, w = +$("width").value, zoom = +$("zoom").value;
+    const rows = M.filter((m) => m.input === input).sort((a, b) => (a.codec === "reference" ? -1 : b.codec === "reference" ? 1 : 0));
+    const ref = rows.find((m) => m.codec === "reference");
+    const base = rows.find((m) => m.codec === "jpeg" && m.q === 75);
+    const idx = { 2048: 0, 1280: 1, 800: 2 }[w];
+    $("grid").innerHTML = "";
+    for (const m of rows) {
+      const v = m.variants[idx];
+      const fig = document.createElement("figure");
+      const view = document.createElement("div");
+      view.className = "view";
+      const img = new Image();
+      img.src = file(m, w);
+      img.dataset.own = img.src;
+      img.dataset.ref = new URL(file(ref, w), location.href).href;
+      img.alt = `${label[m.codec]} ${m.q || ""}`;
+      img.onload = () => {
+        // 1× means one image pixel per device pixel.
+        const scale = zoom / devicePixelRatio;
+        img.style.width = img.naturalWidth * scale + "px";
+        img.style.height = img.naturalHeight * scale + "px";
+        if (!centered) {
+          // Start on the middle of the photo, where the detail is.
+          centered = true;
+          pan = { x: -(img.naturalWidth * scale - view.clientWidth) / 2, y: -(img.naturalHeight * scale - view.clientHeight) / 2 };
+          applyPan();
+        }
+      };
+      view.appendChild(img);
+      const kb = (v.bytes / 1024).toFixed(0);
+      const delta = base && m.codec !== "reference" ? Math.round((v.bytes / base.variants[idx].bytes - 1) * 100) : null;
+      const cap = document.createElement("figcaption");
+      cap.innerHTML = `<span class="name">${label[m.codec]}${m.q ? " q" + m.q : ""}</span>
+        <span class="stats">${kb} KB${delta === null ? "" : ` · <span class="delta ${delta < 0 ? "good" : delta > 0 ? "bad" : ""}">${delta > 0 ? "+" : ""}${delta}%</span>`}${m.codec === "reference" ? "" : ` · SSIM ${v.ssim.toFixed(4)}`}</span>`;
+      fig.append(view, cap);
+      $("grid").appendChild(fig);
+      attachPan(view);
+    }
+    applyPan();
+  }
+
+  function applyPan() {
+    for (const img of document.querySelectorAll(".view img")) img.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+  }
+
+  function attachPan(view) {
+    view.addEventListener("pointerdown", (e) => {
+      view.setPointerCapture(e.pointerId);
+      const start = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+      const move = (ev) => { pan = { x: ev.clientX - start.x, y: ev.clientY - start.y }; applyPan(); };
+      const up = () => { view.removeEventListener("pointermove", move); view.removeEventListener("pointerup", up); };
+      view.addEventListener("pointermove", move);
+      view.addEventListener("pointerup", up);
+    });
+  }
+
+  function setBlink(on) {
+    if (on === blinking) return;
+    blinking = on;
+    $("blink").setAttribute("aria-pressed", String(on));
+    for (const img of document.querySelectorAll(".view img")) {
+      img.src = on ? img.dataset.ref : img.dataset.own;
+      img.closest("figure").classList.toggle("blink", on);
+    }
+  }
+
+  for (const id of ["input", "width", "zoom"]) $(id).addEventListener("change", () => { centered = false; render(); });
+  addEventListener("keydown", (e) => { if (e.key === "b" || e.key === "B") setBlink(true); });
+  addEventListener("keyup", (e) => { if (e.key === "b" || e.key === "B") setBlink(false); });
+  $("blink").addEventListener("pointerdown", () => setBlink(true));
+  $("blink").addEventListener("pointerup", () => setBlink(false));
+  $("blink").addEventListener("pointerleave", () => setBlink(false));
+  render();
+</script>
+</body>
+</html>
