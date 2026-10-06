@@ -11,7 +11,7 @@
 - ✅ **v1.6 Offline Region Tile Repository** — Phases 21.5, 22-27 (shipped 2026-07-24)
 - ✅ **v1.7 Admin Region Picker** — Phases 28-32 (shipped 2026-07-28)
 - ✅ **v1.8 Offline Recording & Deferred Upload** — Phases 33-36, 38, 38.1 (shipped 2026-08-07)
-- 📋 **Unscheduled** — Phase 37 (no milestone yet)
+- 📋 **Unscheduled** — Phases 37, 39 and the image pipeline overhaul 40–44 (no milestone yet)
 
 ## Phases
 
@@ -518,6 +518,90 @@ Plans:
 **Wave 7** *(blocked on Wave 6 completion)*
 
 - [x] 39-09-PLAN.md — connectivity-regain re-probe, fire the recovery mechanism, verify criteria 1/2/5/6 on device (D-15/12/03)
+
+### Image Pipeline Overhaul (Phases 40–44)
+
+Planned 2026-10-06 in `/gsd-explore` + spikes 001–003. Unlike the phases above, this work targets
+the **web and db** on `dev`, delivered as **one `gh stack`** (trunk `dev`) where each phase is one
+PR layer; planning artifacts stay here on `feature/app`. Plan, decisions and stack layout:
+`.planning/notes/image-pipeline-overhaul.md`. Encoder evidence: `.planning/spikes/MANIFEST.md`
+(project skill `spike-findings-wanderer`). Stack layer 0 is not a phase: it is the quick fix in
+`.planning/todos/pending/2026-10-06-photo-location-reads-stripped-thumb.md`.
+
+Locked across all five phases: optimise for a small home server (process once, in the background,
+bounded); originals kept byte-for-byte but owner-only; served files carry no EXIF; variants are
+WebP q80 (`gen2brain/webp`, `-tags nodynamic`) at 2048/1280/800/400 on the long edge, never
+upscaled; never link `gen2brain/jpegli`.
+
+### Phase 40: Photo Metadata Into the Database
+
+**Goal**: A hiker who taps "use photo location" on a photo they uploaded weeks ago gets its
+coordinates again, and every photo's capture time and GPS position live in the database instead of
+only inside the file — so later phases can strip files without losing what the photos knew.
+**Milestone**: none — image pipeline overhaul; stack layer 1 (`feat/images-metadata` on `dev`).
+**Depends on:** nothing in this roadmap. PR #1334 and the layer-0 todo are expected to land first
+but do not gate it.
+**Requirements**: none mapped — decisions in `.planning/notes/image-pipeline-overhaul.md`
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 40 to break down)
+
+### Phase 41: Upload-Time Image Variants
+
+**Goal**: Every uploaded photo is processed once, in the background, into stripped WebP variants
+with stored dimensions and a placeholder, served from stable URLs with immutable caching —
+without slowing the upload or the host, even on a Raspberry Pi — and existing photos get the same
+through a resumable backfill. No UI change yet.
+**Milestone**: none — image pipeline overhaul; stack layer 2 (`feat/images-variants` on `dev`).
+**Depends on:** Phase 40 (capture metadata must be in the DB before variants strip it); spikes
+001–003 (format, cost and landmines settled).
+**Requirements**: none mapped
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 41 to break down)
+
+### Phase 42: Responsive Images on the Web
+
+**Goal**: Every image on the web — trail headers, cards, lists, feed, map popups, lightbox — loads
+the smallest variant that looks sharp in its slot, shows a placeholder instead of a blank box,
+never shifts layout, and opens the lightbox instantly from the cached card before sharpening. No
+`?thumb=` call sites remain.
+**Milestone**: none — image pipeline overhaul; stack layer 3 (`feat/images-web` on `dev`).
+**Depends on:** Phase 41
+**Requirements**: none mapped
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 42 to break down)
+
+### Phase 43: Private Originals and Federated Variants
+
+**Goal**: Nobody but the owner can download an original upload with its EXIF and GPS; everyone
+else — including remote instances fetching over ActivityPub — gets stripped variants.
+**Milestone**: none — image pipeline overhaul; stack layer 4 (`feat/images-originals-private` on `dev`).
+**Depends on:** Phase 42 (no public UI may still point at originals)
+**Requirements**: none mapped
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 43 to break down)
+
+### Phase 44: App Image Variants
+
+**Goal**: The Flutter app requests the nearest ladder variant for each image's display width ×
+device pixel ratio and shows placeholders, instead of downloading originals through today's
+unregistered `?thumb=1200x0`.
+**Milestone**: none — image pipeline overhaul; stack layer 5 (`feat/images-app`). Lands on the stack
+once `feature/app` has merged into `dev`, otherwise as a follow-up on `feature/app`.
+**Depends on:** Phase 41 (variants exist); Phase 43 changes what `?thumb=1200x0` returns, so ship
+before or with it.
+**Requirements**: none mapped
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 44 to break down)
 
 ---
 
