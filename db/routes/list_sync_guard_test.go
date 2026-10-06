@@ -176,7 +176,22 @@ func TestListSyncStoresSameHostTrails(t *testing.T) {
 	}
 }
 
-func TestListSyncSkipsUnknownForeignTrail(t *testing.T) {
+// storeTrail stores the trail at iri as imported for author.
+func (f *pullFixture) storeTrail(t *testing.T, iri string, author *core.Record) (*core.Record, error) {
+	t.Helper()
+	trails, err := f.app.FindCollectionByNameOrId("trails")
+	if err != nil {
+		return nil, err
+	}
+	r := core.NewRecord(trails)
+	r.Set("author", author.Id)
+	r.Set("public", true)
+	r.Set("name", "imported")
+	r.Set("iri", iri)
+	return r, f.app.Save(r)
+}
+
+func TestListSyncSkipsUnimportableForeignTrail(t *testing.T) {
 	f := setupPullFixture(t)
 
 	iri := pullThird + "/api/v1/trail/unknown"
@@ -197,4 +212,36 @@ func TestListSyncSkipsUnknownForeignTrail(t *testing.T) {
 	if len(linked) != 1 || linked[0] != created.Id {
 		t.Errorf("synced list trails = %v, want only %s", linked, created.Id)
 	}
+}
+
+// Alice's list on the origin contains Carol's trail from a third host. A
+// viewer here that never cached that trail gets it from Carol's host, under
+// the author that host names, whatever the list's origin claims.
+func TestListSyncImportsForeignTrailFromItsHost(t *testing.T) {
+	f := setupPullFixture(t)
+
+	iri := pullThird + "/api/v1/trail/carols"
+	f.foreignTrails = map[string]*core.Record{iri: f.carol}
+	local := f.trailAt(t, "https://local.example", f.lou, true, "local")
+
+	list := f.pullList(t, []map[string]any{
+		{"id": "carols", "iri": iri, "name": "pwned", "public": true, "expand": authorExpand(f.mallory)},
+		{"id": local.Id, "iri": local.GetString("iri"), "name": "local pwned", "public": true},
+		{"id": "n1", "name": "new", "public": true},
+	})
+
+	imported, err := f.app.FindFirstRecordByData("trails", "iri", iri)
+	if err != nil {
+		t.Fatalf("third-host trail was not imported: %v", err)
+	}
+	if imported.GetString("author") != f.carol.Id || imported.GetString("name") != "imported" {
+		t.Errorf("imported trail = name %q author %s, want the host's copy by carol", imported.GetString("name"), imported.GetString("author"))
+	}
+	if !slices.Contains(list.GetStringSlice("trails"), imported.Id) {
+		t.Errorf("imported trail is missing from the synced list (trails = %v)", list.GetStringSlice("trails"))
+	}
+	if !slices.Equal(f.foreignFetches, []string{iri}) {
+		t.Errorf("imported %v, want only %s", f.foreignFetches, iri)
+	}
+	f.assertTrailUntouched(t, "local trail", local)
 }

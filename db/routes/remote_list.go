@@ -217,6 +217,10 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 		return localList, err
 	}
 
+	// Trails hosted elsewhere are imported from their own host first; the
+	// sync below only links them.
+	importForeignListTrails(app, ctx, iri, remoteMap)
+
 	err = app.RunInTransaction(func(txApp core.App) error {
 		remoteID, _ := remoteMap["id"].(string)
 
@@ -247,6 +251,41 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 	})
 
 	return localList, err
+}
+
+// maxForeignListTrailImports bounds the trails one list sync imports from
+// hosts other than the list's; the rest follow on later syncs.
+const maxForeignListTrailImports = 20
+
+// importTrail is federation.ImportTrail, replaceable in tests.
+var importTrail = federation.ImportTrail
+
+// importForeignListTrails imports the trails of a pulled list that are hosted
+// neither here nor on the list's host and not stored yet, each from its own
+// host. Failures leave the trail out of the list.
+func importForeignListTrails(app core.App, ctx context.Context, listIRI string, remoteMap map[string]any) {
+	expand, _ := remoteMap["expand"].(map[string]any)
+	trails, _ := expand["trails"].([]any)
+
+	imported := 0
+	for _, tData := range trails {
+		raw, _ := tData.(map[string]any)
+		iri, _ := raw["iri"].(string)
+		if !federation.IsForeignPulledObject(iri, listIRI) {
+			continue
+		}
+		if stored, _ := app.FindFirstRecordByData("trails", "iri", iri); stored != nil {
+			continue
+		}
+		if imported == maxForeignListTrailImports {
+			app.Logger().Info("deferring foreign list trails to a later sync", "list", listIRI)
+			return
+		}
+		imported++
+		if _, err := importTrail(app, ctx, iri); err != nil {
+			app.Logger().Warn("skipping pulled trail not importable from its host", "iri", iri, "list", listIRI, "error", err)
+		}
+	}
 }
 
 func syncListMetadata(record *core.Record, data map[string]any) {
@@ -310,7 +349,7 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 			if trail != nil {
 				localTrails = append(localTrails, trail.Id)
 			} else {
-				txApp.Logger().Warn("skipping pulled trail not on the list origin's host", "iri", iri, "list", list.GetString("iri"))
+				txApp.Logger().Warn("skipping pulled trail not stored from its own host", "iri", iri, "list", list.GetString("iri"))
 			}
 			continue
 		}

@@ -815,22 +815,33 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	return commentObject, nil
 }
 
-// TrailObjectMaxBytes is the largest trail object TrailObjectFromIRI reads.
+// TrailObjectMaxBytes is the largest object TrailObjectFromIRI and
+// CommentObjectFromIRI read.
 const TrailObjectMaxBytes int64 = 1 << 20
 
-// trailObjectHTTPClient builds the client TrailObjectFromIRI uses. Replaced in
-// tests.
+// trailObjectHTTPClient builds the client TrailObjectFromIRI and
+// CommentObjectFromIRI use. Replaced in tests.
 var trailObjectHTTPClient = SafeHTTPClient
 
 func TrailObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
-	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
+	return objectFromIRI(ctx, "trail", strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1))
+}
 
+// CommentObjectFromIRI fetches the comment at iri from its host, with the same
+// limits as TrailObjectFromIRI. A Wanderer comment IRI is rewritten to its
+// ActivityPub endpoint; any other IRI is fetched as is.
+func CommentObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
+	return objectFromIRI(ctx, "comment", strings.Replace(iri, "api/v1/comment", "api/v1/activitypub/comment", 1))
+}
+
+func objectFromIRI(ctx context.Context, kind, fetchURL string) (*pub.Object, error) {
 	client := trailObjectHTTPClient()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Accept", "application/activity+json")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -840,8 +851,8 @@ func TrailObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		// An error body decodes to an empty object, which would be stored as
-		// a trail without an id.
-		return nil, fmt.Errorf("fetching trail %s returned: %d", fetchURL, resp.StatusCode)
+		// an object without an id.
+		return nil, fmt.Errorf("fetching %s %s returned: %d", kind, fetchURL, resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, TrailObjectMaxBytes+1))
@@ -849,7 +860,7 @@ func TrailObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
 		return nil, err
 	}
 	if int64(len(body)) > TrailObjectMaxBytes {
-		return nil, fmt.Errorf("trail %s is larger than %d bytes", fetchURL, TrailObjectMaxBytes)
+		return nil, fmt.Errorf("%s %s is larger than %d bytes", kind, fetchURL, TrailObjectMaxBytes)
 	}
 
 	var object pub.Object
@@ -858,7 +869,7 @@ func TrailObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
 		return nil, err
 	}
 	if object.ID == "" {
-		return nil, fmt.Errorf("fetching trail %s returned an object without an id", fetchURL)
+		return nil, fmt.Errorf("fetching %s %s returned an object without an id", kind, fetchURL)
 	}
 
 	return &object, nil

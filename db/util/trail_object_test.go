@@ -72,3 +72,28 @@ func TestTrailObjectFromIRIRefusesOversizedBody(t *testing.T) {
 		t.Error("body of TrailObjectMaxBytes+1 accepted, want it refused")
 	}
 }
+
+func TestCommentObjectFromIRIFetchesActivityPubEndpoint(t *testing.T) {
+	useTrailObjectPlainClient(t)
+
+	var gotPath, gotAccept string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotAccept = r.URL.Path, r.Header.Get("Accept")
+		w.Write([]byte(`{"id":"` + "http://" + r.Host + `/api/v1/comment/c1","type":"Note"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	object, err := CommentObjectFromIRI(context.Background(), server.URL+"/api/v1/comment/c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/api/v1/activitypub/comment/c1" {
+		t.Errorf("fetched %q, want the comment's ActivityPub endpoint", gotPath)
+	}
+	if gotAccept != "application/activity+json" {
+		t.Errorf("Accept = %q, want application/activity+json", gotAccept)
+	}
+	if object.ID.String() != server.URL+"/api/v1/comment/c1" {
+		t.Errorf("object id = %q", object.ID.String())
+	}
+}

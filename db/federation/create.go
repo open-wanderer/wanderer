@@ -1114,20 +1114,9 @@ func confirmTrailAuthorAtOrigin(ctx context.Context, objectIRI string, signer *c
 // Wanderer trail is always its author's, and a host naming an actor
 // elsewhere would otherwise file content under a stranger's name.
 func fetchTrail(app core.App, ctx context.Context, sender *core.Record, iri string) (*core.Record, error) {
-	trailObject, err := fetchTrailObject(ctx, iri)
+	trailObject, authorIRI, err := fetchAttributedTrail(ctx, iri)
 	if err != nil {
 		return nil, err
-	}
-
-	var authorIRI string
-	if trailObject.AttributedTo != nil {
-		authorIRI = trailObject.AttributedTo.GetLink().String()
-	}
-	if authorIRI == "" {
-		return nil, fmt.Errorf("trail %s is attributed to nobody", iri)
-	}
-	if !sameHost(authorIRI, iri) {
-		return nil, fmt.Errorf("trail %s is attributed to %s on another host", iri, authorIRI)
 	}
 
 	author := sender
@@ -1146,6 +1135,52 @@ func fetchTrail(app core.App, ctx context.Context, sender *core.Record, iri stri
 
 	activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
 	return util.TrailFromActivity(ctx, *activity, app, author)
+}
+
+// ImportTrail stores a copy of the remote trail at iri, fetched from its own
+// host and filed under the actor it is attributed to there. It is used when a
+// list pulled from one host contains a trail from another.
+func ImportTrail(app core.App, ctx context.Context, iri string) (*core.Record, error) {
+	if util.IsLocalIRI(iri) {
+		return nil, fmt.Errorf("refusing to import local trail %s", iri)
+	}
+	trailObject, authorIRI, err := fetchAttributedTrail(ctx, iri)
+	if err != nil {
+		return nil, err
+	}
+	if trailObject.ID.String() != iri {
+		return nil, fmt.Errorf("origin returned %q instead of %q", trailObject.ID.String(), iri)
+	}
+
+	// A cached actor comes back even when refreshing it failed.
+	author, err := GetActorByIRI(app, ctx, authorIRI, false)
+	if author == nil {
+		return nil, fmt.Errorf("resolving author %s: %w", authorIRI, err)
+	}
+
+	activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
+	return util.TrailFromActivity(ctx, *activity, app, author)
+}
+
+// fetchAttributedTrail fetches the trail at iri from its host and returns it
+// with its author's IRI, which must be on that same host.
+func fetchAttributedTrail(ctx context.Context, iri string) (*pub.Object, string, error) {
+	trailObject, err := fetchTrailObject(ctx, iri)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var authorIRI string
+	if trailObject.AttributedTo != nil {
+		authorIRI = trailObject.AttributedTo.GetLink().String()
+	}
+	if authorIRI == "" {
+		return nil, "", fmt.Errorf("trail %s is attributed to nobody", iri)
+	}
+	if !sameHost(authorIRI, iri) {
+		return nil, "", fmt.Errorf("trail %s is attributed to %s on another host", iri, authorIRI)
+	}
+	return trailObject, authorIRI, nil
 }
 
 func sameHost(a, b string) bool {

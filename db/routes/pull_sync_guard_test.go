@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/router"
@@ -63,6 +66,12 @@ type pullFixture struct {
 	comments  *core.Collection
 	summits   *core.Collection
 	waypoints *core.Collection
+
+	// foreign holds comments served by hosts other than the trail's origin,
+	// foreignTrails the authors of trails served by hosts other than a list's.
+	foreign        map[string]*pub.Object
+	foreignTrails  map[string]*core.Record
+	foreignFetches []string
 }
 
 func setupPullFixture(t *testing.T) *pullFixture {
@@ -90,6 +99,27 @@ func setupPullFixture(t *testing.T) *pullFixture {
 		return &http.Client{Transport: f.origin}
 	}
 	t.Cleanup(func() { newRemoteSyncHTTPClient = original })
+
+	// Objects on other hosts are only fetched where a test serves them.
+	f.foreign = map[string]*pub.Object{}
+	originalFetch := fetchCommentObject
+	fetchCommentObject = func(ctx context.Context, iri string) (*pub.Object, error) {
+		f.foreignFetches = append(f.foreignFetches, iri)
+		if o, ok := f.foreign[iri]; ok {
+			return o, nil
+		}
+		return nil, fmt.Errorf("no comment served at %s", iri)
+	}
+	t.Cleanup(func() { fetchCommentObject = originalFetch })
+	originalImport := importTrail
+	importTrail = func(app core.App, ctx context.Context, iri string) (*core.Record, error) {
+		f.foreignFetches = append(f.foreignFetches, iri)
+		if author, ok := f.foreignTrails[iri]; ok {
+			return f.storeTrail(t, iri, author)
+		}
+		return nil, fmt.Errorf("no trail served at %s", iri)
+	}
+	t.Cleanup(func() { importTrail = originalImport })
 
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(
@@ -378,5 +408,83 @@ func TestPullSyncStillImportsOriginSummitLogsAndWaypoints(t *testing.T) {
 	}
 	if wp.GetString("name") != "waypoint" || wp.GetString("author") != f.alice.Id || wp.GetString("trail") != f.remoteR.Id {
 		t.Errorf("waypoint = name %q author %s trail %s", wp.GetString("name"), wp.GetString("author"), wp.GetString("trail"))
+	}
+}
+
+// serveForeignComment has the comment's own host serve it as by author,
+// replying to trail.
+func (f *pullFixture) serveForeignComment(iri string, author, trail *core.Record, text string) *pub.Object {
+	o := pub.ObjectNew(pub.NoteType)
+	o.ID = pub.IRI(iri)
+	o.AttributedTo = pub.IRI(author.GetString("iri"))
+	o.InReplyTo = pub.IRI(trail.GetString("iri"))
+	o.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, text))
+	f.foreign[iri] = o
+	return o
+}
+
+// Alice's trail on the origin carries a reply from Carol on a third host. A
+// viewer here that never received Carol's Create still gets the reply, as
+// Carol's host serves it.
+func TestPullSyncCommentsImportForeignCommentsFromTheirHost(t *testing.T) {
+	f := setupPullFixture(t)
+
+	good := pullThird + "/api/v1/comment/good"
+	f.serveForeignComment(good, f.carol, f.remoteR, "carol's words")
+
+	otherTrail := pullThird + "/api/v1/comment/other-trail"
+	f.serveForeignComment(otherTrail, f.carol, f.remoteR2, "elsewhere")
+
+	misattributed := pullThird + "/api/v1/comment/misattributed"
+	f.serveForeignComment(misattributed, f.alice, f.remoteR, "pwned")
+
+	renamed := pullThird + "/api/v1/comment/renamed"
+	f.serveForeignComment(renamed, f.carol, f.remoteR, "pwned").ID = pub.IRI(pullThird + "/api/v1/comment/else")
+
+	unserved := pullThird + "/api/v1/comment/unserved"
+
+	f.pullComments(t, f.remoteR, []map[string]any{
+		{"id": "good", "iri": good, "text": "origin's words", "expand": authorExpand(f.mallory)},
+		{"id": "other-trail", "iri": otherTrail, "text": "pwned", "expand": authorExpand(f.carol)},
+		{"id": "misattributed", "iri": misattributed, "text": "pwned", "expand": authorExpand(f.carol)},
+		{"id": "renamed", "iri": renamed, "text": "pwned", "expand": authorExpand(f.carol)},
+		{"id": "unserved", "iri": unserved, "text": "pwned", "expand": authorExpand(f.carol)},
+	})
+
+	stored, err := f.app.FindFirstRecordByData("comments", "iri", good)
+	if err != nil {
+		t.Fatalf("reply from a third host was not stored: %v", err)
+	}
+	if stored.GetString("text") != "carol's words" || stored.GetString("author") != f.carol.Id || stored.GetString("trail") != f.remoteR.Id {
+		t.Errorf("reply = text %q author %s trail %s, want carol's words by carol on the synced trail", stored.GetString("text"), stored.GetString("author"), stored.GetString("trail"))
+	}
+
+	for label, iri := range map[string]string{
+		"reply to another trail":        otherTrail,
+		"reply attributed off its host": misattributed,
+		"reply served under another id": renamed,
+		"reply its host does not serve": unserved,
+	} {
+		if got, err := f.app.FindFirstRecordByData("comments", "iri", iri); err == nil {
+			t.Errorf("%s was stored (text %q)", label, got.GetString("text"))
+		}
+	}
+}
+
+// A stored reply from a third host is updated by its author's own activities,
+// never by the trail's origin, and is not fetched again.
+func TestPullSyncCommentsLeaveStoredForeignComments(t *testing.T) {
+	f := setupPullFixture(t)
+
+	d := f.row(t, f.comments, f.carol, f.remoteR, pullThird+"/api/v1/comment/d", "d original")
+	f.serveForeignComment(d.GetString("iri"), f.carol, f.remoteR, "d refetched")
+
+	f.pullComments(t, f.remoteR, []map[string]any{
+		{"id": "d", "iri": d.GetString("iri"), "text": "d pwned", "expand": authorExpand(f.carol)},
+	})
+
+	f.assertUntouched(t, "stored third-host reply", d, "d original")
+	if len(f.foreignFetches) != 0 {
+		t.Errorf("fetched %v for an already stored reply", f.foreignFetches)
 	}
 }
