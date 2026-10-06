@@ -12,7 +12,9 @@ import (
 // SearchDocumentVersions identifies the shape of the documents each index is
 // built from. Bump an index's version whenever its document builder changes,
 // or a migration rewrites indexed fields without running hooks, so instances
-// rebuild that index on their next start.
+// rebuild that index on their next start. The nightly repair compares trail
+// and list documents in full but actor documents by preferred_username only,
+// so a change to any other actor field is only picked up through a bump.
 var SearchDocumentVersions = map[string]int{
 	"trails": 1,
 	"lists":  1,

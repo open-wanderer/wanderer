@@ -174,6 +174,161 @@ func TestRepairSearchIndexes(t *testing.T) {
 		searchIndexLock.Unlock()
 	})
 
+	// makePrivate saves trail as private and applies the partial update the
+	// trail hook sends, as a live edit would. The test app binds no hooks.
+	makePrivate := func(t *testing.T, app core.App, search *memorySearch, trail *core.Record) {
+		t.Helper()
+		// Keep the new updated time apart from the one already read.
+		time.Sleep(5 * time.Millisecond)
+		trail.Set("public", false)
+		if err := app.Save(trail); err != nil {
+			t.Fatal(err)
+		}
+		document := search.documents["trails"][trail.Id]
+		document["public"] = false
+	}
+
+	t.Run("a live write while the stored documents are read is kept", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		documents := trailDocuments(t, app, trails)
+		documents[1]["name"] = "drifted"
+		search.store(t, "trails", documents...)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		search.onFetch = func(index string) {
+			if index == "trails" && trails[0].GetBool("public") {
+				makePrivate(t, app, search, trails[0])
+			}
+		}
+
+		runRepair(t, app, client)
+		if public := search.document("trails", trails[0].Id)["public"]; public != false {
+			t.Fatalf("stored public = %v; want the live edit kept", public)
+		}
+		if name := search.document("trails", trails[1].Id)["name"]; name == "drifted" {
+			t.Fatal("the drifted trail on the same page was not repaired")
+		}
+	})
+
+	// A like changes the trail's document but not the trail record, so only
+	// reading the stored documents before the records protects it.
+	t.Run("a like added while the stored documents are read is kept", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		documents := trailDocuments(t, app, trails)
+		documents[1]["name"] = "drifted"
+		search.store(t, "trails", documents...)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		likes, err := app.FindCollectionByNameOrId("trail_like")
+		if err != nil {
+			t.Fatal(err)
+		}
+		liked := false
+		search.onFetch = func(index string) {
+			if index != "trails" || liked {
+				return
+			}
+			liked = true
+			like := core.NewRecord(likes)
+			like.Set("trail", trails[0].Id)
+			like.Set("actor", actors[0].Id)
+			if err := app.Save(like); err != nil {
+				t.Error(err)
+			}
+			document := search.documents["trails"][trails[0].Id]
+			document["likes"] = []any{actors[0].Id}
+			document["like_count"] = 1.0
+		}
+
+		runRepair(t, app, client)
+		if count := search.document("trails", trails[0].Id)["like_count"]; count != 1.0 {
+			t.Fatalf("stored like_count = %v; want the live like kept", count)
+		}
+	})
+
+	t.Run("a live write after the documents are built is kept", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		documents := trailDocuments(t, app, trails)
+		documents[0]["name"] = "drifted"
+		documents[1]["name"] = "drifted"
+		search.store(t, "trails", documents...)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		afterSearchRepairBuild = func() {
+			if trails[0].GetBool("public") {
+				search.mu.Lock()
+				makePrivate(t, app, search, trails[0])
+				search.mu.Unlock()
+			}
+		}
+		t.Cleanup(func() { afterSearchRepairBuild = func() {} })
+
+		runRepair(t, app, client)
+		if public := search.document("trails", trails[0].Id)["public"]; public != false {
+			t.Fatalf("stored public = %v; want the live edit kept", public)
+		}
+		if name := search.document("trails", trails[1].Id)["name"]; name == "drifted" {
+			t.Fatal("the unchanged drifted trail was not repaired")
+		}
+	})
+
+	t.Run("a trail deleted after the documents are built is not written back", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		afterSearchRepairBuild = func() {
+			if err := app.UnsafeWithoutHooks().Delete(trails[0]); err != nil {
+				t.Error(err)
+			}
+			afterSearchRepairBuild = func() {}
+		}
+		t.Cleanup(func() { afterSearchRepairBuild = func() {} })
+
+		runRepair(t, app, client)
+		writes, _ := search.changes()
+		for _, batch := range writes["trails"] {
+			if slices.Contains(batch, trails[0].Id) {
+				t.Fatalf("the deleted trail was written back in %v", batch)
+			}
+		}
+		if search.document("trails", trails[0].Id) != nil {
+			t.Fatal("the deleted trail is in the index")
+		}
+		if search.document("trails", trails[1].Id) == nil {
+			t.Fatal("the remaining missing trail was not added")
+		}
+	})
+
+	t.Run("a batch that does not finish in time stops only its index", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, int(searchInitPageSize)+1)
+		search, client := newMemorySearch(t)
+		search.store(t, "trails", map[string]any{"id": "deletedtrail000"})
+		stored := actorDocuments(t, actors)
+		stored[0]["preferred_username"] = "old name"
+		search.store(t, "actors", stored...)
+		search.stuck["trails"] = true
+		timeout := searchRepairTaskTimeout
+		searchRepairTaskTimeout = 50 * time.Millisecond
+		t.Cleanup(func() { searchRepairTaskTimeout = timeout })
+
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		err := repairSearchIndexes(&searchInitLogApp{App: app, logger: logger}, client)
+		if err == nil || !strings.Contains(err.Error(), "did not finish in time") {
+			t.Fatalf("repairSearchIndexes error = %v; want the timeout", err)
+		}
+		writes, deletes := search.changes()
+		if len(writes["trails"]) != 1 {
+			t.Fatalf("trail batches = %d; want the repair to stop after the first of %d trails", len(writes["trails"]), len(trails))
+		}
+		if len(deletes["trails"]) != 0 {
+			t.Fatalf("deletes = %v; want no orphan scan behind the backlog", deletes)
+		}
+		if !sameBatches(writes["actors"], []string{actors[0].Id}) {
+			t.Fatalf("actor writes = %v; want the other indexes still repaired", writes["actors"])
+		}
+	})
+
 	t.Run("a run is skipped while the indexes are being written", func(t *testing.T) {
 		app, _, _ := newSearchRepairApp(t, 1)
 		search, client := newMemorySearch(t)
@@ -279,6 +434,11 @@ type memorySearch struct {
 	// pending is the number of queued document tasks reported per index.
 	pending map[string]int64
 	failed  map[int64]bool
+	// onFetch runs, with the lock held, when documents are fetched by id.
+	onFetch func(index string)
+	// stuck indexes never finish their tasks.
+	stuck     map[string]bool
+	taskIndex map[int64]string
 }
 
 func newMemorySearch(t *testing.T) (*memorySearch, meilisearch.ServiceManager) {
@@ -288,6 +448,8 @@ func newMemorySearch(t *testing.T) (*memorySearch, meilisearch.ServiceManager) {
 		rejected:  map[string]map[string]bool{},
 		pending:   map[string]int64{},
 		failed:    map[int64]bool{},
+		stuck:     map[string]bool{},
+		taskIndex: map[int64]string{},
 	}
 	search.reset()
 	server := httptest.NewServer(http.HandlerFunc(search.serveHTTP))
@@ -376,6 +538,10 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		var uid int64
 		fmt.Sscan(strings.TrimPrefix(path, "/tasks/"), &uid)
 		search.waited = append(search.waited, uid)
+		if search.stuck[search.taskIndex[uid]] {
+			_, _ = fmt.Fprintf(w, `{"uid":%d,"status":"processing","type":"documentAdditionOrUpdate","enqueuedAt":"2026-10-06T00:00:00Z"}`, uid)
+			return
+		}
 		if search.failed[uid] {
 			_, _ = fmt.Fprintf(w, `{"uid":%d,"status":"failed","type":"documentAdditionOrUpdate","error":{"message":"invalid document","code":"invalid_document_geo_field","type":"invalid_request","link":""},"enqueuedAt":"2026-10-06T00:00:00Z"}`, uid)
 			return
@@ -388,6 +554,9 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&query); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		if search.onFetch != nil && query.Ids != nil {
+			search.onFetch(index)
 		}
 		ids := query.Ids
 		if ids == nil {
@@ -469,6 +638,7 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 func (search *memorySearch) acceptTask(w http.ResponseWriter, index string) {
 	search.nextTask++
 	search.issued = append(search.issued, search.nextTask)
+	search.taskIndex[search.nextTask] = index
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = fmt.Fprintf(w, `{"taskUid":%d,"indexUid":%q,"status":"enqueued","type":"documentAdditionOrUpdate","enqueuedAt":"2026-10-06T00:00:00Z"}`, search.nextTask, index)
 }

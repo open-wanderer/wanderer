@@ -159,7 +159,7 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 			t.Fatalf("log = %s; want the failed trail and author", logText)
 		}
 		// The nightly repair retries the trail; the rebuild itself is complete.
-		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+		if got := recordedSearchVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
 			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
 		}
 		assertLaterSearchPhases(t, logText)
@@ -247,7 +247,7 @@ func TestInitMeilisearchDocumentsPagination(t *testing.T) {
 		}
 		want := maps.Clone(util.SearchDocumentVersions)
 		delete(want, "trails")
-		if got := readSearchIndexVersions(app); !maps.Equal(got, want) {
+		if got := recordedSearchVersions(app); !maps.Equal(got, want) {
 			t.Fatalf("recorded versions = %v; want %v", got, want)
 		}
 		assertLaterSearchPhases(t, logText)
@@ -302,6 +302,33 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		}
 	})
 
+	t.Run("a recreated index is rebuilt although it holds documents", func(t *testing.T) {
+		app := newSearchInitApp(t)
+		seedTrails(t, app, int(trailCount))
+		recordSearchIndexVersions(t, app, util.SearchDocumentVersions)
+
+		state, client, overflow := newSearchInitClient(t, nil)
+		state.documentCounts["trails"] = trailCount
+		// A live write already put a document into the wiped index.
+		state.documentCounts["actors"] = actorCount
+		const recreated = "2026-10-06T04:00:00Z"
+		state.createdAt["actors"] = recreated
+		logText, err := runSearchInit(t, app, client, overflow)
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
+		}
+		assertSearchInitCalls(t, state.calls(), []searchInitCall{
+			{method: http.MethodDelete, index: "actors"},
+			{method: http.MethodPost, index: "actors"},
+		})
+		if !strings.Contains(logText, "Rebuilding search index actors: Meilisearch recreated the index") {
+			t.Fatalf("log = %s", logText)
+		}
+		if got := readSearchIndexVersions(app)["actors"].CreatedAt; got != recreated {
+			t.Fatalf("recorded creation time = %q; want %q", got, recreated)
+		}
+	})
+
 	t.Run("a failed delete keeps the recorded version", func(t *testing.T) {
 		app := newSearchInitApp(t)
 		seedTrails(t, app, int(trailCount))
@@ -316,7 +343,7 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		}
 		// The index still holds its documents, so it is not marked for a
 		// rebuild on the next start.
-		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+		if got := recordedSearchVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
 			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
 		}
 	})
@@ -333,7 +360,7 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
 		}
 		assertSearchInitCalls(t, state.calls(), nil)
-		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+		if got := recordedSearchVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
 			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
 		}
 		if !strings.Contains(logText, "leaving it for the nightly repair") {
@@ -366,7 +393,7 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		if types := state.canceledTypes; len(types) != 1 || types[0] != "documentAdditionOrUpdate,documentDeletion" {
 			t.Fatalf("canceled task types = %v; want document writes only", types)
 		}
-		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+		if got := recordedSearchVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
 			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
 		}
 	})
@@ -378,7 +405,7 @@ func TestInitMeilisearchDocumentsKeepsCurrentIndexes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, logText)
 		}
-		if got := readSearchIndexVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
+		if got := recordedSearchVersions(app); !maps.Equal(got, util.SearchDocumentVersions) {
 			t.Fatalf("recorded versions = %v; want %v", got, util.SearchDocumentVersions)
 		}
 	})
@@ -408,11 +435,30 @@ func TestInitMeilisearchDocumentsBatchesActorsByThousand(t *testing.T) {
 	}
 }
 
+// searchInitCreatedAt is the creation time the fake reports for every index
+// it was not told otherwise about.
+const searchInitCreatedAt = "2026-01-01T00:00:00Z"
+
+// recordSearchIndexVersions records the given versions as built into the
+// fake's indexes.
 func recordSearchIndexVersions(t *testing.T, app core.App, versions map[string]int) {
 	t.Helper()
-	if err := writeSearchIndexVersions(app, versions); err != nil {
+	states := make(map[string]searchIndexState, len(versions))
+	for index, version := range versions {
+		states[index] = searchIndexState{Version: version, CreatedAt: searchInitCreatedAt}
+	}
+	if err := writeSearchIndexVersions(app, states); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// recordedSearchVersions returns the recorded document version per index.
+func recordedSearchVersions(app core.App) map[string]int {
+	versions := map[string]int{}
+	for index, state := range readSearchIndexVersions(app) {
+		versions[index] = state.Version
+	}
+	return versions
 }
 
 func assertLaterSearchPhases(t *testing.T, logText string) {
@@ -527,6 +573,13 @@ func newSearchInitApp(t *testing.T) *core.BaseApp {
 	)
 	lists := core.NewBaseCollection("lists")
 	lists.Fields.Add(&core.TextField{Name: "name"})
+	// The real collections carry these, and the search repair reads updated.
+	for _, collection := range []*core.Collection{actors, trails, lists} {
+		collection.Fields.Add(
+			&core.AutodateField{Name: "created", OnCreate: true},
+			&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
+		)
+	}
 	for _, collection := range []*core.Collection{tags, actors, categories, trails, shares, likes, lists} {
 		if err := app.Save(collection); err != nil {
 			t.Fatal(err)
@@ -633,6 +686,8 @@ type searchInitServer struct {
 	canceledTypes     []string
 	failDeleteIndexes map[string]bool
 	failStats         bool
+	// createdAt overrides the creation time reported per index.
+	createdAt map[string]string
 }
 
 func newSearchInitClient(t *testing.T, rejectTrailIDs map[string]bool) (*searchInitServer, meilisearch.ServiceManager, <-chan struct{}) {
@@ -646,6 +701,7 @@ func newSearchInitClient(t *testing.T, rejectTrailIDs map[string]bool) (*searchI
 		settingsTasks:     map[string]int64{},
 		documentCounts:    map[string]int64{},
 		failDeleteIndexes: map[string]bool{},
+		createdAt:         map[string]string{},
 	}
 	server := httptest.NewServer(http.HandlerFunc(state.serveHTTP))
 	t.Cleanup(server.Close)
@@ -705,6 +761,21 @@ func (state *searchInitServer) serveTaskOrStats(w http.ResponseWriter, r *http.R
 	case r.Method == http.MethodGet && r.URL.Path == "/tasks/7":
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"uid":7,"indexUid":null,"status":"succeeded","type":"taskCancelation","enqueuedAt":"2026-09-19T00:00:00Z"}`))
+	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/indexes/") && !strings.Contains(strings.TrimPrefix(r.URL.Path, "/indexes/"), "/"):
+		index = strings.TrimPrefix(r.URL.Path, "/indexes/")
+		if state.failStats {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"message":"unavailable","code":"internal","type":"internal"}`))
+			return true
+		}
+		state.mu.Lock()
+		createdAt := state.createdAt[index]
+		state.mu.Unlock()
+		if createdAt == "" {
+			createdAt = searchInitCreatedAt
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"uid":%q,"primaryKey":"id","createdAt":%q,"updatedAt":%q}`, index, createdAt, createdAt)
 	case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/indexes/") && strings.HasSuffix(r.URL.Path, "/stats"):
 		index = strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/indexes/"), "/stats")
 		if state.failStats {
