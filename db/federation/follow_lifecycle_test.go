@@ -495,3 +495,74 @@ func TestLifecycleAcceptedRowNewFollowResendsAccept(t *testing.T) {
 	}
 	lifecycleAssertWraps(t, lifecycleLatestActivity(t, app, pub.AcceptType), lifecycleF2, lifecycleF1)
 }
+
+// A peer clicks "Connect" and then "Cancel request"; the Undo overtakes the
+// Follow it cancels. The late Follow must not open a request.
+func TestLifecycleUndoBeforeFollowDropsTheLateFollow(t *testing.T) {
+	app := newLifecycleTestApp(t)
+	local, remote := lifecycleInboundFixture(t, app)
+
+	f1 := lifecycleFollow(lifecycleF1, remote.GetString("iri"), local.GetString("iri"))
+	if err := ProcessUndoActivity(app, remote, lifecycleUndo("https://peer.example.com/api/v1/activitypub/activity/u1", f1)); err != nil {
+		t.Fatalf("Undo F1: %v", err)
+	}
+	if err := ProcessFollowActivity(app, remote, f1); err != nil {
+		t.Fatalf("late F1: %v", err)
+	}
+	if n := lifecycleCountRows(t, app); n != 0 {
+		t.Fatalf("the cancelled Follow opened %d request(s)", n)
+	}
+
+	// A new attempt still opens a request.
+	f2 := lifecycleFollow(lifecycleF2, remote.GetString("iri"), local.GetString("iri"))
+	if err := ProcessFollowActivity(app, remote, f2); err != nil {
+		t.Fatalf("F2: %v", err)
+	}
+	row := lifecycleRow(t, app, remote.Id, local.Id)
+	if row == nil || row.GetString("status") != "pending" || row.GetString("activity_iri") != lifecycleF2 {
+		t.Fatalf("want a pending F2 request, got %v", row)
+	}
+}
+
+// The same after a rejection: the peer retries and cancels the retry, and the
+// Undo of the retry overtakes it.
+func TestLifecycleUndoBeforeRetryKeepsTheRejection(t *testing.T) {
+	app := newLifecycleTestApp(t)
+	local, remote := lifecycleInboundFixture(t, app)
+
+	f1 := lifecycleFollow(lifecycleF1, remote.GetString("iri"), local.GetString("iri"))
+	if err := ProcessFollowActivity(app, remote, f1); err != nil {
+		t.Fatalf("F1: %v", err)
+	}
+	lifecycleSetStatus(t, app, lifecycleRow(t, app, remote.Id, local.Id), "rejected")
+
+	f2 := lifecycleFollow(lifecycleF2, remote.GetString("iri"), local.GetString("iri"))
+	if err := ProcessUndoActivity(app, remote, lifecycleUndo("https://peer.example.com/api/v1/activitypub/activity/u2", f2)); err != nil {
+		t.Fatalf("Undo F2: %v", err)
+	}
+	if err := ProcessFollowActivity(app, remote, f2); err != nil {
+		t.Fatalf("late F2: %v", err)
+	}
+	row := lifecycleRow(t, app, remote.Id, local.Id)
+	if row == nil || row.GetString("status") != "rejected" || row.GetString("activity_iri") != lifecycleF1 {
+		t.Fatalf("the cancelled retry replaced the rejection, got %v", row)
+	}
+}
+
+// An Undo can only pre-empt Follows from its signer's own host.
+func TestLifecycleUndoBeforeFollowIgnoresForeignFollowIDs(t *testing.T) {
+	app := newLifecycleTestApp(t)
+	local, remote := lifecycleInboundFixture(t, app)
+	other := createTestActor(t, app, "https://other.example.com/api/v1/activitypub/instance", "instance", false)
+
+	victim := lifecycleFollow("https://other.example.com/api/v1/activitypub/activity/f1", other.GetString("iri"), local.GetString("iri"))
+	if err := ProcessUndoActivity(app, remote, lifecycleUndo("https://peer.example.com/api/v1/activitypub/activity/u1", victim)); err != nil {
+		t.Fatalf("Undo: %v", err)
+	}
+	if err := ProcessFollowActivity(app, other, victim); err != nil {
+		t.Fatalf("Follow: %v", err)
+	}
+	if row := lifecycleRow(t, app, other.Id, local.Id); row == nil || row.GetString("status") != "pending" {
+		t.Fatalf("another host's Undo blocked its Follow, got %v", row)
+	}
+}

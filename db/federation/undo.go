@@ -1,6 +1,8 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -162,6 +164,10 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 	return app.RunInTransaction(func(txApp core.App) error {
 		follow, err := txApp.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": followee.Id})
 		if err != nil {
+			// The Undo overtook its Follow.
+			if errors.Is(err, sql.ErrNoRows) && isLocalInstanceRecipient(followee) {
+				return rememberUndoneFollow(txApp, actor, followee, followActivity)
+			}
 			return err
 		}
 
@@ -169,11 +175,32 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 		if current := follow.GetString("activity_iri"); isSupersededFollow(current, followActivity) {
 			txApp.Logger().Info("ignoring Undo for a superseded Follow",
 				"undone", followActivity.GetID().String(), "current", current)
+			// It may also be a newer Follow that has not arrived yet.
+			if isLocalInstanceRecipient(followee) {
+				return rememberUndoneFollow(txApp, actor, followee, followActivity)
+			}
 			return nil
 		}
 
 		return txApp.Delete(follow)
 	})
+}
+
+// rememberUndoneFollow stores an undone instance Follow that has not arrived
+// yet, so its late delivery is dropped as a replay instead of opening a
+// request its sender has cancelled. Only the sender's host may name it.
+func rememberUndoneFollow(txApp core.App, actor, followee *core.Record, follow *pub.Activity) error {
+	iri := follow.GetID().String()
+	if iri == "" || !sameHost(iri, actor.GetString("iri")) {
+		return nil
+	}
+	if _, err := txApp.FindFirstRecordByData("activitypub_activities", "iri", iri); err == nil {
+		return nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	txApp.Logger().Info("remembering a Follow undone before it arrived", "follow", iri, "actor", actor.GetString("iri"))
+	return storeFollowActivity(txApp, actor, followee, *follow)
 }
 
 func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activity) error {
