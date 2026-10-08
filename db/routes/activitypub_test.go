@@ -81,6 +81,27 @@ func TestActivitypubActivityProcessRejectsForgedForwardedPath(t *testing.T) {
 	}
 }
 
+// ActivitypubActorFollow reads the actor column the path names, so anything
+// but the two collections must be refused before any App/DB access.
+func TestActivitypubActorFollowRejectsOtherColumns(t *testing.T) {
+	for _, follow := range []string{"inbox", "outbox", "iri", "icon", "private_key", ""} {
+		t.Run(follow, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/activitypub/actor/abc/x?cursor=x", nil)
+			req.SetPathValue("id", "abc")
+			req.SetPathValue("follow", follow)
+			e := &core.RequestEvent{}
+			e.Request = req
+			e.Response = httptest.NewRecorder()
+
+			var apiErr *router.ApiError
+			err := ActivitypubActorFollow(e)
+			if !errors.As(err, &apiErr) || apiErr.Status != 404 {
+				t.Fatalf("err = %v, want a 404 ApiError", err)
+			}
+		})
+	}
+}
+
 func TestInboxPathPatternMatchesLocalUsernames(t *testing.T) {
 	// The users collection accepts `^[\w][\w.\-]*$` with 3-150 characters; the
 	// actor's inbox IRI is that username lowercased. Every spelling reachable
