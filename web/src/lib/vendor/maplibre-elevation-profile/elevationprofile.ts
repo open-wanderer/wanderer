@@ -969,7 +969,7 @@ export class ElevationProfile {
                 if (distance < minDistances[waypointIndex]) {
                     minDistances[waypointIndex] = distance;
                     this.waypointPositions[waypointIndex] = this.cumulatedDistanceAdjustedUnit[i];
-                    waypoint.distance_from_start = this.cumulatedDistanceAdjustedUnit[i] * 1000;
+                    waypoint.distance_from_start = this.cumulatedDistance[i];
                 }
             });
 
