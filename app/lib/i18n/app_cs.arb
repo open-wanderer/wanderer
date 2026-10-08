@@ -2,7 +2,44 @@
   "@@locale": "cs",
   "about": "O aplikaci",
   "@about": {
-    "description": "Standalone heading used in two places: the 'About' tab on the trail detail panel (about the trail), and prefixed to a username as 'About <username>' on the account screen. Needs to read as a section heading in both."
+    "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
+  },
+  "about_changelog": "What's new",
+  "@about_changelog": {
+    "description": "About screen: link to the wanderer changelog website."
+  },
+  "about_discord_subtitle": "Chat with the community",
+  "@about_discord_subtitle": {
+    "description": "About screen: subtitle under the 'Discord' link."
+  },
+  "about_github_subtitle": "Source code, issues and contributions",
+  "@about_github_subtitle": {
+    "description": "About screen: subtitle under the 'GitHub' link."
+  },
+  "about_license": "License",
+  "@about_license": {
+    "description": "About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses)."
+  },
+  "about_licenses": "Open source licenses",
+  "@about_licenses": {
+    "description": "About screen: opens the list of licenses of the libraries the app uses."
+  },
+  "about_privacy_policy": "Privacy policy",
+  "@about_privacy_policy": {
+    "description": "About screen: link to the privacy policy website."
+  },
+  "about_report_bug": "Report a bug",
+  "@about_report_bug": {
+    "description": "About screen: opens the app bug report form on GitHub."
+  },
+  "about_version": "Version {version}",
+  "@about_version": {
+    "description": "About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "appearance": "Vzhled",
   "account": "Účet",
@@ -25,9 +62,9 @@
     "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
   },
   "average_speed": "Průměrná rychlost",
-  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Permissions → Location and choose \"Allow all the time\".",
-  "background_location_confirm": "Open settings",
-  "background_location_title": "Keep recording in the background",
+  "background_location_body": "Aplikace Wanderer shromažďuje údaje o poloze na pozadí, takže se vaše trasa nadále zaznamenává i při vypnuté obrazovce nebo zavřené aplikaci. Zaznamenaná trasa zůstává ve vašem zařízení, dokud se nerozhodnete ji uložit.\n\nSystém Android nabízí tuto možnost pouze v nastavení systému: otevřete Oprávnění → Poloha a vyberte možnost „Povolit vždy“.",
+  "background_location_confirm": "Otevřít nastavení",
+  "background_location_title": "Pokračovat v zaznamenávání na pozadí",
   "basic_info": "Základní informace",
   "before": "Před",
   "@before": {
@@ -82,7 +119,7 @@
     "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
   },
   "delete": "Vymazat",
-  "not_now": "Not now",
+  "not_now": "Teď ne",
   "open": "Otevřít",
   "@open": {
     "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
@@ -341,8 +378,20 @@
     "description": "Label for the subcategories filter section"
   },
   "summit_book": "Vrcholová kniha",
+  "sync_discard_draft_confirm": "Delete this recording? It hasn't been uploaded anywhere.",
+  "sync_draft": "Draft",
   "sync_failed": "Nahrávání selhalo · Klepnutím opakujete",
   "sync_pending": "Čeká na nahrání",
+  "sync_section_failed_body": "The upload didn't go through. Try again.",
+  "sync_section_pending_online_body": "Uploads automatically in a moment.",
+  "sync_section_uploading_body": "Sending this trail to your server.",
+  "sync_section_draft_body": "This recording is only on this device.",
+  "sync_section_draft_title": "Not uploaded yet",
+  "sync_section_failed_title": "Upload failed",
+  "sync_section_pending_offline_body": "Uploads when you're back online",
+  "sync_section_retry": "Retry",
+  "sync_section_upload": "Upload",
+  "sync_section_upload_now": "Upload now",
   "sync_uploading": "Nahrávání…",
   "tags": "Štítky",
   "theme_dark": "Tmavý",
