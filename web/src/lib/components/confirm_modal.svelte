@@ -16,13 +16,15 @@
         children?: Snippet
     }
 
+    const uid = $props.id();
+
     let {
         title = $_("confirm-deletion"),
         text,
         action = "delete",
         deny ="cancel",
         alternative,
-        id = "confirm-modal",
+        id = `confirm-modal-${uid}`,
         onconfirm,
         oncancel,
         onalternative,
@@ -83,7 +85,7 @@
                 >
             {/if}
             <button
-                id="confirm"
+                id={`${id}-confirm`}
                 class={action === "delete" ? "btn-danger" : "btn-primary"}
                 type="button"
                 onclick={confirm}

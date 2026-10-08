@@ -1,9 +1,10 @@
 # ==========================================
 # 1. DOWNLOAD CURL (Native Intel Execution)
 # ==========================================
-FROM --platform=$BUILDPLATFORM curlimages/curl:8.18.0 AS download-curl
+FROM --platform=$BUILDPLATFORM curlimages/curl:8.22.0 AS download-curl
 
-ENV CURL_VERSION=8.18.0
+# renovate: datasource=github-releases depName=stunnel/static-curl packageName=stunnel/static-curl
+ENV CURL_VERSION=8.22.0
 
 # Explicitly pull target arch since platform is pinned to host
 ARG TARGETARCH
@@ -31,7 +32,7 @@ chmod +x /tmp/curl ;
 # ==========================================
 # 2. DOWNLOAD PMTILES (Native Intel Execution)
 # ==========================================
-FROM --platform=$BUILDPLATFORM curlimages/curl:8.18.0 AS download-pmtiles
+FROM --platform=$BUILDPLATFORM curlimages/curl:8.22.0 AS download-pmtiles
 
 ENV PMTILES_VERSION=1.28.0
 ARG TARGETARCH

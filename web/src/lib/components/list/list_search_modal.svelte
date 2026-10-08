@@ -22,6 +22,9 @@
 
     let { lists = [], trails, children, onchange }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `list-search-modal-${uid}`;
+
     let modal: Modal;
     let searchItems: SearchItem[] = $state([]);
     let query = $state("");
@@ -172,7 +175,7 @@
 </script>
 
 <Modal
-    id="list-search-modal"
+    id={modalId}
     title={$_("select-list")}
     size="md:min-w-sm"
     bind:this={modal}

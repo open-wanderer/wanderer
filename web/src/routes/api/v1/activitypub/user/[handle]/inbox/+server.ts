@@ -2,6 +2,7 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { env as privateEnv } from '$env/dynamic/private';
 
 import { handleError } from '$lib/util/api_util';
+import { forwardableHeaders } from '$lib/server/http';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APActivity } from 'activitypub-types';
 
@@ -43,11 +44,8 @@ export async function POST(event: RequestEvent) {
             return json("Bad request", { status: 400 });
         }
 
-        // Clone original headers to ensure no loss
-        const originalHeaders: Record<string, string> = {};
-        event.request.headers.forEach((value, key) => {
-            originalHeaders[key] = value
-        });
+        // Clone original headers (the backend verifies the signature)
+        const originalHeaders = forwardableHeaders(event.request.headers);
 
         // Add forwarded path. Set after the loop so a client cannot smuggle its own value.
         originalHeaders['X-Forwarded-Path'] = event.url.pathname;

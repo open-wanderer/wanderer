@@ -9,7 +9,9 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			lightbox?: { id: string; index: number };
+		}
 		// interface Platform {}
 		interface Locals {
 			pb: PocketBase

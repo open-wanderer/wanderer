@@ -1,10 +1,12 @@
 package hooks
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"pocketbase/federation"
 	"pocketbase/util"
+	"time"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
@@ -119,9 +121,21 @@ func CollectListDeleteRecipientsHandler() func(e *core.RecordEvent) error {
 func DeleteListHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
-		_, err := client.Index("lists").DeleteDocument(record.Id, nil)
+		ctx, cancel := context.WithTimeout(e.Context, 5*time.Second)
+		defer cancel()
+		task, err := client.Index("lists").DeleteDocumentWithContext(ctx, record.Id, nil)
 		if err != nil {
-			return err
+			e.App.Logger().Warn("list deletion could not be queued in search index",
+				"list", record.Id, "error", err)
+		} else {
+			completed, err := client.WaitForTaskWithContext(ctx, task.TaskUID, 50*time.Millisecond)
+			if err != nil {
+				e.App.Logger().Warn("list deletion not confirmed by search index",
+					"list", record.Id, "task", task.TaskUID, "error", err)
+			} else if completed.Status != meilisearch.TaskStatusSucceeded {
+				e.App.Logger().Error("search index failed to delete list",
+					"list", record.Id, "task", task.TaskUID, "status", completed.Status)
+			}
 		}
 
 		audience, _ := record.GetRaw(listDeleteRecipientsKey).(federation.DeleteAudience)

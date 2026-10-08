@@ -5,8 +5,9 @@ teardown('delete user', async ({ page }) => {
     await page.locator("#delete-account").click();
     
     // Wait for modal to appear
-    await page.locator("#confirm").waitFor({ state: 'visible' });
-    await page.locator("#confirm").click();
+    const confirmButton = page.locator('dialog[open] button[name="delete"]');
+    await confirmButton.waitFor({ state: 'visible' });
+    await confirmButton.click();
 
     await page.waitForURL('/');
 });

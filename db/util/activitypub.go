@@ -92,6 +92,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	record.Set("user", u.Id)
 	record.Set("last_fetched", time.Now())
 
+	SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 	if err != nil {
 		return nil, err
@@ -286,6 +287,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	var distance, duration, elevation_gain, elevation_loss float64
 	var diffculty string
 	trailTags := []string{}
+	seenTags := make(map[string]struct{})
 	tags, err := pub.ToItemCollection(t.Tag)
 	if err != nil {
 		return nil, err
@@ -311,24 +313,14 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		case "distance":
 			distance, err = strconv.ParseFloat(content[:len(content)-1], 64)
 		case "tag":
-			existingTag, err := app.FindFirstRecordByData("tags", "name", content)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					collection, err := app.FindCollectionByNameOrId("tags")
-					if err != nil {
-						continue
-					}
-					existingTag = core.NewRecord(collection)
-					existingTag.Set("name", content)
-					err = app.Save(existingTag)
-					if err != nil {
-						continue
-					}
-				} else {
-					continue
-				}
+			existingTag, tagErr := ResolveFederatedTag(app, content)
+			if tagErr != nil || existingTag == nil {
+				continue
 			}
-
+			if _, seen := seenTags[existingTag.Id]; seen {
+				continue
+			}
+			seenTags[existingTag.Id] = struct{}{}
 			trailTags = append(trailTags, existingTag.Id)
 		}
 		if err != nil {
@@ -401,6 +393,7 @@ func TrailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		}
 	}
 
+	SanitizeHTMLFieldsWithLimits(record)
 	return record, app.Save(record)
 }
 
@@ -604,6 +597,9 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		Longitude: trail.GetFloat("lon"),
 	}
 	trailObject.AttributedTo = pub.IRI(trailAuthor.GetString("iri"))
+	// Public, like its Create; GoToSocial rejects objects without to/cc.
+	trailObject.To = pub.ItemCollection{pub.PublicNS}
+	trailObject.CC = pub.ItemCollection{pub.IRI(trailAuthor.GetString("followers"))}
 	trailObject.Published = trail.GetDateTime("created").Time()
 	trailObject.ID = pub.IRI(trail.GetString("iri"))
 	trailObject.URL = pub.IRI(activityURL)
@@ -693,6 +689,7 @@ func ListFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		}
 	}
 
+	SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 
 	return record, err
@@ -758,6 +755,9 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	commentObject.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, comment.GetString("text")))
 	commentObject.Published = comment.GetDateTime("created").Time()
 	commentObject.AttributedTo = pub.IRI(commentAuthor.GetString("iri"))
+	// Public, like its Create; GoToSocial rejects objects without to/cc.
+	commentObject.To = pub.ItemCollection{pub.PublicNS}
+	commentObject.CC = pub.ItemCollection{pub.IRI(commentAuthor.GetString("followers"))}
 	commentObject.InReplyTo = pub.IRI(commentTrail.GetString("iri"))
 
 	if mentions != nil {

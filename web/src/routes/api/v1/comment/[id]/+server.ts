@@ -2,6 +2,7 @@ import { CommentUpdateSchema } from "$lib/models/api/comment_schema";
 import type { Comment } from "$lib/models/comment";
 import { Collection, handleError, remove, show, update } from "$lib/util/api_util";
 import { json, type RequestEvent } from "@sveltejs/kit";
+import { acceptsActivityPub, activityPubObject } from "$lib/server/activitypub_objects";
 
 /**
  * @swagger
@@ -33,9 +34,13 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *         description: Internal Server Error
  */
 export async function GET(event: RequestEvent) {
+    if (acceptsActivityPub(event.request)) {
+        return activityPubObject(event, `/api/v1/activitypub/comment/${event.params.id}`);
+    }
+
     try {
         const r = await show<Comment>(event, Collection.comments)
-        return json(r)
+        return json(r, { headers: { vary: "Accept" } })
     } catch (e: any) {
         return handleError(e)
     }

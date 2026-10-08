@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -24,22 +25,25 @@ import (
 
 const summitLogTestKey = "0123456789abcdef0123456789abcdef"
 
-// inboxes counts deliveries per path so one server can stand in for several
-// remote actors.
+// inboxes counts deliveries per path, and keeps the last body, so one server
+// can stand in for several remote actors.
 type inboxes struct {
 	server *httptest.Server
 	mu     sync.Mutex
 	hits   map[string]int
+	bodies map[string][]byte
 }
 
 func newInboxes(t *testing.T) *inboxes {
 	t.Helper()
 
-	in := &inboxes{hits: map[string]int{}}
+	in := &inboxes{hits: map[string]int{}, bodies: map[string][]byte{}}
 	in.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
+			body, _ := io.ReadAll(r.Body)
 			in.mu.Lock()
 			in.hits[r.URL.Path]++
+			in.bodies[r.URL.Path] = body
 			in.mu.Unlock()
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -51,6 +55,12 @@ func newInboxes(t *testing.T) *inboxes {
 
 func (in *inboxes) url(name string) string {
 	return in.server.URL + "/" + name + "/inbox"
+}
+
+func (in *inboxes) body(name string) []byte {
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	return in.bodies["/"+name+"/inbox"]
 }
 
 func (in *inboxes) count(name string) int {

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"pocketbase/util"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 
 var ErrProfilePrivate = errors.New("profile is private")
 var ErrInvalidActorResponse = errors.New("invalid or incomplete actor response")
+var ErrInvalidCursor = errors.New("invalid collection cursor")
 
 type WebfingerResponse struct {
 	Subject string `json:"subject"`
@@ -266,6 +268,7 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		}
 	}
 
+	util.SanitizeHTMLFieldsWithLimits(dbActor)
 	err := app.Save(dbActor)
 	if err != nil {
 		return nil, err
@@ -279,7 +282,7 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 }
 
 // Fetches an AP actor and optionally followers/following collections
-func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFollows bool) (*pub.Actor, *pub.OrderedCollection, *pub.OrderedCollection, error) {
+func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFollows bool) (*pub.Actor, *pub.OrderedCollectionPage, *pub.OrderedCollectionPage, error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 	if len(encryptionKey) == 0 {
 		return nil, nil, nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
@@ -354,7 +357,7 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 		return nil, nil, nil, fmt.Errorf("actor validation failed for %s: %w", iri, err)
 	}
 
-	var followers, following pub.OrderedCollection
+	var followers, following pub.OrderedCollectionPage
 
 	if includeFollows {
 		// Fetch followers
@@ -371,7 +374,11 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	return &pubActor, &followers, &following, nil
 }
 
-func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*pub.OrderedCollection, error) {
+// newHTTPClient is replaced in tests.
+var newHTTPClient = util.SafeHTTPClient
+
+// FetchCollection fetches a collection or one of its pages.
+func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*pub.OrderedCollectionPage, error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
 	if len(encryptionKey) == 0 {
 		return nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
@@ -425,7 +432,7 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 		}
 	}
 
-	client := util.SafeHTTPClient()
+	client := newHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("collection fetch failed for %s: %v", collectionURL, err)
@@ -438,10 +445,122 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 	}
 	defer resp.Body.Close()
 
-	var collection pub.OrderedCollection
+	var collection pub.OrderedCollectionPage
 	if err := json.NewDecoder(resp.Body).Decode(&collection); err != nil {
 		return nil, err
 	}
 
 	return &collection, nil
+}
+
+// maxCollectionPages bounds the pages FetchCollectionPage walks.
+const maxCollectionPages = 50
+
+// FetchCollectionPage returns page n (1-based) of a remote collection. It
+// follows the collection's first and next links, as servers page
+// differently (Mastodon ?page=N, GoToSocial max_id).
+func FetchCollectionPage(app core.App, ctx context.Context, collectionURL string, n int) (*pub.OrderedCollectionPage, error) {
+	n = max(n, 1)
+	if n > maxCollectionPages {
+		return nil, fmt.Errorf("page %d exceeds %d", n, maxCollectionPages)
+	}
+
+	page, err := FetchCollection(app, ctx, collectionURL)
+	if err != nil {
+		return nil, err
+	}
+	total := page.TotalItems
+
+	// Older wanderer versions answer with the first page itself.
+	link, i := page.First, 1
+	if page.OrderedItems != nil {
+		link, i = page.Next, 2
+	}
+	for ; i <= n; i++ {
+		if link == nil {
+			return &pub.OrderedCollectionPage{TotalItems: total}, nil
+		}
+		if page, err = FetchCollection(app, ctx, collectionLink(collectionURL, link, i)); err != nil {
+			return nil, err
+		}
+		link = page.Next
+	}
+	page.TotalItems = total
+	return page, nil
+}
+
+// collectionLink resolves a first or next link. A link off the collection
+// falls back to ?page=n; older wanderer versions pointed followers' next at
+// the outbox.
+func collectionLink(collectionURL string, link pub.Item, n int) string {
+	fallback := fmt.Sprintf("%s?page=%d", collectionURL, n)
+	base, err := url.Parse(collectionURL)
+	if err != nil {
+		return fallback
+	}
+	target, err := base.Parse(link.GetLink().String())
+	if err != nil || target.Host != base.Host || target.Path != base.Path {
+		return fallback
+	}
+	return target.String()
+}
+
+// CollectionNext returns the cursor for page n+1: the resolved next link of
+// page n, or "" on the last page. Only the link's query is kept, so the result
+// always passes validateCursor.
+func CollectionNext(collectionURL string, page *pub.OrderedCollectionPage, n int) string {
+	if page == nil || page.Next == nil || page.Next.GetLink().String() == "" {
+		return ""
+	}
+	base, err := cursorBase(collectionURL)
+	if err != nil {
+		return ""
+	}
+	target, err := url.Parse(collectionLink(collectionURL, page.Next, max(n, 1)+1))
+	if err != nil || target.RawQuery == "" {
+		return base
+	}
+	return base + "?" + target.RawQuery
+}
+
+// FetchCollectionCursor fetches the one page a cursor names, in a single
+// request. The cursor is client input sent with the user's signature, so
+// unlike collectionLink it gets no fallback: see validateCursor.
+func FetchCollectionCursor(app core.App, ctx context.Context, collectionURL, cursor string) (*pub.OrderedCollectionPage, error) {
+	if err := validateCursor(collectionURL, cursor); err != nil {
+		return nil, err
+	}
+	return FetchCollection(app, ctx, cursor)
+}
+
+// cursorBase returns the collection URL without query or fragment, the
+// prefix every cursor must start with.
+func cursorBase(collectionURL string) (string, error) {
+	base, err := url.Parse(collectionURL)
+	if err != nil || !base.IsAbs() || base.Opaque != "" || base.User != nil {
+		return "", fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
+	}
+	base.RawQuery, base.Fragment = "", ""
+	return base.String(), nil
+}
+
+// validateCursor checks that a cursor stays on the collection's scheme, host
+// and path, and only its query may differ.
+func validateCursor(collectionURL, cursor string) error {
+	base, err := cursorBase(collectionURL)
+	if err != nil {
+		return err
+	}
+
+	// The cursor must be the collection URL itself, optionally followed by a
+	// query. Matching the raw string also rules out userinfo, other ports,
+	// escaped path tricks and control characters.
+	pattern, err := regexp.Compile(`^` + regexp.QuoteMeta(base) + `(\?[^#\s\x00-\x1f\x7f]*)?$`)
+	if err != nil {
+		return fmt.Errorf("%w: bad collection url", ErrInvalidCursor)
+	}
+	if !pattern.MatchString(cursor) {
+		return fmt.Errorf("%w: leaves the collection", ErrInvalidCursor)
+	}
+	return nil
 }

@@ -535,15 +535,12 @@ export class ElevationProfile {
                             tickColor: "#0002"
                         },
                         ticks: {
-                            stepSize: 0.1,
+                            maxTicksLimit: 12,
                             align: "inner",
                             display: this.settings.displayDistanceLabels,
                             color: this.settings.labelColor,
                             maxRotation: 0,
-                            callback: (value, index) => {
-                                if (index % 10 !== 0) {
-                                    return "";
-                                }
+                            callback: (value) => {
                                 const roundedValue = ~~((value as number) * 100) / 100;
                                 return this.settings.displayUnits
                                     ? `${roundedValue} ${distanceUnit}`
@@ -921,7 +918,8 @@ export class ElevationProfile {
 
         this.times = times;
 
-        this.elevatedPositions = smoothElevations(positions, Math.ceil(positions.length / 100));
+        const windowSize = Math.min(25, Math.ceil(positions.length / 100));
+        this.elevatedPositions = smoothElevations(positions, windowSize);
 
         this.cumulatedDistance = haversineCumulatedDistanceWgs84(
             this.elevatedPositions

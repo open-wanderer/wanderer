@@ -142,9 +142,59 @@ export async function uploadUpdate<T>(event: RequestEvent, collection: Collectio
         });
     }
 
+    stripImmutableUpdateFields(collection, data);
+
     const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data, safeSearchParams)
 
     return r
+}
+
+const immutableUpdateFields: Partial<Record<Collection, readonly string[]>> = {
+    [Collection.trails]: ["author"],
+    [Collection.lists]: ["author"],
+    [Collection.comments]: ["author", "trail"],
+    [Collection.waypoints]: ["author", "trail"],
+    [Collection.summit_logs]: ["author", "trail"],
+    [Collection.plugin_instances]: ["user", "plugin_id"],
+    [Collection.trail_share]: ["trail"],
+    [Collection.list_share]: ["list"],
+    [Collection.trail_link_share]: ["trail"],
+    [Collection.follows]: ["follower"],
+    [Collection.settings]: ["user"],
+    [Collection.user_category_preferences]: ["user"],
+    [Collection.user_subcategory_preferences]: ["user"],
+};
+
+// API update bodies cannot change ownership or protected relation bindings.
+// Include PocketBase's modifiers and its JSON part inside multipart bodies.
+function stripImmutableUpdateFields(collection: Collection, data: FormData) {
+    const fields = immutableUpdateFields[collection];
+    if (!fields) return;
+
+    const protectedKey = (key: string) => fields.includes(key.replace(/^[+-]+|[+-]+$/g, ""));
+    for (const key of [...data.keys()]) {
+        if (protectedKey(key)) data.delete(key);
+    }
+
+    const payloads = data.getAll("@jsonPayload");
+    if (!payloads.length) return;
+    const sanitizedPayloads = payloads.map((payload) => {
+        let body: unknown;
+        try {
+            body = typeof payload === "string" ? JSON.parse(payload) : null;
+        } catch {
+            body = null;
+        }
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+            throw new ClientResponseError({ status: 400, response: { message: "invalid_json_payload" } });
+        }
+        for (const key of Object.keys(body)) {
+            if (protectedKey(key)) delete (body as Record<string, unknown>)[key];
+        }
+        return JSON.stringify(body);
+    });
+    data.delete("@jsonPayload");
+    for (const payload of sanitizedPayloads) data.append("@jsonPayload", payload);
 }
 
 /**
@@ -174,6 +224,8 @@ export async function upload<T>(event: RequestEvent, collection: Collection, fil
 
     assertFileField(data, fileFields);
 
+    stripImmutableUpdateFields(collection, data);
+
     const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data)
 
     return r
@@ -198,7 +250,7 @@ export function handleError(e: any) {
     } else if (e instanceof SyntaxError) {
         return json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {
-        return json({ message: e.message }, { status: 500 })
+        return json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
     } else {
         const message = typeof e?.message === "string"
             ? e.message

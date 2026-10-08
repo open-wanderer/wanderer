@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import type { Waypoint } from "$lib/models/waypoint";
     import {
         getFileURL,
@@ -99,7 +100,7 @@
         </div>
 
         {#if waypoint.description}
-            <p>{@html waypoint.description}</p>
+            <div>{@html sanitizeHTML(waypoint.description)}</div>
         {/if}
 
         <span class="text-sm text-gray-500"

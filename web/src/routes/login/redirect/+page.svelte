@@ -84,7 +84,7 @@
             codeVerifier: provider.codeVerifier,
         })
             .then(() => {
-                window.location.href = "/";
+                window.location.replace("/");
             })
             .catch((e) => {
                 error = "oauth_error";
