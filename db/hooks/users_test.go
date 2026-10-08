@@ -45,16 +45,21 @@ func TestOAuth2UsernameHandler(t *testing.T) {
 		isNew      bool
 		createData map[string]any
 		raw        string
+		id         string
+		oauthName  string
 		expected   string
 	}{
-		{"display name is sanitised", "username", true, nil, "Karl Dörfinger", "Karl_Doerfinger"},
-		{"taken name gets a suffix regardless of case", "username", true, nil, "Jane Doe", "Jane_Doe_2"},
-		{"valid but taken name gets a suffix", "username", true, nil, "JANE_DOE", "JANE_DOE_2"},
-		{"disabled mapping is respected", "", true, nil, "Karl Dörfinger", "Karl Dörfinger"},
-		{"mapping to another field is respected", "name", true, nil, "Karl Dörfinger", "Karl Dörfinger"},
-		{"submitted username takes precedence", "username", true, map[string]any{"username": "karl"}, "Karl Dörfinger", "Karl Dörfinger"},
-		{"existing accounts are left alone", "username", false, nil, "Karl Dörfinger", "Karl Dörfinger"},
-		{"unusable names are left to PocketBase", "username", true, nil, "Иван", "Иван"},
+		{"display name is sanitised", "username", true, nil, "Karl Dörfinger", "", "", "Karl_Doerfinger"},
+		{"taken name gets a suffix regardless of case", "username", true, nil, "Jane Doe", "", "", "Jane_Doe_2"},
+		{"valid but taken name gets a suffix", "username", true, nil, "JANE_DOE", "", "", "JANE_DOE_2"},
+		{"disabled mapping is respected", "", true, nil, "Karl Dörfinger", "", "", "Karl Dörfinger"},
+		{"mapping to another field is respected", "name", true, nil, "Karl Dörfinger", "", "", "Karl Dörfinger"},
+		{"submitted username takes precedence", "username", true, map[string]any{"username": "karl"}, "Karl Dörfinger", "", "", "Karl Dörfinger"},
+		{"existing accounts are left alone", "username", false, nil, "Karl Dörfinger", "", "", "Karl Dörfinger"},
+		{"unusable names are left to PocketBase", "username", true, nil, "Иван", "", "", "Иван"},
+		{"missing username falls back to the name", "username", true, nil, "", "beaf7823", "David Schwartz", "David_Schwartz"},
+		{"subject id as username falls back to the name", "username", true, nil, "beaf7823", "beaf7823", "David Schwartz", "David_Schwartz"},
+		{"missing username and name are left to PocketBase", "username", true, nil, "", "beaf7823", "", ""},
 	}
 
 	for _, s := range scenarios {
@@ -63,7 +68,7 @@ func TestOAuth2UsernameHandler(t *testing.T) {
 
 			e := &core.RecordAuthWithOAuth2RequestEvent{
 				RequestEvent: &core.RequestEvent{App: app},
-				OAuth2User:   &auth.AuthUser{Username: s.raw},
+				OAuth2User:   &auth.AuthUser{Id: s.id, Name: s.oauthName, Username: s.raw},
 				CreateData:   s.createData,
 				IsNewRecord:  s.isNew,
 			}
@@ -79,6 +84,68 @@ func TestOAuth2UsernameHandler(t *testing.T) {
 
 			if _, ok := s.createData["username"]; !ok && e.CreateData["username"] != nil {
 				t.Fatalf("expected createData to stay untouched, got %v", e.CreateData)
+			}
+		})
+	}
+}
+
+func TestOAuth2EmailHandler(t *testing.T) {
+	app, err := tests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Cleanup()
+
+	collection := core.NewAuthCollection("oauth2_email_users")
+	if err := app.Save(collection); err != nil {
+		t.Fatal(err)
+	}
+
+	existing := core.NewRecord(collection)
+	existing.SetEmail("jane@example.com")
+	existing.SetPassword("1234567890")
+	if err := app.Save(existing); err != nil {
+		t.Fatal(err)
+	}
+
+	scenarios := []struct {
+		name       string
+		isNew      bool
+		email      string
+		rawEmail   any
+		createData map[string]any
+		expected   any
+	}{
+		{"unverified email is kept", true, "", "david@example.com", nil, "david@example.com"},
+		{"verified email is left to PocketBase", true, "david@example.com", "david@example.com", nil, nil},
+		{"email of another account is not taken", true, "", "jane@example.com", nil, nil},
+		{"invalid email is ignored", true, "", "not an email", nil, nil},
+		{"missing email claim is ignored", true, "", nil, nil, nil},
+		{"submitted email takes precedence", true, "", "david@example.com", map[string]any{"email": "other@example.com"}, "other@example.com"},
+		{"existing accounts are left alone", false, "", "david@example.com", nil, nil},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			raw := map[string]any{}
+			if s.rawEmail != nil {
+				raw["email"] = s.rawEmail
+			}
+
+			e := &core.RecordAuthWithOAuth2RequestEvent{
+				RequestEvent: &core.RequestEvent{App: app},
+				OAuth2User:   &auth.AuthUser{Email: s.email, RawUser: raw},
+				CreateData:   s.createData,
+				IsNewRecord:  s.isNew,
+			}
+			e.Collection = collection
+
+			if err := OAuth2EmailHandler()(e); err != nil {
+				t.Fatal(err)
+			}
+
+			if got := e.CreateData["email"]; got != s.expected {
+				t.Fatalf("expected %v, got %v", s.expected, got)
 			}
 		})
 	}
