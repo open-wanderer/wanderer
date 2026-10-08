@@ -516,6 +516,34 @@ func TestRepairSearchIndexes(t *testing.T) {
 		}
 	})
 
+	t.Run("a Meilisearch that stops answering does not hold the repair", func(t *testing.T) {
+		app, _, _ := newSearchRepairApp(t, 1)
+		release := make(chan struct{})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			<-release
+		}))
+		t.Cleanup(func() {
+			close(release)
+			server.Close()
+		})
+		client := newSearchClient(server.URL, "key", 200*time.Millisecond)
+
+		start := time.Now()
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		runSearchRepair(&searchInitLogApp{App: app, logger: logger}, client)
+		if elapsed := time.Since(start); elapsed > 30*time.Second {
+			t.Fatalf("repair took %s against a Meilisearch that never answers", elapsed)
+		}
+		if !strings.Contains(buf.String(), "Search repair failed") {
+			t.Fatalf("log = %s; want the repair reported as failed", buf.String())
+		}
+		if !searchIndexLock.TryLock() {
+			t.Fatal("the search indexes are still locked")
+		}
+		searchIndexLock.Unlock()
+	})
+
 	t.Run("a run is skipped while the indexes are being written", func(t *testing.T) {
 		app, _, _ := newSearchRepairApp(t, 1)
 		search, client := newMemorySearch(t)

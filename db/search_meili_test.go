@@ -35,6 +35,11 @@ const realMeiliKey = "real-meili-test-master-key-0123456789"
 // startRealMeili starts a Meilisearch with an empty database on a free port.
 func startRealMeili(t *testing.T) meilisearch.ServiceManager {
 	t.Helper()
+	return startRealMeiliAt(t, freeLocalAddr(t))
+}
+
+func realMeiliBinary(t *testing.T) string {
+	t.Helper()
 	binary := os.Getenv("WANDERER_TEST_MEILISEARCH")
 	if binary == "" {
 		binary = filepath.Join("..", "search", "meilisearch")
@@ -42,14 +47,23 @@ func startRealMeili(t *testing.T) meilisearch.ServiceManager {
 	if _, err := os.Stat(binary); err != nil {
 		t.Skipf("no Meilisearch binary at %s; set WANDERER_TEST_MEILISEARCH", binary)
 	}
+	return binary
+}
 
+func freeLocalAddr(t *testing.T) string {
+	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr := listener.Addr().String()
-	listener.Close()
+	defer listener.Close()
+	return listener.Addr().String()
+}
 
+// startRealMeiliAt starts a Meilisearch with an empty database at addr.
+func startRealMeiliAt(t *testing.T, addr string) meilisearch.ServiceManager {
+	t.Helper()
+	binary := realMeiliBinary(t)
 	cmd := exec.Command(binary,
 		"--master-key", realMeiliKey,
 		"--http-addr", addr,
@@ -79,7 +93,7 @@ func startRealMeili(t *testing.T) meilisearch.ServiceManager {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return meilisearch.New(url, meilisearch.WithAPIKey(realMeiliKey))
+	return newSearchClient(url, realMeiliKey, searchRequestTimeout)
 }
 
 // newRealSchemaApp builds the full schema from the migrations, skipping only
@@ -210,7 +224,7 @@ func TestRealMeiliRepairLeavesIndexedNumbersAlone(t *testing.T) {
 	trails := seedRealisticTrails(t, app, 60)
 	initMeilisearchConfig(client)
 	logged, buf := captureLog(app)
-	if err := initMeilisearchDocuments(logged, client); err != nil {
+	if _, err := initMeilisearchDocuments(logged, client); err != nil {
 		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
 	}
 	waitForIdleMeili(t, client)
@@ -245,7 +259,7 @@ func TestRealMeiliTimedOutCancelKeepsLiveWrites(t *testing.T) {
 	trails := seedRealisticTrails(t, app, 6)
 	initMeilisearchConfig(client)
 	logged, buf := captureLog(app)
-	if err := initMeilisearchDocuments(logged, client); err != nil {
+	if _, err := initMeilisearchDocuments(logged, client); err != nil {
 		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
 	}
 	waitForIdleMeili(t, client)
@@ -284,7 +298,7 @@ func TestRealMeiliTimedOutCancelKeepsLiveWrites(t *testing.T) {
 	t.Cleanup(func() { searchTaskCancelTimeout = timeout })
 
 	buf.Reset()
-	_ = initMeilisearchDocuments(logged, client)
+	_, _ = initMeilisearchDocuments(logged, client)
 	waitForIdleMeili(t, client)
 
 	var document map[string]any
@@ -305,7 +319,7 @@ func TestRealMeiliRepairRecreatesMissingIndex(t *testing.T) {
 	trails := seedRealisticTrails(t, app, 12)
 	initMeilisearchConfig(client)
 	logged, buf := captureLog(app)
-	if err := initMeilisearchDocuments(logged, client); err != nil {
+	if _, err := initMeilisearchDocuments(logged, client); err != nil {
 		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
 	}
 	waitForIdleMeili(t, client)
@@ -385,7 +399,7 @@ func TestRealMeiliRepairCorrectsChangesQueuedAheadOfItsBatch(t *testing.T) {
 	trails := seedRealisticTrails(t, app, 12)
 	initMeilisearchConfig(client)
 	logged, buf := captureLog(app)
-	if err := initMeilisearchDocuments(logged, client); err != nil {
+	if _, err := initMeilisearchDocuments(logged, client); err != nil {
 		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
 	}
 	waitForIdleMeili(t, client)
@@ -448,7 +462,7 @@ func TestRealMeiliRepairRestoresSettingsOfIndexRecreatedByLiveWrite(t *testing.T
 	trails := seedRealisticTrails(t, app, 12)
 	initMeilisearchConfig(client)
 	logged, buf := captureLog(app)
-	if err := initMeilisearchDocuments(logged, client); err != nil {
+	if _, err := initMeilisearchDocuments(logged, client); err != nil {
 		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
 	}
 	waitForIdleMeili(t, client)
@@ -498,5 +512,100 @@ func TestRealMeiliRepairRestoresSettingsOfIndexRecreatedByLiveWrite(t *testing.T
 	}
 	if recorded := readSearchIndexVersions(app)["trails"].CreatedAt; recorded != createdAt {
 		t.Fatalf("recorded creation time = %q; want the recreated index's %q", recorded, createdAt)
+	}
+}
+
+func TestRealMeiliStartupRepairCorrectsEditsTheRebuildOverwrote(t *testing.T) {
+	client := startRealMeili(t)
+	app := newRealSchemaApp(t)
+	trails := seedRealisticTrails(t, app, 12)
+	initMeilisearchConfig(client)
+	logged, buf := captureLog(app)
+
+	// Right before the first trails page is queued, a trail is made private
+	// and its hook queues the update ahead of the page.
+	private := trails[0]
+	beforeSearchRebuildWrite = func() {
+		beforeSearchRebuildWrite = func() {}
+		private.Set("public", false)
+		if err := app.Save(private); err != nil {
+			t.Error(err)
+		}
+		if _, err := client.Index("trails").UpdateDocuments([]map[string]any{{"id": private.Id, "public": false}}, util.SearchWriteOptions); err != nil {
+			t.Error(err)
+		}
+	}
+	t.Cleanup(func() { beforeSearchRebuildWrite = func() {} })
+
+	rebuilt, err := initMeilisearchDocuments(logged, client)
+	if err != nil {
+		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
+	}
+	waitForIdleMeili(t, client)
+	var document map[string]any
+	if err := client.Index("trails").GetDocument(private.Id, nil, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["public"] != true {
+		t.Fatalf("stored public after the rebuild = %v; the rebuild was expected to overwrite the edit", document["public"])
+	}
+
+	if err := repairRebuiltSearchIndexes(logged, client, rebuilt); err != nil {
+		t.Fatalf("repairRebuiltSearchIndexes: %v\n%s", err, buf)
+	}
+	waitForIdleMeili(t, client)
+	if err := client.Index("trails").GetDocument(private.Id, nil, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["public"] != false {
+		t.Fatalf("stored public after the startup repair = %v; want the trail made private to be private\n%s", document["public"], buf)
+	}
+}
+
+func TestRealMeiliStartupWaitsForMeilisearch(t *testing.T) {
+	realMeiliBinary(t)
+	app := newRealSchemaApp(t)
+	trails := seedRealisticTrails(t, app, 6)
+	addr := freeLocalAddr(t)
+	client := newSearchClient("http://"+addr, realMeiliKey, searchRequestTimeout)
+	wait := searchStartupWait
+	searchStartupWait = time.Minute
+	t.Cleanup(func() { searchStartupWait = wait })
+
+	// The server starts first, so its config step finds no Meilisearch.
+	initMeilisearchConfig(client)
+	logged, buf := captureLog(app)
+	done := make(chan error, 1)
+	var rebuilt []string
+	go func() {
+		var err error
+		rebuilt, err = initMeilisearchDocuments(logged, client)
+		done <- err
+	}()
+	time.Sleep(3 * time.Second)
+	startRealMeiliAt(t, addr)
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
+		}
+	case <-time.After(2 * time.Minute):
+		t.Fatalf("startup did not finish after Meilisearch came up\n%s", buf)
+	}
+	if !slices.Contains(rebuilt, "trails") {
+		t.Fatalf("rebuilt = %v; want trails rebuilt once Meilisearch answered\n%s", rebuilt, buf)
+	}
+	waitForIdleMeili(t, client)
+	stats, err := client.Index("trails").GetStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.NumberOfDocuments != int64(len(trails)) {
+		t.Fatalf("documents = %d; want %d", stats.NumberOfDocuments, len(trails))
+	}
+	filterable, err := client.Index("trails").GetFilterableAttributes()
+	if err != nil || filterable == nil || !slices.Contains(*filterable, "public") {
+		t.Fatalf("filterable attributes = %v, %v; want the index settings", filterable, err)
 	}
 }

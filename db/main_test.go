@@ -514,7 +514,8 @@ func runSearchInit(t *testing.T, app core.App, client meilisearch.ServiceManager
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	done := make(chan error, 1)
 	go func() {
-		done <- initMeilisearchDocuments(&searchInitLogApp{App: app, logger: logger}, client)
+		_, err := initMeilisearchDocuments(&searchInitLogApp{App: app, logger: logger}, client)
+		done <- err
 	}()
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
@@ -753,6 +754,13 @@ func (state *searchInitServer) serveTaskOrStats(w http.ResponseWriter, r *http.R
 	index := r.URL.Query().Get("indexUids")
 	types := r.URL.Query().Get("types")
 	switch {
+	case r.Method == http.MethodGet && r.URL.Path == "/health":
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"available"}`))
+	case r.Method == http.MethodPatch && strings.HasSuffix(r.URL.Path, "/settings"):
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"taskUid":0,"status":"enqueued","type":"settingsUpdate","enqueuedAt":"2026-09-19T00:00:00Z"}`))
 	case r.Method == http.MethodGet && r.URL.Path == "/tasks":
 		state.mu.Lock()
 		var pending int64

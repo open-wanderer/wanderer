@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -78,9 +79,18 @@ func main() {
 }
 
 func initializeMeilisearch() meilisearch.ServiceManager {
-	return meilisearch.New(
-		os.Getenv("MEILI_URL"),
-		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
+	return newSearchClient(os.Getenv("MEILI_URL"), os.Getenv("MEILI_MASTER_KEY"), searchRequestTimeout)
+}
+
+// searchRequestTimeout bounds a single request to Meilisearch. Without it, a
+// Meilisearch that stops answering holds a hook or the nightly repair, and the
+// repair's lock with it, until the server restarts.
+const searchRequestTimeout = 2 * time.Minute
+
+func newSearchClient(url, key string, timeout time.Duration) meilisearch.ServiceManager {
+	return meilisearch.New(url,
+		meilisearch.WithAPIKey(key),
+		meilisearch.WithCustomClient(&http.Client{Timeout: timeout}),
 	)
 }
 
@@ -312,12 +322,16 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	initMeilisearchConfig(client)
 	go func() {
 		backfilled := backfillPolylines(app)
-		if err := initMeilisearchDocuments(app, client); err != nil {
+		rebuilt, err := initMeilisearchDocuments(app, client)
+		if err != nil {
 			app.Logger().Error(fmt.Sprintf("Unable to initialize search documents: %v", err))
 		}
 		// The backfill saves without hooks, so its trails are reindexed here.
 		if err := reindexSearchTrails(app, client, backfilled); err != nil {
 			app.Logger().Error(fmt.Sprintf("Unable to reindex trails with backfilled polylines: %v", err))
+		}
+		if err := repairRebuiltSearchIndexes(app, client, rebuilt); err != nil {
+			app.Logger().Error(fmt.Sprintf("Unable to repair rebuilt search indexes: %v", err))
 		}
 	}()
 	return nil

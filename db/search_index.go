@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -120,16 +121,27 @@ func searchIndexSources(app core.App) []searchIndexSource {
 // cached hundreds of thousands of remote actors keeps Meilisearch's single
 // task queue busy for hours, and the nightly repair keeps the contents
 // current.
-func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
+//
+// It returns the indexes it rebuilt.
+func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) ([]string, error) {
 	searchIndexLock.Lock()
 	defer searchIndexLock.Unlock()
 
+	// Meilisearch may start after this server; give it a while before
+	// leaving the indexes to the nightly repair.
+	waitForSearch(app, client)
+
 	built := readSearchIndexVersions(app)
+	var rebuilt []string
 	var errs []error
 	for _, source := range searchIndexSources(app) {
 		version := util.SearchDocumentVersions[source.index]
-		reason := "its documents were built from an older version"
-		if state, ok := built[source.index]; ok && state.Version == version {
+		state, ok := built[source.index]
+		reason := "no complete rebuild is recorded"
+		if ok && state.Version != version {
+			reason = "its documents were built from an older version"
+		}
+		if ok && state.Version == version {
 			stale, err := searchIndexStale(app, client, source, state)
 			if err != nil {
 				// Meilisearch may not be up yet. Rebuilding now would fail
@@ -158,6 +170,7 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 			errs = append(errs, fmt.Errorf("rebuild search index %s: %w", source.index, err))
 			continue
 		}
+		rebuilt = append(rebuilt, source.index)
 		if !complete {
 			continue
 		}
@@ -172,6 +185,50 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 		}
 	}
 
+	return rebuilt, errors.Join(errs...)
+}
+
+// searchStartupWait bounds how long startup waits for Meilisearch to come up.
+var searchStartupWait = 5 * time.Minute
+
+// waitForSearch waits, with growing pauses, until Meilisearch answers, and
+// reports whether it did within searchStartupWait.
+func waitForSearch(app core.App, client meilisearch.ServiceManager) bool {
+	deadline := time.Now().Add(searchStartupWait)
+	pause := time.Second
+	for !client.IsHealthy() {
+		if time.Now().Add(pause).After(deadline) {
+			app.Logger().Error(fmt.Sprintf("Meilisearch did not answer within %s; the search indexes are left to the nightly repair", searchStartupWait))
+			return false
+		}
+		app.Logger().Warn(fmt.Sprintf("Meilisearch is not answering yet, retrying in %s", pause))
+		time.Sleep(pause)
+		pause = min(pause*2, 30*time.Second)
+	}
+	return true
+}
+
+// repairRebuiltSearchIndexes runs the repair for the trail and list indexes
+// a start rebuilt. A rebuild writes pages built from the database without
+// checking them again, so a live edit queued between reading a page and
+// writing it is overwritten, which for one could keep a trail just made
+// private searchable. The repair waits for the rebuild to be processed and
+// brings such documents back in line. Actor documents hold nothing private
+// and are left to the nightly repair, as repairing a large actors index takes
+// long.
+func repairRebuiltSearchIndexes(app core.App, client meilisearch.ServiceManager, rebuilt []string) error {
+	searchIndexLock.Lock()
+	defer searchIndexLock.Unlock()
+
+	var errs []error
+	for _, source := range searchIndexSources(app) {
+		if source.index == "actors" || !slices.Contains(rebuilt, source.index) {
+			continue
+		}
+		if err := repairSearchIndex(app, client, source); err != nil {
+			errs = append(errs, fmt.Errorf("repair rebuilt search index %s: %w", source.index, err))
+		}
+	}
 	return errors.Join(errs...)
 }
 
@@ -181,6 +238,9 @@ func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) e
 // its collection has records.
 func searchIndexStale(app core.App, client meilisearch.ServiceManager, source searchIndexSource, state searchIndexState) (string, error) {
 	createdAt, err := searchIndexCreatedAt(client, source.index)
+	if searchIndexNotFound(err) {
+		return "the index does not exist", nil
+	}
 	if err != nil {
 		return "", err
 	}
@@ -220,6 +280,12 @@ func searchIndexCreatedAt(client meilisearch.ServiceManager, index string) (stri
 // to the nightly repair. Waiting for each page here would hold up the start
 // for as long as the actors rebuild takes.
 func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source searchIndexSource, cleared func()) (bool, error) {
+	// The index may be missing, as when Meilisearch came up after this
+	// server's config step.
+	if err := ensureSearchIndex(client, source.index, searchIndexSettings()[source.index]); err != nil {
+		return false, err
+	}
+
 	// A rebuild interrupted by a restart leaves its batches queued; cancel
 	// them so they do not run ahead of this one.
 	if err := cancelPendingSearchTasks(app, client, source.index); err != nil {
@@ -236,6 +302,7 @@ func rebuildSearchIndex(app core.App, client meilisearch.ServiceManager, source 
 	err := forEachRecordPage(app, source.collection, source.pageSize, func(records []*core.Record) error {
 		documents := searchDocuments(app, source, records)
 		if len(documents) > 0 {
+			beforeSearchRebuildWrite()
 			if _, err := client.Index(source.index).AddDocuments(documents, util.SearchWriteOptions); err != nil {
 				// Omit this page from the rebuild and advance to the next one.
 				app.Logger().Warn(fmt.Sprintf("Unable to index %s page %d: %v", source.pageLabel, page, err))
@@ -338,7 +405,9 @@ func reindexSearchTrails(app core.App, client meilisearch.ServiceManager, ids []
 // while the startup rebuild or an earlier run still holds the indexes.
 func runSearchRepair(app core.App, client meilisearch.ServiceManager) {
 	if !searchIndexLock.TryLock() {
-		app.Logger().Warn("Search repair skipped: the search indexes are still being written")
+		// An error, not a warning: a repair that hangs keeps the lock, and
+		// every later run would otherwise be skipped unnoticed.
+		app.Logger().Error("Search repair skipped: the search indexes are still being written")
 		return
 	}
 	defer searchIndexLock.Unlock()
@@ -496,6 +565,10 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 	app.Logger().Info(fmt.Sprintf("Search repair %s: %d documents rewritten, %d removed, %d errors", source.index, rewritten, removed, len(errs)))
 	return errors.Join(errs...)
 }
+
+// beforeSearchRebuildWrite runs just before a rebuild page is queued; tests
+// change records there.
+var beforeSearchRebuildWrite = func() {}
 
 // beforeSearchRepairWrite runs just before a repair batch is queued; tests
 // change records there.
