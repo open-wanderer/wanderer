@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
@@ -453,6 +454,11 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 	}
 }
 
+// searchIndexCreateTimeout bounds the wait for a new index, which queues
+// behind every task Meilisearch already has, while the caller holds up the
+// start or the nightly repair.
+var searchIndexCreateTimeout = time.Minute
+
 // ensureSearchIndex creates an index that does not exist, with id as its
 // primary key, and applies its settings.
 func ensureSearchIndex(client meilisearch.ServiceManager, indexName string, settings meilisearch.Settings) error {
@@ -465,7 +471,9 @@ func ensureSearchIndex(client meilisearch.ServiceManager, indexName string, sett
 		if err != nil {
 			return fmt.Errorf("create index: %w", err)
 		}
-		if _, err := client.WaitForTask(task.TaskUID, 0); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), searchIndexCreateTimeout)
+		defer cancel()
+		if _, err := client.WaitForTaskWithContext(ctx, task.TaskUID, 0); err != nil {
 			return fmt.Errorf("wait for index creation: %w", err)
 		}
 	}

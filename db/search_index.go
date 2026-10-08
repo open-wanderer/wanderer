@@ -360,9 +360,36 @@ func repairSearchIndexes(app core.App, client meilisearch.ServiceManager) error 
 	for _, source := range searchIndexSources(app) {
 		if err := repairSearchIndex(app, client, source); err != nil {
 			errs = append(errs, fmt.Errorf("repair search index %s: %w", source.index, err))
+			continue
+		}
+		if err := recordRepairedSearchIndex(app, client, source.index); err != nil {
+			app.Logger().Warn(fmt.Sprintf("Unable to record repaired search index %s: %v", source.index, err))
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// recordRepairedSearchIndex records the creation time of an index the repair
+// filled after Meilisearch recreated it, so the next start does not rebuild
+// it again. Only an index recorded at the current document version is
+// updated: the repair compares actors by name alone, so it does not bring an
+// index built from an older version up to date.
+func recordRepairedSearchIndex(app core.App, client meilisearch.ServiceManager, index string) error {
+	versions := readSearchIndexVersions(app)
+	state, ok := versions[index]
+	if !ok || state.Version != util.SearchDocumentVersions[index] {
+		return nil
+	}
+	createdAt, err := searchIndexCreatedAt(client, index)
+	if err != nil {
+		return err
+	}
+	if createdAt == state.CreatedAt {
+		return nil
+	}
+	state.CreatedAt = createdAt
+	versions[index] = state
+	return writeSearchIndexVersions(app, versions)
 }
 
 // repairSearchIndex brings an index in line with its collection without
@@ -373,6 +400,13 @@ func repairSearchIndexes(app core.App, client meilisearch.ServiceManager) error 
 // fails is logged and skipped, so one bad document cannot stop the repair of
 // the rest of the index.
 func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source searchIndexSource) error {
+	// A live write into an index wiped while this server kept running
+	// recreates it without its settings, which breaks every filtered search;
+	// apply them on every run, not only when the index is missing.
+	if err := ensureSearchIndex(client, source.index, searchIndexSettings()[source.index]); err != nil {
+		return err
+	}
+
 	// Document tasks still queued, such as a startup rebuild Meilisearch is
 	// working through, would make the stored documents look stale and keep
 	// every repair batch waiting behind them.
@@ -427,6 +461,7 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 			return nil
 		}
 
+		beforeSearchRepairWrite()
 		written, err := writeSearchRepairBatch(app, client, source, stale)
 		rewritten += written
 		if errors.Is(err, errSearchTaskTimeout) {
@@ -434,6 +469,15 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 		}
 		if err != nil {
 			errs = append(errs, err)
+		}
+
+		corrected, err := verifySearchRepairWrite(app, client, source, stale)
+		rewritten += corrected
+		if errors.Is(err, errSearchTaskTimeout) {
+			return err
+		}
+		if err != nil {
+			errs = append(errs, fmt.Errorf("verify written documents: %w", err))
 		}
 		return nil
 	})
@@ -451,6 +495,83 @@ func repairSearchIndex(app core.App, client meilisearch.ServiceManager, source s
 
 	app.Logger().Info(fmt.Sprintf("Search repair %s: %d documents rewritten, %d removed, %d errors", source.index, rewritten, removed, len(errs)))
 	return errors.Join(errs...)
+}
+
+// beforeSearchRepairWrite runs just before a repair batch is queued; tests
+// change records there.
+var beforeSearchRepairWrite = func() {}
+
+// searchRepairVerifyRounds bounds how often verifySearchRepairWrite corrects
+// documents that keep changing under it.
+const searchRepairVerifyRounds = 3
+
+// verifySearchRepairWrite checks a written batch against the records as they
+// are once the batch is in the index. A record changed after the batch was
+// built had its hook write queued ahead of the batch, so the batch overwrote
+// it with older data, which for one could make a trail just made private
+// searchable again; its document is written again. A record deleted meanwhile
+// has its document removed. Any change committed after this check queues its
+// hook write behind the batch, so it is not lost. documents are compared with
+// what was meant to be written, not with the index, so a document Meilisearch
+// rejected is not tried again.
+func verifySearchRepairWrite(app core.App, client meilisearch.ServiceManager, source searchIndexSource, documents []map[string]any) (int, error) {
+	rewritten := 0
+	for round := 0; round < searchRepairVerifyRounds && len(documents) > 0; round++ {
+		ids := make([]string, len(documents))
+		for i, document := range documents {
+			ids[i], _ = document["id"].(string)
+		}
+		records, err := app.FindRecordsByIds(source.collection, ids)
+		if err != nil {
+			return rewritten, err
+		}
+		rebuilt := make(map[string]map[string]any, len(records))
+		exists := make(map[string]bool, len(records))
+		current, errs := source.documents(records)
+		for i, r := range records {
+			exists[r.Id] = true
+			if errs[i] == nil {
+				rebuilt[r.Id] = current[i]
+			}
+		}
+
+		var changed []map[string]any
+		var gone []string
+		for i, document := range documents {
+			if !exists[ids[i]] {
+				gone = append(gone, ids[i])
+				continue
+			}
+			now, ok := rebuilt[ids[i]]
+			if !ok {
+				continue
+			}
+			written, err := normalizeSearchDocument(document)
+			if err != nil || !searchDocumentMatches(now, written, nil) {
+				changed = append(changed, now)
+			}
+		}
+
+		if len(gone) > 0 {
+			task, err := client.Index(source.index).DeleteDocuments(gone, nil)
+			if err != nil {
+				return rewritten, err
+			}
+			if err := waitForSearchRepairTask(client, task.TaskUID); err != nil {
+				return rewritten, err
+			}
+		}
+		if len(changed) == 0 {
+			return rewritten, nil
+		}
+		written, err := writeSearchRepairBatch(app, client, source, changed)
+		rewritten += written
+		if err != nil {
+			return rewritten, err
+		}
+		documents = changed
+	}
+	return rewritten, nil
 }
 
 // afterSearchRepairBuild runs between building a page's stale documents and

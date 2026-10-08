@@ -495,6 +495,27 @@ func TestRepairSearchIndexes(t *testing.T) {
 		}
 	})
 
+	t.Run("an index that is not created in time stops only its repair", func(t *testing.T) {
+		app, _, actors := newSearchRepairApp(t, 2)
+		search, client := newMemorySearch(t)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+		search.missing["trails"] = true
+		search.stuck["trails"] = true
+		timeout := searchIndexCreateTimeout
+		searchIndexCreateTimeout = 50 * time.Millisecond
+		t.Cleanup(func() { searchIndexCreateTimeout = timeout })
+
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		err := repairSearchIndexes(&searchInitLogApp{App: app, logger: logger}, client)
+		if err == nil || !strings.Contains(err.Error(), "repair search index trails: wait for index creation") {
+			t.Fatalf("repairSearchIndexes error = %v; want the trails index creation to time out", err)
+		}
+		if strings.Contains(err.Error(), "repair search index actors") {
+			t.Fatalf("repairSearchIndexes error = %v; want the actors repair unaffected", err)
+		}
+	})
+
 	t.Run("a run is skipped while the indexes are being written", func(t *testing.T) {
 		app, _, _ := newSearchRepairApp(t, 1)
 		search, client := newMemorySearch(t)
@@ -737,7 +758,9 @@ func (search *memorySearch) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		search.acceptTask(w, config.UID)
 
 	case r.Method == http.MethodPatch && strings.HasSuffix(path, "/settings"):
-		search.acceptTask(w, strings.TrimSuffix(strings.TrimPrefix(path, "/indexes/"), "/settings"))
+		// Settings are applied at once and kept out of the document tasks.
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"taskUid":0,"status":"enqueued","type":"settingsUpdate","enqueuedAt":"2026-10-06T00:00:00Z"}`))
 
 	case r.Method == http.MethodPost && strings.HasSuffix(path, "/documents/fetch"):
 		index := strings.TrimSuffix(strings.TrimPrefix(path, "/indexes/"), "/documents/fetch")

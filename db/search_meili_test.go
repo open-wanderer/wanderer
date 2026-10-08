@@ -20,6 +20,8 @@ import (
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
+
+	"pocketbase/util"
 )
 
 // These tests run against a real Meilisearch, because the fakes can only
@@ -374,5 +376,127 @@ func TestSearchIndexStateIsLeftOutOfBackups(t *testing.T) {
 		if strings.Contains(file.Name, searchIndexVersionsFile) {
 			t.Fatalf("backup contains %s, so a restore would keep the indexes from before it", file.Name)
 		}
+	}
+}
+
+func TestRealMeiliRepairCorrectsChangesQueuedAheadOfItsBatch(t *testing.T) {
+	client := startRealMeili(t)
+	app := newRealSchemaApp(t)
+	trails := seedRealisticTrails(t, app, 12)
+	initMeilisearchConfig(client)
+	logged, buf := captureLog(app)
+	if err := initMeilisearchDocuments(logged, client); err != nil {
+		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
+	}
+	waitForIdleMeili(t, client)
+
+	// Every trail document is stale, so the repair rewrites the whole page.
+	stale := make([]map[string]any, len(trails))
+	for i, trail := range trails {
+		stale[i] = map[string]any{"id": trail.Id, "name": "stale"}
+	}
+	if _, err := client.Index("trails").UpdateDocuments(stale, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitForIdleMeili(t, client)
+
+	// Right before the batch is queued, one trail is made private and another
+	// deleted, and their hooks queue their writes ahead of the batch.
+	private, deleted := trails[0], trails[1]
+	beforeSearchRepairWrite = func() {
+		beforeSearchRepairWrite = func() {}
+		private.Set("public", false)
+		if err := app.Save(private); err != nil {
+			t.Error(err)
+		}
+		if _, err := client.Index("trails").UpdateDocuments([]map[string]any{{"id": private.Id, "public": false}}, nil); err != nil {
+			t.Error(err)
+		}
+		if err := app.Delete(deleted); err != nil {
+			t.Error(err)
+		}
+		if _, err := client.Index("trails").DeleteDocument(deleted.Id, nil); err != nil {
+			t.Error(err)
+		}
+	}
+	t.Cleanup(func() { beforeSearchRepairWrite = func() {} })
+
+	buf.Reset()
+	if err := repairSearchIndexes(logged, client); err != nil {
+		t.Fatalf("repairSearchIndexes: %v\n%s", err, buf)
+	}
+	waitForIdleMeili(t, client)
+
+	var document map[string]any
+	if err := client.Index("trails").GetDocument(private.Id, nil, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["public"] != false {
+		t.Fatalf("stored public = %v; want the trail made private to stay private\n%s", document["public"], buf)
+	}
+	if err := client.Index("trails").GetDocument(deleted.Id, nil, &document); !searchIndexNotFound(err) && !strings.Contains(fmt.Sprint(err), "document_not_found") {
+		t.Fatalf("deleted trail document = %v, %v; want it gone", document, err)
+	}
+	if err := client.Index("trails").GetDocument(trails[2].Id, nil, &document); err != nil || document["name"] == "stale" {
+		t.Fatalf("trail %s = %v, %v; want it repaired", trails[2].Id, document, err)
+	}
+}
+
+func TestRealMeiliRepairRestoresSettingsOfIndexRecreatedByLiveWrite(t *testing.T) {
+	client := startRealMeili(t)
+	app := newRealSchemaApp(t)
+	trails := seedRealisticTrails(t, app, 12)
+	initMeilisearchConfig(client)
+	logged, buf := captureLog(app)
+	if err := initMeilisearchDocuments(logged, client); err != nil {
+		t.Fatalf("initMeilisearchDocuments: %v\n%s", err, buf)
+	}
+	waitForIdleMeili(t, client)
+
+	// Meilisearch's data is wiped while the backend keeps running, and a
+	// live edit recreates the index before the repair runs.
+	task, err := client.DeleteIndex("trails")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.WaitForTask(task.TaskUID, 0); err != nil {
+		t.Fatal(err)
+	}
+	edit, err := client.Index("trails").UpdateDocuments([]map[string]any{{"id": trails[0].Id, "name": trails[0].GetString("name")}}, util.SearchWriteOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.WaitForTask(edit.TaskUID, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	buf.Reset()
+	if err := repairSearchIndexes(logged, client); err != nil {
+		t.Fatalf("repairSearchIndexes: %v\n%s", err, buf)
+	}
+	waitForIdleMeili(t, client)
+
+	filterable, err := client.Index("trails").GetFilterableAttributes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filterable == nil || !slices.Contains(*filterable, "public") {
+		t.Fatalf("filterable attributes = %v; want the settings applied by the repair", filterable)
+	}
+	stats, err := client.Index("trails").GetStats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.NumberOfDocuments != int64(len(trails)) {
+		t.Fatalf("documents = %d; want %d", stats.NumberOfDocuments, len(trails))
+	}
+
+	// The repair filled the recreated index, so the next start keeps it.
+	createdAt, err := searchIndexCreatedAt(client, "trails")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorded := readSearchIndexVersions(app)["trails"].CreatedAt; recorded != createdAt {
+		t.Fatalf("recorded creation time = %q; want the recreated index's %q", recorded, createdAt)
 	}
 }
