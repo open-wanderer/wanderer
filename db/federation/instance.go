@@ -159,7 +159,7 @@ func isInstanceActorIRI(iri string) (string, bool) {
 
 // InstanceInboxHandler is the PocketBase route handler for
 // POST /activitypub/instance/inbox. It dispatches Follow/Accept/Reject/Undo for
-// the follow lifecycle and Create/Update/Delete for content.
+// the follow lifecycle and Create/Update/Delete/Like for content.
 //
 // The request must carry the internal proxy secret, the forwarded path must be
 // instanceInboxPath, and the recipient is always the instance actor. After the
@@ -303,6 +303,10 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 	case pub.DeleteType:
 		if err := ProcessDeleteActivity(e.App, actor, activity); err != nil {
 			return e.BadRequestError("Failed to process Delete activity", err)
+		}
+	case pub.LikeType:
+		if err := ProcessLikeActivity(e.App, actor, activity); err != nil {
+			return e.BadRequestError("Failed to process Like activity", err)
 		}
 	default:
 		return e.BadRequestError("Unsupported activity type", nil)

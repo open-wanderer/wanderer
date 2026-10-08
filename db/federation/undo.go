@@ -126,7 +126,18 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 	activity := pub.UndoNew(pub.IRI(id), likeActivity)
 	activity.Actor = pub.IRI(actor.GetString("iri"))
 
-	return PostActivity(app, actor, activity, []string{trailAuthor.GetString("inbox")})
+	recipients := []string{trailAuthor.GetString("inbox")}
+
+	// Also deliver to peer instances; public trails only.
+	if trail.GetBool("public") {
+		peerInboxes, err := instanceFollowerInboxes(app)
+		if err != nil {
+			return err
+		}
+		recipients = append(recipients, peerInboxes...)
+	}
+
+	return PostActivity(app, actor, activity, recipients)
 }
 
 func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity) error {
@@ -208,21 +219,31 @@ func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activi
 		return nil
 	}
 
-	likeActivity := activity.Object.(*pub.Activity)
+	likeActivity, ok := activity.Object.(*pub.Activity)
+	if !ok {
+		return fmt.Errorf("undo: like object is not *pub.Activity")
+	}
+	if likeActivity == nil || likeActivity.Object == nil {
+		return fmt.Errorf("undo: like is missing its object")
+	}
 
 	trail, err := app.FindFirstRecordByData("trails", "iri", likeActivity.Object.GetID().String())
 	if err != nil {
+		// The receiver does not hold the trail, so there is no like to remove.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
 	like, err := app.FindFirstRecordByFilter("trail_like", "actor={:actor} && trail={:trail}", dbx.Params{"actor": actor.Id, "trail": trail.Id})
 	if err != nil {
+		// Already removed by the twin delivery, or never arrived.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 
-	err = app.Delete(like)
-	if err != nil {
-		return err
-	}
-	return nil
+	return app.Delete(like)
 }
