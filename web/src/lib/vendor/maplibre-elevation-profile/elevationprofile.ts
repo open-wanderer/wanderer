@@ -13,10 +13,9 @@ import zoomPlugin from "chartjs-plugin-zoom";
 // @ts-ignore
 import { CrosshairPlugin } from "chartjs-plugin-crosshair";
 
-import { haversineDistance } from "$lib/models/gpx/utils";
 import type { Waypoint } from "$lib/models/waypoint";
 import { formatTimeHHMM } from "$lib/util/format_util";
-import { haversineCumulatedDistanceWgs84, smoothElevations } from "./tools";
+import { haversineCumulatedDistanceWgs84, smoothElevations, waypointTrackIndex } from "./tools";
 
 // The crosshair plugin only initializes `chart.crosshair` for charts with a
 // cartesian x scale, but several of its hooks dereference it unconditionally.
@@ -912,6 +911,17 @@ export class ElevationProfile {
         this.chart.update();
     }
 
+    private placeWaypoints() {
+        this.waypoints.forEach((waypoint, waypointIndex) => {
+            const index = waypointTrackIndex(this.elevatedPositions, this.times, this.cumulatedDistance, waypoint);
+            if (index < 0) {
+                return;
+            }
+            this.waypointPositions[waypointIndex] = this.cumulatedDistanceAdjustedUnit[index];
+            waypoint.distance_from_start = this.cumulatedDistance[index];
+        });
+    }
+
     async setData(data: GeoJsonObject, waypoints?: Waypoint[]) {
         // Concatenates the positions that may come from multiple LineStrings or MultiLineString
         const { positions, times } = geoJsonObjectToPositionsAndTimes(data);
@@ -956,23 +966,9 @@ export class ElevationProfile {
         const minSegmentDistance = (this.cumulatedDistance.at(-1) ?? 1000) / 100;
         let segmentStartIndex = 0;
 
-        // Initialize an array to store the minimum distance for each waypoint
-        const minDistances = new Array(waypoints?.length).fill(Infinity);
+        this.placeWaypoints();
 
         for (let i = 0; i < this.elevatedPositions.length; i++) {
-
-            // Check if a waypoint is closest to this point
-            this.waypoints.forEach((waypoint, waypointIndex) => {
-                const distance = haversineDistance(this.elevatedPositions[i][1], this.elevatedPositions[i][0], waypoint.lat, waypoint.lon);
-
-                // Update if the current route coordinate is closer to the waypoint
-                if (distance < minDistances[waypointIndex]) {
-                    minDistances[waypointIndex] = distance;
-                    this.waypointPositions[waypointIndex] = this.cumulatedDistanceAdjustedUnit[i];
-                    waypoint.distance_from_start = this.cumulatedDistanceAdjustedUnit[i] * 1000;
-                }
-            });
-
             const elevation = this.elevatedPositions[i][2];
             const time = this.times[i]
             if (i > 1) {

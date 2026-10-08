@@ -12,6 +12,7 @@ class Waypoint {
     marker?: M.Marker;
     photos: string[];
     _photos?: File[];
+    _time?: Date;
     author: string;
     trail?: string;
 

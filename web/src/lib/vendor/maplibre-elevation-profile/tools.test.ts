@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineCumulatedDistanceWgs84, smoothElevations } from './tools';
+import { haversineCumulatedDistanceWgs84, smoothElevations, waypointTrackIndex } from './tools';
 import type { Position } from 'geojson';
 
 describe('tools', () => {
@@ -155,6 +155,42 @@ describe('tools', () => {
                     ).toBe(true);
                 }
             }
+        });
+    });
+
+    describe('waypointTrackIndex', () => {
+        // Out along one side of a path and back along the other, about 38 m apart.
+        const positions: Position[] = [
+            ...Array.from({ length: 11 }, (_, i) => [11.0, 47.0 + i * 0.001]),
+            ...Array.from({ length: 11 }, (_, i) => [11.0005, 47.01 - i * 0.001]),
+        ];
+        const times = positions.map((_, i) => new Date(Date.UTC(2026, 5, 1, 8, i)));
+        const cumulatedDistance = haversineCumulatedDistanceWgs84(positions);
+        // About 20 m from the way out and 18 m from the way back.
+        const nearBoth = { lat: 47.001, lon: 11.00026 };
+
+        it('picks the nearest point when nothing else tells the passes apart', () => {
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, nearBoth)).toBe(20);
+        });
+
+        it('picks the pass closest in time to the photo', () => {
+            const waypoint = { ...nearBoth, _time: times[1] };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, waypoint)).toBe(1);
+        });
+
+        it('ignores the photo time when the track has none', () => {
+            const waypoint = { ...nearBoth, _time: times[1] };
+            expect(waypointTrackIndex(positions, [], cumulatedDistance, waypoint)).toBe(20);
+        });
+
+        it('keeps the pass of the stored distance from start', () => {
+            const waypoint = { ...nearBoth, distance_from_start: cumulatedDistance[1] };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, waypoint)).toBe(1);
+        });
+
+        it('does not move a waypoint to a pass clearly farther away', () => {
+            const onWayOut = { lat: 47.001, lon: 11.0, _time: times[20] };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, onWayOut)).toBe(1);
         });
     });
 });

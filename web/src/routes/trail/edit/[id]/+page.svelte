@@ -79,7 +79,10 @@
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
+    import {
+        convertDMSToDD,
+        convertGPSTimestampToDate,
+    } from "$lib/models/gpx/utils.js";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -631,6 +634,16 @@
             ) ?? -1;
 
         if (editedWaypointIndex >= 0) {
+            const editedWaypoint =
+                $formData.expand!.waypoints_via_trail![editedWaypointIndex];
+            if (
+                editedWaypoint.lat !== savedWaypoint.lat ||
+                editedWaypoint.lon !== savedWaypoint.lon
+            ) {
+                // The elevation profile keeps a moved waypoint on its previous
+                // pass of the track unless the stored distance is cleared.
+                savedWaypoint.distance_from_start = undefined;
+            }
             $formData.expand!.waypoints_via_trail![editedWaypointIndex] =
                 savedWaypoint;
         } else {
@@ -815,6 +828,7 @@
         }
         editableWaypoint.lat = position.lat;
         editableWaypoint.lon = position.lng;
+        editableWaypoint.distance_from_start = undefined;
         $formData.expand!.waypoints_via_trail = [
             ...($formData.expand!.waypoints_via_trail ?? []),
         ];
@@ -1869,6 +1883,7 @@
         id: string;
         longitude: number;
         latitude: number;
+        time?: Date;
         file: File;
     }
 
@@ -1889,6 +1904,7 @@
         id: string;
         lat: number;
         lon: number;
+        time?: number;
     }
 
     interface WaypointPhotoClusterRequest {
@@ -1941,6 +1957,10 @@
                             id: index.toString(),
                             latitude: convertDMSToDD(lat, latDir),
                             longitude: convertDMSToDD(lon, lonDir),
+                            time: convertGPSTimestampToDate(
+                                EXIF.getTag(p, "GPSDateStamp"),
+                                EXIF.getTag(p, "GPSTimeStamp"),
+                            ),
                             file,
                         });
                     } else {
@@ -1972,6 +1992,7 @@
                     id: coords.id,
                     lat: coords.latitude,
                     lon: coords.longitude,
+                    time: coords.time?.getTime(),
                 })),
                 waypoints: getExistingWaypointClusterInputs(),
             });
@@ -1987,12 +2008,13 @@
             return;
         }
 
-        const fileMap = new Map(photoCoords.map((coords) => [coords.id, coords.file]));
+        const photoMap = new Map(photoCoords.map((coords) => [coords.id, coords]));
 
         for (const cluster of clusterResponse.clusters) {
-            const photos = cluster.photos
-                .map((id) => fileMap.get(id))
-                .filter((file): file is File => file != null);
+            const clusterPhotos = cluster.photos
+                .map((id) => photoMap.get(id))
+                .filter((coords): coords is GPXCoord => coords != null);
+            const photos = clusterPhotos.map((coords) => coords.file);
 
             if (!photos.length) {
                 continue;
@@ -2025,6 +2047,7 @@
                 },
             );
             wp._photos = photos;
+            wp._time = clusterPhotos.find((coords) => coords.time)?.time;
             commitWaypoint(wp);
         }
     }

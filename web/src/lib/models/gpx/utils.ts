@@ -42,4 +42,16 @@ function convertDMSToDD(dms: Number[], direction: "N" | "O" | "S" | "W") {
   return dd;
 }
 
-export { removeEmpty, allDatesToISOString, haversineDistance, convertDMSToDD };
+// EXIF GPSDateStamp ("YYYY:MM:DD") and GPSTimeStamp ([h, m, s]) are always UTC,
+// unlike DateTimeOriginal, which is camera-local time.
+function convertGPSTimestampToDate(dateStamp: unknown, timeStamp: unknown): Date | undefined {
+  if (typeof dateStamp !== "string" || !Array.isArray(timeStamp) || timeStamp.length !== 3) {
+    return undefined;
+  }
+  const [year, month, day] = dateStamp.split(":").map(Number);
+  const [hours, minutes, seconds] = timeStamp.map(Number);
+  const time = Date.UTC(year, month - 1, day, hours, minutes) + seconds * 1000;
+  return Number.isFinite(time) ? new Date(time) : undefined;
+}
+
+export { removeEmpty, allDatesToISOString, haversineDistance, convertDMSToDD, convertGPSTimestampToDate };
