@@ -287,17 +287,6 @@
                     await prepareDuplicateLegacyPhotos(form as Trail),
                 );
 
-                if (!form.photos?.length && !photoFiles.length) {
-                    const canvas = document.querySelector(
-                        "#map .maplibregl-canvas",
-                    ) as HTMLCanvasElement;
-
-                    const dataURL = canvas.toDataURL("image/webp", 0.3);
-                    const response = await fetch(dataURL);
-                    const blob = await response.blob();
-                    photoFiles = [new File([blob], "route")];
-                }
-
                 form.expand!.gpx_data = valhallaStore.route.toString();
                 if (
                     form.expand!.gpx_data &&
@@ -2499,7 +2488,6 @@
                 oncontextmenu={(target) => handleMapContextMenu(target)}
                 onsegmentclick={(data) => handleSegmentClick(data)}
                 onsegmentdragend={(data) => handleSegmentDragEnd(data)}
-                mapOptions={{ canvasContextAttributes: { preserveDrawingBuffer: true } }}
                 {buildPoiAnchorAction}
             ></MapWithElevationMaplibre>
         </div>
