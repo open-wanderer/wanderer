@@ -79,10 +79,7 @@
     } from "$lib/components/base/search.svelte";
     import RouteEditor from "$lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "$lib/models/api/tag_schema.js";
-    import {
-        convertDMSToDD,
-        convertGPSTimestampToDate,
-    } from "$lib/models/gpx/utils.js";
+    import { convertDMSToDD } from "$lib/models/gpx/utils.js";
     import { Tag } from "$lib/models/tag.js";
     import {
         searchLocationReverse,
@@ -92,7 +89,11 @@
     import { theme } from "$lib/stores/theme_store.js";
     import { currentUser } from "$lib/stores/user_store.js";
     import { designSelectableCategories } from "$lib/util/category_util";
-    import { dateInputValue } from "$lib/util/date_util";
+    import {
+        convertDateTimeOriginalToDate,
+        convertGPSTimestampToDate,
+        dateInputValue,
+    } from "$lib/util/date_util";
     import { getIconForLocation } from "$lib/util/icon_util.js";
     import { normalizeNewTagName } from "$lib/util/tag_name";
     import {
@@ -1957,10 +1958,15 @@
                             id: index.toString(),
                             latitude: convertDMSToDD(lat, latDir),
                             longitude: convertDMSToDD(lon, lonDir),
-                            time: convertGPSTimestampToDate(
-                                EXIF.getTag(p, "GPSDateStamp"),
-                                EXIF.getTag(p, "GPSTimeStamp"),
-                            ),
+                            time:
+                                convertGPSTimestampToDate(
+                                    EXIF.getTag(p, "GPSDateStamp"),
+                                    EXIF.getTag(p, "GPSTimeStamp"),
+                                ) ??
+                                convertDateTimeOriginalToDate(
+                                    EXIF.getTag(p, "DateTimeOriginal"),
+                                    EXIF.getTag(p, "OffsetTimeOriginal"),
+                                ),
                             file,
                         });
                     } else {
