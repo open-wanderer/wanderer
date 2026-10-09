@@ -34,7 +34,9 @@ var ExifTags = EXIF.Tags = {
     // date and time
     0x9003: "DateTimeOriginal",        // Date and time when the original image was generated
     0x9004: "DateTimeDigitized",       // Date and time when the image was stored digitally
-    0x9011: "OffsetTimeOriginal",      // UTC offset of DateTimeOriginal, e.g. "+02:00"
+    0x9010: "OffsetTime",              // UTC offset of DateTime, e.g. "+02:00"
+    0x9011: "OffsetTimeOriginal",      // UTC offset of DateTimeOriginal
+    0x9012: "OffsetTimeDigitized",     // UTC offset of DateTimeDigitized
     0x9290: "SubsecTime",              // Fractions of seconds for DateTime
     0x9291: "SubsecTimeOriginal",      // Fractions of seconds for DateTimeOriginal
     0x9292: "SubsecTimeDigitized",     // Fractions of seconds for DateTimeDigitized

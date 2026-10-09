@@ -1965,7 +1965,11 @@
                                 ) ??
                                 convertDateTimeOriginalToDate(
                                     EXIF.getTag(p, "DateTimeOriginal"),
-                                    EXIF.getTag(p, "OffsetTimeOriginal"),
+                                    // some devices only write the offset of
+                                    // the other timestamps, all in one zone
+                                    EXIF.getTag(p, "OffsetTimeOriginal") ??
+                                        EXIF.getTag(p, "OffsetTime") ??
+                                        EXIF.getTag(p, "OffsetTimeDigitized"),
                                 ),
                             file,
                         });
