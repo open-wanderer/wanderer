@@ -117,6 +117,9 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
+	if !commentTrail.GetBool("public") {
+		return nil
+	}
 	commentTrailAuthor, err := app.FindRecordById("activitypub_actors", commentTrail.GetString("author"))
 	if err != nil {
 		return err
