@@ -423,7 +423,11 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 			iri = fmt.Sprintf("%s/api/v1/waypoint/%s", origin, wpID)
 		}
 
-		wp, _ := txApp.FindFirstRecordByData("waypoints", "iri", iri)
+		wp, err := federation.CheckPulledObject(txApp, "waypoints", iri, "", trail)
+		if err != nil {
+			txApp.Logger().Warn("skipping pulled object", "collection", "waypoints", "iri", iri, "trail", trail.GetString("iri"), "error", err)
+			continue
+		}
 		if wp == nil {
 			wp = core.NewRecord(col)
 		}
@@ -456,20 +460,46 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 			iri = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, slID)
 		}
 
-		sl, _ := txApp.FindFirstRecordByData("summit_logs", "iri", iri)
-		if sl == nil {
-			sl = core.NewRecord(col)
+		skip := func(err error) {
+			txApp.Logger().Warn("skipping pulled object", "collection", "summit_logs", "iri", iri, "trail", trail.GetString("iri"), "error", err)
+		}
+
+		authorIRI := ""
+		var authorMap map[string]any
+		if expand, ok := raw["expand"].(map[string]any); ok {
+			authorMap, _ = expand["author"].(map[string]any)
+			if authorMap != nil {
+				authorIRI, _ = authorMap["iri"].(string)
+			}
+		}
+
+		// Only accept objects from the trail's origin, before fetching or writing.
+		sl, err := federation.CheckPulledObject(txApp, "summit_logs", iri, authorIRI, trail)
+		if err != nil {
+			skip(err)
+			continue
 		}
 
 		author := trail.GetString("author")
-		if expand, ok := raw["expand"].(map[string]any); ok {
-			if authorMap, ok := expand["author"].(map[string]any); ok {
-				actor, err := federation.GetActorByIRI(txApp, ctx, authorMap["iri"].(string), false)
-				if err != nil {
-					return err
-				}
-				author = actor.Id
+		if authorMap != nil {
+			actor, err := federation.GetActorByIRI(txApp, ctx, authorIRI, false)
+			if err != nil {
+				return err
 			}
+			author = actor.Id
+		}
+
+		authorRecord, err := txApp.FindRecordById("activitypub_actors", author)
+		if err != nil {
+			return err
+		}
+		if _, err := federation.CheckRemoteObjectOwnership(txApp, "summit_logs", iri, authorRecord); err != nil {
+			skip(err)
+			continue
+		}
+
+		if sl == nil {
+			sl = core.NewRecord(col)
 		}
 
 		syncRecordFiles(ctx, sl, "summit_logs", slID, origin, raw)

@@ -25,6 +25,30 @@ import (
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
+// jsonldMu serializes jsonld.WithContext(...).Marshal, which writes the
+// package-level jsonld.Ctxt.
+var jsonldMu sync.Mutex
+
+// instanceFollowerInboxes returns inbox URLs for all accepted peers of the local
+// instance actor — both instances that follow us and instances we follow.
+// Returns (nil, nil) if the instance actor has not yet been seeded.
+func instanceFollowerInboxes(app core.App) ([]string, error) {
+	peers, err := acceptedPeerActors(app)
+	if err != nil {
+		return nil, err
+	}
+	if peers == nil {
+		return nil, nil
+	}
+	var inboxes []string
+	for _, p := range peers {
+		if p.Inbox != "" {
+			inboxes = append(inboxes, p.Inbox)
+		}
+	}
+	return inboxes, nil
+}
+
 func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, recipients []string) error {
 	go func() {
 		defer func() {
@@ -48,10 +72,13 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 		postHeaders := []string{"(request-target)", "Date", "Digest", "Content-Type", "Host"}
 		expiresIn := 60
 
+		// jsonld.WithContext writes a package-level variable.
+		jsonldMu.Lock()
 		body, err := jsonld.WithContext(
 			jsonld.IRI(pub.ActivityBaseURI),
 			jsonld.IRI(pub.SecurityContextURI),
 		).Marshal(activity)
+		jsonldMu.Unlock()
 		if err != nil {
 			app.Logger().Error(fmt.Sprintf("Failed to marshal activity: %s", err))
 			return
@@ -100,7 +127,6 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 				req.Header.Add("Content-Type", "application/activity+json")
 				req.Header.Add("Date", strings.ReplaceAll(time.Now().UTC().Format(time.RFC1123), "UTC", "GMT"))
 				req.Header.Add("Host", req.Host)
-
 				if err := signer.SignRequest(privateKey, pubID, req, body); err != nil {
 					app.Logger().Error(fmt.Sprintf("Signing request failed: %s", err))
 					return

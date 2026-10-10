@@ -39,16 +39,16 @@ func TestIncomingActivitiesExplicitlyBoundRichText(t *testing.T) {
 			switch kind {
 			case "trail":
 				collection = "trails"
-				_, err = util.TrailFromActivity(*activity, f.app, author)
+				_, err = util.TrailFromActivity(context.Background(), *activity, f.app, author)
 			case "list":
 				collection = "lists"
-				_, err = util.ListFromActivity(*activity, f.app, author)
+				_, err = util.ListFromActivity(context.Background(), *activity, f.app, author)
 			case "comment":
 				collection, field = "comments", "text"
-				err = processCreateOrUpdateCommentActivity(*activity, f.app, author)
+				err = processCreateOrUpdateCommentActivity(context.Background(), *activity, f.app, author)
 			case "summit-log":
 				collection, field = "summit_logs", "text"
-				err = processCreateOrUpdateSummitLogActivity(*activity, f.app, author)
+				err = processCreateOrUpdateSummitLogActivity(context.Background(), *activity, f.app, author)
 			}
 			if err != nil {
 				t.Fatal(err)

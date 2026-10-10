@@ -132,7 +132,7 @@ func TestActivityPubTrailImportNormalizesTags(t *testing.T) {
 				tag.Content = pub.DefaultNaturalLanguageValue(name)
 				object.Tag = append(object.Tag, tag)
 			}
-			trail, err := util.TrailFromActivity(pub.Activity{Type: pub.CreateType, Object: object}, app, actor)
+			trail, err := util.TrailFromActivity(context.Background(), pub.Activity{Type: pub.CreateType, Object: object}, app, actor)
 			if err != nil {
 				t.Fatal(err)
 			}

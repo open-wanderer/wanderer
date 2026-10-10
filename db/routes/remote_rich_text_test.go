@@ -12,6 +12,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
+	"github.com/pocketbase/pocketbase/tools/types"
 	"pocketbase/util"
 )
 
@@ -65,6 +66,19 @@ func TestRemoteSyncExplicitlyBoundsRichText(t *testing.T) {
 	collection("waypoints", "description", 0)
 	collection("summit_logs", "text", 0)
 
+	// Pulled objects are checked against their author, an actor on the origin.
+	actors := core.NewBaseCollection("activitypub_actors")
+	actors.Fields.Add(
+		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "is_local"},
+		&core.DateField{Name: "last_fetched"},
+	)
+	save(actors)
+	remoteActor := core.NewRecord(actors)
+	remoteActor.Set("iri", "https://remote.example/api/v1/activitypub/user/remote")
+	remoteActor.Set("last_fetched", types.NowDateTime())
+	save(remoteActor)
+
 	longText := `<p onclick="blocked()"><strong>Safe ` + strings.Repeat(`'"&山🚲`, 4000) + `</strong></p>`
 	assertStored := func(collection, id, field string, limit int) {
 		t.Helper()
@@ -94,7 +108,7 @@ func TestRemoteSyncExplicitlyBoundsRichText(t *testing.T) {
 	}
 
 	trail := core.NewRecord(trails)
-	trail.Set("author", "remote-actor")
+	trail.Set("author", remoteActor.Id)
 	trail.Set("iri", "https://remote.example/api/v1/trail/remote-trail")
 	save(trail)
 	setPayload(map[string]any{
@@ -117,7 +131,7 @@ func TestRemoteSyncExplicitlyBoundsRichText(t *testing.T) {
 	}
 
 	list := core.NewRecord(lists)
-	list.Set("author", "remote-actor")
+	list.Set("author", remoteActor.Id)
 	list.Set("iri", "https://remote.example/api/v1/list/remote-list")
 	save(list)
 	setPayload(map[string]any{

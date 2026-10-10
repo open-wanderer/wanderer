@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -76,6 +75,8 @@ func ActivitypubActor(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, map[string]any{"actor": actor, "error": nil})
 }
 
+// ActivitypubActivityProcess handles signed deliveries to a local user's inbox.
+// Unlike the instance inbox it accepts signed content from any host.
 func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -88,11 +89,10 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	// X-Forwarded-Path header (which only the frontend can set correctly), any
 	// caller that cannot present the secret must be rejected before that header is
 	// used. Fail closed if the secret is not configured.
-	secret := os.Getenv("POCKETBASE_PROXY_SECRET")
-	if secret == "" {
-		return e.UnauthorizedError("POCKETBASE_PROXY_SECRET not configured", nil)
-	}
-	if subtle.ConstantTimeCompare([]byte(e.Request.Header.Get("X-Internal-Secret")), []byte(secret)) != 1 {
+	if err := util.RequireInternalProxy(e.Request); err != nil {
+		if errors.Is(err, util.ErrProxySecretNotConfigured) {
+			return e.UnauthorizedError("POCKETBASE_PROXY_SECRET not configured", nil)
+		}
 		return e.UnauthorizedError("Invalid internal secret", nil)
 	}
 
@@ -109,6 +109,9 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	err = activity.UnmarshalJSON(body)
 	if err != nil {
 		return err
+	}
+	if activity.Actor == nil || activity.Actor.GetID().String() == "" {
+		return e.BadRequestError("Missing actor", nil)
 	}
 
 	inbox := fmt.Sprintf("%s%s", origin, forwardedPath)
@@ -135,7 +138,7 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 		}
 	}
 
-	verified, err := util.VerifySignature(e.App, e.Request, actor.GetString("public_key"))
+	verified, err := util.VerifySignature(e.App, e.Request, body, actor.GetString("public_key"))
 	if err != nil || !verified {
 		e.App.Logger().Error(err.Error())
 		return e.UnauthorizedError("Invalid http signature", err)
@@ -151,11 +154,11 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	case pub.UpdateType:
 		fallthrough
 	case pub.CreateType:
-		err = federation.ProcessCreateOrUpdateActivity(e.App, actor, recipient, activity)
+		err = federation.ProcessCreateOrUpdateActivity(e.App, e.Request.Context(), actor, recipient, activity)
 	case pub.DeleteType:
 		err = federation.ProcessDeleteActivity(e.App, actor, activity)
 	case pub.AnnounceType:
-		err = federation.ProcessAnnounceActivity(e.App, actor, activity)
+		err = federation.ProcessAnnounceActivity(e.App, e.Request.Context(), actor, activity)
 	case pub.LikeType:
 		err = federation.ProcessLikeActivity(e.App, actor, activity)
 	}

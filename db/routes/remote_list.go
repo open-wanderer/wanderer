@@ -217,6 +217,10 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 		return localList, err
 	}
 
+	// Trails hosted elsewhere are imported from their own host first; the
+	// sync below only links them.
+	importForeignListTrails(app, ctx, iri, remoteMap)
+
 	err = app.RunInTransaction(func(txApp core.App) error {
 		remoteID, _ := remoteMap["id"].(string)
 
@@ -250,6 +254,41 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 	return localList, err
 }
 
+// maxForeignListTrailImports bounds the trails one list sync imports from
+// hosts other than the list's; the rest follow on later syncs.
+const maxForeignListTrailImports = 20
+
+// importTrail is federation.ImportTrail, replaceable in tests.
+var importTrail = federation.ImportTrail
+
+// importForeignListTrails imports the trails of a pulled list that are hosted
+// neither here nor on the list's host and not stored yet, each from its own
+// host. Failures leave the trail out of the list.
+func importForeignListTrails(app core.App, ctx context.Context, listIRI string, remoteMap map[string]any) {
+	expand, _ := remoteMap["expand"].(map[string]any)
+	trails, _ := expand["trails"].([]any)
+
+	imported := 0
+	for _, tData := range trails {
+		raw, _ := tData.(map[string]any)
+		iri, _ := raw["iri"].(string)
+		if !federation.IsForeignPulledObject(iri, listIRI) {
+			continue
+		}
+		if stored, _ := app.FindFirstRecordByData("trails", "iri", iri); stored != nil {
+			continue
+		}
+		if imported == maxForeignListTrailImports {
+			app.Logger().Info("deferring foreign list trails to a later sync", "list", listIRI)
+			return
+		}
+		imported++
+		if _, err := importTrail(app, ctx, iri); err != nil {
+			app.Logger().Warn("skipping pulled trail not importable from its host", "iri", iri, "list", listIRI, "error", err)
+		}
+	}
+}
+
 func syncListMetadata(record *core.Record, data map[string]any) {
 	delete(data, "id")
 	delete(data, "avatar")
@@ -273,32 +312,68 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 
 	localTrails := make([]string, 0, len(trails))
 
+	listAuthor, err := txApp.FindRecordById("activitypub_actors", list.GetString("author"))
+	if err != nil {
+		return err
+	}
+
 	for _, tData := range trails {
-		raw := tData.(map[string]any)
+		raw, ok := tData.(map[string]any)
+		if !ok {
+			continue
+		}
 		tID, _ := raw["id"].(string)
 		iri, _ := raw["iri"].(string)
 		if iri == "" {
 			iri = fmt.Sprintf("%s/api/v1/trail/%s", origin, tID)
 		}
 
-		trail, _ := txApp.FindFirstRecordByData("trails", "iri", iri)
+		// Only trails on the list origin's host may be written; others are linked if
+		// already stored, otherwise skipped.
+		authorIRI := ""
+		if expand, ok := raw["expand"].(map[string]any); ok {
+			if authorMap, ok := expand["author"].(map[string]any); ok {
+				authorIRI, _ = authorMap["iri"].(string)
+			}
+		}
+		checkedAuthorIRI := authorIRI
+		if checkedAuthorIRI == "" {
+			checkedAuthorIRI = listAuthor.GetString("iri")
+		}
+
+		trail, writable, err := federation.CheckPulledListTrail(txApp, iri, checkedAuthorIRI, list.GetString("iri"))
+		if err != nil {
+			txApp.Logger().Warn("skipping pulled trail", "iri", iri, "list", list.GetString("iri"), "error", err)
+			continue
+		}
+		if !writable {
+			if trail != nil {
+				localTrails = append(localTrails, trail.Id)
+			} else {
+				txApp.Logger().Warn("skipping pulled trail not stored from its own host", "iri", iri, "list", list.GetString("iri"))
+			}
+			continue
+		}
+
+		actor := listAuthor
+		if authorIRI != "" {
+			actor, err = federation.GetActorByIRI(txApp, ctx, authorIRI, false)
+			if err != nil {
+				return err
+			}
+		}
+		if _, err := federation.CheckRemoteObjectOwnership(txApp, "trails", iri, actor); err != nil {
+			txApp.Logger().Warn("skipping pulled trail", "iri", iri, "list", list.GetString("iri"), "error", err)
+			continue
+		}
+		author := actor.Id
+
 		if trail == nil {
 			trail = core.NewRecord(col)
 			trail.Set("needs_full_sync", true)
 		}
 
 		syncTrailMetadata(txApp, trail, raw)
-
-		author := list.GetString("author")
-		if expand, ok := raw["expand"].(map[string]any); ok {
-			if authorMap, ok := expand["author"].(map[string]any); ok {
-				actor, err := federation.GetActorByIRI(txApp, ctx, authorMap["iri"].(string), false)
-				if err != nil {
-					return err
-				}
-				author = actor.Id
-			}
-		}
 
 		trail.Set("author", author)
 		trail.Set("iri", iri)
