@@ -1,5 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
+    import { browser } from "$app/environment";
     import { page } from "$app/state";
     import ActorSearch from "$lib/components/actor_search.svelte";
     import type { DropdownItem } from "$lib/components/base/dropdown.svelte";
@@ -17,13 +18,14 @@
     import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
     import TrailInfoPanel from "$lib/components/trail/trail_info_panel.svelte";
     import { List, type ListFilter } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
+    import { Trail } from "$lib/models/trail";
     import {
         lists_delete,
+        lists_map_preview,
         lists_search_filter,
         lists_show,
     } from "$lib/stores/list_store";
-    import { trails_show } from "$lib/stores/trail_store";
+    import { trails_get_bounding_box, trails_show } from "$lib/stores/trail_store";
     import { currentUser } from "$lib/stores/user_store";
     import { handleFromRecordWithIRI } from "$lib/util/activitypub_util.js";
     import * as M from "maplibre-gl";
@@ -69,12 +71,237 @@
     let loadAllListsOnNextBack = false;
 
     let userQuery = $state("");
+    let overviewFitKey = $state("");
+    let overviewTrails: Trail[] = $state([]);
+    let overviewPreviewKey = $state("");
+    let overviewPreviewRequest = 0;
+    let overviewFitRequest = 0;
+    /** Real trail id -> list ids that contain it (for shared-route clicks). */
+    let overviewTrailListIds = $state(new Map<string, string[]>());
+    let sharedListChooser: { trailId: string; lists: List[] } | null =
+        $state(null);
 
     let selectedTrailIndex = $derived(selectedTrail ? 0 : null);
 
     let selectedTrailWaypoints = $derived(
         (selectedTrail as Trail | null)?.expand?.waypoints_via_trail,
     );
+
+    let mapTrails = $derived(
+        selectedTrail
+            ? [selectedTrail]
+            : selectedList
+              ? (selectedList.expand?.trails ?? [])
+              : overviewTrails,
+    );
+
+    function listIdFromOverviewTrail(trail: Trail) {
+        return trail.id?.split("#")[0] ?? trail.id;
+    }
+
+    function openOverviewTrail(trail: Trail) {
+        const realTrailId = trail.id?.includes("#")
+            ? trail.id.split("#").slice(1).join("#")
+            : trail.id;
+        const listIds =
+            (realTrailId
+                ? overviewTrailListIds.get(realTrailId)
+                : undefined) ??
+            (listIdFromOverviewTrail(trail)
+                ? [listIdFromOverviewTrail(trail)!]
+                : []);
+        const matching = listIds
+            .map((id) => lists.find((item) => item.id === id))
+            .filter((item): item is List => !!item);
+
+        if (matching.length === 1) {
+            sharedListChooser = null;
+            setCurrentList(matching[0]);
+            return;
+        }
+        if (matching.length > 1) {
+            sharedListChooser = {
+                trailId: realTrailId ?? trail.id ?? "",
+                lists: matching,
+            };
+            return;
+        }
+    }
+
+    async function refreshOverviewPreview(sourceLists: List[]) {
+        const listIds = sourceLists
+            .map((item) => item.id)
+            .filter((id): id is string => !!id);
+        const key = listIds.join(",");
+        if (key === overviewPreviewKey && overviewTrails.length > 0) {
+            return;
+        }
+        overviewPreviewKey = key;
+        const request = ++overviewPreviewRequest;
+
+        if (listIds.length === 0) {
+            overviewTrails = [];
+            overviewTrailListIds = new Map();
+            return;
+        }
+
+        try {
+            const preview = await lists_map_preview(listIds);
+            if (request !== overviewPreviewRequest) {
+                return;
+            }
+            const byTrailId = new Map<
+                string,
+                {
+                    geometry: (typeof preview.lists)[0]["trails"][0];
+                    listIds: string[];
+                    listName: string;
+                    author: string;
+                }
+            >();
+
+            for (const listPreview of preview.lists) {
+                const list = sourceLists.find(
+                    (item) => item.id === listPreview.id,
+                );
+                if (!list || listPreview.trails.length === 0) {
+                    continue;
+                }
+
+                for (const geometry of listPreview.trails) {
+                    const hasPoint =
+                        geometry.lat != null &&
+                        geometry.lon != null &&
+                        !(geometry.lat === 0 && geometry.lon === 0);
+                    if (!geometry.polyline && !hasPoint) {
+                        continue;
+                    }
+
+                    const existing = byTrailId.get(geometry.id);
+                    if (existing) {
+                        if (!existing.listIds.includes(listPreview.id)) {
+                            existing.listIds.push(listPreview.id);
+                        }
+                    } else {
+                        byTrailId.set(geometry.id, {
+                            geometry,
+                            listIds: [listPreview.id],
+                            listName: list.name,
+                            author: list.author,
+                        });
+                    }
+                }
+            }
+
+            const nextTrails: Trail[] = [];
+            const nextListIds = new Map<string, string[]>();
+
+            for (const [trailId, entry] of byTrailId) {
+                const { geometry, listIds: membership, listName, author } =
+                    entry;
+                // Keep first list id in the feature id for stable overview colouring.
+                const trail = new Trail(listName, {
+                    id: `${membership[0]}#${trailId}`,
+                    lat: geometry.lat,
+                    lon: geometry.lon,
+                });
+                trail.polyline = geometry.polyline;
+                trail.author = author;
+                trail.min_lat = geometry.min_lat;
+                trail.max_lat = geometry.max_lat;
+                trail.min_lon = geometry.min_lon;
+                trail.max_lon = geometry.max_lon;
+                nextTrails.push(trail);
+                nextListIds.set(trailId, membership);
+            }
+
+            overviewTrailListIds = nextListIds;
+            overviewTrails = nextTrails;
+        } catch {
+            if (request === overviewPreviewRequest) {
+                overviewTrails = [];
+                overviewTrailListIds = new Map();
+            }
+        }
+    }
+
+    async function fitOverviewOrFallback() {
+        const request = ++overviewFitRequest;
+        if (overviewTrails.length) {
+            mapWithElevation?.fitToBounds();
+            return;
+        }
+        try {
+            const bbox = await trails_get_bounding_box();
+            if (request !== overviewFitRequest) {
+                return;
+            }
+            if (selectedList || selectedTrail || overviewTrails.length > 0) {
+                return;
+            }
+            if (
+                bbox.has_trails ??
+                (bbox.min_lon != 0 ||
+                    bbox.max_lat != 0 ||
+                    bbox.max_lon != 0 ||
+                    bbox.min_lat != 0)
+            ) {
+                map?.fitBounds(
+                    [
+                        [bbox.min_lon, bbox.min_lat],
+                        [bbox.max_lon, bbox.max_lat],
+                    ],
+                    { animate: true, padding: 64, maxZoom: 12 },
+                );
+            }
+        } catch {
+            // Keep the default map view if the bounding box is unavailable.
+        }
+    }
+
+    $effect(() => {
+        if (!browser || selectedList || selectedTrail) {
+            return;
+        }
+        const sourceLists = lists;
+        untrack(() => {
+            void refreshOverviewPreview(sourceLists);
+        });
+    });
+
+    $effect(() => {
+        if (!browser) {
+            return;
+        }
+        if (selectedList || selectedTrail) {
+            overviewFitKey = "";
+            return;
+        }
+        if (!map) {
+            return;
+        }
+        const geometryKey = overviewTrails.map((trail) => trail.id).join(",");
+        const key = [
+            filter.q,
+            filter.author ?? "",
+            String(filter.public),
+            String(filter.shared),
+            filter.sort ?? "",
+            filter.sortOrder ?? "",
+            overviewPreviewKey,
+            geometryKey,
+        ].join("|");
+        if (overviewTrails.length === 0 && loading) {
+            return;
+        }
+        if (overviewFitKey === key) {
+            return;
+        }
+        overviewFitKey = key;
+        untrack(() => {
+            fitOverviewOrFallback();
+        });
+    });
 
     onMount(() => {
         if (page.params.handle && page.params.id) {
@@ -123,11 +350,6 @@
             selectedTrail = null;
         } else if (selectedList) {
             selectedList = null;
-            map?.flyTo({
-                animate: true,
-                zoom: 1,
-                center: [0, 0],
-            });
         }
         if (loadAllListsOnNextBack) {
             await updateFilter(false);
@@ -176,6 +398,7 @@
     async function loadNextPage() {
         pagination.page += 1;
         const response = await lists_search_filter(filter, pagination.page);
+        overviewPreviewKey = "";
         lists = response.items;
         pagination.page = response.page;
         pagination.totalPages = response.totalPages;
@@ -187,15 +410,11 @@
         if ((selectedList || selectedTrail) && resetMap) {
             selectedList = null;
             selectedTrail = null;
-            map?.flyTo({
-                animate: true,
-                zoom: 1,
-                center: [0, 0],
-            });
         }
 
         pagination.page = 1;
         const response = await lists_search_filter(filter, pagination.page);
+        overviewPreviewKey = "";
         lists = response.items;
         pagination.page = response.page;
         pagination.totalPages = response.totalPages;
@@ -377,17 +596,26 @@
     </div>
     <div id="trail-map">
         <MapWithElevationMaplibre
-            trails={selectedTrail
-                ? [selectedTrail]
-                : (selectedList?.expand?.trails ?? [])}
+            trails={mapTrails}
             waypoints={selectedTrailWaypoints}
             bind:map
             bind:this={mapWithElevation}
             bind:markers
             activeTrail={selectedTrailIndex}
-            fitBounds="animate"
+            fitBounds={selectedList || selectedTrail ? "animate" : "off"}
+            clusterTrails={!selectedList && !selectedTrail}
+            onUnclusteredClick={(_, trail) => {
+                openOverviewTrail(trail);
+            }}
             onselect={(trail) => {
-                selectedTrail = trail;
+                if (selectedList && !selectedTrail) {
+                    selectTrail(trail);
+                }
+            }}
+            oninit={() => {
+                if (!selectedList && !selectedTrail) {
+                    fitOverviewOrFallback();
+                }
             }}
             showInfoPopup={true}
             showTerrain={true}
@@ -402,6 +630,55 @@
     {#if selectedList}
         <ListShareModal bind:this={listShareModal} list={selectedList}
         ></ListShareModal>
+    {/if}
+
+    {#if sharedListChooser}
+        <div
+            class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shared-list-chooser-title"
+        >
+            <button
+                type="button"
+                class="absolute inset-0 cursor-default"
+                aria-label={$_("close")}
+                onclick={() => (sharedListChooser = null)}
+            ></button>
+            <div
+                class="relative z-10 w-full max-w-sm rounded-xl bg-background p-4 shadow-lg text-content"
+            >
+                <h2
+                    id="shared-list-chooser-title"
+                    class="mb-3 text-base font-semibold"
+                >
+                    {$_("select-list")}
+                </h2>
+                <ul class="flex flex-col gap-2">
+                    {#each sharedListChooser.lists as list (list.id)}
+                        <li>
+                            <button
+                                type="button"
+                                class="w-full rounded-xl border border-input-border px-3 py-2 text-left hover:bg-menu-item-background-hover"
+                                onclick={() => {
+                                    sharedListChooser = null;
+                                    setCurrentList(list);
+                                }}
+                            >
+                                {list.name}
+                            </button>
+                        </li>
+                    {/each}
+                </ul>
+                <button
+                    type="button"
+                    class="btn-secondary mt-3 w-full"
+                    onclick={() => (sharedListChooser = null)}
+                >
+                    {$_("cancel")}
+                </button>
+            </div>
+        </div>
     {/if}
 </main>
 
