@@ -1,6 +1,6 @@
 import type { TrailFilter } from "$lib/models/trail";
 import { describe, expect, it, vi } from "vitest";
-import { trails_search_filter } from "./trail_store";
+import { fetchGPX, trails_search_filter } from "./trail_store";
 
 async function requestedFilter(near: TrailFilter["near"]): Promise<string> {
     const filter: TrailFilter = {
@@ -81,4 +81,36 @@ describe("trail search radius", () => {
             expect(filter).toContain("distance >= 0");
         },
     );
+});
+
+describe("fetchGPX", () => {
+    it("returns empty string when trail.gpx is missing", async () => {
+        const result = await fetchGPX({});
+        expect(result).toBe("");
+    });
+
+    it("fetches GPX content using getFileURL", async () => {
+        const mockTrail = { collectionId: "trails_col", id: "t123", gpx: "route.gpx" };
+        const mockFetch = vi.fn(async () => new Response("<gpx>test</gpx>"));
+
+        const result = await fetchGPX(mockTrail, mockFetch);
+
+        expect(result).toBe("<gpx>test</gpx>");
+        expect(mockFetch).toHaveBeenCalledWith("/api/v1/files/trails_col/t123/route.gpx", undefined);
+    });
+
+    it("passes AbortSignal to fetch and propagates abort error", async () => {
+        const mockTrail = { collectionId: "trails_col", id: "t123", gpx: "route.gpx" };
+        const controller = new AbortController();
+        const mockFetch = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => {
+            if (options?.signal?.aborted) {
+                throw new DOMException("The user aborted a request.", "AbortError");
+            }
+            return new Response("<gpx>test</gpx>");
+        });
+
+        controller.abort();
+        await expect(fetchGPX(mockTrail, mockFetch, controller.signal)).rejects.toThrow("The user aborted a request.");
+        expect(mockFetch).toHaveBeenCalledWith("/api/v1/files/trails_col/t123/route.gpx", { signal: controller.signal });
+    });
 });
