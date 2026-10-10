@@ -271,6 +271,13 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 		return nil
 	}
 
+	object := r.GetString("iri")
+	if object == "" {
+		// Older plugin imports lack an IRI. Only local authors reach this path;
+		// use the native Summit Book identity without resaving a deleted log.
+		object = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, r.Id)
+	}
+
 	// The log was handed to this author's followers when it was created, so
 	// they are told regardless of what happened to the trail. So were the
 	// actors its text mentioned, whose inboxes the Create and Update
@@ -279,7 +286,7 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	if err != nil {
 		return err
 	}
-	mentioned, err := recordedInboxes(app, r.GetString("iri"))
+	mentioned, err := recordedInboxes(app, object)
 	if err != nil {
 		return err
 	}
@@ -317,7 +324,6 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
-	object := r.GetString("iri")
 	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
 	for _, inbox := range mentioned {
 		cc.Append(pub.IRI(inbox))
