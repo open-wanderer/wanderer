@@ -23,6 +23,53 @@ export function haversineCumulatedDistanceWgs84(path: Position[]): number[] {
     return distances; // Array of cumulative distances in meters
 }
 
+// Track points this much farther from a waypoint than the nearest one count as
+// equally near, about the error of a phone GPS fix.
+const WAYPOINT_PASS_TOLERANCE_METERS = 25;
+
+// Returns the index of the track point a waypoint belongs to: the nearest one.
+// Where the track covers the same ground twice (out-and-back, lollipop), several
+// points are about as near, so pick between them by the photo's time if both it
+// and the track have timestamps, else by the previously stored distance from start.
+export function waypointTrackIndex(
+    positions: Position[],
+    times: Date[],
+    cumulatedDistance: number[],
+    waypoint: { lat: number, lon: number, _time?: Date, distance_from_start?: number },
+): number {
+    const offTrack = positions.map(([lon, lat]) => haversineDistance(lat, lon, waypoint.lat, waypoint.lon));
+
+    let nearest = -1;
+    for (let i = 0; i < offTrack.length; i++) {
+        if (nearest < 0 || offTrack[i] < offTrack[nearest]) {
+            nearest = i;
+        }
+    }
+
+    const photoTime = times.length === positions.length ? waypoint._time?.getTime() : undefined;
+    const storedDistance = waypoint.distance_from_start || undefined;
+    if (nearest < 0 || (photoTime === undefined && storedDistance === undefined)) {
+        return nearest;
+    }
+
+    const maxOffTrack = offTrack[nearest] + WAYPOINT_PASS_TOLERANCE_METERS;
+    let best = nearest;
+    let bestScore = Infinity;
+    for (let i = 0; i < offTrack.length; i++) {
+        if (offTrack[i] > maxOffTrack) {
+            continue;
+        }
+        const score = photoTime !== undefined
+            ? Math.abs(times[i].getTime() - photoTime)
+            : Math.abs(cumulatedDistance[i] - storedDistance!);
+        if (score < bestScore) {
+            best = i;
+            bestScore = score;
+        }
+    }
+    return best;
+}
+
 export function smoothElevations(positions: Position[], windowSize: number): Position[] {
     // Ensure windowSize is valid (at least 1)
     if (windowSize < 1) {

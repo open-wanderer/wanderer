@@ -11,6 +11,11 @@ import (
 
 const defaultWaypointMergeRadius = 50
 
+// Photos taken this far apart in time are not merged even when they are close,
+// since they likely come from different passes over a stretch of trail that is
+// walked twice (out-and-back, lollipop).
+const waypointMergeMaxTimeGapMillis = 15 * 60 * 1000
+
 type waypointMergeSettings struct {
 	Enabled bool
 	Radius  float64
@@ -23,9 +28,10 @@ type waypointClusterRequest struct {
 }
 
 type waypointClusterPhoto struct {
-	ID  string  `json:"id"`
-	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
+	ID   string  `json:"id"`
+	Lat  float64 `json:"lat"`
+	Lon  float64 `json:"lon"`
+	Time *int64  `json:"time,omitempty"`
 }
 
 type waypointClusterWaypoint struct {
@@ -42,6 +48,8 @@ type waypointPhotoCluster struct {
 	Count    int      `json:"-"`
 	Lat      float64  `json:"lat"`
 	Lon      float64  `json:"lon"`
+	MinTime  *int64   `json:"-"`
+	MaxTime  *int64   `json:"-"`
 }
 
 type categorySettings struct {
@@ -148,7 +156,7 @@ func clusterWaypointPhotos(photos []waypointClusterPhoto, waypoints []waypointCl
 		matchingClusterIndex := -1
 		for i, cluster := range clusters {
 			distanceToCenter := util.HaversineDistance(cluster.Lat, cluster.Lon, photo.Lat, photo.Lon)
-			if distanceToCenter <= mergeSettings.Radius {
+			if distanceToCenter <= mergeSettings.Radius && photoTimeFitsCluster(cluster, photo) {
 				matchingClusterIndex = i
 				break
 			}
@@ -164,14 +172,24 @@ func clusterWaypointPhotos(photos []waypointClusterPhoto, waypoints []waypointCl
 	return clusters
 }
 
+func photoTimeFitsCluster(cluster waypointPhotoCluster, photo waypointClusterPhoto) bool {
+	if photo.Time == nil || cluster.MinTime == nil {
+		return true
+	}
+	return *photo.Time >= *cluster.MinTime-waypointMergeMaxTimeGapMillis &&
+		*photo.Time <= *cluster.MaxTime+waypointMergeMaxTimeGapMillis
+}
+
 func newWaypointPhotoCluster(photo waypointClusterPhoto) waypointPhotoCluster {
 	return waypointPhotoCluster{
-		Photos: []string{photo.ID},
-		SumLat: photo.Lat,
-		SumLon: photo.Lon,
-		Count:  1,
-		Lat:    photo.Lat,
-		Lon:    photo.Lon,
+		Photos:  []string{photo.ID},
+		SumLat:  photo.Lat,
+		SumLon:  photo.Lon,
+		Count:   1,
+		Lat:     photo.Lat,
+		Lon:     photo.Lon,
+		MinTime: photo.Time,
+		MaxTime: photo.Time,
 	}
 }
 
@@ -194,4 +212,12 @@ func addPhotoToWaypointCluster(cluster *waypointPhotoCluster, photo waypointClus
 	cluster.Count++
 	cluster.Lat = cluster.SumLat / float64(cluster.Count)
 	cluster.Lon = cluster.SumLon / float64(cluster.Count)
+	if photo.Time != nil {
+		if cluster.MinTime == nil || *photo.Time < *cluster.MinTime {
+			cluster.MinTime = photo.Time
+		}
+		if cluster.MaxTime == nil || *photo.Time > *cluster.MaxTime {
+			cluster.MaxTime = photo.Time
+		}
+	}
 }
