@@ -1,9 +1,14 @@
 package hooks
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
+	"strings"
+
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
@@ -102,8 +107,15 @@ func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) erro
 			return e.Next()
 		}
 
-		// only rewrite a value the mapped field would reject
+		// generic OIDC providers without a preferred_username claim, such as
+		// Cloudflare Access, would otherwise get a generated name or their
+		// opaque subject id; the display name is more recognisable
 		username := e.OAuth2User.Username
+		if username == "" || username == e.OAuth2User.Id {
+			username = e.OAuth2User.Name
+		}
+
+		// only rewrite a value the mapped field would reject
 		if field.ValidatePlainValue(username) != nil {
 			username = util.SanitizeUsername(username, field.Min, field.Max)
 		}
@@ -118,6 +130,49 @@ func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) erro
 		// checks it is free inside the create transaction, and generates a
 		// username if it is not
 		e.OAuth2User.Username = username
+
+		return e.Next()
+	}
+}
+
+// OAuth2EmailHandler keeps the email of accounts created through generic OIDC
+// providers that do not send an email_verified claim, such as Cloudflare
+// Access.
+//
+// PocketBase only takes the email from the normalised OAuth2 user when the
+// provider marks it as verified, so these accounts end up without one. The raw
+// claim is assigned to new accounts only, unverified, and only when no other
+// account uses it: PocketBase links existing accounts by verified emails alone,
+// and an unverified one must not do that either.
+func OAuth2EmailHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+	return func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+		if !e.IsNewRecord || e.OAuth2User == nil || e.Collection == nil || e.OAuth2User.Email != "" {
+			return e.Next()
+		}
+
+		// a value submitted by the client takes precedence
+		if v, _ := e.CreateData[core.FieldNameEmail].(string); v != "" {
+			return e.Next()
+		}
+
+		email, _ := e.OAuth2User.RawUser["email"].(string)
+		email = strings.TrimSpace(email)
+		if email == "" || is.EmailFormat.Validate(email) != nil {
+			return e.Next()
+		}
+
+		if _, err := e.App.FindAuthRecordByEmail(e.Collection, email); err == nil {
+			return e.Next()
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		// passed as create data rather than as the OAuth2 user email, so that
+		// PocketBase does not mark the new account as verified
+		if e.CreateData == nil {
+			e.CreateData = map[string]any{}
+		}
+		e.CreateData[core.FieldNameEmail] = email
 
 		return e.Next()
 	}
