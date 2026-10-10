@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
@@ -77,9 +79,18 @@ func main() {
 }
 
 func initializeMeilisearch() meilisearch.ServiceManager {
-	return meilisearch.New(
-		os.Getenv("MEILI_URL"),
-		meilisearch.WithAPIKey(os.Getenv("MEILI_MASTER_KEY")),
+	return newSearchClient(os.Getenv("MEILI_URL"), os.Getenv("MEILI_MASTER_KEY"), searchRequestTimeout)
+}
+
+// searchRequestTimeout bounds a single request to Meilisearch. Without it, a
+// Meilisearch that stops answering holds a hook or the nightly repair, and the
+// repair's lock with it, until the server restarts.
+const searchRequestTimeout = 2 * time.Minute
+
+func newSearchClient(url, key string, timeout time.Duration) meilisearch.ServiceManager {
+	return meilisearch.New(url,
+		meilisearch.WithAPIKey(key),
+		meilisearch.WithCustomClient(&http.Client{Timeout: timeout}),
 	)
 }
 
@@ -135,6 +146,7 @@ func registerMigrations(app *pocketbase.PocketBase) {
 }
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
+	registerSearchBackupHooks(app)
 	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2UsernameHandler())
 
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
@@ -290,6 +302,15 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 			app.Logger().Error(warning)
 		}
 	})
+
+	repairSchedule := os.Getenv("POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE")
+	if len(repairSchedule) == 0 {
+		repairSchedule = "0 4 * * *"
+	}
+
+	app.Cron().MustAdd("search-repair", repairSchedule, func() {
+		runSearchRepair(app, client)
+	})
 }
 
 func initData(app core.App, client meilisearch.ServiceManager) error {
@@ -300,8 +321,18 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 	initPlugins(app)
 	initMeilisearchConfig(client)
 	go func() {
-		backfillPolylines(app)
-		initMeilisearchDocuments(app, client)
+		backfilled := backfillPolylines(app)
+		rebuilt, err := initMeilisearchDocuments(app, client)
+		if err != nil {
+			app.Logger().Error(fmt.Sprintf("Unable to initialize search documents: %v", err))
+		}
+		// The backfill saves without hooks, so its trails are reindexed here.
+		if err := reindexSearchTrails(app, client, backfilled); err != nil {
+			app.Logger().Error(fmt.Sprintf("Unable to reindex trails with backfilled polylines: %v", err))
+		}
+		if err := repairRebuiltSearchIndexes(app, client, rebuilt); err != nil {
+			app.Logger().Error(fmt.Sprintf("Unable to repair rebuilt search indexes: %v", err))
+		}
 	}()
 	return nil
 }
@@ -315,11 +346,13 @@ func initPlugins(app core.App) {
 	}
 }
 
-func backfillPolylines(app core.App) {
+// backfillPolylines returns the ids of the trails it updated.
+func backfillPolylines(app core.App) []string {
 	const pageSize int64 = 100
 	var lastID string
 	var processed int
 	var failed int
+	var backfilled []string
 
 	log.Printf("backfill polyline started")
 	defer func() {
@@ -351,10 +384,13 @@ func backfillPolylines(app core.App) {
 				log.Printf("backfill polyline failed for trail %s (%q), gpx=%q: %v", r.Id, r.GetString("name"), r.GetString("gpx"), err)
 			} else {
 				processed++
+				backfilled = append(backfilled, r.Id)
 			}
 			lastID = r.Id
 		}
 	}
+
+	return backfilled
 }
 
 func initCategories(app core.App) error {
@@ -389,8 +425,9 @@ func initCategories(app core.App) error {
 	return util.PrepopulateDefaultCategoryIcons(app)
 }
 
-func initMeilisearchConfig(client meilisearch.ServiceManager) {
-	configs := map[string]meilisearch.Settings{
+// searchIndexSettings are the settings of each search index.
+func searchIndexSettings() map[string]meilisearch.Settings {
+	return map[string]meilisearch.Settings{
 		"trails": {
 			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
 			FilterableAttributes: []string{
@@ -419,120 +456,44 @@ func initMeilisearchConfig(client meilisearch.ServiceManager) {
 			RankingRules:         []string{"words", "typo", "proximity", "attribute", "sort", "exactness"},
 		},
 	}
+}
 
-	for indexName, settings := range configs {
-		_, err := client.GetIndex(indexName)
-		if err != nil {
-			log.Printf("Index [%s] not found, creating it...", indexName)
-			task, err := client.CreateIndex(&meilisearch.IndexConfig{
-				Uid:        indexName,
-				PrimaryKey: "id",
-			})
-			if err != nil {
-				log.Printf("Failed to create index [%s]: %v", indexName, err)
-				continue
-			}
-
-			_, err = client.WaitForTask(task.TaskUID, 0)
-			if err != nil {
-				log.Printf("Error waiting for index creation [%s]: %v", indexName, err)
-				continue
-			}
+func initMeilisearchConfig(client meilisearch.ServiceManager) {
+	for indexName, settings := range searchIndexSettings() {
+		if err := ensureSearchIndex(client, indexName, settings); err != nil {
+			log.Printf("Failed to set up index [%s]: %v", indexName, err)
+			continue
 		}
-
-		_, err = client.Index(indexName).UpdateSettings(&settings)
-		if err != nil {
-			log.Printf("Failed to sync settings for index [%s]: %v", indexName, err)
-		} else {
-			log.Printf("Settings synced for index [%s]", indexName)
-		}
+		log.Printf("Settings synced for index [%s]", indexName)
 	}
 }
 
-func initMeilisearchDocuments(app core.App, client meilisearch.ServiceManager) error {
-	// --- Trails ---
-	const pageSize int64 = 100
-	var page int64 = 0
+// searchIndexCreateTimeout bounds the wait for a new index, which queues
+// behind every task Meilisearch already has, while the caller holds up the
+// start or the nightly repair.
+var searchIndexCreateTimeout = time.Minute
 
-	// Clear index before re-indexing
-	if _, err := client.Index("trails").DeleteAllDocuments(nil); err != nil {
-		return err
-	}
-
-	for {
-		trails := []*core.Record{}
-		err := app.RecordQuery("trails").
-			Limit(pageSize).
-			Offset(page * pageSize).
-			All(&trails)
+// ensureSearchIndex creates an index that does not exist, with id as its
+// primary key, and applies its settings.
+func ensureSearchIndex(client meilisearch.ServiceManager, indexName string, settings meilisearch.Settings) error {
+	if _, err := client.GetIndex(indexName); err != nil {
+		log.Printf("Index [%s] not found, creating it...", indexName)
+		task, err := client.CreateIndex(&meilisearch.IndexConfig{
+			Uid:        indexName,
+			PrimaryKey: "id",
+		})
 		if err != nil {
-			return err
+			return fmt.Errorf("create index: %w", err)
 		}
-		if len(trails) == 0 {
-			break
+		ctx, cancel := context.WithTimeout(context.Background(), searchIndexCreateTimeout)
+		defer cancel()
+		if _, err := client.WaitForTaskWithContext(ctx, task.TaskUID, 0); err != nil {
+			return fmt.Errorf("wait for index creation: %w", err)
 		}
-
-		if err := util.IndexTrails(app, trails, client); err != nil {
-			// Omit this page from the rebuild and advance to the next one.
-			app.Logger().Warn(fmt.Sprintf("Unable to index trails page %d: %v", page, err))
-		}
-
-		page++
 	}
 
-	// --- Lists ---
-	if _, err := client.Index("lists").DeleteAllDocuments(nil); err != nil {
-		return err
+	if _, err := client.Index(indexName).UpdateSettings(&settings); err != nil {
+		return fmt.Errorf("sync settings: %w", err)
 	}
-
-	page = 0
-	for {
-		lists := []*core.Record{}
-		err := app.RecordQuery("lists").
-			Limit(pageSize).
-			Offset(page * pageSize).
-			All(&lists)
-		if err != nil {
-			return err
-		}
-		if len(lists) == 0 {
-			break
-		}
-
-		if err := util.IndexLists(app, lists, client); err != nil {
-			// Omit this page from the rebuild and advance to the next one.
-			app.Logger().Warn(fmt.Sprintf("Unable to index list page %d: %v", page, err))
-		}
-
-		page++
-	}
-
-	// --- Actors ---
-	if _, err := client.Index("actors").DeleteAllDocuments(nil); err != nil {
-		return err
-	}
-
-	page = 0
-	for {
-		actors := []*core.Record{}
-		err := app.RecordQuery("activitypub_actors").
-			Limit(pageSize).
-			Offset(page * pageSize).
-			All(&actors)
-		if err != nil {
-			return err
-		}
-		if len(actors) == 0 {
-			break
-		}
-
-		if err := util.IndexActors(actors, client); err != nil {
-			// Omit this page from the rebuild and advance to the next one.
-			app.Logger().Warn(fmt.Sprintf("Unable to index actor page %d: %v", page, err))
-		}
-
-		page++
-	}
-
 	return nil
 }

@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -476,4 +477,49 @@ func setupListIndexApp(t *testing.T) (*core.BaseApp, *core.Record) {
 		"domain":             "ignored.example",
 	})
 	return app, author
+}
+
+// A remote list's totals come from the local copies of its trails, which a
+// full sync stores; building its document never contacts the remote instance.
+func TestDocumentFromListRecordRemoteTotalsAreLocal(t *testing.T) {
+	contacted := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contacted = true
+	}))
+	defer server.Close()
+
+	author := newActorRecord("remoteauthor001", "remote", false, "remote.example")
+	list := newListRecord("remotelist00001", author.Id)
+	list.Set("iri", server.URL+"/api/v1/list/remote")
+
+	trails := core.NewBaseCollection("trails")
+	trails.Fields.Add(
+		&core.NumberField{Name: "distance"},
+		&core.NumberField{Name: "elevation_gain"},
+		&core.NumberField{Name: "elevation_loss"},
+		&core.NumberField{Name: "duration"},
+	)
+	var synced []*core.Record
+	for i, distance := range []float64{1200, 800} {
+		trail := core.NewRecord(trails)
+		trail.Id = fmt.Sprintf("syncedtrail0000%d", i)
+		trail.Set("distance", distance)
+		trail.Set("elevation_gain", 100)
+		trail.Set("elevation_loss", 50)
+		trail.Set("duration", 30)
+		synced = append(synced, trail)
+	}
+	list.Set("trails", []string{synced[0].Id, synced[1].Id})
+	list.SetExpand(map[string]any{"trails": synced})
+
+	document, err := documentFromListRecord(list, author, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contacted {
+		t.Fatal("building a remote list's document contacted its instance")
+	}
+	if document["distance"] != 2000.0 || document["elevation_gain"] != 200.0 || document["trails"] != 2 || document["domain"] != "remote.example" {
+		t.Fatalf("document = %#v; want totals of the two synced trails", document)
+	}
 }

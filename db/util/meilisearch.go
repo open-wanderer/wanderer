@@ -1,19 +1,31 @@
 package util
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"path"
+	"slices"
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// SearchWriteOptions is passed with every document write. Naming the primary
+// key keeps a write into a missing index from failing: trail documents have
+// several fields ending in "id", so Meilisearch cannot infer it.
+var SearchWriteOptions = &meilisearch.DocumentOptions{PrimaryKey: meilisearch.StringPtr("id")}
+
+// SearchDocumentVersions identifies the shape of the documents each index is
+// built from. Bump an index's version whenever its document builder changes,
+// or a migration rewrites indexed fields without running hooks, so instances
+// rebuild that index on their next start. The nightly repair compares trail
+// and list documents in full but actor documents by preferred_username only,
+// so a change to any other actor field is only picked up through a bump.
+var SearchDocumentVersions = map[string]int{
+	"trails": 1,
+	"lists":  1,
+	"actors": 1,
+}
 
 func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {
 	if author == nil {
@@ -111,34 +123,16 @@ func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares 
 	}
 
 	if includeShares {
-		trailShares := r.ExpandedAll("trail_share_via_trail")
-		if trailShares != nil {
-			sharedIDs := make([]string, len(trailShares))
-			for i, v := range trailShares {
-				sharedIDs[i] = v.GetString("actor")
-			}
-
-			document["shares"] = sharedIDs
-
-		} else {
-			document["shares"] = []string{}
-		}
+		document["shares"] = sharedActorIDs(r.ExpandedAll("trail_share_via_trail"))
 
 		trailLikes := r.ExpandedAll("trail_like_via_trail")
-		if trailLikes != nil {
-			likeIDs := make([]string, len(trailLikes))
-			for i, v := range trailLikes {
-				likeIDs[i] = v.GetString("actor")
-			}
-
-			document["likes"] = likeIDs
-			document["like_count"] = len(trailLikes)
-
-		} else {
-			document["likes"] = []string{}
-			document["like_count"] = 0
+		likeIDs := make([]string, len(trailLikes))
+		for i, v := range trailLikes {
+			likeIDs[i] = v.GetString("actor")
 		}
-
+		slices.Sort(likeIDs)
+		document["likes"] = likeIDs
+		document["like_count"] = len(trailLikes)
 	}
 
 	return document, nil
@@ -173,6 +167,9 @@ func getStoredBounds(r *core.Record) [4]float64 {
 	return [4]float64{minLat, maxLat, minLon, maxLon}
 }
 
+// documentFromListRecord builds a list's search document. Its totals are
+// summed from the list's trails in this database; a remote list has local
+// copies of its trails once it has been opened here and fully synced.
 func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
 	if author == nil {
 		return nil, fmt.Errorf("list %s has missing author reference %q", r.Id, r.GetString("author"))
@@ -184,27 +181,11 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalDuration := 0.0
 	trails := len(r.GetStringSlice("trails"))
 
-	if r.GetString("iri") != "" && !author.GetBool("is_local") {
-		doc, err := documentFromRemoteRecord(r, "lists")
-		if err == nil {
-			totalElevationGain = doc["elevation_gain"].(float64)
-			totalElevationLoss = doc["elevation_loss"].(float64)
-			totalDistance = doc["distance"].(float64)
-			totalDuration = doc["duration"].(float64)
-
-			trails = int(doc["trails"].(float64))
-		}
-
-	} else {
-		allTrails := r.ExpandedAll("trails")
-
-		for _, t := range allTrails {
-			totalElevationGain += t.GetFloat("elevation_gain")
-			totalElevationLoss += t.GetFloat("elevation_loss")
-			totalDistance += t.GetFloat("distance")
-			totalDuration += t.GetFloat("duration")
-
-		}
+	for _, t := range r.ExpandedAll("trails") {
+		totalElevationGain += t.GetFloat("elevation_gain")
+		totalElevationLoss += t.GetFloat("elevation_loss")
+		totalDistance += t.GetFloat("distance")
+		totalDuration += t.GetFloat("duration")
 	}
 
 	domain := ""
@@ -232,21 +213,15 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	}
 
 	if includeShares {
-		listShares := r.ExpandedAll("list_share_via_list")
-		if listShares != nil {
-			sharedIDs := make([]string, len(listShares))
-			for i, v := range listShares {
-				sharedIDs[i] = v.GetString("actor")
-			}
-
-			document["shares"] = sharedIDs
-
-		} else {
-			document["shares"] = []string{}
-		}
+		document["shares"] = sharedActorIDs(r.ExpandedAll("list_share_via_list"))
 	}
 
 	return document, nil
+}
+
+// ActorSearchDocument builds the search document of an actor.
+func ActorSearchDocument(r *core.Record) (map[string]any, error) {
+	return documentFromActorRecord(r)
 }
 
 func documentFromActorRecord(r *core.Record) (map[string]any, error) {
@@ -264,94 +239,90 @@ func documentFromActorRecord(r *core.Record) (map[string]any, error) {
 	return document, nil
 }
 
-func documentFromRemoteRecord(r *core.Record, index string) (map[string]any, error) {
-	client := &http.Client{}
+// trailSearchExpands are the relations a trail's full search document reads.
+var trailSearchExpands = []string{"tags", "category", "trail_share_via_trail", "trail_like_via_trail", "author"}
 
-	if r.GetString("iri") == "" {
-		return nil, fmt.Errorf("record has no iri")
+// TrailSearchDocuments builds the full search documents of a page of trails,
+// expanding their relations together. documents[i] is nil when errs[i] says
+// why record i could not be indexed.
+func TrailSearchDocuments(app core.App, records []*core.Record) (documents []map[string]any, errs []error) {
+	return searchDocumentsOf(app, records, trailSearchExpands,
+		func(r *core.Record) (map[string]any, error) {
+			return documentFromTrailRecord(r, r.ExpandedOne("author"), true)
+		},
+		func(r *core.Record) (map[string]any, error) { return TrailSearchDocument(app, r) })
+}
+
+// listSearchExpands are the relations a list's full search document reads.
+var listSearchExpands = []string{"trails", "list_share_via_list", "author"}
+
+// ListSearchDocuments is TrailSearchDocuments for lists.
+func ListSearchDocuments(app core.App, records []*core.Record) (documents []map[string]any, errs []error) {
+	return searchDocumentsOf(app, records, listSearchExpands,
+		func(r *core.Record) (map[string]any, error) {
+			return documentFromListRecord(r, r.ExpandedOne("author"), true)
+		},
+		func(r *core.Record) (map[string]any, error) { return ListSearchDocument(app, r) })
+}
+
+// ActorSearchDocuments is TrailSearchDocuments for actors, which have no
+// relations to expand.
+func ActorSearchDocuments(records []*core.Record) (documents []map[string]any, errs []error) {
+	documents = make([]map[string]any, len(records))
+	errs = make([]error, len(records))
+	for i, r := range records {
+		documents[i], errs[i] = documentFromActorRecord(r)
+	}
+	return documents, errs
+}
+
+// searchDocumentsOf expands a page of records at once and builds each
+// document. When the shared expand fails, every record is built on its own,
+// so the error is reported against the records it concerns.
+func searchDocumentsOf(app core.App, records []*core.Record, expands []string, build, buildAlone func(*core.Record) (map[string]any, error)) ([]map[string]any, []error) {
+	if len(app.ExpandRecords(records, expands, nil)) > 0 {
+		build = buildAlone
+	}
+	documents := make([]map[string]any, len(records))
+	errs := make([]error, len(records))
+	for i, r := range records {
+		documents[i], errs[i] = build(r)
+	}
+	return documents, errs
+}
+
+// TrailSearchDocument builds the full search document of a trail, as a
+// rebuild indexes it.
+func TrailSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
+	errs := app.ExpandRecord(r, []string{"tags"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand tags: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"category"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand category: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"trail_share_via_trail"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trail_share_via_trail: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"trail_like_via_trail"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trail_like_via_trail: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"author"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand author: %v", errs)
 	}
 
-	iri := r.GetString("iri")
-
-	url, err := url.Parse(iri)
-	if err != nil {
-		return nil, err
-	}
-
-	remoteRecordId := path.Base(url.Path)
-
-	searchURL := fmt.Sprintf("%s://%s/api/v1/search/%s", url.Scheme, url.Host, index)
-	body := []byte(fmt.Sprintf(`{"q": "%s"}`, remoteRecordId))
-
-	req, err := http.NewRequest("POST", searchURL, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch remote record: received status %d", resp.StatusCode)
-	}
-
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	var searchResponse meilisearch.SearchResponse
-	json.Unmarshal(respBytes, &searchResponse)
-
-	if len(searchResponse.Hits) == 0 {
-		return nil, fmt.Errorf("no documents in result set")
-	}
-
-	var document map[string]any
-	documentByteData, err := json.Marshal(searchResponse.Hits[0])
-	if err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal(documentByteData, &document); err != nil {
-		return nil, err
-	}
-
-	return document, nil
+	return documentFromTrailRecord(r, r.ExpandedOne("author"), true)
 }
 
 func IndexTrails(app core.App, trails []*core.Record, client meilisearch.ServiceManager) error {
 	documents := make([]map[string]any, len(trails))
 
 	for i, r := range trails {
-		errs := app.ExpandRecord(r, []string{"tags"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand tags: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"category"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand category: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"trail_share_via_trail"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand trail_share_via_trail: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"trail_like_via_trail"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand trail_like_via_trail: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"author"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand author: %v", errs)
-		}
-
-		author := r.ExpandedOne("author")
-
-		doc, err := documentFromTrailRecord(r, author, true)
+		doc, err := TrailSearchDocument(app, r)
 		if err != nil {
 			return err
 		}
@@ -359,7 +330,7 @@ func IndexTrails(app core.App, trails []*core.Record, client meilisearch.Service
 		documents[i] = doc
 	}
 
-	if _, err := client.Index("trails").AddDocuments(documents, nil); err != nil {
+	if _, err := client.Index("trails").AddDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -382,14 +353,30 @@ func UpdateTrail(app core.App, r *core.Record, author *core.Record, client meili
 	}
 	documents := []map[string]interface{}{doc}
 
-	if _, err = client.Index("trails").UpdateDocuments(documents, nil); err != nil {
+	if _, err = client.Index("trails").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// sharedActorIDs lists the actors of a record's shares sorted and without
+// duplicates, the form the share hooks write, so a rebuilt document compares
+// equal to one the hooks kept up to date.
+func sharedActorIDs(shares []*core.Record) []string {
+	actors := make([]string, 0, len(shares))
+	for _, share := range shares {
+		if actor := share.GetString("actor"); actor != "" {
+			actors = append(actors, actor)
+		}
+	}
+	slices.Sort(actors)
+	return slices.Compact(actors)
+}
+
+// UpdateTrailLikes writes a trail's likes, sorted as a rebuild writes them.
 func UpdateTrailLikes(trailId string, likes []string, client meilisearch.ServiceManager) error {
+	likes = slices.Sorted(slices.Values(likes))
 	documents := []map[string]interface{}{
 		{
 			"id":         trailId,
@@ -397,38 +384,42 @@ func UpdateTrailLikes(trailId string, likes []string, client meilisearch.Service
 			"likes":      likes,
 		},
 	}
-	if _, err := client.Index("trails").UpdateDocuments(documents, nil); err != nil {
+	if _, err := client.Index("trails").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 	return nil
+}
+
+// ListSearchDocument builds the full search document of a list, as a
+// rebuild indexes it.
+func ListSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
+	errs := app.ExpandRecord(r, []string{"trails"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand trails: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"list_share_via_list"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand list_share_via_list: %v", errs)
+	}
+	errs = app.ExpandRecord(r, []string{"author"}, nil)
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to expand author: %v", errs)
+	}
+
+	return documentFromListRecord(r, r.ExpandedOne("author"), true)
 }
 
 func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceManager) error {
 	documents := make([]map[string]any, len(lists))
 
 	for i, r := range lists {
-		errs := app.ExpandRecord(r, []string{"trails"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand trails: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"list_share_via_list"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand list_share_via_list: %v", errs)
-		}
-		errs = app.ExpandRecord(r, []string{"author"}, nil)
-		if len(errs) > 0 {
-			return fmt.Errorf("failed to expand author: %v", errs)
-		}
-
-		author := r.ExpandedOne("author")
-
-		doc, err := documentFromListRecord(r, author, true)
+		doc, err := ListSearchDocument(app, r)
 		if err != nil {
 			return err
 		}
 		documents[i] = doc
 	}
-	if _, err := client.Index("lists").AddDocuments(documents, nil); err != nil {
+	if _, err := client.Index("lists").AddDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -446,7 +437,7 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 		return err
 	}
 
-	if _, err = client.Index("lists").UpdateDocuments(documents, nil); err != nil {
+	if _, err = client.Index("lists").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -464,7 +455,7 @@ func IndexActors(actors []*core.Record, client meilisearch.ServiceManager) error
 		}
 		documents[i] = doc
 	}
-	if _, err := client.Index("actors").AddDocuments(documents, nil); err != nil {
+	if _, err := client.Index("actors").AddDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
@@ -477,7 +468,7 @@ func UpdateActor(r *core.Record, client meilisearch.ServiceManager) error {
 		return err
 	}
 
-	if _, err = client.Index("actors").UpdateDocuments(documents, nil); err != nil {
+	if _, err = client.Index("actors").UpdateDocuments(documents, SearchWriteOptions); err != nil {
 		return err
 	}
 
