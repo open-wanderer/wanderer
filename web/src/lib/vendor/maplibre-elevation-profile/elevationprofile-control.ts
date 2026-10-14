@@ -66,6 +66,7 @@ export class ElevationProfileControl implements IControl {
     private iconSpan?: HTMLSpanElement;
 
     private profileContainer?: HTMLDivElement;
+    private flyoverMarker?: HTMLDivElement;
     private settings: ElevationProfileControlOptions;
     private data: GeoJsonObject | null = null;
     private elevationProfileChart?: ElevationProfile;
@@ -166,6 +167,23 @@ export class ElevationProfileControl implements IControl {
             this.settings
         );
 
+        this.flyoverMarker = document.createElement("div");
+        this.flyoverMarker.setAttribute("aria-hidden", "true");
+        Object.assign(this.flyoverMarker.style, {
+            position: "absolute",
+            display: "none",
+            width: "12px",
+            height: "12px",
+            borderRadius: "9999px",
+            backgroundColor: "#ffd84d",
+            border: "2px solid #263238",
+            boxSizing: "border-box",
+            pointerEvents: "none",
+            transform: "translate(-50%, -50%)",
+            zIndex: "20",
+        });
+        this.profileContainer.appendChild(this.flyoverMarker);
+
         if (this.settings.visible) {
             this.showProfile();
         }
@@ -218,6 +236,29 @@ export class ElevationProfileControl implements IControl {
         return this.elevationProfileChart?.chart.canvas.dispatchEvent(mouseOutEvent);
     }
 
+    moveFlyoverMarker(lat: number, lon: number) {
+        if (!this.elevationProfileChart || !this.profileContainer || !this.flyoverMarker || !this.isProfileShown) {
+            this.hideFlyoverMarker();
+            return;
+        }
+
+        const point = this.elevationProfileChart.getChartCoordinatesFromPosition(lat, lon);
+        if (point == null) {
+            this.hideFlyoverMarker();
+            return;
+        }
+
+        const canvasRect = this.elevationProfileChart.chart.canvas.getBoundingClientRect();
+        const containerRect = this.profileContainer.getBoundingClientRect();
+        this.flyoverMarker.style.left = `${canvasRect.left - containerRect.left + point[0]}px`;
+        this.flyoverMarker.style.top = `${canvasRect.top - containerRect.top + point[1]}px`;
+        this.flyoverMarker.style.display = "block";
+    }
+
+    hideFlyoverMarker() {
+        if (this.flyoverMarker) this.flyoverMarker.style.display = "none";
+    }
+
     onRemove(): void {
         // remove button
         if (this.buttonContainer?.parentNode) {
@@ -226,6 +267,7 @@ export class ElevationProfileControl implements IControl {
         this.map = undefined;
         this.buttonContainer = undefined;
         this.toggleButton = undefined;
+        this.flyoverMarker = undefined;
         this.isProfileShown = false;
     }
 

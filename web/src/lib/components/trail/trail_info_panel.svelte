@@ -1033,7 +1033,11 @@
                         elevationProfileContainer={"epc-container"}
                         showStyleSwitcher={false}
                         showFullscreen={true}
-                        mapOptions={{ attributionControl: { compact: true } }}
+                        showTerrain={true}
+                        terrainControlPosition="bottom-right"
+                        mapOptions={{
+                            attributionControl: { compact: true },
+                        }}
                         onfullscreen={toggleMapFullScreen}
                         bind:markers
                     ></MapWithElevationMaplibre>

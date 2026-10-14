@@ -14,6 +14,7 @@
     import { decodePolyline } from "$lib/util/polyline_util";
     import type { ElevationProfileControl } from "$lib/vendor/maplibre-elevation-profile/elevationprofile-control";
     import { FullscreenControl } from "$lib/vendor/maplibre-fullscreen/fullscreen-control";
+    import { FlyoverControl } from "$lib/vendor/maplibre-flyover/flyover-control";
     import MaplibreGraticule from "$lib/vendor/maplibre-graticule/maplibre-graticule";
     import { CaretLayer } from "$lib/vendor/maplibre-layer-manager/caret-layer";
     import { ClusterLayer } from "$lib/vendor/maplibre-layer-manager/cluster-layer";
@@ -45,6 +46,8 @@
         showStyleSwitcher?: boolean;
         showFullscreen?: boolean;
         showTerrain?: boolean;
+        terrainControlPosition?: M.ControlPosition;
+        showFlyover?: boolean;
         fitBounds?: "animate" | "instant" | "off";
         onmarkerdragend?:
             | ((marker: M.Marker, wpId?: string) => void)
@@ -91,6 +94,8 @@
         showStyleSwitcher = true,
         showFullscreen = false,
         showTerrain = false,
+        terrainControlPosition = "top-right",
+        showFlyover = false,
         fitBounds = "instant",
         elevationProfileContainer = undefined,
         mapOptions = undefined,
@@ -127,6 +132,10 @@
     let mapLoaded: boolean = $state(false);
     let terrainEnabled: boolean | null = null;
     let elevationProfileVisibilityPreference: boolean | null = null;
+    let flyoverControl: FlyoverControl | undefined;
+    let flyoverFrame: number | undefined;
+    let flyoverPlaying = false;
+    let mapResizeObserver: ResizeObserver | undefined;
 
     const trailColors = [
         "#3549bb", // blue
@@ -352,6 +361,282 @@
             isTerrainEnabled ? "visible" : "none",
         );
         terrainEnabled = isTerrainEnabled;
+    }
+
+    function getActiveRouteCoordinates(): [number, number][] {
+        const activeId = activeTrail !== null ? trails[activeTrail]?.id : null;
+        const data = activeId ? gpxDataMap[activeId] : undefined;
+        if (!data) return [];
+
+        const coordinates: [number, number][] = [];
+        for (const feature of data.features) {
+            const geometry = feature.geometry;
+            if (geometry?.type === "LineString") {
+                coordinates.push(
+                    ...geometry.coordinates.map((point) => [
+                        point[0],
+                        point[1],
+                    ] as [number, number]),
+                );
+            } else if (geometry?.type === "MultiLineString") {
+                for (const line of geometry.coordinates) {
+                    coordinates.push(
+                        ...line.map((point) => [
+                            point[0],
+                            point[1],
+                        ] as [number, number]),
+                    );
+                }
+            }
+        }
+        return coordinates;
+    }
+
+    function bearingBetween(
+        from: [number, number],
+        to: [number, number],
+    ): number {
+        const radians = Math.PI / 180;
+        const lonDelta = (to[0] - from[0]) * radians;
+        const fromLat = from[1] * radians;
+        const toLat = to[1] * radians;
+        const y = Math.sin(lonDelta) * Math.cos(toLat);
+        const x =
+            Math.cos(fromLat) * Math.sin(toLat) -
+            Math.sin(fromLat) * Math.cos(toLat) * Math.cos(lonDelta);
+        return (Math.atan2(y, x) / radians + 360) % 360;
+    }
+
+    function ensureFlyoverPositionLayer(): void {
+        if (!map) return;
+
+        if (!map.getSource("flyover-position")) {
+            map.addSource("flyover-position", {
+                type: "geojson",
+                data: {
+                    type: "FeatureCollection",
+                    features: [],
+                },
+            });
+        }
+        if (!map.getLayer("flyover-position")) {
+            map.addLayer({
+                id: "flyover-position",
+                type: "circle",
+                source: "flyover-position",
+                paint: {
+                    "circle-radius": 8,
+                    "circle-color": "#ffd84d",
+                    "circle-stroke-color": "#263238",
+                    "circle-stroke-width": 2,
+                    "circle-pitch-alignment": "viewport",
+                    "circle-pitch-scale": "viewport",
+                },
+            });
+        }
+    }
+
+    function setFlyoverPosition(coordinates?: [number, number]): void {
+        const source = map?.getSource(
+            "flyover-position",
+        ) as M.GeoJSONSource | undefined;
+        if (!source) return;
+
+        source.setData({
+            type: "FeatureCollection",
+            features: coordinates
+                ? [
+                      {
+                          type: "Feature",
+                          properties: {},
+                          geometry: {
+                              type: "Point",
+                              coordinates,
+                          },
+                      },
+                  ]
+                : [],
+        });
+    }
+
+    function stopFlyover(): void {
+        if (flyoverFrame !== undefined) {
+            cancelAnimationFrame(flyoverFrame);
+            flyoverFrame = undefined;
+        }
+        setFlyoverPosition();
+        epc?.hideFlyoverMarker();
+        flyoverPlaying = false;
+        flyoverControl?.setPlaying(false);
+    }
+
+    function syncFlyoverTerrainState(): void {
+        const enabled = Boolean(map?.getTerrain());
+        flyoverControl?.setVisible(enabled);
+        if (!enabled && flyoverPlaying) stopFlyover();
+    }
+
+    function startFlyover(): void {
+        if (!map) return;
+
+        const coordinates = getActiveRouteCoordinates();
+        if (coordinates.length < 2) return;
+
+        stopFlyover();
+
+        const cumulativeDistances = [0];
+        for (let i = 1; i < coordinates.length; i += 1) {
+            cumulativeDistances.push(
+                cumulativeDistances[i - 1] +
+                    new M.LngLat(...coordinates[i - 1]).distanceTo(
+                        new M.LngLat(...coordinates[i]),
+                    ),
+            );
+        }
+        const totalDistance = cumulativeDistances.at(-1) ?? 0;
+        if (totalDistance <= 0) return;
+
+        if (page.data.settings?.terrain?.terrain && map.getSource("terrain")) {
+            map.setTerrain({ source: "terrain", exaggeration: 1 });
+            syncHillshadingVisibility();
+        }
+        ensureFlyoverPositionLayer();
+
+        const duration = Math.min(
+            45000,
+            Math.max(8000, (totalDistance / 300) * 1000),
+        );
+        // Use a sizeable section of the route to determine its general heading.
+        // Raw GPX tracks often contain small left/right deviations that should move
+        // the position marker without making the camera swivel on every point.
+        const bearingSampleDistance = Math.max(
+            100,
+            Math.min(350, totalDistance * 0.015),
+        );
+        const bearingChangeThreshold = 10;
+        const minimumBearingHoldDistance = Math.max(
+            40,
+            Math.min(120, totalDistance * 0.003),
+        );
+        const maximumTurnPerMeter = 0.2;
+        const startedAt = performance.now();
+        let segmentIndex = 1;
+
+        function pointAtDistance(distance: number): [number, number] {
+            while (
+                segmentIndex < cumulativeDistances.length - 1 &&
+                cumulativeDistances[segmentIndex] < distance
+            ) {
+                segmentIndex += 1;
+            }
+            while (
+                segmentIndex > 1 &&
+                cumulativeDistances[segmentIndex - 1] > distance
+            ) {
+                segmentIndex -= 1;
+            }
+
+            const segmentStart = cumulativeDistances[segmentIndex - 1];
+            const segmentEnd = cumulativeDistances[segmentIndex];
+            const fraction =
+                segmentEnd === segmentStart
+                    ? 0
+                    : (distance - segmentStart) / (segmentEnd - segmentStart);
+            const from = coordinates[segmentIndex - 1];
+            const to = coordinates[segmentIndex];
+            return [
+                from[0] + (to[0] - from[0]) * fraction,
+                from[1] + (to[1] - from[1]) * fraction,
+            ];
+        }
+
+        flyoverPlaying = true;
+        flyoverControl?.setPlaying(true);
+        function routeBearingAt(distance: number): number {
+            const behind = pointAtDistance(
+                Math.max(0, distance - bearingSampleDistance * 0.25),
+            );
+            const ahead = pointAtDistance(
+                Math.min(totalDistance, distance + bearingSampleDistance),
+            );
+            return bearingBetween(behind, ahead);
+        }
+
+        let committedBearing = routeBearingAt(0);
+        let smoothedBearing = committedBearing;
+        let previousDistance = 0;
+        let lastBearingCommitDistance = 0;
+
+        function animate(now: number) {
+            if (!map || !flyoverPlaying) return;
+
+            const progress = Math.min(1, (now - startedAt) / duration);
+            const distance = totalDistance * progress;
+            const center = pointAtDistance(distance);
+            const sampledBearing = routeBearingAt(distance);
+            const courseChange =
+                ((sampledBearing - committedBearing + 540) % 360) - 180;
+            if (
+                Math.abs(courseChange) >= bearingChangeThreshold &&
+                distance - lastBearingCommitDistance >= minimumBearingHoldDistance
+            ) {
+                committedBearing = sampledBearing;
+                lastBearingCommitDistance = distance;
+            }
+
+            const bearingDelta =
+                ((committedBearing - smoothedBearing + 540) % 360) - 180;
+            const distanceTravelled = Math.max(0, distance - previousDistance);
+            const maximumBearingStep = Math.max(
+                0.05,
+                distanceTravelled * maximumTurnPerMeter,
+            );
+            smoothedBearing =
+                (smoothedBearing +
+                    Math.max(
+                        -maximumBearingStep,
+                        Math.min(maximumBearingStep, bearingDelta),
+                    ) +
+                    360) %
+                360;
+            previousDistance = distance;
+
+            setFlyoverPosition(center);
+            epc?.moveFlyoverMarker(center[1], center[0]);
+
+            const mapHeight = map.getContainer().clientHeight;
+            const elevationPanelHeight = epc?.isProfileShown
+                ? (epc.getContainer()?.getBoundingClientRect().height ?? 0)
+                : 0;
+            const verticalOffset = elevationPanelHeight
+                ? Math.min(
+                      mapHeight * 0.2 - elevationPanelHeight,
+                      -elevationPanelHeight * 0.5,
+                  )
+                : mapHeight * 0.2;
+
+            map.easeTo({
+                center,
+                bearing: smoothedBearing,
+                pitch: 65,
+                zoom: Math.max(map.getZoom(), 14),
+                offset: [0, verticalOffset],
+                duration: 0,
+            });
+
+            if (progress < 1) {
+                flyoverFrame = requestAnimationFrame(animate);
+            } else {
+                stopFlyover();
+            }
+        }
+
+        flyoverFrame = requestAnimationFrame(animate);
+    }
+
+    function toggleFlyover(): void {
+        if (flyoverPlaying) stopFlyover();
+        else startFlyover();
     }
 
     export function refreshElevationProfile() {
@@ -901,6 +1186,8 @@
             ...mapOptions,
         };
         map = new M.Map(finalMapOptions);
+        mapResizeObserver = new ResizeObserver(() => map?.resize());
+        mapResizeObserver.observe(mapContainer);
 
         layerManager = new LayerManager(map, { overpassActionFactory: buildPoiAnchorAction });
 
@@ -991,6 +1278,15 @@
             map.addControl(epc);
         }
 
+        if (showTerrain && page.data.settings?.terrain?.terrain) {
+            map.addControl(
+                new M.TerrainControl({
+                    source: "terrain",
+                }),
+                terrainControlPosition,
+            );
+        }
+
         if (showFullscreen) {
             map.addControl(
                 new FullscreenControl(() => {
@@ -1000,12 +1296,14 @@
             );
         }
 
-        if (showTerrain && page.data.settings?.terrain?.terrain) {
-            map!.addControl(
-                new M.TerrainControl({
-                    source: "terrain",
-                }),
-            );
+        if (showFlyover) {
+            flyoverControl = new FlyoverControl(toggleFlyover);
+            map.addControl(flyoverControl, "top-right");
+            flyoverControl.setEnabled(getActiveRouteCoordinates().length >= 2);
+            syncFlyoverTerrainState();
+            map.on("terrain", syncFlyoverTerrainState);
+            map.on("mousedown", stopFlyover);
+            map.on("touchstart", stopFlyover);
         }
 
         map.on("styledata", (e) => {
@@ -1066,6 +1364,8 @@
     }
 
     onDestroy(() => {
+        stopFlyover();
+        mapResizeObserver?.disconnect();
         map?.remove();
     });
 

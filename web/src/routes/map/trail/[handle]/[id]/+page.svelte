@@ -50,6 +50,7 @@
             activeTrail={0}
             bind:markers
             showTerrain={true}
+            showFlyover={true}
         ></MapWithElevationMaplibre>
     </div>
 </main>
