@@ -486,6 +486,8 @@
   "priority": "Priority",
   "public-access": "Public access",
   "public-share-everyone": "Everyone on the internet with the link can see this trail",
+  "public-federation-hint": "Public content is also sent to your followers on other servers. Setting it back to private does not remove those copies. Only deleting it does.",
+  "private-federation-hint": "Copies already sent to other servers stay there. Only deleting removes them.",
   "public-share-limited": "Only people with access can open the link",
   "public-transport": "Public transport",
   "radius": "Radius",
