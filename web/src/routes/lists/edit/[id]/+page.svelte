@@ -337,6 +337,11 @@
             label={$formData.public ? $_("public") : $_("private")}
             icon={$formData.public ? "globe" : "lock"}
         ></Toggle>
+        {#if $formData.public && !publicList}
+            <p class="text-sm text-gray-500">{$_("public-federation-hint")}</p>
+        {:else if !$formData.public && publicList}
+            <p class="text-sm text-gray-500">{$_("private-federation-hint")}</p>
+        {/if}
         <h3 class="text-xl font-semibold">
             {$_("trail", { values: { n: 2 } })}
         </h3>
