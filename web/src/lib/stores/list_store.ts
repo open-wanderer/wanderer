@@ -13,6 +13,11 @@ let lists: List[] = []
 export const list: Writable<List | null> = writable(null)
 export const listTrail: Writable<Trail | null> = writable(null);
 
+/** Reseed the module-level search accumulator (e.g. before paging after navigation). */
+export function lists_replace_search_cache(items: List[]) {
+    lists = items;
+}
+
 export async function lists_index(filter?: ListFilter, page: number = 1, perPage: number = 5,
     f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const user = get(currentUser)
