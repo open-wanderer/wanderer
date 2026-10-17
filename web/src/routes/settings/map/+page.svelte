@@ -53,6 +53,7 @@
             const updatedSettings = {
                 ...settings,
                 behavior: {
+                    ...settings.behavior,
                     allowAutoGeolocate: allowAutoGeolocate,
                     mapClusteringMaxZoom: Number(mapClusteringMaxZoom),
                     showTrailStartMarker: showTrailStartMarker,
