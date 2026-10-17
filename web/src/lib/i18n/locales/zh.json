@@ -349,6 +349,7 @@
   "plugin-error-provider-unavailable": "Provider is currently unavailable. Try again later.",
   "plugin-error-invalid-request": "Plugin sent an invalid request.",
   "plugin-error-internal": "Plugin failed unexpectedly.",
+  "plugin-error-sync-item-limit-exceeded": "The plugin returned more items than its configured limit. Contact the plugin maintainer.",
   "plugin-error-reconnect-required": "Plugin authorization expired. Reconnect the plugin.",
   "invalid-date": "无效日期",
   "invalid-username": "无效用户名",
