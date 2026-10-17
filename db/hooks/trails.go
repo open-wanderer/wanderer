@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -126,6 +127,10 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
+		if err := syncActivityVisibility(e); err != nil {
+			return err
+		}
+
 		ctx, err := util.GetSafeActorContext(nil, userActor)
 
 		if err != nil {
@@ -184,7 +189,10 @@ func DeleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		}
 
 		audience, _ := record.GetRaw(trailDeleteRecipientsKey).(federation.DeleteAudience)
-		err = federation.CreateTrailDeleteActivity(e.App, record, audience)
+		err = errors.Join(
+			federation.CreateTrailDeleteActivity(e.App, record, audience),
+			federation.DeleteObjectActivities(e.App, record.GetString("iri")),
+		)
 		if err != nil {
 			return err
 		}

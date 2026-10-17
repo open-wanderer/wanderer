@@ -109,7 +109,10 @@ func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		err = federation.CreateSummitLogDeleteActivity(e.App, e.Record)
+		err = errors.Join(
+			federation.CreateSummitLogDeleteActivity(e.App, e.Record),
+			federation.DeleteObjectActivities(e.App, e.Record.GetString("iri")),
+		)
 		if err != nil {
 			return err
 		}
