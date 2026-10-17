@@ -98,6 +98,8 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 	activityRecord.Set("object", object)
 	activityRecord.Set("actor", actor)
 	activityRecord.Set("published", time.Now())
+	// A share of a private trail or list is not for the public listing.
+	activityRecord.Set("hidden", !subject.GetBool("public"))
 
 	return app.Save(activityRecord)
 }
