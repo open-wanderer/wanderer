@@ -113,6 +113,9 @@ export async function searchLocations(q: string, limit?: number, f: (url: Reques
             format: "geojson",
             addressdetails: "1",
         });
+    if (limit !== undefined) {
+        params.set("limit", limit.toString());
+    }
     const r = await fetchGeocoding("search", params, f);
     if (!r.ok) {
         const response = await r.json();
@@ -263,9 +266,10 @@ export async function searchMulti(options: MultiSearchParams): Promise<MultiSear
     return response.results
 }
 
-export async function searchActors(q: string, includeSelf: boolean = true): Promise<ActorSearchResult[]> {
+export async function searchActors(q: string, includeSelf: boolean = true, f: FetchFunction = fetch): Promise<ActorSearchResult[]> {
     try {
-        const r = await fetch(`/api/v1/search/actor?q=${q}&includeSelf=${includeSelf}`,)
+        const params = new URLSearchParams({ q, includeSelf: String(includeSelf) });
+        const r = await f(`/api/v1/search/actor?${params}`);
 
         if (!r.ok) {
             return []

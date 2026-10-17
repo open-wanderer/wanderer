@@ -793,59 +793,22 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
     }
 
     if (filter.public !== undefined || filter.private !== undefined || filter.shared !== undefined) {
-        filterText += " AND ("
-
         const showPublic = filter.public === undefined || filter.public === true;
         const showPrivate = filter.private === undefined || filter.private === true;
-        const showShared = filter.shared !== undefined && filter.shared === true;
-
-        if (showPublic === true) {
-            filterText += "(public = TRUE";
-            if (showPrivate === true && (!filter.author?.length || filter.author == user?.actor)) {
-                filterText += ` OR author = ${user?.actor}`;
-            }
-            filterText += ")";
+        const visibilityParts: string[] = [];
+        if (showPublic) visibilityParts.push("public = TRUE");
+        if (showPrivate && user?.actor && (!filter.author?.length || filter.author === user.actor)) {
+            visibilityParts.push(`(public = FALSE AND author = ${user.actor})`);
         }
-        else if (!filter.author?.length || filter.author == user?.actor) {
-            filterText += "public = FALSE";
-            filterText += ` AND author = ${user?.actor}`;
+        if (filter.shared === true && user?.actor) {
+            visibilityParts.push(`shares = ${user.actor}`);
         }
-
-        if (filter.shared !== undefined) {
-            if (filter.shared === true) {
-                filterText += ` OR shares = ${user?.actor}`
-            } else {
-                filterText += ` AND NOT shares = ${user?.actor}`
-
-            }
+        filterText += ` AND (${visibilityParts.length ? visibilityParts.join(" OR ") : "public = TRUE AND public = FALSE"})`;
+        if (filter.shared === false && user?.actor) {
+            filterText += ` AND NOT shares = ${user.actor}`;
         }
-
-        filterText += ")";
     }
 
-    /*
-    if (filter.public !== undefined || filter.shared !== undefined) {
-        filterText += " AND ("
-        if (filter.public !== undefined) {
-            filterText += `(public = ${filter.public}`
-
-            if (!filter.author?.length || filter.author == user?.actor) {
-                filterText += ` OR author = ${user?.actor}`
-            }
-            filterText += ")"
-        }
-
-        if (filter.shared !== undefined) {
-            if (filter.shared === true) {
-                filterText += ` OR shares = ${user?.actor}`
-            } else {
-                filterText += ` AND NOT shares = ${user?.actor}`
-
-            }
-        }
-        filterText += ")"
-    }
-*/
 
     if (filter.liked === true) {
         filterText += ` AND likes = ${user?.actor}`
