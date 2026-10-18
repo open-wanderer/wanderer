@@ -9,7 +9,11 @@ export default class TrackSegment {
       if (!Array.isArray(object.trkpt)) {
         object.trkpt = [object.trkpt];
       }
-      this.trkpt = object.trkpt.map(trkpt => new Waypoint(trkpt))
+      // Points without a position carry no geometry; the app's reader skips
+      // them too, so both compute the same metrics for such a file.
+      this.trkpt = object.trkpt
+        .map(trkpt => new Waypoint(trkpt))
+        .filter(trkpt => trkpt.$.lat !== undefined && trkpt.$.lon !== undefined)
     }
     this.extensions = object.extensions;
   }
