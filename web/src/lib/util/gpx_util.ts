@@ -80,6 +80,14 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     trail.elevation_loss = totals.elevationLoss;
     trail.distance = totals.distance
 
+    const bbox = totals.boundingBox;
+    if (Number.isFinite(bbox.minLat) && Number.isFinite(bbox.maxLat)) {
+        trail.min_lat = bbox.minLat;
+        trail.max_lat = bbox.maxLat;
+        trail.min_lon = bbox.minLon;
+        trail.max_lon = bbox.maxLon;
+    }
+
     return { gpx: gpx, trail: trail }
 }
 

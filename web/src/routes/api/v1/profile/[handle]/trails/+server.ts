@@ -60,10 +60,13 @@ export async function POST(event: RequestEvent) {
 
         let r: SearchResponse<TrailSearchResult>;
         if (actor.is_local) {
-            const filter = await withTrailPreferenceMeiliFilter(event, [
-                data.options?.filter,
-                `author = ${actor.id}`,
-            ]);
+            const authorFilter = `author = ${actor.id}`;
+            const clientFilter = data.options?.filter;
+            const baseFilters = clientFilter
+                ? [authorFilter, clientFilter]
+                : [authorFilter];
+
+            const filter = await withTrailPreferenceMeiliFilter(event, baseFilters);
             r = await event.locals.ms.index("trails").search(data.q, { ...data.options, filter });
         } else {
             const origin = new URL(actor.iri).origin

@@ -1,6 +1,6 @@
-import { getValhallaBaseUrl } from '#lib/server/valhalla.ts';
 import { proxyJsonResponse } from '#lib/server/http.ts';
-import type { RequestEvent } from "@sveltejs/kit";
+import { getValhallaUrl } from '#lib/server/valhalla.ts';
+import { json, type RequestEvent } from "@sveltejs/kit";
 
 type RouteRequestBody = Record<string, unknown> & {
     include_elevation_profile?: boolean;
@@ -33,14 +33,14 @@ type RouteRequestBody = Record<string, unknown> & {
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    const baseUrl = getValhallaBaseUrl();
+    const routeUrl = getValhallaUrl() + '/route';
     const data: RouteRequestBody = await event.request.json();
-    if (!baseUrl) {
-        return Response.json({ message: "VALHALLA_URL not set" }, { status: 400 })
+    if (!routeUrl) {
+        return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
 
     try {
-        const response = await event.fetch(baseUrl + '/route', {
+        const response = await event.fetch(routeUrl, {
             method: "POST",
             body: JSON.stringify(data)
         });
