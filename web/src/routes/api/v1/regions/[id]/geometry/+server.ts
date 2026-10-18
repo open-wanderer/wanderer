@@ -1,13 +1,6 @@
+import { RegionIdSchema } from '$lib/models/api/region_schema';
 import { handleError } from '$lib/util/api_util';
 import { json, type RequestEvent } from '@sveltejs/kit';
-import { z } from 'zod';
-
-const RegionIdSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[a-z0-9][a-z0-9_.'-]*$/, 'Invalid region id')
-    .refine((v) => !v.includes('..'), 'Invalid region id'),
-});
 
 /**
  * @swagger
@@ -58,6 +51,13 @@ const RegionIdSchema = z.object({
  */
 export async function GET(event: RequestEvent) {
   try {
+    // region_geometry's list rule hides rows from anonymous requests, which
+    // PocketBase reports as "not found"; answer 401 so clients can tell an
+    // expired session from a region without geometry.
+    if (!event.locals.pb.authStore.record) {
+      return json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = RegionIdSchema.parse(event.params);
 
     // Cached-row read ONLY — never issue the SvelteKit request-scoped fetch

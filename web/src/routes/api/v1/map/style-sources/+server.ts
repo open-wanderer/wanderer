@@ -44,10 +44,11 @@ export async function GET(event: RequestEvent) {
             return json({ message: "Unauthorized" }, { status: 401 });
         }
 
-        const tileUrl = env.TILE_SERVER_URL
-            ?? `https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=${env.PROTOMAPS_API_KEY ?? ''}`;
+        // An empty value (e.g. `TILE_SERVER_URL=` in a compose file) counts as unset.
+        const tileUrl = env.TILE_SERVER_URL?.trim()
+            || `https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=${env.PROTOMAPS_API_KEY ?? ''}`;
 
-        const assetsBase = (env.MAP_ASSETS_URL ?? "https://protomaps.github.io/basemaps-assets")
+        const assetsBase = (env.MAP_ASSETS_URL?.trim() || "https://protomaps.github.io/basemaps-assets")
             .replace(/\/$/, '');
 
         const glyphUrl = `${assetsBase}/fonts/{fontstack}/{range}.pbf`;

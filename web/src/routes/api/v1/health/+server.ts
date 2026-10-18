@@ -14,7 +14,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *       unreachable, and (client-side) a connection error or timeout means the
  *       proxy itself is offline. Clients should treat only a 200 as "online".
  *     tags:
- *       - Maps
+ *       - System
  *     responses:
  *       200:
  *         description: Backend and database are reachable
@@ -27,7 +27,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  *                   type: string
  *                   example: "ok"
  *       503:
- *         description: PocketBase / database is unreachable
+ *         description: PocketBase / database is unreachable or did not answer within 5 seconds
  */
 export async function GET(event: RequestEvent) {
     try {
@@ -35,7 +35,9 @@ export async function GET(event: RequestEvent) {
         // second probe never aborts this one. This deliberately hits
         // PocketBase so a running proxy in front of a dead database still
         // reports as offline.
-        await event.locals.pb.health.check({ requestKey: null });
+        // The timeout turns a hung PocketBase into a 503 instead of a probe
+        // that never answers.
+        await event.locals.pb.health.check({ requestKey: null, signal: AbortSignal.timeout(5000) });
         return json({ status: 'ok' });
     } catch {
         return json({ status: 'unavailable' }, { status: 503 });
