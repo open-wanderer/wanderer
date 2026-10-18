@@ -35,6 +35,7 @@ services:
       POCKETBASE_ENCRYPTION_KEY: fde406459dc1f6ca6f348e1f44a9a2af
       POCKETBASE_PROXY_SECRET: ${POCKETBASE_PROXY_SECRET:?Set POCKETBASE_PROXY_SECRET to a shared secret for db and web}
       ORIGIN: http://localhost:3000
+      # REGION_ARCHIVE_CRON_SCHEDULE: "0 3 * * *"
     ports:
       - "127.0.0.1:8090:8090"
     networks:
