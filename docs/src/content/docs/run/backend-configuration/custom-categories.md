@@ -105,7 +105,8 @@ Set it to `0` to only merge photos with the exact same coordinates, or increase 
 ### `valhalla_profile`
 
 `valhalla_profile` is an optional string key available on **both** `categories.settings` and `subcategories.settings`.
-It tells <span class="-tracking-[0.075em]">wanderer</span> which Valhalla costing model to use when routing, navigating, or downloading a trail in that category.
+It tells the <span class="-tracking-[0.075em]">wanderer</span> mobile app which Valhalla costing model to use when routing, navigating, or downloading a trail in that category.
+The web client does not read it yet.
 
 #### Accepted values
 
@@ -134,7 +135,7 @@ Create a new category named `Car` and set its `settings` to:
 }
 ```
 
-Trails in that category are now routed, navigated, and downloaded using Valhalla's `auto` costing — no code change and no allowlist edit required.
+The mobile app now routes, navigates, and downloads trails in that category using Valhalla's `auto` costing — no code change and no allowlist edit required.
 
 #### Shipped defaults
 
@@ -149,7 +150,9 @@ Trails in that category are now routed, navigated, and downloaded using Valhalla
 
 `Biking / E-Bike` maps to `bicycle_hybrid` because Valhalla has no dedicated e-bike costing model — Hybrid is its closest general-purpose bike profile.
 Every other default category and subcategory ships with **no** value, meaning it has no Valhalla costing mapping of its own.
-Existing instances receive these defaults retroactively on the next server start, and an operator-set value is never overwritten.
+Existing instances receive the category default retroactively on the next server start.
+A value you set yourself is never overwritten, including an empty string.
+To opt a default category out, set `valhalla_profile` to `""` rather than removing the key: a missing key is added again on every start.
 
 #### Resolution order
 
@@ -161,9 +164,10 @@ For a given trail, the profile is resolved in this order:
    This step is bicycle-specific: Valhalla's four bike variants share one `bicycle` costing and need a sensible `bicycle_type` default.
 4. `pedestrian`, when nothing is configured.
 
-An unset or unrecognized value simply falls through this chain rather than erroring, so a typo degrades to walking rather than breaking routing.
+An unset or empty value falls through this chain.
+Any other value is sent to Valhalla as given, so a misspelled costing name such as `pedestrain` makes routing fail for that category instead of falling back to walking.
 
 #### Route Planner picker
 
-The Route Planner's travel-profile picker still offers only its five built-in options (Hiking and the four bike variants).
+The mobile app's Route Planner travel-profile picker still offers only its five built-in options (Hiking and the four bike variants).
 A category mapped to a costing outside those five — such as `auto` — is fully honored for routing, navigation, and offline download, but it does not appear as a planner preset, and the picker highlights nothing for it.

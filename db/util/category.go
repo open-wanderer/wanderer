@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -150,6 +151,33 @@ func parseSettingsMap(raw any) map[string]any {
 	default:
 		return empty
 	}
+}
+
+// isNonObjectSettings reports whether a (sub)category `settings` value holds
+// JSON that is not an object, such as an array or a number. Empty values and
+// null are not considered set.
+func isNonObjectSettings(raw any) bool {
+	var data []byte
+	switch value := raw.(type) {
+	case nil:
+		return false
+	case map[string]any:
+		return false
+	case types.JSONRaw:
+		data = value
+	case []byte:
+		data = value
+	case string:
+		data = []byte(value)
+	default:
+		return true
+	}
+
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 || string(data) == "null" {
+		return false
+	}
+	return data[0] != '{'
 }
 
 func ValidateCategoryRecord(app core.App, record *core.Record) error {

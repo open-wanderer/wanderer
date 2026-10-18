@@ -287,7 +287,7 @@ func PrepopulateDefaultCategoryIcons(app core.App) error {
 //
 // It never overwrites an operator-set value: if the `valhalla_profile` key is
 // already present — with any value, including an empty string — the record is
-// left untouched.
+// left untouched. Settings that are not a JSON object are left alone too.
 func PrepopulateDefaultCategoryValhallaProfiles(app core.App) error {
 	collection, err := app.FindCollectionByNameOrId("categories")
 	if err != nil {
@@ -305,6 +305,10 @@ func PrepopulateDefaultCategoryValhallaProfiles(app core.App) error {
 	for _, category := range allCategories {
 		defaultProfile, ok := defaultCategoryValhallaProfiles[category.GetString("name")]
 		if !ok {
+			continue
+		}
+
+		if isNonObjectSettings(category.Get("settings")) {
 			continue
 		}
 
