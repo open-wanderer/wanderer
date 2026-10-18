@@ -1,14 +1,59 @@
 import GPX from "$lib/models/gpx/gpx";
 import { handleError } from "$lib/util/api_util";
-import { fromFile } from "$lib/util/gpx_util";
-import type { RequestEvent } from "@sveltejs/kit";
+import { FileTooLargeError, fromFile } from "$lib/util/gpx_util";
+import { json, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
+
+// Recorded tracks of a long day stay well below this; the whole body is held
+// in memory and parsed, so it bounds what one request can cost.
+const MAX_CONVERT_BYTES = 25 * 1024 * 1024;
+
+function tooLarge() {
+    return new ClientResponseError({ status: 413, response: { message: "File too large" } });
+}
+
+/**
+ * Reads the request body, giving up as soon as it exceeds `limit` bytes
+ * instead of buffering whatever the client sends.
+ */
+async function readLimitedBody(request: Request, limit: number): Promise<Uint8Array<ArrayBuffer>> {
+    const declared = Number(request.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > limit) {
+        throw tooLarge();
+    }
+    if (!request.body) {
+        return new Uint8Array();
+    }
+
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        size += value.byteLength;
+        if (size > limit) {
+            await reader.cancel();
+            throw tooLarge();
+        }
+        chunks.push(value);
+    }
+
+    const body = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return body;
+}
 
 /**
  * Rejects anything that is not a parseable GPX document with a 400.
  *
- * This endpoint is unauthenticated (`/api/v1/trail/convert` is absent from
- * `privateRoutes` in `authorization_util.ts`) and `/api/v1` is CSRF-exempt
+ * `/api/v1` is CSRF-exempt
  * (`hooks.server.ts`'s `csrf(['/api/v1'])`), so without this check a
  * cross-origin auto-submitting `enctype="text/plain"` form could drive a
  * top-level navigation whose response body is fully attacker-controlled and
@@ -46,7 +91,8 @@ function assertParsableGpx(gpxData: string): void {
  *     description: >
  *       Accepts a GPX/KML/KMZ/TCX/FIT file (multipart), or a GPX string as a raw text body,
  *       and returns the equivalent GPX document. It does NOT compute or persist a trail -
- *       clients compute trail metrics themselves.
+ *       clients compute trail metrics themselves. Requires a logged-in user; the body may be
+ *       at most 25 MB, and a KMZ document at most 100 MB once unzipped.
  *     tags:
  *       - Trails
  *     requestBody:
@@ -72,27 +118,45 @@ function assertParsableGpx(gpxData: string): void {
  *         description: >
  *           Bad Request - the body was missing/empty, or its content did not parse as a GPX
  *           document. The response body is never an echo of unvalidated input.
+ *       401:
+ *         description: Unauthorized
+ *       413:
+ *         description: The upload, or the document inside a KMZ, is too large
  *       500:
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
     try {
+        // Parsing an uploaded file is expensive, so only logged-in users may
+        // ask for it; the app imports files only while logged in.
+        if (!event.locals.pb.authStore.record) {
+            return json({ message: "Unauthorized" }, { status: 401 });
+        }
+
         let gpxData: string = "";
 
         const contentType = event.request.headers.get("content-type") || "";
+        const body = await readLimitedBody(event.request, MAX_CONVERT_BYTES);
 
         if (contentType.includes("multipart/form-data")) {
             // 1. Handle File Upload
-            const data = await event.request.formData();
-            const fileBlob = data.get("file") as Blob | null;
+            const data = await new Response(body, { headers: { "content-type": contentType } }).formData();
+            const fileBlob = data.get("file");
 
-            if (!fileBlob) {
+            if (!(fileBlob instanceof Blob)) {
                 throw new ClientResponseError({ status: 400, response: { message: "Missing file field" } });
             }
 
             // Extract the text content from the file blob
-            const parsed = await fromFile(fileBlob);
-            gpxData = parsed.gpxData;
+            try {
+                const parsed = await fromFile(fileBlob);
+                gpxData = parsed.gpxData;
+            } catch (e) {
+                if (e instanceof FileTooLargeError) {
+                    throw tooLarge();
+                }
+                throw e;
+            }
             // The `name` field is accepted-and-ignored rather than rejected as a 400: the
             // endpoint no longer names anything, but rejecting it would break older app
             // builds harder than necessary for no benefit.
@@ -108,7 +172,7 @@ export async function POST(event: RequestEvent) {
             // removing it narrows nothing that was published. A JSON request
             // now falls through here and is rejected by assertParsableGpx
             // below as unparsable GPX.
-            gpxData = await event.request.text();
+            gpxData = new TextDecoder().decode(body);
         }
 
         // Validate we actually got something

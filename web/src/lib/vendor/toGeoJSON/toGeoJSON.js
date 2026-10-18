@@ -671,7 +671,6 @@ function extractCascadedStyle(node, styleMap) {
 }
 
 const removeSpace = /\s*/g;
-const trimSpace = /^\s*|\s*$/g;
 const splitSpace = /\s+/;
 /**
  * Get one coordinate from a coordinate array, if any
@@ -688,8 +687,11 @@ function coord1(value) {
    * Get all coordinates from a coordinate array as [[],[]]
    */
 function coord(value) {
+  // trim() instead of the original /^\s*|\s*$/g replace, which takes
+  // quadratic time on long runs of whitespace (a ~100 KB KML stalled the
+  // server for seconds).
   return value.
-    replace(trimSpace, "").
+    trim().
     split(splitSpace).
     map(coord1).
     filter(coord => {
