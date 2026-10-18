@@ -82,8 +82,11 @@ export async function POST(event: RequestEvent) {
   }
 
   try {
-    const navigateUrl = getValhallaUrl() + '/trace_route';
-    if (!navigateUrl) {
+    // Check the base before appending the path: null + '/trace_route' would be the
+    // truthy string "null/trace_route".
+    const valhallaUrl = getValhallaUrl();
+    const navigateUrl = valhallaUrl + '/trace_route';
+    if (!valhallaUrl) {
       return json({ message: "VALHALLA_URL not set" }, { status: 400 });
     }
 

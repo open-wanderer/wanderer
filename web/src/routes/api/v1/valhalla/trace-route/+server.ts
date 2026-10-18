@@ -63,7 +63,7 @@ import { error, json, type RequestEvent } from '@sveltejs/kit';
  *                       lon:
  *                         type: number
  *       400:
- *         description: Invalid request body or missing VALHALLA_TRACE_ROUTE_URL
+ *         description: Invalid request body or missing VALHALLA_URL
  *       401:
  *         description: Unauthorized
  *       502:
@@ -75,8 +75,11 @@ export async function POST(event: RequestEvent) {
   }
 
   try {
-    const traceRouteUrl = getValhallaUrl() + '/trace_route';
-    if (!traceRouteUrl) {
+    // Check the base before appending the path: null + '/trace_route' would be the
+    // truthy string "null/trace_route".
+    const valhallaUrl = getValhallaUrl();
+    const traceRouteUrl = valhallaUrl + '/trace_route';
+    if (!valhallaUrl) {
       return json({ message: "VALHALLA_URL not set" }, { status: 400 });
     }
 

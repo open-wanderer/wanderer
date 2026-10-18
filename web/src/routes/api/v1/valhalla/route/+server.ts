@@ -33,9 +33,12 @@ type RouteRequestBody = Record<string, unknown> & {
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    const routeUrl = getValhallaUrl() + '/route';
+    // Check the base before appending the path: null + '/route' would be the
+    // truthy string "null/route".
+    const valhallaUrl = getValhallaUrl();
+    const routeUrl = valhallaUrl + '/route';
     const data: RouteRequestBody = await event.request.json();
-    if (!routeUrl) {
+    if (!valhallaUrl) {
         return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
 
