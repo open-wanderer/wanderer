@@ -8,8 +8,8 @@
   <link rel="icon" href="/_/images/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css">
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" integrity="sha384-L/vw44MdBs/7hovWr2rBVSRKqdti4Vw077yuSGQ2PO3tQARRLiLuMh8xhVmVrR0I" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha384-uTttxo/aOKbdE5RlD/SPzSDoDmNvGlUYPjONi2MN/b7c9HPSvW07OIuyP7uL6jxK" crossorigin="anonymous">
 
   <!-- Sync: theme + accent color before first paint to avoid flash -->
   <script>
@@ -925,12 +925,15 @@
           }
 
           if (a.status === 'ready') {
-            return {
-              kind: 'ok', icon: 'ri-check-line', label: 'Downloaded',
-              tooltip: a.demStatus === 'error'
-                ? 'Downloaded, but terrain data failed: ' + (a.demError || 'no error message recorded.')
-                : 'Downloaded — this region is available offline.',
-            };
+            // A failed rebuild keeps the region ready with its previous
+            // archive and only records the error.
+            let tooltip = 'Downloaded — this region is available offline.';
+            if (a.demStatus === 'error') {
+              tooltip = 'Downloaded, but terrain data failed: ' + (a.demError || 'no error message recorded.');
+            } else if (a.error || a.demError) {
+              tooltip = 'Downloaded — the previous archive is still served, but the last rebuild failed: ' + (a.error || a.demError);
+            }
+            return { kind: 'ok', icon: 'ri-check-line', label: 'Downloaded', tooltip };
           }
 
           return {
@@ -1411,8 +1414,8 @@
       };
     }
   </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
-  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha384-5+cfbwT0iiub6VsQAdn6yz16nr6sDiQoHx6tm4O8OVYXHYOxcffFmCJBL0dgdvGp" crossorigin="anonymous"></script>
 </head>
 
 <body x-data="regionsApp()" x-init="init()" x-cloak>

@@ -48,10 +48,12 @@ func RegionsDashboard(e *core.RequestEvent) error {
 	// tiles.openfreemap.org (connect-src for style/tile/glyph/sprite
 	// fetches, img-src for raster assets). Copying federation's CSP verbatim
 	// silently breaks the map (blank pane, no visible error unless devtools
-	// are open).
+	// are open). Scripts are allowed by exact URL and carry SRI hashes in the
+	// page, because this origin holds the dashboard's superuser token: a
+	// compromised CDN file must not be able to run here.
 	e.Response.Header().Set("Content-Security-Policy",
 		"default-src 'none'; "+
-			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; "+
+			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js; "+
 			"style-src 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com; "+
 			"font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; "+
 			"worker-src blob:; "+
