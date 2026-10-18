@@ -104,7 +104,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
     const points = decodePolyline(shape);
     const startTime = new Date().getTime();
 
-    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[1], lon: p[0] }, ele: heightResponse.height[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
+    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[1], lon: p[0] }, ele: heightResponse.height?.[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
 
     return waypoints
 }
@@ -149,7 +149,13 @@ export function deleteFromRoute(index: number) {
     const snapshot = new GPX({ ...valhallaStore.route })
 
     snapshot.trk?.at(0)?.trkseg?.splice(index, 1);
-    snapshot.features = valhallaStore.route.getTotals();
+    // snapshot, not valhallaStore.route: the splice above already happened, so
+    // recomputing from the pre-splice route left features (including
+    // cumulativeDistance) describing geometry the route no longer has. Crop
+    // interpolation reads that array against a live flatten(), so a stale one
+    // silently places pins on the wrong points. Every other mutator in this
+    // file already recomputes from the object it just mutated.
+    snapshot.features = snapshot.getTotals();
 
     const delta = diff(valhallaStore.route, snapshot);
     const reverseDelta = diff(snapshot, valhallaStore.route)

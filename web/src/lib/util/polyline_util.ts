@@ -23,6 +23,17 @@ function encode(current: number, previous: number, factor: number) {
 }
 
 
+/**
+ * Decode a Google/Valhalla encoded polyline string into coordinate pairs.
+ *
+ * Internally the algorithm accumulates latitude first and longitude second
+ * (standard polyline encoding order), but each returned pair is ordered
+ * `[lng, lat]` (GeoJSON / MapLibre convention, longitude first).
+ *
+ * @param str - Encoded polyline string
+ * @param precision - Encoding precision exponent (default 6 for Valhalla)
+ * @returns Array of `[lng, lat]` pairs
+ */
 export function decodePolyline(str: string, precision: number = 6) {
     var index = 0,
         lat = 0,
@@ -68,6 +79,17 @@ export function decodePolyline(str: string, precision: number = 6) {
 };
 
 
+/**
+ * Encode an array of coordinate pairs into a Google/Valhalla encoded polyline string.
+ *
+ * IMPORTANT: Because `decodePolyline` returns `[lng, lat]` pairs, callers that
+ * need encode/decode to be invertible MUST pass `[lat, lng]` pairs here
+ * (i.e. the first element of each pair is treated as the first encoded value,
+ * which the decoder interprets as latitude).
+ *
+ * @param coordinates - Array of `[lat, lng]` pairs (latitude-first for invertibility with decodePolyline)
+ * @param precision - Encoding precision exponent (default 6 for Valhalla)
+ */
 export function encodePolyline(coordinates: number[][], precision: number = 6) {
     if (!coordinates.length) { return ''; }
 

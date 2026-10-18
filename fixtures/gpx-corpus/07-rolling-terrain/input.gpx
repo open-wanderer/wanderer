@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Rolling Terrain</name>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="47" lon="11.0"><ele>1000</ele></trkpt>
+      <trkpt lat="47.0009" lon="11.0"><ele>1008</ele></trkpt>
+      <trkpt lat="47.0018" lon="11.0"><ele>1000</ele></trkpt>
+      <trkpt lat="47.0027" lon="11.0"><ele>1008</ele></trkpt>
+      <trkpt lat="47.0036" lon="11.0"><ele>1000</ele></trkpt>
+      <trkpt lat="47.0045" lon="11.0"><ele>1008</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

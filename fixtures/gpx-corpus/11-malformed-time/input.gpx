@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Malformed Time</name>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="47.0" lon="11.0"><time>N/A</time></trkpt>
+      <trkpt lat="47.001" lon="11.001"><time></time></trkpt>
+      <trkpt lat="47.002" lon="11.002"><time>2024-01-01T10:30:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

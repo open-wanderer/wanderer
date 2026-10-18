@@ -406,6 +406,9 @@
  *         duration:
  *           type: number
  *           description: Duration in seconds
+ *         moving_duration:
+ *           type: number
+ *           description: Moving time in seconds, excluding accumulated pause time. Present only for trails recorded in the Wanderer app; absent otherwise, in which case `duration` (GPX-derived elapsed time) is displayed instead.
  *         photos:
  *           type: array
  *           items:
@@ -486,6 +489,9 @@
  *           type: number
  *         duration:
  *           type: number
+ *         moving_duration:
+ *           type: number
+ *           description: Moving time in seconds, excluding accumulated pause time. Present only for trails recorded in the Wanderer app; absent otherwise, in which case `duration` (GPX-derived elapsed time) is displayed instead.
  *         photos:
  *           type: array
  *           items:
@@ -546,6 +552,9 @@
  *           type: number
  *         duration:
  *           type: number
+ *         moving_duration:
+ *           type: number
+ *           description: Moving time in seconds, excluding accumulated pause time. Present only for trails recorded in the Wanderer app; absent otherwise, in which case `duration` (GPX-derived elapsed time) is displayed instead.
  *         photos:
  *           type: array
  *           items:
