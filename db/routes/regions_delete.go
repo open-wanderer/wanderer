@@ -33,16 +33,18 @@ func RegionArchiveDelete(e *core.RequestEvent) error {
 		return e.BadRequestError("invalid region id", nil)
 	}
 
-	if err := removeArchiveFileIfExists(regions.RegionArchivePath(id)); err != nil {
-		return e.InternalServerError("failed to delete vector archive", err)
-	}
-	if err := removeArchiveFileIfExists(regions.RegionDemPath(id)); err != nil {
-		return e.InternalServerError("failed to delete dem archive", err)
+	vector, dem := regions.RegionArchivePath(e.App, id), regions.RegionDemPath(e.App, id)
+	// The .building files are the leftovers of an interrupted build; without
+	// removing them the region directory below could never be removed.
+	for _, path := range []string{vector, dem, vector + ".building", dem + ".building"} {
+		if err := removeArchiveFileIfExists(path); err != nil {
+			return e.InternalServerError("failed to delete region archive", err)
+		}
 	}
 	// Best-effort: only succeeds if the region's directory is now empty; a
 	// non-empty-dir error is expected (e.g. a rebuild raced in and dropped a
-	// new file between the two removals above) and deliberately ignored.
-	_ = os.Remove(filepath.Join(regions.RegionCacheDir, id))
+	// new file between the removals above) and deliberately ignored.
+	_ = os.Remove(filepath.Join(regions.CacheDir(e.App), id))
 
 	records, err := e.App.FindAllRecords("region_archives",
 		dbx.NewExp("path = {:path}", dbx.Params{"path": id}),

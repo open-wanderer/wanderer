@@ -315,6 +315,7 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 		if err := regions.ReconcileArchives(se.App); err != nil {
 			se.App.Logger().Warn("failed to reconcile region archives on startup", "error", err)
 		}
+		regions.WarnIfExtractorMissing(se.App)
 
 		return se.Next()
 	}

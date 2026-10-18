@@ -2,23 +2,36 @@ package regions
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
 	"github.com/pocketbase/pocketbase/tools/cron"
 )
 
+// defaultCronSchedule is the region-archive-build schedule when
+// REGION_ARCHIVE_CRON_SCHEDULE is unset or invalid.
+const defaultCronSchedule = "0 3 * * *"
+
 // CronSchedule resolves the region-archive-build cron expression the same
 // way main.go's registerCronJobs does (REGION_ARCHIVE_CRON_SCHEDULE env
 // var, default "0 3 * * *" UTC). Exported so both the actual cron
 // registration and the admin "Sync now" status endpoint (which needs to
 // report the next scheduled run) resolve the identical value from one
-// place rather than duplicating the env var name/default.
+// place rather than duplicating the env var name/default. An invalid
+// expression is logged and replaced by the default, because main.go
+// registers the job with MustAdd, which would otherwise stop the server
+// from starting.
 func CronSchedule() string {
-	if v := os.Getenv("REGION_ARCHIVE_CRON_SCHEDULE"); v != "" {
-		return v
+	v := os.Getenv("REGION_ARCHIVE_CRON_SCHEDULE")
+	if v == "" {
+		return defaultCronSchedule
 	}
-	return "0 3 * * *"
+	if _, err := cron.NewSchedule(v); err != nil {
+		log.Printf("[regions] invalid REGION_ARCHIVE_CRON_SCHEDULE %q, using %q: %v", v, defaultCronSchedule, err)
+		return defaultCronSchedule
+	}
+	return v
 }
 
 // NextScheduledSync returns the next UTC time the given cron expression
