@@ -498,6 +498,10 @@
                 setFields("duration", parseResult.trail.duration);
                 setFields("elevation_gain", parseResult.trail.elevation_gain);
                 setFields("elevation_loss", parseResult.trail.elevation_loss);
+                // The web computes no moving time, so a recording's value
+                // would otherwise outlive its replaced track; see
+                // updateTrailWithRouteData for why it is 0, not undefined.
+                setFields("moving_duration", 0);
             } else {
                 setFields(parseResult.trail);
             }
