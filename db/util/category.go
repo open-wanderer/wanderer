@@ -99,6 +99,59 @@ func ParseCategoryTranslations(raw any) (map[string]CategoryTranslation, error) 
 	}
 }
 
+// parseSettingsMap best-effort decodes a (sub)category `settings` JSON blob into
+// a map. It never returns nil, so callers can index and assign into the result
+// without a nil-map panic, and it never errors: anything unparseable is treated
+// as "no settings".
+func parseSettingsMap(raw any) map[string]any {
+	empty := map[string]any{}
+
+	switch value := raw.(type) {
+	case nil:
+		return empty
+	case map[string]any:
+		if value == nil {
+			return empty
+		}
+		return value
+	case types.JSONRaw:
+		if len(value) == 0 {
+			return empty
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {
+			return empty
+		}
+
+		return decoded
+	case []byte:
+		if len(value) == 0 {
+			return empty
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {
+			return empty
+		}
+
+		return decoded
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return empty
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal([]byte(value), &decoded); err != nil || decoded == nil {
+			return empty
+		}
+
+		return decoded
+	default:
+		return empty
+	}
+}
+
 func ValidateCategoryRecord(app core.App, record *core.Record) error {
 	name := record.GetString("name")
 	normalizedName := NormalizeCategoryName(name)

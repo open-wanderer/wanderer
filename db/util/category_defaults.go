@@ -53,7 +53,7 @@ func SeedDefaultCategories(app core.App) error {
 		record := core.NewRecord(collection)
 		record.Set("name", name)
 		if collection.Fields.GetByName("settings") != nil {
-			record.Set("settings", defaultCategorySettings())
+			record.Set("settings", defaultCategorySettings(name))
 		}
 		if err := app.Save(record); err != nil {
 			return fmt.Errorf("failed to seed default category %q: %w", name, err)
@@ -63,11 +63,28 @@ func SeedDefaultCategories(app core.App) error {
 	return nil
 }
 
-func defaultCategorySettings() map[string]any {
-	return map[string]any{
+// defaultCategoryValhallaProfiles maps a default category name onto the
+// Valhalla-native costing string stored in `settings.valhalla_profile`.
+//
+// Only "Hiking" ships with a mapping — every other default category
+// (Walking/Running/Climbing/Skiing/Canoeing/Biking/Other) is deliberately
+// unmapped and falls through the client-side resolution chain. Biking's
+// costing is carried by its subcategories (see subcategory_defaults.go).
+var defaultCategoryValhallaProfiles = map[string]string{
+	"Hiking": "pedestrian",
+}
+
+func defaultCategorySettings(name string) map[string]any {
+	settings := map[string]any{
 		"wp_merge_enabled": true,
 		"wp_merge_radius":  50,
 	}
+
+	if profile, ok := defaultCategoryValhallaProfiles[name]; ok {
+		settings["valhalla_profile"] = profile
+	}
+
+	return settings
 }
 
 var defaultCategoryTranslations = map[string]map[string]string{
@@ -258,6 +275,48 @@ func PrepopulateDefaultCategoryIcons(app core.App) error {
 		category.Set("icon", defaultIcon)
 		if err := app.Save(category); err != nil {
 			return fmt.Errorf("failed to prepopulate icon for category %q: %w", category.GetString("name"), err)
+		}
+	}
+
+	return nil
+}
+
+// PrepopulateDefaultCategoryValhallaProfiles retroactively backfills
+// `settings.valhalla_profile` onto already-existing default categories (today:
+// only "Hiking") so installs that predate the field pick it up on next boot.
+//
+// It never overwrites an operator-set value: if the `valhalla_profile` key is
+// already present — with any value, including an empty string — the record is
+// left untouched.
+func PrepopulateDefaultCategoryValhallaProfiles(app core.App) error {
+	collection, err := app.FindCollectionByNameOrId("categories")
+	if err != nil {
+		return err
+	}
+	if collection.Fields.GetByName("settings") == nil {
+		return nil
+	}
+
+	allCategories, err := app.FindAllRecords("categories")
+	if err != nil {
+		return err
+	}
+
+	for _, category := range allCategories {
+		defaultProfile, ok := defaultCategoryValhallaProfiles[category.GetString("name")]
+		if !ok {
+			continue
+		}
+
+		settings := parseSettingsMap(category.Get("settings"))
+		if _, exists := settings["valhalla_profile"]; exists {
+			continue
+		}
+
+		settings["valhalla_profile"] = defaultProfile
+		category.Set("settings", settings)
+		if err := app.Save(category); err != nil {
+			return fmt.Errorf("failed to prepopulate valhalla_profile for category %q: %w", category.GetString("name"), err)
 		}
 	}
 
