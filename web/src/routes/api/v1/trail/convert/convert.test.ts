@@ -2,10 +2,13 @@ import type { RequestEvent } from "@sveltejs/kit";
 import { describe, expect, it } from "vitest";
 import { POST } from "./+server";
 
-// The handler as left by Task 1 reads only `event.request` - no `event.fetch`, `locals` or
-// `params` - so a plain object holding a `Request` is a sufficient stand-in for `RequestEvent`.
-function makeEvent(request: Request): RequestEvent {
-    return { request } as unknown as RequestEvent;
+// The handler reads only `event.request` and the auth state, so a plain object
+// holding a `Request` and a PocketBase auth store is a sufficient stand-in for `RequestEvent`.
+function makeEvent(request: Request, authenticated = true): RequestEvent {
+    return {
+        request,
+        locals: { pb: { authStore: { record: authenticated ? { id: "user" } : null } } },
+    } as unknown as RequestEvent;
 }
 
 const gpxDoc = `<?xml version="1.0" encoding="UTF-8"?>
@@ -188,5 +191,52 @@ describe("POST /api/v1/trail/convert - regression guard", () => {
         expect(() => JSON.parse(text)).toThrow();
         expect(text).not.toContain("\"expand\"");
         expect(text).not.toContain("elevation_gain");
+    });
+});
+
+describe("POST /api/v1/trail/convert - limits", () => {
+    const url = "http://localhost/api/v1/trail/convert";
+
+    it("requires a logged-in user", async () => {
+        const response = await POST(makeEvent(new Request(url, { method: "POST", body: gpxDoc }), false));
+        expect(response.status).toBe(401);
+    });
+
+    it("rejects a body whose declared size is over the limit", async () => {
+        const request = new Request(url, { method: "POST", body: gpxDoc, headers: { "content-length": String(26 * 1024 * 1024) } });
+        const response = await POST(makeEvent(request));
+        expect(response.status).toBe(413);
+    });
+
+    it("stops reading an undeclared body once it is over the limit", async () => {
+        const chunk = new Uint8Array(1024 * 1024);
+        let sent = 0;
+        const body = new ReadableStream<Uint8Array>({
+            pull(controller) {
+                sent++;
+                controller.enqueue(chunk);
+            },
+        });
+        const request = new Request(url, { method: "POST", body, duplex: "half" } as RequestInit);
+        const response = await POST(makeEvent(request));
+        expect(response.status).toBe(413);
+        expect(sent).toBeLessThan(30);
+    });
+
+    it("answers a non-file `file` field with 400", async () => {
+        const form = new FormData();
+        form.append("file", "not a file");
+        const response = await POST(makeEvent(new Request(url, { method: "POST", body: form })));
+        expect(response.status).toBe(400);
+    });
+
+    it("parses KML with long runs of whitespace in linear time", async () => {
+        const kml = `<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><LineString><coordinates>11,47,1${" ".repeat(200_000)}11.1,47.1,2</coordinates></LineString></Placemark></Document></kml>`;
+        const form = new FormData();
+        form.append("file", new Blob([kml]), "track.kml");
+        const started = performance.now();
+        const response = await POST(makeEvent(new Request(url, { method: "POST", body: form })));
+        expect(response.status).toBe(200);
+        expect(performance.now() - started).toBeLessThan(2000);
     });
 });
