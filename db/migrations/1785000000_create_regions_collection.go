@@ -14,9 +14,9 @@
 package migrations
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -46,6 +46,12 @@ type SeedCatalog struct {
 	Commit string    `json:"commit"`
 	Rows   []SeedRow `json:"rows"`
 }
+
+// Embedded so the migration does not depend on the working directory
+// (the test packages apply migrations from their own directories).
+//
+//go:embed initial_data/regions_seed.json
+var regionsSeedJSON []byte
 
 func init() {
 	m.Register(func(app core.App) error {
@@ -157,13 +163,8 @@ func init() {
 		// bound retired because the problem it guarded against (an
 		// unbounded decompression of a many-hundred-MB stream) no longer
 		// exists, not because bounding was wrong in principle.
-		data, err := os.ReadFile("migrations/initial_data/regions_seed.json")
-		if err != nil {
-			return fmt.Errorf("read regions seed: %w", err)
-		}
-
 		var catalog SeedCatalog
-		if err := json.Unmarshal(data, &catalog); err != nil {
+		if err := json.Unmarshal(regionsSeedJSON, &catalog); err != nil {
 			return fmt.Errorf("parse regions seed: %w", err)
 		}
 
