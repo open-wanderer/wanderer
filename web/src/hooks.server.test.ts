@@ -213,6 +213,18 @@ describe("API token authentication", () => {
         expect(requests).toEqual([]);
     });
 
+    it("answers the health probe without contacting PocketBase first", async () => {
+        // The backend answers 500 to everything but the auth routes, like a
+        // PocketBase that is down, and no search-token cookie is sent.
+        const { event, resolve } = request("/api/v1/health", false, "Bearer wanderer_key_valid");
+        event.cookies.get = vi.fn(() => undefined);
+        const response = await handle({ event, resolve });
+        expect(response.status).toBe(200);
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(requests).toEqual([]);
+        expect(event.locals.pb).toBeDefined();
+    });
+
     it("keeps public requests without a token accessible", async () => {
         const { event, resolve } = request("/api/v1/category", false, "");
         expect((await handle({ event, resolve })).status).toBe(200);
