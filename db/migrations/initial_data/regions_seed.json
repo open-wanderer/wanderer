@@ -43,7 +43,7 @@
       "path": "algeria.algeria_central",
       "depth": 1,
       "sort_order": 0,
-      "name": "Central",
+      "name": "Algeria — Centre",
       "kind": "leaf"
     },
     {
@@ -52,7 +52,7 @@
       "path": "algeria.algeria_coast",
       "depth": 1,
       "sort_order": 1,
-      "name": "Coast",
+      "name": "Algeria — North",
       "kind": "leaf"
     },
     {
@@ -115,7 +115,7 @@
       "path": "caribisch_nederland",
       "depth": 0,
       "sort_order": 10,
-      "name": "Caribisch Nederland",
+      "name": "Aruba, Curaçao and Caribbean Netherlands",
       "kind": "leaf"
     },
     {
@@ -169,7 +169,7 @@
       "path": "saint_barthelemy",
       "depth": 0,
       "sort_order": 16,
-      "name": "Saint Barthelemy",
+      "name": "Saint-Barthélemy",
       "kind": "leaf"
     },
     {
@@ -241,7 +241,7 @@
       "path": "argentina.campo_de_hielo_sur",
       "depth": 1,
       "sort_order": 0,
-      "name": "Campo de Hielo Sur",
+      "name": "Southern Patagonian Ice Field",
       "kind": "leaf"
     },
     {
@@ -250,7 +250,7 @@
       "path": "argentina.argentina_buenos_aires_buenos_aires",
       "depth": 1,
       "sort_order": 1,
-      "name": "Buenos Aires_Buenos Aires",
+      "name": "Buenos Aires",
       "kind": "leaf"
     },
     {
@@ -259,7 +259,7 @@
       "path": "argentina.argentina_buenos_aires_north",
       "depth": 1,
       "sort_order": 2,
-      "name": "Buenos Aires_North",
+      "name": "Buenos Aires Province — North",
       "kind": "leaf"
     },
     {
@@ -268,7 +268,7 @@
       "path": "argentina.argentina_buenos_aires_south",
       "depth": 1,
       "sort_order": 3,
-      "name": "Buenos Aires_South",
+      "name": "Buenos Aires Province — South",
       "kind": "leaf"
     },
     {
@@ -304,7 +304,7 @@
       "path": "argentina.argentina_northwest",
       "depth": 1,
       "sort_order": 7,
-      "name": "Northwest",
+      "name": "Argentine Northwest",
       "kind": "leaf"
     },
     {
@@ -322,7 +322,7 @@
       "path": "argentina.argentina_santa_fe",
       "depth": 1,
       "sort_order": 9,
-      "name": "Santa Fe",
+      "name": "Santa Fe Province",
       "kind": "leaf"
     },
     {
@@ -367,7 +367,7 @@
       "path": "austria.austria_lower_austria_wien",
       "depth": 1,
       "sort_order": 2,
-      "name": "Lower Austria_Wien",
+      "name": "Vienna and Lower Austria — East",
       "kind": "leaf"
     },
     {
@@ -376,7 +376,7 @@
       "path": "austria.austria_styria_graz",
       "depth": 1,
       "sort_order": 3,
-      "name": "Styria_Graz",
+      "name": "Styria — Graz",
       "kind": "leaf"
     },
     {
@@ -385,7 +385,7 @@
       "path": "austria.austria_styria_leoben",
       "depth": 1,
       "sort_order": 4,
-      "name": "Styria_Leoben",
+      "name": "Styria — Leoben",
       "kind": "leaf"
     },
     {
@@ -394,7 +394,7 @@
       "path": "austria.austria_upper_austria_linz",
       "depth": 1,
       "sort_order": 5,
-      "name": "Upper Austria_Linz",
+      "name": "Upper Austria — Linz",
       "kind": "leaf"
     },
     {
@@ -403,7 +403,7 @@
       "path": "austria.austria_upper_austria_wels",
       "depth": 1,
       "sort_order": 6,
-      "name": "Upper Austria_Wels",
+      "name": "Upper Austria — Wels",
       "kind": "leaf"
     },
     {
@@ -412,7 +412,7 @@
       "path": "austria.austria_lower_austria_west",
       "depth": 1,
       "sort_order": 7,
-      "name": "Lower Austria_West",
+      "name": "Lower Austria — West",
       "kind": "leaf"
     },
     {
@@ -556,7 +556,7 @@
       "path": "azerbaijan_region",
       "depth": 0,
       "sort_order": 27,
-      "name": "Azerbaijan Region",
+      "name": "Azerbaijan",
       "kind": "group"
     },
     {
@@ -565,7 +565,7 @@
       "path": "azerbaijan_region.nagorno-karabakh",
       "depth": 1,
       "sort_order": 0,
-      "name": "Nagorno-Karabakh",
+      "name": "Karabakh Economic Region",
       "kind": "leaf"
     },
     {
@@ -619,7 +619,7 @@
       "path": "belarus.belarus_hrodna_region",
       "depth": 1,
       "sort_order": 1,
-      "name": "Hrodna Region",
+      "name": "Grodno Region",
       "kind": "leaf"
     },
     {
@@ -637,7 +637,7 @@
       "path": "belarus.belarus_homiel_region",
       "depth": 1,
       "sort_order": 3,
-      "name": "Homiel Region",
+      "name": "Gomel Region",
       "kind": "leaf"
     },
     {
@@ -646,7 +646,7 @@
       "path": "belarus.belarus_maglieu_region",
       "depth": 1,
       "sort_order": 4,
-      "name": "Maglieu Region",
+      "name": "Mogilev Region",
       "kind": "leaf"
     },
     {
@@ -673,7 +673,7 @@
       "path": "belgium.belgium_west_flanders",
       "depth": 1,
       "sort_order": 0,
-      "name": "West Flanders",
+      "name": "West Flanders Province",
       "kind": "leaf"
     },
     {
@@ -682,7 +682,7 @@
       "path": "belgium.belgium_antwerp",
       "depth": 1,
       "sort_order": 1,
-      "name": "Antwerp",
+      "name": "Antwerp Province",
       "kind": "leaf"
     },
     {
@@ -691,7 +691,7 @@
       "path": "belgium.belgium_east_flanders",
       "depth": 1,
       "sort_order": 2,
-      "name": "East Flanders",
+      "name": "East Flanders Province",
       "kind": "leaf"
     },
     {
@@ -700,7 +700,7 @@
       "path": "belgium.belgium_hainaut",
       "depth": 1,
       "sort_order": 3,
-      "name": "Hainaut",
+      "name": "Hainaut Province",
       "kind": "leaf"
     },
     {
@@ -709,7 +709,7 @@
       "path": "belgium.belgium_walloon_brabant",
       "depth": 1,
       "sort_order": 4,
-      "name": "Walloon Brabant",
+      "name": "Walloon Brabant Province",
       "kind": "leaf"
     },
     {
@@ -718,7 +718,7 @@
       "path": "belgium.belgium_namur",
       "depth": 1,
       "sort_order": 5,
-      "name": "Namur",
+      "name": "Namur Province",
       "kind": "leaf"
     },
     {
@@ -727,7 +727,7 @@
       "path": "belgium.belgium_limburg",
       "depth": 1,
       "sort_order": 6,
-      "name": "Limburg",
+      "name": "Limburg Province",
       "kind": "leaf"
     },
     {
@@ -736,7 +736,7 @@
       "path": "belgium.belgium_luxembourg",
       "depth": 1,
       "sort_order": 7,
-      "name": "Luxembourg",
+      "name": "Luxembourg Province",
       "kind": "leaf"
     },
     {
@@ -745,7 +745,7 @@
       "path": "belgium.belgium_flemish_brabant",
       "depth": 1,
       "sort_order": 8,
-      "name": "Flemish Brabant",
+      "name": "Flemish Brabant Province",
       "kind": "leaf"
     },
     {
@@ -754,7 +754,7 @@
       "path": "belgium.belgium_liege",
       "depth": 1,
       "sort_order": 9,
-      "name": "Liege",
+      "name": "Liège Province",
       "kind": "leaf"
     },
     {
@@ -808,7 +808,7 @@
       "path": "bolivia.bolivia_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Bolivia – North",
       "kind": "leaf"
     },
     {
@@ -817,7 +817,7 @@
       "path": "bolivia.bolivia_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Bolivia – South",
       "kind": "leaf"
     },
     {
@@ -835,7 +835,7 @@
       "path": "bosnia_and_herzegovina.bosnia_and_herzegovina_entity_federation_of_bosnia_and_herzegovina",
       "depth": 1,
       "sort_order": 0,
-      "name": "Entity Federation of Bosnia and Herzegovina",
+      "name": "Federation of Bosnia and Herzegovina",
       "kind": "leaf"
     },
     {
@@ -844,7 +844,7 @@
       "path": "bosnia_and_herzegovina.bosnia_and_herzegovina_brcko_district_of_bosnia_and_herzegowina",
       "depth": 1,
       "sort_order": 1,
-      "name": "Brcko district of Bosnia and Herzegowina",
+      "name": "Brčko District",
       "kind": "leaf"
     },
     {
@@ -853,7 +853,7 @@
       "path": "bosnia_and_herzegovina.bosnia_and_herzegovina_republic_of_srpska",
       "depth": 1,
       "sort_order": 2,
-      "name": "Republic of Srpska",
+      "name": "Republika Srpska",
       "kind": "leaf"
     },
     {
@@ -889,7 +889,7 @@
       "path": "brazil.brazil_goias_north",
       "depth": 1,
       "sort_order": 1,
-      "name": "Goias_North",
+      "name": "Goiás — North",
       "kind": "leaf"
     },
     {
@@ -898,7 +898,7 @@
       "path": "brazil.brazil_goias_brasilia",
       "depth": 1,
       "sort_order": 2,
-      "name": "Goias_Brasilia",
+      "name": "Goiás — Brasília",
       "kind": "leaf"
     },
     {
@@ -907,7 +907,7 @@
       "path": "brazil.brazil_mato_grosso_do_sul",
       "depth": 1,
       "sort_order": 3,
-      "name": "Mato Grosso Do Sul",
+      "name": "Mato Grosso do Sul",
       "kind": "leaf"
     },
     {
@@ -925,7 +925,7 @@
       "path": "brazil.brazil_north_region_east",
       "depth": 1,
       "sort_order": 5,
-      "name": "North Region_East",
+      "name": "North Region — East",
       "kind": "leaf"
     },
     {
@@ -934,7 +934,7 @@
       "path": "brazil.brazil_north_region_west",
       "depth": 1,
       "sort_order": 6,
-      "name": "North Region_West",
+      "name": "North Region — West",
       "kind": "leaf"
     },
     {
@@ -943,7 +943,7 @@
       "path": "brazil.brazil_northeast_region_east",
       "depth": 1,
       "sort_order": 7,
-      "name": "Northeast Region_East",
+      "name": "Northeast Region — East",
       "kind": "leaf"
     },
     {
@@ -952,7 +952,7 @@
       "path": "brazil.brazil_northeast_region_west",
       "depth": 1,
       "sort_order": 8,
-      "name": "Northeast Region_West",
+      "name": "Northeast Region — West",
       "kind": "leaf"
     },
     {
@@ -961,7 +961,7 @@
       "path": "brazil.brazil_paraiba",
       "depth": 1,
       "sort_order": 9,
-      "name": "Paraiba",
+      "name": "Paraíba",
       "kind": "leaf"
     },
     {
@@ -970,7 +970,7 @@
       "path": "brazil.brazil_parana_east",
       "depth": 1,
       "sort_order": 10,
-      "name": "Parana_East",
+      "name": "Paraná — East",
       "kind": "leaf"
     },
     {
@@ -979,7 +979,7 @@
       "path": "brazil.brazil_parana_west",
       "depth": 1,
       "sort_order": 11,
-      "name": "Parana_West",
+      "name": "Paraná — West",
       "kind": "leaf"
     },
     {
@@ -1006,7 +1006,7 @@
       "path": "brazil.brazil_south_region_east",
       "depth": 1,
       "sort_order": 14,
-      "name": "South Region_East",
+      "name": "Southern Region — East",
       "kind": "leaf"
     },
     {
@@ -1015,7 +1015,7 @@
       "path": "brazil.brazil_south_region_west",
       "depth": 1,
       "sort_order": 15,
-      "name": "South Region_West",
+      "name": "Southern Region — West",
       "kind": "leaf"
     },
     {
@@ -1024,7 +1024,7 @@
       "path": "brazil.brazil_southeast_region_espirito_santo",
       "depth": 1,
       "sort_order": 16,
-      "name": "Southeast Region_Espirito Santo",
+      "name": "Espírito Santo",
       "kind": "leaf"
     },
     {
@@ -1033,7 +1033,7 @@
       "path": "brazil.brazil_southeast_region_minas_gerais_contagem",
       "depth": 1,
       "sort_order": 17,
-      "name": "Southeast Region_Minas Gerais_Contagem",
+      "name": "Minas Gerais — Contagem",
       "kind": "leaf"
     },
     {
@@ -1042,7 +1042,7 @@
       "path": "brazil.brazil_southeast_region_minas_gerais_north",
       "depth": 1,
       "sort_order": 18,
-      "name": "Southeast Region_Minas Gerais_North",
+      "name": "Minas Gerais — North",
       "kind": "leaf"
     },
     {
@@ -1051,7 +1051,7 @@
       "path": "brazil.brazil_southeast_region_rio_de_janeiro",
       "depth": 1,
       "sort_order": 19,
-      "name": "Southeast Region_Rio de Janeiro",
+      "name": "Rio de Janeiro",
       "kind": "leaf"
     },
     {
@@ -1060,7 +1060,7 @@
       "path": "brazil.brazil_southeast_region_sao_paulo_campinas",
       "depth": 1,
       "sort_order": 20,
-      "name": "Southeast Region_Sao Paulo_Campinas",
+      "name": "São Paulo — Campinas",
       "kind": "leaf"
     },
     {
@@ -1069,7 +1069,7 @@
       "path": "brazil.brazil_southeast_region_sao_paulo_city",
       "depth": 1,
       "sort_order": 21,
-      "name": "Southeast Region_Sao Paulo_City",
+      "name": "São Paulo — Santos",
       "kind": "leaf"
     },
     {
@@ -1078,7 +1078,7 @@
       "path": "brazil.brazil_southeast_region_sao_paulo_west",
       "depth": 1,
       "sort_order": 22,
-      "name": "Southeast Region_Sao Paulo_West",
+      "name": "São Paulo — Ribeirão Preto",
       "kind": "leaf"
     },
     {
@@ -1105,7 +1105,7 @@
       "path": "bulgaria.bulgaria_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "East",
+      "name": "Bulgaria — East",
       "kind": "leaf"
     },
     {
@@ -1114,7 +1114,7 @@
       "path": "bulgaria.bulgaria_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Bulgaria — West",
       "kind": "leaf"
     },
     {
@@ -1159,7 +1159,7 @@
       "path": "cameroon.cameroon_central",
       "depth": 1,
       "sort_order": 0,
-      "name": "Central",
+      "name": "Cameroon — Centre",
       "kind": "leaf"
     },
     {
@@ -1168,7 +1168,7 @@
       "path": "cameroon.cameroon_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Cameroon — West",
       "kind": "leaf"
     },
     {
@@ -1204,7 +1204,7 @@
       "path": "canada.canada_alberta.canada_alberta_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "North",
+      "name": "Alberta — North",
       "kind": "leaf"
     },
     {
@@ -1213,7 +1213,7 @@
       "path": "canada.canada_alberta.canada_alberta_south",
       "depth": 2,
       "sort_order": 2,
-      "name": "South",
+      "name": "Alberta — South",
       "kind": "leaf"
     },
     {
@@ -1231,7 +1231,7 @@
       "path": "canada.canada_british_columbia.canada_british_columbia_central",
       "depth": 2,
       "sort_order": 0,
-      "name": "Central",
+      "name": "British Columbia — Centre",
       "kind": "leaf"
     },
     {
@@ -1240,7 +1240,7 @@
       "path": "canada.canada_british_columbia.canada_british_columbia_far_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "Far_North",
+      "name": "British Columbia — East",
       "kind": "leaf"
     },
     {
@@ -1249,7 +1249,7 @@
       "path": "canada.canada_british_columbia.canada_british_columbia_islands",
       "depth": 2,
       "sort_order": 2,
-      "name": "Islands",
+      "name": "Vancouver Island",
       "kind": "leaf"
     },
     {
@@ -1258,7 +1258,7 @@
       "path": "canada.canada_british_columbia.canada_british_columbia_north",
       "depth": 2,
       "sort_order": 3,
-      "name": "North",
+      "name": "British Columbia — West",
       "kind": "leaf"
     },
     {
@@ -1267,7 +1267,7 @@
       "path": "canada.canada_british_columbia.canada_british_columbia_northeast",
       "depth": 2,
       "sort_order": 4,
-      "name": "Northeast",
+      "name": "British Columbia — North",
       "kind": "leaf"
     },
     {
@@ -1276,7 +1276,7 @@
       "path": "canada.canada_british_columbia.canada_british_columbia_southeast",
       "depth": 2,
       "sort_order": 5,
-      "name": "Southeast",
+      "name": "Kelowna",
       "kind": "leaf"
     },
     {
@@ -1303,7 +1303,7 @@
       "path": "canada.canada_labrador.canada_labrador_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Labrador — North",
       "kind": "leaf"
     },
     {
@@ -1312,7 +1312,7 @@
       "path": "canada.canada_labrador.canada_labrador_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "South",
+      "name": "Labrador — South",
       "kind": "leaf"
     },
     {
@@ -1321,7 +1321,7 @@
       "path": "canada.canada_labrador.canada_labrador_west",
       "depth": 2,
       "sort_order": 2,
-      "name": "West",
+      "name": "Labrador — West",
       "kind": "leaf"
     },
     {
@@ -1339,7 +1339,7 @@
       "path": "canada.canada_manitoba.canada_manitoba_northeast",
       "depth": 2,
       "sort_order": 0,
-      "name": "Northeast",
+      "name": "Manitoba — North",
       "kind": "leaf"
     },
     {
@@ -1348,7 +1348,7 @@
       "path": "canada.canada_manitoba.canada_manitoba_northwest",
       "depth": 2,
       "sort_order": 1,
-      "name": "Northwest",
+      "name": "Manitoba — West",
       "kind": "leaf"
     },
     {
@@ -1357,7 +1357,7 @@
       "path": "canada.canada_manitoba.canada_manitoba_south",
       "depth": 2,
       "sort_order": 2,
-      "name": "South",
+      "name": "Brandon",
       "kind": "leaf"
     },
     {
@@ -1393,7 +1393,7 @@
       "path": "canada.canada_newfoundland.canada_newfoundland_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "East",
+      "name": "Newfoundland — East",
       "kind": "leaf"
     },
     {
@@ -1402,7 +1402,7 @@
       "path": "canada.canada_newfoundland.canada_newfoundland_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "North",
+      "name": "Newfoundland — North",
       "kind": "leaf"
     },
     {
@@ -1411,7 +1411,7 @@
       "path": "canada.canada_newfoundland.canada_newfoundland_south",
       "depth": 2,
       "sort_order": 2,
-      "name": "South",
+      "name": "Newfoundland — South",
       "kind": "leaf"
     },
     {
@@ -1420,7 +1420,7 @@
       "path": "canada.canada_newfoundland.canada_newfoundland_west",
       "depth": 2,
       "sort_order": 3,
-      "name": "West",
+      "name": "Newfoundland — West",
       "kind": "leaf"
     },
     {
@@ -1438,7 +1438,7 @@
       "path": "canada.canada_northwest_territories.canada_northwest_territories_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "East",
+      "name": "Northwest Territories — East",
       "kind": "leaf"
     },
     {
@@ -1447,7 +1447,7 @@
       "path": "canada.canada_northwest_territories.canada_northwest_territories_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "North",
+      "name": "Northwest Territories — North",
       "kind": "leaf"
     },
     {
@@ -1501,7 +1501,7 @@
       "path": "canada.canada_nunavut.canada_nunavut_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Nunavut — North",
       "kind": "leaf"
     },
     {
@@ -1510,7 +1510,7 @@
       "path": "canada.canada_nunavut.canada_nunavut_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "South",
+      "name": "Nunavut — South",
       "kind": "leaf"
     },
     {
@@ -1528,7 +1528,7 @@
       "path": "canada.canada_ontario.canada_ontario_bame",
       "depth": 2,
       "sort_order": 0,
-      "name": "Bame",
+      "name": "Barrie",
       "kind": "leaf"
     },
     {
@@ -1555,7 +1555,7 @@
       "path": "canada.canada_ontario.canada_ontario_northeastern_central",
       "depth": 2,
       "sort_order": 3,
-      "name": "Northeastern_Central",
+      "name": "Timmins",
       "kind": "leaf"
     },
     {
@@ -1564,7 +1564,7 @@
       "path": "canada.canada_ontario.canada_ontario_northeastern_north",
       "depth": 2,
       "sort_order": 4,
-      "name": "Northeastern_North",
+      "name": "Moose Factory",
       "kind": "leaf"
     },
     {
@@ -1573,7 +1573,7 @@
       "path": "canada.canada_ontario.canada_ontario_northeastern_s",
       "depth": 2,
       "sort_order": 5,
-      "name": "Northeastern_S",
+      "name": "Greater Sudbury",
       "kind": "leaf"
     },
     {
@@ -1582,7 +1582,7 @@
       "path": "canada.canada_ontario.canada_ontario_northeastern_se",
       "depth": 2,
       "sort_order": 6,
-      "name": "Northeastern_SE",
+      "name": "North Bay",
       "kind": "leaf"
     },
     {
@@ -1591,7 +1591,7 @@
       "path": "canada.canada_ontario.canada_ontario_northeastern_sw",
       "depth": 2,
       "sort_order": 7,
-      "name": "Northeastern_SW",
+      "name": "Sault Ste. Marie",
       "kind": "leaf"
     },
     {
@@ -1600,7 +1600,7 @@
       "path": "canada.canada_ontario.canada_ontario_northeastern_wawa",
       "depth": 2,
       "sort_order": 8,
-      "name": "Northeastern_Wawa",
+      "name": "Wawa",
       "kind": "leaf"
     },
     {
@@ -1609,7 +1609,7 @@
       "path": "canada.canada_ontario.canada_ontario_northern",
       "depth": 2,
       "sort_order": 9,
-      "name": "Northern",
+      "name": "Thunder Bay",
       "kind": "leaf"
     },
     {
@@ -1618,7 +1618,7 @@
       "path": "canada.canada_ontario.canada_ontario_northwestern",
       "depth": 2,
       "sort_order": 10,
-      "name": "Northwestern",
+      "name": "Ontario — North",
       "kind": "leaf"
     },
     {
@@ -1654,7 +1654,7 @@
       "path": "canada.canada_quebec.canada_quebec_quebec",
       "depth": 2,
       "sort_order": 0,
-      "name": "Quebec",
+      "name": "Quebec City",
       "kind": "leaf"
     },
     {
@@ -1663,7 +1663,7 @@
       "path": "canada.canada_quebec.canada_quebek_far_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "Canada_Quebek_Far North",
+      "name": "Quebec — North",
       "kind": "leaf"
     },
     {
@@ -1672,7 +1672,7 @@
       "path": "canada.canada_quebec.canada_quebek_montreal",
       "depth": 2,
       "sort_order": 2,
-      "name": "Canada_Quebek_Montreal",
+      "name": "Montreal",
       "kind": "leaf"
     },
     {
@@ -1681,7 +1681,7 @@
       "path": "canada.canada_quebec.canada_quebek_lachute",
       "depth": 2,
       "sort_order": 3,
-      "name": "Canada_Quebek_Lachute",
+      "name": "Lachute",
       "kind": "leaf"
     },
     {
@@ -1690,7 +1690,7 @@
       "path": "canada.canada_quebec.canada_quebek_north",
       "depth": 2,
       "sort_order": 4,
-      "name": "Canada_Quebek_North",
+      "name": "Sept-Îles",
       "kind": "leaf"
     },
     {
@@ -1699,7 +1699,7 @@
       "path": "canada.canada_quebec.canada_quebek_southeast_rimouski",
       "depth": 2,
       "sort_order": 5,
-      "name": "Canada_Quebek_Southeast_Rimouski",
+      "name": "Rimouski",
       "kind": "leaf"
     },
     {
@@ -1708,7 +1708,7 @@
       "path": "canada.canada_quebec.canada_quebek_southeast_saguenay",
       "depth": 2,
       "sort_order": 6,
-      "name": "Canada_Quebek_Southeast_Saguenay",
+      "name": "Saguenay",
       "kind": "leaf"
     },
     {
@@ -1717,7 +1717,7 @@
       "path": "canada.canada_quebec.canada_quebek_west_chibougamau",
       "depth": 2,
       "sort_order": 7,
-      "name": "Canada_Quebek_West_Chibougamau",
+      "name": "Chibougamau",
       "kind": "leaf"
     },
     {
@@ -1726,7 +1726,7 @@
       "path": "canada.canada_quebec.canada_quebek_west_rouyn-noranda",
       "depth": 2,
       "sort_order": 8,
-      "name": "Canada_Quebek_West_Rouyn-Noranda",
+      "name": "Rouyn-Noranda",
       "kind": "leaf"
     },
     {
@@ -1744,7 +1744,7 @@
       "path": "canada.canada_saskatchewan.canada_saskatchewan_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Saskatchewan — North",
       "kind": "leaf"
     },
     {
@@ -1780,7 +1780,7 @@
       "path": "canada.canada_yukon.canada_yukon_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Yukon — North",
       "kind": "leaf"
     },
     {
@@ -1843,7 +1843,7 @@
       "path": "colombia.colombia_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Colombia — North",
       "kind": "leaf"
     },
     {
@@ -1852,7 +1852,7 @@
       "path": "colombia.colombia_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Colombia — West",
       "kind": "leaf"
     },
     {
@@ -1861,7 +1861,7 @@
       "path": "colombia.colombia_east",
       "depth": 1,
       "sort_order": 2,
-      "name": "East",
+      "name": "Colombia — East",
       "kind": "leaf"
     },
     {
@@ -1879,7 +1879,7 @@
       "path": "congo-brazzaville",
       "depth": 0,
       "sort_order": 53,
-      "name": "Congo-Brazzaville",
+      "name": "Republic of the Congo",
       "kind": "leaf"
     },
     {
@@ -1888,7 +1888,7 @@
       "path": "congo-kinshasa",
       "depth": 0,
       "sort_order": 54,
-      "name": "Congo-Kinshasa",
+      "name": "Democratic Republic of the Congo",
       "kind": "group"
     },
     {
@@ -1897,7 +1897,7 @@
       "path": "congo-kinshasa.congo-kinshasa_west",
       "depth": 1,
       "sort_order": 0,
-      "name": "West",
+      "name": "Congo — West",
       "kind": "leaf"
     },
     {
@@ -1942,7 +1942,7 @@
       "path": "croatia.croatia_central",
       "depth": 1,
       "sort_order": 0,
-      "name": "Central",
+      "name": "Croatia — Centre",
       "kind": "leaf"
     },
     {
@@ -1951,7 +1951,7 @@
       "path": "croatia.croatia_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Croatia — West",
       "kind": "leaf"
     },
     {
@@ -1987,7 +1987,7 @@
       "path": "czech_republic.czech_praha",
       "depth": 1,
       "sort_order": 0,
-      "name": "Czech_Praha",
+      "name": "Prague",
       "kind": "leaf"
     },
     {
@@ -1996,7 +1996,7 @@
       "path": "czech_republic.czech_severovychod_pardubicky_kraj",
       "depth": 1,
       "sort_order": 1,
-      "name": "Czech_Severovychod_Pardubicky kraj",
+      "name": "Pardubice Region",
       "kind": "leaf"
     },
     {
@@ -2005,7 +2005,7 @@
       "path": "czech_republic.czech_karlovasky_kraj",
       "depth": 1,
       "sort_order": 2,
-      "name": "Czech_Karlovasky kraj",
+      "name": "Karlovy Vary Region",
       "kind": "leaf"
     },
     {
@@ -2014,7 +2014,7 @@
       "path": "czech_republic.czech_ustecky_kraj",
       "depth": 1,
       "sort_order": 3,
-      "name": "Czech_Ustecky kraj",
+      "name": "Ústí nad Labem Region",
       "kind": "leaf"
     },
     {
@@ -2023,7 +2023,7 @@
       "path": "czech_republic.czech_jihozapad_plzensky_kraj",
       "depth": 1,
       "sort_order": 4,
-      "name": "Czech_Jihozapad_Plzensky kraj",
+      "name": "Plzeň Region",
       "kind": "leaf"
     },
     {
@@ -2032,7 +2032,7 @@
       "path": "czech_republic.czech_severovychod_kralovehradecky_kraj",
       "depth": 1,
       "sort_order": 5,
-      "name": "Czech_Severovychod_Kralovehradecky kraj",
+      "name": "Hradec Králové Region",
       "kind": "leaf"
     },
     {
@@ -2041,7 +2041,7 @@
       "path": "czech_republic.czech_olomoucky_kraj",
       "depth": 1,
       "sort_order": 6,
-      "name": "Czech_Olomoucky kraj",
+      "name": "Olomouc Region",
       "kind": "leaf"
     },
     {
@@ -2050,7 +2050,7 @@
       "path": "czech_republic.czech_zlinsky_kraj",
       "depth": 1,
       "sort_order": 7,
-      "name": "Czech_Zlinsky Kraj",
+      "name": "Zlín Region",
       "kind": "leaf"
     },
     {
@@ -2059,7 +2059,7 @@
       "path": "czech_republic.czech_stredni_cechy_east",
       "depth": 1,
       "sort_order": 8,
-      "name": "Czech_Stredni Cechy_East",
+      "name": "Central Bohemian Region — East",
       "kind": "leaf"
     },
     {
@@ -2068,7 +2068,7 @@
       "path": "czech_republic.czech_jihozapad_jihocesky_kraj",
       "depth": 1,
       "sort_order": 9,
-      "name": "Czech_Jihozapad_Jihocesky kraj",
+      "name": "South Bohemia Region",
       "kind": "leaf"
     },
     {
@@ -2077,7 +2077,7 @@
       "path": "czech_republic.czech_jihovychod_kraj_vysocina",
       "depth": 1,
       "sort_order": 10,
-      "name": "Czech_Jihovychod_Kraj Vysocina",
+      "name": "Vysočina Region",
       "kind": "leaf"
     },
     {
@@ -2086,7 +2086,7 @@
       "path": "czech_republic.czech_severovychod_liberecky_kraj",
       "depth": 1,
       "sort_order": 11,
-      "name": "Czech_Severovychod_Liberecky kraj",
+      "name": "Liberec Region",
       "kind": "leaf"
     },
     {
@@ -2095,7 +2095,7 @@
       "path": "czech_republic.czech_stredni_cechy_west",
       "depth": 1,
       "sort_order": 12,
-      "name": "Czech_Stredni Cechy_West",
+      "name": "Central Bohemian Region — West",
       "kind": "leaf"
     },
     {
@@ -2104,7 +2104,7 @@
       "path": "czech_republic.czech_moravskoslezsko",
       "depth": 1,
       "sort_order": 13,
-      "name": "Czech_Moravskoslezsko",
+      "name": "Moravian-Silesian Region",
       "kind": "leaf"
     },
     {
@@ -2113,7 +2113,7 @@
       "path": "czech_republic.czech_jihovychod_jihomoravsky_kraj",
       "depth": 1,
       "sort_order": 14,
-      "name": "Czech_Jihovychod_Jihomoravsky kraj",
+      "name": "South Moravian Region",
       "kind": "leaf"
     },
     {
@@ -2122,7 +2122,7 @@
       "path": "cote_divoire",
       "depth": 0,
       "sort_order": 61,
-      "name": "Cote dIvoire",
+      "name": "Ivory Coast",
       "kind": "leaf"
     },
     {
@@ -2221,7 +2221,7 @@
       "path": "chile.campo_de_hielo_sur",
       "depth": 1,
       "sort_order": 0,
-      "name": "Campo de Hielo Sur",
+      "name": "Southern Patagonian Ice Field",
       "kind": "leaf"
     },
     {
@@ -2230,7 +2230,7 @@
       "path": "chile.chile_central",
       "depth": 1,
       "sort_order": 1,
-      "name": "Central",
+      "name": "Chile — Centre",
       "kind": "leaf"
     },
     {
@@ -2239,7 +2239,7 @@
       "path": "chile.chile_north",
       "depth": 1,
       "sort_order": 2,
-      "name": "North",
+      "name": "Chile — North",
       "kind": "leaf"
     },
     {
@@ -2248,7 +2248,7 @@
       "path": "chile.chile_south",
       "depth": 1,
       "sort_order": 3,
-      "name": "South",
+      "name": "Chile — South",
       "kind": "leaf"
     },
     {
@@ -2266,7 +2266,7 @@
       "path": "ecuador.ecuador_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "East",
+      "name": "Ecuador — East",
       "kind": "leaf"
     },
     {
@@ -2275,7 +2275,7 @@
       "path": "ecuador.ecuador_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Ecuador — West",
       "kind": "leaf"
     },
     {
@@ -2329,7 +2329,7 @@
       "path": "estonia.estonia_west",
       "depth": 1,
       "sort_order": 0,
-      "name": "West",
+      "name": "Estonia — West",
       "kind": "leaf"
     },
     {
@@ -2338,7 +2338,7 @@
       "path": "estonia.estonia_east",
       "depth": 1,
       "sort_order": 1,
-      "name": "East",
+      "name": "Estonia — East",
       "kind": "leaf"
     },
     {
@@ -2392,7 +2392,7 @@
       "path": "finland.finland_western_finland_jyvaskyla",
       "depth": 1,
       "sort_order": 0,
-      "name": "Western Finland_Jyvaskyla",
+      "name": "Western Finland — Jyväskylä",
       "kind": "leaf"
     },
     {
@@ -2401,7 +2401,7 @@
       "path": "finland.finland_western_finland_tampere",
       "depth": 1,
       "sort_order": 1,
-      "name": "Western Finland_Tampere",
+      "name": "Western Finland — Tampere",
       "kind": "leaf"
     },
     {
@@ -2419,7 +2419,7 @@
       "path": "finland.finland_eastern_finland_north",
       "depth": 1,
       "sort_order": 3,
-      "name": "Eastern Finland_North",
+      "name": "Eastern Finland — North",
       "kind": "leaf"
     },
     {
@@ -2428,7 +2428,7 @@
       "path": "finland.finland_eastern_finland_south",
       "depth": 1,
       "sort_order": 4,
-      "name": "Eastern Finland_South",
+      "name": "Eastern Finland — South",
       "kind": "leaf"
     },
     {
@@ -2437,7 +2437,7 @@
       "path": "finland.finland_southern_finland_west",
       "depth": 1,
       "sort_order": 5,
-      "name": "Southern Finland_West",
+      "name": "Southwest Finland",
       "kind": "leaf"
     },
     {
@@ -2446,7 +2446,7 @@
       "path": "finland.finland_southern_finland_helsinki",
       "depth": 1,
       "sort_order": 6,
-      "name": "Southern Finland_Helsinki",
+      "name": "Southern Finland — Helsinki",
       "kind": "leaf"
     },
     {
@@ -2455,7 +2455,7 @@
       "path": "finland.finland_southern_finland_lappeenranta",
       "depth": 1,
       "sort_order": 7,
-      "name": "Southern Finland_Lappeenranta",
+      "name": "Southern Finland — Lappeenranta",
       "kind": "leaf"
     },
     {
@@ -2473,7 +2473,7 @@
       "path": "france.france_auvergne-rhone-alpes",
       "depth": 1,
       "sort_order": 0,
-      "name": "Auvergne-Rhone-Alpes",
+      "name": "Auvergne-Rhône-Alpes",
       "kind": "group"
     },
     {
@@ -2482,7 +2482,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_auvergne_allier",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Auvergne_Allier",
+      "name": "Allier",
       "kind": "leaf"
     },
     {
@@ -2491,7 +2491,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_auvergne_cantal",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Auvergne_Cantal",
+      "name": "Cantal",
       "kind": "leaf"
     },
     {
@@ -2500,7 +2500,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_auvergne_haute-loire",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Auvergne_Haute-Loire",
+      "name": "Haute-Loire",
       "kind": "leaf"
     },
     {
@@ -2509,7 +2509,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_auvergne_puy-de-dome",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Auvergne_Puy-de-Dome",
+      "name": "Puy-de-Dôme",
       "kind": "leaf"
     },
     {
@@ -2518,7 +2518,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_ain",
       "depth": 2,
       "sort_order": 4,
-      "name": "France_Rhone-Alpes_Ain",
+      "name": "Ain",
       "kind": "leaf"
     },
     {
@@ -2527,7 +2527,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_ardeche",
       "depth": 2,
       "sort_order": 5,
-      "name": "France_Rhone-Alpes_Ardeche",
+      "name": "Ardèche",
       "kind": "leaf"
     },
     {
@@ -2536,7 +2536,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_drome",
       "depth": 2,
       "sort_order": 6,
-      "name": "France_Rhone-Alpes_Drome",
+      "name": "Drôme",
       "kind": "leaf"
     },
     {
@@ -2545,7 +2545,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_isere",
       "depth": 2,
       "sort_order": 7,
-      "name": "France_Rhone-Alpes_Isere",
+      "name": "Isère",
       "kind": "leaf"
     },
     {
@@ -2554,7 +2554,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_haute-savoie",
       "depth": 2,
       "sort_order": 8,
-      "name": "France_Rhone-Alpes_Haute-Savoie",
+      "name": "Haute-Savoie",
       "kind": "leaf"
     },
     {
@@ -2563,7 +2563,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_loire",
       "depth": 2,
       "sort_order": 9,
-      "name": "France_Rhone-Alpes_Loire",
+      "name": "Loire",
       "kind": "leaf"
     },
     {
@@ -2572,7 +2572,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_rhone",
       "depth": 2,
       "sort_order": 10,
-      "name": "France_Rhone-Alpes_Rhone",
+      "name": "Rhône",
       "kind": "leaf"
     },
     {
@@ -2581,7 +2581,7 @@
       "path": "france.france_auvergne-rhone-alpes.france_rhone-alpes_savoie",
       "depth": 2,
       "sort_order": 11,
-      "name": "France_Rhone-Alpes_Savoie",
+      "name": "Savoie",
       "kind": "leaf"
     },
     {
@@ -2590,7 +2590,7 @@
       "path": "france.france_bourgogne-franche-comte",
       "depth": 1,
       "sort_order": 1,
-      "name": "Bourgogne-Franche-Comte",
+      "name": "Bourgogne-Franche-Comté",
       "kind": "group"
     },
     {
@@ -2599,7 +2599,7 @@
       "path": "france.france_bourgogne-franche-comte.france_burgundy_cote-dor",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Burgundy_Cote-dOr",
+      "name": "Côte-d'Or",
       "kind": "leaf"
     },
     {
@@ -2608,7 +2608,7 @@
       "path": "france.france_bourgogne-franche-comte.france_burgundy_nievre",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Burgundy_Nievre",
+      "name": "Nièvre",
       "kind": "leaf"
     },
     {
@@ -2617,7 +2617,7 @@
       "path": "france.france_bourgogne-franche-comte.france_burgundy_saone-et-loire",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Burgundy_Saone-et-Loire",
+      "name": "Saône-et-Loire",
       "kind": "leaf"
     },
     {
@@ -2626,7 +2626,7 @@
       "path": "france.france_bourgogne-franche-comte.france_burgundy_yonne",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Burgundy_Yonne",
+      "name": "Yonne",
       "kind": "leaf"
     },
     {
@@ -2635,7 +2635,7 @@
       "path": "france.france_bourgogne-franche-comte.france_free_county_north",
       "depth": 2,
       "sort_order": 4,
-      "name": "France_Free County_North",
+      "name": "Franche-Comté — North",
       "kind": "leaf"
     },
     {
@@ -2644,7 +2644,7 @@
       "path": "france.france_bourgogne-franche-comte.france_free_county_south",
       "depth": 2,
       "sort_order": 5,
-      "name": "France_Free County_South",
+      "name": "Franche-Comté — South",
       "kind": "leaf"
     },
     {
@@ -2662,7 +2662,7 @@
       "path": "france.france_brittany.france_brittany_cotes-darmor",
       "depth": 2,
       "sort_order": 0,
-      "name": "Cotes-dArmor",
+      "name": "Côtes-d'Armor",
       "kind": "leaf"
     },
     {
@@ -2671,7 +2671,7 @@
       "path": "france.france_brittany.france_brittany_finistere",
       "depth": 2,
       "sort_order": 1,
-      "name": "Finistere",
+      "name": "Finistère",
       "kind": "leaf"
     },
     {
@@ -2779,7 +2779,7 @@
       "path": "france.france_grand_est",
       "depth": 1,
       "sort_order": 6,
-      "name": "Grand_Est",
+      "name": "Grand Est",
       "kind": "group"
     },
     {
@@ -2788,7 +2788,7 @@
       "path": "france.france_grand_est.france_alsace_bas-rhin",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Alsace_Bas-Rhin",
+      "name": "Bas-Rhin",
       "kind": "leaf"
     },
     {
@@ -2797,7 +2797,7 @@
       "path": "france.france_grand_est.france_alsace_haut-rhin",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Alsace_Haut-Rhin",
+      "name": "Haut-Rhin",
       "kind": "leaf"
     },
     {
@@ -2806,7 +2806,7 @@
       "path": "france.france_grand_est.france_champagne-ardenne",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Champagne-Ardenne",
+      "name": "Champagne-Ardenne",
       "kind": "leaf"
     },
     {
@@ -2815,7 +2815,7 @@
       "path": "france.france_grand_est.france_lorraine_meurthe-et-moselle",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Lorraine_Meurthe-et-Moselle",
+      "name": "Meurthe-et-Moselle",
       "kind": "leaf"
     },
     {
@@ -2824,7 +2824,7 @@
       "path": "france.france_grand_est.france_lorraine_meuse",
       "depth": 2,
       "sort_order": 4,
-      "name": "France_Lorraine_Meuse",
+      "name": "Meuse",
       "kind": "leaf"
     },
     {
@@ -2833,7 +2833,7 @@
       "path": "france.france_grand_est.france_lorraine_moselle",
       "depth": 2,
       "sort_order": 5,
-      "name": "France_Lorraine_Moselle",
+      "name": "Moselle",
       "kind": "leaf"
     },
     {
@@ -2842,7 +2842,7 @@
       "path": "france.france_grand_est.france_lorraine_vosges",
       "depth": 2,
       "sort_order": 6,
-      "name": "France_Lorraine_Vosges",
+      "name": "Vosges",
       "kind": "leaf"
     },
     {
@@ -2860,7 +2860,7 @@
       "path": "france.france_hauts-de-france.france_picardy_aisne",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Picardy_Aisne",
+      "name": "Aisne",
       "kind": "leaf"
     },
     {
@@ -2869,7 +2869,7 @@
       "path": "france.france_hauts-de-france.france_picardy_oise",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Picardy_Oise",
+      "name": "Oise",
       "kind": "leaf"
     },
     {
@@ -2878,7 +2878,7 @@
       "path": "france.france_hauts-de-france.france_picardy_somme",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Picardy_Somme",
+      "name": "Somme",
       "kind": "leaf"
     },
     {
@@ -2887,7 +2887,7 @@
       "path": "france.france_hauts-de-france.france_nord-pas-de-calais_nord",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Nord-Pas-de-Calais_Nord",
+      "name": "Nord",
       "kind": "leaf"
     },
     {
@@ -2896,7 +2896,7 @@
       "path": "france.france_hauts-de-france.france_nord-pas-de-calais_lille",
       "depth": 2,
       "sort_order": 4,
-      "name": "France_Nord-Pas-de-Calais_Lille",
+      "name": "Lille",
       "kind": "leaf"
     },
     {
@@ -2905,7 +2905,7 @@
       "path": "france.france_hauts-de-france.france_nord-pas-de-calais_pas-de-calais",
       "depth": 2,
       "sort_order": 5,
-      "name": "France_Nord-Pas-de-Calais_Pas-de-Calais",
+      "name": "Pas-de-Calais",
       "kind": "leaf"
     },
     {
@@ -2914,7 +2914,7 @@
       "path": "france.france_ile-de-france",
       "depth": 1,
       "sort_order": 8,
-      "name": "Ile-de-France",
+      "name": "Île-de-France",
       "kind": "group"
     },
     {
@@ -2968,7 +2968,7 @@
       "path": "france.france_ile-de-france.france_ile-de-france_val-doise",
       "depth": 2,
       "sort_order": 5,
-      "name": "Val-dOise",
+      "name": "Val-d'Oise",
       "kind": "leaf"
     },
     {
@@ -3013,7 +3013,7 @@
       "path": "france.france_normandy.france_lower_normandy_calvados",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Lower Normandy_Calvados",
+      "name": "Calvados",
       "kind": "leaf"
     },
     {
@@ -3022,7 +3022,7 @@
       "path": "france.france_normandy.france_lower_normandy_manche",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Lower Normandy_Manche",
+      "name": "Manche",
       "kind": "leaf"
     },
     {
@@ -3031,7 +3031,7 @@
       "path": "france.france_normandy.france_lower_normandy_orne",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Lower Normandy_Orne",
+      "name": "Orne",
       "kind": "leaf"
     },
     {
@@ -3040,7 +3040,7 @@
       "path": "france.france_normandy.france_upper_normandy",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Upper Normandy",
+      "name": "Upper Normandy",
       "kind": "leaf"
     },
     {
@@ -3058,7 +3058,7 @@
       "path": "france.france_nouvelle-aquitaine.france_aquitaine_dordogne",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Aquitaine_Dordogne",
+      "name": "Dordogne",
       "kind": "leaf"
     },
     {
@@ -3067,7 +3067,7 @@
       "path": "france.france_nouvelle-aquitaine.france_aquitaine_gironde",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Aquitaine_Gironde",
+      "name": "Gironde",
       "kind": "leaf"
     },
     {
@@ -3076,7 +3076,7 @@
       "path": "france.france_nouvelle-aquitaine.france_aquitaine_landes",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Aquitaine_Landes",
+      "name": "Landes",
       "kind": "leaf"
     },
     {
@@ -3085,7 +3085,7 @@
       "path": "france.france_nouvelle-aquitaine.france_aquitaine_lot-et-garonne",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Aquitaine_Lot-et-Garonne",
+      "name": "Lot-et-Garonne",
       "kind": "leaf"
     },
     {
@@ -3094,7 +3094,7 @@
       "path": "france.france_nouvelle-aquitaine.france_aquitaine_pyrenees-atlantiques",
       "depth": 2,
       "sort_order": 4,
-      "name": "France_Aquitaine_Pyrenees-Atlantiques",
+      "name": "Pyrénées-Atlantiques",
       "kind": "leaf"
     },
     {
@@ -3103,7 +3103,7 @@
       "path": "france.france_nouvelle-aquitaine.france_limousin",
       "depth": 2,
       "sort_order": 5,
-      "name": "France_Limousin",
+      "name": "Limousin",
       "kind": "leaf"
     },
     {
@@ -3112,7 +3112,7 @@
       "path": "france.france_nouvelle-aquitaine.france_poitou-charentes_deux-sevres",
       "depth": 2,
       "sort_order": 6,
-      "name": "France_Poitou-Charentes_Deux-Sevres",
+      "name": "Deux-Sèvres",
       "kind": "leaf"
     },
     {
@@ -3121,7 +3121,7 @@
       "path": "france.france_nouvelle-aquitaine.france_poitou-charentes_charente",
       "depth": 2,
       "sort_order": 7,
-      "name": "France_Poitou-Charentes_Charente",
+      "name": "Charente",
       "kind": "leaf"
     },
     {
@@ -3130,7 +3130,7 @@
       "path": "france.france_nouvelle-aquitaine.france_poitou-charentes_charente-maritime",
       "depth": 2,
       "sort_order": 8,
-      "name": "France_Poitou-Charentes_Charente-Maritime",
+      "name": "Charente-Maritime",
       "kind": "leaf"
     },
     {
@@ -3139,7 +3139,7 @@
       "path": "france.france_nouvelle-aquitaine.france_poitou-charentes_vienne",
       "depth": 2,
       "sort_order": 9,
-      "name": "France_Poitou-Charentes_Vienne",
+      "name": "Vienne",
       "kind": "leaf"
     },
     {
@@ -3157,7 +3157,7 @@
       "path": "france.france_occitania.france_languedoc-roussillon_aude",
       "depth": 2,
       "sort_order": 0,
-      "name": "France_Languedoc-Roussillon_Aude",
+      "name": "Aude",
       "kind": "leaf"
     },
     {
@@ -3166,7 +3166,7 @@
       "path": "france.france_occitania.france_languedoc-roussillon_gard",
       "depth": 2,
       "sort_order": 1,
-      "name": "France_Languedoc-Roussillon_Gard",
+      "name": "Gard",
       "kind": "leaf"
     },
     {
@@ -3175,7 +3175,7 @@
       "path": "france.france_occitania.france_languedoc-roussillon_herault",
       "depth": 2,
       "sort_order": 2,
-      "name": "France_Languedoc-Roussillon_Herault",
+      "name": "Hérault",
       "kind": "leaf"
     },
     {
@@ -3184,7 +3184,7 @@
       "path": "france.france_occitania.france_languedoc-roussillon_lozere",
       "depth": 2,
       "sort_order": 3,
-      "name": "France_Languedoc-Roussillon_Lozere",
+      "name": "Lozère",
       "kind": "leaf"
     },
     {
@@ -3193,7 +3193,7 @@
       "path": "france.france_occitania.france_languedoc-roussillon_pyrenees-orientales",
       "depth": 2,
       "sort_order": 4,
-      "name": "France_Languedoc-Roussillon_Pyrenees-Orientales",
+      "name": "Pyrénées-Orientales",
       "kind": "leaf"
     },
     {
@@ -3202,7 +3202,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_ariege",
       "depth": 2,
       "sort_order": 5,
-      "name": "France_Midi-Pyrenees_Ariege",
+      "name": "Ariège",
       "kind": "leaf"
     },
     {
@@ -3211,7 +3211,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_aveyron",
       "depth": 2,
       "sort_order": 6,
-      "name": "France_Midi-Pyrenees_Aveyron",
+      "name": "Aveyron",
       "kind": "leaf"
     },
     {
@@ -3220,7 +3220,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_gers",
       "depth": 2,
       "sort_order": 7,
-      "name": "France_Midi-Pyrenees_Gers",
+      "name": "Gers",
       "kind": "leaf"
     },
     {
@@ -3229,7 +3229,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_haute-garonne",
       "depth": 2,
       "sort_order": 8,
-      "name": "France_Midi-Pyrenees_Haute-Garonne",
+      "name": "Haute-Garonne",
       "kind": "leaf"
     },
     {
@@ -3238,7 +3238,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_hautes-pyrenees",
       "depth": 2,
       "sort_order": 9,
-      "name": "France_Midi-Pyrenees_Hautes-Pyrenees",
+      "name": "Hautes-Pyrénées",
       "kind": "leaf"
     },
     {
@@ -3247,7 +3247,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_lot",
       "depth": 2,
       "sort_order": 10,
-      "name": "France_Midi-Pyrenees_Lot",
+      "name": "Lot",
       "kind": "leaf"
     },
     {
@@ -3256,7 +3256,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_tarn",
       "depth": 2,
       "sort_order": 11,
-      "name": "France_Midi-Pyrenees_Tarn",
+      "name": "Tarn",
       "kind": "leaf"
     },
     {
@@ -3265,7 +3265,7 @@
       "path": "france.france_occitania.france_midi-pyrenees_tarn-et-garonne",
       "depth": 2,
       "sort_order": 12,
-      "name": "France_Midi-Pyrenees_Tarn-et-Garonne",
+      "name": "Tarn-et-Garonne",
       "kind": "leaf"
     },
     {
@@ -3283,7 +3283,7 @@
       "path": "france.france_pays_de_la_loire.france_pays_de_la_loire_loire-atlantique_nantes",
       "depth": 2,
       "sort_order": 0,
-      "name": "Loire-Atlantique_Nantes",
+      "name": "Loire-Atlantique — Nantes",
       "kind": "leaf"
     },
     {
@@ -3292,7 +3292,7 @@
       "path": "france.france_pays_de_la_loire.france_pays_de_la_loire_loire-atlantique_saint-nazaire",
       "depth": 2,
       "sort_order": 1,
-      "name": "Loire-Atlantique_Saint-Nazaire",
+      "name": "Loire-Atlantique — Saint-Nazaire",
       "kind": "leaf"
     },
     {
@@ -3328,7 +3328,7 @@
       "path": "france.france_pays_de_la_loire.france_pays_de_la_loire_vendee",
       "depth": 2,
       "sort_order": 5,
-      "name": "Vendee",
+      "name": "Vendée",
       "kind": "leaf"
     },
     {
@@ -3337,7 +3337,7 @@
       "path": "france.france_provence-alpes-cote_dazur",
       "depth": 1,
       "sort_order": 14,
-      "name": "Provence-Alpes-Cote dAzur",
+      "name": "Provence-Alpes-Côte d'Azur",
       "kind": "group"
     },
     {
@@ -3355,7 +3355,7 @@
       "path": "france.france_provence-alpes-cote_dazur.france_provence-alpes-cote_dazur_bouches-du-rhone",
       "depth": 2,
       "sort_order": 1,
-      "name": "Bouches-du-Rhone",
+      "name": "Bouches-du-Rhône",
       "kind": "leaf"
     },
     {
@@ -3373,7 +3373,7 @@
       "path": "france.france_provence-alpes-cote_dazur.france_provence-alpes-cote_dazur_maritime_alps",
       "depth": 2,
       "sort_order": 3,
-      "name": "Maritime Alps",
+      "name": "Alpes-Maritimes",
       "kind": "leaf"
     },
     {
@@ -3400,7 +3400,7 @@
       "path": "france.france_southern_islands",
       "depth": 1,
       "sort_order": 15,
-      "name": "Southern Islands",
+      "name": "French Southern and Antarctic Lands",
       "kind": "leaf"
     },
     {
@@ -3436,7 +3436,7 @@
       "path": "georgia_region",
       "depth": 0,
       "sort_order": 80,
-      "name": "Georgia Region",
+      "name": "Georgia",
       "kind": "group"
     },
     {
@@ -3481,7 +3481,7 @@
       "path": "germany.germany_baden-wurttemberg",
       "depth": 1,
       "sort_order": 0,
-      "name": "Baden-Wurttemberg",
+      "name": "Baden-Württemberg",
       "kind": "group"
     },
     {
@@ -3490,7 +3490,7 @@
       "path": "germany.germany_baden-wurttemberg.germany_baden-wurttemberg_regierungsbezirk_freiburg",
       "depth": 2,
       "sort_order": 0,
-      "name": "Regierungsbezirk Freiburg",
+      "name": "Freiburg im Breisgau",
       "kind": "leaf"
     },
     {
@@ -3499,7 +3499,7 @@
       "path": "germany.germany_baden-wurttemberg.germany_baden-wurttemberg_regierungsbezirk_karlsruhe",
       "depth": 2,
       "sort_order": 1,
-      "name": "Regierungsbezirk Karlsruhe",
+      "name": "Karlsruhe",
       "kind": "leaf"
     },
     {
@@ -3508,7 +3508,7 @@
       "path": "germany.germany_baden-wurttemberg.germany_baden-wurttemberg_regierungsbezirk_stuttgart_heilbronn",
       "depth": 2,
       "sort_order": 2,
-      "name": "Regierungsbezirk Stuttgart_Heilbronn",
+      "name": "Stuttgart — Heilbronn",
       "kind": "leaf"
     },
     {
@@ -3517,7 +3517,7 @@
       "path": "germany.germany_baden-wurttemberg.germany_baden-wurttemberg_regierungsbezirk_stuttgart_stuttgart",
       "depth": 2,
       "sort_order": 3,
-      "name": "Regierungsbezirk Stuttgart_Stuttgart",
+      "name": "Stuttgart — Stuttgart",
       "kind": "leaf"
     },
     {
@@ -3526,7 +3526,7 @@
       "path": "germany.germany_baden-wurttemberg.germany_baden-wurttemberg_regierungsbezirk_tubingen",
       "depth": 2,
       "sort_order": 4,
-      "name": "Regierungsbezirk Tubingen",
+      "name": "Tübingen",
       "kind": "leaf"
     },
     {
@@ -3553,7 +3553,7 @@
       "path": "germany.germany_brandenburg.germany_brandenburg_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Potsdam",
       "kind": "leaf"
     },
     {
@@ -3562,7 +3562,7 @@
       "path": "germany.germany_brandenburg.germany_brandenburg_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "South",
+      "name": "Cottbus",
       "kind": "leaf"
     },
     {
@@ -3571,7 +3571,7 @@
       "path": "germany.germany_lower_saxony_bremen_bremen",
       "depth": 1,
       "sort_order": 3,
-      "name": "Lower Saxony_Bremen_Bremen",
+      "name": "Bremen",
       "kind": "leaf"
     },
     {
@@ -3580,7 +3580,7 @@
       "path": "germany.germany_free_state_of_bavaria",
       "depth": 1,
       "sort_order": 4,
-      "name": "Free State of Bavaria",
+      "name": "Bavaria",
       "kind": "group"
     },
     {
@@ -3625,7 +3625,7 @@
       "path": "germany.germany_free_state_of_bavaria.germany_free_state_of_bavaria_upper_bavaria_east",
       "depth": 2,
       "sort_order": 4,
-      "name": "Upper Bavaria_East",
+      "name": "Upper Bavaria — East",
       "kind": "leaf"
     },
     {
@@ -3634,7 +3634,7 @@
       "path": "germany.germany_free_state_of_bavaria.germany_free_state_of_bavaria_upper_bavaria_ingolstadt",
       "depth": 2,
       "sort_order": 5,
-      "name": "Upper Bavaria_Ingolstadt",
+      "name": "Upper Bavaria — Ingolstadt",
       "kind": "leaf"
     },
     {
@@ -3643,7 +3643,7 @@
       "path": "germany.germany_free_state_of_bavaria.germany_free_state_of_bavaria_upper_bavaria_munchen",
       "depth": 2,
       "sort_order": 6,
-      "name": "Upper Bavaria_Munchen",
+      "name": "Upper Bavaria — Munich",
       "kind": "leaf"
     },
     {
@@ -3652,7 +3652,7 @@
       "path": "germany.germany_free_state_of_bavaria.germany_free_state_of_bavaria_upper_bavaria_south",
       "depth": 2,
       "sort_order": 7,
-      "name": "Upper Bavaria_South",
+      "name": "Upper Bavaria — South",
       "kind": "leaf"
     },
     {
@@ -3679,7 +3679,7 @@
       "path": "germany.germany_hamburg_main",
       "depth": 1,
       "sort_order": 5,
-      "name": "Hamburg_main",
+      "name": "Hamburg",
       "kind": "leaf"
     },
     {
@@ -3697,7 +3697,7 @@
       "path": "germany.germany_hesse.germany_hesse_regierungsbezirk_darmstadt",
       "depth": 2,
       "sort_order": 0,
-      "name": "Regierungsbezirk Darmstadt",
+      "name": "Darmstadt",
       "kind": "leaf"
     },
     {
@@ -3706,7 +3706,7 @@
       "path": "germany.germany_hesse.germany_hesse_regierungsbezirk_giessen",
       "depth": 2,
       "sort_order": 1,
-      "name": "Regierungsbezirk Giessen",
+      "name": "Giessen",
       "kind": "leaf"
     },
     {
@@ -3715,7 +3715,7 @@
       "path": "germany.germany_hesse.germany_hesse_regierungsbezirk_kassel",
       "depth": 2,
       "sort_order": 2,
-      "name": "Regierungsbezirk Kassel",
+      "name": "Kassel",
       "kind": "leaf"
     },
     {
@@ -3733,7 +3733,7 @@
       "path": "germany.germany_lower_saxony.germany_lower_saxony_bremen_munster",
       "depth": 2,
       "sort_order": 0,
-      "name": "Bremen_Munster",
+      "name": "Lüneburg",
       "kind": "leaf"
     },
     {
@@ -3742,7 +3742,7 @@
       "path": "germany.germany_lower_saxony.germany_lower_saxony_hannover",
       "depth": 2,
       "sort_order": 1,
-      "name": "Hannover",
+      "name": "Hanover",
       "kind": "leaf"
     },
     {
@@ -3787,7 +3787,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_arnsberg_arnsberg",
       "depth": 2,
       "sort_order": 0,
-      "name": "Regierungsbezirk Arnsberg_Arnsberg",
+      "name": "Arnsberg — Arnsberg",
       "kind": "leaf"
     },
     {
@@ -3796,7 +3796,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_arnsberg_dortmund",
       "depth": 2,
       "sort_order": 1,
-      "name": "Regierungsbezirk Arnsberg_Dortmund",
+      "name": "Arnsberg — Dortmund",
       "kind": "leaf"
     },
     {
@@ -3805,7 +3805,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_detmold",
       "depth": 2,
       "sort_order": 2,
-      "name": "Regierungsbezirk Detmold",
+      "name": "Detmold",
       "kind": "leaf"
     },
     {
@@ -3814,7 +3814,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_dusseldorf_dusseldorf",
       "depth": 2,
       "sort_order": 3,
-      "name": "Regierungsbezirk Dusseldorf_Dusseldorf",
+      "name": "Düsseldorf — Düsseldorf",
       "kind": "leaf"
     },
     {
@@ -3823,7 +3823,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_dusseldorf_mulheim",
       "depth": 2,
       "sort_order": 4,
-      "name": "Regierungsbezirk Dusseldorf_Mulheim",
+      "name": "Düsseldorf — Mülheim an der Ruhr",
       "kind": "leaf"
     },
     {
@@ -3832,7 +3832,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_dusseldorf_wesel",
       "depth": 2,
       "sort_order": 5,
-      "name": "Regierungsbezirk Dusseldorf_Wesel",
+      "name": "Düsseldorf — Wesel",
       "kind": "leaf"
     },
     {
@@ -3841,7 +3841,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_koln_aachen",
       "depth": 2,
       "sort_order": 6,
-      "name": "Regierungsbezirk Koln_Aachen",
+      "name": "Cologne — Aachen",
       "kind": "leaf"
     },
     {
@@ -3850,7 +3850,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_koln_koln",
       "depth": 2,
       "sort_order": 7,
-      "name": "Regierungsbezirk Koln_Koln",
+      "name": "Cologne — Cologne",
       "kind": "leaf"
     },
     {
@@ -3859,7 +3859,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_munster_munster",
       "depth": 2,
       "sort_order": 8,
-      "name": "Regierungsbezirk Munster_Munster",
+      "name": "Münster — Münster",
       "kind": "leaf"
     },
     {
@@ -3868,7 +3868,7 @@
       "path": "germany.germany_north_rhine-westphalia.germany_north_rhine-westphalia_regierungsbezirk_munster_recklinghausen",
       "depth": 2,
       "sort_order": 9,
-      "name": "Regierungsbezirk Munster_Recklinghausen",
+      "name": "Münster — Recklinghausen",
       "kind": "leaf"
     },
     {
@@ -3895,7 +3895,7 @@
       "path": "germany.germany_rhineland-palatinate.germany_rhineland-palatinate_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "South",
+      "name": "Mainz",
       "kind": "leaf"
     },
     {
@@ -4030,7 +4030,7 @@
       "path": "greece.greece_decentralized_administration_of_crete",
       "depth": 1,
       "sort_order": 0,
-      "name": "Decentralized Administration of Crete",
+      "name": "Crete",
       "kind": "leaf"
     },
     {
@@ -4039,7 +4039,7 @@
       "path": "greece.greece_decentralized_administration_of_west_greece",
       "depth": 1,
       "sort_order": 1,
-      "name": "Decentralized Administration of West Greece",
+      "name": "Peloponnese, Western Greece and the Ionian",
       "kind": "leaf"
     },
     {
@@ -4048,7 +4048,7 @@
       "path": "greece.greece_decentralized_administration_of_aegean",
       "depth": 1,
       "sort_order": 2,
-      "name": "Decentralized Administration of Aegean",
+      "name": "Aegean",
       "kind": "leaf"
     },
     {
@@ -4057,7 +4057,7 @@
       "path": "greece.greece_decentralized_administration_of_epirus_-_western_macedonia",
       "depth": 1,
       "sort_order": 3,
-      "name": "Decentralized Administration of Epirus - Western Macedonia",
+      "name": "Epirus and Western Macedonia",
       "kind": "leaf"
     },
     {
@@ -4066,7 +4066,7 @@
       "path": "greece.greece_decentralized_administration_of_macedonia_and_thrace",
       "depth": 1,
       "sort_order": 4,
-      "name": "Decentralized Administration of Macedonia and Thrace",
+      "name": "Macedonia and Thrace",
       "kind": "leaf"
     },
     {
@@ -4075,7 +4075,7 @@
       "path": "greece.greece_decentralized_administration_of_thessaly_-_central_greece",
       "depth": 1,
       "sort_order": 5,
-      "name": "Decentralized Administration of Thessaly - Central Greece",
+      "name": "Thessaly and Central Greece",
       "kind": "leaf"
     },
     {
@@ -4084,7 +4084,7 @@
       "path": "greece.greece_decentralized_administration_of_attica",
       "depth": 1,
       "sort_order": 6,
-      "name": "Decentralized Administration of Attica",
+      "name": "Attica",
       "kind": "leaf"
     },
     {
@@ -4174,7 +4174,7 @@
       "path": "hungary.hungary_northern_great_plain",
       "depth": 1,
       "sort_order": 0,
-      "name": "Northern Great Plain",
+      "name": "Hungary — East",
       "kind": "leaf"
     },
     {
@@ -4183,7 +4183,7 @@
       "path": "hungary.hungary_transdanubia",
       "depth": 1,
       "sort_order": 1,
-      "name": "Transdanubia",
+      "name": "Hungary — West",
       "kind": "leaf"
     },
     {
@@ -4192,7 +4192,7 @@
       "path": "hungary.hungary_kozep-magyarorszag",
       "depth": 1,
       "sort_order": 2,
-      "name": "Kozep-Magyarorszag",
+      "name": "Central Hungary",
       "kind": "leaf"
     },
     {
@@ -4309,7 +4309,7 @@
       "path": "india.india_karnataka_north",
       "depth": 1,
       "sort_order": 10,
-      "name": "Karnataka_North",
+      "name": "Karnataka — North",
       "kind": "leaf"
     },
     {
@@ -4318,7 +4318,7 @@
       "path": "india.india_karnataka_south",
       "depth": 1,
       "sort_order": 11,
-      "name": "Karnataka_South",
+      "name": "Karnataka — South",
       "kind": "leaf"
     },
     {
@@ -4534,7 +4534,7 @@
       "path": "indonesia.indonesia_central",
       "depth": 1,
       "sort_order": 0,
-      "name": "Central",
+      "name": "Sulawesi, Kalimantan",
       "kind": "leaf"
     },
     {
@@ -4543,7 +4543,7 @@
       "path": "indonesia.indonesia_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Sumatra",
       "kind": "leaf"
     },
     {
@@ -4552,7 +4552,7 @@
       "path": "indonesia.indonesia_jawa_tengah",
       "depth": 1,
       "sort_order": 2,
-      "name": "Jawa Tengah",
+      "name": "Central Java Province",
       "kind": "leaf"
     },
     {
@@ -4561,7 +4561,7 @@
       "path": "indonesia.indonesia_jawa_barat",
       "depth": 1,
       "sort_order": 3,
-      "name": "Jawa Barat",
+      "name": "West Java Province",
       "kind": "leaf"
     },
     {
@@ -4570,7 +4570,7 @@
       "path": "indonesia.indonesia_nusa_tenggara",
       "depth": 1,
       "sort_order": 4,
-      "name": "Nusa Tenggara",
+      "name": "Lesser Sunda Islands",
       "kind": "leaf"
     },
     {
@@ -4579,7 +4579,7 @@
       "path": "indonesia.indonesia_jawa_timur",
       "depth": 1,
       "sort_order": 5,
-      "name": "Jawa Timur",
+      "name": "East Java Province",
       "kind": "leaf"
     },
     {
@@ -4588,7 +4588,7 @@
       "path": "indonesia.indonesia_east",
       "depth": 1,
       "sort_order": 6,
-      "name": "East",
+      "name": "Indonesia — East",
       "kind": "leaf"
     },
     {
@@ -4606,7 +4606,7 @@
       "path": "iran.iran_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "East",
+      "name": "Iran — East",
       "kind": "leaf"
     },
     {
@@ -4615,7 +4615,7 @@
       "path": "iran.iran_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Iran — South",
       "kind": "leaf"
     },
     {
@@ -4624,7 +4624,7 @@
       "path": "iran.iran_north",
       "depth": 1,
       "sort_order": 2,
-      "name": "North",
+      "name": "Iran — North",
       "kind": "leaf"
     },
     {
@@ -4642,7 +4642,7 @@
       "path": "iraq.iraq_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Northern Iraq",
       "kind": "leaf"
     },
     {
@@ -4651,7 +4651,7 @@
       "path": "iraq.iraq_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Central and Southern Iraq",
       "kind": "leaf"
     },
     {
@@ -4669,7 +4669,7 @@
       "path": "israel_region",
       "depth": 0,
       "sort_order": 100,
-      "name": "Israel Region",
+      "name": "Israel",
       "kind": "group"
     },
     {
@@ -4759,7 +4759,7 @@
       "path": "italy.italy_emilia",
       "depth": 1,
       "sort_order": 6,
-      "name": "Emilia",
+      "name": "Emilia-Romagna",
       "kind": "group"
     },
     {
@@ -4768,7 +4768,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_bologna",
       "depth": 2,
       "sort_order": 0,
-      "name": "Italy_Emilia-Romagna_Bologna",
+      "name": "Province of Bologna",
       "kind": "leaf"
     },
     {
@@ -4777,7 +4777,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_ferrara",
       "depth": 2,
       "sort_order": 1,
-      "name": "Italy_Emilia-Romagna_Ferrara",
+      "name": "Province of Ferrara",
       "kind": "leaf"
     },
     {
@@ -4786,7 +4786,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_forli-cesena",
       "depth": 2,
       "sort_order": 2,
-      "name": "Italy_Emilia-Romagna_Forli-Cesena",
+      "name": "Province of Forlì-Cesena",
       "kind": "leaf"
     },
     {
@@ -4795,7 +4795,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_modena",
       "depth": 2,
       "sort_order": 3,
-      "name": "Italy_Emilia-Romagna_Modena",
+      "name": "Province of Modena",
       "kind": "leaf"
     },
     {
@@ -4804,7 +4804,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_parma",
       "depth": 2,
       "sort_order": 4,
-      "name": "Italy_Emilia-Romagna_Parma",
+      "name": "Province of Parma",
       "kind": "leaf"
     },
     {
@@ -4813,7 +4813,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_piacenza",
       "depth": 2,
       "sort_order": 5,
-      "name": "Italy_Emilia-Romagna_Piacenza",
+      "name": "Province of Piacenza",
       "kind": "leaf"
     },
     {
@@ -4822,7 +4822,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_ravenna",
       "depth": 2,
       "sort_order": 6,
-      "name": "Italy_Emilia-Romagna_Ravenna",
+      "name": "Province of Ravenna",
       "kind": "leaf"
     },
     {
@@ -4831,7 +4831,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_reggio_emilia",
       "depth": 2,
       "sort_order": 7,
-      "name": "Italy_Emilia-Romagna_Reggio Emilia",
+      "name": "Province of Reggio Emilia",
       "kind": "leaf"
     },
     {
@@ -4840,7 +4840,7 @@
       "path": "italy.italy_emilia.italy_emilia-romagna_rimini",
       "depth": 2,
       "sort_order": 8,
-      "name": "Italy_Emilia-Romagna_Rimini",
+      "name": "Province of Rimini",
       "kind": "leaf"
     },
     {
@@ -4849,7 +4849,7 @@
       "path": "italy.italy_friuli",
       "depth": 1,
       "sort_order": 7,
-      "name": "Friuli",
+      "name": "Friuli–Venezia Giulia",
       "kind": "group"
     },
     {
@@ -4858,7 +4858,7 @@
       "path": "italy.italy_friuli.italy_friuli-venezia_giulia_gorizia",
       "depth": 2,
       "sort_order": 0,
-      "name": "Italy_Friuli-Venezia Giulia_Gorizia",
+      "name": "Province of Gorizia",
       "kind": "leaf"
     },
     {
@@ -4867,7 +4867,7 @@
       "path": "italy.italy_friuli.italy_friuli-venezia_giulia_pordenone",
       "depth": 2,
       "sort_order": 1,
-      "name": "Italy_Friuli-Venezia Giulia_Pordenone",
+      "name": "Province of Pordenone",
       "kind": "leaf"
     },
     {
@@ -4876,7 +4876,7 @@
       "path": "italy.italy_friuli.italy_friuli-venezia_giulia_trieste",
       "depth": 2,
       "sort_order": 2,
-      "name": "Italy_Friuli-Venezia Giulia_Trieste",
+      "name": "Province of Trieste",
       "kind": "leaf"
     },
     {
@@ -4885,7 +4885,7 @@
       "path": "italy.italy_friuli.italy_friuli-venezia_giulia_udine",
       "depth": 2,
       "sort_order": 3,
-      "name": "Italy_Friuli-Venezia Giulia_Udine",
+      "name": "Province of Udine",
       "kind": "leaf"
     },
     {
@@ -4921,7 +4921,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_bergamo",
       "depth": 2,
       "sort_order": 0,
-      "name": "Bergamo",
+      "name": "Province of Bergamo",
       "kind": "leaf"
     },
     {
@@ -4930,7 +4930,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_brescia",
       "depth": 2,
       "sort_order": 1,
-      "name": "Brescia",
+      "name": "Province of Brescia",
       "kind": "leaf"
     },
     {
@@ -4939,7 +4939,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_como",
       "depth": 2,
       "sort_order": 2,
-      "name": "Como",
+      "name": "Province of Como",
       "kind": "leaf"
     },
     {
@@ -4948,7 +4948,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_cremona",
       "depth": 2,
       "sort_order": 3,
-      "name": "Cremona",
+      "name": "Province of Cremona",
       "kind": "leaf"
     },
     {
@@ -4957,7 +4957,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_lecco",
       "depth": 2,
       "sort_order": 4,
-      "name": "Lecco",
+      "name": "Province of Lecco",
       "kind": "leaf"
     },
     {
@@ -4966,7 +4966,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_lodi",
       "depth": 2,
       "sort_order": 5,
-      "name": "Lodi",
+      "name": "Province of Lodi",
       "kind": "leaf"
     },
     {
@@ -4975,7 +4975,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_mantua",
       "depth": 2,
       "sort_order": 6,
-      "name": "Mantua",
+      "name": "Province of Mantua",
       "kind": "leaf"
     },
     {
@@ -4984,7 +4984,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_milan",
       "depth": 2,
       "sort_order": 7,
-      "name": "Milan",
+      "name": "Province of Milan",
       "kind": "leaf"
     },
     {
@@ -4993,7 +4993,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_monza_and_brianza",
       "depth": 2,
       "sort_order": 8,
-      "name": "Monza and Brianza",
+      "name": "Province of Monza and Brianza",
       "kind": "leaf"
     },
     {
@@ -5002,7 +5002,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_pavia",
       "depth": 2,
       "sort_order": 9,
-      "name": "Pavia",
+      "name": "Province of Pavia",
       "kind": "leaf"
     },
     {
@@ -5011,7 +5011,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_sondrio",
       "depth": 2,
       "sort_order": 10,
-      "name": "Sondrio",
+      "name": "Province of Sondrio",
       "kind": "leaf"
     },
     {
@@ -5020,7 +5020,7 @@
       "path": "italy.italy_lombardy.italy_lombardy_varese",
       "depth": 2,
       "sort_order": 11,
-      "name": "Varese",
+      "name": "Province of Varese",
       "kind": "leaf"
     },
     {
@@ -5047,7 +5047,7 @@
       "path": "italy.italy_piemont",
       "depth": 1,
       "sort_order": 13,
-      "name": "Piemont",
+      "name": "Piedmont",
       "kind": "group"
     },
     {
@@ -5056,7 +5056,7 @@
       "path": "italy.italy_piemont.italy_piemont_alessandria",
       "depth": 2,
       "sort_order": 0,
-      "name": "Alessandria",
+      "name": "Province of Alessandria",
       "kind": "leaf"
     },
     {
@@ -5065,7 +5065,7 @@
       "path": "italy.italy_piemont.italy_piemont_asti",
       "depth": 2,
       "sort_order": 1,
-      "name": "Asti",
+      "name": "Province of Asti",
       "kind": "leaf"
     },
     {
@@ -5074,7 +5074,7 @@
       "path": "italy.italy_piemont.italy_piemont_biella",
       "depth": 2,
       "sort_order": 2,
-      "name": "Biella",
+      "name": "Province of Biella",
       "kind": "leaf"
     },
     {
@@ -5083,7 +5083,7 @@
       "path": "italy.italy_piemont.italy_piemont_cuneo",
       "depth": 2,
       "sort_order": 3,
-      "name": "Cuneo",
+      "name": "Province of Cuneo",
       "kind": "leaf"
     },
     {
@@ -5092,7 +5092,7 @@
       "path": "italy.italy_piemont.italy_piemont_novara",
       "depth": 2,
       "sort_order": 4,
-      "name": "Novara",
+      "name": "Province of Novara",
       "kind": "leaf"
     },
     {
@@ -5101,7 +5101,7 @@
       "path": "italy.italy_piemont.italy_piemont_torino",
       "depth": 2,
       "sort_order": 5,
-      "name": "Torino",
+      "name": "Province of Turin",
       "kind": "leaf"
     },
     {
@@ -5119,7 +5119,7 @@
       "path": "italy.italy_piemont.italy_piemont_vercelli",
       "depth": 2,
       "sort_order": 7,
-      "name": "Vercelli",
+      "name": "Province of Vercelli",
       "kind": "leaf"
     },
     {
@@ -5146,7 +5146,7 @@
       "path": "italy.italy_trentino-alto_adige_sudtirol",
       "depth": 1,
       "sort_order": 16,
-      "name": "Trentino-Alto Adige Sudtirol",
+      "name": "Trentino-South Tyrol",
       "kind": "leaf"
     },
     {
@@ -5155,7 +5155,7 @@
       "path": "italy.italy_tuscany_grosseto",
       "depth": 1,
       "sort_order": 17,
-      "name": "Tuscany_Grosseto",
+      "name": "Tuscany — South East",
       "kind": "leaf"
     },
     {
@@ -5164,7 +5164,7 @@
       "path": "italy.italy_tuscany_massa_e_carrara",
       "depth": 1,
       "sort_order": 18,
-      "name": "Tuscany_Massa e Carrara",
+      "name": "Tuscany — North West",
       "kind": "leaf"
     },
     {
@@ -5191,7 +5191,7 @@
       "path": "italy.italy_veneto.italy_veneto_belluno",
       "depth": 2,
       "sort_order": 0,
-      "name": "Belluno",
+      "name": "Province of Belluno",
       "kind": "leaf"
     },
     {
@@ -5200,7 +5200,7 @@
       "path": "italy.italy_veneto.italy_veneto_padova",
       "depth": 2,
       "sort_order": 1,
-      "name": "Padova",
+      "name": "Province of Padua",
       "kind": "leaf"
     },
     {
@@ -5209,7 +5209,7 @@
       "path": "italy.italy_veneto.italy_veneto_rovigo",
       "depth": 2,
       "sort_order": 2,
-      "name": "Rovigo",
+      "name": "Province of Rovigo",
       "kind": "leaf"
     },
     {
@@ -5218,7 +5218,7 @@
       "path": "italy.italy_veneto.italy_veneto_treviso",
       "depth": 2,
       "sort_order": 3,
-      "name": "Treviso",
+      "name": "Province of Treviso",
       "kind": "leaf"
     },
     {
@@ -5227,7 +5227,7 @@
       "path": "italy.italy_veneto.italy_veneto_venezia",
       "depth": 2,
       "sort_order": 4,
-      "name": "Venezia",
+      "name": "Province of Venice",
       "kind": "leaf"
     },
     {
@@ -5236,7 +5236,7 @@
       "path": "italy.italy_veneto.italy_veneto_verona",
       "depth": 2,
       "sort_order": 5,
-      "name": "Verona",
+      "name": "Province of Verona",
       "kind": "leaf"
     },
     {
@@ -5245,7 +5245,7 @@
       "path": "italy.italy_veneto.italy_veneto_vicenza",
       "depth": 2,
       "sort_order": 6,
-      "name": "Vicenza",
+      "name": "Province of Vicenza",
       "kind": "leaf"
     },
     {
@@ -5272,7 +5272,7 @@
       "path": "japan.japan_chubu_region",
       "depth": 1,
       "sort_order": 0,
-      "name": "Chubu Region",
+      "name": "Chūbu Region",
       "kind": "group"
     },
     {
@@ -5281,7 +5281,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_aichi_nagoya",
       "depth": 2,
       "sort_order": 0,
-      "name": "Aichi_Nagoya",
+      "name": "Aichi — Nagoya",
       "kind": "leaf"
     },
     {
@@ -5290,7 +5290,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_aichi_toyohashi",
       "depth": 2,
       "sort_order": 1,
-      "name": "Aichi_Toyohashi",
+      "name": "Aichi — Toyohashi",
       "kind": "leaf"
     },
     {
@@ -5299,7 +5299,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_fukui",
       "depth": 2,
       "sort_order": 2,
-      "name": "Fukui",
+      "name": "Fukui Prefecture",
       "kind": "leaf"
     },
     {
@@ -5308,7 +5308,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_gifu",
       "depth": 2,
       "sort_order": 3,
-      "name": "Gifu",
+      "name": "Gifu Prefecture",
       "kind": "leaf"
     },
     {
@@ -5317,7 +5317,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_ishikawa",
       "depth": 2,
       "sort_order": 4,
-      "name": "Ishikawa",
+      "name": "Ishikawa Prefecture",
       "kind": "leaf"
     },
     {
@@ -5326,7 +5326,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_nagano",
       "depth": 2,
       "sort_order": 5,
-      "name": "Nagano",
+      "name": "Nagano Prefecture",
       "kind": "leaf"
     },
     {
@@ -5335,7 +5335,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_niigata",
       "depth": 2,
       "sort_order": 6,
-      "name": "Niigata",
+      "name": "Niigata Prefecture",
       "kind": "leaf"
     },
     {
@@ -5344,7 +5344,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_shizuoka",
       "depth": 2,
       "sort_order": 7,
-      "name": "Shizuoka",
+      "name": "Shizuoka Prefecture",
       "kind": "leaf"
     },
     {
@@ -5353,7 +5353,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_toyama",
       "depth": 2,
       "sort_order": 8,
-      "name": "Toyama",
+      "name": "Toyama Prefecture",
       "kind": "leaf"
     },
     {
@@ -5362,7 +5362,7 @@
       "path": "japan.japan_chubu_region.japan_chubu_region_yamanashi",
       "depth": 2,
       "sort_order": 9,
-      "name": "Yamanashi",
+      "name": "Yamanashi Prefecture",
       "kind": "leaf"
     },
     {
@@ -5371,7 +5371,7 @@
       "path": "japan.japan_chugoku_region",
       "depth": 1,
       "sort_order": 1,
-      "name": "Chugoku Region",
+      "name": "Chūgoku Region",
       "kind": "group"
     },
     {
@@ -5380,7 +5380,7 @@
       "path": "japan.japan_chugoku_region.japan_chugoku_region_hiroshima",
       "depth": 2,
       "sort_order": 0,
-      "name": "Hiroshima",
+      "name": "Hiroshima Prefecture",
       "kind": "leaf"
     },
     {
@@ -5389,7 +5389,7 @@
       "path": "japan.japan_chugoku_region.japan_chugoku_region_okayama",
       "depth": 2,
       "sort_order": 1,
-      "name": "Okayama",
+      "name": "Okayama Prefecture",
       "kind": "leaf"
     },
     {
@@ -5398,7 +5398,7 @@
       "path": "japan.japan_chugoku_region.japan_chugoku_region_shimane",
       "depth": 2,
       "sort_order": 2,
-      "name": "Shimane",
+      "name": "Shimane Prefecture",
       "kind": "leaf"
     },
     {
@@ -5407,7 +5407,7 @@
       "path": "japan.japan_chugoku_region.japan_chugoku_region_tottori",
       "depth": 2,
       "sort_order": 3,
-      "name": "Tottori",
+      "name": "Tottori Prefecture",
       "kind": "leaf"
     },
     {
@@ -5416,7 +5416,7 @@
       "path": "japan.japan_chugoku_region.japan_chugoku_region_yamaguchi",
       "depth": 2,
       "sort_order": 4,
-      "name": "Yamaguchi",
+      "name": "Yamaguchi Prefecture",
       "kind": "leaf"
     },
     {
@@ -5425,7 +5425,7 @@
       "path": "japan.japan_hokkaido_region",
       "depth": 1,
       "sort_order": 2,
-      "name": "Hokkaido Region",
+      "name": "Hokkaidō",
       "kind": "group"
     },
     {
@@ -5434,7 +5434,7 @@
       "path": "japan.japan_hokkaido_region.japan_hokkaido_region_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "East",
+      "name": "Hokkaidō — East",
       "kind": "leaf"
     },
     {
@@ -5443,7 +5443,7 @@
       "path": "japan.japan_hokkaido_region.japan_hokkaido_region_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "North",
+      "name": "Hokkaidō — North",
       "kind": "leaf"
     },
     {
@@ -5452,7 +5452,7 @@
       "path": "japan.japan_hokkaido_region.japan_hokkaido_region_west",
       "depth": 2,
       "sort_order": 2,
-      "name": "West",
+      "name": "Hokkaidō — West",
       "kind": "leaf"
     },
     {
@@ -5470,7 +5470,7 @@
       "path": "japan.japan_kanto",
       "depth": 1,
       "sort_order": 3,
-      "name": "Kanto",
+      "name": "Kantō Region",
       "kind": "group"
     },
     {
@@ -5479,7 +5479,7 @@
       "path": "japan.japan_kanto.japan_kanto_chiba",
       "depth": 2,
       "sort_order": 0,
-      "name": "Chiba",
+      "name": "Chiba Prefecture",
       "kind": "leaf"
     },
     {
@@ -5488,7 +5488,7 @@
       "path": "japan.japan_kanto.japan_kanto_gunma",
       "depth": 2,
       "sort_order": 1,
-      "name": "Gunma",
+      "name": "Gunma Prefecture",
       "kind": "leaf"
     },
     {
@@ -5497,7 +5497,7 @@
       "path": "japan.japan_kanto.japan_kanto_ibaraki",
       "depth": 2,
       "sort_order": 2,
-      "name": "Ibaraki",
+      "name": "Ibaraki Prefecture",
       "kind": "leaf"
     },
     {
@@ -5506,7 +5506,7 @@
       "path": "japan.japan_kanto.japan_kanto_kanagawa",
       "depth": 2,
       "sort_order": 3,
-      "name": "Kanagawa",
+      "name": "Kanagawa Prefecture",
       "kind": "leaf"
     },
     {
@@ -5515,7 +5515,7 @@
       "path": "japan.japan_kanto.japan_kanto_saitama",
       "depth": 2,
       "sort_order": 4,
-      "name": "Saitama",
+      "name": "Saitama Prefecture",
       "kind": "leaf"
     },
     {
@@ -5524,7 +5524,7 @@
       "path": "japan.japan_kanto.japan_kanto_tochigi",
       "depth": 2,
       "sort_order": 5,
-      "name": "Tochigi",
+      "name": "Tochigi Prefecture",
       "kind": "leaf"
     },
     {
@@ -5533,7 +5533,7 @@
       "path": "japan.japan_kanto.japan_kanto_tokyo",
       "depth": 2,
       "sort_order": 6,
-      "name": "Tokyo",
+      "name": "Tokyo Prefecture",
       "kind": "leaf"
     },
     {
@@ -5542,7 +5542,7 @@
       "path": "japan.japan_kinki_region",
       "depth": 1,
       "sort_order": 4,
-      "name": "Kinki Region",
+      "name": "Kansai Region",
       "kind": "group"
     },
     {
@@ -5551,7 +5551,7 @@
       "path": "japan.japan_kinki_region.japan_shikoku_region_kyoto",
       "depth": 2,
       "sort_order": 0,
-      "name": "Japan_Shikoku Region_Kyoto",
+      "name": "Kyōto Prefecture",
       "kind": "leaf"
     },
     {
@@ -5560,7 +5560,7 @@
       "path": "japan.japan_kinki_region.japan_kinki_region_mie",
       "depth": 2,
       "sort_order": 1,
-      "name": "Mie",
+      "name": "Mie Prefecture",
       "kind": "leaf"
     },
     {
@@ -5569,7 +5569,7 @@
       "path": "japan.japan_kinki_region.japan_kinki_region_nara",
       "depth": 2,
       "sort_order": 2,
-      "name": "Nara",
+      "name": "Nara Prefecture",
       "kind": "leaf"
     },
     {
@@ -5578,7 +5578,7 @@
       "path": "japan.japan_kinki_region.japan_kinki_region_osaka_osaka",
       "depth": 2,
       "sort_order": 3,
-      "name": "Osaka_Osaka",
+      "name": "Ōsaka",
       "kind": "leaf"
     },
     {
@@ -5587,7 +5587,7 @@
       "path": "japan.japan_kinki_region.japan_kinki_region_osaka_west",
       "depth": 2,
       "sort_order": 4,
-      "name": "Osaka_West",
+      "name": "Ōsaka — West",
       "kind": "leaf"
     },
     {
@@ -5596,7 +5596,7 @@
       "path": "japan.japan_kinki_region.japan_kinki_region_wakayama",
       "depth": 2,
       "sort_order": 5,
-      "name": "Wakayama",
+      "name": "Wakayama Prefecture",
       "kind": "leaf"
     },
     {
@@ -5605,7 +5605,7 @@
       "path": "japan.japan_kyushu_region",
       "depth": 1,
       "sort_order": 5,
-      "name": "Kyushu Region",
+      "name": "Kyushu",
       "kind": "group"
     },
     {
@@ -5614,7 +5614,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_fukuoka",
       "depth": 2,
       "sort_order": 0,
-      "name": "Fukuoka",
+      "name": "Fukuoka Prefecture",
       "kind": "leaf"
     },
     {
@@ -5623,7 +5623,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_kagoshima",
       "depth": 2,
       "sort_order": 1,
-      "name": "Kagoshima",
+      "name": "Kagoshima Prefecture",
       "kind": "leaf"
     },
     {
@@ -5632,7 +5632,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_kumamoto",
       "depth": 2,
       "sort_order": 2,
-      "name": "Kumamoto",
+      "name": "Kumamoto Prefecture",
       "kind": "leaf"
     },
     {
@@ -5641,7 +5641,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_miyazaki",
       "depth": 2,
       "sort_order": 3,
-      "name": "Miyazaki",
+      "name": "Miyazaki Prefecture",
       "kind": "leaf"
     },
     {
@@ -5650,7 +5650,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_nagasaki",
       "depth": 2,
       "sort_order": 4,
-      "name": "Nagasaki",
+      "name": "Nagasaki Prefecture",
       "kind": "leaf"
     },
     {
@@ -5659,7 +5659,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_oita",
       "depth": 2,
       "sort_order": 5,
-      "name": "Oita",
+      "name": "Ōita Prefecture",
       "kind": "leaf"
     },
     {
@@ -5668,7 +5668,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_okinawa",
       "depth": 2,
       "sort_order": 6,
-      "name": "Okinawa",
+      "name": "Okinawa Prefecture",
       "kind": "leaf"
     },
     {
@@ -5677,7 +5677,7 @@
       "path": "japan.japan_kyushu_region.japan_kyushu_region_saga",
       "depth": 2,
       "sort_order": 7,
-      "name": "Saga",
+      "name": "Saga Prefecture",
       "kind": "leaf"
     },
     {
@@ -5686,7 +5686,7 @@
       "path": "japan.japan_shikoku_region",
       "depth": 1,
       "sort_order": 6,
-      "name": "Shikoku Region",
+      "name": "Shikoku",
       "kind": "group"
     },
     {
@@ -5695,7 +5695,7 @@
       "path": "japan.japan_shikoku_region.japan_shikoku_region_ehime",
       "depth": 2,
       "sort_order": 0,
-      "name": "Ehime",
+      "name": "Ehime Prefecture",
       "kind": "leaf"
     },
     {
@@ -5704,7 +5704,7 @@
       "path": "japan.japan_shikoku_region.japan_shikoku_region_kagawa",
       "depth": 2,
       "sort_order": 1,
-      "name": "Kagawa",
+      "name": "Kagawa Prefecture",
       "kind": "leaf"
     },
     {
@@ -5713,7 +5713,7 @@
       "path": "japan.japan_shikoku_region.japan_shikoku_region_kochi",
       "depth": 2,
       "sort_order": 2,
-      "name": "Kochi",
+      "name": "Kōchi Prefecture",
       "kind": "leaf"
     },
     {
@@ -5722,7 +5722,7 @@
       "path": "japan.japan_shikoku_region.japan_shikoku_region_tokushima",
       "depth": 2,
       "sort_order": 3,
-      "name": "Tokushima",
+      "name": "Tokushima Prefecture",
       "kind": "leaf"
     },
     {
@@ -5731,7 +5731,7 @@
       "path": "japan.japan_tohoku",
       "depth": 1,
       "sort_order": 7,
-      "name": "Tohoku",
+      "name": "Tōhoku Region",
       "kind": "group"
     },
     {
@@ -5740,7 +5740,7 @@
       "path": "japan.japan_tohoku.japan_tohoku_akita",
       "depth": 2,
       "sort_order": 0,
-      "name": "Akita",
+      "name": "Akita Prefecture",
       "kind": "leaf"
     },
     {
@@ -5749,7 +5749,7 @@
       "path": "japan.japan_tohoku.japan_tohoku_aomori",
       "depth": 2,
       "sort_order": 1,
-      "name": "Aomori",
+      "name": "Aomori Prefecture",
       "kind": "leaf"
     },
     {
@@ -5758,7 +5758,7 @@
       "path": "japan.japan_tohoku.japan_tohoku_fukushima",
       "depth": 2,
       "sort_order": 2,
-      "name": "Fukushima",
+      "name": "Fukushima Prefecture",
       "kind": "leaf"
     },
     {
@@ -5767,7 +5767,7 @@
       "path": "japan.japan_tohoku.japan_tohoku_iwate",
       "depth": 2,
       "sort_order": 3,
-      "name": "Iwate",
+      "name": "Iwate Prefecture",
       "kind": "leaf"
     },
     {
@@ -5776,7 +5776,7 @@
       "path": "japan.japan_tohoku.japan_tohoku_miyagi",
       "depth": 2,
       "sort_order": 4,
-      "name": "Miyagi",
+      "name": "Miyagi Prefecture",
       "kind": "leaf"
     },
     {
@@ -5785,7 +5785,7 @@
       "path": "japan.japan_tohoku.japan_tohoku_yamagata",
       "depth": 2,
       "sort_order": 5,
-      "name": "Yamagata",
+      "name": "Yamagata Prefecture",
       "kind": "leaf"
     },
     {
@@ -5821,7 +5821,7 @@
       "path": "kazakhstan.kazakhstan_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Kazakhstan — North",
       "kind": "leaf"
     },
     {
@@ -5830,7 +5830,7 @@
       "path": "kazakhstan.kazakhstan_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Kazakhstan — South",
       "kind": "leaf"
     },
     {
@@ -5848,7 +5848,7 @@
       "path": "kingdom_of_lesotho",
       "depth": 0,
       "sort_order": 108,
-      "name": "Kingdom of Lesotho",
+      "name": "Lesotho",
       "kind": "leaf"
     },
     {
@@ -5947,7 +5947,7 @@
       "path": "lithuania.lithuania_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "East",
+      "name": "Lithuania — East",
       "kind": "leaf"
     },
     {
@@ -5956,7 +5956,7 @@
       "path": "lithuania.lithuania_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Lithuania — West",
       "kind": "leaf"
     },
     {
@@ -5974,7 +5974,7 @@
       "path": "macedonia",
       "depth": 0,
       "sort_order": 120,
-      "name": "Macedonia",
+      "name": "North Macedonia",
       "kind": "leaf"
     },
     {
@@ -6073,7 +6073,7 @@
       "path": "mexico.mexico_california",
       "depth": 1,
       "sort_order": 0,
-      "name": "California",
+      "name": "Baja California",
       "kind": "leaf"
     },
     {
@@ -6082,7 +6082,7 @@
       "path": "mexico.mexico_central_east",
       "depth": 1,
       "sort_order": 1,
-      "name": "Central_East",
+      "name": "Nuevo León",
       "kind": "leaf"
     },
     {
@@ -6091,7 +6091,7 @@
       "path": "mexico.mexico_central_west",
       "depth": 1,
       "sort_order": 2,
-      "name": "Central_West",
+      "name": "Nayarit",
       "kind": "leaf"
     },
     {
@@ -6100,7 +6100,7 @@
       "path": "mexico.mexico_east",
       "depth": 1,
       "sort_order": 3,
-      "name": "East",
+      "name": "Mexico — East",
       "kind": "leaf"
     },
     {
@@ -6109,7 +6109,7 @@
       "path": "mexico.mexico_mexico",
       "depth": 1,
       "sort_order": 4,
-      "name": "Mexico",
+      "name": "Mexico City",
       "kind": "leaf"
     },
     {
@@ -6136,7 +6136,7 @@
       "path": "mexico.mexico_south",
       "depth": 1,
       "sort_order": 7,
-      "name": "South",
+      "name": "Mexico — South",
       "kind": "leaf"
     },
     {
@@ -6199,7 +6199,7 @@
       "path": "morocco.morocco_southern",
       "depth": 1,
       "sort_order": 1,
-      "name": "Southern",
+      "name": "Morocco — South",
       "kind": "leaf"
     },
     {
@@ -6217,7 +6217,7 @@
       "path": "morocco.morocco_rabat-sale-zemmour-zaer",
       "depth": 1,
       "sort_order": 3,
-      "name": "Rabat-Sale-Zemmour-Zaer",
+      "name": "Rabat-Salé-Zemmour-Zaer",
       "kind": "leaf"
     },
     {
@@ -6271,7 +6271,7 @@
       "path": "nepal.nepal_west",
       "depth": 1,
       "sort_order": 0,
-      "name": "West",
+      "name": "Nepal — West",
       "kind": "leaf"
     },
     {
@@ -6289,7 +6289,7 @@
       "path": "nepal.nepal_madhyamanchal",
       "depth": 1,
       "sort_order": 2,
-      "name": "Madhyamanchal",
+      "name": "Central Development Region",
       "kind": "leaf"
     },
     {
@@ -6298,7 +6298,7 @@
       "path": "nepal.nepal_purwanchal",
       "depth": 1,
       "sort_order": 3,
-      "name": "Purwanchal",
+      "name": "Eastern Development Region",
       "kind": "leaf"
     },
     {
@@ -6334,7 +6334,7 @@
       "path": "nigeria.nigeria_south",
       "depth": 1,
       "sort_order": 0,
-      "name": "South",
+      "name": "Nigeria — South",
       "kind": "leaf"
     },
     {
@@ -6343,7 +6343,7 @@
       "path": "nigeria.nigeria_north",
       "depth": 1,
       "sort_order": 1,
-      "name": "North",
+      "name": "Nigeria — North",
       "kind": "leaf"
     },
     {
@@ -6379,7 +6379,7 @@
       "path": "norway.norway_northern",
       "depth": 1,
       "sort_order": 0,
-      "name": "Northern",
+      "name": "Northern Norway",
       "kind": "leaf"
     },
     {
@@ -6451,7 +6451,7 @@
       "path": "norway.norway_north_trondelag",
       "depth": 1,
       "sort_order": 8,
-      "name": "North Trondelag",
+      "name": "Nord-Trøndelag",
       "kind": "leaf"
     },
     {
@@ -6460,7 +6460,7 @@
       "path": "norway.norway_south_trondelag",
       "depth": 1,
       "sort_order": 9,
-      "name": "South Trondelag",
+      "name": "Sør-Trøndelag",
       "kind": "leaf"
     },
     {
@@ -6469,7 +6469,7 @@
       "path": "norway.norway_southern",
       "depth": 1,
       "sort_order": 10,
-      "name": "Southern",
+      "name": "Southern Norway",
       "kind": "leaf"
     },
     {
@@ -6478,7 +6478,7 @@
       "path": "norway.norway_western",
       "depth": 1,
       "sort_order": 11,
-      "name": "Western",
+      "name": "Western Norway",
       "kind": "leaf"
     },
     {
@@ -6487,7 +6487,7 @@
       "path": "norway.norway_central",
       "depth": 1,
       "sort_order": 12,
-      "name": "Central",
+      "name": "Oslo",
       "kind": "leaf"
     },
     {
@@ -6559,7 +6559,7 @@
       "path": "people's_republic_of_china",
       "depth": 0,
       "sort_order": 153,
-      "name": "People's Republic of China",
+      "name": "China",
       "kind": "group"
     },
     {
@@ -6568,7 +6568,7 @@
       "path": "people's_republic_of_china.china_anhui",
       "depth": 1,
       "sort_order": 0,
-      "name": "China_Anhui",
+      "name": "Anhui",
       "kind": "leaf"
     },
     {
@@ -6577,7 +6577,7 @@
       "path": "people's_republic_of_china.china_chongqing",
       "depth": 1,
       "sort_order": 1,
-      "name": "China_Chongqing",
+      "name": "Chongqing",
       "kind": "leaf"
     },
     {
@@ -6586,7 +6586,7 @@
       "path": "people's_republic_of_china.china_fujian",
       "depth": 1,
       "sort_order": 2,
-      "name": "China_Fujian",
+      "name": "Fujian",
       "kind": "leaf"
     },
     {
@@ -6595,7 +6595,7 @@
       "path": "people's_republic_of_china.china_gansu",
       "depth": 1,
       "sort_order": 3,
-      "name": "China_Gansu",
+      "name": "Gansu",
       "kind": "leaf"
     },
     {
@@ -6604,7 +6604,7 @@
       "path": "people's_republic_of_china.china_guangdong",
       "depth": 1,
       "sort_order": 4,
-      "name": "China_Guangdong",
+      "name": "Guangdong",
       "kind": "leaf"
     },
     {
@@ -6613,7 +6613,7 @@
       "path": "people's_republic_of_china.china_guangxi",
       "depth": 1,
       "sort_order": 5,
-      "name": "China_Guangxi",
+      "name": "Guangxi Zhuang Autonomous Region",
       "kind": "leaf"
     },
     {
@@ -6622,7 +6622,7 @@
       "path": "people's_republic_of_china.china_guizhou",
       "depth": 1,
       "sort_order": 6,
-      "name": "China_Guizhou",
+      "name": "Guizhou",
       "kind": "leaf"
     },
     {
@@ -6631,7 +6631,7 @@
       "path": "people's_republic_of_china.china_hebei",
       "depth": 1,
       "sort_order": 7,
-      "name": "China_Hebei",
+      "name": "Hebei",
       "kind": "leaf"
     },
     {
@@ -6640,7 +6640,7 @@
       "path": "people's_republic_of_china.china_heilongjiang",
       "depth": 1,
       "sort_order": 8,
-      "name": "China_Heilongjiang",
+      "name": "Heilongjiang",
       "kind": "leaf"
     },
     {
@@ -6649,7 +6649,7 @@
       "path": "people's_republic_of_china.china_henan",
       "depth": 1,
       "sort_order": 9,
-      "name": "China_Henan",
+      "name": "Henan",
       "kind": "leaf"
     },
     {
@@ -6658,7 +6658,7 @@
       "path": "people's_republic_of_china.china_hubei",
       "depth": 1,
       "sort_order": 10,
-      "name": "China_Hubei",
+      "name": "Hubei",
       "kind": "leaf"
     },
     {
@@ -6667,7 +6667,7 @@
       "path": "people's_republic_of_china.china_hunan",
       "depth": 1,
       "sort_order": 11,
-      "name": "China_Hunan",
+      "name": "Hunan",
       "kind": "leaf"
     },
     {
@@ -6676,7 +6676,7 @@
       "path": "people's_republic_of_china.china_inner_mongolia",
       "depth": 1,
       "sort_order": 12,
-      "name": "China_Inner Mongolia",
+      "name": "Inner Mongolia",
       "kind": "leaf"
     },
     {
@@ -6685,7 +6685,7 @@
       "path": "people's_republic_of_china.china_jiangsu",
       "depth": 1,
       "sort_order": 13,
-      "name": "China_Jiangsu",
+      "name": "Jiangsu",
       "kind": "leaf"
     },
     {
@@ -6694,7 +6694,7 @@
       "path": "people's_republic_of_china.china_jiangxi",
       "depth": 1,
       "sort_order": 14,
-      "name": "China_Jiangxi",
+      "name": "Jiangxi",
       "kind": "leaf"
     },
     {
@@ -6703,7 +6703,7 @@
       "path": "people's_republic_of_china.china_jilin",
       "depth": 1,
       "sort_order": 15,
-      "name": "China_Jilin",
+      "name": "Jilin",
       "kind": "leaf"
     },
     {
@@ -6712,7 +6712,7 @@
       "path": "people's_republic_of_china.china_liaoning",
       "depth": 1,
       "sort_order": 16,
-      "name": "China_Liaoning",
+      "name": "Liaoning",
       "kind": "leaf"
     },
     {
@@ -6721,7 +6721,7 @@
       "path": "people's_republic_of_china.china_ningxia_hui",
       "depth": 1,
       "sort_order": 17,
-      "name": "China_Ningxia Hui",
+      "name": "Ningxia Hui Autonomous Region",
       "kind": "leaf"
     },
     {
@@ -6730,7 +6730,7 @@
       "path": "people's_republic_of_china.china_qinghai",
       "depth": 1,
       "sort_order": 18,
-      "name": "China_Qinghai",
+      "name": "Qinghai",
       "kind": "leaf"
     },
     {
@@ -6739,7 +6739,7 @@
       "path": "people's_republic_of_china.china_shaanxi",
       "depth": 1,
       "sort_order": 19,
-      "name": "China_Shaanxi",
+      "name": "Shaanxi",
       "kind": "leaf"
     },
     {
@@ -6748,7 +6748,7 @@
       "path": "people's_republic_of_china.china_shandong",
       "depth": 1,
       "sort_order": 20,
-      "name": "China_Shandong",
+      "name": "Shandong",
       "kind": "leaf"
     },
     {
@@ -6757,7 +6757,7 @@
       "path": "people's_republic_of_china.china_shanghai",
       "depth": 1,
       "sort_order": 21,
-      "name": "China_Shanghai",
+      "name": "Shanghai",
       "kind": "leaf"
     },
     {
@@ -6766,7 +6766,7 @@
       "path": "people's_republic_of_china.china_shanxi",
       "depth": 1,
       "sort_order": 22,
-      "name": "China_Shanxi",
+      "name": "Shanxi",
       "kind": "leaf"
     },
     {
@@ -6775,7 +6775,7 @@
       "path": "people's_republic_of_china.china_sichuan",
       "depth": 1,
       "sort_order": 23,
-      "name": "China_Sichuan",
+      "name": "Sichuan",
       "kind": "leaf"
     },
     {
@@ -6784,7 +6784,7 @@
       "path": "people's_republic_of_china.china_tibet_autonomous_region",
       "depth": 1,
       "sort_order": 24,
-      "name": "China_Tibet Autonomous Region",
+      "name": "Tibet Autonomous Region",
       "kind": "leaf"
     },
     {
@@ -6793,7 +6793,7 @@
       "path": "people's_republic_of_china.china_xinjiang",
       "depth": 1,
       "sort_order": 25,
-      "name": "China_Xinjiang",
+      "name": "Xinjiang Uyghur Autonomous Region",
       "kind": "leaf"
     },
     {
@@ -6802,7 +6802,7 @@
       "path": "people's_republic_of_china.china_yunnan",
       "depth": 1,
       "sort_order": 26,
-      "name": "China_Yunnan",
+      "name": "Yunnan",
       "kind": "leaf"
     },
     {
@@ -6811,7 +6811,7 @@
       "path": "people's_republic_of_china.china_zhejiang",
       "depth": 1,
       "sort_order": 27,
-      "name": "China_Zhejiang",
+      "name": "Zhejiang",
       "kind": "leaf"
     },
     {
@@ -6829,7 +6829,7 @@
       "path": "taiwan.taiwan_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Taiwan — North",
       "kind": "leaf"
     },
     {
@@ -6838,7 +6838,7 @@
       "path": "taiwan.taiwan_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Taiwan — South",
       "kind": "leaf"
     },
     {
@@ -6856,7 +6856,7 @@
       "path": "peru.peru_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Peru — North",
       "kind": "leaf"
     },
     {
@@ -6874,7 +6874,7 @@
       "path": "peru.peru_south",
       "depth": 1,
       "sort_order": 2,
-      "name": "South",
+      "name": "Peru — South",
       "kind": "leaf"
     },
     {
@@ -6910,7 +6910,7 @@
       "path": "philippines.philippines_luzon_south",
       "depth": 1,
       "sort_order": 2,
-      "name": "Luzon_South",
+      "name": "Luzon — South",
       "kind": "leaf"
     },
     {
@@ -6919,7 +6919,7 @@
       "path": "philippines.philippines_luzon_manila",
       "depth": 1,
       "sort_order": 3,
-      "name": "Luzon_Manila",
+      "name": "Metro Manila",
       "kind": "leaf"
     },
     {
@@ -6928,7 +6928,7 @@
       "path": "philippines.philippines_luzon_north",
       "depth": 1,
       "sort_order": 4,
-      "name": "Luzon_North",
+      "name": "Luzon — North",
       "kind": "leaf"
     },
     {
@@ -6937,7 +6937,7 @@
       "path": "pitcairn_islands",
       "depth": 0,
       "sort_order": 157,
-      "name": "Pitcairn Islands",
+      "name": "Pitcairn",
       "kind": "leaf"
     },
     {
@@ -7027,7 +7027,7 @@
       "path": "poland.poland_lodz_voivodeship",
       "depth": 1,
       "sort_order": 8,
-      "name": "Lodz Voivodeship",
+      "name": "Łódź Voivodeship",
       "kind": "leaf"
     },
     {
@@ -7036,7 +7036,7 @@
       "path": "poland.poland_subcarpathian_voivodeship",
       "depth": 1,
       "sort_order": 9,
-      "name": "Subcarpathian Voivodeship",
+      "name": "Podkarpackie Voivodeship",
       "kind": "leaf"
     },
     {
@@ -7090,7 +7090,7 @@
       "path": "poland.poland_swietokrzyskie_voivodeship",
       "depth": 1,
       "sort_order": 15,
-      "name": "Swietokrzyskie Voivodeship",
+      "name": "Świętokrzyskie Voivodeship",
       "kind": "leaf"
     },
     {
@@ -7117,7 +7117,7 @@
       "path": "portugal.portugal_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Portugal — South",
       "kind": "leaf"
     },
     {
@@ -7126,7 +7126,7 @@
       "path": "portugal.portugal_islands",
       "depth": 1,
       "sort_order": 2,
-      "name": "Islands",
+      "name": "Islands of Portugal",
       "kind": "leaf"
     },
     {
@@ -7153,7 +7153,7 @@
       "path": "republic_of_kosovo",
       "depth": 0,
       "sort_order": 161,
-      "name": "Republic of Kosovo",
+      "name": "Kosovo",
       "kind": "leaf"
     },
     {
@@ -7171,7 +7171,7 @@
       "path": "romania.romania_south_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "South_East",
+      "name": "Sud-Est",
       "kind": "leaf"
     },
     {
@@ -7180,7 +7180,7 @@
       "path": "romania.romania_centre",
       "depth": 1,
       "sort_order": 1,
-      "name": "Centre",
+      "name": "Centru",
       "kind": "leaf"
     },
     {
@@ -7189,7 +7189,7 @@
       "path": "romania.romania_west",
       "depth": 1,
       "sort_order": 2,
-      "name": "West",
+      "name": "Vest",
       "kind": "leaf"
     },
     {
@@ -7198,7 +7198,7 @@
       "path": "romania.romania_north_west",
       "depth": 1,
       "sort_order": 3,
-      "name": "North_West",
+      "name": "Nord-Vest",
       "kind": "leaf"
     },
     {
@@ -7207,7 +7207,7 @@
       "path": "romania.romania_south_west",
       "depth": 1,
       "sort_order": 4,
-      "name": "South_West",
+      "name": "Sud-Vest",
       "kind": "leaf"
     },
     {
@@ -7216,7 +7216,7 @@
       "path": "romania.romania_north_east",
       "depth": 1,
       "sort_order": 5,
-      "name": "North_East",
+      "name": "Nord-Est",
       "kind": "leaf"
     },
     {
@@ -7225,7 +7225,7 @@
       "path": "romania.romania_south",
       "depth": 1,
       "sort_order": 6,
-      "name": "South",
+      "name": "Sud",
       "kind": "leaf"
     },
     {
@@ -7234,7 +7234,7 @@
       "path": "russian_federation",
       "depth": 0,
       "sort_order": 163,
-      "name": "Russian Federation",
+      "name": "Russia",
       "kind": "group"
     },
     {
@@ -7243,7 +7243,7 @@
       "path": "russian_federation.crimea",
       "depth": 1,
       "sort_order": 0,
-      "name": "Crimea",
+      "name": "Crimean Peninsula",
       "kind": "leaf"
     },
     {
@@ -7252,7 +7252,7 @@
       "path": "russian_federation.russia_altai_krai",
       "depth": 1,
       "sort_order": 1,
-      "name": "Russia_Altai Krai",
+      "name": "Altai Krai",
       "kind": "leaf"
     },
     {
@@ -7261,7 +7261,7 @@
       "path": "russian_federation.russia_altai_republic",
       "depth": 1,
       "sort_order": 2,
-      "name": "Russia_Altai Republic",
+      "name": "Altai Republic",
       "kind": "leaf"
     },
     {
@@ -7270,7 +7270,7 @@
       "path": "russian_federation.russia_amur_oblast",
       "depth": 1,
       "sort_order": 3,
-      "name": "Russia_Amur Oblast",
+      "name": "Amur Oblast",
       "kind": "leaf"
     },
     {
@@ -7279,7 +7279,7 @@
       "path": "russian_federation.russia_arkhangelsk_oblast_central",
       "depth": 1,
       "sort_order": 4,
-      "name": "Russia_Arkhangelsk Oblast_Central",
+      "name": "Arkhangelsk Oblast — Centre",
       "kind": "leaf"
     },
     {
@@ -7288,7 +7288,7 @@
       "path": "russian_federation.russia_arkhangelsk_oblast_north",
       "depth": 1,
       "sort_order": 5,
-      "name": "Russia_Arkhangelsk Oblast_North",
+      "name": "Arkhangelsk Oblast — North",
       "kind": "leaf"
     },
     {
@@ -7297,7 +7297,7 @@
       "path": "russian_federation.russia_astrakhan_oblast",
       "depth": 1,
       "sort_order": 6,
-      "name": "Russia_Astrakhan Oblast",
+      "name": "Astrakhan Oblast",
       "kind": "leaf"
     },
     {
@@ -7306,7 +7306,7 @@
       "path": "russian_federation.russia_bashkortostan",
       "depth": 1,
       "sort_order": 7,
-      "name": "Russia_Bashkortostan",
+      "name": "Republic of Bashkortostan",
       "kind": "leaf"
     },
     {
@@ -7315,7 +7315,7 @@
       "path": "russian_federation.russia_belgorod_oblast",
       "depth": 1,
       "sort_order": 8,
-      "name": "Russia_Belgorod Oblast",
+      "name": "Belgorod Oblast",
       "kind": "leaf"
     },
     {
@@ -7324,7 +7324,7 @@
       "path": "russian_federation.russia_bryansk_oblast",
       "depth": 1,
       "sort_order": 9,
-      "name": "Russia_Bryansk Oblast",
+      "name": "Bryansk Oblast",
       "kind": "leaf"
     },
     {
@@ -7333,7 +7333,7 @@
       "path": "russian_federation.russia_buryatia",
       "depth": 1,
       "sort_order": 10,
-      "name": "Russia_Buryatia",
+      "name": "Buryat Republic",
       "kind": "leaf"
     },
     {
@@ -7342,7 +7342,7 @@
       "path": "russian_federation.russia_chechen_republic",
       "depth": 1,
       "sort_order": 11,
-      "name": "Russia_Chechen Republic",
+      "name": "Chechen Republic",
       "kind": "leaf"
     },
     {
@@ -7351,7 +7351,7 @@
       "path": "russian_federation.russia_chelyabinsk_oblast",
       "depth": 1,
       "sort_order": 12,
-      "name": "Russia_Chelyabinsk Oblast",
+      "name": "Chelyabinsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7360,7 +7360,7 @@
       "path": "russian_federation.russia_chukotka_autonomous_okrug",
       "depth": 1,
       "sort_order": 13,
-      "name": "Russia_Chukotka Autonomous Okrug",
+      "name": "Chukotka Autonomous Okrug",
       "kind": "leaf"
     },
     {
@@ -7369,7 +7369,7 @@
       "path": "russian_federation.russia_chuvashia",
       "depth": 1,
       "sort_order": 14,
-      "name": "Russia_Chuvashia",
+      "name": "Chuvash Republic",
       "kind": "leaf"
     },
     {
@@ -7378,7 +7378,7 @@
       "path": "russian_federation.russia_ingushetia",
       "depth": 1,
       "sort_order": 15,
-      "name": "Russia_Ingushetia",
+      "name": "Republic of Ingushetia",
       "kind": "leaf"
     },
     {
@@ -7387,7 +7387,7 @@
       "path": "russian_federation.russia_irkutsk_oblast",
       "depth": 1,
       "sort_order": 16,
-      "name": "Russia_Irkutsk Oblast",
+      "name": "Irkutsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7396,7 +7396,7 @@
       "path": "russian_federation.russia_ivanovo_oblast",
       "depth": 1,
       "sort_order": 17,
-      "name": "Russia_Ivanovo Oblast",
+      "name": "Ivanovo Oblast",
       "kind": "leaf"
     },
     {
@@ -7405,7 +7405,7 @@
       "path": "russian_federation.russia_jewish_autonomous_oblast",
       "depth": 1,
       "sort_order": 18,
-      "name": "Russia_Jewish Autonomous Oblast",
+      "name": "Jewish Autonomous Oblast",
       "kind": "leaf"
     },
     {
@@ -7414,7 +7414,7 @@
       "path": "russian_federation.russia_kabardino-balkaria",
       "depth": 1,
       "sort_order": 19,
-      "name": "Russia_Kabardino-Balkaria",
+      "name": "Kabardino-Balkar Republic",
       "kind": "leaf"
     },
     {
@@ -7423,7 +7423,7 @@
       "path": "russian_federation.russia_kaliningrad_oblast",
       "depth": 1,
       "sort_order": 20,
-      "name": "Russia_Kaliningrad Oblast",
+      "name": "Kaliningrad Oblast",
       "kind": "leaf"
     },
     {
@@ -7432,7 +7432,7 @@
       "path": "russian_federation.russia_kaluga_oblast",
       "depth": 1,
       "sort_order": 21,
-      "name": "Russia_Kaluga Oblast",
+      "name": "Kaluga Oblast",
       "kind": "leaf"
     },
     {
@@ -7441,7 +7441,7 @@
       "path": "russian_federation.russia_kamchatka_krai",
       "depth": 1,
       "sort_order": 22,
-      "name": "Russia_Kamchatka Krai",
+      "name": "Kamchatka Krai",
       "kind": "leaf"
     },
     {
@@ -7450,7 +7450,7 @@
       "path": "russian_federation.russia_karachay-cherkessia",
       "depth": 1,
       "sort_order": 23,
-      "name": "Russia_Karachay-Cherkessia",
+      "name": "Karachay-Cherkess Republic",
       "kind": "leaf"
     },
     {
@@ -7459,7 +7459,7 @@
       "path": "russian_federation.russia_kemerov_oblast",
       "depth": 1,
       "sort_order": 24,
-      "name": "Russia_Kemerov Oblast",
+      "name": "Kemerovo Oblast",
       "kind": "leaf"
     },
     {
@@ -7468,7 +7468,7 @@
       "path": "russian_federation.russia_khabarovsk_krai",
       "depth": 1,
       "sort_order": 25,
-      "name": "Russia_Khabarovsk Krai",
+      "name": "Khabarovsk Krai",
       "kind": "leaf"
     },
     {
@@ -7477,7 +7477,7 @@
       "path": "russian_federation.russia_khakassia",
       "depth": 1,
       "sort_order": 26,
-      "name": "Russia_Khakassia",
+      "name": "Republic of Khakassia",
       "kind": "leaf"
     },
     {
@@ -7486,7 +7486,7 @@
       "path": "russian_federation.russia_kirov_oblast",
       "depth": 1,
       "sort_order": 27,
-      "name": "Russia_Kirov Oblast",
+      "name": "Kirov Oblast",
       "kind": "leaf"
     },
     {
@@ -7495,7 +7495,7 @@
       "path": "russian_federation.russia_komi_republic",
       "depth": 1,
       "sort_order": 28,
-      "name": "Russia_Komi Republic",
+      "name": "Komi Republic",
       "kind": "leaf"
     },
     {
@@ -7504,7 +7504,7 @@
       "path": "russian_federation.russia_kostroma_oblast",
       "depth": 1,
       "sort_order": 29,
-      "name": "Russia_Kostroma Oblast",
+      "name": "Kostroma Oblast",
       "kind": "leaf"
     },
     {
@@ -7513,7 +7513,7 @@
       "path": "russian_federation.russia_krasnodar_krai",
       "depth": 1,
       "sort_order": 30,
-      "name": "Russia_Krasnodar Krai",
+      "name": "Krasnodar Krai — North",
       "kind": "leaf"
     },
     {
@@ -7522,7 +7522,7 @@
       "path": "russian_federation.russia_krasnodar_krai_adygeya",
       "depth": 1,
       "sort_order": 31,
-      "name": "Russia_Krasnodar Krai_Adygeya",
+      "name": "Krasnodar Krai, Republic of Adygea",
       "kind": "leaf"
     },
     {
@@ -7531,7 +7531,7 @@
       "path": "russian_federation.russia_krasnoyarsk_krai_north",
       "depth": 1,
       "sort_order": 32,
-      "name": "Russia_Krasnoyarsk Krai_North",
+      "name": "Krasnoyarsk Krai — North",
       "kind": "leaf"
     },
     {
@@ -7540,7 +7540,7 @@
       "path": "russian_federation.russia_krasnoyarsk_krai_south",
       "depth": 1,
       "sort_order": 33,
-      "name": "Russia_Krasnoyarsk Krai_South",
+      "name": "Krasnoyarsk Krai — South",
       "kind": "leaf"
     },
     {
@@ -7549,7 +7549,7 @@
       "path": "russian_federation.russia_kurgan_oblast",
       "depth": 1,
       "sort_order": 34,
-      "name": "Russia_Kurgan Oblast",
+      "name": "Kurgan Oblast",
       "kind": "leaf"
     },
     {
@@ -7558,7 +7558,7 @@
       "path": "russian_federation.russia_kursk_oblast",
       "depth": 1,
       "sort_order": 35,
-      "name": "Russia_Kursk Oblast",
+      "name": "Kursk Oblast",
       "kind": "leaf"
     },
     {
@@ -7567,7 +7567,7 @@
       "path": "russian_federation.russia_leningradskaya_oblast_karelsky",
       "depth": 1,
       "sort_order": 36,
-      "name": "Russia_Leningradskaya Oblast_Karelsky",
+      "name": "Leningrad Oblast — North",
       "kind": "leaf"
     },
     {
@@ -7576,7 +7576,7 @@
       "path": "russian_federation.russia_leningradskaya_oblast_southeast",
       "depth": 1,
       "sort_order": 37,
-      "name": "Russia_Leningradskaya Oblast_Southeast",
+      "name": "Leningrad Oblast — South",
       "kind": "leaf"
     },
     {
@@ -7585,7 +7585,7 @@
       "path": "russian_federation.russia_lipetsk_oblast",
       "depth": 1,
       "sort_order": 38,
-      "name": "Russia_Lipetsk Oblast",
+      "name": "Lipetsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7594,7 +7594,7 @@
       "path": "russian_federation.russia_magadan_oblast",
       "depth": 1,
       "sort_order": 39,
-      "name": "Russia_Magadan Oblast",
+      "name": "Magadan Oblast",
       "kind": "leaf"
     },
     {
@@ -7603,7 +7603,7 @@
       "path": "russian_federation.russia_mari_el",
       "depth": 1,
       "sort_order": 40,
-      "name": "Russia_Mari El",
+      "name": "Mari El Republic",
       "kind": "leaf"
     },
     {
@@ -7612,7 +7612,7 @@
       "path": "russian_federation.russia_moscow_oblast_east",
       "depth": 1,
       "sort_order": 41,
-      "name": "Russia_Moscow Oblast_East",
+      "name": "Moscow Oblast — East",
       "kind": "leaf"
     },
     {
@@ -7621,7 +7621,7 @@
       "path": "russian_federation.russia_moscow_oblast_west",
       "depth": 1,
       "sort_order": 42,
-      "name": "Russia_Moscow Oblast_West",
+      "name": "Moscow Oblast — West",
       "kind": "leaf"
     },
     {
@@ -7630,7 +7630,7 @@
       "path": "russian_federation.russia_moscow",
       "depth": 1,
       "sort_order": 43,
-      "name": "Russia_Moscow",
+      "name": "Moscow",
       "kind": "leaf"
     },
     {
@@ -7639,7 +7639,7 @@
       "path": "russian_federation.russia_murmansk_oblast",
       "depth": 1,
       "sort_order": 44,
-      "name": "Russia_Murmansk Oblast",
+      "name": "Murmansk Oblast",
       "kind": "leaf"
     },
     {
@@ -7648,7 +7648,7 @@
       "path": "russian_federation.russia_nenets_autonomous_okrug",
       "depth": 1,
       "sort_order": 45,
-      "name": "Russia_Nenets Autonomous Okrug",
+      "name": "Nenets Autonomous Okrug",
       "kind": "leaf"
     },
     {
@@ -7657,7 +7657,7 @@
       "path": "russian_federation.russia_nizhny_novgorod_oblast",
       "depth": 1,
       "sort_order": 46,
-      "name": "Russia_Nizhny Novgorod Oblast",
+      "name": "Nizhny Novgorod Oblast",
       "kind": "leaf"
     },
     {
@@ -7666,7 +7666,7 @@
       "path": "russian_federation.russia_north_ossetia-alania",
       "depth": 1,
       "sort_order": 47,
-      "name": "Russia_North Ossetia-Alania",
+      "name": "Republic of North Ossetia-Alania",
       "kind": "leaf"
     },
     {
@@ -7675,7 +7675,7 @@
       "path": "russian_federation.russia_novgorod_oblast",
       "depth": 1,
       "sort_order": 48,
-      "name": "Russia_Novgorod Oblast",
+      "name": "Novgorod Oblast",
       "kind": "leaf"
     },
     {
@@ -7684,7 +7684,7 @@
       "path": "russian_federation.russia_novosibirsk_oblast",
       "depth": 1,
       "sort_order": 49,
-      "name": "Russia_Novosibirsk Oblast",
+      "name": "Novosibirsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7693,7 +7693,7 @@
       "path": "russian_federation.russia_omsk_oblast",
       "depth": 1,
       "sort_order": 50,
-      "name": "Russia_Omsk Oblast",
+      "name": "Omsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7702,7 +7702,7 @@
       "path": "russian_federation.russia_orenburg_oblast",
       "depth": 1,
       "sort_order": 51,
-      "name": "Russia_Orenburg Oblast",
+      "name": "Orenburg Oblast",
       "kind": "leaf"
     },
     {
@@ -7711,7 +7711,7 @@
       "path": "russian_federation.russia_oryol_oblast",
       "depth": 1,
       "sort_order": 52,
-      "name": "Russia_Oryol Oblast",
+      "name": "Oryol Oblast",
       "kind": "leaf"
     },
     {
@@ -7720,7 +7720,7 @@
       "path": "russian_federation.russia_penza_oblast",
       "depth": 1,
       "sort_order": 53,
-      "name": "Russia_Penza Oblast",
+      "name": "Penza Oblast",
       "kind": "leaf"
     },
     {
@@ -7729,7 +7729,7 @@
       "path": "russian_federation.russia_perm_krai_north",
       "depth": 1,
       "sort_order": 54,
-      "name": "Russia_Perm Krai_North",
+      "name": "Perm Krai — North",
       "kind": "leaf"
     },
     {
@@ -7738,7 +7738,7 @@
       "path": "russian_federation.russia_perm_krai_south",
       "depth": 1,
       "sort_order": 55,
-      "name": "Russia_Perm Krai_South",
+      "name": "Perm Krai — South",
       "kind": "leaf"
     },
     {
@@ -7747,7 +7747,7 @@
       "path": "russian_federation.russia_primorsky_krai",
       "depth": 1,
       "sort_order": 56,
-      "name": "Russia_Primorsky Krai",
+      "name": "Primorsky Krai",
       "kind": "leaf"
     },
     {
@@ -7756,7 +7756,7 @@
       "path": "russian_federation.russia_pskov_oblast",
       "depth": 1,
       "sort_order": 57,
-      "name": "Russia_Pskov Oblast",
+      "name": "Pskov Oblast",
       "kind": "leaf"
     },
     {
@@ -7765,7 +7765,7 @@
       "path": "russian_federation.russia_republic_of_dagestan",
       "depth": 1,
       "sort_order": 58,
-      "name": "Russia_Republic of Dagestan",
+      "name": "Republic of Dagestan",
       "kind": "leaf"
     },
     {
@@ -7774,7 +7774,7 @@
       "path": "russian_federation.russia_republic_of_kalmykia",
       "depth": 1,
       "sort_order": 59,
-      "name": "Russia_Republic of Kalmykia",
+      "name": "Republic of Kalmykia",
       "kind": "leaf"
     },
     {
@@ -7783,7 +7783,7 @@
       "path": "russian_federation.russia_republic_of_karelia_north",
       "depth": 1,
       "sort_order": 60,
-      "name": "Russia_Republic of Karelia_North",
+      "name": "Republic of Karelia — North",
       "kind": "leaf"
     },
     {
@@ -7792,7 +7792,7 @@
       "path": "russian_federation.russia_republic_of_karelia_south",
       "depth": 1,
       "sort_order": 61,
-      "name": "Russia_Republic of Karelia_South",
+      "name": "Republic of Karelia — South",
       "kind": "leaf"
     },
     {
@@ -7801,7 +7801,7 @@
       "path": "russian_federation.russia_republic_of_mordovia",
       "depth": 1,
       "sort_order": 62,
-      "name": "Russia_Republic of Mordovia",
+      "name": "Republic of Mordovia",
       "kind": "leaf"
     },
     {
@@ -7810,7 +7810,7 @@
       "path": "russian_federation.russia_rostov_oblast",
       "depth": 1,
       "sort_order": 63,
-      "name": "Russia_Rostov Oblast",
+      "name": "Rostov Oblast",
       "kind": "leaf"
     },
     {
@@ -7819,7 +7819,7 @@
       "path": "russian_federation.russia_ryazan_oblast",
       "depth": 1,
       "sort_order": 64,
-      "name": "Russia_Ryazan Oblast",
+      "name": "Ryazan Oblast",
       "kind": "leaf"
     },
     {
@@ -7828,7 +7828,7 @@
       "path": "russian_federation.russia_saint_petersburg",
       "depth": 1,
       "sort_order": 65,
-      "name": "Russia_Saint Petersburg",
+      "name": "Saint Petersburg",
       "kind": "leaf"
     },
     {
@@ -7837,7 +7837,7 @@
       "path": "russian_federation.russia_sakha_republic",
       "depth": 1,
       "sort_order": 66,
-      "name": "Russia_Sakha Republic",
+      "name": "Sakha Republic",
       "kind": "leaf"
     },
     {
@@ -7846,7 +7846,7 @@
       "path": "russian_federation.russia_sakhalin_oblast",
       "depth": 1,
       "sort_order": 67,
-      "name": "Russia_Sakhalin Oblast",
+      "name": "Sakhalin Oblast",
       "kind": "leaf"
     },
     {
@@ -7855,7 +7855,7 @@
       "path": "russian_federation.russia_samara_oblast",
       "depth": 1,
       "sort_order": 68,
-      "name": "Russia_Samara Oblast",
+      "name": "Samara Oblast",
       "kind": "leaf"
     },
     {
@@ -7864,7 +7864,7 @@
       "path": "russian_federation.russia_saratov_oblast",
       "depth": 1,
       "sort_order": 69,
-      "name": "Russia_Saratov Oblast",
+      "name": "Saratov Oblast",
       "kind": "leaf"
     },
     {
@@ -7873,7 +7873,7 @@
       "path": "russian_federation.russia_smolensk_oblast",
       "depth": 1,
       "sort_order": 70,
-      "name": "Russia_Smolensk Oblast",
+      "name": "Smolensk Oblast",
       "kind": "leaf"
     },
     {
@@ -7882,7 +7882,7 @@
       "path": "russian_federation.russia_stavropol_krai",
       "depth": 1,
       "sort_order": 71,
-      "name": "Russia_Stavropol Krai",
+      "name": "Stavropol Krai",
       "kind": "leaf"
     },
     {
@@ -7891,7 +7891,7 @@
       "path": "russian_federation.russia_sverdlovsk_oblast_ekaterinburg",
       "depth": 1,
       "sort_order": 72,
-      "name": "Russia_Sverdlovsk Oblast_Ekaterinburg",
+      "name": "Sverdlovsk Oblast — Yekaterinburg",
       "kind": "leaf"
     },
     {
@@ -7900,7 +7900,7 @@
       "path": "russian_federation.russia_sverdlovsk_oblast_north",
       "depth": 1,
       "sort_order": 73,
-      "name": "Russia_Sverdlovsk Oblast_North",
+      "name": "Sverdlovsk Oblast — North",
       "kind": "leaf"
     },
     {
@@ -7909,7 +7909,7 @@
       "path": "russian_federation.russia_tambov_oblast",
       "depth": 1,
       "sort_order": 74,
-      "name": "Russia_Tambov Oblast",
+      "name": "Tambov Oblast",
       "kind": "leaf"
     },
     {
@@ -7918,7 +7918,7 @@
       "path": "russian_federation.russia_tatarstan",
       "depth": 1,
       "sort_order": 75,
-      "name": "Russia_Tatarstan",
+      "name": "Republic of Tatarstan",
       "kind": "leaf"
     },
     {
@@ -7927,7 +7927,7 @@
       "path": "russian_federation.russia_tomsk_oblast",
       "depth": 1,
       "sort_order": 76,
-      "name": "Russia_Tomsk Oblast",
+      "name": "Tomsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7936,7 +7936,7 @@
       "path": "russian_federation.russia_tula_oblast",
       "depth": 1,
       "sort_order": 77,
-      "name": "Russia_Tula Oblast",
+      "name": "Tula Oblast",
       "kind": "leaf"
     },
     {
@@ -7945,7 +7945,7 @@
       "path": "russian_federation.russia_tuva",
       "depth": 1,
       "sort_order": 78,
-      "name": "Russia_Tuva",
+      "name": "Tuva Republic",
       "kind": "leaf"
     },
     {
@@ -7954,7 +7954,7 @@
       "path": "russian_federation.russia_tver_oblast",
       "depth": 1,
       "sort_order": 79,
-      "name": "Russia_Tver Oblast",
+      "name": "Tver Oblast",
       "kind": "leaf"
     },
     {
@@ -7963,7 +7963,7 @@
       "path": "russian_federation.russia_tyumen_oblast",
       "depth": 1,
       "sort_order": 80,
-      "name": "Russia_Tyumen Oblast",
+      "name": "Tyumen Oblast",
       "kind": "leaf"
     },
     {
@@ -7972,7 +7972,7 @@
       "path": "russian_federation.russia_udmurt_republic",
       "depth": 1,
       "sort_order": 81,
-      "name": "Russia_Udmurt Republic",
+      "name": "Udmurt Republic",
       "kind": "leaf"
     },
     {
@@ -7981,7 +7981,7 @@
       "path": "russian_federation.russia_ulyanovsk_oblast",
       "depth": 1,
       "sort_order": 82,
-      "name": "Russia_Ulyanovsk Oblast",
+      "name": "Ulyanovsk Oblast",
       "kind": "leaf"
     },
     {
@@ -7990,7 +7990,7 @@
       "path": "russian_federation.russia_vladimir_oblast",
       "depth": 1,
       "sort_order": 83,
-      "name": "Russia_Vladimir Oblast",
+      "name": "Vladimir Oblast",
       "kind": "leaf"
     },
     {
@@ -7999,7 +7999,7 @@
       "path": "russian_federation.russia_volgograd_oblast",
       "depth": 1,
       "sort_order": 84,
-      "name": "Russia_Volgograd Oblast",
+      "name": "Volgograd Oblast",
       "kind": "leaf"
     },
     {
@@ -8008,7 +8008,7 @@
       "path": "russian_federation.russia_vologda_oblast",
       "depth": 1,
       "sort_order": 85,
-      "name": "Russia_Vologda Oblast",
+      "name": "Vologda Oblast",
       "kind": "leaf"
     },
     {
@@ -8017,7 +8017,7 @@
       "path": "russian_federation.russia_voronezh_oblast",
       "depth": 1,
       "sort_order": 86,
-      "name": "Russia_Voronezh Oblast",
+      "name": "Voronezh Oblast",
       "kind": "leaf"
     },
     {
@@ -8026,7 +8026,7 @@
       "path": "russian_federation.russia_yamalo-nenets_autonomous_okrug",
       "depth": 1,
       "sort_order": 87,
-      "name": "Russia_Yamalo-Nenets Autonomous Okrug",
+      "name": "Yamalo-Nenets Autonomous Okrug",
       "kind": "leaf"
     },
     {
@@ -8035,7 +8035,7 @@
       "path": "russian_federation.russia_yaroslavl_oblast",
       "depth": 1,
       "sort_order": 88,
-      "name": "Russia_Yaroslavl Oblast",
+      "name": "Yaroslavl Oblast",
       "kind": "leaf"
     },
     {
@@ -8044,7 +8044,7 @@
       "path": "russian_federation.russia_yugra_khanty",
       "depth": 1,
       "sort_order": 89,
-      "name": "Russia_Yugra_Khanty",
+      "name": "Yugra — Khanty-Mansiysk",
       "kind": "leaf"
     },
     {
@@ -8053,7 +8053,7 @@
       "path": "russian_federation.russia_yugra_surgut",
       "depth": 1,
       "sort_order": 90,
-      "name": "Russia_Yugra_Surgut",
+      "name": "Yugra — Surgut",
       "kind": "leaf"
     },
     {
@@ -8062,7 +8062,7 @@
       "path": "russian_federation.russia_zabaykalsky_krai",
       "depth": 1,
       "sort_order": 91,
-      "name": "Russia_Zabaykalsky Krai",
+      "name": "Zabaykalsky Krai",
       "kind": "leaf"
     },
     {
@@ -8089,7 +8089,7 @@
       "path": "saint_helena_ascension_and_tristan_da_cunha",
       "depth": 0,
       "sort_order": 166,
-      "name": "Saint Helena Ascension and Tristan da Cunha",
+      "name": "Saint Helena, Ascension and Tristan da Cunha",
       "kind": "leaf"
     },
     {
@@ -8125,7 +8125,7 @@
       "path": "saudi_arabia.saudi_arabia_south",
       "depth": 1,
       "sort_order": 0,
-      "name": "South",
+      "name": "Saudi Arabia — South",
       "kind": "leaf"
     },
     {
@@ -8134,7 +8134,7 @@
       "path": "saudi_arabia.saudi_arabia_north",
       "depth": 1,
       "sort_order": 1,
-      "name": "North",
+      "name": "Saudi Arabia — North",
       "kind": "leaf"
     },
     {
@@ -8197,7 +8197,7 @@
       "path": "slovakia.slovakia_region_of_presov",
       "depth": 1,
       "sort_order": 0,
-      "name": "Region of Presov",
+      "name": "Prešov Region",
       "kind": "leaf"
     },
     {
@@ -8206,7 +8206,7 @@
       "path": "slovakia.slovakia_region_of_kosice",
       "depth": 1,
       "sort_order": 1,
-      "name": "Region of Kosice",
+      "name": "Košice Region",
       "kind": "leaf"
     },
     {
@@ -8215,7 +8215,7 @@
       "path": "slovakia.slovakia_region_of_banska_bystrica",
       "depth": 1,
       "sort_order": 2,
-      "name": "Region of Banska Bystrica",
+      "name": "Banská Bystrica Region",
       "kind": "leaf"
     },
     {
@@ -8224,7 +8224,7 @@
       "path": "slovakia.slovakia_region_of_trnava",
       "depth": 1,
       "sort_order": 3,
-      "name": "Region of Trnava",
+      "name": "Trnava Region",
       "kind": "leaf"
     },
     {
@@ -8233,7 +8233,7 @@
       "path": "slovakia.slovakia_region_of_trencin",
       "depth": 1,
       "sort_order": 4,
-      "name": "Region of Trencin",
+      "name": "Trenčín Region",
       "kind": "leaf"
     },
     {
@@ -8242,7 +8242,7 @@
       "path": "slovakia.slovakia_region_of_nitra",
       "depth": 1,
       "sort_order": 5,
-      "name": "Region of Nitra",
+      "name": "Nitra Region",
       "kind": "leaf"
     },
     {
@@ -8251,7 +8251,7 @@
       "path": "slovakia.slovakia_region_of_bratislava",
       "depth": 1,
       "sort_order": 6,
-      "name": "Region of Bratislava",
+      "name": "Bratislava Region",
       "kind": "leaf"
     },
     {
@@ -8260,7 +8260,7 @@
       "path": "slovakia.slovakia_region_of_zilina",
       "depth": 1,
       "sort_order": 7,
-      "name": "Region of Zilina",
+      "name": "Žilina Region",
       "kind": "leaf"
     },
     {
@@ -8278,7 +8278,7 @@
       "path": "slovenia.slovenia_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "East",
+      "name": "Slovenia — East",
       "kind": "leaf"
     },
     {
@@ -8287,7 +8287,7 @@
       "path": "slovenia.slovenia_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Slovenia — West",
       "kind": "leaf"
     },
     {
@@ -8440,7 +8440,7 @@
       "path": "spain.spain_andalusia_granada",
       "depth": 1,
       "sort_order": 0,
-      "name": "Andalusia_Granada",
+      "name": "Andalusia — Granada",
       "kind": "leaf"
     },
     {
@@ -8449,7 +8449,7 @@
       "path": "spain.spain_andalusia_sevilla",
       "depth": 1,
       "sort_order": 1,
-      "name": "Andalusia_Sevilla",
+      "name": "Andalusia — Seville",
       "kind": "leaf"
     },
     {
@@ -8503,7 +8503,7 @@
       "path": "spain.spain_castile_and_leon_west",
       "depth": 1,
       "sort_order": 7,
-      "name": "Castile and Leon_West",
+      "name": "Castile and León — West",
       "kind": "leaf"
     },
     {
@@ -8512,7 +8512,7 @@
       "path": "spain.spain_castile_and_leon_east",
       "depth": 1,
       "sort_order": 8,
-      "name": "Castile and Leon_East",
+      "name": "Castile and León — East",
       "kind": "leaf"
     },
     {
@@ -8530,7 +8530,7 @@
       "path": "spain.spain_catalonia_provincia_de_barcelona",
       "depth": 1,
       "sort_order": 10,
-      "name": "Catalonia_Provincia de Barcelona",
+      "name": "Catalonia – Barcelona Province",
       "kind": "leaf"
     },
     {
@@ -8539,7 +8539,7 @@
       "path": "spain.spain_catalonia_provincia_de_girona",
       "depth": 1,
       "sort_order": 11,
-      "name": "Catalonia_Provincia de Girona",
+      "name": "Catalonia – Girona Province",
       "kind": "leaf"
     },
     {
@@ -8548,7 +8548,7 @@
       "path": "spain.spain_catalonia_provincia_de_lleida",
       "depth": 1,
       "sort_order": 12,
-      "name": "Catalonia_Provincia de Lleida",
+      "name": "Catalonia – Lleida Province",
       "kind": "leaf"
     },
     {
@@ -8557,7 +8557,7 @@
       "path": "spain.spain_catalonia_provincia_de_tarragona",
       "depth": 1,
       "sort_order": 13,
-      "name": "Catalonia_Provincia de Tarragona",
+      "name": "Catalonia – Tarragona Province",
       "kind": "leaf"
     },
     {
@@ -8584,7 +8584,7 @@
       "path": "spain.spain_comunidad_foral_de_navarra",
       "depth": 1,
       "sort_order": 16,
-      "name": "Comunidad Foral de Navarra",
+      "name": "Navarre",
       "kind": "leaf"
     },
     {
@@ -8602,7 +8602,7 @@
       "path": "spain.spain_galicia_north",
       "depth": 1,
       "sort_order": 18,
-      "name": "Galicia_North",
+      "name": "Galicia — North",
       "kind": "leaf"
     },
     {
@@ -8611,7 +8611,7 @@
       "path": "spain.spain_galicia_south",
       "depth": 1,
       "sort_order": 19,
-      "name": "Galicia_South",
+      "name": "Galicia — South",
       "kind": "leaf"
     },
     {
@@ -8638,7 +8638,7 @@
       "path": "spain.spain_principado_de_asturias",
       "depth": 1,
       "sort_order": 22,
-      "name": "Principado de Asturias",
+      "name": "Asturias",
       "kind": "leaf"
     },
     {
@@ -8647,7 +8647,7 @@
       "path": "spain.spain_region_de_murcia",
       "depth": 1,
       "sort_order": 23,
-      "name": "Region de Murcia",
+      "name": "Region of Murcia",
       "kind": "leaf"
     },
     {
@@ -8656,7 +8656,7 @@
       "path": "spain.spain_valencian_community",
       "depth": 1,
       "sort_order": 24,
-      "name": "Valencian Community",
+      "name": "Valencian Country",
       "kind": "leaf"
     },
     {
@@ -8665,7 +8665,7 @@
       "path": "palestine_region",
       "depth": 0,
       "sort_order": 184,
-      "name": "Palestine Region",
+      "name": "Palestinian Territories",
       "kind": "group"
     },
     {
@@ -8683,7 +8683,7 @@
       "path": "palestine_region.palestine",
       "depth": 1,
       "sort_order": 1,
-      "name": "Palestine",
+      "name": "Palestinian Territories",
       "kind": "leaf"
     },
     {
@@ -8710,7 +8710,7 @@
       "path": "sudan.sudan_east",
       "depth": 1,
       "sort_order": 0,
-      "name": "East",
+      "name": "Sudan — East",
       "kind": "leaf"
     },
     {
@@ -8719,7 +8719,7 @@
       "path": "sudan.sudan_west",
       "depth": 1,
       "sort_order": 1,
-      "name": "West",
+      "name": "Sudan — West",
       "kind": "leaf"
     },
     {
@@ -8737,7 +8737,7 @@
       "path": "swaziland",
       "depth": 0,
       "sort_order": 188,
-      "name": "Swaziland",
+      "name": "Eswatini",
       "kind": "leaf"
     },
     {
@@ -8755,7 +8755,7 @@
       "path": "sweden.sweden_malardalen",
       "depth": 1,
       "sort_order": 0,
-      "name": "Malardalen",
+      "name": "Capital Region",
       "kind": "leaf"
     },
     {
@@ -8773,7 +8773,7 @@
       "path": "sweden.sweden_ostra_gotaland",
       "depth": 1,
       "sort_order": 2,
-      "name": "Ostra Gotaland",
+      "name": "Eastern Götaland",
       "kind": "leaf"
     },
     {
@@ -8782,7 +8782,7 @@
       "path": "sweden.sweden_norra_sverige",
       "depth": 1,
       "sort_order": 3,
-      "name": "Norra Sverige",
+      "name": "Northern Sweden",
       "kind": "leaf"
     },
     {
@@ -8809,7 +8809,7 @@
       "path": "sweden.sweden_vastra_gotaland",
       "depth": 1,
       "sort_order": 6,
-      "name": "Vastra Gotaland",
+      "name": "Western Götaland",
       "kind": "leaf"
     },
     {
@@ -8818,7 +8818,7 @@
       "path": "sweden.sweden_sodra_gotaland",
       "depth": 1,
       "sort_order": 7,
-      "name": "Sodra Gotaland",
+      "name": "Southern Götaland",
       "kind": "leaf"
     },
     {
@@ -8836,7 +8836,7 @@
       "path": "switzerland.switzerland_eastern",
       "depth": 1,
       "sort_order": 0,
-      "name": "Eastern",
+      "name": "Eastern Switzerland",
       "kind": "leaf"
     },
     {
@@ -8845,7 +8845,7 @@
       "path": "switzerland.switzerland_central",
       "depth": 1,
       "sort_order": 1,
-      "name": "Central",
+      "name": "Central Switzerland",
       "kind": "leaf"
     },
     {
@@ -8854,7 +8854,7 @@
       "path": "switzerland.switzerland_espace_mittelland_bern",
       "depth": 1,
       "sort_order": 2,
-      "name": "Espace Mittelland_Bern",
+      "name": "Espace Mittelland — Bern",
       "kind": "leaf"
     },
     {
@@ -8863,7 +8863,7 @@
       "path": "switzerland.switzerland_espace_mittelland_east",
       "depth": 1,
       "sort_order": 3,
-      "name": "Espace Mittelland_East",
+      "name": "Espace Mittelland — East",
       "kind": "leaf"
     },
     {
@@ -8881,7 +8881,7 @@
       "path": "switzerland.switzerland_northwestern",
       "depth": 1,
       "sort_order": 5,
-      "name": "Northwestern",
+      "name": "Northwestern Switzerland",
       "kind": "leaf"
     },
     {
@@ -8890,7 +8890,7 @@
       "path": "switzerland.switzerland_lake_geneva_region",
       "depth": 1,
       "sort_order": 6,
-      "name": "Lake Geneva region",
+      "name": "Lake Geneva Region",
       "kind": "leaf"
     },
     {
@@ -8917,7 +8917,7 @@
       "path": "sao_tome_and_principe",
       "depth": 0,
       "sort_order": 192,
-      "name": "Sao Tome and Principe",
+      "name": "Sao Tomé and Príncipe",
       "kind": "leaf"
     },
     {
@@ -8953,7 +8953,7 @@
       "path": "thailand.thailand_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Thailand — North",
       "kind": "leaf"
     },
     {
@@ -8962,7 +8962,7 @@
       "path": "thailand.thailand_central",
       "depth": 1,
       "sort_order": 1,
-      "name": "Central",
+      "name": "Thailand — Centre",
       "kind": "leaf"
     },
     {
@@ -8971,7 +8971,7 @@
       "path": "thailand.thailand_south",
       "depth": 1,
       "sort_order": 2,
-      "name": "South",
+      "name": "Thailand — South",
       "kind": "leaf"
     },
     {
@@ -8989,7 +8989,7 @@
       "path": "the_gambia",
       "depth": 0,
       "sort_order": 197,
-      "name": "The Gambia",
+      "name": "Gambia",
       "kind": "leaf"
     },
     {
@@ -9034,7 +9034,7 @@
       "path": "netherlands.netherlands_gelderland_nijmegen",
       "depth": 1,
       "sort_order": 3,
-      "name": "Gelderland_Nijmegen",
+      "name": "Gelderland — Nijmegen",
       "kind": "leaf"
     },
     {
@@ -9043,7 +9043,7 @@
       "path": "netherlands.netherlands_gelderland_north",
       "depth": 1,
       "sort_order": 4,
-      "name": "Gelderland_North",
+      "name": "Gelderland — Apeldoorn",
       "kind": "leaf"
     },
     {
@@ -9052,7 +9052,7 @@
       "path": "netherlands.netherlands_gelderland_zutphen",
       "depth": 1,
       "sort_order": 5,
-      "name": "Gelderland_Zutphen",
+      "name": "Gelderland — Zutphen",
       "kind": "leaf"
     },
     {
@@ -9079,7 +9079,7 @@
       "path": "netherlands.netherlands_north_brabant_eindhoven",
       "depth": 1,
       "sort_order": 8,
-      "name": "North Brabant_Eindhoven",
+      "name": "North Brabant — Eindhoven",
       "kind": "leaf"
     },
     {
@@ -9088,7 +9088,7 @@
       "path": "netherlands.netherlands_north_brabant_roosendaal",
       "depth": 1,
       "sort_order": 9,
-      "name": "North Brabant_Roosendaal",
+      "name": "North Brabant — Roosendaal",
       "kind": "leaf"
     },
     {
@@ -9097,7 +9097,7 @@
       "path": "netherlands.netherlands_north_brabant_tiburg",
       "depth": 1,
       "sort_order": 10,
-      "name": "North Brabant_Tiburg",
+      "name": "North Brabant — Tilburg",
       "kind": "leaf"
     },
     {
@@ -9106,7 +9106,7 @@
       "path": "netherlands.netherlands_north_brabant_uden",
       "depth": 1,
       "sort_order": 11,
-      "name": "North Brabant_Uden",
+      "name": "North Brabant — Uden",
       "kind": "leaf"
     },
     {
@@ -9115,7 +9115,7 @@
       "path": "netherlands.netherlands_north_holland_alkmaar",
       "depth": 1,
       "sort_order": 12,
-      "name": "North Holland_Alkmaar",
+      "name": "North Holland — Alkmaar",
       "kind": "leaf"
     },
     {
@@ -9124,7 +9124,7 @@
       "path": "netherlands.netherlands_north_holland_amsterdam",
       "depth": 1,
       "sort_order": 13,
-      "name": "North Holland_Amsterdam",
+      "name": "North Holland — Amsterdam",
       "kind": "leaf"
     },
     {
@@ -9133,7 +9133,7 @@
       "path": "netherlands.netherlands_north_holland_zaandam",
       "depth": 1,
       "sort_order": 14,
-      "name": "North Holland_Zaandam",
+      "name": "North Holland — Zaanstad",
       "kind": "leaf"
     },
     {
@@ -9142,7 +9142,7 @@
       "path": "netherlands.netherlands_overijssel_enschede",
       "depth": 1,
       "sort_order": 15,
-      "name": "Overijssel_Enschede",
+      "name": "Overijssel — Enschede",
       "kind": "leaf"
     },
     {
@@ -9151,7 +9151,7 @@
       "path": "netherlands.netherlands_overijssel_zwolle",
       "depth": 1,
       "sort_order": 16,
-      "name": "Overijssel_Zwolle",
+      "name": "Overijssel — Zwolle",
       "kind": "leaf"
     },
     {
@@ -9160,7 +9160,7 @@
       "path": "netherlands.netherlands_south_holland_brielle",
       "depth": 1,
       "sort_order": 17,
-      "name": "South Holland_Brielle",
+      "name": "South Holland — Brielle",
       "kind": "leaf"
     },
     {
@@ -9169,7 +9169,7 @@
       "path": "netherlands.netherlands_south_holland_den_haag",
       "depth": 1,
       "sort_order": 18,
-      "name": "South Holland_Den Haag",
+      "name": "South Holland — The Hague",
       "kind": "leaf"
     },
     {
@@ -9178,7 +9178,7 @@
       "path": "netherlands.netherlands_south_holland_leiden",
       "depth": 1,
       "sort_order": 19,
-      "name": "South Holland_Leiden",
+      "name": "South Holland — Leiden",
       "kind": "leaf"
     },
     {
@@ -9187,7 +9187,7 @@
       "path": "netherlands.netherlands_south_holland_rotterdam",
       "depth": 1,
       "sort_order": 20,
-      "name": "South Holland_Rotterdam",
+      "name": "South Holland — Rotterdam",
       "kind": "leaf"
     },
     {
@@ -9196,7 +9196,7 @@
       "path": "netherlands.netherlands_utrecht_amersfoort",
       "depth": 1,
       "sort_order": 21,
-      "name": "Utrecht_Amersfoort",
+      "name": "Utrecht — Amersfoort",
       "kind": "leaf"
     },
     {
@@ -9205,7 +9205,7 @@
       "path": "netherlands.netherlands_utrecht_utrecht",
       "depth": 1,
       "sort_order": 22,
-      "name": "Utrecht_Utrecht",
+      "name": "Utrecht — Utrecht",
       "kind": "leaf"
     },
     {
@@ -9277,7 +9277,7 @@
       "path": "turkey.turkey_marmara_region_istanbul",
       "depth": 1,
       "sort_order": 2,
-      "name": "Marmara Region_Istanbul",
+      "name": "Marmara Region — Istanbul",
       "kind": "leaf"
     },
     {
@@ -9286,7 +9286,7 @@
       "path": "turkey.turkey_marmara_region_bursa",
       "depth": 1,
       "sort_order": 3,
-      "name": "Marmara Region_Bursa",
+      "name": "Marmara Region — Bursa",
       "kind": "leaf"
     },
     {
@@ -9313,7 +9313,7 @@
       "path": "turkey.turkey_central_anatolia_region_ankara",
       "depth": 1,
       "sort_order": 6,
-      "name": "Central Anatolia Region_Ankara",
+      "name": "Central Anatolia — Ankara",
       "kind": "leaf"
     },
     {
@@ -9322,7 +9322,7 @@
       "path": "turkey.turkey_central_anatolia_region_kayseri",
       "depth": 1,
       "sort_order": 7,
-      "name": "Central Anatolia Region_Kayseri",
+      "name": "Central Anatolia — Kayseri",
       "kind": "leaf"
     },
     {
@@ -9457,7 +9457,7 @@
       "path": "ukraine.ukraine_khmelnytskyi_oblast",
       "depth": 1,
       "sort_order": 8,
-      "name": "Khmelnytskyi Oblast",
+      "name": "Khmelnytsky Oblast",
       "kind": "leaf"
     },
     {
@@ -9583,7 +9583,7 @@
       "path": "ukraine.ukraine_zaporizhia_oblast",
       "depth": 1,
       "sort_order": 22,
-      "name": "Zaporizhia Oblast",
+      "name": "Zaporizhzhya Oblast",
       "kind": "leaf"
     },
     {
@@ -9601,7 +9601,7 @@
       "path": "ukraine.crimea",
       "depth": 1,
       "sort_order": 24,
-      "name": "Crimea",
+      "name": "Crimean Peninsula",
       "kind": "leaf"
     },
     {
@@ -9646,7 +9646,7 @@
       "path": "united_kingdom.uk_england_east_midlands",
       "depth": 1,
       "sort_order": 1,
-      "name": "UK_England_East Midlands",
+      "name": "East Midlands",
       "kind": "leaf"
     },
     {
@@ -9655,7 +9655,7 @@
       "path": "united_kingdom.uk_england_east_of_england_essex",
       "depth": 1,
       "sort_order": 2,
-      "name": "UK_England_East of England_Essex",
+      "name": "East of England — Essex",
       "kind": "leaf"
     },
     {
@@ -9664,7 +9664,7 @@
       "path": "united_kingdom.uk_england_east_of_england_norfolk",
       "depth": 1,
       "sort_order": 3,
-      "name": "UK_England_East of England_Norfolk",
+      "name": "East of England — Norfolk",
       "kind": "leaf"
     },
     {
@@ -9673,7 +9673,7 @@
       "path": "united_kingdom.uk_england_greater_london",
       "depth": 1,
       "sort_order": 4,
-      "name": "UK_England_Greater London",
+      "name": "Greater London",
       "kind": "leaf"
     },
     {
@@ -9682,7 +9682,7 @@
       "path": "united_kingdom.uk_england_north_east_england",
       "depth": 1,
       "sort_order": 5,
-      "name": "UK_England_North East England",
+      "name": "North East England",
       "kind": "leaf"
     },
     {
@@ -9691,7 +9691,7 @@
       "path": "united_kingdom.uk_england_north_west_england_manchester",
       "depth": 1,
       "sort_order": 6,
-      "name": "UK_England_North West England_Manchester",
+      "name": "North West England — Manchester",
       "kind": "leaf"
     },
     {
@@ -9700,7 +9700,7 @@
       "path": "united_kingdom.uk_england_north_west_england_lancaster",
       "depth": 1,
       "sort_order": 7,
-      "name": "UK_England_North West England_Lancaster",
+      "name": "North West England — Lancaster",
       "kind": "leaf"
     },
     {
@@ -9709,7 +9709,7 @@
       "path": "united_kingdom.uk_england_south_east_brighton",
       "depth": 1,
       "sort_order": 8,
-      "name": "UK_England_South East_Brighton",
+      "name": "South East England — Brighton",
       "kind": "leaf"
     },
     {
@@ -9718,7 +9718,7 @@
       "path": "united_kingdom.uk_england_south_east_oxford",
       "depth": 1,
       "sort_order": 9,
-      "name": "UK_England_South East_Oxford",
+      "name": "South East England — Oxford",
       "kind": "leaf"
     },
     {
@@ -9727,7 +9727,7 @@
       "path": "united_kingdom.uk_england_south_west_england_bristol",
       "depth": 1,
       "sort_order": 10,
-      "name": "UK_England_South West England_Bristol",
+      "name": "South West England — Bristol",
       "kind": "leaf"
     },
     {
@@ -9736,7 +9736,7 @@
       "path": "united_kingdom.uk_england_south_west_england_cornwall",
       "depth": 1,
       "sort_order": 11,
-      "name": "UK_England_South West England_Cornwall",
+      "name": "South West England — Cornwall",
       "kind": "leaf"
     },
     {
@@ -9745,7 +9745,7 @@
       "path": "united_kingdom.uk_england_west_midlands",
       "depth": 1,
       "sort_order": 12,
-      "name": "UK_England_West Midlands",
+      "name": "West Midlands",
       "kind": "leaf"
     },
     {
@@ -9754,7 +9754,7 @@
       "path": "united_kingdom.uk_england_yorkshire_and_the_humber",
       "depth": 1,
       "sort_order": 13,
-      "name": "UK_England_Yorkshire and the Humber",
+      "name": "Yorkshire and the Humber",
       "kind": "leaf"
     },
     {
@@ -9763,7 +9763,7 @@
       "path": "united_kingdom.uk_northern_ireland",
       "depth": 1,
       "sort_order": 14,
-      "name": "UK_Northern Ireland",
+      "name": "Northern Ireland",
       "kind": "leaf"
     },
     {
@@ -9772,7 +9772,7 @@
       "path": "united_kingdom.uk_scotland_north",
       "depth": 1,
       "sort_order": 15,
-      "name": "UK_Scotland_North",
+      "name": "Northern Scotland",
       "kind": "leaf"
     },
     {
@@ -9781,7 +9781,7 @@
       "path": "united_kingdom.uk_scotland_south",
       "depth": 1,
       "sort_order": 16,
-      "name": "UK_Scotland_South",
+      "name": "Southern Scotland",
       "kind": "leaf"
     },
     {
@@ -9790,7 +9790,7 @@
       "path": "united_kingdom.uk_wales",
       "depth": 1,
       "sort_order": 17,
-      "name": "UK_Wales",
+      "name": "Wales",
       "kind": "leaf"
     },
     {
@@ -9835,7 +9835,7 @@
       "path": "ireland.ireland_northern_counties",
       "depth": 1,
       "sort_order": 3,
-      "name": "Northern Counties",
+      "name": "Ulster",
       "kind": "leaf"
     },
     {
@@ -9862,7 +9862,7 @@
       "path": "united_states_of_america.alabama.us_alabama_birmingham",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Alabama_Birmingham",
+      "name": "Birmingham",
       "kind": "leaf"
     },
     {
@@ -9871,7 +9871,7 @@
       "path": "united_states_of_america.alabama.us_alabama_montgomery",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Alabama_Montgomery",
+      "name": "Montgomery",
       "kind": "leaf"
     },
     {
@@ -9880,7 +9880,7 @@
       "path": "united_states_of_america.us_alaska",
       "depth": 1,
       "sort_order": 1,
-      "name": "US_Alaska",
+      "name": "Alaska",
       "kind": "leaf"
     },
     {
@@ -9898,7 +9898,7 @@
       "path": "united_states_of_america.arizona.us_arizona_flagstaff",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Arizona_Flagstaff",
+      "name": "Flagstaff",
       "kind": "leaf"
     },
     {
@@ -9907,7 +9907,7 @@
       "path": "united_states_of_america.arizona.us_arizona_phoenix",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Arizona_Phoenix",
+      "name": "Phoenix",
       "kind": "leaf"
     },
     {
@@ -9916,7 +9916,7 @@
       "path": "united_states_of_america.arizona.us_arizona_tucson",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Arizona_Tucson",
+      "name": "Tucson",
       "kind": "leaf"
     },
     {
@@ -9925,7 +9925,7 @@
       "path": "united_states_of_america.us_arkansas",
       "depth": 1,
       "sort_order": 3,
-      "name": "US_Arkansas",
+      "name": "Arkansas",
       "kind": "group"
     },
     {
@@ -9934,7 +9934,7 @@
       "path": "united_states_of_america.us_arkansas.us_arkansas_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Arkansas — North",
       "kind": "leaf"
     },
     {
@@ -9943,7 +9943,7 @@
       "path": "united_states_of_america.us_arkansas.us_arkansas_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "South",
+      "name": "Arkansas — South",
       "kind": "leaf"
     },
     {
@@ -9961,7 +9961,7 @@
       "path": "united_states_of_america.california.us_california_chico",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_California_Chico",
+      "name": "Chico",
       "kind": "leaf"
     },
     {
@@ -9970,7 +9970,7 @@
       "path": "united_states_of_america.california.us_california_bakersfield_bakersfield",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_California_Bakersfield_Bakersfield",
+      "name": "Bakersfield",
       "kind": "leaf"
     },
     {
@@ -9979,7 +9979,7 @@
       "path": "united_states_of_america.california.us_california_bakersfield_lancaster",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_California_Bakersfield_Lancaster",
+      "name": "Lancaster",
       "kind": "leaf"
     },
     {
@@ -9988,7 +9988,7 @@
       "path": "united_states_of_america.california.us_california_la",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_California_LA",
+      "name": "Los Angeles",
       "kind": "leaf"
     },
     {
@@ -9997,7 +9997,7 @@
       "path": "united_states_of_america.california.us_california_la_north",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_California_LA North",
+      "name": "Los Angeles — North",
       "kind": "leaf"
     },
     {
@@ -10006,7 +10006,7 @@
       "path": "united_states_of_america.california.us_california_redding",
       "depth": 2,
       "sort_order": 5,
-      "name": "US_California_Redding",
+      "name": "Redding",
       "kind": "leaf"
     },
     {
@@ -10015,7 +10015,7 @@
       "path": "united_states_of_america.california.us_california_sacramento_sacramento",
       "depth": 2,
       "sort_order": 6,
-      "name": "US_California_Sacramento_Sacramento",
+      "name": "Sacramento",
       "kind": "leaf"
     },
     {
@@ -10024,7 +10024,7 @@
       "path": "united_states_of_america.california.us_california_sacramento_fresno",
       "depth": 2,
       "sort_order": 7,
-      "name": "US_California_Sacramento_Fresno",
+      "name": "Fresno",
       "kind": "leaf"
     },
     {
@@ -10033,7 +10033,7 @@
       "path": "united_states_of_america.california.us_california_sacramento_stockton",
       "depth": 2,
       "sort_order": 8,
-      "name": "US_California_Sacramento_Stockton",
+      "name": "Stockton",
       "kind": "leaf"
     },
     {
@@ -10042,7 +10042,7 @@
       "path": "united_states_of_america.california.us_california_san_diego",
       "depth": 2,
       "sort_order": 9,
-      "name": "US_California_San Diego",
+      "name": "San Diego",
       "kind": "leaf"
     },
     {
@@ -10051,7 +10051,7 @@
       "path": "united_states_of_america.california.us_california_santa_clara_santa_cruz",
       "depth": 2,
       "sort_order": 10,
-      "name": "US_California_Santa_Clara_Santa Cruz",
+      "name": "Santa Cruz",
       "kind": "leaf"
     },
     {
@@ -10060,7 +10060,7 @@
       "path": "united_states_of_america.california.us_california_santa_clara_palo_alto",
       "depth": 2,
       "sort_order": 11,
-      "name": "US_California_Santa_Clara_Palo Alto",
+      "name": "San Francisco",
       "kind": "leaf"
     },
     {
@@ -10078,7 +10078,7 @@
       "path": "united_states_of_america.colorado.us_colorado_aspen",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Colorado_Aspen",
+      "name": "Aspen",
       "kind": "leaf"
     },
     {
@@ -10087,7 +10087,7 @@
       "path": "united_states_of_america.colorado.us_colorado_denver",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Colorado_Denver",
+      "name": "Denver",
       "kind": "leaf"
     },
     {
@@ -10096,7 +10096,7 @@
       "path": "united_states_of_america.colorado.us_colorado_south",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Colorado_South",
+      "name": "Colorado — South",
       "kind": "leaf"
     },
     {
@@ -10105,7 +10105,7 @@
       "path": "united_states_of_america.us_connecticut",
       "depth": 1,
       "sort_order": 6,
-      "name": "US_Connecticut",
+      "name": "Connecticut",
       "kind": "leaf"
     },
     {
@@ -10114,7 +10114,7 @@
       "path": "united_states_of_america.us_delaware",
       "depth": 1,
       "sort_order": 7,
-      "name": "US_Delaware",
+      "name": "Delaware",
       "kind": "leaf"
     },
     {
@@ -10132,7 +10132,7 @@
       "path": "united_states_of_america.florida.us_florida_jacksonville",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Florida_Jacksonville",
+      "name": "Jacksonville",
       "kind": "leaf"
     },
     {
@@ -10141,7 +10141,7 @@
       "path": "united_states_of_america.florida.us_florida_miami",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Florida_Miami",
+      "name": "Miami",
       "kind": "leaf"
     },
     {
@@ -10150,7 +10150,7 @@
       "path": "united_states_of_america.florida.us_florida_orlando",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Florida_Orlando",
+      "name": "Orlando",
       "kind": "leaf"
     },
     {
@@ -10159,7 +10159,7 @@
       "path": "united_states_of_america.florida.us_florida_tampa",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Florida_Tampa",
+      "name": "Tampa",
       "kind": "leaf"
     },
     {
@@ -10168,7 +10168,7 @@
       "path": "united_states_of_america.florida.us_florida_gainesville",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_Florida_Gainesville",
+      "name": "Gainesville",
       "kind": "leaf"
     },
     {
@@ -10177,7 +10177,7 @@
       "path": "united_states_of_america.us_georgia",
       "depth": 1,
       "sort_order": 9,
-      "name": "US_Georgia",
+      "name": "Georgia",
       "kind": "group"
     },
     {
@@ -10204,7 +10204,7 @@
       "path": "united_states_of_america.us_georgia.us_georgia_north",
       "depth": 2,
       "sort_order": 2,
-      "name": "North",
+      "name": "Georgia — North",
       "kind": "leaf"
     },
     {
@@ -10213,7 +10213,7 @@
       "path": "united_states_of_america.us_georgia.us_georgia_south",
       "depth": 2,
       "sort_order": 3,
-      "name": "South",
+      "name": "Georgia — South",
       "kind": "leaf"
     },
     {
@@ -10222,7 +10222,7 @@
       "path": "united_states_of_america.us_guam",
       "depth": 1,
       "sort_order": 10,
-      "name": "US_Guam",
+      "name": "Guam",
       "kind": "leaf"
     },
     {
@@ -10231,7 +10231,7 @@
       "path": "united_states_of_america.us_hawaii",
       "depth": 1,
       "sort_order": 11,
-      "name": "US_Hawaii",
+      "name": "Hawaii",
       "kind": "leaf"
     },
     {
@@ -10240,7 +10240,7 @@
       "path": "united_states_of_america.us_idaho",
       "depth": 1,
       "sort_order": 12,
-      "name": "US_Idaho",
+      "name": "Idaho",
       "kind": "group"
     },
     {
@@ -10249,7 +10249,7 @@
       "path": "united_states_of_america.us_idaho.us_idaho_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "North",
+      "name": "Idaho — North",
       "kind": "leaf"
     },
     {
@@ -10258,7 +10258,7 @@
       "path": "united_states_of_america.us_idaho.us_idaho_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "South",
+      "name": "Idaho — South",
       "kind": "leaf"
     },
     {
@@ -10276,7 +10276,7 @@
       "path": "united_states_of_america.illinois.us_illinois_south",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Illinois_South",
+      "name": "Illinois — South",
       "kind": "leaf"
     },
     {
@@ -10285,7 +10285,7 @@
       "path": "united_states_of_america.illinois.us_illinois_chickago",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Illinois_Chickago",
+      "name": "Chicago",
       "kind": "leaf"
     },
     {
@@ -10294,7 +10294,7 @@
       "path": "united_states_of_america.illinois.us_illinois_elgin",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Illinois_Elgin",
+      "name": "Elgin",
       "kind": "leaf"
     },
     {
@@ -10303,7 +10303,7 @@
       "path": "united_states_of_america.illinois.us_illinois_rockford",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Illinois_Rockford",
+      "name": "Rockford",
       "kind": "leaf"
     },
     {
@@ -10312,7 +10312,7 @@
       "path": "united_states_of_america.illinois.us_illinois_springfield",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_Illinois_Springfield",
+      "name": "Springfield",
       "kind": "leaf"
     },
     {
@@ -10330,7 +10330,7 @@
       "path": "united_states_of_america.indiana.us_indiana_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Indiana_North",
+      "name": "Indiana — North",
       "kind": "leaf"
     },
     {
@@ -10339,7 +10339,7 @@
       "path": "united_states_of_america.indiana.us_indiana_evansville",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Indiana_Evansville",
+      "name": "Evansville",
       "kind": "leaf"
     },
     {
@@ -10348,7 +10348,7 @@
       "path": "united_states_of_america.indiana.us_indiana_indianapolis",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Indiana_Indianapolis",
+      "name": "Indianapolis",
       "kind": "leaf"
     },
     {
@@ -10366,7 +10366,7 @@
       "path": "united_states_of_america.iowa.us_iowa_des_moines",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Iowa_Des Moines",
+      "name": "Des Moines",
       "kind": "leaf"
     },
     {
@@ -10375,7 +10375,7 @@
       "path": "united_states_of_america.iowa.us_iowa_waterloo",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Iowa_Waterloo",
+      "name": "Waterloo",
       "kind": "leaf"
     },
     {
@@ -10384,7 +10384,7 @@
       "path": "united_states_of_america.iowa.us_iowa_west",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Iowa_West",
+      "name": "Iowa — West",
       "kind": "leaf"
     },
     {
@@ -10402,7 +10402,7 @@
       "path": "united_states_of_america.kansas.us_kansas_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Kansas_East",
+      "name": "Kansas — East",
       "kind": "leaf"
     },
     {
@@ -10411,7 +10411,7 @@
       "path": "united_states_of_america.kansas.us_kansas_west",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Kansas_West",
+      "name": "Kansas — West",
       "kind": "leaf"
     },
     {
@@ -10420,7 +10420,7 @@
       "path": "united_states_of_america.kansas.us_kansas_wichita",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Kansas_Wichita",
+      "name": "Wichita",
       "kind": "leaf"
     },
     {
@@ -10438,7 +10438,7 @@
       "path": "united_states_of_america.kentucky.us_kentucky_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Kentucky_East",
+      "name": "Kentucky — East",
       "kind": "leaf"
     },
     {
@@ -10447,7 +10447,7 @@
       "path": "united_states_of_america.kentucky.us_kentucky_west",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Kentucky_West",
+      "name": "Kentucky — West",
       "kind": "leaf"
     },
     {
@@ -10456,7 +10456,7 @@
       "path": "united_states_of_america.kentucky.us_kentucky_louisville",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Kentucky_Louisville",
+      "name": "Louisville",
       "kind": "leaf"
     },
     {
@@ -10474,7 +10474,7 @@
       "path": "united_states_of_america.louisiana.us_louisiana_central",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Louisiana_Central",
+      "name": "Louisiana — Central",
       "kind": "leaf"
     },
     {
@@ -10483,7 +10483,7 @@
       "path": "united_states_of_america.louisiana.us_louisiana_new_orleans",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Louisiana_New Orleans",
+      "name": "New Orleans",
       "kind": "leaf"
     },
     {
@@ -10492,7 +10492,7 @@
       "path": "united_states_of_america.us_maine",
       "depth": 1,
       "sort_order": 19,
-      "name": "US_Maine",
+      "name": "Maine",
       "kind": "leaf"
     },
     {
@@ -10510,7 +10510,7 @@
       "path": "united_states_of_america.maryland.us_maryland_baltimore",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Maryland_Baltimore",
+      "name": "Baltimore",
       "kind": "leaf"
     },
     {
@@ -10519,7 +10519,7 @@
       "path": "united_states_of_america.maryland.us_maryland_and_dc",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Maryland_and_DC",
+      "name": "West and Washington, D.C.",
       "kind": "leaf"
     },
     {
@@ -10537,7 +10537,7 @@
       "path": "united_states_of_america.massachusetts.us_massachusetts_boston",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Massachusetts_Boston",
+      "name": "Boston",
       "kind": "leaf"
     },
     {
@@ -10546,7 +10546,7 @@
       "path": "united_states_of_america.massachusetts.us_massachusetts_central",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Massachusetts_Central",
+      "name": "Worcester",
       "kind": "leaf"
     },
     {
@@ -10555,7 +10555,7 @@
       "path": "united_states_of_america.massachusetts.us_massachusetts_plymouth",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Massachusetts_Plymouth",
+      "name": "Plymouth",
       "kind": "leaf"
     },
     {
@@ -10564,7 +10564,7 @@
       "path": "united_states_of_america.massachusetts.us_massachusetts_southeastern",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Massachusetts_Southeastern",
+      "name": "Barnstable",
       "kind": "leaf"
     },
     {
@@ -10573,7 +10573,7 @@
       "path": "united_states_of_america.massachusetts.us_massachusetts_west",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_Massachusetts_West",
+      "name": "Springfield",
       "kind": "leaf"
     },
     {
@@ -10591,7 +10591,7 @@
       "path": "united_states_of_america.michigan.us_michigan_detroit",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Michigan_Detroit",
+      "name": "Detroit",
       "kind": "leaf"
     },
     {
@@ -10600,7 +10600,7 @@
       "path": "united_states_of_america.michigan.us_michigan_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Michigan_North",
+      "name": "Michigan — North",
       "kind": "leaf"
     },
     {
@@ -10609,7 +10609,7 @@
       "path": "united_states_of_america.michigan.us_michigan_grand_rapids",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Michigan_Grand Rapids",
+      "name": "Grand Rapids",
       "kind": "leaf"
     },
     {
@@ -10618,7 +10618,7 @@
       "path": "united_states_of_america.michigan.us_michigan_lansing",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Michigan_Lansing",
+      "name": "Lansing",
       "kind": "leaf"
     },
     {
@@ -10636,7 +10636,7 @@
       "path": "united_states_of_america.minnesota.us_minnesota_rochester",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Minnesota_Rochester",
+      "name": "Rochester",
       "kind": "leaf"
     },
     {
@@ -10645,7 +10645,7 @@
       "path": "united_states_of_america.minnesota.us_minnesota_minneapolis",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Minnesota_Minneapolis",
+      "name": "Minneapolis",
       "kind": "leaf"
     },
     {
@@ -10654,7 +10654,7 @@
       "path": "united_states_of_america.minnesota.us_minnesota_north",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Minnesota_North",
+      "name": "Minnesota — North",
       "kind": "leaf"
     },
     {
@@ -10663,7 +10663,7 @@
       "path": "united_states_of_america.minnesota.us_minnesota_saint_cloud",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Minnesota_Saint Cloud",
+      "name": "St. Cloud",
       "kind": "leaf"
     },
     {
@@ -10672,7 +10672,7 @@
       "path": "united_states_of_america.us_mississippi",
       "depth": 1,
       "sort_order": 24,
-      "name": "US_Mississippi",
+      "name": "Mississippi",
       "kind": "group"
     },
     {
@@ -10690,7 +10690,7 @@
       "path": "united_states_of_america.us_mississippi.us_mississippi_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "North",
+      "name": "Mississippi — North",
       "kind": "leaf"
     },
     {
@@ -10708,7 +10708,7 @@
       "path": "united_states_of_america.missouri.us_missouri_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Missouri_East",
+      "name": "Missouri — East",
       "kind": "leaf"
     },
     {
@@ -10717,7 +10717,7 @@
       "path": "united_states_of_america.missouri.us_missouri_springfield",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Missouri_Springfield",
+      "name": "Springfield",
       "kind": "leaf"
     },
     {
@@ -10726,7 +10726,7 @@
       "path": "united_states_of_america.missouri.us_missouri_kansas",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Missouri_Kansas",
+      "name": "Kansas City",
       "kind": "leaf"
     },
     {
@@ -10735,7 +10735,7 @@
       "path": "united_states_of_america.missouri.us_missouri_st_louis",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Missouri_St Louis",
+      "name": "St. Louis",
       "kind": "leaf"
     },
     {
@@ -10744,7 +10744,7 @@
       "path": "united_states_of_america.us_montana",
       "depth": 1,
       "sort_order": 26,
-      "name": "US_Montana",
+      "name": "Montana",
       "kind": "group"
     },
     {
@@ -10753,7 +10753,7 @@
       "path": "united_states_of_america.us_montana.us_montana_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "East",
+      "name": "Montana — East",
       "kind": "leaf"
     },
     {
@@ -10762,7 +10762,7 @@
       "path": "united_states_of_america.us_montana.us_montana_west",
       "depth": 2,
       "sort_order": 1,
-      "name": "West",
+      "name": "Montana — West",
       "kind": "leaf"
     },
     {
@@ -10771,7 +10771,7 @@
       "path": "united_states_of_america.us_nebraska",
       "depth": 1,
       "sort_order": 27,
-      "name": "US_Nebraska",
+      "name": "Nebraska",
       "kind": "group"
     },
     {
@@ -10780,7 +10780,7 @@
       "path": "united_states_of_america.us_nebraska.us_nebraska_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "East",
+      "name": "Nebraska — East",
       "kind": "leaf"
     },
     {
@@ -10789,7 +10789,7 @@
       "path": "united_states_of_america.us_nebraska.us_nebraska_west",
       "depth": 2,
       "sort_order": 1,
-      "name": "West",
+      "name": "Nebraska — West",
       "kind": "leaf"
     },
     {
@@ -10798,7 +10798,7 @@
       "path": "united_states_of_america.us_nevada",
       "depth": 1,
       "sort_order": 28,
-      "name": "US_Nevada",
+      "name": "Nevada",
       "kind": "leaf"
     },
     {
@@ -10807,7 +10807,7 @@
       "path": "united_states_of_america.us_new_hampshire",
       "depth": 1,
       "sort_order": 29,
-      "name": "US_New Hampshire",
+      "name": "New Hampshire",
       "kind": "leaf"
     },
     {
@@ -10825,7 +10825,7 @@
       "path": "united_states_of_america.new_jersey.us_new_jersey_north",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_New Jersey_North",
+      "name": "New Jersey — North",
       "kind": "leaf"
     },
     {
@@ -10834,7 +10834,7 @@
       "path": "united_states_of_america.new_jersey.us_new_jersey_south",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_New Jersey_South",
+      "name": "New Jersey — South",
       "kind": "leaf"
     },
     {
@@ -10843,7 +10843,7 @@
       "path": "united_states_of_america.us_new_mexico",
       "depth": 1,
       "sort_order": 31,
-      "name": "US_New Mexico",
+      "name": "New Mexico",
       "kind": "group"
     },
     {
@@ -10879,7 +10879,7 @@
       "path": "united_states_of_america.new_york.us_new_york_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_New York_East",
+      "name": "New York — Long Island",
       "kind": "leaf"
     },
     {
@@ -10888,7 +10888,7 @@
       "path": "united_states_of_america.new_york.us_new_york_new_york",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_New York_New York",
+      "name": "New York — New York City",
       "kind": "leaf"
     },
     {
@@ -10897,7 +10897,7 @@
       "path": "united_states_of_america.new_york.us_new_york_north",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_New York_North",
+      "name": "New York — North",
       "kind": "leaf"
     },
     {
@@ -10906,7 +10906,7 @@
       "path": "united_states_of_america.new_york.us_new_york_west",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_New York_West",
+      "name": "New York — West",
       "kind": "leaf"
     },
     {
@@ -10924,7 +10924,7 @@
       "path": "united_states_of_america.north_carolina.us_north_carolina_wilson",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_North Carolina_Wilson",
+      "name": "Wilson",
       "kind": "leaf"
     },
     {
@@ -10933,7 +10933,7 @@
       "path": "united_states_of_america.north_carolina.us_north_carolina_asheville",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_North Carolina_Asheville",
+      "name": "Asheville",
       "kind": "leaf"
     },
     {
@@ -10942,7 +10942,7 @@
       "path": "united_states_of_america.north_carolina.us_north_carolina_charlotte",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_North Carolina_Charlotte",
+      "name": "Charlotte",
       "kind": "leaf"
     },
     {
@@ -10951,7 +10951,7 @@
       "path": "united_states_of_america.north_carolina.us_north_carolina_greensboro",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_North Carolina_Greensboro",
+      "name": "Greensboro",
       "kind": "leaf"
     },
     {
@@ -10960,7 +10960,7 @@
       "path": "united_states_of_america.north_carolina.us_north_carolina_raleigh",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_North Carolina_Raleigh",
+      "name": "Raleigh",
       "kind": "leaf"
     },
     {
@@ -10969,7 +10969,7 @@
       "path": "united_states_of_america.north_carolina.us_north_carolina_wilmington",
       "depth": 2,
       "sort_order": 5,
-      "name": "US_North Carolina_Wilmington",
+      "name": "Wilmington",
       "kind": "leaf"
     },
     {
@@ -10987,7 +10987,7 @@
       "path": "united_states_of_america.north_dakota.us_north_dakota_bismarck",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_North Dakota_Bismarck",
+      "name": "Bismarck",
       "kind": "leaf"
     },
     {
@@ -10996,7 +10996,7 @@
       "path": "united_states_of_america.north_dakota.us_north_dakota_east",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_North Dakota_East",
+      "name": "Fargo",
       "kind": "leaf"
     },
     {
@@ -11005,7 +11005,7 @@
       "path": "united_states_of_america.north_dakota.us_north_dakota_minot",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_North Dakota_Minot",
+      "name": "Minot",
       "kind": "leaf"
     },
     {
@@ -11023,7 +11023,7 @@
       "path": "united_states_of_america.ohio.us_ohio_cleveland",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Ohio_Cleveland",
+      "name": "Cleveland",
       "kind": "leaf"
     },
     {
@@ -11032,7 +11032,7 @@
       "path": "united_states_of_america.ohio.us_ohio_cincinnati",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Ohio_Cincinnati",
+      "name": "Cincinnati",
       "kind": "leaf"
     },
     {
@@ -11041,7 +11041,7 @@
       "path": "united_states_of_america.ohio.us_ohio_columbus",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Ohio_Columbus",
+      "name": "Columbus",
       "kind": "leaf"
     },
     {
@@ -11050,7 +11050,7 @@
       "path": "united_states_of_america.ohio.us_ohio_toledo",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Ohio_Toledo",
+      "name": "Toledo",
       "kind": "leaf"
     },
     {
@@ -11068,7 +11068,7 @@
       "path": "united_states_of_america.oklahoma.us_oklahoma_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Oklahoma_East",
+      "name": "Oklahoma — East",
       "kind": "leaf"
     },
     {
@@ -11077,7 +11077,7 @@
       "path": "united_states_of_america.oklahoma.us_oklahoma_west",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Oklahoma_West",
+      "name": "Oklahoma — West",
       "kind": "leaf"
     },
     {
@@ -11086,7 +11086,7 @@
       "path": "united_states_of_america.oklahoma.us_oklahoma_tulsa",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Oklahoma_Tulsa",
+      "name": "Tulsa",
       "kind": "leaf"
     },
     {
@@ -11095,7 +11095,7 @@
       "path": "united_states_of_america.oklahoma.us_oklahoma_oklahoma",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Oklahoma_Oklahoma",
+      "name": "Oklahoma City",
       "kind": "leaf"
     },
     {
@@ -11113,7 +11113,7 @@
       "path": "united_states_of_america.oregon.us_oregon_eugene",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Oregon_Eugene",
+      "name": "Eugene",
       "kind": "leaf"
     },
     {
@@ -11122,7 +11122,7 @@
       "path": "united_states_of_america.oregon.us_oregon_portland",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Oregon_Portland",
+      "name": "Portland",
       "kind": "leaf"
     },
     {
@@ -11131,7 +11131,7 @@
       "path": "united_states_of_america.oregon.us_oregon_west",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Oregon_West",
+      "name": "Oregon — East",
       "kind": "leaf"
     },
     {
@@ -11149,7 +11149,7 @@
       "path": "united_states_of_america.pennsylvania.us_pennsylvania_central",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Pennsylvania_Central",
+      "name": "Altoona",
       "kind": "leaf"
     },
     {
@@ -11158,7 +11158,7 @@
       "path": "united_states_of_america.pennsylvania.us_pennsylvania_pittsburgh",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Pennsylvania_Pittsburgh",
+      "name": "Pittsburgh",
       "kind": "leaf"
     },
     {
@@ -11167,7 +11167,7 @@
       "path": "united_states_of_america.pennsylvania.us_pennsylvania_reading",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Pennsylvania_Reading",
+      "name": "Reading",
       "kind": "leaf"
     },
     {
@@ -11176,7 +11176,7 @@
       "path": "united_states_of_america.pennsylvania.us_pennsylvania_scranton",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Pennsylvania_Scranton",
+      "name": "Scranton",
       "kind": "leaf"
     },
     {
@@ -11185,7 +11185,7 @@
       "path": "united_states_of_america.us_puerto_rico",
       "depth": 1,
       "sort_order": 39,
-      "name": "US_Puerto Rico",
+      "name": "Puerto Rico",
       "kind": "leaf"
     },
     {
@@ -11194,7 +11194,7 @@
       "path": "united_states_of_america.us_rhode_island",
       "depth": 1,
       "sort_order": 40,
-      "name": "US_Rhode Island",
+      "name": "Rhode Island",
       "kind": "leaf"
     },
     {
@@ -11212,7 +11212,7 @@
       "path": "united_states_of_america.south_carolina.us_south_carolina_charleston",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_South Carolina_Charleston",
+      "name": "Charleston",
       "kind": "leaf"
     },
     {
@@ -11221,7 +11221,7 @@
       "path": "united_states_of_america.south_carolina.us_south_carolina_columbia",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_South Carolina_Columbia",
+      "name": "Columbia",
       "kind": "leaf"
     },
     {
@@ -11230,7 +11230,7 @@
       "path": "united_states_of_america.south_carolina.us_south_carolina_florence",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_South Carolina_Florence",
+      "name": "Florence",
       "kind": "leaf"
     },
     {
@@ -11239,7 +11239,7 @@
       "path": "united_states_of_america.us_south_dakota",
       "depth": 1,
       "sort_order": 42,
-      "name": "US_South Dakota",
+      "name": "South Dakota",
       "kind": "leaf"
     },
     {
@@ -11257,7 +11257,7 @@
       "path": "united_states_of_america.tennessee.us_tennessee_east",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Tennessee_East",
+      "name": "Tennessee — East",
       "kind": "leaf"
     },
     {
@@ -11266,7 +11266,7 @@
       "path": "united_states_of_america.tennessee.us_tennessee_west",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Tennessee_West",
+      "name": "Tennessee — West",
       "kind": "leaf"
     },
     {
@@ -11284,7 +11284,7 @@
       "path": "united_states_of_america.texas.us_texas_austin",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Texas_Austin",
+      "name": "Austin",
       "kind": "leaf"
     },
     {
@@ -11293,7 +11293,7 @@
       "path": "united_states_of_america.texas.us_texas_victoria",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Texas_Victoria",
+      "name": "Victoria",
       "kind": "leaf"
     },
     {
@@ -11302,7 +11302,7 @@
       "path": "united_states_of_america.texas.us_texas_dallas",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Texas_Dallas",
+      "name": "Dallas",
       "kind": "leaf"
     },
     {
@@ -11311,7 +11311,7 @@
       "path": "united_states_of_america.texas.us_texas_houston",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Texas_Houston",
+      "name": "Houston",
       "kind": "leaf"
     },
     {
@@ -11320,7 +11320,7 @@
       "path": "united_states_of_america.texas.us_texas_amarillo",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_Texas_Amarillo",
+      "name": "Amarillo",
       "kind": "leaf"
     },
     {
@@ -11329,7 +11329,7 @@
       "path": "united_states_of_america.texas.us_texas_lubbock",
       "depth": 2,
       "sort_order": 5,
-      "name": "US_Texas_Lubbock",
+      "name": "Lubbock",
       "kind": "leaf"
     },
     {
@@ -11338,7 +11338,7 @@
       "path": "united_states_of_america.texas.us_texas_san_antonio",
       "depth": 2,
       "sort_order": 6,
-      "name": "US_Texas_San Antonio",
+      "name": "San Antonio",
       "kind": "leaf"
     },
     {
@@ -11347,7 +11347,7 @@
       "path": "united_states_of_america.texas.us_texas_southwest",
       "depth": 2,
       "sort_order": 7,
-      "name": "US_Texas_Southwest",
+      "name": "Laredo",
       "kind": "leaf"
     },
     {
@@ -11356,7 +11356,7 @@
       "path": "united_states_of_america.texas.us_texas_tyler",
       "depth": 2,
       "sort_order": 8,
-      "name": "US_Texas_Tyler",
+      "name": "Tyler",
       "kind": "leaf"
     },
     {
@@ -11365,7 +11365,7 @@
       "path": "united_states_of_america.texas.us_texas_wako",
       "depth": 2,
       "sort_order": 9,
-      "name": "US_Texas_Wako",
+      "name": "Waco",
       "kind": "leaf"
     },
     {
@@ -11374,7 +11374,7 @@
       "path": "united_states_of_america.texas.us_texas_west",
       "depth": 2,
       "sort_order": 10,
-      "name": "US_Texas_West",
+      "name": "El Paso",
       "kind": "leaf"
     },
     {
@@ -11383,7 +11383,7 @@
       "path": "united_states_of_america.us_united_states_minor_outlying_islands",
       "depth": 1,
       "sort_order": 45,
-      "name": "US_United States Minor Outlying Islands",
+      "name": "US Minor Outlying Islands",
       "kind": "leaf"
     },
     {
@@ -11392,7 +11392,7 @@
       "path": "united_states_of_america.us_utah",
       "depth": 1,
       "sort_order": 46,
-      "name": "US_Utah",
+      "name": "Utah",
       "kind": "group"
     },
     {
@@ -11401,7 +11401,7 @@
       "path": "united_states_of_america.us_utah.us_utah_south",
       "depth": 2,
       "sort_order": 0,
-      "name": "South",
+      "name": "Utah — South",
       "kind": "leaf"
     },
     {
@@ -11410,7 +11410,7 @@
       "path": "united_states_of_america.us_utah.us_utah_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "North",
+      "name": "Utah — North",
       "kind": "leaf"
     },
     {
@@ -11419,7 +11419,7 @@
       "path": "united_states_of_america.us_vermont",
       "depth": 1,
       "sort_order": 47,
-      "name": "US_Vermont",
+      "name": "Vermont",
       "kind": "leaf"
     },
     {
@@ -11437,7 +11437,7 @@
       "path": "united_states_of_america.virginia.us_virginia_roanoke",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Virginia_Roanoke",
+      "name": "Roanoke",
       "kind": "leaf"
     },
     {
@@ -11446,7 +11446,7 @@
       "path": "united_states_of_america.virginia.us_virginia_norfolk",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Virginia_Norfolk",
+      "name": "Norfolk",
       "kind": "leaf"
     },
     {
@@ -11455,7 +11455,7 @@
       "path": "united_states_of_america.virginia.us_virginia_lynchburg",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Virginia_Lynchburg",
+      "name": "Lynchburg",
       "kind": "leaf"
     },
     {
@@ -11464,7 +11464,7 @@
       "path": "united_states_of_america.virginia.us_virginia_richmond",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Virginia_Richmond",
+      "name": "Richmond",
       "kind": "leaf"
     },
     {
@@ -11473,7 +11473,7 @@
       "path": "united_states_of_america.virginia.us_virginia_alexandria",
       "depth": 2,
       "sort_order": 4,
-      "name": "US_Virginia_Alexandria",
+      "name": "Alexandria",
       "kind": "leaf"
     },
     {
@@ -11491,7 +11491,7 @@
       "path": "united_states_of_america.washington.us_washington_coast",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Washington_Coast",
+      "name": "Tacoma",
       "kind": "leaf"
     },
     {
@@ -11500,7 +11500,7 @@
       "path": "united_states_of_america.washington.us_washington_seattle",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Washington_Seattle",
+      "name": "Seattle",
       "kind": "leaf"
     },
     {
@@ -11509,7 +11509,7 @@
       "path": "united_states_of_america.washington.us_washington_yakima",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Washington_Yakima",
+      "name": "Yakima",
       "kind": "leaf"
     },
     {
@@ -11518,7 +11518,7 @@
       "path": "united_states_of_america.us_west_virginia",
       "depth": 1,
       "sort_order": 50,
-      "name": "US_West Virginia",
+      "name": "West Virginia",
       "kind": "leaf"
     },
     {
@@ -11536,7 +11536,7 @@
       "path": "united_states_of_america.wisconsin.us_wisconsin_milwaukee",
       "depth": 2,
       "sort_order": 0,
-      "name": "US_Wisconsin_Milwaukee",
+      "name": "Milwaukee",
       "kind": "leaf"
     },
     {
@@ -11545,7 +11545,7 @@
       "path": "united_states_of_america.wisconsin.us_wisconsin_north",
       "depth": 2,
       "sort_order": 1,
-      "name": "US_Wisconsin_North",
+      "name": "Wisconsin — North",
       "kind": "leaf"
     },
     {
@@ -11554,7 +11554,7 @@
       "path": "united_states_of_america.wisconsin.us_wisconsin_madison",
       "depth": 2,
       "sort_order": 2,
-      "name": "US_Wisconsin_Madison",
+      "name": "Madison",
       "kind": "leaf"
     },
     {
@@ -11563,7 +11563,7 @@
       "path": "united_states_of_america.wisconsin.us_wisconsin_eau_claire",
       "depth": 2,
       "sort_order": 3,
-      "name": "US_Wisconsin_Eau Claire",
+      "name": "Eau Claire",
       "kind": "leaf"
     },
     {
@@ -11572,7 +11572,7 @@
       "path": "united_states_of_america.us_wyoming",
       "depth": 1,
       "sort_order": 52,
-      "name": "US_Wyoming",
+      "name": "Wyoming",
       "kind": "leaf"
     },
     {
@@ -11617,7 +11617,7 @@
       "path": "venezuela.venezuela_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "Venezuela — North",
       "kind": "leaf"
     },
     {
@@ -11626,7 +11626,7 @@
       "path": "venezuela.venezuela_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "Venezuela — South",
       "kind": "leaf"
     },
     {
@@ -11698,7 +11698,7 @@
       "path": "new_zealand.new_zealand_north_auckland",
       "depth": 1,
       "sort_order": 1,
-      "name": "New Zealand North_Auckland",
+      "name": "North — Auckland",
       "kind": "leaf"
     },
     {
@@ -11707,7 +11707,7 @@
       "path": "new_zealand.new_zealand_north_wellington",
       "depth": 1,
       "sort_order": 2,
-      "name": "New Zealand North_Wellington",
+      "name": "North — Wellington",
       "kind": "leaf"
     },
     {
@@ -11716,7 +11716,7 @@
       "path": "new_zealand.new_zealand_south_canterbury",
       "depth": 1,
       "sort_order": 3,
-      "name": "New Zealand South_Canterbury",
+      "name": "South — Canterbury Region",
       "kind": "leaf"
     },
     {
@@ -11725,7 +11725,7 @@
       "path": "new_zealand.new_zealand_south_southland",
       "depth": 1,
       "sort_order": 4,
-      "name": "New Zealand South_Southland",
+      "name": "South — Southland Region",
       "kind": "leaf"
     },
     {
@@ -11743,7 +11743,7 @@
       "path": "south_korea.south_korea_north",
       "depth": 1,
       "sort_order": 0,
-      "name": "North",
+      "name": "South Korea — North",
       "kind": "leaf"
     },
     {
@@ -11752,7 +11752,7 @@
       "path": "south_korea.south_korea_south",
       "depth": 1,
       "sort_order": 1,
-      "name": "South",
+      "name": "South Korea — South",
       "kind": "leaf"
     }
   ]
