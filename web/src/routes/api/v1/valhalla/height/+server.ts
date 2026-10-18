@@ -34,9 +34,12 @@ export async function POST(event: RequestEvent) {
         return error(401, "Unauthorized");
     }
 
-    const heightUrl = getValhallaUrl() + '/height';
+    // Check the base before appending the path: null + '/height' would be the
+    // truthy string "null/height".
+    const valhallaUrl = getValhallaUrl();
+    const heightUrl = valhallaUrl + '/height';
     const data = await event.request.json()
-    if (!heightUrl) {
+    if (!valhallaUrl) {
         return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
     try {
