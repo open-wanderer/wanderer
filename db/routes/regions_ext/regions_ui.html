@@ -1260,7 +1260,7 @@
           var chunkSize = Math.max(1, Math.floor(3400 / (maxPathLen + 10))) || 60;
           for (var i = 0; i < paths.length; i += chunkSize) {
             var chunk = paths.slice(i, i + chunkSize);
-            var filter = chunk.map(function (p) { return "path='" + p.replace(/'/g, "\\'") + "'"; }).join('||');
+            var filter = chunk.map(function (p) { return "path='" + p.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'"; }).join('||');
             var res = await this.apiFetch('/api/collections/region_geometry/records?perPage=' + chunkSize + '&filter=' + encodeURIComponent(filter));
             if (!res) return out; // apiFetch already handled 401 -> logged-out state
             var data = await res.json();

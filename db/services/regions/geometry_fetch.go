@@ -175,7 +175,7 @@ func describePolyFetchFailure(urls []string, lastErr error) error {
 
 // FetchGeometry fetches a CoMaps leaf's .poly at commitSHA, trying the
 // GitHub mirror first and CoMaps' canonical Codeberg repository second
-//, and converts the first successfully-fetched response into a
+// , and converts the first successfully-fetched response into a
 // GeoJSON geometry plus bbox via ParsePoly — the single canonical parser
 // also used by the retired seed generator (the equivalence bar).
 //
