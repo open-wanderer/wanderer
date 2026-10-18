@@ -35,7 +35,10 @@ async function readLimitedBody(request: Request, limit: number): Promise<Uint8Ar
         }
         size += value.byteLength;
         if (size > limit) {
-            await reader.cancel();
+            // Release rather than cancel: cancelling makes the Node adapter
+            // destroy the socket, so the client would see a reset instead of
+            // the 413. Node discards the rest of the body without keeping it.
+            reader.releaseLock();
             throw tooLarge();
         }
         chunks.push(value);
