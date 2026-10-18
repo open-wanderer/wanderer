@@ -13,17 +13,30 @@ type defaultSubcategorySeed struct {
 	badgeIcon      string
 	translations   map[string]CategoryTranslation
 	aliases        []string
+	settings       map[string]any
 }
 
 var defaultSubcategories = []defaultSubcategorySeed{
-	{parentCategory: "Biking", name: "MTB", shortName: "MTB", badgeIcon: "mountain"},
-	{parentCategory: "Biking", name: "Gravel", shortName: "GRVL"},
+	{
+		parentCategory: "Biking",
+		name:           "MTB",
+		shortName:      "MTB",
+		badgeIcon:      "mountain",
+		settings:       map[string]any{"valhalla_profile": "bicycle_mountain"},
+	},
+	{
+		parentCategory: "Biking",
+		name:           "Gravel",
+		shortName:      "GRVL",
+		settings:       map[string]any{"valhalla_profile": "bicycle_cross"},
+	},
 	{
 		parentCategory: "Biking",
 		name:           "Touring",
 		shortName:      "TOUR",
 		aliases:        []string{"Touring Bike", "City Bike"},
 		translations:   subcategoryTranslations("Touring", "Tourenrad", "TOUR"),
+		settings:       map[string]any{"valhalla_profile": "bicycle_hybrid"},
 	},
 	{
 		parentCategory: "Biking",
@@ -31,8 +44,17 @@ var defaultSubcategories = []defaultSubcategorySeed{
 		shortName:      "ROAD",
 		badgeIcon:      "grip-lines-vertical",
 		translations:   subcategoryTranslations("Road", "Rennrad", "ROAD"),
+		settings:       map[string]any{"valhalla_profile": "bicycle_road"},
 	},
-	{parentCategory: "Biking", name: "E-Bike", shortName: "EBIKE", badgeIcon: "bolt"},
+	{
+		parentCategory: "Biking",
+		name:           "E-Bike",
+		shortName:      "EBIKE",
+		badgeIcon:      "bolt",
+		// Valhalla has no dedicated e-bike costing; Hybrid is the closest
+		// general-purpose bike profile.
+		settings: map[string]any{"valhalla_profile": "bicycle_hybrid"},
+	},
 	{
 		parentCategory: "Hiking",
 		name:           "Winter",
@@ -130,6 +152,7 @@ func SeedDefaultSubcategories(app core.App) error {
 	if err != nil {
 		return err
 	}
+	hasSettingsField := subcategoriesCollection.Fields.GetByName("settings") != nil
 
 	for _, seed := range defaultSubcategories {
 		categories, err := app.FindRecordsByFilter(
@@ -160,7 +183,7 @@ func SeedDefaultSubcategories(app core.App) error {
 			return err
 		}
 		if existingRecord := findDefaultSubcategory(existing, seed.name, seed.aliases); existingRecord != nil {
-			changed, err := applyDefaultSubcategorySeed(existingRecord, seed)
+			changed, err := applyDefaultSubcategorySeed(existingRecord, seed, hasSettingsField)
 			if err != nil {
 				return err
 			}
@@ -182,6 +205,9 @@ func SeedDefaultSubcategories(app core.App) error {
 		if len(seed.translations) > 0 {
 			record.Set("translations", seed.translations)
 		}
+		if hasSettingsField && len(seed.settings) > 0 {
+			record.Set("settings", seed.settings)
+		}
 		if err := app.Save(record); err != nil {
 			return fmt.Errorf("failed to seed subcategory %q: %w", seed.name, err)
 		}
@@ -190,7 +216,7 @@ func SeedDefaultSubcategories(app core.App) error {
 	return nil
 }
 
-func applyDefaultSubcategorySeed(record *core.Record, seed defaultSubcategorySeed) (bool, error) {
+func applyDefaultSubcategorySeed(record *core.Record, seed defaultSubcategorySeed, hasSettingsField bool) (bool, error) {
 	changed := false
 
 	if isDefaultSubcategoryAlias(record.GetString("name"), seed.aliases) {
@@ -217,6 +243,26 @@ func applyDefaultSubcategorySeed(record *core.Record, seed defaultSubcategorySee
 		mergedTranslations, translationsChanged := mergeDefaultSubcategoryTranslations(seed.translations, currentTranslations)
 		if translationsChanged {
 			record.Set("translations", mergedTranslations)
+			changed = true
+		}
+	}
+
+	// Retroactively backfill `valhalla_profile` onto a pre-existing default
+	// subcategory, but only when the key is absent — an operator-set value (or a
+	// value written by a previous seeding run) is never overwritten, which also
+	// makes a second SeedDefaultSubcategories call a no-op for settings.
+	if hasSettingsField && len(seed.settings) > 0 {
+		currentSettings := parseSettingsMap(record.Get("settings"))
+		settingsChanged := false
+		for key, value := range seed.settings {
+			if _, exists := currentSettings[key]; exists {
+				continue
+			}
+			currentSettings[key] = value
+			settingsChanged = true
+		}
+		if settingsChanged {
+			record.Set("settings", currentSettings)
 			changed = true
 		}
 	}

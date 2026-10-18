@@ -296,6 +296,15 @@ func TestDefaultSubcategories(t *testing.T) {
 		"Hiking/Pilgrimage":  "cross",
 		"Running/Road":       "grip-lines-vertical",
 	}
+	wantValhallaProfiles := map[string]string{
+		"Biking/MTB":     "bicycle_mountain",
+		"Biking/Gravel":  "bicycle_cross",
+		"Biking/Touring": "bicycle_hybrid",
+		"Biking/Road":    "bicycle_road",
+		// Valhalla has no dedicated e-bike costing; Hybrid is the closest
+		// general-purpose bike profile.
+		"Biking/E-Bike": "bicycle_hybrid",
+	}
 	for _, subcategory := range defaultSubcategories {
 		if subcategory.parentCategory == "" {
 			t.Fatalf("default subcategory %q parent is empty", subcategory.name)
@@ -322,6 +331,14 @@ func TestDefaultSubcategories(t *testing.T) {
 				t.Fatalf("%s/%s badgeIcon = %q, want %q", subcategory.parentCategory, subcategory.name, subcategory.badgeIcon, wantBadgeIcon)
 			}
 		}
+		if wantProfile, ok := wantValhallaProfiles[subcategory.parentCategory+"/"+subcategory.name]; ok {
+			if got := subcategory.settings["valhalla_profile"]; got != wantProfile {
+				t.Fatalf("%s/%s valhalla_profile = %v, want %q", subcategory.parentCategory, subcategory.name, got, wantProfile)
+			}
+			delete(wantValhallaProfiles, subcategory.parentCategory+"/"+subcategory.name)
+		} else if _, hasProfile := subcategory.settings["valhalla_profile"]; hasProfile {
+			t.Fatalf("%s/%s unexpectedly declares a valhalla_profile", subcategory.parentCategory, subcategory.name)
+		}
 		if subcategory.parentCategory == "Hiking" && subcategory.name == "Winter" {
 			if subcategory.translations["de"].Name != "Winterwandern" {
 				t.Fatalf("Winter de translation = %q, want Winterwandern", subcategory.translations["de"].Name)
@@ -341,6 +358,205 @@ func TestDefaultSubcategories(t *testing.T) {
 
 	if len(wantDefaults) > 0 {
 		t.Fatalf("default subcategories missing entries: %#v", wantDefaults)
+	}
+	if len(wantValhallaProfiles) > 0 {
+		t.Fatalf("default subcategories missing valhalla_profile entries: %#v", wantValhallaProfiles)
+	}
+}
+
+func TestDefaultCategoryValhallaProfilesOnlyOnHiking(t *testing.T) {
+	want := map[string]string{"Hiking": "pedestrian"}
+	if !reflect.DeepEqual(defaultCategoryValhallaProfiles, want) {
+		t.Fatalf("defaultCategoryValhallaProfiles = %#v, want %#v", defaultCategoryValhallaProfiles, want)
+	}
+}
+
+func TestSeedDefaultCategoriesSetsValhallaProfileOnHikingOnly(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	if err := SeedDefaultCategories(app); err != nil {
+		t.Fatalf("SeedDefaultCategories() error = %v", err)
+	}
+
+	categories, err := app.FindAllRecords("categories")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byName := map[string]*core.Record{}
+	for _, category := range categories {
+		byName[category.GetString("name")] = category
+	}
+
+	hikingSettings := parseSettingsMap(byName["Hiking"].Get("settings"))
+	if got := hikingSettings["valhalla_profile"]; got != "pedestrian" {
+		t.Fatalf("Hiking valhalla_profile = %v, want pedestrian", got)
+	}
+
+	for _, name := range []string{"Walking", "Biking", "Other", "Running", "Climbing", "Skiing", "Canoeing"} {
+		settings := parseSettingsMap(byName[name].Get("settings"))
+		if _, exists := settings["valhalla_profile"]; exists {
+			t.Fatalf("%s unexpectedly seeded with valhalla_profile = %v", name, settings["valhalla_profile"])
+		}
+		if got := settings["wp_merge_enabled"]; got != true {
+			t.Fatalf("%s wp_merge_enabled = %v, want true", name, got)
+		}
+	}
+}
+
+func TestPrepopulateDefaultCategoryValhallaProfilesBackfillsExistingHikingOnly(t *testing.T) {
+	t.Run("backfills missing key", func(t *testing.T) {
+		app := setupCategoryValidationTestApp(t)
+		defer app.Cleanup()
+
+		hiking := createTestCategory(t, app, "Hiking")
+		walking := createTestCategory(t, app, "Walking")
+
+		if err := PrepopulateDefaultCategoryValhallaProfiles(app); err != nil {
+			t.Fatalf("PrepopulateDefaultCategoryValhallaProfiles() error = %v", err)
+		}
+
+		hiking, err := app.FindRecordById("categories", hiking.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		walking, err = app.FindRecordById("categories", walking.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got := parseSettingsMap(hiking.Get("settings"))["valhalla_profile"]; got != "pedestrian" {
+			t.Fatalf("Hiking valhalla_profile = %v, want pedestrian", got)
+		}
+		if _, exists := parseSettingsMap(walking.Get("settings"))["valhalla_profile"]; exists {
+			t.Fatal("Walking unexpectedly received a valhalla_profile")
+		}
+	})
+
+	t.Run("never overwrites an operator value", func(t *testing.T) {
+		app := setupCategoryValidationTestApp(t)
+		defer app.Cleanup()
+
+		hiking := createTestCategory(t, app, "Hiking")
+		hiking.Set("settings", map[string]any{"valhalla_profile": "custom"})
+		if err := app.Save(hiking); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := PrepopulateDefaultCategoryValhallaProfiles(app); err != nil {
+			t.Fatalf("PrepopulateDefaultCategoryValhallaProfiles() error = %v", err)
+		}
+
+		hiking, err := app.FindRecordById("categories", hiking.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := parseSettingsMap(hiking.Get("settings"))["valhalla_profile"]; got != "custom" {
+			t.Fatalf("Hiking valhalla_profile = %v, want custom", got)
+		}
+	})
+}
+
+func TestSeedDefaultSubcategoriesSetsValhallaProfileForBikingDefaults(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	biking := createTestCategory(t, app, "Biking")
+
+	if err := SeedDefaultSubcategories(app); err != nil {
+		t.Fatalf("SeedDefaultSubcategories() error = %v", err)
+	}
+
+	subcategories, err := app.FindAllRecords("subcategories")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byName := map[string]*core.Record{}
+	for _, subcategory := range subcategories {
+		if subcategory.GetString("category") != biking.Id {
+			continue
+		}
+		byName[subcategory.GetString("name")] = subcategory
+	}
+
+	want := map[string]string{
+		"Touring": "bicycle_hybrid",
+		"MTB":     "bicycle_mountain",
+		"Gravel":  "bicycle_cross",
+		"Road":    "bicycle_road",
+		// Valhalla has no dedicated e-bike costing; Hybrid is the closest
+		// general-purpose bike profile.
+		"E-Bike": "bicycle_hybrid",
+	}
+	for name, wantProfile := range want {
+		record := byName[name]
+		if record == nil {
+			t.Fatalf("subcategory %q was not seeded", name)
+		}
+		if got := parseSettingsMap(record.Get("settings"))["valhalla_profile"]; got != wantProfile {
+			t.Fatalf("%s valhalla_profile = %v, want %q", name, got, wantProfile)
+		}
+	}
+}
+
+func TestSeedDefaultSubcategoriesBackfillsValhallaProfileOnExisting(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	biking := createTestCategory(t, app, "Biking")
+	touring := createTestSubcategory(t, app, biking.Id, "Touring", "TOUR")
+
+	if err := SeedDefaultSubcategories(app); err != nil {
+		t.Fatalf("SeedDefaultSubcategories() error = %v", err)
+	}
+
+	updated, err := app.FindRecordById("subcategories", touring.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parseSettingsMap(updated.Get("settings"))["valhalla_profile"]; got != "bicycle_hybrid" {
+		t.Fatalf("Touring valhalla_profile = %v, want bicycle_hybrid", got)
+	}
+
+	// A second run must be a true no-op for settings.
+	if err := SeedDefaultSubcategories(app); err != nil {
+		t.Fatalf("second SeedDefaultSubcategories() error = %v", err)
+	}
+	rerun, err := app.FindRecordById("subcategories", touring.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parseSettingsMap(rerun.Get("settings"))["valhalla_profile"]; got != "bicycle_hybrid" {
+		t.Fatalf("Touring valhalla_profile after rerun = %v, want bicycle_hybrid", got)
+	}
+	if rerun.GetDateTime("updated") != updated.GetDateTime("updated") {
+		t.Fatal("second SeedDefaultSubcategories run rewrote the Touring record")
+	}
+}
+
+func TestSeedDefaultSubcategoriesDoesNotOverwriteValhallaProfile(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	biking := createTestCategory(t, app, "Biking")
+	touring := createTestSubcategory(t, app, biking.Id, "Touring", "TOUR")
+	touring.Set("settings", map[string]any{"valhalla_profile": "bicycle_road"})
+	if err := app.Save(touring); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SeedDefaultSubcategories(app); err != nil {
+		t.Fatalf("SeedDefaultSubcategories() error = %v", err)
+	}
+
+	updated, err := app.FindRecordById("subcategories", touring.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parseSettingsMap(updated.Get("settings"))["valhalla_profile"]; got != "bicycle_road" {
+		t.Fatalf("Touring valhalla_profile = %v, want bicycle_road", got)
 	}
 }
 
@@ -1186,6 +1402,7 @@ func setupCategoryValidationTestApp(t *testing.T) *pbtests.TestApp {
 		&core.TextField{Name: "short_name"},
 		&core.TextField{Name: "icon"},
 		&core.JSONField{Name: "translations"},
+		&core.JSONField{Name: "settings"},
 	)
 	if err := app.Save(categories); err != nil {
 		app.Cleanup()
@@ -1200,6 +1417,7 @@ func setupCategoryValidationTestApp(t *testing.T) *pbtests.TestApp {
 		&core.TextField{Name: "icon"},
 		&core.TextField{Name: "badge_icon"},
 		&core.JSONField{Name: "translations"},
+		&core.JSONField{Name: "settings"},
 	)
 	if err := app.Save(subcategories); err != nil {
 		app.Cleanup()
