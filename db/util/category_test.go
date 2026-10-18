@@ -1517,3 +1517,24 @@ func createTestTrail(t *testing.T, app core.App, categoryID string, subcategoryI
 
 	return record
 }
+
+func TestIsNonObjectSettings(t *testing.T) {
+	for _, test := range []struct {
+		raw  any
+		want bool
+	}{
+		{nil, false},
+		{map[string]any{}, false},
+		{types.JSONRaw(``), false},
+		{types.JSONRaw(`null`), false},
+		{types.JSONRaw(` {"valhalla_profile":"auto"}`), false},
+		{types.JSONRaw(`[1,2]`), true},
+		{types.JSONRaw(`"hiking"`), true},
+		{`42`, true},
+		{[]byte(`{}`), false},
+	} {
+		if got := isNonObjectSettings(test.raw); got != test.want {
+			t.Errorf("isNonObjectSettings(%#v) = %v, want %v", test.raw, got, test.want)
+		}
+	}
+}
