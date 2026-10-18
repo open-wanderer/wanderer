@@ -339,6 +339,7 @@ interface TrailSearchResult {
     elevation_gain: number;
     elevation_loss: number;
     duration: number;
+    moving_duration?: number;
     difficulty: 0 | 1 | 2;
     category: string;
     category_id?: string | null;

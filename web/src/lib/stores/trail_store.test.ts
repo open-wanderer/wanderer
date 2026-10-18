@@ -82,3 +82,21 @@ describe("trail search radius", () => {
         },
     );
 });
+
+describe("searchResultToTrailList", () => {
+    it("keeps the moving time, which cards and lists prefer over the total duration", async () => {
+        const { searchResultToTrailList } = await import("./trail_store");
+        const { trailDisplayDuration } = await import("$lib/util/format_util");
+        const hit = {
+            id: "trail000000001", name: "Ridge", author: "actor", author_name: "alice", author_avatar: "",
+            created: 0, date: 0, public: true, completed: false, difficulty: 1, distance: 5000,
+            duration: 3432, moving_duration: 1800, elevation_gain: 300, elevation_loss: 300,
+            _geo: { lat: 47, lng: 11 }, tags: [],
+        };
+
+        const [trail] = await searchResultToTrailList([hit] as any);
+
+        expect(trail.moving_duration).toBe(1800);
+        expect(trailDisplayDuration(trail)).toBe(1800);
+    });
+});
