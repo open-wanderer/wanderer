@@ -3,6 +3,8 @@ package regions
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
 func TestIsValidRegionID(t *testing.T) {
@@ -44,18 +46,16 @@ func TestRegionIDCannotProduceTraversalPath(t *testing.T) {
 	}
 }
 
-func TestRegionArchivePath(t *testing.T) {
-	got := RegionArchivePath("bavaria")
-	want := filepath.Join(RegionCacheDir, "bavaria", "vector.pmtiles")
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-}
+func TestArchivePathsFollowTheDataDir(t *testing.T) {
+	app := core.NewBaseApp(core.BaseAppConfig{DataDir: filepath.Join("srv", "wanderer", "pb_data")})
 
-func TestRegionDemPath(t *testing.T) {
-	got := RegionDemPath("bavaria")
-	want := filepath.Join(RegionCacheDir, "bavaria", "dem.pmtiles")
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
+	if got, want := CacheDir(app), filepath.Join("srv", "wanderer", "pb_data", "region_archives"); got != want {
+		t.Errorf("CacheDir = %q, want %q", got, want)
+	}
+	if got, want := RegionArchivePath(app, "bavaria"), filepath.Join(CacheDir(app), "bavaria", "vector.pmtiles"); got != want {
+		t.Errorf("RegionArchivePath = %q, want %q", got, want)
+	}
+	if got, want := RegionDemPath(app, "bavaria"), filepath.Join(CacheDir(app), "bavaria", "dem.pmtiles"); got != want {
+		t.Errorf("RegionDemPath = %q, want %q", got, want)
 	}
 }

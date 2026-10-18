@@ -3,8 +3,22 @@ package regions
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"time"
 )
+
+// protomapsDateFormat is the date stamp in Protomaps daily-build URLs and in
+// region_archives.vector_built_date.
+const protomapsDateFormat = "20060102"
+
+// defaultRebuildDays is how old a vector archive may get before the nightly
+// pass re-extracts it.
+const defaultRebuildDays = 7
+
+// protomapsHTTPClient bounds the daily-build lookup. It runs while the sync
+// slot is held, so a request without a deadline could stall every later sync.
+var protomapsHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
 // ValidProtomapsDateAndURL resolves today's valid Protomaps daily-build date
 // and URL, falling back to yesterday's if today's build isn't live yet.
@@ -18,23 +32,23 @@ import (
 // The yesterday fallback is unconditional — it does not re-check urlExists —
 // matching generator.go's existing behavior exactly. A subsequently-failing
 // extract against a stale/missing daily build is handled by the caller's
-// setError path, not here.
+// setVectorError path, not here.
 func ValidProtomapsDateAndURL() (date string, url string) {
 	now := time.Now().UTC()
 
-	today := now.Format("20060102")
+	today := now.Format(protomapsDateFormat)
 	todayURL := fmt.Sprintf("https://build.protomaps.com/%s.pmtiles", today)
 	if urlExists(todayURL) {
 		return today, todayURL
 	}
 
-	yesterday := now.AddDate(0, 0, -1).Format("20060102")
+	yesterday := now.AddDate(0, 0, -1).Format(protomapsDateFormat)
 	return yesterday, fmt.Sprintf("https://build.protomaps.com/%s.pmtiles", yesterday)
 }
 
 // urlExists mirrors generator.go's urlExists (HEAD request, 200 check).
 func urlExists(url string) bool {
-	resp, err := http.Head(url)
+	resp, err := protomapsHTTPClient.Head(url)
 	if err != nil {
 		return false
 	}
@@ -42,12 +56,33 @@ func urlExists(url string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
+// rebuildDays reads REGION_ARCHIVE_REBUILD_DAYS, the age in days at which a
+// vector archive is re-extracted from a newer Protomaps build. Unset, invalid
+// or values below 1 fall back to defaultRebuildDays.
+func rebuildDays() int {
+	if v := os.Getenv("REGION_ARCHIVE_REBUILD_DAYS"); v != "" {
+		if days, err := strconv.Atoi(v); err == nil && days >= 1 {
+			return days
+		}
+	}
+	return defaultRebuildDays
+}
+
 // needsVectorRebuild reports whether a region's vector archive should be
-// rebuilt because the Protomaps daily-build date advanced since the last
-// successful build. storedDate == "" (never built) naturally returns
-// true since it always differs from a non-empty currentDate.
-func needsVectorRebuild(storedDate, currentDate string) bool {
-	return storedDate != currentDate
+// rebuilt: it has never been built, its stored date is unreadable, or it is at
+// least maxAgeDays older than the current Protomaps build. Protomaps publishes
+// a new build every day, so comparing for equality alone would re-extract
+// every enabled region every night.
+func needsVectorRebuild(storedDate, currentDate string, maxAgeDays int) bool {
+	stored, err := time.Parse(protomapsDateFormat, storedDate)
+	if err != nil {
+		return true
+	}
+	current, err := time.Parse(protomapsDateFormat, currentDate)
+	if err != nil {
+		return false
+	}
+	return current.Sub(stored) >= time.Duration(maxAgeDays)*24*time.Hour
 }
 
 // bboxChanged reports whether the region's config bbox differs from the

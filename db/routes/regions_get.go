@@ -2,12 +2,12 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
 	"pocketbase/services/regions"
@@ -103,6 +103,16 @@ func RegionsList(e *core.RequestEvent) error {
 		}
 	}
 
+	// One query for every archive row instead of one per leaf.
+	archivesByPath := make(map[string]*core.Record)
+	archiveRecords, err := e.App.FindAllRecords("region_archives")
+	if err != nil {
+		log.Printf("[regions] failed to query region_archives: %v", err)
+	}
+	for _, archive := range archiveRecords {
+		archivesByPath[archive.GetString("path")] = archive
+	}
+
 	entries := make([]map[string]any, 0, len(records))
 	for _, r := range records {
 		if filtering {
@@ -142,11 +152,8 @@ func RegionsList(e *core.RequestEvent) error {
 		}
 		entry["enabled"] = r.GetBool("enabled")
 
-		archiveRecords, _ := e.App.FindAllRecords("region_archives",
-			dbx.NewExp("path = {:path}", dbx.Params{"path": path}),
-		)
-
-		if len(archiveRecords) == 0 {
+		archive, ok := archivesByPath[path]
+		if !ok {
 			// No build has ever started for this region yet — first build
 			// pending.
 			entry["status"] = "building"
@@ -154,7 +161,6 @@ func RegionsList(e *core.RequestEvent) error {
 			continue
 		}
 
-		archive := archiveRecords[0]
 		status := archive.GetString("status")
 		entry["status"] = status
 
@@ -163,7 +169,7 @@ func RegionsList(e *core.RequestEvent) error {
 		}
 
 		if status == "ready" {
-			if _, err := os.Stat(regions.RegionArchivePath(path)); err == nil {
+			if _, err := os.Stat(regions.RegionArchivePath(e.App, path)); err == nil {
 				entry["vector_url"] = "/api/v1/regions/" + path + "/download"
 				entry["vector_size"] = int64(archive.GetFloat("vector_size_bytes"))
 			}
@@ -178,7 +184,7 @@ func RegionsList(e *core.RequestEvent) error {
 			entry["dem_status"] = demStatus
 		}
 		if demStatus == "ready" {
-			if _, err := os.Stat(regions.RegionDemPath(path)); err == nil {
+			if _, err := os.Stat(regions.RegionDemPath(e.App, path)); err == nil {
 				entry["dem_url"] = "/api/v1/regions/" + path + "/download-dem"
 				entry["dem_size"] = int64(archive.GetFloat("dem_size_bytes"))
 			}
@@ -194,29 +200,30 @@ func RegionsList(e *core.RequestEvent) error {
 // e.FileFS serves via the stdlib file server, which supports HTTP Range
 // requests — the resumable download engine relies on this.
 func RegionArchiveDownload(e *core.RequestEvent) error {
-	id := e.Request.PathValue("id")
-	if !regions.IsValidRegionID(id) {
-		return e.BadRequestError("invalid region id", nil)
-	}
-
-	if _, err := os.Stat(regions.RegionArchivePath(id)); err != nil {
-		return e.NotFoundError("Region archive not ready yet", nil)
-	}
-
-	return e.FileFS(os.DirFS(regions.RegionCacheDir), filepath.Join(id, "vector.pmtiles"))
+	return serveRegionArchive(e, "vector.pmtiles", "Region archive not ready yet")
 }
 
 // RegionArchiveDownloadDem streams a region's pre-built DEM archive bytes.
 // Same Range-support note as RegionArchiveDownload applies here.
 func RegionArchiveDownloadDem(e *core.RequestEvent) error {
+	return serveRegionArchive(e, "dem.pmtiles", "Region DEM archive not ready yet")
+}
+
+// serveRegionArchive serves one archive file with a strong ETag. Archives are
+// replaced by an atomic rename on every rebuild, so size and modification time
+// identify a build; the ETag lets If-Range reject a resumed download that would
+// otherwise splice two different builds together.
+func serveRegionArchive(e *core.RequestEvent, file, notReady string) error {
 	id := e.Request.PathValue("id")
 	if !regions.IsValidRegionID(id) {
 		return e.BadRequestError("invalid region id", nil)
 	}
 
-	if _, err := os.Stat(regions.RegionDemPath(id)); err != nil {
-		return e.NotFoundError("Region DEM archive not ready yet", nil)
+	info, err := os.Stat(filepath.Join(regions.CacheDir(e.App), id, file))
+	if err != nil || info.IsDir() {
+		return e.NotFoundError(notReady, nil)
 	}
 
-	return e.FileFS(os.DirFS(regions.RegionCacheDir), filepath.Join(id, "dem.pmtiles"))
+	e.Response.Header().Set("ETag", fmt.Sprintf(`"%x-%x"`, info.Size(), info.ModTime().UnixNano()))
+	return e.FileFS(os.DirFS(regions.CacheDir(e.App)), filepath.Join(id, file))
 }

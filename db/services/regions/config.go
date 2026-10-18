@@ -10,12 +10,18 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
-// RegionCacheDir is the on-disk root under which every region's pre-built
+// CacheDir returns the on-disk root under which every region's pre-built
 // archives are stored, one subdirectory per region id:
-// RegionCacheDir/{id}/vector.pmtiles and RegionCacheDir/{id}/dem.pmtiles.
-const RegionCacheDir = "./pb_data/region_archives"
+// CacheDir/{id}/vector.pmtiles and CacheDir/{id}/dem.pmtiles. It lives inside
+// the PocketBase data directory so archives follow --dir and are included in
+// backups of it.
+func CacheDir(app core.App) string {
+	return filepath.Join(app.DataDir(), "region_archives")
+}
 
 // regionIDPattern is the allow-list a region id must satisfy before it is
 // ever used to build a filesystem path. It now guards a seeded materialized
@@ -39,12 +45,12 @@ func IsValidRegionID(id string) bool {
 
 // RegionArchivePath returns the on-disk path to a region's pre-built vector
 // PMTiles archive.
-func RegionArchivePath(id string) string {
-	return filepath.Join(RegionCacheDir, id, "vector.pmtiles")
+func RegionArchivePath(app core.App, id string) string {
+	return filepath.Join(CacheDir(app), id, "vector.pmtiles")
 }
 
 // RegionDemPath returns the on-disk path to a region's pre-built DEM
 // PMTiles archive.
-func RegionDemPath(id string) string {
-	return filepath.Join(RegionCacheDir, id, "dem.pmtiles")
+func RegionDemPath(app core.App, id string) string {
+	return filepath.Join(CacheDir(app), id, "dem.pmtiles")
 }

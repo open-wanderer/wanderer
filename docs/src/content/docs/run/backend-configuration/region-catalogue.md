@@ -38,7 +38,7 @@ From here you can:
 
 ## Builds & scheduling
 
-A build pass runs automatically every night at 03:00 UTC and rebuilds archives that are outdated, because a newer Protomaps daily build is available, or because the region definition changed. While a region is being rebuilt, the previous archive keeps being served; the new file replaces it atomically only on success.
+A build pass runs automatically every night at 03:00 UTC. It builds newly enabled regions and rebuilds archives that are outdated: a vector archive once it is `REGION_ARCHIVE_REBUILD_DAYS` (default 7) days older than the current Protomaps daily build, and both archives when the region definition changed. The DEM archive is otherwise built once. While a region is being rebuilt, the previous archive keeps being served; the new file replaces it atomically only on success. If a rebuild fails, the region stays available with its previous archive and the next pass tries again.
 
 Two environment variables on the `db` service control the process (also listed in the [environment configuration](/run/environment-configuration)):
 
@@ -46,14 +46,15 @@ Two environment variables on the `db` service control the process (also listed i
 | ------------------------------ | ------------------------------------------------------------------------ | ---------- |
 | REGION_ARCHIVE_CRON_SCHEDULE   | Cron expression (UTC) for the nightly build pass                         | 0 3 * * *  |
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration for a single archive extraction (Go duration string)    | 30m        |
+| REGION_ARCHIVE_REBUILD_DAYS    | Age in days at which a vector archive is rebuilt                          | 7          |
 
-Archives are stored in `pb_data/region_archives/`, one folder per region containing `vector.pmtiles` and `dem.pmtiles`. If you delete files there manually, the backend reconciles its records with the files on disk at the next start.
+Archives are stored in the `region_archives/` folder of the PocketBase data directory (`pb_data`, or the directory passed with `--dir`), one folder per region containing `vector.pmtiles` and `dem.pmtiles`. If you delete files there manually, the backend reconciles its records with the files on disk at the next start, and removes leftovers of builds that were interrupted.
 
 :::caution
 Region archives can be large, from tens of megabytes for a small region to several gigabytes for large, densely mapped ones. Make sure the volume backing `pb_data` has enough free space before enabling many regions, and consider excluding `pb_data/region_archives` from your [backups](/run/backend-configuration/backup-server): the archives can always be rebuilt.
 :::
 
-Each build downloads only the enabled region's clipped extract (not the full planet file) from the upstream sources, but a region covering a whole country can still take a while; increase `REGION_ARCHIVE_EXTRACT_TIMEOUT` if builds of very large regions fail with a timeout. Regions are built **one after another** within a pass, so enabling many regions at once lengthens the pass rather than the load. Extraction runs as a `pmtiles extract` subprocess inside the `db` container (the [go-pmtiles](https://github.com/protomaps/go-pmtiles) binary ships in the image); if you run the backend from source, `pmtiles` must be on the `PATH` of the `db` process.
+Each build downloads only the enabled region's clipped extract (not the full planet file) from the upstream sources, but a region covering a whole country can still take a while; increase `REGION_ARCHIVE_EXTRACT_TIMEOUT` if builds of very large regions fail with a timeout. Regions are built **one after another** within a pass, so enabling many regions at once lengthens the pass rather than the load. Extraction runs as a `pmtiles extract` subprocess inside the `db` container (the [go-pmtiles](https://github.com/protomaps/go-pmtiles) binary ships in the image); if you run the backend from source, `pmtiles` must be on the `PATH` of the `db` process. The backend logs a warning at startup when it cannot find it.
 
 ### Outbound connections
 
@@ -71,7 +72,7 @@ Archive sizes vary widely and the two archives don't scale together: the **vecto
 
 ## Troubleshooting
 
-- **A region shows an error status**: check the `db` service logs for `[regions]` entries. Typical causes are an upstream download failure or a timeout; the next sync (or "Sync now") retries automatically.
+- **A region shows an error status**: its first build failed. Check the `db` service logs for `[regions]` entries. Typical causes are an upstream download failure or a timeout; the next sync (or "Sync now") retries automatically. A failed *rebuild* of a region that already has an archive does not change its status: app users keep the previous archive, and the error is recorded in the `error_message` and `dem_error_message` fields of its `region_archives` record.
 - **Downloads require login**: region listing and archive downloads are only available to authenticated users. Anonymous visitors cannot download archives.
 - **How this looks to app users**: a region that is enabled but not yet built appears greyed out as *Not yet available*; a failed build appears as *Build failed*. Users cannot see the error itself; they will come to you.
 - **Custom reverse proxy or from-source setups**: the app reaches the catalogue through the web frontend at `/api/v1/regions/*`, which proxies to the `db` service. Make sure that path reaches the frontend (not the backend directly) and that your proxy allows responses of several gigabytes for the archive downloads.
