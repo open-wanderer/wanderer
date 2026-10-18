@@ -591,3 +591,21 @@ func TestListSearchTotalsIncludeOnlyTrailsReadableByTheAuthor(t *testing.T) {
 		t.Fatalf("incremental list totals differ: %#v", updated)
 	}
 }
+
+// Trail cards, lists and map popups are built from search documents and
+// prefer the moving time over the total duration when a trail has one.
+func TestDocumentFromTrailRecordIncludesMovingDuration(t *testing.T) {
+	author := newActorRecord("localauthor0001", "local", true, "example.com")
+	trail := newTrailRecord("movingtrail0001", author.Id)
+	trail.Collection().Fields.Add(&core.NumberField{Name: "duration"}, &core.NumberField{Name: "moving_duration"})
+	trail.Set("duration", 3432)
+	trail.Set("moving_duration", 1800)
+
+	document, err := documentFromTrailRecord(trail, author, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document["moving_duration"] != 1800.0 || document["duration"] != 3432.0 {
+		t.Fatalf("document durations = %v / %v; want 3432 and a moving_duration of 1800", document["duration"], document["moving_duration"])
+	}
+}
