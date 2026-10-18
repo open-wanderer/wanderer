@@ -60,7 +60,7 @@ chmod +x /tmp/pmtiles ;
 # ==========================================
 # 3. BUILD POCKETBASE (Native Intel Cross-Compilation)
 # ==========================================
-FROM golang:1.26@sha256:9d2f36f06329b2a141b9db99ffa32765cf695ee57b813ca29e245e8670bcbfff AS build
+FROM --platform=$BUILDPLATFORM golang:1.26@sha256:9d2f36f06329b2a141b9db99ffa32765cf695ee57b813ca29e245e8670bcbfff AS build
 
 WORKDIR /app
 
@@ -71,11 +71,10 @@ COPY . .
 
 ARG TARGETOS
 ARG TARGETARCH
-RUN go mod download
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/pocketbase
 RUN install -d -m 1777 /rootfs/tmp
 
-RUN --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -o /app/pocketbase
 
