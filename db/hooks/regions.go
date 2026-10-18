@@ -3,6 +3,7 @@ package hooks
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -71,6 +72,19 @@ func ValidateRegionPathReferenceHandler() func(e *core.RecordEvent) error {
 // row must be committed before ResolveGeometry reads its enabled flag back,
 // and the geometry write must not join the enabling update's transaction.
 //
+// geometryFetchSlots bounds how many enable-triggered geometry fetches run at
+// once. Enabling a large group commits one PATCH per leaf (the United States
+// alone have more than 150), and an unbounded goroutine per PATCH would fire
+// all of those upstream requests at the same moment.
+var geometryFetchSlots = make(chan struct{}, 2)
+
+// geometryFetchesInFlight dedupes fetches for a region that is enabled again
+// while its first fetch is still queued or running.
+var (
+	geometryFetchesMu       sync.Mutex
+	geometryFetchesInFlight = map[string]struct{}{}
+)
+
 // The fetch runs in a goroutine so a ~hundreds-of-ms upstream CoMaps request
 // never blocks the PATCH response — the picker's bulk enable PATCHes leaves in
 // chunks, and serialising an upstream fetch into each one would make enabling
@@ -96,7 +110,23 @@ func CacheGeometryOnEnableHandler(app core.App) func(e *core.RecordEvent) error 
 
 		path := e.Record.GetString("path")
 
+		geometryFetchesMu.Lock()
+		if _, queued := geometryFetchesInFlight[path]; queued {
+			geometryFetchesMu.Unlock()
+			return nil
+		}
+		geometryFetchesInFlight[path] = struct{}{}
+		geometryFetchesMu.Unlock()
+
 		go func() {
+			geometryFetchSlots <- struct{}{}
+			defer func() {
+				<-geometryFetchSlots
+				geometryFetchesMu.Lock()
+				delete(geometryFetchesInFlight, path)
+				geometryFetchesMu.Unlock()
+			}()
+
 			// Re-read the record inside the goroutine rather than closing over
 			// e.Record: the event's record is mutable and may be reused after
 			// this hook returns, and re-reading also confirms the enable

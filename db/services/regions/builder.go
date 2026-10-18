@@ -111,7 +111,8 @@ func BuildAll(app core.App) {
 // and pre-builds each region's vector + DEM archives, one
 // region fully completing before the next starts (bounds subprocess
 // concurrency to 1). A query error or a single region's build failure is
-// logged and never aborts the whole pass.
+// logged and never aborts the whole pass. The Protomaps daily build is
+// resolved once per pass rather than once per region.
 //
 // Callers MUST already hold the sync slot (via a successful TryStartSync,
 // released with FinishSync) — this function does not claim it itself, so
@@ -129,22 +130,27 @@ func BuildAllLocked(app core.App) {
 		return
 	}
 
+	if len(leafRecords) == 0 {
+		return
+	}
+
+	date, url := ValidProtomapsDateAndURL()
 	for _, record := range leafRecords {
-		buildRegionSafely(app, record)
+		buildRegionSafely(app, record, date, url)
 	}
 }
 
 // buildRegionSafely wraps buildRegion with a recover so a single region's
 // unexpected panic can never abort BuildAll's loop over the remaining
 // regions.
-func buildRegionSafely(app core.App, record *core.Record) {
+func buildRegionSafely(app core.App, record *core.Record, date, url string) {
 	regionID := record.GetString("path")
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("[regions] recovered from panic building region %s: %v", regionID, rec)
 		}
 	}()
-	buildRegion(app, record)
+	buildRegion(app, record, date, url)
 }
 
 // buildRegion pre-builds one region's vector and, best-effort, DEM archive.
@@ -152,7 +158,7 @@ func buildRegionSafely(app core.App, record *core.Record) {
 // in-flight guard. regionID is the leaf's materialized `path`
 // (A2 — the provably-unique key across the seeded catalog, unlike
 // comaps_id).
-func buildRegion(app core.App, record *core.Record) {
+func buildRegion(app core.App, record *core.Record, date, url string) {
 	regionID := record.GetString("path")
 	name := record.GetString("name")
 
@@ -174,7 +180,7 @@ func buildRegion(app core.App, record *core.Record) {
 		inFlightMu.Unlock()
 	}()
 
-	if err := os.MkdirAll(filepath.Join(RegionCacheDir, regionID), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(CacheDir(app), regionID), 0755); err != nil {
 		log.Printf("[regions] failed to create cache dir for region %s: %v", regionID, err)
 		return
 	}
@@ -194,7 +200,7 @@ func buildRegion(app core.App, record *core.Record) {
 	// The preserved property: a well-formed cached row still costs zero
 	// network (ResolveGeometry returns it with no fetch).
 	//
-	// Only a failed refetch reaches setError — this is the last
+	// Only a failed refetch reaches setVectorError — this is the last
 	// resort, after ResolveGeometry has already attempted the self-heal.
 	geometry, bbox, err := ResolveGeometry(app, record)
 	if err != nil {
@@ -203,7 +209,7 @@ func buildRegion(app core.App, record *core.Record) {
 		// to resolve — so there is nothing to mark. Log instead. Either way
 		// buildRegionSafely's per-region isolation keeps the run going.
 		if archive, findErr := findRegionArchiveRecord(app, regionID); findErr == nil && archive != nil {
-			_ = setError(app, archive, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
+			setVectorError(app, archive, regionID, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
 		} else {
 			log.Printf("[regions] failed to resolve geometry for region %s (no archive record to mark): %v", regionID, err)
 		}
@@ -236,8 +242,7 @@ func buildRegion(app core.App, record *core.Record) {
 		}
 	}
 
-	date, url := ValidProtomapsDateAndURL()
-	needsVector := configChanged || needsVectorRebuild(archive.GetString("vector_built_date"), date)
+	needsVector := configChanged || needsVectorRebuild(archive.GetString("vector_built_date"), date, rebuildDays())
 
 	// DEM builds once and never auto-rebuilds unless the catalog bbox
 	// changed — Mapterhorn's source has no date-stamped URL to
@@ -334,7 +339,7 @@ func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float
 // protect). Clips to the region's canonical polygon (polyPath)
 // rather than its bounding box.
 func buildVector(app core.App, archive *core.Record, regionID, polyPath, url, date string) {
-	final := RegionArchivePath(regionID)
+	final := RegionArchivePath(app, regionID)
 	tmp := final + ".building"
 
 	if _, err := os.Stat(final); err != nil {
@@ -360,18 +365,18 @@ func buildVector(app core.App, archive *core.Record, regionID, polyPath, url, da
 
 	if err := cmd.Run(); err != nil {
 		os.Remove(tmp)
-		_ = setError(app, archive, fmt.Errorf("pmtiles extract (vector) failed for region %s: %w", regionID, err))
+		setVectorError(app, archive, regionID, fmt.Errorf("pmtiles extract (vector) failed for region %s: %w", regionID, err))
 		return
 	}
 
 	fi, err := os.Stat(tmp)
 	if err != nil {
-		_ = setError(app, archive, fmt.Errorf("could not stat vector output for region %s: %w", regionID, err))
+		setVectorError(app, archive, regionID, fmt.Errorf("could not stat vector output for region %s: %w", regionID, err))
 		return
 	}
 
 	if err := os.Rename(tmp, final); err != nil {
-		_ = setError(app, archive, fmt.Errorf("could not promote vector archive for region %s: %w", regionID, err))
+		setVectorError(app, archive, regionID, fmt.Errorf("could not promote vector archive for region %s: %w", regionID, err))
 		return
 	}
 
@@ -394,7 +399,7 @@ func buildVector(app core.App, archive *core.Record, regionID, polyPath, url, da
 // generator's generateDemCell. Clips to the region's canonical polygon
 // (polyPath) rather than its bounding box.
 func buildDem(app core.App, archive *core.Record, regionID, polyPath string) {
-	final := RegionDemPath(regionID)
+	final := RegionDemPath(app, regionID)
 	tmp := final + ".building"
 
 	if _, err := os.Stat(final); err != nil {
@@ -420,29 +425,18 @@ func buildDem(app core.App, archive *core.Record, regionID, polyPath string) {
 
 	if err := cmd.Run(); err != nil {
 		os.Remove(tmp)
-		log.Printf("[regions] DEM extract failed for region %s: %v", regionID, err)
-		archive.Set("dem_status", "error")
-		archive.Set("dem_error_message", err.Error())
-		if err := app.Save(archive); err != nil {
-			log.Printf("[regions] failed to save DEM-error record for region %s: %v", regionID, err)
-		}
+		setDemError(app, archive, regionID, fmt.Errorf("pmtiles extract (DEM) failed for region %s: %w", regionID, err))
 		return
 	}
 
 	fi, err := os.Stat(tmp)
 	if err != nil {
-		log.Printf("[regions] could not stat DEM output for region %s: %v", regionID, err)
-		archive.Set("dem_status", "error")
-		archive.Set("dem_error_message", err.Error())
-		_ = app.Save(archive)
+		setDemError(app, archive, regionID, fmt.Errorf("could not stat DEM output for region %s: %w", regionID, err))
 		return
 	}
 
 	if err := os.Rename(tmp, final); err != nil {
-		log.Printf("[regions] could not promote DEM archive for region %s: %v", regionID, err)
-		archive.Set("dem_status", "error")
-		archive.Set("dem_error_message", err.Error())
-		_ = app.Save(archive)
+		setDemError(app, archive, regionID, fmt.Errorf("could not promote DEM archive for region %s: %w", regionID, err))
 		return
 	}
 
@@ -457,11 +451,29 @@ func buildDem(app core.App, archive *core.Record, regionID, polyPath string) {
 	log.Printf("[regions] DEM archive for region %s ready (%d bytes)", regionID, fi.Size())
 }
 
-// setError marks record's vector build as failed and persists the error
-// message. Mirrors the per-cell generator's setError.
-func setError(app core.App, record *core.Record, err error) error {
-	record.Set("status", "error")
+// setVectorError records a failed vector build. When a previous archive is
+// still on disk the region stays "ready" so clients keep downloading it; the
+// failure is only recorded in error_message. Without one the region is marked
+// "error".
+func setVectorError(app core.App, record *core.Record, regionID string, err error) {
+	log.Printf("[regions] %v", err)
+	if !archiveFileExists(RegionArchivePath(app, regionID)) {
+		record.Set("status", "error")
+	}
 	record.Set("error_message", err.Error())
-	_ = app.Save(record)
-	return err
+	if saveErr := app.Save(record); saveErr != nil {
+		log.Printf("[regions] failed to save vector error for region %s: %v", regionID, saveErr)
+	}
+}
+
+// setDemError is setVectorError for the DEM archive.
+func setDemError(app core.App, record *core.Record, regionID string, err error) {
+	log.Printf("[regions] %v", err)
+	if !archiveFileExists(RegionDemPath(app, regionID)) {
+		record.Set("dem_status", "error")
+	}
+	record.Set("dem_error_message", err.Error())
+	if saveErr := app.Save(record); saveErr != nil {
+		log.Printf("[regions] failed to save DEM error for region %s: %v", regionID, saveErr)
+	}
 }
