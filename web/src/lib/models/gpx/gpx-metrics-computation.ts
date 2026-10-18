@@ -1,3 +1,4 @@
+import { parseGpxNumber } from './number';
 import { haversineDistance } from './utils';
 
 /**
@@ -10,17 +11,11 @@ import { haversineDistance } from './utils';
  * programmatically constructed waypoints. This is the single coercion point:
  * `undefined`/`null`/empty-or-whitespace strings/non-numeric strings/`NaN`/
  * `Infinity` all map to `undefined` ("no data"), while a genuine `0` (numeric
- * or `"0"`) is preserved as real sea-level data.
+ * or `"0"`) is preserved as real sea-level data. Only decimal numbers count,
+ * as in the app's reader: `"0x10"` is no reading, not 16 m.
  */
 export function parseElevation(raw: unknown): number | undefined {
-  if (raw === undefined || raw === null) {
-    return undefined;
-  }
-  if (typeof raw === 'string' && raw.trim() === '') {
-    return undefined;
-  }
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return parseGpxNumber(raw);
 }
 
 class GpxMetricsComputation {
