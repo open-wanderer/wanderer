@@ -390,7 +390,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	// deviates from every other unprefixed custom Go route in this file. It
 	// is reachable only from inside the docker network — a SvelteKit proxy
 	// under the same public path forwards external requests to it
-	// (web/src/routes/regions/**). Auth is ENABLED: any logged-in user, for
+	// (web/src/routes/api/v1/regions/**). Auth is ENABLED: any logged-in user, for
 	// both the catalog listing and the archive downloads.
 	regionsGroup := se.Router.Group("/regions")
 	regionsGroup.Bind(apis.RequireAuth())
