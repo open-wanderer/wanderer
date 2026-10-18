@@ -43,8 +43,7 @@ for (const [locale, language] of [['de-CH', 'de'], ['fr-FR', 'fr'], ['ja-JP', 'e
                 expect(user.ok()).toBeTruthy();
                 const saved = await user.json();
                 expect(saved.username).toBe(username);
-                expect(saved.expand.settings_via_user).toHaveLength(1);
-                expect(saved.expand.settings_via_user[0]).toMatchObject({ user: userId, language });
+                expect(saved.expand.settings_via_user).toMatchObject({ user: userId, language });
             } finally {
                 if (userId) {
                     await page.waitForLoadState('networkidle');
@@ -108,7 +107,7 @@ test.describe('registration when the language cannot be saved', () => {
             const saved = await user.json();
             expect(saved.id).toBe(userId);
             expect(saved.username).toBe(username);
-            expect(saved.expand.settings_via_user[0]).toMatchObject({ user: userId, language: 'en' });
+            expect(saved.expand.settings_via_user).toMatchObject({ user: userId, language: 'en' });
 
             await page.reload({ waitUntil: 'networkidle' });
             await expect(page.getByText('Error saving settings', { exact: true })).toHaveCount(0);
