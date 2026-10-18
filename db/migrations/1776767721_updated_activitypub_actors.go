@@ -17,9 +17,9 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_rpT7QJwWTm` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (` + "`" + `iri` + "`" + `)",
+				"CREATE UNIQUE INDEX `+"`"+`idx_rpT7QJwWTm`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (`+"`"+`iri`+"`"+`)",
 				"CREATE INDEX idx_actors_username_domain\nON activitypub_actors(preferred_username, domain);",
-				"CREATE UNIQUE INDEX ` + "`" + `idx_activitypub_actors_user` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (` + "`" + `user` + "`" + `) WHERE user IS NOT NULL AND user != \"\";\n"
+				"CREATE UNIQUE INDEX `+"`"+`idx_activitypub_actors_user`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (`+"`"+`user`+"`"+`) WHERE user IS NOT NULL AND user != \"\";\n"
 			]
 		}`), &collection); err != nil {
 			return err
@@ -35,7 +35,7 @@ func init() {
 		// update collection data
 		if err := json.Unmarshal([]byte(`{
 			"indexes": [
-				"CREATE UNIQUE INDEX ` + "`" + `idx_rpT7QJwWTm` + "`" + ` ON ` + "`" + `activitypub_actors` + "`" + ` (` + "`" + `iri` + "`" + `)",
+				"CREATE UNIQUE INDEX `+"`"+`idx_rpT7QJwWTm`+"`"+` ON `+"`"+`activitypub_actors`+"`"+` (`+"`"+`iri`+"`"+`)",
 				"CREATE INDEX idx_actors_username_domain\nON activitypub_actors(preferred_username, domain);",
 				"CREATE INDEX idx_activitypub_actors_user ON activitypub_actors(user);"
 			]
