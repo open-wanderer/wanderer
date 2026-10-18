@@ -29,6 +29,7 @@ var upgradeMigrations = []string{
 	"1791200000_updated_settings_create_rule.go",
 	"1791200001_updated_profile_feed.go",
 	"1791200002_restore_actor_handle_index.go",
+	"1791200200_correlate_trail_bounds_view.go",
 }
 
 // The delete-recipient queries join activitypub_actors on inbox; without that
