@@ -18,7 +18,7 @@ function hit(field: string, value: number) {
     return { hits: [{ [field]: value }] };
 }
 
-function buildEvent(options: { handle?: string } = {}): RequestEvent {
+function buildEvent(options: { handle?: string; anonymous?: boolean } = {}): RequestEvent {
     const url = new URL(
         `http://localhost/api/v1/trail/bounding-box${
             options.handle ? `?handle=${encodeURIComponent(options.handle)}` : ''
@@ -33,7 +33,7 @@ function buildEvent(options: { handle?: string } = {}): RequestEvent {
         url,
         locals: {
             pb: {
-                authStore: { record: { id: 'me' } },
+                authStore: { record: options.anonymous ? null : { id: 'me' } },
             },
             ms: { multiSearch },
         },
@@ -53,6 +53,28 @@ function remoteActor() {
 describe('GET /api/v1/trail/bounding-box', () => {
     beforeEach(() => {
         mockedGetActor.mockReset();
+    });
+
+    it('answers an anonymous request without a handle with the world view', async () => {
+        const event = buildEvent({ anonymous: true });
+
+        const body = await (await GET(event)).json();
+
+        expect(body.has_trails).toBe(false);
+        expect((event.locals as any).ms.multiSearch).not.toHaveBeenCalled();
+    });
+
+    it('answers an anonymous request for a local profile, as another instance sends it', async () => {
+        mockedGetActor.mockResolvedValue({
+            actor: { id: 'actor-123', is_local: true, iri: 'http://localhost/actor/1', preferred_username: 'tester' } as any,
+        });
+        const event = buildEvent({ handle: 'tester', anonymous: true });
+
+        const body = await (await GET(event)).json();
+
+        expect(body).toEqual({ min_lat: 1, max_lat: 2, min_lon: 3, max_lon: 4, has_trails: true });
+        const call = ((event.locals as any).ms.multiSearch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(call.queries[0].filter).toEqual(['author = actor-123']);
     });
 
     it('leaves the filter undefined when no handle is supplied', async () => {

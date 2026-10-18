@@ -64,7 +64,9 @@ async function boundingBoxForFederatedActor(event: RequestEvent, actor: Actor): 
  *     summary: Get trail bounding box
  *     description: Retrieves geographic bounding box (lat/lon bounds) for user's trails, or, when
  *       `handle` is supplied, for a single profile's trails (proxied to the origin instance when
- *       that profile is federated).
+ *       that profile is federated). Without `handle` it requires a login and returns the world
+ *       view otherwise; with `handle`, anonymous callers (including other instances) get the
+ *       box of the profile's public trails.
  *     tags:
  *       - Trails
  *     parameters:
@@ -100,11 +102,15 @@ async function boundingBoxForFederatedActor(event: RequestEvent, actor: Actor): 
  *         description: Internal Server Error
  */
 export async function GET(event: RequestEvent) {
-    if (!event.locals.pb.authStore.record) {
+    const handle = event.url.searchParams.get("handle");
+
+    // A profile's box is answered for anonymous callers too: that is how
+    // another instance asks for one of our profiles, and the search token of
+    // an anonymous request only matches public trails. Only the caller's own
+    // box needs a login.
+    if (!handle && !event.locals.pb.authStore.record) {
         return json(worldViewBoundingBox);
     }
-
-    const handle = event.url.searchParams.get("handle");
 
     try {
         let baseFilter: string | string[] | undefined = undefined;
