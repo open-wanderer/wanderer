@@ -50,7 +50,7 @@ base('renders one shared-list layout when previewing inline rich text', async ({
     const expectedPreview = Array.from(descriptionText).slice(0, 100).join('');
 
     await listsPage.goto();
-    await listsPage.createListButton.click();
+    await listsPage.openCreateList();
     await listsPage.listFormName.fill(testListName);
     await listsPage.listFormDescription.fill(descriptionText);
     await listsPage.listFormDescription.press('ControlOrMeta+a');
@@ -97,10 +97,8 @@ base('renders one shared-list layout when previewing inline rich text', async ({
             { waitUntil: 'domcontentloaded' },
         );
 
-        // The full SSR load exposes controls before their client handlers attach.
-        // The map canvas appears after hydration and makes the interaction ready.
-        await expect(page.locator('#trail-map canvas.maplibregl-canvas')).toBeVisible();
-
+        // The direct link is server-rendered; wait for hydration before clicking.
+        await expect(page.locator('.list-results')).toHaveAttribute('aria-busy', 'false');
         const heading = page.getByRole('heading', { name: testListName });
         await expect(heading).toHaveCount(1);
 

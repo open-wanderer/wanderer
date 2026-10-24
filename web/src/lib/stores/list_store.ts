@@ -10,6 +10,7 @@ import { currentUser } from "./user_store";
 import { objectToFormData } from "$lib/util/file_util";
 
 let lists: List[] = []
+let listSearchRevision = 0;
 export const list: Writable<List | null> = writable(null)
 export const listTrail: Writable<Trail | null> = writable(null);
 
@@ -43,7 +44,8 @@ export async function lists_index(filter?: ListFilter, page: number = 1, perPage
 }
 
 
-export async function lists_search_filter(filter: ListFilter, page: number = 1, perPage: number = 30, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, user?: AuthRecord) {
+async function searchLists(filter: ListFilter, page: number, perPage: number,
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response>, user?: AuthRecord) {
     user ??= get(currentUser)
 
     const filterText = buildSearchFilterText(user, filter)
@@ -65,9 +67,16 @@ export async function lists_search_filter(filter: ListFilter, page: number = 1, 
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    const fetchedLists: { page: number, totalPages: number, hits: Hits<ListSearchResult> } = await r.json();
+    return await r.json() as { page: number, totalPages: number, totalHits: number, hits: Hits<ListSearchResult> };
+
+}
+
+export async function lists_search_filter(filter: ListFilter, page: number = 1, perPage: number = 30, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, user?: AuthRecord) {
+    const revision = page === 1 ? ++listSearchRevision : listSearchRevision;
+    const fetchedLists = await searchLists(filter, page, perPage, f, user);
 
     const resultLists: List[] = await searchResultToLists(fetchedLists.hits)
+    if (revision !== listSearchRevision) return { items: resultLists, ...fetchedLists };
 
     const result = page > 1 ? [...lists, ...resultLists] : resultLists
 

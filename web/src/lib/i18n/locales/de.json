@@ -758,5 +758,7 @@
   "settings-search-help": "Mit aktiviertem Schalter erscheint der Filter unter „Weitere Filter“, sonst direkt in der allgemeinen Suche.",
   "settings-search-placement": "Zuordnung der Suchfilter",
   "settings-search-advanced": "Erweiterte Suche",
-  "settings-search-error": "Die Zuordnung konnte nicht gespeichert werden. Bitte versuche es erneut."
+  "settings-search-error": "Die Zuordnung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+  "list-search-placeholder": "Durchsuche deine Listen",
+  "list-results-count": "{n, plural, =1 {# Liste} other {# Listen}}"
 }
