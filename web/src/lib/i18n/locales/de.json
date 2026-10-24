@@ -753,5 +753,10 @@
   "trail-map-show-map": "Zur Karte wechseln",
   "trail-search-map-area": "Kartenausschnitt",
   "trail-results-load-more": "Mehr laden",
-  "trail-results-loading-more": "Weitere Trails werden geladen…"
+  "trail-results-loading-more": "Weitere Trails werden geladen…",
+  "settings-search": "Suche",
+  "settings-search-help": "Mit aktiviertem Schalter erscheint der Filter unter „Weitere Filter“, sonst direkt in der allgemeinen Suche.",
+  "settings-search-placement": "Zuordnung der Suchfilter",
+  "settings-search-advanced": "Erweiterte Suche",
+  "settings-search-error": "Die Zuordnung konnte nicht gespeichert werden. Bitte versuche es erneut."
 }

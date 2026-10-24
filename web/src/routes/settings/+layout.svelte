@@ -20,6 +20,7 @@
             value: "/settings/language",
         },
         { text: $_("notifications"), value: "/settings/notifications" },
+        { text: $_("settings-search"), value: "/settings/search" },
         { text: $_("map"), value: "/settings/map" },
         { text: $_("categories"), value: "/settings/categories" },
         { text: $_("plugins"), value: "/settings/plugins" },

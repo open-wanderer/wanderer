@@ -1,6 +1,7 @@
 import { z, ZodType } from "zod";
 import { NotificationType } from "../notification";
 import { Language, type Settings } from "../settings";
+import { trailSearchFilters, type TrailSearchFilterId } from "../trail_search_settings";
 
 const SettingsCreateSchema = z.object({
     unit: z.enum(["metric", "imperial"]).optional(),
@@ -25,7 +26,11 @@ const SettingsCreateSchema = z.object({
     behavior: z.object({
         allowAutoGeolocate: z.boolean(),
         mapClusteringMaxZoom: z.number().optional(),
-        showTrailStartMarker: z.boolean().optional()
+        showTrailStartMarker: z.boolean().optional(),
+        searchFilterSections: z.record(
+            z.enum(trailSearchFilters.map(filter => filter.id) as [TrailSearchFilterId, ...TrailSearchFilterId[]]),
+            z.enum(["general", "advanced"]),
+        ).optional(),
     }).optional().nullable(),
 }) satisfies ZodType<Settings>
 

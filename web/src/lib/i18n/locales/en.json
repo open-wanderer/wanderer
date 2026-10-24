@@ -753,5 +753,10 @@
   "trail-map-show-map": "Switch to map",
   "trail-search-map-area": "Map area",
   "trail-results-load-more": "Load more",
-  "trail-results-loading-more": "Loading more trails…"
+  "trail-results-loading-more": "Loading more trails…",
+  "settings-search": "Search",
+  "settings-search-help": "Enable a switch to show that filter under “More filters”; otherwise it appears directly in general search.",
+  "settings-search-placement": "Search filter placement",
+  "settings-search-advanced": "Advanced search",
+  "settings-search-error": "Could not save the layout. Please try again."
 }
