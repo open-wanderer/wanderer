@@ -107,6 +107,7 @@ export function trailFilterDateBoundary(
 }
 
 const TRAIL_SORT_OPTIONS = new Set([
+    "relevance",
     "name",
     "distance",
     "duration",
@@ -211,6 +212,7 @@ export function sanitizeTrailFilter(
         near: {
             lat: getNumber(near.lat, defaultFilter.near.lat),
             lon: getNumber(near.lon, defaultFilter.near.lon),
+            name: getString(near.name, defaultFilter.near.name),
             radius: Math.max(1, getNumber(near.radius, defaultFilter.near.radius)),
         },
         distanceLimit: defaultFilter.distanceLimit,

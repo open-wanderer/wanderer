@@ -2,6 +2,7 @@ import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_
 import { error, json, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
 import { MAP_MAX_POLYLINES } from "$lib/config/map";
+import { buildTrailSearchBoundsFilter } from "$lib/util/trail_search_util";
 
 function isFiniteNumber(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value);
@@ -24,30 +25,35 @@ export async function POST(event: RequestEvent) {
     }
 
     try {
-        let lonFilter = `max_lon >= ${southWest.lng} AND min_lon <= ${northEast.lng}`;
-        if (southWest.lng > northEast.lng) {
-            lonFilter = `(max_lon >= ${southWest.lng} OR min_lon <= ${northEast.lng})`;
-        }
-    
-        const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
-        
+        const geoFilter = buildTrailSearchBoundsFilter({ northEast, southWest });
+        const baseFilters = [geoFilter, filterText].filter(f => f && f !== "");
         const summaryQuery = {
             indexUid: "trails",
             q,
             filter: await withTrailPreferenceMeiliFilter(
                 event,
-                [geoFilter, filterText].filter(f => f && f !== ""),
+                baseFilters,
             ),
             attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal"],
-            limit: 10000, 
+            limit: 10000,
         };
-
-        const r = await event.locals.ms.multiSearch({
-            queries: [summaryQuery]
+        // Existence outside the viewport is reliable even when result counts
+        // reach Meilisearch's pagination limit. Apply the same query and access
+        // constraints, so unrelated or inaccessible trails cannot activate scope.
+        const outsideFilters = [`NOT (${geoFilter})`, filterText].filter(Boolean);
+        const outsideQuery = {
+            ...summaryQuery,
+            filter: await withTrailPreferenceMeiliFilter(event, outsideFilters),
+            attributesToRetrieve: ["id"],
+            limit: 1,
+        };
+        const response = await event.locals.ms.multiSearch({
+            queries: [summaryQuery, outsideQuery],
         });
+        const hits = response.results[0].hits;
+        const totalHits = response.results[0].estimatedTotalHits ?? response.results[0].totalHits;
+        const hasOutsideBounds = response.results[1].hits.length > 0;
 
-        const hits = r.results[0].hits;
-        
         const clusteringMaxZoom = event.locals.settings?.behavior?.mapClusteringMaxZoom ?? 11;
         const forceClustering = zoom < clusteringMaxZoom;
 
@@ -123,7 +129,8 @@ export async function POST(event: RequestEvent) {
         return json({
             type: "FeatureCollection",
             features: [...normalizedSmallFeatures, ...largeFeatures],
-            totalHits: r.results[0].estimatedTotalHits ?? r.results[0].totalHits
+            totalHits,
+            hasOutsideBounds,
         });
     } catch (e: any) {
         console.error("Clustering error:", e);

@@ -577,3 +577,80 @@ func TestRealMeiliStartupWaitsForMeilisearch(t *testing.T) {
 		t.Fatalf("filterable attributes = %v, %v; want the index settings", filterable, err)
 	}
 }
+
+// The production index keeps Meilisearch's default pagination cap, including
+// when more documents match and when the map requests a larger limit.
+func TestRealMeiliTrailSearchRespectsPaginationLimit(t *testing.T) {
+	client := startRealMeili(t)
+	initMeilisearchConfig(client)
+
+	const count = 1500
+	documents := make([]map[string]any, count)
+	for i := range documents {
+		documents[i] = map[string]any{
+			"id": fmt.Sprintf("trail-%04d", i), "name": "Trail", "created": i,
+			"_geo": map[string]float64{"lat": 47, "lng": 8},
+		}
+	}
+	if _, err := client.Index("trails").AddDocuments(documents, util.SearchWriteOptions); err != nil {
+		t.Fatal(err)
+	}
+	waitForIdleMeili(t, client)
+
+	t.Run("all accessible pages end at 1000", func(t *testing.T) {
+		seen := 0
+		for page := int64(1); page <= 21; page++ {
+			result, err := client.Index("trails").Search("", &meilisearch.SearchRequest{
+				Page: page, HitsPerPage: 48, Sort: []string{"created:asc"},
+				AttributesToRetrieve: []string{"id"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := min(48, 1000-seen)
+			if result.Hits.Len() != expected {
+				t.Fatalf("page %d: hits=%d; want %d", page, result.Hits.Len(), expected)
+			}
+			var hits []struct {
+				ID string `json:"id"`
+			}
+			if err := result.Hits.Decode(&hits); err != nil {
+				t.Fatal(err)
+			}
+			for _, hit := range hits {
+				if expectedID := fmt.Sprintf("trail-%04d", seen); hit.ID != expectedID {
+					t.Fatalf("hit %d = %s; want %s", seen, hit.ID, expectedID)
+				}
+				seen++
+			}
+		}
+		if seen != 1000 {
+			t.Fatalf("loaded %d trails; want 1000", seen)
+		}
+	})
+
+	t.Run("loaded prefix stays within 1000", func(t *testing.T) {
+		result, err := client.Index("trails").Search("", &meilisearch.SearchRequest{
+			Page: 1, HitsPerPage: 1000, Sort: []string{"created:asc"},
+			AttributesToRetrieve: []string{"id"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Hits.Len() != 1000 {
+			t.Fatalf("prefix hits=%d; want 1000", result.Hits.Len())
+		}
+	})
+
+	t.Run("map marker query stays within 1000", func(t *testing.T) {
+		result, err := client.Index("trails").Search("", &meilisearch.SearchRequest{
+			Limit: 10000, AttributesToRetrieve: []string{"id", "_geo"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Hits.Len() != 1000 {
+			t.Fatalf("map hits=%d; want 1000", result.Hits.Len())
+		}
+	})
+}
