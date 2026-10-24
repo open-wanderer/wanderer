@@ -12,6 +12,7 @@ import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
 import { handleError } from '$lib/util/api_util'
 import { apiErrorsAsJson, isApiRequest } from '$lib/server/api_errors'
+import { limitRequestBodies } from '$lib/server/request_body'
 
 const SEARCH_TOKEN_VERSION = 1;
 const SEARCH_TOKEN_TTL_MS = 60 * 60 * 24 * 1000;
@@ -225,4 +226,4 @@ const removeLinkFromHeaders: Handle =
   }
 
 
-export const handle = sequence(apiErrorsAsJson, csrf(['/api/v1']), auth, removeLinkFromHeaders)
+export const handle = sequence(apiErrorsAsJson, limitRequestBodies, csrf(['/api/v1']), auth, removeLinkFromHeaders)

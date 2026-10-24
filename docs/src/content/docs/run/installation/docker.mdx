@@ -85,7 +85,7 @@ services:
       POCKETBASE_PROXY_SECRET: <YOUR_PROXY_KEY_HERE>
       ORIGIN: http://localhost:3000
     ports:
-      - "8090:8090"
+      - "127.0.0.1:8090:8090"
     networks:
       - wanderer
     restart: unless-stopped
@@ -110,7 +110,7 @@ services:
     environment:
       <<: *cenv
       ORIGIN: http://localhost:3000
-      BODY_SIZE_LIMIT: Infinity
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-2G}
       POCKETBASE_PROXY_SECRET: <YOUR_PROXY_KEY_HERE>
       PUBLIC_POCKETBASE_URL: http://db:8090
       PUBLIC_DISABLE_SIGNUP: "false"
@@ -169,6 +169,8 @@ The default Docker configuration defines all necessary environment variables. Yo
 
 :::caution
 Replace `MEILI_MASTER_KEY`, `POCKETBASE_ENCRYPTION_KEY` and `POCKETBASE_PROXY_SECRET` with the secrets you generated [before](#prerequisites). `POCKETBASE_PROXY_SECRET` must have the same value on the `db` and `web` services.
+
+If you use the repository's `docker-compose.yml` directly, set `POCKETBASE_PROXY_SECRET` in a `.env` file beside it or export it in your shell before starting the services. Compose requires this value for both `db` and `web`.
 :::
 
 ## Updating

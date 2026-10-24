@@ -8,7 +8,7 @@ vi.mock("$env/dynamic/public", () => ({ env: publicEnv }));
 vi.mock("$env/dynamic/private", () => ({ env: { MEILI_URL: "http://127.0.0.1:7700" } }));
 vi.mock("svelte-i18n", () => ({ locale: { set: vi.fn() } }));
 // Isolate the auth hook from sequence's framework-owned request context.
-vi.mock("@sveltejs/kit/hooks", () => ({ sequence: (...handlers: Handle[]) => handlers[2] }));
+vi.mock("@sveltejs/kit/hooks", () => ({ sequence: (...handlers: Handle[]) => handlers[3] }));
 
 import { handle } from "./hooks.server";
 

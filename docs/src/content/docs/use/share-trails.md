@@ -27,3 +27,11 @@ If you no longer want to share the trail with a user, simply click the red trash
 
 If you're looking for true collaboration on a trail (such as shared editing), both users must be on the same instance.
 :::
+
+## Loading content from other instances
+
+The first view of a trail or list from another instance may take longer while wanderer loads it. When many other instances respond slowly, the first view may be delayed or fail temporarily. Try again later; copies that have already loaded remain readable.
+
+Remote lists load up to 30 trails from third instances at a time; longer lists fill in with later refreshes.
+
+If a trail or list is too large to load here, the page explains this and offers **View on the original instance**. Follow that link to open the content where it was published.

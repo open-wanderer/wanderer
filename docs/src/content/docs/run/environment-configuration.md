@@ -54,7 +54,7 @@ bundles and configuring self-hosted connector trust settings.
 | Environment Variable    | Description                                                                      | Default                             |
 | ----------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
-| BODY_SIZE_LIMIT         | Maximum allowed upload size                                                      | Infinity                            |
+| BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; K, M and G suffixes use powers of 1024, `Infinity` permits uploads of any size after sign-in | 2G                                  |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
 | POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must match the value set on the `db` service. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
@@ -133,3 +133,5 @@ services:
 
 Provider plugin connector CAs are configured per connector when a plugin
 supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.
+
+`BODY_SIZE_LIMIT` controls the adapter ceiling and multipart upload limit together. The sample Compose default is `2G`, enough for 99 default-sized photos and a GPX file in one request. When started through `server.js`, as in the provided image and `npm start`, the web server uses `2G` when the variable is unset; an invalid value logs a warning and also uses `2G`. `Infinity` permits uploads of any size by signed-in users, including in older Compose files. Increase this one variable when raising collection file limits, allowing space for multipart headers. Upload routes authenticate before reading or parsing the body. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB. Configure reverse-proxy request limits accordingly.

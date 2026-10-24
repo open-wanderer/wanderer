@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -22,9 +23,10 @@ var SearchWriteOptions = &meilisearch.DocumentOptions{PrimaryKey: meilisearch.St
 // and list documents in full but actor documents by preferred_username only,
 // so a change to any other actor field is only picked up through a bump.
 var SearchDocumentVersions = map[string]int{
-	// 2: moving_duration
-	"trails": 2,
-	"lists":  1,
+	// feature/app (moving_duration) and main (trails rewritten by migrations)
+	// each moved trails to 2; 3 rebuilds instances coming from either.
+	"trails": 3,
+	"lists":  2,
 	"actors": 1,
 }
 
@@ -172,7 +174,7 @@ func getStoredBounds(r *core.Record) [4]float64 {
 // documentFromListRecord builds a list's search document. Its totals are
 // summed from the list's trails in this database; a remote list has local
 // copies of its trails once it has been opened here and fully synced.
-func documentFromListRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
+func documentFromListRecord(app core.App, r *core.Record, author *core.Record, includeShares bool) (map[string]any, error) {
 	if author == nil {
 		return nil, fmt.Errorf("list %s has missing author reference %q", r.Id, r.GetString("author"))
 	}
@@ -181,9 +183,13 @@ func documentFromListRecord(r *core.Record, author *core.Record, includeShares b
 	totalElevationLoss := 0.0
 	totalDistance := 0.0
 	totalDuration := 0.0
-	trails := len(r.GetStringSlice("trails"))
+	readable, err := listTrailsReadableByAuthor(app, author.Id, r.ExpandedAll("trails"))
+	if err != nil {
+		return nil, err
+	}
+	trails := len(readable)
 
-	for _, t := range r.ExpandedAll("trails") {
+	for _, t := range readable {
 		totalElevationGain += t.GetFloat("elevation_gain")
 		totalElevationLoss += t.GetFloat("elevation_loss")
 		totalDistance += t.GetFloat("distance")
@@ -255,6 +261,34 @@ func TrailSearchDocuments(app core.App, records []*core.Record) (documents []map
 		func(r *core.Record) (map[string]any, error) { return TrailSearchDocument(app, r) })
 }
 
+// Search totals obey the list author's access, including explicitly shared
+// private trails. Lookup shares in bounded batches instead of one per trail.
+func listTrailsReadableByAuthor(app core.App, authorID string, trails []*core.Record) ([]*core.Record, error) {
+	privateIDs := []string{}
+	allowed := map[string]bool{}
+	for _, trail := range trails {
+		if trail.GetBool("public") || trail.GetString("author") == authorID {
+			allowed[trail.Id] = true
+		} else {
+			privateIDs = append(privateIDs, trail.Id)
+		}
+	}
+	shares, err := recordsByFieldValues(app, "trail_share", "trail", privateIDs, "actor={:actor}", dbx.Params{"actor": authorID})
+	if err != nil {
+		return nil, err
+	}
+	for _, share := range shares {
+		allowed[share.GetString("trail")] = true
+	}
+	readable := make([]*core.Record, 0, len(trails))
+	for _, trail := range trails {
+		if allowed[trail.Id] {
+			readable = append(readable, trail)
+		}
+	}
+	return readable, nil
+}
+
 // listSearchExpands are the relations a list's full search document reads.
 var listSearchExpands = []string{"trails", "list_share_via_list", "author"}
 
@@ -262,7 +296,7 @@ var listSearchExpands = []string{"trails", "list_share_via_list", "author"}
 func ListSearchDocuments(app core.App, records []*core.Record) (documents []map[string]any, errs []error) {
 	return searchDocumentsOf(app, records, listSearchExpands,
 		func(r *core.Record) (map[string]any, error) {
-			return documentFromListRecord(r, r.ExpandedOne("author"), true)
+			return documentFromListRecord(app, r, r.ExpandedOne("author"), true)
 		},
 		func(r *core.Record) (map[string]any, error) { return ListSearchDocument(app, r) })
 }
@@ -408,7 +442,7 @@ func ListSearchDocument(app core.App, r *core.Record) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to expand author: %v", errs)
 	}
 
-	return documentFromListRecord(r, r.ExpandedOne("author"), true)
+	return documentFromListRecord(app, r, r.ExpandedOne("author"), true)
 }
 
 func IndexLists(app core.App, lists []*core.Record, client meilisearch.ServiceManager) error {
@@ -434,7 +468,7 @@ func UpdateList(app core.App, r *core.Record, author *core.Record, client meilis
 		return fmt.Errorf("failed to expand trails: %v", errs)
 	}
 
-	documents, err := documentFromListRecord(r, author, false)
+	documents, err := documentFromListRecord(app, r, author, false)
 	if err != nil {
 		return err
 	}

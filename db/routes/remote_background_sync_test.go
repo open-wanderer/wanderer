@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -15,38 +16,54 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
-type backgroundSyncTestApp struct {
-	core.App
-	synced chan error
-}
+type backgroundSyncTestApp struct{ core.App }
 
-func (app *backgroundSyncTestApp) RunInTransaction(fn func(core.App) error) error {
-	err := app.App.RunInTransaction(fn)
-	app.synced <- err
-	return err
+func waitForBackgroundSync(record *core.Record, timeout time.Duration) error {
+	syncing := &trailSyncing
+	if record.Collection().Name == "lists" {
+		syncing = &listSyncing
+	}
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	for {
+		if _, active := syncing.Load(record.GetString("iri")); !active {
+			return nil
+		}
+		select {
+		case <-deadline.C:
+			return fmt.Errorf("background sync did not finish")
+		case <-tick.C:
+		}
+	}
 }
 
 func (app *backgroundSyncTestApp) CanAccessRecord(record *core.Record, info *core.RequestInfo, rule *string) (bool, error) {
 	// Finish the background mutation before the handler reads its response.
 	// Sharing the record then fails deterministically, without racing JSON export.
-	select {
-	case err := <-app.synced:
-		if err != nil {
-			return false, err
-		}
-	case <-time.After(5 * time.Second):
-		return false, fmt.Errorf("background sync did not finish")
+	if err := waitForBackgroundSync(record, 5*time.Second); err != nil {
+		return false, err
 	}
 	return app.App.CanAccessRecord(record, info, rule)
 }
 
 type backgroundSyncTransport struct{}
 
-func (backgroundSyncTransport) RoundTrip(*http.Request) (*http.Response, error) {
+func (backgroundSyncTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	body, err := json.Marshal(map[string]any{
+		"id": path.Base(request.URL.Path), "iri": request.URL.Scheme + "://" + request.URL.Host + request.URL.Path,
+		"name": "Refreshed", "public": true,
+		"expand": map[string]any{"author": map[string]any{"iri": "https://remote.example/actor/alice"}},
+	})
+	if err != nil {
+		return nil, err
+	}
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     make(http.Header),
-		Body:       io.NopCloser(strings.NewReader(`{"id":"remote000000001","name":"Refreshed"}`)),
+		Body:       io.NopCloser(strings.NewReader(string(body))),
+		Request:    request,
 	}, nil
 }
 
@@ -71,7 +88,8 @@ func TestRemoteGetBackgroundSyncKeepsResponse(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer app.Cleanup()
+			t.Cleanup(app.Cleanup)
+			drainTestAppStartupLogs(t, app)
 			save := func(model core.Model) {
 				t.Helper()
 				if err := app.Save(model); err != nil {
@@ -83,6 +101,7 @@ func TestRemoteGetBackgroundSyncKeepsResponse(t *testing.T) {
 			actors.Fields.Add(
 				&core.TextField{Name: "preferred_username"},
 				&core.TextField{Name: "domain"},
+				&core.TextField{Name: "public_key"},
 				&core.TextField{Name: "iri"},
 				&core.BoolField{Name: "is_local"},
 				&core.DateField{Name: "last_fetched"},
@@ -91,15 +110,22 @@ func TestRemoteGetBackgroundSyncKeepsResponse(t *testing.T) {
 			actor := core.NewRecord(actors)
 			actor.Set("preferred_username", "alice")
 			actor.Set("domain", "remote.example")
+			actor.Set("public_key", "cached-test-key")
 			actor.Set("iri", "https://remote.example/actor/alice")
 			actor.Set("last_fetched", time.Now())
 			save(actor)
 
+			if tt.collection == "lists" {
+				save(core.NewBaseCollection("trails"))
+			}
+
 			collection := core.NewBaseCollection(tt.collection)
-			collection.ViewRule = types.Pointer("")
+			collection.ViewRule = types.Pointer("public=true")
 			collection.Fields.Add(
 				&core.TextField{Name: "iri"},
 				&core.TextField{Name: "name"},
+				&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
+				&core.BoolField{Name: "public"},
 				&core.BoolField{Name: "needs_full_sync"},
 				&core.BoolField{Name: "full_sync_completed"},
 				&core.DateField{Name: "updated"},
@@ -107,13 +133,21 @@ func TestRemoteGetBackgroundSyncKeepsResponse(t *testing.T) {
 			save(collection)
 			record := core.NewRecord(collection)
 			record.Set("name", "Cached")
+			record.Set("author", actor.Id)
+			record.Set("public", true)
 			record.Set("full_sync_completed", true)
 			record.Set("updated", time.Now().Add(-remoteSyncThreshold-time.Minute))
 			save(record)
 			record.Set("iri", "https://remote.example/api/v1/"+tt.path+"/"+record.Id)
 			save(record)
 
-			e := &core.RequestEvent{App: &backgroundSyncTestApp{App: app, synced: make(chan error, 1)}}
+			t.Cleanup(func() {
+				if err := waitForBackgroundSync(record, remoteSyncBudget+time.Second); err != nil {
+					t.Error(err)
+				}
+			})
+
+			e := &core.RequestEvent{App: &backgroundSyncTestApp{App: app}}
 			e.Request = httptest.NewRequest(http.MethodGet, "/api/v1/"+tt.path+"/"+record.Id+"?handle=alice@remote.example", nil)
 			e.Request.SetPathValue("id", record.Id)
 			response := httptest.NewRecorder()

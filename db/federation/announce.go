@@ -123,6 +123,9 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 }
 
 func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	if len(activity.To) == 0 {
+		return fmt.Errorf("announce has no recipient")
+	}
 
 	objectActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", activity.To[0].GetID().String())
 	if err != nil {
@@ -180,6 +183,9 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 		if err != nil {
 			return err
 		}
+		if trail.GetString("author") != actor.Id {
+			return fmt.Errorf("announce signer does not own the trail")
+		}
 	}
 
 	notification := util.Notification{
@@ -201,6 +207,9 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 }
 
 func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	if len(activity.To) == 0 {
+		return fmt.Errorf("announce has no recipient")
+	}
 
 	objectActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", activity.To[0].GetID().String())
 	if err != nil {
@@ -239,6 +248,9 @@ func processListAnnounceActivity(app core.App, actor *core.Record, activity pub.
 		list, err = app.FindFirstRecordByData("lists", "iri", activity.Object.GetID().String())
 		if err != nil {
 			return err
+		}
+		if list.GetString("author") != actor.Id {
+			return fmt.Errorf("announce signer does not own the list")
 		}
 	}
 

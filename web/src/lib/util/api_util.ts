@@ -112,6 +112,7 @@ export async function update<T>(event: RequestEvent, schema: ZodSchema, collecti
 }
 
 export async function uploadCreate<T>(event: RequestEvent, collection: Collection) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
@@ -124,6 +125,7 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
 }
 
 export async function uploadUpdate<T>(event: RequestEvent, collection: Collection, data?: FormData) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
@@ -217,6 +219,7 @@ export function assertFileField(data: FormData, fileFields: readonly string[]) {
 }
 
 export async function upload<T>(event: RequestEvent, collection: Collection, fileFields: readonly string[]) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
@@ -241,7 +244,11 @@ export async function remove(event: RequestEvent, collection: Collection) {
 }
 
 export function handleError(e: any) {
-    if (isHttpError(e)) {
+    // Upload helpers reject anonymous requests before reading the body; API
+    // clients expect that rejection as JSON rather than an error page.
+    if (isHttpError(e, 401)) {
+        return json({ message: e.body.message }, { status: 401 })
+    } else if (isHttpError(e)) {
         throw e;
     } else if (e instanceof ZodError) {
         return json({ message: "invalid_params", detail: e.issues }, { status: 400 })

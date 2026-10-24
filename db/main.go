@@ -191,6 +191,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	trustedOIDC := oidcTrustedProviders()
 	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2UsernameHandler(trustedOIDC))
 	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2EmailHandler(trustedOIDC))
+	app.OnRecordCreateRequest("users").BindFunc(hooks.GenerateUserRecordIdentity())
 
 	app.OnRecordAfterCreateSuccess("users").BindFunc(hooks.CreateUserHandler(client))
 	app.OnRecordAfterUpdateSuccess("users").BindFunc(hooks.UpdateUserHandler(client))
@@ -217,6 +218,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordCreateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
 	app.OnRecordUpdateRequest("user_subcategory_preferences").BindFunc(hooks.ValidateUserSubcategoryPreferenceHandler())
 
+	app.OnRecordCreateRequest("trails", "lists").BindFunc(hooks.PreserveLocalObjectSyncState())
+	app.OnRecordUpdateRequest("trails", "lists").BindFunc(hooks.PreserveLocalObjectSyncState())
 	app.OnRecordCreateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordUpdateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordCreate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
@@ -226,6 +229,10 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordDelete("trails").BindFunc(hooks.CollectTrailDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
 
+	app.OnRecordCreateRequest("comments", "summit_logs", "waypoints").BindFunc(hooks.PreserveLocalObjectSyncState("iri"))
+	app.OnRecordUpdateRequest("comments", "summit_logs", "waypoints").BindFunc(hooks.PreserveLocalObjectSyncState("iri"))
+	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.PreserveSummitLogFederationSuppression())
+	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.PreserveSummitLogFederationSuppression())
 	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.CreateSummitLogHandler(client))
 	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler())
 	app.OnRecordAfterDeleteSuccess("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))

@@ -5,6 +5,7 @@ import { handleError } from '$lib/util/api_util';
 import { forwardableHeaders } from '$lib/server/http';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APActivity } from 'activitypub-types';
+import { INBOX_BODY_LIMIT, readBoundedRequestText } from '$lib/server/request_body';
 
 /**
  * @swagger
@@ -38,7 +39,7 @@ export async function POST(event: RequestEvent) {
 
 
     try {
-        const bodyText = await event.request.text()
+        const bodyText = await readBoundedRequestText(event.request, INBOX_BODY_LIMIT)
         const activity: APActivity = JSON.parse(bodyText)
         if (!activity.actor) {
             return json("Bad request", { status: 400 });

@@ -25,5 +25,10 @@
         <p class="text-lg text-center mt-2">
             {page.error?.message}
         </p>
+        {#if page.error?.originURL}
+            <a class="text-base underline" href={page.error.originURL} rel="noreferrer">
+                View on the original instance
+            </a>
+        {/if}
     </div>
 </div>

@@ -1,12 +1,12 @@
 {
   "name": "wanderer",
-  "version": "0.21.1",
+  "version": "0.21.2",
   "private": true,
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "openapi:generate": "node scripts/generate-openapi.js",
-    "start": "node watcher.js & node build",
+    "start": "node watcher.js & node server.js",
     "preview": "vite preview",
     "test": "npm run test:integration && npm run test:unit",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

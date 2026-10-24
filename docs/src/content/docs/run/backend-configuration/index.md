@@ -6,8 +6,14 @@ description: How to access the PocketBase backend
 For many configuration options, it is necessary that you are able to access the PocketBase backend. 
 PocketBase comes with a handy dashboard that allows you to configure basically everything in the backend.
 
-If you are using docker make sure to forward the internal port 8090 to a public port. 
-With the default configuration, the PocketBase admin panel is available at `http://localhost:8090/_/`. 
+With the default Docker configuration, port 8090 is bound to the server's loopback interface. The PocketBase admin panel is available on that server at `http://localhost:8090/_/`.
+To access a remote server's dashboard, open an SSH tunnel from your computer:
+
+```sh
+ssh -L 8090:127.0.0.1:8090 user@your-server
+```
+
+Keep the tunnel open and visit `http://localhost:8090/_/` in your browser.
 If this is your first time visiting the panel you will need to create an admin account.
 To create backend access navigate to the location of your `docker-compose.yaml` file on the server and type:
 

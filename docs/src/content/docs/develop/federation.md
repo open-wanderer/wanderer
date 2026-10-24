@@ -9,6 +9,12 @@ This technical documentation provides a detailed overview of how federation work
 
 Below, you’ll find examples of the different JSON representations used in federated communication. These illustrate how <span class="-tracking-[0.075em]">wanderer</span> encodes and interprets core actions and content as standardized `Note` objects.
 
+## Loading remote trails and lists
+
+Full synchronization accepts a document of at most 32 MiB and 1,000,000 JSON tokens. Token counting includes object keys, scalar values and opening and closing delimiters. Documents above 500,000 tokens reserve both processing slots; smaller documents may use one slot each. Network waits use separate limits.
+
+A fresh copy whose document exceeds either limit returns HTTP 422 with a clear message and an `origin_url` in its error data. The web interface offers a link to the original trail or list. A completed copy remains readable if a later refresh exceeds a limit.
+
 ## Context
 
 ```json

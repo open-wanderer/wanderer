@@ -33,6 +33,8 @@ jobs:
 
       - name: Start test stack
         timeout-minutes: 15
+        env:
+          POCKETBASE_PROXY_SECRET: web-ci-proxy-secret
         run: docker compose up -d --wait --wait-timeout 840
 
       - run: make web-install

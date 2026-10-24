@@ -334,7 +334,7 @@ export async function trails_show(id: string, handle?: string, share?: string, l
 
     if (!r.ok) {
         const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+        throw new APIError(r.status, response.message, response.detail ?? response.data)
     }
 
     const response: Trail = await r.json()
