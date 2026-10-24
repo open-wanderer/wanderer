@@ -42,6 +42,7 @@
             case "difficulty":
                 return "w-[11%]";
             case "elevation_gain":
+                return "w-[5%] min-w-24";
             case "created":
             case "date":
                 return "w-[5%]";
@@ -131,12 +132,24 @@
                         )}"
                         onclick={() => onsort?.(column.value)}
                     >
-                        <div class="cursor-pointer">
-                            {column.text}
+                        <div
+                            class="flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                            class:justify-center={column.value === "elevation_gain"}
+                            title={column.value === "elevation_gain" ? column.text : undefined}
+                        >
+                            {#if column.value === "elevation_gain"}
+                                <i
+                                    class="fa fa-arrow-trend-up text-base"
+                                    aria-hidden="true"
+                                ></i>
+                                <span class="sr-only">{column.text}</span>
+                            {:else}
+                                {column.text}
+                            {/if}
                             {#if filter && filter.sort === column.value}
                                 <i
                                     id="sort-order-btn"
-                                    class="fa fa-arrow-up"
+                                    class="fa fa-arrow-up shrink-0"
                                     class:rotated={filter.sortOrder == "-"}
                                 ></i>
                             {/if}
@@ -209,7 +222,7 @@
                         <td class="p-4 text-sm">
                             {$_(trail.difficulty ?? "easy")}
                         </td>
-                        <td class="p-4 text-sm">
+                        <td class="p-4 text-sm whitespace-nowrap">
                             {formatElevation(trail.elevation_gain)}
                         </td>
                         <td class="p-4 text-sm">

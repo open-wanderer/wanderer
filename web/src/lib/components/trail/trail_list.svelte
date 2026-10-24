@@ -1,4 +1,5 @@
 <script lang="ts">
+    import type { SearchPosition, SearchExpansion } from "$lib/models/search_layout";
     import type { Trail, TrailFilter } from "$lib/models/trail";
     import { _ } from "svelte-i18n";
     import Pagination from "../base/pagination.svelte";
@@ -12,7 +13,7 @@
     import { onMount, tick } from "svelte";
     import type { Snippet } from "svelte";
     import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
-    import { goto } from "$app/navigation";
+    import TrailResultControls from "./trail_result_controls.svelte";
 
     interface Props {
         filter?: TrailFilter | null;
@@ -27,6 +28,21 @@
         onpagination?: (page: number, items: number) => void;
         ondisplaychange?: (display: string) => void;
         trailWidthToggleSnippet?: Snippet;
+        compactControls?: boolean;
+        inlineControls?: boolean;
+        fullWidth?: boolean;
+        onwidthtoggle?: () => void;
+        display?: string;
+        managed?: boolean;
+        incremental?: boolean;
+        searchBar?: Snippet;
+        mapView?: Snippet;
+        moreResults?: Snippet;
+        filterPanelTarget?: HTMLDivElement;
+        searchPosition?: SearchPosition;
+        searchExpansion?: SearchExpansion;
+        onsearchposition?: (position: SearchPosition) => void;
+        onsearchexpansion?: (expansion: SearchExpansion) => void;
     }
 
     let {
@@ -43,13 +59,29 @@
         onpagination,
         ondisplaychange,
         trailWidthToggleSnippet: trailWidthToggleSnippet,
+        compactControls = false,
+        inlineControls = false,
+        fullWidth = false,
+        onwidthtoggle,
+        display = $bindable("cards"),
+        managed = false,
+        incremental = false,
+        searchBar,
+        mapView,
+        moreResults,
+        filterPanelTarget = $bindable(),
+        searchPosition = "top",
+        searchExpansion = "overlay",
+        onsearchposition,
+        onsearchexpansion,
     }: Props = $props();
 
-    const displayOptions: SelectItem[] = [
+    const displayOptions: SelectItem[] = $derived([
         { text: $_("card", { values: { n: 2 } }), value: "cards" },
         { text: $_("list", { values: { n: 1 } }), value: "list" },
         { text: $_("table"), value: "table" },
-    ];
+        ...(mapView ? [{ text: $_("map"), value: "map" }] : []),
+    ]);
 
     const perPageOptions: SelectItem[] = [
         { text: "10", value: 10 },
@@ -65,13 +97,14 @@
         { text: "96", value: 96 },
     ];
 
-    let selectedDisplayOption = $state(displayOptions[0].value);
 
     let selection: Set<Trail> | undefined = $state();
     let hoveredTrail: Trail | undefined = $state();
+    let mapVisited = $state(false);
+    $effect(() => { if (display === "map") mapVisited = true; });
 
     function notifyDisplayChange() {
-        ondisplaychange?.(selectedDisplayOption);
+        ondisplaychange?.(display);
     }
 
     function roundItems(items: number, display: string): number {
@@ -88,7 +121,8 @@
         return cards ? 12 : 10;
     }
 
-    const sortOptions: SelectItem[] = [
+    const sortOptions: SelectItem[] = $derived([
+        ...(managed && filter?.q.trim() ? [{ text: $_("trail-results-relevance"), value: "relevance" }] : []),
         { text: $_("name"), value: "name" },
         { text: $_("distance"), value: "distance" },
         { text: $_("duration"), value: "duration" },
@@ -98,16 +132,17 @@
         { text: $_("likes"), value: "like_count" },
         { text: $_("creation-date"), value: "created" },
         { text: $_("date"), value: "date" },
-    ];
+    ]);
 
     onMount(() => {
+        if (managed) return;
         const storedDisplayOption = localStorage.getItem("displayOption");
         const storedSort = localStorage.getItem("sort");
         const storedSortOrder = localStorage.getItem("sort_order");
         const paginationItems = localStorage.getItem("paginationItems");
 
         if (storedDisplayOption) {
-            selectedDisplayOption = storedDisplayOption;
+            display = storedDisplayOption;
         }
         if (filter) {
             filter.sort =
@@ -118,8 +153,8 @@
                 (storedSortOrder as typeof filter.sortOrder | null) ??
                 filter.sortOrder;
         }
-        if (paginationItems) {
-            pagination.items = roundItems(+paginationItems, selectedDisplayOption);
+        if (paginationItems || compactControls) {
+            pagination.items = roundItems(paginationItems ? +paginationItems : pagination.items, display);
             localStorage.setItem("paginationItems", pagination.items.toString());
         }
         onupdate?.(filter, selection);
@@ -127,10 +162,11 @@
     });
 
     function setDisplayOption() {
-        localStorage.setItem("displayOption", selectedDisplayOption);
+        if (managed) { notifyDisplayChange(); return; }
+        localStorage.setItem("displayOption", display);
 
         const previousItems = pagination.items;
-        pagination.items = roundItems(previousItems, selectedDisplayOption);
+        pagination.items = roundItems(previousItems, display);
 
         if (pagination.items !== previousItems) {
             setItemsPerPage();
@@ -142,8 +178,16 @@
         if (!filter) {
             return;
         }
-        localStorage.setItem("sort", filter.sort);
+        localStorage.setItem(managed ? "trailSearchSort" : "sort", filter.sort);
         onupdate?.(filter, selection);
+    }
+
+    function setMenuSort(sort: string, order: "+" | "-") {
+        if (!filter) return;
+        filter.sort = sort as TrailFilter["sort"];
+        filter.sortOrder = order;
+        localStorage.setItem(managed ? "trailSearchSortOrder" : "sort_order", order);
+        setSort();
     }
 
     function setSortOrder() {
@@ -155,7 +199,7 @@
         } else {
             filter.sortOrder = "+";
         }
-        localStorage.setItem("sort_order", filter.sortOrder);
+        localStorage.setItem(managed ? "trailSearchSortOrder" : "sort_order", filter.sortOrder);
         onupdate?.(filter, selection);
     }
 
@@ -317,7 +361,59 @@
     }
 </script>
 
-<div class="min-w-0">
+{#snippet selectionTrigger({ toggleMenu, loading }: { toggleMenu: (event: MouseEvent) => void; loading: boolean })}
+    <button type="button" class="btn-primary selection-trigger" class:btn-disabled={loading}
+        aria-label={`${selection?.size} ${$_("selected")}`} aria-busy={loading} disabled={loading} onclick={toggleMenu}>
+        <span>{selection?.size}</span><span class="selection-copy">{$_("selected")}</span>
+        <i class={`fa ${loading ? "fa-spinner fa-spin" : "fa-caret-down"}`} aria-hidden="true"></i>
+    </button>
+{/snippet}
+
+{#snippet selectionMenu()}
+    {#if selection && selection.size > 0}
+        <div class="selection-actions">
+            <TrailDropdown
+                trails={selection}
+                mode="multi-select"
+                toggle={searchBar ? selectionTrigger : undefined}
+                onDelete={() => handleTrailsEditDone(true)}
+                onShare={() => handleTrailsEditDone(false)}
+                onMerge={() => handleTrailsMergeDone(true)}
+                onUpdate={(updatedTrails) => handleTrailsEditDone(true, updatedTrails)}
+            />
+        </div>
+    {/if}
+{/snippet}
+
+<div class="min-w-0" class:search-side={Boolean(searchBar) && searchPosition !== "top"} class:search-right={searchPosition === "right"}>
+    {#if compactControls}
+        <div class:search-toolbar={Boolean(searchBar)}>
+            <div class:search-field={Boolean(searchBar)}>
+                {#if searchBar}{@render searchBar()}{/if}
+                <TrailResultControls
+                    buttonsOnly={inlineControls}
+                    sort={filter?.sort === "relevance" && !filter.q.trim() ? "created" : filter?.sort}
+                    order={filter?.sortOrder}
+                    {sortOptions}
+                    display={display}
+                    {displayOptions}
+                    pageSize={pagination.items}
+                    pageSizes={display === "cards" ? perPageOptionsCards : perPageOptions}
+                    wide={fullWidth}
+                    onsort={filter ? setMenuSort : undefined}
+                    ondisplay={(mode) => { display = mode; setDisplayOption(); }}
+                    onpagesize={incremental ? undefined : (size) => { pagination.items = size; setItemsPerPage(); }}
+                    {onwidthtoggle}
+                    {searchPosition} {searchExpansion} {onsearchposition} {onsearchexpansion}
+                >
+                    {#snippet selectionActions()}
+                        {#if !searchBar}{@render selectionMenu()}{/if}
+                    {/snippet}
+                </TrailResultControls>
+            </div>
+            {#if searchBar}{@render selectionMenu()}{/if}
+        </div>
+    {:else}
     <div class="flex items-end flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
         <div class="basis-full order-1 md:order-0">
             <Pagination
@@ -342,7 +438,7 @@
         {/if}
         {#if filter}
             <div class="shrink-0">
-                {#if selectedDisplayOption !== "table"}
+                {#if display !== "table"}
                     <p class="text-sm text-gray-500 pb-2">{$_("sort")}</p>
                     <div class="flex items-center gap-2">
                         <Select
@@ -366,7 +462,7 @@
             <p class="text-sm text-gray-500 pb-2">{$_("display-as")}</p>
             <div class="flex items-center gap-2">
                 <Select
-                    bind:value={selectedDisplayOption}
+                    bind:value={display}
                     items={displayOptions}
                     onchange={() => setDisplayOption()}
                 ></Select>
@@ -376,23 +472,30 @@
             </div>
         </div>
     </div>
+    {/if}
 
-    <div id="trails" class="flex items-start flex-wrap gap-8 py-8 max-w-full">
+    <div class="filter-sidebar" bind:this={filterPanelTarget} hidden={searchPosition === "top" || !searchBar}></div>
+    <div class="result-content">
+    {#if mapView && (display === "map" || mapVisited)}
+        <div hidden={display !== "map"} class:compact-results={compactControls} class:inline-results={inlineControls}>{@render mapView()}</div>
+    {/if}
+    {#if display !== "map" || !mapView}
+    <div id="trails" class="flex items-start flex-wrap gap-8 py-8 max-w-full" class:compact-results={compactControls} class:inline-results={inlineControls} class:card-results={managed && display === "cards"} class:list-results={managed && display === "list"}>
         {#if loading}
-            {#if selectedDisplayOption === "table"}
+            {#if display === "table"}
                 <TrailTable
                     trails={null}
                     selection={new Set<Trail>()}
-                    tableHeader={sortOptions}
+                    tableHeader={sortOptions.filter(option => option.value !== "elevation_loss" && option.value !== "relevance")}
                     items={pagination.items}
                 ></TrailTable>
             {:else}
                 {#each { length: pagination.items } as _, index}
-                    {#if selectedDisplayOption === "cards"}
+                    {#if display === "cards"}
                         <div class="flex-1">
                             <SkeletonCard></SkeletonCard>
                         </div>
-                    {:else if selectedDisplayOption === "list"}
+                    {:else if display === "list"}
                         <SkeletonListItem></SkeletonListItem>
                     {/if}
                 {/each}
@@ -403,12 +506,12 @@
                     <EmptyStateSearch width={356}></EmptyStateSearch>
                 </div>
             {/if}
-            {#if selectedDisplayOption === "table"}
+            {#if display === "table"}
                 <TrailTable
                     {trails}
                     {selection}
                     tableHeader={sortOptions.filter(
-                        (option) => option.value !== "elevation_loss",
+                        (option) => option.value !== "elevation_loss" && option.value !== "relevance",
                     )}
                     {filter}
                     items={pagination.items}
@@ -419,7 +522,7 @@
                 {#each trails as trail}
                     <a
                         class="max-w-full flex-1"
-                        class:basis-full={selectedDisplayOption === "list"}
+                        class:basis-full={display === "list"}
                         onclick={(e) => handleTrailClick(e,trail)}
                         href="/trail/view/@{trail.author}{trail.domain
                             ? `@${trail.domain}`
@@ -427,7 +530,7 @@
                         onmouseenter={(e) => handleMouseEnter(trail)}
                         onmouseleave={(e) => handleMouseLeave(trail)}
                     >
-                        {#if selectedDisplayOption === "cards"}
+                        {#if display === "cards"}
                             <TrailCard
                                 fullWidth={fullWidthCards}
                                 {trail}
@@ -450,6 +553,9 @@
             {/if}
         {/if}
     </div>
+    {#if moreResults}{@render moreResults()}{/if}
+    {/if}
+    {#if !incremental && (!compactControls || pagination.totalPages > 1)}
     <div class="flex items-start flex-wrap lg:flex-nowrap gap-x-6 gap-y-2 mx-4">
         <div class="basis-full order-1 md:order-0">
             <Pagination
@@ -459,19 +565,50 @@
                 {onpagination}
             ></Pagination>
         </div>
-        <div class="shrink-0">
+        {#if !compactControls}<div class="shrink-0">
             <Select
                 bind:value={pagination.items}
-                items={selectedDisplayOption == "cards"
+                items={display == "cards"
                     ? perPageOptionsCards
                     : perPageOptions}
                 onchange={setItemsPerPage}
             ></Select>
-        </div>
+        </div>{/if}
+    </div>
+    {/if}
     </div>
 </div>
 
 <style>
+    .result-content { min-width: 0; }
+    .search-side { display: grid; grid-template-columns: clamp(18rem, 26vw, 23rem) minmax(0, 1fr); align-items: start; gap: 1rem; }
+    .search-side .search-toolbar { grid-column: 1 / -1; grid-row: 1; margin: 0; }
+    .filter-sidebar { min-width: 0; }
+    .search-side .filter-sidebar { grid-column: 1; grid-row: 2; }
+    .search-side .result-content { grid-column: 2; grid-row: 2; }
+    .search-right { grid-template-columns: minmax(0, 1fr) clamp(18rem, 26vw, 23rem); }
+    .search-right .filter-sidebar { grid-column: 2; }
+    .search-right .result-content { grid-column: 1; }
+    .search-toolbar { align-items: flex-start; display: flex; gap: .75rem; margin-bottom: .75rem; min-width: 0; }
+    .search-field { flex: 1; min-width: 0; position: relative; }
+    .selection-actions { flex-shrink: 0; }
+    .selection-actions:not(:has(> :global(.dropdown))) { display: none; }
+    .selection-trigger { align-items: center; display: inline-flex; font-weight: 500; gap: .4rem; height: 3.125rem; justify-content: center; min-width: 3.125rem; white-space: nowrap; }
+    /* Keep mouseup on the trigger so its dropdown can toggle closed. */
+    .selection-trigger > * { pointer-events: none; }
+    @media (max-width: 639px) {
+        .selection-copy { display: none; }
+        .selection-trigger { padding-inline: .65rem; }
+    }
+    .compact-results { padding-top: 1rem; }
+    .inline-results { padding-top: .25rem; }
+    .search-side .inline-results { padding-top: 0; }
+    .card-results, .list-results { row-gap: 1rem; }
+    .card-results {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    }
+    .card-results > .basis-full { grid-column: 1 / -1; }
     #sort-order-btn {
         transition: transform 0.5s ease;
     }
