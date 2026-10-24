@@ -12,7 +12,10 @@ const redirectURL = private_env.ORIGIN + "/login/redirect"
  * /api/v1/auth/oauth:
  *   get:
  *     summary: List OAuth providers
- *     description: Lists available OAuth2 authentication methods with provider images
+ *     description: >
+ *       Lists available OAuth2 authentication methods with provider images,
+ *       and whether this instance accepts new signups (PUBLIC_DISABLE_SIGNUP),
+ *       so clients can hide their register option.
  *     tags:
  *       - Authentication
  *     responses:
@@ -22,6 +25,9 @@ const redirectURL = private_env.ORIGIN + "/login/redirect"
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 signupDisabled:
+ *                   type: boolean
  *       500:
  *         description: Internal Server Error
  */
@@ -34,7 +40,7 @@ export async function GET(event: RequestEvent) {
             provider['img' as keyof typeof provider] = await imageUrlToBase64(imageURL, event.fetch);
             provider['url' as keyof typeof provider] = `${provider.authURL}${redirectURL}`
         }
-        return json(r)
+        return json({ ...r, signupDisabled: env.PUBLIC_DISABLE_SIGNUP === "true" })
     } catch (e: any) {
         return handleError(e);
     }
