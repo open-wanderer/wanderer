@@ -35,7 +35,6 @@ export async function trails_index(perPage: number = 21, random: boolean = false
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    trails = response.items
     return response.items;
 
 }
@@ -135,7 +134,6 @@ export async function trails_search_filter_pages(
 
 const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);
 
-let trails: Trail[] = []
 const detailedCache = new Map<string, Trail>();
 let detailedCacheKey = "";
 
@@ -168,30 +166,22 @@ export const trail: Writable<Trail> = writable(new Trail(""));
 
 export const editTrail: Writable<Trail> = writable(new Trail(""));
 
-export async function trails_search_bounding_box(
+/** Fetch markers and polylines independently of the already loaded result list. */
+export async function trails_search_map_data(
     northEast: M.LngLat,
     southWest: M.LngLat,
     filter: TrailFilter,
-    page: number = 1,
     zoom: number = 11,
-    perPage: number = 50,
-    loadMapData: boolean = true
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
 ) {
     const user = get(currentUser)
 
     let filterText: string = "";
 
     if (filter) {
-        filterText = buildFilterText(user, filter, false);
+        filterText = buildFilterText(user, filter, true);
     }
 
-    let lonFilter = `max_lon >= ${southWest.lng} AND min_lon <= ${northEast.lng}`;
-    if (southWest.lng > northEast.lng) {
-        lonFilter = `(max_lon >= ${southWest.lng} OR min_lon <= ${northEast.lng})`;
-    }
-
-    const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
-    const listFilter = [filterText, geoFilter].filter(Boolean).join(" AND ");
     const cacheKey = JSON.stringify({
         q: filter.q,
         filterText,
@@ -203,53 +193,15 @@ export async function trails_search_bounding_box(
         detailedCacheKey = cacheKey;
     }
 
-    // Step 1: Fetch paginated trails for the side list.
-    const listResponse = await fetch("/api/v1/search/trails", {
-        method: "POST",
-        body: JSON.stringify({
-            q: filter.q,
-            options: {
-                filter: listFilter,
-                attributesToRetrieve: defaultTrailSearchAttributes,
-                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
-                hitsPerPage: perPage,
-                page,
-            },
-        }),
-    });
-
-    if (!listResponse.ok) {
-        const response = await listResponse.json();
-        throw new APIError(listResponse.status, response.message, response.detail)
-    }
-
-    const listResult: { page: number, totalPages: number, totalHits?: number, estimatedTotalHits?: number, hits: Hits<TrailSearchResult> } = await listResponse.json();
-    const listTrails = listResult.hits.length > 0
-        ? await searchResultToTrailList(listResult.hits)
-        : [];
-
-    trails = page > 1 ? trails.concat(listTrails) : listTrails;
-
-    if (!loadMapData) {
-        return {
-            trails,
-            mapTrails: [],
-            clusters: undefined,
-            estimatedTotalHits: listResult.estimatedTotalHits,
-            totalHits: listResult.totalHits ?? listResult.estimatedTotalHits,
-            totalPages: listResult.totalPages
-        };
-    }
-
-    // Step 2: Fetch server-side clusters and unclustered points for the map.
-    let cr = await fetch("/api/v1/search/trails/cluster", {
+    // Fetch server-side clusters and unclustered points for the map.
+    let cr = await f("/api/v1/search/trails/cluster", {
         method: "POST",
         body: JSON.stringify({
             southWest: { lat: southWest.lat, lng: southWest.lng },
             northEast: { lat: northEast.lat, lng: northEast.lng },
             zoom,
             q: filter.q,
-            filterText
+            filterText,
         })
     });
 
@@ -269,10 +221,10 @@ export async function trails_search_bounding_box(
         .filter((f: any) => f.properties.is_large)
         .map((f: any) => f.properties.id);
 
-    // Step 3: Identify which visible trails are MISSING from the local cache
+    // Identify which visible trails are MISSING from the local cache
     const missingIds = unclusteredIds.filter((id: string) => !detailedCache.has(id));
 
-    // Step 4: Only fetch details for missing trails
+    // Only fetch details for missing trails
     if (missingIds.length > 0) {
         const batchSize = 100; // Meilisearch filter length safety
         for (let i = 0; i < missingIds.length; i += batchSize) {
@@ -285,7 +237,7 @@ export async function trails_search_bounding_box(
                 hitsPerPage: batchSize,
             };
 
-            const dr = await fetch("/api/v1/search/multi", {
+            const dr = await f("/api/v1/search/multi", {
                 method: "POST",
                 body: JSON.stringify({ queries: [detailBatchQuery] }),
             });
@@ -301,7 +253,7 @@ export async function trails_search_bounding_box(
         }
     }
 
-    // Step 5: Convert unclustered hits to lightweight Trail objects for map popups/previews.
+    // Convert unclustered hits to lightweight Trail objects for map popups/previews.
     const mapTrails: Trail[] = unclusteredFeatures
         .map((f: any) => {
         const s = f.properties;
@@ -353,14 +305,7 @@ export async function trails_search_bounding_box(
         return t;
     });
 
-    return {
-        trails,
-        mapTrails,
-        clusters: clusterFeatureCollection,
-        estimatedTotalHits: listResult.estimatedTotalHits ?? clusterResult.totalHits,
-        totalHits: listResult.totalHits ?? listResult.estimatedTotalHits ?? clusterResult.totalHits,
-        totalPages: listResult.totalPages
-    };
+    return { mapTrails, clusters: clusterFeatureCollection, hasOutsideBounds: clusterResult.hasOutsideBounds as boolean | undefined };
 }
 
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {

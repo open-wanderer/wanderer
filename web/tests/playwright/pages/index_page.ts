@@ -23,7 +23,8 @@ export class IndexPage {
     await responsePromise;
     
     await this.page.locator('.menu-item').first().click();
-    await this.page.waitForURL(/\/map\?lat=.*&lon=.*/);
+    await this.page.waitForURL(url => url.pathname === '/trails' && url.searchParams.get('view') === 'map');
+    await expect(this.page.locator('.maplibregl-canvas')).toBeVisible();
 
   }
 

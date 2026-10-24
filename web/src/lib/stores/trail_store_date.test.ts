@@ -1,7 +1,6 @@
 import type { TrailFilter } from "$lib/models/trail";
-import { LngLat } from "maplibre-gl";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { trails_search_bounding_box, trails_search_filter } from "./trail_store";
+import { trails_search_filter } from "./trail_store";
 
 type DateFilter = Pick<TrailFilter, "startDate" | "endDate">;
 
@@ -30,7 +29,7 @@ function trailFilter(dates: DateFilter): TrailFilter {
 
 function searchRequest() {
     return vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) =>
-        Response.json({ hits: [], page: 1, totalPages: 0 }),
+        Response.json({ hits: [], page: 1, totalPages: 0, totalHits: 0 }),
     );
 }
 
@@ -39,7 +38,8 @@ function requestDateClauses(request: ReturnType<typeof searchRequest>): string[]
     const [url, options] = request.mock.calls[0];
     expect(url).toBe("/api/v1/search/trails");
     expect(options?.method).toBe("POST");
-    const filter: string = JSON.parse(String(options?.body)).options.filter;
+    const body = JSON.parse(String(options?.body));
+    const filter: string = body.options.filter;
     expect(filter).toContain("distance >= 0");
     return filter.match(/\bdate (?:>=|<=|<) \S+/g) ?? [];
 }
@@ -89,13 +89,10 @@ describe("trail search date ranges", () => {
     it("uses the same UTC calendar-day bounds for the map search", async () => {
         vi.stubEnv("TZ", "America/Los_Angeles");
         const request = searchRequest();
-        vi.stubGlobal("fetch", request);
-
-        await trails_search_bounding_box(
-            new LngLat(9, 48),
-            new LngLat(7, 46),
+        await trails_search_filter(
             trailFilter({ startDate: "2026-09-07", endDate: "2026-09-09" }),
-            1, 11, 20, false,
+            1, 20, request,
+            { northEast: { lat: 48, lng: 9 }, southWest: { lat: 46, lng: 7 } },
         );
 
         expect(requestDateClauses(request)).toEqual([

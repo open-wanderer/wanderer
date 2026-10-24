@@ -3,12 +3,13 @@ import { categories_index } from "$lib/stores/category_store";
 import { category_preferences_index } from "$lib/stores/category_preference_store";
 import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
 import { subcategories_index } from "$lib/stores/subcategory_store";
-import { trails_get_filter_values } from "$lib/stores/trail_store";
+import { trails_get_bounding_box, trails_get_filter_values } from "$lib/stores/trail_store";
 import { normalizeCategoryName } from "$lib/util/category_util";
 import type { Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ url, fetch }) => {
     const filterValues = await trails_get_filter_values(fetch);
+    const boundingBox = await trails_get_bounding_box(fetch);
 
     const filter: TrailFilter = {
         q: "",
@@ -33,7 +34,7 @@ export const load: Load = async ({ url, fetch }) => {
         elevationLossMin: 0,
         elevationLossMax: filterValues.max_elevation_loss,
         elevationLossLimit: filterValues.max_elevation_loss,
-        sort: "created",
+        sort: "relevance",
         sortOrder: "+",
     };
     const categories = await categories_index(fetch)
@@ -76,6 +77,8 @@ export const load: Load = async ({ url, fetch }) => {
 
     return {
         categories,
+        subcategories,
+        boundingBox,
         filter: filter
     };
 };

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { afterNavigate, goto } from "$app/navigation";
+    import { goto, pushState } from "$app/navigation";
     import { page } from "$app/state";
     import LogoText from "$lib/components/logo/logo_text.svelte";
     import { theme, toggleTheme } from "$lib/stores/theme_store";
@@ -9,6 +9,7 @@
     import { _ } from "svelte-i18n";
     import { backInOut, cubicOut } from "svelte/easing";
     import { Tween } from "svelte/motion";
+    import { tick } from "svelte";
     import CreateMenu from "./create_menu.svelte";
     import Drawer from "./base/drawer.svelte";
     import Dropdown from "./base/dropdown.svelte";
@@ -31,7 +32,7 @@
     let navBarItems = [
         { text: "Home", value: "/" },
         { text: $_("trail", { values: { n: 2 } }), value: "/trails" },
-        { text: $_("map"), value: "/map" },
+        { text: $_("map"), value: "/trails?view=map" },
         { text: $_("list", { values: { n: 2 } }), value: "/lists" },
     ];
 
@@ -62,8 +63,10 @@
 
     let urlImportModal: UrlImportModal;
 
-    afterNavigate((e) => {
-        const routeId = e.to?.route.id;
+    $effect(() => {
+        const routeId = page.route.id;
+        const view = page.state.trailSearchView ?? page.url.searchParams.get("view");
+        void tick().then(() => {
         const navBarLinks = document.getElementById("nav-bar-links");
         let childPosition = -1;
         switch (routeId) {
@@ -71,7 +74,7 @@
                 childPosition = 1;
                 break;
             case "/trails":
-                childPosition = 2;
+                childPosition = view === "map" ? 3 : 2;
                 break;
             case "/map":
                 childPosition = 3;
@@ -96,7 +99,23 @@
         } else {
             indicatorScale.set(0);
         }
+        });
     });
+
+    function handleNavClick(event: MouseEvent, value: string) {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        const target = new URL(value, page.url);
+        if (page.url.pathname === "/trails" && target.pathname === "/trails") {
+            event.preventDefault();
+            const url = new URL(window.location.href);
+            const previous = localStorage.getItem("displayOption");
+            const view = target.searchParams.get("view")
+                ?? (previous && ["cards", "list", "table"].includes(previous) ? previous : "cards");
+            url.searchParams.set("view", view);
+            pushState(url, { ...page.state, trailSearchView: view });
+            drawerOpen = false;
+        }
+    }
 
     function handleLogout() {
         drawerOpen = false;
@@ -135,7 +154,7 @@
     </div>
     <div class="flex flex-col px-12 gap-8">
         {#each navBarItems as item}
-            <a class="font-semibold text-xl" href={item.value}>{item.text}</a>
+            <a class="font-semibold text-xl" href={item.value} onclick={(event) => handleNavClick(event, item.value)}>{item.text}</a>
         {/each}
     </div>
     <hr class="my-6 border-input-border" />
@@ -203,7 +222,7 @@
             style="width: {indicatorWidth.current}px; left: {indicatorPosition.current}px; scale: {indicatorScale.current}"
         ></div>
         {#each navBarItems as item}
-            <a class="font-semibold z-10" href={item.value}>{item.text}</a>
+            <a class="font-semibold z-10" href={item.value} onclick={(event) => handleNavClick(event, item.value)}>{item.text}</a>
         {/each}
     </menu>
     {#if navUser}

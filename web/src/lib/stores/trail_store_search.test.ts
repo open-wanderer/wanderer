@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TrailFilter } from "$lib/models/trail";
 import { sanitizeTrailFilter } from "$lib/util/trail_filter_util";
-import { trails_search_filter, trails_search_filter_pages } from "./trail_store";
+import { trails_search_filter, trails_search_filter_pages, trails_search_map_data } from "./trail_store";
+import { LngLat } from "maplibre-gl";
 
 const filter: TrailFilter = {
     q: "Bern", category: ["hiking"], subcategory: [], tags: ["alpine"], difficulty: [1],
@@ -98,6 +99,19 @@ describe("native trail search", () => {
         expect(first.items[0].id).toBe("page-1");
         expect(second.items[0].id).toBe("page-2");
         expect(request).toHaveBeenCalledTimes(2);
+    });
+
+    it("refreshes markers independently using the same literal text and explicit radius", async () => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => Response.json({ type: "FeatureCollection", features: [], totalHits: 7, hasOutsideBounds: false }));
+        const result = await trails_search_map_data(new LngLat(11, 49), new LngLat(5, 45), filter, 8, request);
+        expect(request).toHaveBeenCalledOnce();
+        expect(request.mock.calls[0][0]).toBe("/api/v1/search/trails/cluster");
+        const body = JSON.parse(String(request.mock.calls[0][1]?.body));
+        expect(body.q).toBe("Bern");
+        expect(body.filterText).toContain("_geoRadius(46, 7, 25000)");
+        expect(body).not.toHaveProperty("queryContext");
+        expect(result).toMatchObject({ mapTrails: [], hasOutsideBounds: false });
+        expect(result).not.toHaveProperty("trails");
     });
 
     it("persists explicit place labels when restoring filters", () => {

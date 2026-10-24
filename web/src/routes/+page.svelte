@@ -123,7 +123,7 @@
                 `/profile/@${item.value.preferred_username}${item.value.is_local ? "" : "@" + item.value.domain}`,
             );
         } else {
-            goto(`/map/?lat=${item.value.lat}&lon=${item.value.lon}`);
+            goto(`/trails?view=map&lat=${item.value.lat}&lon=${item.value.lon}`);
         }
     }
 
