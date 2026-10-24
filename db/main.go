@@ -13,6 +13,7 @@ import (
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/tools/auth"
@@ -21,6 +22,7 @@ import (
 	"pocketbase/hooks"
 	"pocketbase/pluginsystem"
 	"pocketbase/routes"
+	"pocketbase/services/regions"
 
 	_ "pocketbase/migrations"
 	"pocketbase/util"
@@ -276,6 +278,19 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordCreate("api_tokens").BindFunc(hooks.CreateAPITokenHandler())
 
+	// Path-based referential integrity: region_archives/region_geometry rows
+	// must reference an existing regions.path (there is no PocketBase relation
+	// between them — the join is on the stable path natural key). Model hooks
+	// (not *Request) so internal builder/geometry-fetch writes are covered too.
+	app.OnRecordCreate("region_archives", "region_geometry").BindFunc(hooks.ValidateRegionPathReferenceHandler())
+	app.OnRecordUpdate("region_archives", "region_geometry").BindFunc(hooks.ValidateRegionPathReferenceHandler())
+
+	// Cache a leaf's boundary geometry as soon as it is enabled, from whichever
+	// path did the enabling (admin picker, REST PATCH, collection editor). Runs
+	// post-commit so ResolveGeometry reads back an enabled record and takes its
+	// persist branch; the upstream fetch happens off the request goroutine.
+	app.OnRecordAfterUpdateSuccess("regions").BindFunc(hooks.CacheGeometryOnEnableHandler(app))
+
 	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
 
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
@@ -285,6 +300,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 func setupCommands(app *pocketbase.PocketBase) {
 	app.RootCmd.AddCommand(commands.Dedup(app))
+	app.RootCmd.AddCommand(commands.SeedRegions())
 }
 
 func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
@@ -292,6 +308,14 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 		registerRoutes(se, client)
 		registerCronJobs(se.App, client)
 		initData(se.App, client)
+
+		// Startup GC: drop region_archives rows whose backing pmtiles files
+		// have vanished from disk (manual deletion / wiped cache volume). Never
+		// fatal — a failure here must not block serving.
+		if err := regions.ReconcileArchives(se.App); err != nil {
+			se.App.Logger().Warn("failed to reconcile region archives on startup", "error", err)
+		}
+		regions.WarnIfExtractorMissing(se.App)
 
 		return se.Next()
 	}
@@ -335,6 +359,55 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/remote/profile/{handle}/follows", routes.RemoteProfileFollowsList)
 
+	// Custom PocketBase admin extension: a standalone, superuser-gated page
+	// at a distinct top-level path (NOT nested under /regions below, which
+	// is bound to apis.RequireAuth() for any logged-in user). Auth is enforced
+	// entirely by the page's own content: it reads the PocketBase
+	// dashboard's own superuser JWT from localStorage and talks directly
+	// to PocketBase's built-in collection REST API, which is superuser-
+	// only by default on regions/region_geometry.
+	se.Router.GET("/region-catalog/", routes.RegionsDashboard)
+
+	// Destructive, admin-only: unlike the page above (which relies on the
+	// PocketBase collection API's own superuser-only rules), this is a
+	// custom Go route with no collection rules of its own, so it must
+	// enforce superuser auth explicitly.
+	se.Router.DELETE("/region-catalog/{id}/archive", routes.RegionArchiveDelete).Bind(apis.RequireSuperuserAuth())
+
+	// "Sync now": manually trigger the same BuildAll pass the nightly cron
+	// runs, plus a status check the admin page polls. Same superuser-only
+	// posture as the delete route above, and for the same reason (custom Go
+	// routes with no collection rules of their own).
+	se.Router.POST("/region-catalog/sync", routes.RegionSyncStart).Bind(apis.RequireSuperuserAuth())
+	se.Router.GET("/region-catalog/sync", routes.RegionSyncStatus).Bind(apis.RequireSuperuserAuth())
+
+	se.UIExtensions = append(se.UIExtensions, core.UIExtension{
+		Name: "wanderer-region-catalog",
+		FS:   routes.RegionsExtFS(),
+	})
+
+	// /regions is an internal-only contract: the literal /api/v1 prefix
+	// deviates from every other unprefixed custom Go route in this file. It
+	// is reachable only from inside the docker network — a SvelteKit proxy
+	// under the same public path forwards external requests to it
+	// (web/src/routes/api/v1/regions/**). Auth is ENABLED: any logged-in user, for
+	// both the catalog listing and the archive downloads.
+	regionsGroup := se.Router.Group("/regions")
+	regionsGroup.Bind(apis.RequireAuth())
+
+	regionsGroup.GET("", routes.RegionsList)
+	regionsGroup.GET("/{id}/download", routes.RegionArchiveDownload)
+	regionsGroup.GET("/{id}/download-dem", routes.RegionArchiveDownloadDem)
+
+	// Standalone, NOT a member of regionsGroup above: this route triggers
+	// outbound third-party requests (CoMaps, via ResolveGeometry), so an
+	// authenticated-user gate would make it both an open proxy and a way to
+	// burn CoMaps' rate limit from outside. It lives under /regions
+	// only for URL coherence with its siblings — not because it belongs to
+	// the group's weaker RequireAuth() trust class. Mirrors the standalone
+	// superuser-bound registrations above (RegionArchiveDelete,
+	// RegionSyncStart, RegionSyncStatus).
+	se.Router.GET("/regions/{id}/geometry", routes.RegionGeometryGet).Bind(apis.RequireSuperuserAuth())
 }
 
 func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
@@ -349,6 +422,10 @@ func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
 			fmt.Println(warning)
 			app.Logger().Error(warning)
 		}
+	})
+
+	app.Cron().MustAdd("region-archive-build", regions.CronSchedule(), func() {
+		regions.BuildAll(app)
 	})
 
 	repairSchedule := os.Getenv("POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE")
