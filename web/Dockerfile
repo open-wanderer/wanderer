@@ -19,7 +19,8 @@ COPY --from=build-env /app/build ./build
 COPY --from=build-env /app/package.json /app/package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY watcher.js ./
+COPY watcher.js server.js ./
+COPY src/lib/server/upload_body_limit.js ./src/lib/server/
 
 ENV \
     MEILI_URL=http://127.0.0.1:7700 \
