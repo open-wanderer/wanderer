@@ -470,7 +470,10 @@ func initCategories(app core.App) error {
 	if err := util.PrepopulateDefaultCategoryTranslations(app); err != nil {
 		return err
 	}
-	return util.PrepopulateDefaultCategoryIcons(app)
+	if err := util.PrepopulateDefaultCategoryIcons(app); err != nil {
+		return err
+	}
+	return util.PrepopulateDefaultCategoryValhallaProfiles(app)
 }
 
 // searchIndexSettings are the settings of each search index.

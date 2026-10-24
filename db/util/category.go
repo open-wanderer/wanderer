@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -97,6 +98,86 @@ func ParseCategoryTranslations(raw any) (map[string]CategoryTranslation, error) 
 	default:
 		return nil, fmt.Errorf("translations must be a JSON object")
 	}
+}
+
+// parseSettingsMap best-effort decodes a (sub)category `settings` JSON blob into
+// a map. It never returns nil, so callers can index and assign into the result
+// without a nil-map panic, and it never errors: anything unparseable is treated
+// as "no settings".
+func parseSettingsMap(raw any) map[string]any {
+	empty := map[string]any{}
+
+	switch value := raw.(type) {
+	case nil:
+		return empty
+	case map[string]any:
+		if value == nil {
+			return empty
+		}
+		return value
+	case types.JSONRaw:
+		if len(value) == 0 {
+			return empty
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {
+			return empty
+		}
+
+		return decoded
+	case []byte:
+		if len(value) == 0 {
+			return empty
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal(value, &decoded); err != nil || decoded == nil {
+			return empty
+		}
+
+		return decoded
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return empty
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal([]byte(value), &decoded); err != nil || decoded == nil {
+			return empty
+		}
+
+		return decoded
+	default:
+		return empty
+	}
+}
+
+// isNonObjectSettings reports whether a (sub)category `settings` value holds
+// JSON that is not an object, such as an array or a number. Empty values and
+// null are not considered set.
+func isNonObjectSettings(raw any) bool {
+	var data []byte
+	switch value := raw.(type) {
+	case nil:
+		return false
+	case map[string]any:
+		return false
+	case types.JSONRaw:
+		data = value
+	case []byte:
+		data = value
+	case string:
+		data = []byte(value)
+	default:
+		return true
+	}
+
+	data = bytes.TrimSpace(data)
+	if len(data) == 0 || string(data) == "null" {
+		return false
+	}
+	return data[0] != '{'
 }
 
 func ValidateCategoryRecord(app core.App, record *core.Record) error {
