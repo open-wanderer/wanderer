@@ -5,6 +5,7 @@
         formatDistance,
         formatElevation,
         formatTimeHHMM,
+        trailDisplayDuration,
     } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
     import type { SelectItem } from "../base/select.svelte";
@@ -204,7 +205,7 @@
                             {formatDistance(trail.distance)}
                         </td>
                         <td class="p-4 text-sm">
-                            {formatTimeHHMM(trail.duration)}
+                            {formatTimeHHMM(trailDisplayDuration(trail))}
                         </td>
                         <td class="p-4 text-sm">
                             {$_(trail.difficulty ?? "easy")}

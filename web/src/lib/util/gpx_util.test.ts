@@ -5,7 +5,8 @@ import TrackSegment from "$lib/models/gpx/track-segment";
 import GPXWaypoint from "$lib/models/gpx/waypoint";
 import { Trail } from "$lib/models/trail";
 import { trails_show } from "$lib/stores/trail_store";
-import { fromFile, trail2gpx } from "./gpx_util";
+import JSZip from "jszip";
+import { FileTooLargeError, fromFile, fromKMZ, trail2gpx } from "./gpx_util";
 import { joinContiguousTrackSegments, routeAnchorNamespace, routeToStoredGpx, splitTrackSegmentsAtAnchors } from "./gpx_segment_util";
 
 vi.mock("$lib/stores/trail_store", () => ({ trails_show: vi.fn() }));
@@ -387,5 +388,15 @@ describe("fromFile", () => {
         const { gpxFile } = await fromFile(original);
 
         expect(gpxFile).toBe(original);
+    });
+});
+
+describe("fromKMZ", () => {
+    it("refuses a document that unzips beyond the limit", async () => {
+        const zip = new JSZip();
+        zip.file("doc.kml", `<kml xmlns="http://www.opengis.net/kml/2.2">${" ".repeat(10_000)}</kml>`);
+        const kmz = await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+
+        await expect(fromKMZ(kmz, 1_000)).rejects.toBeInstanceOf(FileTooLargeError);
     });
 });

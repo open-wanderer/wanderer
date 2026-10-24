@@ -80,6 +80,14 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     trail.elevation_loss = totals.elevationLoss;
     trail.distance = totals.distance
 
+    const bbox = totals.boundingBox;
+    if (Number.isFinite(bbox.minLat) && Number.isFinite(bbox.maxLat)) {
+        trail.min_lat = bbox.minLat;
+        trail.max_lat = bbox.maxLat;
+        trail.min_lon = bbox.minLon;
+        trail.max_lon = bbox.maxLon;
+    }
+
     return { gpx: gpx, trail: trail }
 }
 
@@ -243,10 +251,25 @@ export function fromKML(kmlData: string) {
     return gpx
 }
 
-export async function fromKMZ(kmzData: ArrayBuffer) {
+// A KMZ is a zip, so a small upload can expand into a huge doc.kml.
+const MAX_KMZ_DOCUMENT_BYTES = 100 * 1024 * 1024;
+
+export class FileTooLargeError extends Error {}
+
+export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = MAX_KMZ_DOCUMENT_BYTES) {
     const zip = new JSZip()
-    const zipContents = await zip.loadAsync(kmzData)
-    const kmlFile = await zip.file('doc.kml')?.async('string');
+    await zip.loadAsync(kmzData)
+    const entry = zip.file('doc.kml');
+    // JSZip exposes the size from the zip directory only on this internal
+    // field; checking it avoids inflating the document to find out.
+    const declaredSize = (entry as unknown as { _data?: { uncompressedSize?: number } } | null)?._data?.uncompressedSize;
+    if (declaredSize !== undefined && declaredSize > maxDocumentBytes) {
+        throw new FileTooLargeError("KMZ document is too large");
+    }
+    const kmlFile = await entry?.async('string');
+    if (kmlFile !== undefined && kmlFile.length > maxDocumentBytes) {
+        throw new FileTooLargeError("KMZ document is too large");
+    }
     return fromKML(kmlFile ?? "")
 }
 

@@ -63,7 +63,7 @@ describe("API token authentication", () => {
             request: new Request(url, { headers: authorization ? { Authorization: authorization } : {} }),
             route: { id: path },
             cookies: {
-                get: vi.fn(() => `search-token|${authenticated ? user.id : "public"}|1`),
+                get: vi.fn(() => `search-token|${authenticated ? user.id : "public"}|1|${Date.now() + 3_600_000}`),
                 set: vi.fn(), delete: vi.fn(),
             },
             getClientAddress: () => "192.0.2.1",

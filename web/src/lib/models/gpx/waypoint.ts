@@ -1,4 +1,72 @@
 import Link from './link';
+import { parseGpxNumber } from './number';
+
+/**
+ * The grammar Dart's `DateTime.parse`/`DateTime.tryParse` accepts, transcribed
+ * verbatim from the Dart SDK's `DateTime._parseFormat`.
+ *
+ * `new Date(...)` is far more permissive than this — it happily parses
+ * `"Jan 1 2024"` and other locale/legacy formats — so gating on this pattern
+ * is what keeps the web's `<time>` semantics aligned with the Dart port's
+ *. GPX 1.1 mandates ISO 8601 for `<time>` anyway, so nothing a
+ * conforming exporter emits is excluded by it.
+ */
+const DART_DATETIME_GRAMMAR =
+  /^([+-]?\d{4,6})-?(\d\d)-?(\d\d)(?:[ T](\d\d)(?::?(\d\d)(?::?(\d\d)(?:[.,](\d+))?)?)?( ?[zZ]| ?([-+])(\d\d)(?::?(\d\d))?)?)?$/;
+
+/**
+ * Parses a `<time>` element body the same way the Dart port does: anything
+ * that is not a well-formed ISO-8601 instant is "no time", not a time.
+ *
+ * Before this existed the constructor did a bare `new Date(object.time)`, and
+ * because an `Invalid Date` is a truthy object, `GPX.getTotals()`'s
+ * `startTime && endTime` guard passed and computed
+ * `endTime.getTime() - startTime.getTime()` — i.e. `NaN` — as the trail's
+ * duration. The Dart side, whose sanitizer rewrites an unparseable `<time>`
+ * to a self-closing tag, reported `0` for the same document.
+ *
+ * Residual, deliberately-accepted asymmetry: a string this grammar admits but
+ * V8's `Date` still rejects after normalisation (a 6-digit year, an
+ * out-of-range month that Dart's `DateTime` would normalise) yields "no time"
+ * here and a real time in Dart. That class is not reachable from any GPX a
+ * real exporter produces.
+ */
+function parseGpxTime(raw: unknown): Date | undefined {
+  if (raw instanceof Date) {
+    return Number.isNaN(raw.getTime()) ? undefined : raw;
+  }
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const match = DART_DATETIME_GRAMMAR.exec(raw.trim());
+  if (!match) {
+    return undefined;
+  }
+  const parsed = new Date(normalizedIsoString(match));
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+/**
+ * Rewrites a grammar match into the one ISO-8601 form V8's `Date` reliably
+ * reads. The grammar also admits forms `Date` rejects but Dart reads: the
+ * basic format (`20240501T100000Z`), a comma fraction (`10:00:00,5Z`) and an
+ * hour-only offset (`+02`). Without a zone the time stays local, as in Dart.
+ */
+function normalizedIsoString(match: RegExpExecArray): string {
+  const [, year, month, day, hour, minute, second, fraction, zone, sign, zoneHour, zoneMinute] = match;
+  const date = `${year}-${month}-${day}`;
+  if (hour === undefined) {
+    return date;
+  }
+  const millis = fraction ? `.${fraction.slice(0, 3).padEnd(3, "0")}` : "";
+  let offset = "";
+  if (sign) {
+    offset = `${sign}${zoneHour}:${zoneMinute ?? "00"}`;
+  } else if (zone) {
+    offset = "Z";
+  }
+  return `${date}T${hour}:${minute ?? "00"}:${second ?? "00"}${millis}${offset}`;
+}
 
 export default class Waypoint {
   $: {
@@ -50,11 +118,14 @@ export default class Waypoint {
     link?: Link[]
   }) {
     this.$ = {};
-    this.$.lat = object.$.lat === 0 || object.lat === 0 ? 0 : object.$.lat || object.lat || -1;
-    this.$.lon = object.$.lon === 0 || object.lon === 0 ? 0 : object.$.lon || object.lon || -1;
+    // A missing or unparseable coordinate stays undefined, as in the app's
+    // reader. It used to fall back to -1, which put the point near the Gulf
+    // of Guinea and added thousands of kilometres to the trail's distance.
+    this.$.lat = parseGpxNumber(object.$?.lat) ?? parseGpxNumber(object.lat);
+    this.$.lon = parseGpxNumber(object.$?.lon) ?? parseGpxNumber(object.lon);
     this.ele = object.ele;
     if (object.time) {
-      this.time = new Date(object.time);
+      this.time = parseGpxTime(object.time);
     }
     this.magvar = object.magvar;
     this.geoidheight = object.geoidheight;

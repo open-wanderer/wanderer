@@ -722,6 +722,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             difficulty: h.difficulty == 0 ? "easy" : h.difficulty == 1 ? "moderate" : "difficult",
             distance: h.distance,
             duration: h.duration,
+            moving_duration: h.moving_duration,
             elevation_gain: h.elevation_gain,
             elevation_loss: h.elevation_loss,
             id: h.id,
