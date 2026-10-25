@@ -7,7 +7,7 @@ import 'package:dio/dio.dart';
 /// servers (the `-app` images, then every release from v0.22.0, which merges
 /// the app branch). A server without it is too old regardless of version.
 /// Raise this when the app starts depending on a newer server.
-const List<int> kMinimumServerVersion = [0, 21, 0];
+const List<int> kMinimumServerVersion = [0, 21, 2];
 
 /// Thrown when signing in to a server whose wanderer version the app cannot
 /// talk to — the backstop for a sign-in started before
