@@ -256,20 +256,21 @@ class TrailCard extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              FaIcon(FontAwesomeIcons.gauge, size: 14),
-                              const SizedBox(width: 6),
-                              Text(
-                                _getDifficultyLabel(
-                                  context,
-                                  trail.summaryDifficulty,
+                          if (trail.summaryDifficulty != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FaIcon(FontAwesomeIcons.gauge, size: 14),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _getDifficultyLabel(
+                                    context,
+                                    trail.summaryDifficulty!,
+                                  ),
+                                  style: TextStyle(fontSize: 16),
                                 ),
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
                         ],
                       ),
 

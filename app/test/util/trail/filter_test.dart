@@ -63,7 +63,7 @@ TrailFilter _baseFilter({
 Trail _trail({
   String id = '',
   String name = 'Trail',
-  TrailDifficulty difficulty = TrailDifficulty.easy,
+  TrailDifficulty? difficulty = TrailDifficulty.easy,
   double distance = 0,
   double elevationGain = 0,
   double elevationLoss = 0,
@@ -112,6 +112,42 @@ void main() {
       final result = applyTrailFilter(trails, _baseFilter(difficulty: [1]));
 
       expect(result.map((t) => t.name), ['Moderate']);
+    });
+
+    test('keeps an unknown difficulty only while every grade is selected', () {
+      final trails = [
+        _trail(name: 'Easy', difficulty: TrailDifficulty.easy),
+        _trail(name: 'Unknown', difficulty: null),
+      ];
+
+      expect(applyTrailFilter(trails, _baseFilter()).map((t) => t.name), [
+        'Easy',
+        'Unknown',
+      ]);
+      expect(
+        applyTrailFilter(
+          trails,
+          _baseFilter(difficulty: [0, 1]),
+        ).map((t) => t.name),
+        ['Easy'],
+      );
+    });
+
+    test('sorts an unknown difficulty below easy', () {
+      final trails = [
+        _trail(name: 'Easy', difficulty: TrailDifficulty.easy),
+        _trail(name: 'Unknown', difficulty: null),
+      ];
+
+      final result = applyTrailFilter(
+        trails,
+        _baseFilter(
+          sort: TrailFilterSort.difficulty,
+          sortOrder: SortOrder.asc,
+        ),
+      );
+
+      expect(result.map((t) => t.name), ['Unknown', 'Easy']);
     });
   });
 

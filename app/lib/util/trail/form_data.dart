@@ -21,7 +21,7 @@ extension TrailFormData on Trail {
       MapEntry('description', description),
       MapEntry('public', public.toString()),
       MapEntry('completed', completed.toString()),
-      MapEntry('difficulty', difficulty.name),
+      MapEntry('difficulty', difficulty?.name ?? ''),
       MapEntry('distance', distance.toString()),
       MapEntry('elevation_gain', elevationGain.toString()),
       MapEntry('elevation_loss', elevationLoss.toString()),

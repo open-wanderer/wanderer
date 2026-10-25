@@ -79,7 +79,10 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     // @Default: absence is the meaningful "no moving time known" state
     // -- `duration` always means GPX-derived elapsed time.
     @JsonKey(name: 'moving_duration') double? movingDuration,
-    @Default(TrailDifficulty.easy) TrailDifficulty difficulty,
+    // Null means "unknown": PocketBase returns an unset select as "", which
+    // importers write on purpose when the provider has no matching grade.
+    @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue)
+    TrailDifficulty? difficulty,
     double? lat,
     double? lon,
     @JsonKey(name: 'max_lat') @Default(0) double maxLat,
@@ -182,7 +185,7 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   String get summaryAuthorName => expand?.author?.username ?? "Unknown";
 
   @override
-  int get summaryDifficulty => difficulty.index;
+  int? get summaryDifficulty => difficulty?.index;
 
   @override
   String get summaryAuthorAvatar => expand?.author?.icon ?? "";

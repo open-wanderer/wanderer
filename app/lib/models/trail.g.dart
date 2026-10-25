@@ -60,9 +60,11 @@ _Trail _$TrailFromJson(Map<String, dynamic> json) => _Trail(
   elevationLoss: (json['elevation_loss'] as num?)?.toDouble() ?? 0,
   duration: (json['duration'] as num?)?.toDouble() ?? 0,
   movingDuration: (json['moving_duration'] as num?)?.toDouble(),
-  difficulty:
-      $enumDecodeNullable(_$TrailDifficultyEnumMap, json['difficulty']) ??
-      TrailDifficulty.easy,
+  difficulty: $enumDecodeNullable(
+    _$TrailDifficultyEnumMap,
+    json['difficulty'],
+    unknownValue: JsonKey.nullForUndefinedEnumValue,
+  ),
   lat: (json['lat'] as num?)?.toDouble(),
   lon: (json['lon'] as num?)?.toDouble(),
   maxLat: (json['max_lat'] as num?)?.toDouble() ?? 0,
@@ -111,7 +113,7 @@ Map<String, dynamic> _$TrailToJson(_Trail instance) => <String, dynamic>{
   'elevation_loss': instance.elevationLoss,
   'duration': instance.duration,
   'moving_duration': instance.movingDuration,
-  'difficulty': _$TrailDifficultyEnumMap[instance.difficulty]!,
+  'difficulty': _$TrailDifficultyEnumMap[instance.difficulty],
   'lat': instance.lat,
   'lon': instance.lon,
   'max_lat': instance.maxLat,

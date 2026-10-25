@@ -21,7 +21,7 @@ abstract class TrailSummary with RecordFunctions {
 
   DateTime? get summaryDate;
   String get summaryThumbnail;
-  int get summaryDifficulty;
+  int? get summaryDifficulty;
   String get summaryAuthorName;
   String get summaryAuthorAvatar;
 

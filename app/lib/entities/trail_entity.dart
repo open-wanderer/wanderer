@@ -158,17 +158,18 @@ class TrailEntity {
   DateTime? syncNextAttemptAt;
 
   @Transient()
-  TrailDifficulty difficulty = TrailDifficulty.easy;
+  TrailDifficulty? difficulty;
 
+  /// -1 stores an unknown difficulty.
   int get dbDifficulty {
-    return difficulty.index;
+    return difficulty?.index ?? -1;
   }
 
   set dbDifficulty(int value) {
     if (value >= 0 && value < TrailDifficulty.values.length) {
       difficulty = TrailDifficulty.values[value];
     } else {
-      difficulty = TrailDifficulty.easy;
+      difficulty = null;
     }
   }
 
@@ -206,7 +207,7 @@ class TrailEntity {
     this.elevationLoss = 0,
     this.duration = 0,
     this.movingDuration,
-    this.difficulty = TrailDifficulty.easy,
+    this.difficulty,
     this.lat,
     this.lon,
     this.maxLat = 0,
@@ -250,6 +251,7 @@ class TrailEntity {
       elevationLoss: trail.elevationLoss,
       duration: trail.duration,
       movingDuration: trail.movingDuration,
+      difficulty: trail.difficulty,
       lat: trail.lat,
       lon: trail.lon,
       maxLat: trail.maxLat,
@@ -264,7 +266,6 @@ class TrailEntity {
       syncState: trail.syncState,
     );
 
-    entity.dbDifficulty = trail.difficulty.index;
     entity.categoryRecordId = trail.category;
     entity.subcategoryRecordId = trail.subcategory;
     entity.completed = trail.completed;

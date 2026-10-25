@@ -172,13 +172,14 @@ class TrailListItem extends ConsumerWidget {
                                 icon: FontAwesomeIcons.locationDot,
                                 label: trail.location!,
                               ),
-                            _InlineIcon(
-                              icon: FontAwesomeIcons.gauge,
-                              label: _getDifficultyLabel(
-                                context,
-                                trail.summaryDifficulty,
+                            if (trail.summaryDifficulty != null)
+                              _InlineIcon(
+                                icon: FontAwesomeIcons.gauge,
+                                label: _getDifficultyLabel(
+                                  context,
+                                  trail.summaryDifficulty!,
+                                ),
                               ),
-                            ),
                           ],
                         ),
 

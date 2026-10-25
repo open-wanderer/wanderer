@@ -44,7 +44,8 @@ import 'package:wanderer/models/trail.dart';
 /// exceeds device-derived offline bounds).
 ///
 /// `Trail.difficulty` is a `TrailDifficulty` enum whose index maps to the
-/// filter's 0/1/2. `Trail.category`/`Trail.subcategory` hold record IDs.
+/// filter's 0/1/2; a trail with an unknown (null) difficulty only passes while
+/// all three are selected. `Trail.category`/`Trail.subcategory` hold record IDs.
 List<Trail> applyTrailFilter(
   List<Trail> trails,
   TrailFilter filter, {
@@ -67,7 +68,12 @@ List<Trail> applyTrailFilter(
 
   List<Trail> result = trails.where((trail) {
     // Difficulty
-    if (!filter.difficulty.contains(trail.difficulty.index)) return false;
+    final difficulty = trail.difficulty;
+    if (difficulty == null
+        ? filter.difficulty.length < TrailDifficulty.values.length
+        : !filter.difficulty.contains(difficulty.index)) {
+      return false;
+    }
 
     // Distance / elevation ranges
     if (trail.distance < filter.distanceMin) return false;
@@ -133,7 +139,7 @@ List<Trail> applyTrailFilter(
         cmp = aDate.compareTo(bDate);
         break;
       case TrailFilterSort.difficulty:
-        cmp = a.difficulty.index.compareTo(b.difficulty.index);
+        cmp = (a.difficulty?.index ?? -1).compareTo(b.difficulty?.index ?? -1);
         break;
       case TrailFilterSort.distance:
         cmp = a.distance.compareTo(b.distance);

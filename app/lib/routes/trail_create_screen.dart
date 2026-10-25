@@ -413,7 +413,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       description: values['description'] as String? ?? '',
       public: values['public'] as bool? ?? false,
       completed: values['completed'] as bool? ?? false,
-      difficulty: values['difficulty'] as TrailDifficulty,
+      difficulty: values['difficulty'] as TrailDifficulty?,
       category: categorySelection?.category ?? trail.category,
       subcategory: categorySelection?.subcategory ?? trail.subcategory,
       expand: (trail.expand ?? const TrailExpand()).copyWith(
