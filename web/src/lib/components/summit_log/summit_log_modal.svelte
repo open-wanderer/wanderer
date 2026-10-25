@@ -46,21 +46,6 @@
         initialValues: $summitLog,
         extend: validator({ schema: ClientSummitLogCreateSchema }),
         onSubmit: async (form) => {
-            if (
-                !form._photos?.length &&
-                !form.photos?.length &&
-                form.expand?.gpx_data
-            ) {
-                const canvas = document.querySelector(
-                    "#trail-picker-map .maplibregl-canvas",
-                ) as HTMLCanvasElement;
-
-                const dataURL = canvas.toDataURL();
-                const response = await fetch(dataURL);
-                const blob = await response.blob();
-                form._photos = [new File([blob], "route")];
-            }
-
             onsave?.(form);
             modal.closeModal!();
         },

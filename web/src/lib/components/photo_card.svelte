@@ -36,7 +36,7 @@
 </script>
 
 <div
-    class="group relative h-32 w-32 rounded-xl bg-cover bg-no-repeat"
+    class="group relative h-32 w-32 rounded-xl bg-cover bg-center bg-no-repeat"
     style="background-image: url({src});"
 >
     {#if isVideoURL(src)}
