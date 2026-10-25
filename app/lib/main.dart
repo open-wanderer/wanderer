@@ -37,7 +37,7 @@ import 'objectbox.g.dart';
 import 'provider/router_provider.dart';
 import 'provider/local_settings_provider.dart';
 import 'theme/theme.dart';
-import 'actions/import_trail_file.dart';
+import 'provider/pending_trail_import_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -152,16 +152,9 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   bool _syncDrainColdStartKicked = false;
   ProviderSubscription? _onlineStatusSub;
 
-  // Files handed to the app via the OS share sheet, buffered until auth settles
-  // with a signed-in user (a share can arrive on a cold, signed-out start).
-  List<SharedMediaFile>? _pendingShare;
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
 
-  // Listener waiting for the router to leave the splash route before the share
-  // import opens its bottom sheet. Held so dispose() can detach it.
-  VoidCallback? _shareRouteWaiter;
   VoidCallback? _resumeRouteWaiter;
-  GoRouter? _shareRouteWaiterRouter;
   GoRouter? _resumeRouteWaiterRouter;
 
   @override
@@ -219,8 +212,6 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       _lastAuthUserId = userId;
 
       if (next.value != null) {
-        _maybeHandleShare();
-
         // The cold-start trigger: `AppLifecycleState.resumed` never
         // fires on a fresh launch, so the drain needs its own kick once a
         // signed-in user has settled. One-shot — a later auth re-emission
@@ -241,14 +232,12 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     // Inbound share intents: while running (stream) and cold-start (initial).
     _shareSub = ReceiveSharingIntent.instance.getMediaStream().listen((files) {
       if (files.isEmpty) return;
-      _pendingShare = files;
-      _maybeHandleShare();
+      _handleShare(files);
     }, onError: (_) {});
 
     ReceiveSharingIntent.instance.getInitialMedia().then((files) {
       if (files.isEmpty) return;
-      _pendingShare = files;
-      _maybeHandleShare();
+      _handleShare(files);
       // Tell the plugin we consumed it so it isn't redelivered on the next
       // getInitialMedia() call.
       ReceiveSharingIntent.instance.reset();
@@ -269,112 +258,47 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     _authSub?.close();
     _onlineStatusSub?.close();
     _shareSub?.cancel();
-    _detachShareRouteWaiter();
     _detachResumeRouteWaiter();
     super.dispose();
   }
 
-  /// Runs the trail import for a buffered shared file once we know who's
-  /// signed in and the navigator is ready. Keeps the file buffered otherwise
-  /// so a share received while signed out replays on login.
+  /// Hands an inbound file to `TrailSourceSelectScreen` through
+  /// [pendingTrailImportProvider], so it is imported from the same screen and
+  /// with the same loading state as + → Import file.
   ///
-  /// Routes optimistically off a cached ObjectBox session rather than
-  /// waiting for authProvider to finish its network validation
-  /// (auth_provider.dart's 3s-timeout-gated build()) — a share often arrives
-  /// as a fresh cold start (Android reclaimed the backgrounded process; see
-  /// singleTask in AndroidManifest.xml), and waiting for that gate here means
-  /// a home-screen spinner flash before the import screen shows. The global
-  /// gate stays intact for every other route; this is a narrow, accepted
-  /// exception scoped to the share entry point. In the rare case the cached
-  /// session turns out to be invalid, authProvider's own auth-error handling
-  /// logs the user out and the router redirect bounces them to /welcome —
-  /// same outcome as today, just after a visible import screen instead of
-  /// before one.
-  ///
-  /// The actual sheet is not opened here: on a cold share start the app is
-  /// still on the `/` splash route, which the router redirect is guaranteed to
-  /// leave for `/map` as soon as auth settles. That redirect rebuilds the route
-  /// stack and tears down any modal route on top of it — which silently
-  /// cancelled the import's track-save-options sheet. See
-  /// [_runImportWhenRouterSettled].
-  void _maybeHandleShare() {
-    final pending = _pendingShare;
-    if (pending == null || pending.isEmpty) return;
-
-    final auth = ref.read(authProvider);
-    final hasCachedUser = ref
-        .read(objectBoxProvider)
-        .box<UserEntity>()
-        .getAll()
-        .isNotEmpty;
-    if (!hasCachedUser && (auth.isLoading || auth.value == null)) return;
-
+  /// On a cold start the router is still on the `/` splash, and its redirect
+  /// lands on `/trail/create` instead of `/map` once auth settles. On an auth
+  /// route the same redirect takes over after login. Anywhere else the screen
+  /// is pushed on top, so whatever was open (an active recording included)
+  /// stays underneath.
+  void _handleShare(List<SharedMediaFile> files) {
     // Single-trail import: take the first shared file, ignore any extras.
-    final file = pending.first;
-    _pendingShare = null;
+    ref.read(pendingTrailImportProvider.notifier).set(files.first.path);
 
-    // Release the splash's trail-reveal hold for the same reason this method
-    // skips the auth gate: a share is usually a cold start, and making the
-    // import wait out a ~700ms animation is precisely the splash flash the
-    // optimistic routing above exists to avoid. The reveal is decoration on a
-    // wait; here there is a real destination to get to.
-    ref.read(splashRevealProvider.notifier).complete();
+    // Release the splash's trail-reveal hold when a session is known: a share
+    // is usually a cold start, and making the import wait out a ~700ms
+    // animation is exactly the splash flash it exists to avoid. Signed out,
+    // the hold stays, so the reveal is not cut short only to land on /welcome.
+    final hasSession =
+        ref.read(authProvider).value != null ||
+        ref.read(objectBoxProvider).box<UserEntity>().getAll().isNotEmpty;
+    if (hasSession) ref.read(splashRevealProvider.notifier).complete();
 
-    _runImportWhenRouterSettled(file);
-  }
-
-  /// Runs [importTrailFile] for [file] once the router has settled on a real
-  /// route, so the import's bottom sheet is never opened over the `/` splash
-  /// (a route the redirect always leaves, taking the sheet with it).
-  ///
-  /// If the router settles on an auth route instead, the optimistic cached
-  /// session turned out to be invalid — the file goes back into
-  /// [_pendingShare] so the auth listener replays it after login.
-  void _runImportWhenRouterSettled(SharedMediaFile file) {
-    // A newer share supersedes one still waiting — single-trail import.
-    _detachShareRouteWaiter();
-
-    const authRoutes = {'/login', '/register', '/welcome', '/select-server'};
+    const redirectHandled = {
+      '',
+      '/',
+      '/login',
+      '/register',
+      '/welcome',
+      '/select-server',
+    };
     final router = ref.read(routerProvider);
-
-    void attempt() {
-      final location = router.routerDelegate.currentConfiguration.uri.path;
-      if (location == '/') return; // Still on the splash — keep waiting.
-
-      _detachShareRouteWaiter();
-
-      if (authRoutes.contains(location)) {
-        _pendingShare = [file];
-        return;
-      }
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx == null) return;
-        final l10n = AppLocalizations.of(ctx);
-        if (l10n == null) return;
-        importTrailFile(
-          ref: ref,
-          path: file.path,
-          name: p.basename(file.path),
-          navContext: ctx,
-          l10n: l10n,
-        );
-      });
+    final location = router.routerDelegate.currentConfiguration.uri.path;
+    // Already on the import screen: it picks the file up itself.
+    if (redirectHandled.contains(location) || location == '/trail/create') {
+      return;
     }
-
-    _shareRouteWaiter = attempt;
-    _shareRouteWaiterRouter = router;
-    router.routerDelegate.addListener(attempt);
-    attempt();
-  }
-
-  void _detachShareRouteWaiter() {
-    final waiter = _shareRouteWaiter;
-    if (waiter == null) return;
-    _shareRouteWaiterRouter?.routerDelegate.removeListener(waiter);
-    _shareRouteWaiter = null;
-    _shareRouteWaiterRouter = null;
+    router.push('/trail/create');
   }
 
   /// Checks for a persisted active-navigation row and reopens the session it

@@ -8,11 +8,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:wanderer/actions/request_background_location.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
+import 'package:path/path.dart' as p;
 import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/settings.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
+import 'package:wanderer/provider/pending_trail_import_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/models/route_travel_bucket.dart';
@@ -32,6 +34,14 @@ class _TrailSourceSelectScreenState
   bool _importLoading = false;
   bool _plannerLoading = false;
   bool _recorderLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _takePendingImport();
+    });
+  }
 
   /// Requests location permission (mirroring `launch_navigation.dart`'s
   /// `launchNavigation` gate — `NavigationScreen` does not self-request it),
@@ -171,13 +181,37 @@ class _TrailSourceSelectScreenState
     final path = picked?.path;
     if (picked == null || path == null) return;
 
+    await _importFile(path, picked.name, l10n);
+  }
+
+  /// Imports a file the OS handed to the app ("Open with" or the share sheet),
+  /// parked in [pendingTrailImportProvider] by main.dart. Runs on first build
+  /// for a cold start and from the listener in [build] when the file arrives
+  /// while this screen is already open.
+  void _takePendingImport() {
+    // Only the visible instance: another one may sit further down the stack.
+    if (_importLoading || !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return;
+    }
+    final path = ref.read(pendingTrailImportProvider.notifier).take();
+    if (path == null) return;
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return;
+    _importFile(path, p.basename(path), l10n);
+  }
+
+  Future<void> _importFile(
+    String path,
+    String name,
+    AppLocalizations l10n,
+  ) async {
     setState(() => _importLoading = true);
     try {
       if (!mounted) return;
       await importTrailFile(
         ref: ref,
         path: path,
-        name: picked.name,
+        name: name,
         navContext: context,
         l10n: l10n,
       );
@@ -190,6 +224,15 @@ class _TrailSourceSelectScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isOnline = ref.watch(onlineStatusProvider);
+
+    // Deferred: [_takePendingImport] clears the provider, which must not
+    // happen while it is still notifying its listeners.
+    ref.listen<String?>(pendingTrailImportProvider, (_, next) {
+      if (next == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _takePendingImport();
+      });
+    });
 
     // Any in-flight action disables all three cards, so a second tap cannot
     // race the first.
