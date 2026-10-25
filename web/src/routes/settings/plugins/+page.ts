@@ -1,9 +1,9 @@
-import { plugin_instances_index } from "$lib/stores/plugin_instance_store";
-import { plugins_index } from "$lib/stores/plugin_store";
-import { category_preferences_index } from "$lib/stores/category_preference_store";
-import { categories_index } from "$lib/stores/category_store";
-import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
-import { subcategories_index } from "$lib/stores/subcategory_store";
+import { plugin_instances_index } from "#lib/stores/plugin_instance_store.ts";
+import { plugins_index } from "#lib/stores/plugin_store.ts";
+import { category_preferences_index } from "#lib/stores/category_preference_store.ts";
+import { categories_index } from "#lib/stores/category_store.ts";
+import { subcategory_preferences_index } from "#lib/stores/subcategory_preference_store.ts";
+import { subcategories_index } from "#lib/stores/subcategory_store.ts";
 import { type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ fetch }) => {

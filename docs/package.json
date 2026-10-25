@@ -1,7 +1,7 @@
 {
   "name": "docs",
   "type": "module",
-  "version": "0.21.0",
+  "version": "0.21.2",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
@@ -20,7 +20,7 @@
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.4",
-    "sharp": "^0.35.2",
+    "sharp": "^0.35.5",
     "starlight-openapi": "^0.26.2",
     "svelte": "^5.57.1",
     "tailwindcss": "^4.3.2",

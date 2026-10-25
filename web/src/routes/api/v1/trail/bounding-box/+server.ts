@@ -1,6 +1,6 @@
-import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
-import type { TrailBoundingBox } from "$lib/models/trail";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { withTrailPreferenceMeiliFilter } from "#lib/server/category_preference_filter.ts";
+import type { TrailBoundingBox } from "#lib/models/trail.ts";
+import { error, type RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -33,7 +33,7 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function GET(event: RequestEvent) {
     if (!event.locals.pb.authStore.record) {
-        return json({
+        return Response.json({
             max_lat: 0,
             min_lat: 0,
             max_lon: 0,
@@ -89,7 +89,7 @@ export async function GET(event: RequestEvent) {
             maxLonResult.hits.length > 0;
 
         if (!hasTrails) {
-            return json({
+            return Response.json({
                 min_lat: 0,
                 max_lat: 0,
                 min_lon: 0,
@@ -106,7 +106,7 @@ export async function GET(event: RequestEvent) {
             has_trails: true,
         };
 
-        return json(boundingBox)
+        return Response.json(boundingBox)
     } catch (e: any) {
         console.error(e);
         throw error(e.httpStatus || 500, e.message ?? "Unable to get trail bounding box");

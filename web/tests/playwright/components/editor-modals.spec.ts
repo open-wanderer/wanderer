@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '../fixtures';
 import { buildTrailModalFixture, mountTrailModalFixture } from './trail-modal-fixture';
 
 async function openSecondEditorLink(page: Page) {

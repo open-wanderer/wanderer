@@ -36,6 +36,10 @@ type InstanceStatusUpdate struct {
 // InstanceStatusForError converts sync/runtime errors into the persisted
 // plugin_instances status fields used by the UI and cron backoff logic.
 func InstanceStatusForError(err error, now time.Time) InstanceStatusUpdate {
+	var limitErr SyncItemLimitError
+	if errors.As(err, &limitErr) {
+		return InstanceStatusUpdate{Status: "error", Code: "sync_item_limit_exceeded", Message: SyncItemLimitMessage}
+	}
 	var capabilityErr PluginCapabilityError
 	var callErr PluginCallError
 	if errors.As(err, &capabilityErr) && capabilityErr.Err != nil {

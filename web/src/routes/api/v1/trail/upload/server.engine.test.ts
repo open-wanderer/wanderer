@@ -7,12 +7,12 @@ import { generateTenantToken } from "meilisearch/token";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const external = vi.hoisted(() => ({ gpx2trail: vi.fn(), trails_create: vi.fn() }));
-vi.mock("$lib/util/gpx_util", () => ({
+vi.mock("#lib/util/gpx_util.ts", () => ({
     fromFile: async () => ({ gpxData: "<gpx/>", gpxFile: new Blob(["<gpx/>"]) }),
     gpx2trail: external.gpx2trail,
 }));
-vi.mock("$lib/stores/search_store", () => ({ searchLocationReverse: async () => "Test location" }));
-vi.mock("$lib/stores/trail_store", () => ({ trails_create: external.trails_create }));
+vi.mock("#lib/stores/search_store.ts", () => ({ searchLocationReverse: async () => "Test location" }));
+vi.mock("#lib/stores/trail_store.ts", () => ({ trails_create: external.trails_create }));
 import { PUT } from "./+server";
 
 const host = process.env.DUPLICATE_TEST_MEILI_URL;

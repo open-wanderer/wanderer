@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -347,7 +348,7 @@ func TestDocumentFromListRecordMissingAuthor(t *testing.T) {
 
 	for _, includeShares := range []bool{false, true} {
 		t.Run(includeSharesLabel(includeShares), func(t *testing.T) {
-			document, err := documentFromListRecord(list, nil, includeShares)
+			document, err := documentFromListRecord(nil, list, nil, includeShares)
 			if err == nil {
 				t.Fatal("expected an error")
 			}
@@ -476,4 +477,117 @@ func setupListIndexApp(t *testing.T) (*core.BaseApp, *core.Record) {
 		"domain":             "ignored.example",
 	})
 	return app, author
+}
+
+// A remote list's totals come from the local copies of its trails, which a
+// full sync stores; building its document never contacts the remote instance.
+func TestDocumentFromListRecordRemoteTotalsAreLocal(t *testing.T) {
+	contacted := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contacted = true
+	}))
+	defer server.Close()
+
+	author := newActorRecord("remoteauthor001", "remote", false, "remote.example")
+	list := newListRecord("remotelist00001", author.Id)
+	list.Set("iri", server.URL+"/api/v1/list/remote")
+
+	trails := core.NewBaseCollection("trails")
+	trails.Fields.Add(
+		&core.BoolField{Name: "public"},
+		&core.NumberField{Name: "distance"},
+		&core.NumberField{Name: "elevation_gain"},
+		&core.NumberField{Name: "elevation_loss"},
+		&core.NumberField{Name: "duration"},
+	)
+	var synced []*core.Record
+	for i, distance := range []float64{1200, 800} {
+		trail := core.NewRecord(trails)
+		trail.Id = fmt.Sprintf("syncedtrail0000%d", i)
+		trail.Set("public", true)
+		trail.Set("distance", distance)
+		trail.Set("elevation_gain", 100)
+		trail.Set("elevation_loss", 50)
+		trail.Set("duration", 30)
+		synced = append(synced, trail)
+	}
+	list.Set("trails", []string{synced[0].Id, synced[1].Id})
+	list.SetExpand(map[string]any{"trails": synced})
+
+	document, err := documentFromListRecord(nil, list, author, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contacted {
+		t.Fatal("building a remote list's document contacted its instance")
+	}
+	if document["distance"] != 2000.0 || document["elevation_gain"] != 200.0 || document["trails"] != 2 || document["domain"] != "remote.example" {
+		t.Fatalf("document = %#v; want totals of the two synced trails", document)
+	}
+}
+
+func TestListSearchTotalsIncludeOnlyTrailsReadableByTheAuthor(t *testing.T) {
+	app, author := setupListIndexApp(t)
+	trails, _ := app.FindCollectionByNameOrId("trails")
+	trails.Fields.Add(&core.BoolField{Name: "public"}, &core.TextField{Name: "iri"}, &core.NumberField{Name: "distance"},
+		&core.NumberField{Name: "elevation_gain"}, &core.NumberField{Name: "elevation_loss"}, &core.NumberField{Name: "duration"})
+	if err := app.Save(trails); err != nil {
+		t.Fatal(err)
+	}
+	actors, _ := app.FindCollectionByNameOrId("activitypub_actors")
+	other := saveRecord(t, app, actors, map[string]any{"preferred_username": "Other"})
+	shares := core.NewBaseCollection("trail_share")
+	shares.Fields.Add(&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1}, &core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1})
+	if err := app.Save(shares); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{}
+	for index, visibility := range []string{"public", "owned", "shared", "unreadable-local", "unreadable-remote"} {
+		owner := other.Id
+		if visibility == "owned" {
+			owner = author.Id
+		}
+		trail := saveRecord(t, app, trails, map[string]any{"name": visibility, "author": owner, "public": visibility == "public",
+			"distance": 100 + index, "elevation_gain": 20, "elevation_loss": 10, "duration": 5,
+			"iri": "https://historical.example/api/v1/trail/" + visibility})
+		ids = append(ids, trail.Id)
+		if visibility == "shared" {
+			saveRecord(t, app, shares, map[string]any{"trail": trail.Id, "actor": author.Id})
+		}
+		if visibility == "unreadable-local" {
+			saveRecord(t, app, shares, map[string]any{"trail": trail.Id, "actor": other.Id})
+		}
+	}
+	lists, _ := app.FindCollectionByNameOrId("lists")
+	list := saveRecord(t, app, lists, map[string]any{"name": "Readable totals", "author": author.Id, "trails": ids})
+	assertTotals := func(document map[string]any, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if document["distance"] != 303.0 || document["elevation_gain"] != 60.0 || document["elevation_loss"] != 30.0 || document["duration"] != 15.0 || document["trails"] != 3 {
+			t.Fatalf("unreadable statistics included: %#v", document)
+		}
+	}
+	assertTotals(ListSearchDocument(app, list))
+	documents, errs := ListSearchDocuments(app, []*core.Record{list})
+	assertTotals(documents[0], errs[0])
+	capture := &meiliCapture{}
+	server := httptest.NewServer(http.HandlerFunc(capture.serveHTTP))
+	t.Cleanup(server.Close)
+	if err := UpdateList(app, list, author, meilisearch.New(server.URL)); err != nil {
+		t.Fatal(err)
+	}
+	var updated map[string]any
+	for _, request := range capture.snapshot() {
+		if request.method == http.MethodPut {
+			if err := json.Unmarshal(request.body, &updated); err != nil {
+				t.Fatal(err)
+			}
+
+		}
+	}
+	if updated["distance"] != 303.0 || updated["trails"] != float64(3) {
+		t.Fatalf("incremental list totals differ: %#v", updated)
+	}
 }

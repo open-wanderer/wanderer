@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"sort"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -10,6 +11,11 @@ import (
 )
 
 const defaultWaypointMergeRadius = 50
+
+// Photos taken this far apart in time are not merged even when they are close,
+// since they likely come from different passes over a stretch of trail that is
+// walked twice (out-and-back, lollipop).
+const waypointMergeMaxTimeGapMillis = 15 * 60 * 1000
 
 type waypointMergeSettings struct {
 	Enabled bool
@@ -23,15 +29,17 @@ type waypointClusterRequest struct {
 }
 
 type waypointClusterPhoto struct {
-	ID  string  `json:"id"`
-	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
+	ID   string  `json:"id"`
+	Lat  float64 `json:"lat"`
+	Lon  float64 `json:"lon"`
+	Time *int64  `json:"time,omitempty"`
 }
 
 type waypointClusterWaypoint struct {
-	ID  string  `json:"id"`
-	Lat float64 `json:"lat"`
-	Lon float64 `json:"lon"`
+	ID   string  `json:"id"`
+	Lat  float64 `json:"lat"`
+	Lon  float64 `json:"lon"`
+	Time *int64  `json:"time,omitempty"`
 }
 
 type waypointPhotoCluster struct {
@@ -42,6 +50,8 @@ type waypointPhotoCluster struct {
 	Count    int      `json:"-"`
 	Lat      float64  `json:"lat"`
 	Lon      float64  `json:"lon"`
+	MinTime  *int64   `json:"-"`
+	MaxTime  *int64   `json:"-"`
 }
 
 type categorySettings struct {
@@ -139,7 +149,7 @@ func clusterWaypointPhotos(photos []waypointClusterPhoto, waypoints []waypointCl
 		}
 	}
 
-	for _, photo := range photos {
+	for _, photo := range sortPhotosByTime(photos) {
 		if !mergeSettings.Enabled {
 			clusters = append(clusters, newWaypointPhotoCluster(photo))
 			continue
@@ -148,7 +158,7 @@ func clusterWaypointPhotos(photos []waypointClusterPhoto, waypoints []waypointCl
 		matchingClusterIndex := -1
 		for i, cluster := range clusters {
 			distanceToCenter := util.HaversineDistance(cluster.Lat, cluster.Lon, photo.Lat, photo.Lon)
-			if distanceToCenter <= mergeSettings.Radius {
+			if distanceToCenter <= mergeSettings.Radius && photoTimeFitsCluster(cluster, photo) {
 				matchingClusterIndex = i
 				break
 			}
@@ -164,14 +174,39 @@ func clusterWaypointPhotos(photos []waypointClusterPhoto, waypoints []waypointCl
 	return clusters
 }
 
+// sortPhotosByTime orders photos with a time chronologically, followed by the
+// ones without a time in their original order, so that a chain of photos each
+// close in time to the previous one merges regardless of upload order.
+func sortPhotosByTime(photos []waypointClusterPhoto) []waypointClusterPhoto {
+	sorted := make([]waypointClusterPhoto, len(photos))
+	copy(sorted, photos)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].Time == nil || sorted[j].Time == nil {
+			return sorted[i].Time != nil && sorted[j].Time == nil
+		}
+		return *sorted[i].Time < *sorted[j].Time
+	})
+	return sorted
+}
+
+func photoTimeFitsCluster(cluster waypointPhotoCluster, photo waypointClusterPhoto) bool {
+	if photo.Time == nil || cluster.MinTime == nil {
+		return true
+	}
+	return *photo.Time >= *cluster.MinTime-waypointMergeMaxTimeGapMillis &&
+		*photo.Time <= *cluster.MaxTime+waypointMergeMaxTimeGapMillis
+}
+
 func newWaypointPhotoCluster(photo waypointClusterPhoto) waypointPhotoCluster {
 	return waypointPhotoCluster{
-		Photos: []string{photo.ID},
-		SumLat: photo.Lat,
-		SumLon: photo.Lon,
-		Count:  1,
-		Lat:    photo.Lat,
-		Lon:    photo.Lon,
+		Photos:  []string{photo.ID},
+		SumLat:  photo.Lat,
+		SumLon:  photo.Lon,
+		Count:   1,
+		Lat:     photo.Lat,
+		Lon:     photo.Lon,
+		MinTime: photo.Time,
+		MaxTime: photo.Time,
 	}
 }
 
@@ -184,6 +219,8 @@ func newWaypointCluster(waypoint waypointClusterWaypoint) waypointPhotoCluster {
 		Count:    1,
 		Lat:      waypoint.Lat,
 		Lon:      waypoint.Lon,
+		MinTime:  waypoint.Time,
+		MaxTime:  waypoint.Time,
 	}
 }
 
@@ -194,4 +231,12 @@ func addPhotoToWaypointCluster(cluster *waypointPhotoCluster, photo waypointClus
 	cluster.Count++
 	cluster.Lat = cluster.SumLat / float64(cluster.Count)
 	cluster.Lon = cluster.SumLon / float64(cluster.Count)
+	if photo.Time != nil {
+		if cluster.MinTime == nil || *photo.Time < *cluster.MinTime {
+			cluster.MinTime = photo.Time
+		}
+		if cluster.MaxTime == nil || *photo.Time > *cluster.MaxTime {
+			cluster.MaxTime = photo.Time
+		}
+	}
 }

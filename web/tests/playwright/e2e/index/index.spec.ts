@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../../fixtures';
 import { IndexPage } from '../../pages/index_page';
 
 test('index page does not show error', async ({ page }) => {

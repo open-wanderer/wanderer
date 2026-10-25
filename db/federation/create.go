@@ -117,6 +117,9 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
+	if !commentTrail.GetBool("public") {
+		return nil
+	}
 	commentTrailAuthor, err := app.FindRecordById("activitypub_actors", commentTrail.GetString("author"))
 	if err != nil {
 		return err
@@ -190,6 +193,9 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 }
 
 func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
+	if summitLog.GetBool("federation_suppressed") {
+		return nil
+	}
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -317,7 +323,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	logObject.Tag = tags
 
 	logObject.StartTime = summitLog.GetDateTime("date").Time()
-	logObject.Attachment = attachments
+	logObject.Attachment = util.ActivityPubAttachmentArray(attachments)
 
 	activity := pub.ActivityNew(pub.IRI(id), typ, logObject)
 	activity.Actor = pub.IRI(summitLogAuthor.GetString("iri"))
@@ -447,7 +453,7 @@ func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *
 }
 
 func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
-	trail, err := util.TrailFromActivity(activity, app, actor)
+	trail, storedElsewhere, err := util.TrailFromConcurrentActivity(activity, app, actor)
 	if err != nil {
 		return err
 	}
@@ -455,6 +461,12 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 	_, err = util.InsertIntoFeed(app, recipient.Id, actor.Id, trail.Id, util.TrailFeed)
 	if err != nil {
 		return err
+	}
+
+	// Among parallel deliveries of the same activity, only the delivery
+	// that stored the trail notifies the mentioned accounts.
+	if storedElsewhere {
+		return nil
 	}
 
 	trailObject, err := pub.ToObject(activity.Object)
@@ -466,7 +478,7 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 		if t.GetType() == pub.MentionType {
 			mention := t.(*pub.Mention)
 			mentionedActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", mention.Href.GetID().String())
-			if err != nil {
+			if err != nil || (actor.GetBool("is_local") && mentionedActor.GetString("inbox") != recipient.GetString("inbox")) {
 				continue
 			}
 			notification := util.Notification{
@@ -485,10 +497,44 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 	return nil
 }
 
+// Older peers put addressing only on the activity. Each absent object
+// address field may inherit its matching activity field; an explicit object
+// recipient list remains authoritative, including an explicitly empty list.
+func inboundCommentIsPublic(activity pub.Activity, object *pub.Object) bool {
+	to, cc := object.To, object.CC
+	if to == nil {
+		to = activity.To
+	}
+	if cc == nil {
+		cc = activity.CC
+	}
+	for _, recipients := range []pub.ItemCollection{to, cc} {
+		for _, recipient := range recipients {
+			if recipient == nil {
+				continue
+			}
+			switch recipient.GetID().String() {
+			case pub.PublicNS.String(), "as:Public", "Public":
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
 
 	commentObject, err := pub.ToObject(activity.Object)
 	if err != nil {
+		return err
+	}
+	if !inboundCommentIsPublic(activity, commentObject) {
+		return fmt.Errorf("comment is not publicly addressed")
+	}
+	if actor.GetBool("is_local") {
+		return nil
+	}
+	if err := validateInboundObjectAuthor(actor, commentObject); err != nil {
 		return err
 	}
 
@@ -516,23 +562,9 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return err
 	}
 
-	// no need to do anything else if the actor is local
-	if actor.GetBool("is_local") {
-		return nil
-	}
-
-	record, err := app.FindFirstRecordByData("comments", "iri", commentObject.ID.String())
+	record, _, err := remoteObjectRecord(app, "comments", commentObject.ID.String(), actor, trail.Id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			collection, err := app.FindCollectionByNameOrId("comments")
-			if err != nil {
-				return err
-			}
-
-			record = core.NewRecord(collection)
-		} else {
-			return err
-		}
+		return err
 	}
 
 	record.Set("iri", commentObject.ID.String())
@@ -592,6 +624,15 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	if err != nil {
 		return err
 	}
+	if actor.GetBool("is_local") {
+		return nil
+	}
+	if err := validateInboundObjectAuthor(actor, logObject); err != nil {
+		return err
+	}
+	if logObject.InReplyTo == nil {
+		return fmt.Errorf("error processing summit log: InReplyTo empty")
+	}
 
 	trail, err := app.FindFirstRecordByData("trails", "iri", logObject.InReplyTo.GetID().String())
 	// if the trail is not present on this instance fetch it
@@ -611,25 +652,9 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
-	// no need to do anything else if the actor is local
-	if actor.GetBool("is_local") {
-		return nil
-	}
-
-	newSummitLog := false
-	record, err := app.FindFirstRecordByData("summit_logs", "iri", logObject.ID.String())
+	record, newSummitLog, err := remoteObjectRecord(app, "summit_logs", logObject.ID.String(), actor, trail.Id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			collection, err := app.FindCollectionByNameOrId("summit_logs")
-			if err != nil {
-				return err
-			}
-
-			record = core.NewRecord(collection)
-			newSummitLog = true
-		} else {
-			return err
-		}
+		return err
 	}
 
 	var distance, duration, elevation_gain, elevation_loss float64
@@ -670,12 +695,14 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	record.Set("iri", logObject.ID.String())
 
 	if logObject.Attachment != nil {
-		attachments, err := pub.ToItemCollection(logObject.Attachment)
+		attachments, err := util.ActivityPubAttachmentItems(logObject.Attachment)
 		if err != nil {
 			return err
 		}
 
 		photoURLs := []string{}
+		photoLimit := util.RemotePhotoLimit(app, "summit_logs")
+		ignoredPhotos := 0
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
@@ -685,8 +712,16 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
 				gpxURL = attachment.URL.GetLink().String()
 			} else if attachment.Type == pub.ImageType {
+				if len(photoURLs) >= photoLimit {
+					ignoredPhotos++
+					continue
+				}
 				photoURLs = append(photoURLs, attachment.URL.GetLink().String())
 			}
+		}
+		if ignoredPhotos > 0 {
+			app.Logger().Info("ignoring remote summit log photos past the collection limit",
+				"iri", logObject.ID.String(), "limit", photoLimit, "ignored", ignoredPhotos)
 		}
 
 		if len(photoURLs) == 0 {
@@ -694,7 +729,8 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		} else {
 			photos := []*filesystem.File{}
 			for _, purl := range photoURLs {
-				photo, err := filesystem.NewFileFromURL(context.Background(), purl)
+				photo, cleanup, err := util.DownloadRemoteFile(context.Background(), purl, util.RemoteFileLimit(record, "photos", util.RemotePhotoMaxBytes))
+				defer cleanup()
 				if err != nil {
 					continue
 				}
@@ -707,7 +743,8 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		}
 
 		if gpxURL != "" {
-			gpx, err := filesystem.NewFileFromURL(context.Background(), gpxURL)
+			gpx, cleanup, err := util.DownloadRemoteFile(context.Background(), gpxURL, util.RemoteFileLimit(record, "gpx", util.RemoteGPXMaxBytes))
+			defer cleanup()
 			if err != nil {
 				return err
 			}
@@ -823,6 +860,29 @@ func fetchTrail(app core.App, sender *core.Record, iri string) (*core.Record, er
 	return util.TrailFromActivity(*activity, app, author)
 }
 
+// remoteObjectRecord returns the record a remote actor's Create or Update
+// writes to, or a new one if iri is unknown. The object must live on the
+// actor's host, and an existing record must already belong to the actor, so a
+// remote actor can neither overwrite local records nor another actor's.
+func remoteObjectRecord(app core.App, collection, iri string, actor *core.Record, trailID string) (record *core.Record, isNew bool, err error) {
+	record, err = app.FindFirstRecordByData(collection, "iri", iri)
+	if err == nil {
+		if !inboundRecordCanUpdate(app, record, actor, trailID) {
+			return nil, false, fmt.Errorf("actor %s is not the author of %s %s", actor.GetString("iri"), collection, iri)
+		}
+		return record, false, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, false, err
+	}
+
+	col, err := app.FindCollectionByNameOrId(collection)
+	if err != nil {
+		return nil, false, err
+	}
+	return core.NewRecord(col), true, nil
+}
+
 func sameHost(a, b string) bool {
 	ua, errA := url.Parse(a)
 	ub, errB := url.Parse(b)
@@ -872,4 +932,27 @@ func ActorsFromMentions(app core.App, ctx context.Context, htmlStr string) ([]*c
 	}
 
 	return actors, nil
+}
+
+// The signer writes only objects from its own origin and attribution.
+func validateInboundObjectAuthor(actor *core.Record, object *pub.Object) error {
+	return util.ValidateRemoteObjectAuthor(actor, object.ID.String(), object.AttributedTo)
+}
+
+func inboundRecordCanUpdate(app core.App, record, actor *core.Record, trail string) bool {
+	if actor.GetBool("is_local") || util.RecordHasLocalIdentity(app, record) || record.GetString("trail") != trail || !sameHost(record.GetString("iri"), actor.GetString("iri")) {
+		return false
+	}
+	stored, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
+	if err != nil || stored.GetBool("is_local") {
+		return false
+	}
+	if record.GetString("author") == actor.Id {
+		return true
+	}
+	if record.Collection().Name != "summit_logs" || sameHost(stored.GetString("iri"), record.GetString("iri")) {
+		return false
+	}
+	parent, err := app.FindRecordById("trails", trail)
+	return err == nil && parent.GetString("author") == stored.Id
 }

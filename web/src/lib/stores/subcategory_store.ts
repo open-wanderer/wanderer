@@ -1,5 +1,5 @@
-import type { Subcategory } from "$lib/models/subcategory";
-import { APIError } from "$lib/util/api_util";
+import type { Subcategory } from "#lib/models/subcategory.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 

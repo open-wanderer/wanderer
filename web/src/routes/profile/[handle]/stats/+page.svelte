@@ -1,19 +1,19 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import Calendar from "$lib/components/base/calendar.svelte";
-    import DateRangeModal from "$lib/components/base/date_range_modal.svelte";
-    import MultiSelect from "$lib/components/base/multi_select.svelte";
+    import Calendar from "#lib/components/base/calendar.svelte";
+    import DateRangeModal from "#lib/components/base/date_range_modal.svelte";
+    import MultiSelect from "#lib/components/base/multi_select.svelte";
     import Select, {
         type SelectItem,
-    } from "$lib/components/base/select.svelte";
-    import SummitLogTable from "$lib/components/summit_log/summit_log_table.svelte";
-    import TrailCategoryFilter from "$lib/components/trail/trail_category_filter.svelte";
-    import type { StatisticActivity } from "$lib/models/statistic_activity.js";
-    import type { SummitLogFilter } from "$lib/models/summit_log.js";
-    import { categories } from "$lib/stores/category_store.js";
-    import { profile_stats_index } from "$lib/stores/profile_store.js";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
-    import { currentUser } from "$lib/stores/user_store.js";
+    } from "#lib/components/base/select.svelte";
+    import SummitLogTable from "#lib/components/summit_log/summit_log_table.svelte";
+    import TrailCategoryFilter from "#lib/components/trail/trail_category_filter.svelte";
+    import type { StatisticActivity } from "#lib/models/statistic_activity.ts";
+    import type { SummitLogFilter } from "#lib/models/summit_log.ts";
+    import { categories } from "#lib/stores/category_store.ts";
+    import { profile_stats_index } from "#lib/stores/profile_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
     import {
         displayCategoryIcon,
         displayCategoryName,
@@ -22,13 +22,13 @@
         displayTrailCategoryIcon,
         displayTrailCategoryLabel,
         trailCategoryKey,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatSpeed,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import {
         calendarMonthForDateRange,
         dateInputValue,
@@ -37,7 +37,7 @@
         monthDateRange,
         parseDateValue,
         type DatePeriodPreset,
-    } from "$lib/util/date_util";
+    } from "#lib/util/date_util.ts";
     import {
         activityChartBucketKey,
         activityChartBuckets,
@@ -47,9 +47,9 @@
         millisecondsPerDay,
         type ActivityChartBucket,
         type ActivityChartTimeUnit,
-    } from "$lib/util/activity_chart_util";
-    import Bar from "$lib/vendor/svelte-chartjs/bar.svelte";
-    import Pie from "$lib/vendor/svelte-chartjs/pie.svelte";
+    } from "#lib/util/activity_chart_util.ts";
+    import Bar from "#lib/vendor/svelte-chartjs/bar.svelte";
+    import Pie from "#lib/vendor/svelte-chartjs/pie.svelte";
     import {
         ArcElement,
         BarElement,
@@ -144,7 +144,7 @@
     });
 
     // Apply new load data only when the viewer or profile changed. Other
-    // invalidateAll calls must not discard the user's local filters.
+    // refreshAll calls must not discard the user's local filters.
     $effect(() => {
         const nextViewerId = data.viewerId;
         const nextHandle = data.handle;

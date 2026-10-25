@@ -3,7 +3,7 @@
         processUploadQueue,
         uploadStore,
         type Upload,
-    } from "$lib/stores/upload_store.svelte";
+    } from "#lib/stores/upload_store.svelte.ts";
     import { slide } from "svelte/transition";
     import { _ } from "svelte-i18n";
     import { goto } from "$app/navigation";

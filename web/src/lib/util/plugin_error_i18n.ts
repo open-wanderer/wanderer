@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { _ } from "svelte-i18n";
-import { APIError } from "$lib/util/api_util";
+import { APIError } from "#lib/util/api_util.ts";
 
 type PluginErrorLike = {
     code?: unknown;
@@ -30,6 +30,10 @@ const authErrorHints = [
 
 export function translatePluginError(code?: string, message?: string): string {
     const normalizedCode = code?.trim();
+
+    if (normalizedCode === "sync_item_limit_exceeded") {
+        return get(_)("plugin-error-sync-item-limit-exceeded");
+    }
 
     if (normalizedCode && credentialErrorCodes.has(normalizedCode)) {
         return get(_)("wrong-username-or-password");

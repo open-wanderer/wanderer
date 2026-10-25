@@ -94,6 +94,7 @@ func TestFetchCollectionPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	want := func(from, to int) []string {
 		var out []string
@@ -137,6 +138,7 @@ func TestFetchCollectionPageStaysOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("page") == "1" {
@@ -194,6 +196,7 @@ func TestFetchCollectionCursor(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 	ctx := context.Background()
 
 	for _, style := range []string{"mastodon", "gotosocial", "wanderer", "wanderer-old"} {
@@ -249,6 +252,7 @@ func TestFetchCollectionCursorRejects(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	collURL := collectionServer(t, "mastodon", 3)
 	srvURL := strings.TrimSuffix(collURL, "/users/alice/followers")

@@ -14,10 +14,10 @@ const TrailCreateSchema = z.object({
     difficulty: z.enum(["easy", "moderate", "difficult"]).optional(),
     lat: z.number().min(-90).max(90).optional(),
     lon: z.number().min(-180).max(180).optional(),
-    distance: z.number({ coerce: true }).nonnegative().optional(),
-    elevation_gain: z.number({ coerce: true }).nonnegative().optional(),
-    elevation_loss: z.number({ coerce: true }).nonnegative().optional(),
-    duration: z.number({ coerce: true }).nonnegative().optional(),
+    distance: z.coerce.number().nonnegative().optional(),
+    elevation_gain: z.coerce.number().nonnegative().optional(),
+    elevation_loss: z.coerce.number().nonnegative().optional(),
+    duration: z.coerce.number().nonnegative().optional(),
     photos: z.array(z.string()).default([]),
     thumbnail: z.number().int().nonnegative().optional(),
     like_count: z.number().int().min(0).optional().default(0),
@@ -40,10 +40,10 @@ const TrailUpdateSchema = z.object({
     difficulty: z.enum(["easy", "moderate", "difficult"]).optional(),
     lat: z.number().min(-90).max(90).optional(),
     lon: z.number().min(-180).max(180).optional(),
-    distance: z.number({ coerce: true }).nonnegative().optional(),
-    elevation_gain: z.number({ coerce: true }).nonnegative().optional(),
-    elevation_loss: z.number({ coerce: true }).nonnegative().optional(),
-    duration: z.number({ coerce: true }).nonnegative().optional(),
+    distance: z.coerce.number().nonnegative().optional(),
+    elevation_gain: z.coerce.number().nonnegative().optional(),
+    elevation_loss: z.coerce.number().nonnegative().optional(),
+    duration: z.coerce.number().nonnegative().optional(),
     photos: z.array(z.string()).optional(),
     "photos-": z.string().optional(),
     "photos+": z.string().optional(),
@@ -56,7 +56,7 @@ const TrailUpdateSchema = z.object({
 }) satisfies ZodType<Partial<Trail>>
 
 const TrailRecommendSchema = z.object({
-    size: z.number({ coerce: true }).optional()
+    size: z.coerce.number().optional()
 })
 
 export { TrailCreateSchema, TrailUpdateSchema, TrailRecommendSchema };

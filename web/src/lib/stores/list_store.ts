@@ -1,13 +1,13 @@
-import { List, type ListFilter } from "$lib/models/list";
-import type { Trail } from "$lib/models/trail";
-import { APIError } from "$lib/util/api_util";
+import { List, type ListFilter } from "#lib/models/list.ts";
+import type { Trail } from "#lib/models/trail.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import type { ListSearchResult } from "./search_store";
 import { fetchGPX } from "./trail_store";
 import { currentUser } from "./user_store";
-import { objectToFormData } from "$lib/util/file_util";
+import { objectToFormData } from "#lib/util/file_util.ts";
 
 let lists: List[] = []
 export const list: Writable<List | null> = writable(null)
@@ -87,7 +87,7 @@ export async function lists_show(id: string, handle?: string, f: (url: RequestIn
 
     if (!r.ok) {
         const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+        throw new APIError(r.status, response.message, response.detail ?? response.data)
     }
 
     const response = await r.json()

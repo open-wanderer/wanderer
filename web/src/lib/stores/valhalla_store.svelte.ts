@@ -1,12 +1,12 @@
-import GPX from "$lib/models/gpx/gpx";
-import Track from "$lib/models/gpx/track";
-import TrackSegment from "$lib/models/gpx/track-segment";
-import { haversineDistance } from "$lib/models/gpx/utils";
-import Waypoint from "$lib/models/gpx/waypoint";
-import { type RoutingOptions, type ValhallaAnchor, type ValhallaHeightResponse, type ValhallaRouteResponse } from "$lib/models/valhalla";
-import { APIError } from "$lib/util/api_util";
-import { decodePolyline, encodePolyline } from "$lib/util/polyline_util";
-import { renderValhallaAnchorMarker, valhallaAnchorTitle } from "$lib/util/valhalla_anchor_util";
+import GPX from "#lib/models/gpx/gpx.ts";
+import Track from "#lib/models/gpx/track.ts";
+import TrackSegment from "#lib/models/gpx/track-segment.ts";
+import { haversineDistance } from "#lib/models/gpx/utils.ts";
+import Waypoint from "#lib/models/gpx/waypoint.ts";
+import { type RoutingOptions, type ValhallaAnchor, type ValhallaHeightResponse, type ValhallaRouteResponse } from "#lib/models/valhalla.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { decodePolyline, encodePolyline } from "#lib/util/polyline_util.ts";
+import { renderValhallaAnchorMarker, valhallaAnchorTitle } from "#lib/util/valhalla_anchor_util.ts";
 import { applyChangeset, diff, revertChangeset, type Changeset } from 'json-diff-ts';
 import type { LngLat } from "maplibre-gl";
 import { _ } from "svelte-i18n";
@@ -17,8 +17,8 @@ const emtpyTrack = new Track({ trkseg: [] })
 class ValhallaStore {
     route: GPX = $state(new GPX({ trk: [emtpyTrack] }));
     anchors: ValhallaAnchor[] = $state([]);
-    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[] }[] = $state([]);
-    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[] }[] = $state([]);
+    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
+    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
 }
 
 export const valhallaStore = new ValhallaStore();
@@ -171,6 +171,7 @@ export function reverseRoute() {
     const reverseDelta = diff(snapshot, valhallaStore.route);
     valhallaStore.route = applyChangeset(valhallaStore.route, delta);
     pushToUndoStack(delta, reverseDelta)
+    valhallaStore.undoStack[valhallaStore.undoStack.length - 1].reversesRoute = true
 
     valhallaStore.route.features = valhallaStore.route.getTotals();
 

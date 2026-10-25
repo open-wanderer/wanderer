@@ -1,4 +1,4 @@
-import type { icons } from "$lib/util/icon_util";
+import type { icons } from "#lib/util/icon_util.ts";
 import * as M from "maplibre-gl";
 
 class Waypoint {
@@ -12,6 +12,7 @@ class Waypoint {
     marker?: M.Marker;
     photos: string[];
     _photos?: File[];
+    _time?: Date;
     author: string;
     trail?: string;
 

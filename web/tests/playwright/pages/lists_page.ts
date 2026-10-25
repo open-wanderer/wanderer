@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type Response } from '@playwright/test';
 
 export class ListsPage {
   readonly page: Page;
@@ -67,6 +67,16 @@ export class ListsPage {
     await this.page.locator(".menu .menu-item").filter({ hasText: action }).click();
   }
 
+  private isApiResponse(response: Response, path: string, method: string) {
+    const url = new URL(response.url());
+    return url.pathname === path && response.request().method() === method && response.ok();
+  }
+
+  private isApiResponseWithPathPrefix(response: Response, pathPrefix: string, method: string) {
+    const url = new URL(response.url());
+    return url.pathname.startsWith(pathPrefix) && response.request().method() === method && response.ok();
+  }
+
   private async waitUntilIndexed(
     id: string,
     expected?: { name: string; description?: string },
@@ -108,8 +118,7 @@ export class ListsPage {
     ]);
 
     const [createdList] = await Promise.all([
-      this.page.waitForResponse(resp => resp.url().includes('/api/v1/list')
-        && resp.request().method() === 'PUT' && resp.status() === 200)
+      this.page.waitForResponse(resp => this.isApiResponse(resp, '/api/v1/list/form', 'PUT'))
         .then(response => response.json() as Promise<{ id: string }>),
       this.listFormSaveButton.click()
     ]);
@@ -125,8 +134,7 @@ export class ListsPage {
     await this.listFormDescription.fill(description);
 
     const [updatedList] = await Promise.all([
-      this.page.waitForResponse(resp => resp.url().includes('/api/v1/list')
-        && resp.request().method() === 'POST' && resp.status() === 200)
+      this.page.waitForResponse(resp => this.isApiResponseWithPathPrefix(resp, '/api/v1/list/form/', 'POST'))
         .then(response => response.json() as Promise<{ id: string; description: string }>),
       this.listFormSaveButton.click()
     ]);
@@ -138,8 +146,7 @@ export class ListsPage {
     await this.selectDropdownAction("Delete");
 
     const [response] = await Promise.all([
-      this.page.waitForResponse(resp => resp.url().includes('/api/v1/list')
-        && resp.request().method() === 'DELETE' && resp.status() === 200),
+      this.page.waitForResponse(resp => this.isApiResponseWithPathPrefix(resp, '/api/v1/list/', 'DELETE')),
       this.confirmModalConfirmButton.click()
     ]);
     const deletedId = new URL(response.url()).pathname.split('/').at(-1)!;

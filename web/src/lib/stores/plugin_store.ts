@@ -1,6 +1,6 @@
-import type { LocalizedTextMap, PluginProvider } from "$lib/models/plugin_provider";
-import type { PluginSystemPlugin } from "$lib/models/plugin_system";
-import { APIError } from "$lib/util/api_util";
+import type { LocalizedTextMap, PluginProvider } from "#lib/models/plugin_provider.ts";
+import type { PluginSystemPlugin } from "#lib/models/plugin_system.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { derived, writable, type Readable, type Writable } from "svelte/store";
 import {
     pluginInstances,

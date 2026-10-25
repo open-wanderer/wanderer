@@ -71,7 +71,7 @@ export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
 
 # Optional configuration
 # export MEILI_NO_ANALYTICS=true
-# export BODY_SIZE_LIMIT=Infinity
+# export BODY_SIZE_LIMIT=2G
 # export PUBLIC_DISABLE_SIGNUP=false
 # export UPLOAD_FOLDER=/app/uploads
 # export UPLOAD_USER=
@@ -80,7 +80,7 @@ export POCKETBASE_ENCRYPTION_KEY=YOUR_ENCRYPTION_KEY_HERE
 
 cd search && ./meilisearch --master-key $MEILI_MASTER_KEY &
 cd db && ./pocketbase serve &
-cd web && node build &
+cd web && node server.js &
 
 wait
 ```

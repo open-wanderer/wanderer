@@ -1,10 +1,10 @@
 import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { User } from "$lib/models/user";
-import { APIError } from "$lib/util/api_util";
+import type { User } from "#lib/models/user.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { currentUser, users_update } from "./user_store";
 
-vi.mock("$lib/pocketbase", () => ({ getPb: vi.fn() }));
+vi.mock("#lib/pocketbase.ts", () => ({ getPb: vi.fn() }));
 
 const user = {
     id: "user00000000001",

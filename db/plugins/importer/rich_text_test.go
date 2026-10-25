@@ -12,6 +12,7 @@ import (
 )
 
 func TestImportTrailSanitizesRichTextBeforeFieldValidation(t *testing.T) {
+	t.Setenv("ORIGIN", "https://wanderer.example.test")
 	app, err := tests.NewTestApp(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +48,7 @@ func TestImportTrailSanitizesRichTextBeforeFieldValidation(t *testing.T) {
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
 	)
 	collection("summit_logs",
+		&core.URLField{Name: "iri"},
 		&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1},
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
 		&core.DateField{Name: "date"}, &core.TextField{Name: "text"},

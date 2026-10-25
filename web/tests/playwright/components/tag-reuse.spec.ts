@@ -1,14 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { buildTrailModalFixture, mountTrailModalFixture } from './trail-modal-fixture';
 
 // Suggestions stay empty to reproduce Enter before a suggestion response.
 // Saving uses the real model/store and a synthetic HTTP lookup response.
 const source = `
     <script>
-        import Combobox from '$lib/components/base/combobox.svelte';
-        import { normalizeNewTagName } from '$lib/util/tag_name';
-        import { Tag } from '$lib/models/tag';
-        import { tags_create } from '$lib/stores/tag_store';
+        import Combobox from '#lib/components/base/combobox.svelte';
+        import { normalizeNewTagName } from '#lib/util/tag_name.ts';
+        import { Tag } from '#lib/models/tag.ts';
+        import { tags_create } from '#lib/stores/tag_store.ts';
 
         const existing = { id: 'existingtag0001', name: 'Berg Tour' };
         const requests = [];

@@ -2,7 +2,7 @@ import {
     expect,
     test,
     type Page,
-} from '@playwright/test';
+} from '../../fixtures';
 
 const statsApiPattern = /\/api\/v1\/profile\/@test\/stats\?/;
 

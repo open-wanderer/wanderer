@@ -9,6 +9,8 @@ import (
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
+
+	"pocketbase/util"
 )
 
 func UpdateTrailShareIndexHandler(client meilisearch.ServiceManager) func(*core.RecordEvent) error {
@@ -50,7 +52,7 @@ func updateShareIndexHandler(collection, relation, index string, client meilisea
 			}
 			sort.Strings(actors)
 			patch := map[string]any{"id": id, "shares": slices.Compact(actors)}
-			if _, err := client.Index(index).UpdateDocuments([]map[string]any{patch}, nil); err != nil {
+			if _, err := client.Index(index).UpdateDocuments([]map[string]any{patch}, util.SearchWriteOptions); err != nil {
 				return err
 			}
 		}

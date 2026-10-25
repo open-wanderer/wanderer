@@ -1,12 +1,12 @@
 <script lang="ts">
     import { type Snippet } from "svelte";
 
-    import { SummitLogCreateSchema } from "$lib/models/api/summit_log_schema";
-    import GPX from "$lib/models/gpx/gpx";
-    import { summitLog } from "$lib/stores/summit_log_store";
-    import { fetchGPX } from "$lib/stores/trail_store";
-    import { cloneDeep } from "$lib/util/deep_util";
-    import { validator } from "@felte/validator-zod";
+    import { SummitLogCreateSchema } from "#lib/models/api/summit_log_schema.ts";
+    import GPX from "#lib/models/gpx/gpx.ts";
+    import { summitLog } from "#lib/stores/summit_log_store.ts";
+    import { fetchGPX } from "#lib/stores/trail_store.ts";
+    import { cloneDeep } from "#lib/util/deep_util.ts";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
     import { z } from "zod";
@@ -15,7 +15,7 @@
     import Textarea from "../base/textarea.svelte";
     import PhotoPicker from "../trail/photo_picker.svelte";
     import TrailPicker from "../trail/trail_picker.svelte";
-    import type { SummitLog } from "$lib/models/summit_log";
+    import type { SummitLog } from "#lib/models/summit_log.ts";
     import Editor from "../base/editor.svelte";
     interface Props {
         children?: Snippet<[any]>;

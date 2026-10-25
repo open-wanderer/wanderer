@@ -1,12 +1,12 @@
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
-    import { trails_upload } from "$lib/stores/trail_store";
+    import Modal from "#lib/components/base/modal.svelte";
+    import { trails_upload } from "#lib/stores/trail_store.ts";
     import {
         processUploadQueue,
         uploadStore,
         type Upload,
-    } from "$lib/stores/upload_store.svelte";
-    import { validator } from "@felte/validator-zod";
+    } from "#lib/stores/upload_store.svelte.ts";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
     import { z } from "zod";

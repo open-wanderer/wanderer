@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import Tabs from "$lib/components/base/tabs.svelte";
-    import TrailDropdown, { type MergeResult } from "$lib/components/trail/trail_dropdown.svelte";
-    import { Comment } from "$lib/models/comment";
-    import { Tag } from "$lib/models/tag";
-    import type { Trail } from "$lib/models/trail";
+    import Tabs from "#lib/components/base/tabs.svelte";
+    import TrailDropdown, { type MergeResult } from "#lib/components/trail/trail_dropdown.svelte";
+    import { Comment } from "#lib/models/comment.ts";
+    import { Tag } from "#lib/models/tag.ts";
+    import type { Trail } from "#lib/models/trail.ts";
 
     import {
         comments,
@@ -14,27 +14,27 @@
         comments_delete,
         comments_index,
         comments_update,
-    } from "$lib/stores/comment_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
+    } from "#lib/stores/comment_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsTextPreview,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import {
         displayCategoryIcon,
         displayCategoryName,
         displaySubcategoryIcon,
         displaySubcategoryLabel,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
 
-    import { browser } from "$app/environment";
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import { theme } from "$lib/stores/theme_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { browser } from "$app/env";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
     import { onMount, untrack } from "svelte";
@@ -58,22 +58,22 @@
         summit_logs_update,
         summitLog,
         summitLogs,
-    } from "$lib/stores/summit_log_store";
-    import { SummitLog } from "$lib/models/summit_log";
+    } from "#lib/stores/summit_log_store.ts";
+    import { SummitLog } from "#lib/models/summit_log.ts";
     import SummitLogModal from "../summit_log/summit_log_modal.svelte";
     import SkeletonTable from "../base/skeleton_table.svelte";
     import ConfirmModal from "../confirm_modal.svelte";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
     import LikeButton from "./like_button.svelte";
     import Editor from "../base/editor.svelte";
     import {
         trails_update,
         trails_update_metadata,
-    } from "$lib/stores/trail_store";
+    } from "#lib/stores/trail_store.ts";
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
-    import { tags_index } from "$lib/stores/tag_store";
-    import { withShareToken } from "$lib/util/url_util";
-    import { normalizeNewTagName } from "$lib/util/tag_name";
+    import { tags_index } from "#lib/stores/tag_store.ts";
+    import { withShareToken } from "#lib/util/url_util.ts";
+    import { normalizeNewTagName } from "#lib/util/tag_name.ts";
 
     interface Props {
         initTrail: Trail;

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../../fixtures';
 
 test('logs the user out', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });

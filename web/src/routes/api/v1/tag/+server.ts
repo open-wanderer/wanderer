@@ -1,7 +1,7 @@
-import { TagCreateSchema } from '$lib/models/api/tag_schema';
-import type { Tag } from '$lib/models/tag';
-import { Collection, create, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { TagCreateSchema } from '#lib/models/api/tag_schema.ts';
+import type { Tag } from '#lib/models/tag.ts';
+import { Collection, create, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -47,7 +47,7 @@ export async function GET(event: RequestEvent) {
     try {
         const r = await list<Tag>(event, Collection.tags);
 
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }
@@ -81,7 +81,7 @@ export async function GET(event: RequestEvent) {
 export async function PUT(event: RequestEvent) {
     try {
         const r = await create<Tag>(event, TagCreateSchema, Collection.tags)
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

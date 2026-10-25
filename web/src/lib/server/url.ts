@@ -1,5 +1,5 @@
-import { env as privateEnv } from "$env/dynamic/private";
-import { env as publicEnv } from "$env/dynamic/public";
+import * as privateEnv from "$app/env/private";
+import * as publicEnv from "$app/env/public";
 
 export type ExternalServiceUrlKey = "VALHALLA_URL" | "NOMINATIM_URL" | "OVERPASS_API_URL";
 
@@ -18,7 +18,7 @@ export function resolveBaseUrl(
     key: ExternalServiceUrlKey,
     fallback: string = "",
 ): string {
-    const publicKey = `PUBLIC_${key}` as `PUBLIC_${string}`;
+    const publicKey = `PUBLIC_${key}` as const;
     const rawUrl = privateEnv[key] ?? publicEnv[publicKey] ?? fallback;
     return normalizeBaseUrl(rawUrl);
 }

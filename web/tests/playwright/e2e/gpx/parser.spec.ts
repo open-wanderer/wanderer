@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../../fixtures';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -21,7 +21,7 @@ test.beforeAll(async () => {
         cacheDir,
         appType: 'custom',
         logLevel: 'error',
-        resolve: { alias: { $lib: join(root, 'src/lib') } },
+        resolve: { alias: { '#lib': join(root, 'src/lib') } },
         server: { host: '127.0.0.1', port: 0 },
     });
     server.middlewares.use((request, response, next) => {
@@ -194,4 +194,36 @@ test('parses each GPX input exactly once with the native XML parser', async ({ p
     });
 
     expect(parseCalls).toBe(1);
+});
+
+test('restores route legs from an exported single segment', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+        const gpxPath = '/src/lib/models/gpx/gpx.ts';
+        const segmentUtilPath = '/src/lib/util/gpx_segment_util.ts';
+        const { default: GPX } = await import(gpxPath);
+        const { joinContiguousTrackSegments, splitTrackSegmentsAtAnchors, routeAnchorNamespace } = await import(segmentUtilPath);
+        const gpx = GPX.parse('<gpx><trk>' +
+            '<trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.1" lon="11.1"/></trkseg>' +
+            '<trkseg><trkpt lat="47.1" lon="11.1"/><trkpt lat="47.2" lon="11.2"/></trkseg>' +
+            '<trkseg><trkpt lat="47.2" lon="11.2"/><trkpt lat="47" lon="11"/></trkseg>' +
+            '</trk></gpx>');
+        joinContiguousTrackSegments(gpx);
+        const output = gpx.toString();
+        const document = new DOMParser().parseFromString(output, 'application/xml');
+        const imported = GPX.parse(output);
+        const exportedSegments = imported.trk[0].trkseg.length;
+        splitTrackSegmentsAtAnchors(imported);
+        return {
+            exportedSegments,
+            anchors: document.getElementsByTagNameNS(routeAnchorNamespace, 'anchor').length,
+            legs: imported.trk[0].trkseg.map((segment: { trkpt: { $: { lat: number } }[] }) =>
+                segment.trkpt.map((point) => point.$.lat)),
+        };
+    });
+
+    expect(result).toEqual({
+        exportedSegments: 1,
+        anchors: 2,
+        legs: [[47, 47.1], [47.1, 47.2], [47.2, 47]],
+    });
 });

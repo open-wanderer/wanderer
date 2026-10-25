@@ -1,7 +1,7 @@
-import { TagUpdateSchema } from "$lib/models/api/tag_schema";
-import type { Tag } from "$lib/models/tag";
-import { Collection, handleError, remove, show, update } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { TagUpdateSchema } from "#lib/models/api/tag_schema.ts";
+import type { Tag } from "#lib/models/tag.ts";
+import { Collection, handleError, remove, show, update } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -35,7 +35,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         const r = await show<Tag>(event, Collection.tags)
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e)
     }
@@ -77,7 +77,7 @@ export async function GET(event: RequestEvent) {
 export async function POST(event: RequestEvent) {
     try {
         const r = await update<Tag>(event, TagUpdateSchema, Collection.tags)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e)
     }
@@ -107,7 +107,7 @@ export async function POST(event: RequestEvent) {
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.tags)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e)
     }

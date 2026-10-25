@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { isVideoURL } from "$lib/util/file_util";
+    import { isVideoURL } from "#lib/util/file_util.ts";
     import { _ } from "svelte-i18n";
 
     interface Props {

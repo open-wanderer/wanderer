@@ -1,7 +1,7 @@
 import { get } from "svelte/store";
 import { currentUser } from "./user_store";
-import type { APIToken } from "$lib/models/api_token";
-import { APIError } from "$lib/util/api_util";
+import type { APIToken } from "#lib/models/api_token.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import type { ListResult } from "pocketbase";
 
 export async function api_tokens_index(f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {

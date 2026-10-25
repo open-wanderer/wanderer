@@ -4,7 +4,8 @@
 !hooks
 !go.*
 !integrations
-!main.go
+!*.go
+*_test.go
 !migrations
 !plugins
 !pluginsystem

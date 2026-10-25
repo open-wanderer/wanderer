@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -61,27 +60,7 @@ func FindExistingExternalReferenceIDsForUser(app core.App, userID string, provid
 		return existingIDs, nil
 	}
 
-	params := dbx.Params{
-		"user":     userID,
-		"provider": provider,
-	}
-	seen := map[string]bool{}
-	idFilters := make([]string, 0, len(externalIDs))
-	for _, externalID := range externalIDs {
-		if externalID == "" || seen[externalID] {
-			continue
-		}
-		seen[externalID] = true
-		paramName := fmt.Sprintf("external_id_%d", len(idFilters))
-		params[paramName] = externalID
-		idFilters = append(idFilters, "external_id={:"+paramName+"}")
-	}
-	if len(idFilters) == 0 {
-		return existingIDs, nil
-	}
-
-	filter := "user={:user} && provider={:provider} && (" + strings.Join(idFilters, " || ") + ")"
-	refs, err := app.FindRecordsByFilter("trail_external_reference", filter, "", len(idFilters), 0, params)
+	refs, err := FindTrailExternalReferencesForUser(app, userID, provider, externalIDs)
 	if err != nil || len(refs) == 0 {
 		return existingIDs, err
 	}
@@ -94,7 +73,7 @@ func FindExistingExternalReferenceIDsForUser(app core.App, userID string, provid
 	}
 	var trails []*core.Record
 	if len(trailIDs) > 0 {
-		trails, err = app.FindRecordsByIds("trails", trailIDs)
+		trails, err = recordsByIDs(app, "trails", trailIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -116,6 +95,14 @@ func FindExistingExternalReferenceIDsForUser(app core.App, userID string, provid
 		app.Logger().Warn("deleted orphaned trail external reference", "provider", provider, "external_id", ref.GetString("external_id"), "trail", trailID)
 	}
 	return existingIDs, nil
+}
+
+func FindTrailExternalReferencesForUser(app core.App, userID, provider string, externalIDs []string) ([]*core.Record, error) {
+	if userID == "" || provider == "" {
+		return []*core.Record{}, nil
+	}
+	return recordsByFieldValues(app, "trail_external_reference", "external_id", externalIDs,
+		"user={:user} && provider={:provider}", dbx.Params{"user": userID, "provider": provider})
 }
 
 func EnsureTrailExternalReference(app core.App, trailID string, provider string, externalID string, pluginID string, providerCategory string) error {

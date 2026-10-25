@@ -1,5 +1,5 @@
-import type { PluginInstance } from "$lib/models/plugin_instance";
-import { APIError } from "$lib/util/api_util";
+import type { PluginInstance } from "#lib/models/plugin_instance.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import type { ListResult } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";

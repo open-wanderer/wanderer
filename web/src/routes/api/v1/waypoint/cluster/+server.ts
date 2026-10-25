@@ -1,11 +1,12 @@
-import { handleError } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { handleError } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
 
 const WaypointClusterPointSchema = z.object({
     id: z.string().min(1),
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),
+    time: z.number().int().optional(),
 });
 
 const WaypointClusterSchema = z.object({
@@ -26,7 +27,7 @@ export async function POST(event: RequestEvent) {
             fetch: event.fetch,
         });
 
-        return json(response);
+        return Response.json(response);
     } catch (e) {
         return handleError(e);
     }
