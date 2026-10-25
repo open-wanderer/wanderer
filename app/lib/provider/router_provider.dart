@@ -53,6 +53,7 @@ import 'package:wanderer/routes/trail_sort_screen.dart';
 import 'package:wanderer/routes/waypoint_create_screen.dart';
 import 'package:wanderer/routes/welcome_screen.dart';
 import 'package:wanderer/util/geo/polyline.dart';
+import 'package:wanderer/util/inbound_uri_guard.dart';
 import 'package:wanderer/actions/import_trail_file.dart';
 
 part 'router_provider.g.dart';
@@ -141,6 +142,14 @@ class Router extends _$Router {
 
     return GoRouter(
       initialLocation: '/',
+      // Flutter hands the data URI of an ACTION_VIEW intent ("Open with",
+      // content://...) to the router as the platform's initial route, and the
+      // router adopts it over `initialLocation` unless told not to. The file is
+      // imported by main.dart via receive_sharing_intent; the router must not
+      // try to resolve it as a location. Cold-start half of the guard, see
+      // [ignoreInboundUris] for the warm-start half.
+      overridePlatformDefaultLocation: true,
+      onEnter: ignoreInboundUris,
       navigatorKey: navigatorKey,
       refreshListenable: refreshListenable,
       redirect: (context, state) {
