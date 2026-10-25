@@ -349,6 +349,7 @@
   "plugin-error-provider-unavailable": "Poskytovatel je momentálně nedostupný. Zkuste to znovu později.",
   "plugin-error-invalid-request": "Plugin odeslal neplatný požadavek.",
   "plugin-error-internal": "Plugin neočekávaně selhal.",
+  "plugin-error-sync-item-limit-exceeded": "The plugin returned more items than its configured limit. Contact the plugin maintainer.",
   "plugin-error-reconnect-required": "Platnost autorizace pluginu vypršela. Připojte plugin znovu.",
   "invalid-date": "Neplatné datum",
   "invalid-username": "Neplatné uživatelské jméno",
