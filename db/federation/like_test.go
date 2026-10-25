@@ -3,7 +3,9 @@ package federation
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql"
 	"encoding/pem"
+	"errors"
 	"pocketbase/util"
 	"testing"
 	"time"
@@ -272,6 +274,8 @@ func TestUnlikeReachesPeerInstanceRoundTrip(t *testing.T) {
 	}
 }
 
+// An Undo with nothing to remove reports sql.ErrNoRows: the user inbox
+// orders it before a late Like, the instance inbox acknowledges it.
 func TestProcessUnlikeTolerance(t *testing.T) {
 	priv, _, err := util.GenerateRSAKeyPair()
 	if err != nil {
@@ -296,23 +300,23 @@ func TestProcessUnlikeTolerance(t *testing.T) {
 		if got := countTrailLikes(t, b.app, b.trail, b.bob); got != 0 {
 			t.Fatalf("trail_like rows = %d, want 0", got)
 		}
-		if err := ProcessUndoActivity(b.app, b.bob, undo); err != nil {
-			t.Fatalf("second Undo must succeed: %v", err)
+		if err := ProcessUndoActivity(b.app, b.bob, undo); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("second Undo = %v, want sql.ErrNoRows for the instance inbox to acknowledge", err)
 		}
 	})
 
 	t.Run("trail not held", func(t *testing.T) {
 		undo := undoOf(pub.IRI("https://third.example.com/api/v1/trail/unknown"))
-		if err := ProcessUndoActivity(b.app, b.bob, undo); err != nil {
-			t.Fatalf("Undo for a trail the receiver does not hold: %v", err)
+		if err := ProcessUndoActivity(b.app, b.bob, undo); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("Undo for a trail the receiver does not hold = %v, want sql.ErrNoRows", err)
 		}
 	})
 
 	t.Run("only the signer's like is removed", func(t *testing.T) {
 		other := createTestActor(t, b.app, "https://peer.example.com/api/v1/activitypub/user/zed", "person", false)
 		saveTrailLike(t, b.app, b.trail, other)
-		if err := ProcessUndoActivity(b.app, b.bob, undoOf(pub.IRI(likeTrailIRI))); err != nil {
-			t.Fatalf("Undo: %v", err)
+		if err := ProcessUndoActivity(b.app, b.bob, undoOf(pub.IRI(likeTrailIRI))); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("Undo without a like of the signer = %v, want sql.ErrNoRows", err)
 		}
 		if got := countTrailLikes(t, b.app, b.trail, other); got != 1 {
 			t.Fatalf("another actor's like was removed, rows = %d", got)

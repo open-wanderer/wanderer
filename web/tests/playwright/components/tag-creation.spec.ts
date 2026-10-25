@@ -1,14 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures';
 import { buildTrailModalFixture, mountTrailModalFixture } from './trail-modal-fixture';
 
 // Use the real tag field, normalization callback, model and strict API schema.
 // The page's map and backend are outside this chip-creation regression.
 const source = `
     <script>
-        import Combobox from '$lib/components/base/combobox.svelte';
-        import { normalizeNewTagName } from '$lib/util/tag_name';
-        import { Tag } from '$lib/models/tag';
-        import { TagCreateSchema } from '$lib/models/api/tag_schema';
+        import Combobox from '#lib/components/base/combobox.svelte';
+        import { normalizeNewTagName } from '#lib/util/tag_name.ts';
+        import { Tag } from '#lib/models/tag.ts';
+        import { TagCreateSchema } from '#lib/models/api/tag_schema.ts';
 
         const existing = Object.freeze({ id: 'tag000000000001', name: '  Existing  ' });
         const canonical = Object.freeze({ id: 'tag000000000002', name: 'Canonical Name' });

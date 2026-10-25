@@ -141,30 +141,54 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 }
 
 func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity) error {
-	if activity.Object == nil {
-		return fmt.Errorf("undo: missing object")
-	}
+	return processUndoActivity(app, actor, activity, nil)
+}
 
+var errUndoSuperseded = errors.New("undo superseded by a later action")
+
+func processUndoActivity(app core.App, actor *core.Record, activity pub.Activity, superseded func() bool) error {
+	object, ok := activity.Object.(*pub.Activity)
+	if !ok || object == nil {
+		return fmt.Errorf("undo object must be an activity")
+	}
 	if activity.Object.GetType() == pub.FollowType {
-		return processUnfollowActivity(app, actor, activity)
+		return undoFollow(app, actor, activity, superseded)
 	} else if activity.Object.GetType() == pub.LikeType {
-		return processUnlikeActivity(app, actor, activity)
+		return undoLike(app, actor, activity, superseded)
 	} else {
 		return fmt.Errorf("unknown undo activity object type")
 	}
 }
 
-// processUnfollowActivity removes the follows row an Undo{Follow} refers to,
-// in one transaction.
+// A later action noted before the check keeps the record; one noted after it
+// saves only after the removal releases the writer.
+func removeUndoneRecord(app core.App, record *core.Record, superseded func() bool) error {
+	if superseded == nil {
+		return app.Delete(record)
+	}
+	return app.RunInTransaction(func(tx core.App) error {
+		if superseded() {
+			return errUndoSuperseded
+		}
+		return tx.Delete(record)
+	})
+}
+
 func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	return undoFollow(app, actor, activity, nil)
+}
+
+// undoFollow removes the follows row an Undo{Follow} refers to, in one
+// transaction.
+func undoFollow(app core.App, actor *core.Record, activity pub.Activity, superseded func() bool) error {
 	// this was a local follow
 	if actor.GetBool("is_local") {
 		return nil
 	}
 
 	followActivity, ok := activity.Object.(*pub.Activity)
-	if !ok {
-		return fmt.Errorf("undo: follow object is not *pub.Activity")
+	if !ok || followActivity == nil {
+		return fmt.Errorf("undo object must be a follow activity")
 	}
 
 	followee, err := app.FindFirstRecordByData("activitypub_actors", "iri", followActivity.Object)
@@ -172,8 +196,18 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 		return err
 	}
 
+	const filter = "follower={:follower} && followee={:followee}"
+	params := dbx.Params{"follower": actor.Id, "followee": followee.Id}
+
+	// Look the row up outside the writer, like every other undo; the
+	// transaction re-reads it before changing anything.
+	if _, err := app.FindFirstRecordByFilter("follows", filter, params); err != nil &&
+		(!errors.Is(err, sql.ErrNoRows) || !isLocalInstanceRecipient(followee)) {
+		return err
+	}
+
 	return app.RunInTransaction(func(txApp core.App) error {
-		follow, err := txApp.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": followee.Id})
+		follow, err := txApp.FindFirstRecordByFilter("follows", filter, params)
 		if err != nil {
 			// The Undo overtook its Follow.
 			if errors.Is(err, sql.ErrNoRows) && isLocalInstanceRecipient(followee) {
@@ -193,6 +227,9 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 			return nil
 		}
 
+		if superseded != nil && superseded() {
+			return errUndoSuperseded
+		}
 		return txApp.Delete(follow)
 	})
 }
@@ -215,35 +252,28 @@ func rememberUndoneFollow(txApp core.App, actor, followee *core.Record, follow *
 }
 
 func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activity) error {
+	return undoLike(app, actor, activity, nil)
+}
+
+func undoLike(app core.App, actor *core.Record, activity pub.Activity, superseded func() bool) error {
 	if actor.GetBool("is_local") {
 		return nil
 	}
 
 	likeActivity, ok := activity.Object.(*pub.Activity)
-	if !ok {
-		return fmt.Errorf("undo: like object is not *pub.Activity")
-	}
-	if likeActivity == nil || likeActivity.Object == nil {
-		return fmt.Errorf("undo: like is missing its object")
+	if !ok || likeActivity == nil || likeActivity.Object == nil {
+		return fmt.Errorf("undo object must be a like activity")
 	}
 
 	trail, err := app.FindFirstRecordByData("trails", "iri", likeActivity.Object.GetID().String())
 	if err != nil {
-		// The receiver does not hold the trail, so there is no like to remove.
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
 		return err
 	}
 
 	like, err := app.FindFirstRecordByFilter("trail_like", "actor={:actor} && trail={:trail}", dbx.Params{"actor": actor.Id, "trail": trail.Id})
 	if err != nil {
-		// Already removed by the twin delivery, or never arrived.
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
 		return err
 	}
 
-	return app.Delete(like)
+	return removeUndoneRecord(app, like, superseded)
 }

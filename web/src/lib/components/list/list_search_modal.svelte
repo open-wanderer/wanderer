@@ -1,17 +1,17 @@
 <script lang="ts">
     import { type Snippet } from "svelte";
 
-    import type { List } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
-    import { trail } from "$lib/stores/trail_store";
-    import { getFileURL } from "$lib/util/file_util";
-    import { formatHTMLAsText } from "$lib/util/format_util";
+    import type { List } from "#lib/models/list.ts";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { trail } from "#lib/stores/trail_store.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
+    import { formatHTMLAsText } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import Modal from "../base/modal.svelte";
     import Search, { type SearchItem } from "../base/search.svelte";
-    import { theme } from "$lib/stores/theme_store";
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
 
     interface Props {
         lists?: List[];

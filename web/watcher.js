@@ -28,12 +28,22 @@ if (UPLOAD_FOLDER) {
     }
   });
 
-  watcher.on('add', async (filePath) => {
+  // Upload one file at a time. Each upload reverse-geocodes its start point,
+  // and the public Nominatim instance allows one request per second, so
+  // parallel uploads would only queue up behind each other on the server and
+  // run into the client's response timeout.
+  let uploadQueue = Promise.resolve();
+
+  watcher.on('add', (filePath) => {
     const relative = path.relative(uploadPath, filePath);
     const [token] = relative.split(path.sep);
 
     if (!token || token === '.' || path.basename(filePath).startsWith('.')) return;
 
+    uploadQueue = uploadQueue.then(() => uploadFile(filePath, token));
+  });
+
+  async function uploadFile(filePath, token) {
     try {
       const fileBuffer = fs.readFileSync(filePath);
       const fileBlob = new Blob([fileBuffer]);
@@ -57,7 +67,7 @@ if (UPLOAD_FOLDER) {
     } catch (err) {
       console.error(`[File Watcher] Upload error:`, err.message);
     }
-  });
+  }
 
   watcher.on('error', error => console.error(`[File Watcher] Watcher error: ${error}`));
 

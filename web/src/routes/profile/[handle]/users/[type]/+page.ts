@@ -1,6 +1,6 @@
-import { follows_index } from "$lib/stores/follow_store";
-import { profile_follows_index } from "$lib/stores/profile_store";
-import { APIError } from "$lib/util/api_util";
+import { follows_index } from "#lib/stores/follow_store.ts";
+import { profile_follows_index } from "#lib/stores/profile_store.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { error, type Load } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
 

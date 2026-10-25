@@ -51,14 +51,14 @@ func newPrefetchBudgetFixture(t *testing.T) *prefetchBudgetFixture {
 	origLimiter := util.ActivityPubRateLimiter
 	util.ActivityPubRateLimiter = util.NewRateLimiter(30, time.Minute)
 	f := &prefetchBudgetFixture{fetch: &atomic.Int64{}}
-	origClient := newHTTPClient
+	origClient, origActorClient := newHTTPClient, newActorFetchHTTPClient
 	newHTTPClient = func() *http.Client {
 		dialer := &net.Dialer{Timeout: 5 * time.Second}
 		return &http.Client{Transport: &http.Transport{
 			DisableKeepAlives: true,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				host, _, _ := net.SplitHostPort(addr)
-				if err := util.CheckActivityPubRateLimit(ctx, host); err != nil {
+				if err := util.CheckDialRateLimit(ctx, host); err != nil {
 					return nil, err
 				}
 				if target, ok := f.aliases.Load(strings.ToLower(host)); ok {
@@ -68,9 +68,10 @@ func newPrefetchBudgetFixture(t *testing.T) *prefetchBudgetFixture {
 			},
 		}}
 	}
+	newActorFetchHTTPClient = newHTTPClient
 	t.Cleanup(func() {
 		util.ActivityPubRateLimiter = origLimiter
-		newHTTPClient = origClient
+		newHTTPClient, newActorFetchHTTPClient = origClient, origActorClient
 	})
 
 	bobKey, bobPub, err := util.GenerateRSAKeyPair()

@@ -231,6 +231,11 @@ Trail import plugins should keep provider-specific category values in `metadata.
 
 Photo descriptors may be returned either on the imported trail or on individual waypoints. The host downloads those media files and stores them on the corresponding PocketBase records.
 
+Sync list calls receive `limits.maxItems` (currently 50). Return at most that many
+items and continue with `state`/`hasMore`; an oversized batch is rejected before
+any of its items are imported, with `sync_item_limit_exceeded` rather than a
+provider outage.
+
 ### List plugins
 
 Used by the settings UI to show locally available plugins, their metadata, icons, capabilities, and current availability status.

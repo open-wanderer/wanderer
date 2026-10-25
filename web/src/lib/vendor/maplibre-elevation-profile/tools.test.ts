@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineCumulatedDistanceWgs84, smoothElevations } from './tools';
+import { haversineCumulatedDistanceWgs84, MIN_STORED_DISTANCE_METERS, smoothElevations, waypointTrackIndex } from './tools';
 import type { Position } from 'geojson';
 
 describe('tools', () => {
@@ -155,6 +155,77 @@ describe('tools', () => {
                     ).toBe(true);
                 }
             }
+        });
+    });
+
+    describe('waypointTrackIndex', () => {
+        // Out along one side of a path and back along the other, about 38 m apart.
+        const positions: Position[] = [
+            ...Array.from({ length: 11 }, (_, i) => [11.0, 47.0 + i * 0.001]),
+            ...Array.from({ length: 11 }, (_, i) => [11.0005, 47.01 - i * 0.001]),
+        ];
+        const times = positions.map((_, i) => new Date(Date.UTC(2026, 5, 1, 8, i)));
+        const cumulatedDistance = haversineCumulatedDistanceWgs84(positions);
+        // About 20 m from the way out and 18 m from the way back.
+        const nearBoth = { lat: 47.001, lon: 11.00026 };
+
+        it('picks the nearest point when nothing else tells the passes apart', () => {
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, nearBoth)).toBe(20);
+        });
+
+        it('picks the pass closest in time to the photo', () => {
+            const waypoint = { ...nearBoth, _time: times[1] };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, waypoint)).toBe(1);
+        });
+
+        it('ignores the photo time when the track has none', () => {
+            const waypoint = { ...nearBoth, _time: times[1] };
+            expect(waypointTrackIndex(positions, [], cumulatedDistance, waypoint)).toBe(20);
+        });
+
+        it('keeps the pass of the stored distance from start', () => {
+            const waypoint = { ...nearBoth, distance_from_start: cumulatedDistance[1] };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, waypoint)).toBe(1);
+        });
+
+        it('does not move a waypoint to a pass clearly farther away', () => {
+            const onWayOut = { lat: 47.001, lon: 11.0, _time: times[20] };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, onWayOut)).toBe(1);
+        });
+
+        it('ignores a photo time outside the track times', () => {
+            const before = { ...nearBoth, _time: new Date(times[0].getTime() - 60_000) };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, before)).toBe(20);
+        });
+
+        it('ignores the photo time when a track time is missing', () => {
+            const waypoint = { ...nearBoth, _time: times[1] };
+            const incomplete = times.map((t, i) => (i === 5 ? new Date(NaN) : t));
+            expect(waypointTrackIndex(positions, incomplete, cumulatedDistance, waypoint)).toBe(20);
+        });
+
+        it('ignores a stored distance that matches no candidate point', () => {
+            // A legacy imperial value: miles × 1000 instead of metres.
+            const waypoint = { ...nearBoth, distance_from_start: cumulatedDistance[20] * 0.000621371 * 1000 };
+            expect(waypointTrackIndex(positions, times, cumulatedDistance, waypoint)).toBe(20);
+        });
+
+        it('keeps a waypoint at the start of a loop', () => {
+            const atStart = { lat: 47.0, lon: 11.00026, distance_from_start: MIN_STORED_DISTANCE_METERS };
+            expect(waypointTrackIndex(positions, [], cumulatedDistance, atStart)).toBe(0);
+        });
+
+        it('treats a stored distance of 0 as unset', () => {
+            const unset = { lat: 47.0, lon: 11.00026, distance_from_start: 0 };
+            expect(waypointTrackIndex(positions, [], cumulatedDistance, unset)).toBe(21);
+        });
+
+        it('does not move a waypoint along a single pass', () => {
+            const dense: Position[] = Array.from({ length: 11 }, (_, i) => [11.0, 47.0 + i * 0.0001]);
+            const denseTimes = dense.map((_, i) => new Date(Date.UTC(2026, 5, 1, 8, i)));
+            const denseDistance = haversineCumulatedDistanceWgs84(dense);
+            const waypoint = { lat: 47.0005, lon: 11.0, _time: denseTimes[3], distance_from_start: denseDistance[3] };
+            expect(waypointTrackIndex(dense, denseTimes, denseDistance, waypoint)).toBe(5);
         });
     });
 });

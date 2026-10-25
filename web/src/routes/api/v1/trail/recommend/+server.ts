@@ -1,7 +1,7 @@
-import { TrailRecommendSchema } from '$lib/models/api/trail_schema';
-import { withTrailPreferenceMeiliFilter } from '$lib/server/category_preference_filter';
-import { handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { TrailRecommendSchema } from '#lib/models/api/trail_schema.ts';
+import { withTrailPreferenceMeiliFilter } from '#lib/server/category_preference_filter.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -39,7 +39,7 @@ export async function GET(event: RequestEvent) {
         const size = safeSearchParams.size ?? 10;
         const response = await recommend(event, size);
 
-        return json(response.hits)
+        return Response.json(response.hits)
     } catch (e: any) {
         return handleError(e);
     }

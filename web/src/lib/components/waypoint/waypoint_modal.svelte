@@ -1,14 +1,14 @@
 <script lang="ts">
     import { type Snippet } from "svelte";
 
-    import { WaypointCreateSchema } from "$lib/models/api/waypoint_schema";
-    import { convertDMSToDD } from "$lib/models/gpx/utils";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { waypoint } from "$lib/stores/waypoint_store";
-    import { cloneDeep } from "$lib/util/deep_util";
-    import { icons } from "$lib/util/icon_util";
-    import EXIF from "$lib/vendor/exif-js/exif";
-    import { validator } from "@felte/validator-zod";
+    import { WaypointCreateSchema } from "#lib/models/api/waypoint_schema.ts";
+    import { convertDMSToDD } from "#lib/models/gpx/utils.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { waypoint } from "#lib/stores/waypoint_store.ts";
+    import { cloneDeep } from "#lib/util/deep_util.ts";
+    import { icons } from "#lib/util/icon_util.ts";
+    import EXIF from "#lib/vendor/exif-js/exif.js";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
     import { z } from "zod";
@@ -17,7 +17,7 @@
     import TextField from "../base/text_field.svelte";
     import Textarea from "../base/textarea.svelte";
     import PhotoPicker from "../trail/photo_picker.svelte";
-    import type { Waypoint } from "$lib/models/waypoint";
+    import type { Waypoint } from "#lib/models/waypoint.ts";
 
     interface Props {
         children?: Snippet<[any]>;

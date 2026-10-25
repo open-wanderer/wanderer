@@ -1,6 +1,6 @@
-import { type Tag } from "$lib/models/tag";
-import { APIError } from "$lib/util/api_util";
-import { normalizeTagName } from "$lib/util/tag_name";
+import { type Tag } from "#lib/models/tag.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { normalizeTagName } from "#lib/util/tag_name.ts";
 import PocketBase, { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 

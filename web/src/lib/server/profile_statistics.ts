@@ -1,13 +1,13 @@
-import type { StatisticActivity } from "$lib/models/statistic_activity";
-import type { Subcategory } from "$lib/models/subcategory";
-import type { SummitLog } from "$lib/models/summit_log";
-import type { Trail } from "$lib/models/trail";
-import { nextDateValue } from "$lib/util/date_util";
+import type { StatisticActivity } from "#lib/models/statistic_activity.ts";
+import type { Subcategory } from "#lib/models/subcategory.ts";
+import type { SummitLog } from "#lib/models/summit_log.ts";
+import type { Trail } from "#lib/models/trail.ts";
+import { nextDateValue } from "#lib/util/date_util.ts";
 import {
     buildPocketBaseCategoryFilter,
     isPocketBaseRecordId,
     noSubcategoryFilterCategory,
-} from "$lib/util/trail_filter_util";
+} from "#lib/util/trail_filter_util.ts";
 import { z } from "zod";
 
 type PocketBaseTrail = Trail & {

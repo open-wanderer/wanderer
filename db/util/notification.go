@@ -1,12 +1,16 @@
 package util
 
 import (
+	"errors"
+	"fmt"
 	"net/mail"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/mailer"
 )
+
+var ErrNotificationEmailDelivery = errors.New("notification email delivery failed")
 
 type NotificationType string
 
@@ -115,7 +119,10 @@ func SendNotification(app core.App, notification Notification, recipient *core.R
 			HTML:    html,
 		}
 
-		return app.NewMailClient().Send(message)
+		if err := app.NewMailClient().Send(message); err != nil {
+			return fmt.Errorf("%w: %w", ErrNotificationEmailDelivery, err)
+		}
+		return nil
 	}
 	return nil
 }

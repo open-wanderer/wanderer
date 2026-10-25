@@ -157,6 +157,20 @@ func isInstanceActorIRI(iri string) (string, bool) {
 	return scheme + "://" + host + instanceActorPath, true
 }
 
+// precheckSignature runs the signature checks that need no key, so an unknown
+// actor is only fetched for a request that could still verify: signed-header
+// coverage, body digest, signature time, and a key id on the actor's host.
+func precheckSignature(req *http.Request, body []byte, actorIRI string) error {
+	signature, err := util.CheckRequestSignature(req, body, time.Now())
+	if err != nil {
+		return err
+	}
+	if !util.SignatureKeyIsOnActorHost(signature.KeyID, actorIRI) {
+		return fmt.Errorf("signature key id is not on the activity actor's host")
+	}
+	return nil
+}
+
 // InstanceInboxHandler is the PocketBase route handler for
 // POST /activitypub/instance/inbox. It dispatches Follow/Accept/Reject/Undo for
 // the follow lifecycle and Create/Update/Delete/Like for content.
@@ -225,7 +239,7 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 			// IRI, lifecycle fetches per host, except for the canonical instance actor IRI,
 			// which has its own budget. The fetch is still signed with the instance actor's
 			// key.
-			if precheckErr := util.PrecheckSignature(e.Request.Header, body, actorIRI, time.Now()); precheckErr != nil {
+			if precheckErr := precheckSignature(e.Request, body, actorIRI); precheckErr != nil {
 				e.App.Logger().Warn("instance inbox: request refused before actor fetch",
 					"actor", actorIRI, "err", precheckErr)
 				return e.UnauthorizedError("Invalid http signature", precheckErr)
@@ -236,15 +250,15 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 			}
 			if isLifecycleActivity(activity) {
 				if normalized, ok := isInstanceActorIRI(actorIRI); ok {
-					ctx = util.WithRateLimitIdentifier(ctx, "inbox-instance-actor:"+normalized)
+					ctx = util.WithRateLimitBucket(ctx, "inbox-instance-actor:"+normalized)
 				} else {
-					ctx = util.WithRateLimitIdentifier(ctx, "inbox-lifecycle:"+recipient.Id)
+					ctx = util.WithRateLimitBucket(ctx, "inbox-lifecycle:"+recipient.Id)
 				}
 			} else {
 				if u, perr := url.Parse(actorIRI); perr == nil {
 					noteContentPrefetch(e.App, u.Host)
 				}
-				ctx = util.WithRateLimitIdentifier(ctx, "inbox-actor:"+actorIRI)
+				ctx = util.WithRateLimitBucket(ctx, "inbox-actor:"+actorIRI)
 			}
 			actor, err = GetActorByIRI(e.App, ctx, actorIRI, false)
 			if err != nil {
@@ -256,7 +270,7 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 	}
 
 	// Verify HTTP signature against the sender actor's stored public key.
-	verified, err := util.VerifySignature(e.App, e.Request, body, actor.GetString("public_key"))
+	verified, err := util.VerifySignature(e.App, e.Request, actor.GetString("public_key"), body, actorIRI)
 	if err != nil || !verified {
 		e.App.Logger().Error("instance inbox: invalid http signature", "err", err)
 		return e.UnauthorizedError("Invalid http signature", err)
@@ -291,13 +305,15 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 			return e.BadRequestError("Failed to process Reject activity", err)
 		}
 	case pub.UndoType:
-		if err := ProcessUndoActivity(e.App, actor, activity); err != nil {
+		// A peer forwards every unlike; the receiver may not hold the trail
+		// or the like, or the twin delivery to a user inbox removed it first.
+		if err := ProcessUndoActivity(e.App, actor, activity); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return e.BadRequestError("Failed to process Undo activity", err)
 		}
 	case pub.CreateType:
 		fallthrough
 	case pub.UpdateType:
-		if err := ProcessCreateOrUpdateActivity(e.App, e.Request.Context(), actor, recipient, activity); err != nil {
+		if err := ProcessCreateOrUpdateActivity(e.App, actor, recipient, activity); err != nil {
 			return e.BadRequestError("Failed to process Create/Update activity", err)
 		}
 	case pub.DeleteType:
@@ -305,7 +321,9 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 			return e.BadRequestError("Failed to process Delete activity", err)
 		}
 	case pub.LikeType:
-		if err := ProcessLikeActivity(e.App, actor, activity); err != nil {
+		// A peer forwards every like; a like carries no content, so one for a
+		// trail this instance does not hold has nothing to attach to.
+		if err := ProcessLikeActivity(e.App, actor, activity); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return e.BadRequestError("Failed to process Like activity", err)
 		}
 	default:

@@ -1,7 +1,6 @@
 package federation
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,10 +15,7 @@ import (
 // sender's name it would show up as theirs, and the author's later Delete
 // would be refused as coming from a stranger.
 
-// setupFetchTrailTest returns an app with the collections a fetched trail is
-// stored in, and a helper creating a freshly cached actor on remote.example.
-func setupFetchTrailTest(t *testing.T) (*pbtests.TestApp, func(name string) *core.Record) {
-	t.Helper()
+func TestFetchTrailAttributesToTrailAuthor(t *testing.T) {
 	t.Setenv("ORIGIN", "https://local.example")
 	t.Setenv("POCKETBASE_ENCRYPTION_KEY", summitLogTestKey)
 
@@ -28,6 +24,7 @@ func setupFetchTrailTest(t *testing.T) (*pbtests.TestApp, func(name string) *cor
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(
@@ -68,55 +65,42 @@ func setupFetchTrailTest(t *testing.T) (*pbtests.TestApp, func(name string) *cor
 		}
 		return r
 	}
-	return app, actor
-}
+	owner := actor("owner")
+	logger := actor("logger")
 
-// remoteTrailObject is the trail at iri as its host serves it.
-func remoteTrailObject(iri, authorIRI string) *pub.Object {
+	trailIRI := "https://remote.example/api/v1/trail/abc"
 	remote := pub.ObjectNew(pub.NoteType)
-	remote.ID = pub.IRI(iri)
+	remote.ID = pub.IRI(trailIRI)
 	remote.Name = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Owner's trail"))
 	remote.Content = pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, ""))
-	remote.AttributedTo = pub.IRI(authorIRI)
+	remote.AttributedTo = pub.IRI(owner.GetString("iri"))
 	remote.Location = &pub.Place{Name: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Somewhere"))}
 	remote.StartTime = time.Now()
-	return remote
-}
 
-// serveTrailObject answers trail fetches for trailIRI with remote.
-func serveTrailObject(t *testing.T, trailIRI string, remote *pub.Object) {
-	t.Helper()
-	trailAuthorRefusals.reset()
 	orig := fetchTrailObject
-	fetchTrailObject = func(ctx context.Context, iri string) (*pub.Object, error) {
+	fetchTrailObject = func(iri string) (*pub.Object, error) {
 		if iri != trailIRI {
 			t.Fatalf("fetched %q, want %q", iri, trailIRI)
 		}
 		return remote, nil
 	}
-	t.Cleanup(func() {
-		fetchTrailObject = orig
-		trailAuthorRefusals.reset()
-	})
-}
-
-func TestFetchTrailAttributesToTrailAuthor(t *testing.T) {
-	app, actor := setupFetchTrailTest(t)
-	owner := actor("owner")
-	logger := actor("logger")
-
-	trailIRI := "https://remote.example/api/v1/trail/abc"
-	remote := remoteTrailObject(trailIRI, owner.GetString("iri"))
-	serveTrailObject(t, trailIRI, remote)
+	t.Cleanup(func() { fetchTrailObject = orig })
 
 	// The host serving the trail may only attribute it to one of its own.
 	remote.AttributedTo = pub.IRI("https://elsewhere.example/api/v1/activitypub/user/victim")
-	if _, err := fetchTrail(app, context.Background(), logger, trailIRI); err == nil {
+	if _, err := fetchTrail(app, logger, trailIRI); err == nil {
 		t.Fatal("accepted a trail attributed to an actor on another host")
 	}
 	remote.AttributedTo = pub.IRI(owner.GetString("iri"))
 
-	trail, err := fetchTrail(app, context.Background(), logger, trailIRI)
+	// Nor serve another object under the requested IRI.
+	remote.ID = pub.IRI("https://remote.example/api/v1/trail/other")
+	if _, err := fetchTrail(app, logger, trailIRI); err == nil {
+		t.Fatal("accepted a trail served under another id")
+	}
+	remote.ID = pub.IRI(trailIRI)
+
+	trail, err := fetchTrail(app, logger, trailIRI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,52 +115,5 @@ func TestFetchTrailAttributesToTrailAuthor(t *testing.T) {
 	activity.Actor = pub.IRI(owner.GetString("iri"))
 	if err := processDeleteTrailActivity(app, owner, *activity); err != nil {
 		t.Fatalf("author's Delete refused: %v", err)
-	}
-}
-
-// A list can contain a trail from a third host, which is imported from that
-// host and filed under the author it names there.
-func TestImportTrailAttributesToTrailAuthor(t *testing.T) {
-	app, actor := setupFetchTrailTest(t)
-	owner := actor("owner")
-
-	trailIRI := "https://remote.example/api/v1/trail/abc"
-	remote := remoteTrailObject(trailIRI, owner.GetString("iri"))
-	serveTrailObject(t, trailIRI, remote)
-
-	trail, err := ImportTrail(app, context.Background(), trailIRI)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if trail.GetString("iri") != trailIRI || trail.GetString("author") != owner.Id {
-		t.Fatalf("imported trail iri %q author %q, want %q by %q", trail.GetString("iri"), trail.GetString("author"), trailIRI, owner.Id)
-	}
-}
-
-func TestImportTrailRefusesMisattributedTrails(t *testing.T) {
-	app, actor := setupFetchTrailTest(t)
-	owner := actor("owner")
-
-	trailIRI := "https://remote.example/api/v1/trail/abc"
-	remote := remoteTrailObject(trailIRI, owner.GetString("iri"))
-	serveTrailObject(t, trailIRI, remote)
-
-	remote.AttributedTo = pub.IRI("https://elsewhere.example/api/v1/activitypub/user/victim")
-	if _, err := ImportTrail(app, context.Background(), trailIRI); err == nil {
-		t.Error("imported a trail attributed to an actor on another host")
-	}
-	remote.AttributedTo = pub.IRI(owner.GetString("iri"))
-
-	remote.ID = pub.IRI("https://remote.example/api/v1/trail/other")
-	if _, err := ImportTrail(app, context.Background(), trailIRI); err == nil {
-		t.Error("imported a trail the host served under another id")
-	}
-
-	if _, err := ImportTrail(app, context.Background(), "https://local.example/api/v1/trail/abc"); err == nil {
-		t.Error("imported a local trail")
-	}
-
-	if n, _ := app.CountRecords("trails"); n != 0 {
-		t.Errorf("%d trails stored, want none", n)
 	}
 }

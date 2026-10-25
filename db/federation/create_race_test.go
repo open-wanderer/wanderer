@@ -1,7 +1,6 @@
 package federation
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -127,7 +126,7 @@ func raceCreateDeliverConcurrently(app core.App, author *core.Record, recipients
 			defer done.Done()
 			ready.Done()
 			<-start
-			errs[i] = ProcessCreateOrUpdateActivity(app, context.Background(), author, r, act)
+			errs[i] = ProcessCreateOrUpdateActivity(app, author, r, act)
 		}(i, r)
 	}
 	ready.Wait()

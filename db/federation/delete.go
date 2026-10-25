@@ -95,6 +95,9 @@ func CreateActorDeleteActivity(app core.App, actor *core.Record, recipients []st
 // trail that was handed out while public is retracted from whoever got it.
 // A trail nobody ever received is not announced at all.
 func CreateTrailDeleteActivity(app core.App, r *core.Record, audience DeleteAudience) error {
+	if iri := r.GetString("iri"); iri != "" && !util.RecordHasLocalIdentity(app, r) {
+		return nil
+	}
 	if !r.GetBool("public") && audience.Empty() {
 		return nil
 	}
@@ -162,6 +165,9 @@ func CreateTrailDeleteActivity(app core.App, r *core.Record, audience DeleteAudi
 }
 
 func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager, r *core.Record) error {
+	if iri := r.GetString("iri"); iri != "" && !util.RecordHasLocalIdentity(app, r) {
+		return nil
+	}
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -255,6 +261,12 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 }
 
 func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
+	if r.GetBool("federation_suppressed") {
+		return nil
+	}
+	if iri := r.GetString("iri"); iri != "" && !util.RecordHasLocalIdentity(app, r) {
+		return nil
+	}
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -276,6 +288,13 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 		return nil
 	}
 
+	object := r.GetString("iri")
+	if object == "" {
+		// Older plugin imports lack an IRI. Only local authors reach this path;
+		// use the native Summit Book identity without resaving a deleted log.
+		object = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, r.Id)
+	}
+
 	// The log was handed to this author's followers when it was created, so
 	// they are told regardless of what happened to the trail. So were the
 	// actors its text mentioned, whose inboxes the Create and Update
@@ -284,7 +303,7 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	if err != nil {
 		return err
 	}
-	mentioned, err := recordedInboxes(app, r.GetString("iri"))
+	mentioned, err := recordedInboxes(app, object)
 	if err != nil {
 		return err
 	}
@@ -322,7 +341,6 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	recordId := security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 
 	id := fmt.Sprintf("%s/api/v1/activitypub/activity/%s", origin, recordId)
-	object := r.GetString("iri")
 	cc := pub.ItemCollection{pub.IRI(author.GetString("iri") + "/followers")}
 	for _, inbox := range mentioned {
 		cc.Append(pub.IRI(inbox))
@@ -362,6 +380,9 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 // CreateListDeleteActivity is CreateTrailDeleteActivity for a list, with
 // the audience from ListDeleteRecipients.
 func CreateListDeleteActivity(app core.App, r *core.Record, audience DeleteAudience) error {
+	if iri := r.GetString("iri"); iri != "" && !util.RecordHasLocalIdentity(app, r) {
+		return nil
+	}
 	if !r.GetBool("public") && audience.Empty() {
 		return nil
 	}
@@ -464,7 +485,8 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 
 // processDeleteActorActivity handles a remote account telling us it has been
 // deleted, and removes our copy of it. Everything that account authored here is
-// carried away by the schema's cascade.
+// carried away by the schema's cascade. Cleanup retains the account when a
+// record keeps its own stored path.
 //
 // This is the most dangerous activity we accept, because it destroys a whole
 // account's content rather than one record, so it is deliberately narrow: the
@@ -506,7 +528,7 @@ func processDeleteActorActivity(app core.App, actor *core.Record, activity pub.A
 		return fmt.Errorf("refusing federated Delete of local actor %q", object)
 	}
 
-	return app.Delete(actor)
+	return util.DeleteRemoteActor(app, actor)
 }
 
 func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.Activity) error {
@@ -520,8 +542,13 @@ func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.A
 		return err
 	}
 
-	if trail.GetString("author") != actor.Id {
+	if !inboundRecordCanDelete(app, trail, actor) {
 		return fmt.Errorf("actor is not trail author")
+	}
+	// The object may have appeared after the marker's initial lookup.
+	// Remember the checked ID before deleting it, including late feed writes.
+	if key, ordered := inboxOrderKey(app, actor, activity); ordered {
+		rememberInboxRetractionItem(key, inboxRetractionItem{collection: "trails", id: trail.Id})
 	}
 
 	err = util.DeleteFromFeed(app, trail.Id)
@@ -543,7 +570,7 @@ func processDeleteCommentActivity(app core.App, actor *core.Record, activity pub
 		return err
 	}
 
-	if comment.GetString("author") != actor.Id {
+	if !inboundRecordCanDelete(app, comment, actor) {
 		return fmt.Errorf("actor is not comment author")
 	}
 
@@ -565,7 +592,7 @@ func processDeleteSummitLogActivity(app core.App, actor *core.Record, activity p
 		return err
 	}
 
-	if summitLog.GetString("author") != actor.Id {
+	if !inboundRecordCanDelete(app, summitLog, actor) {
 		return fmt.Errorf("actor is not summit log author")
 	}
 
@@ -583,8 +610,11 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 		return err
 	}
 
-	if list.GetString("author") != actor.Id {
+	if !inboundRecordCanDelete(app, list, actor) {
 		return fmt.Errorf("actor is not list author")
+	}
+	if key, ordered := inboxOrderKey(app, actor, activity); ordered {
+		rememberInboxRetractionItem(key, inboxRetractionItem{collection: "lists", id: list.Id})
 	}
 
 	err = util.DeleteFromFeed(app, list.Id)
@@ -593,4 +623,9 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 	}
 
 	return app.Delete(list)
+}
+
+func inboundRecordCanDelete(app core.App, record, actor *core.Record) bool {
+	return !actor.GetBool("is_local") && record.GetString("author") == actor.Id &&
+		!util.RecordHasLocalIdentity(app, record) && sameHost(record.GetString("iri"), actor.GetString("iri"))
 }

@@ -6,11 +6,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
-	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,7 +16,6 @@ import (
 	"time"
 
 	pub "github.com/go-ap/activitypub"
-	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
@@ -231,18 +227,29 @@ func IsLocalIRI(iri string) bool {
 	return strings.EqualFold(u.Host, o.Host)
 }
 
-// TrailFromActivity stores the trail an activity describes. ctx bounds the
-// downloads of its GPX file and photos.
-func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
-	ctx, cancel := WithRemoteAttachmentBudget(ctx)
-	defer cancel()
+// localActorRecord resolves a local actor's stored record without writing it.
+// Local deliveries only add feed entries and notifications. A non-local IRI
+// must name a record authored by the actor.
+func localActorRecord(app core.App, collection, iri string, actor *core.Record) (*core.Record, error) {
+	record, err := app.FindFirstRecordByData(collection, "iri", iri)
+	if err != nil || IsLocalIRI(iri) || record.GetString("author") == actor.Id {
+		return record, err
+	}
+	return nil, fmt.Errorf("local actor does not own %s %q", collection, iri)
+}
 
+func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
 	t, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return nil, err
 	}
 
 	iri := t.ID.String()
+	if !actor.GetBool("is_local") {
+		if err := ValidateRemoteObjectAuthor(actor, iri, t.AttributedTo); err != nil {
+			return nil, err
+		}
+	}
 
 	// Own content must never be ingested as if it were remote. An inbound
 	// activity referencing one of our own trails (e.g. an announce echoed back)
@@ -250,12 +257,11 @@ func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App,
 	// instance fetch itself. Only a local actor may resolve a local object id to
 	// the local record; a remote actor must not be able to reference or attach
 	// side effects (feeds/shares/notifications) to local content by id.
+	if actor.GetBool("is_local") {
+		return localActorRecord(app, "trails", iri, actor)
+	}
 	if IsLocalIRI(iri) {
-		if !actor.GetBool("is_local") {
-			return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
-		}
-
-		return app.FindFirstRecordByData("trails", "iri", iri)
+		return nil, fmt.Errorf("refusing remote activity referencing local trail %q", iri)
 	}
 
 	var record *core.Record
@@ -277,6 +283,9 @@ func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App,
 		}
 	} else {
 		// this trail exists already
+		if record.GetString("author") != actor.Id || RecordHasLocalIdentity(app, record) {
+			return nil, fmt.Errorf("inbound trail author does not own the stored object")
+		}
 		// keep searchable category metadata fresh from the update activity while
 		// still requiring a full sync to catch waypoint/summit log updates.
 		categoryMetadata, err := trailCategoryMetadataFromActivityObject(t)
@@ -285,6 +294,9 @@ func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App,
 		}
 		if err := applyTrailActivityCategoryMetadata(app, record, categoryMetadata); err != nil {
 			return nil, err
+		}
+		if activity.Type != pub.AnnounceType {
+			record.Set("public", true)
 		}
 
 		record.Set("needs_full_sync", true)
@@ -352,7 +364,8 @@ func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App,
 	record.Set("difficulty", diffculty)
 	record.Set("date", t.StartTime.Unix())
 	record.Set("tags", trailTags)
-	record.Set("public", true)
+	// A directed share grants access only to its recipient.
+	record.Set("public", activity.Type != pub.AnnounceType)
 	record.Set("iri", t.ID.String())
 	record.Set("author", actor.Id)
 	record.Set("needs_full_sync", true)
@@ -363,7 +376,7 @@ func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App,
 
 	if t.Attachment != nil {
 
-		attachments, err := pub.ToItemCollection(t.Attachment)
+		attachments, err := ActivityPubAttachmentItems(t.Attachment)
 		if err != nil {
 			return nil, err
 		}
@@ -392,37 +405,28 @@ func TrailFromActivity(ctx context.Context, activity pub.Activity, app core.App,
 				"iri", iri, "limit", photoLimit, "ignored", ignoredPhotos)
 		}
 
-		// Download the GPX before the photos.
+		if len(photoURLs) > 0 {
+			photos := []*filesystem.File{}
+			for _, purl := range photoURLs {
+				photo, cleanup, err := DownloadRemoteFile(context.Background(), purl, RemoteFileLimit(record, "photos", RemotePhotoMaxBytes))
+				defer cleanup()
+				if err != nil {
+					continue
+				}
+				photos = append(photos, photo)
+			}
+
+			record.Set("photos", photos)
+		}
+
 		if gpxURL != "" {
-			gpx, cleanup, err := DownloadRemoteFile(ctx, gpxURL, RemoteGPXMaxBytes, actor.GetString("iri"))
+			gpx, cleanup, err := DownloadRemoteFile(context.Background(), gpxURL, RemoteFileLimit(record, "gpx", RemoteGPXMaxBytes))
 			defer cleanup()
 			if err != nil {
 				return nil, err
 			}
 
 			record.Set("gpx", gpx)
-		}
-
-		if len(photoURLs) > 0 {
-			photos := []*filesystem.File{}
-			overBudget := 0
-			for _, purl := range photoURLs {
-				photo, cleanup, err := DownloadRemoteFile(ctx, purl, RemotePhotoMaxBytes, actor.GetString("iri"))
-				defer cleanup()
-				if err != nil {
-					if errors.Is(err, ErrRemoteAttachmentBudgetExhausted) {
-						overBudget++
-					}
-					continue
-				}
-				photos = append(photos, photo)
-			}
-			if overBudget > 0 {
-				app.Logger().Info("skipping remote photos past the activity attachment budget",
-					"iri", iri, "skipped", overBudget)
-			}
-
-			record.Set("photos", photos)
 		}
 	}
 
@@ -638,32 +642,31 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 	trailObject.URL = pub.IRI(activityURL)
 
 	trailObject.StartTime = trail.GetDateTime("date").Time()
-	trailObject.Attachment = attachments
+	trailObject.Attachment = ActivityPubAttachmentArray(attachments)
 
 	trailObject.Tag = tags
 	return trailObject, nil
 }
 
-// ListFromActivity stores the list an activity describes. ctx bounds the
-// download of its avatar.
-func ListFromActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
-	ctx, cancel := WithRemoteAttachmentBudget(ctx)
-	defer cancel()
-
+func listFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
 	l, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return nil, err
 	}
 
 	iri := l.ID.String()
+	if !actor.GetBool("is_local") {
+		if err := ValidateRemoteObjectAuthor(actor, iri, l.AttributedTo); err != nil {
+			return nil, err
+		}
+	}
 
 	// Own content must never be ingested as if it were remote (see TrailFromActivity).
+	if actor.GetBool("is_local") {
+		return localActorRecord(app, "lists", iri, actor)
+	}
 	if IsLocalIRI(iri) {
-		if !actor.GetBool("is_local") {
-			return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
-		}
-
-		return app.FindFirstRecordByData("lists", "iri", iri)
+		return nil, fmt.Errorf("refusing remote activity referencing local list %q", iri)
 	}
 
 	var record *core.Record
@@ -684,10 +687,14 @@ func ListFromActivity(ctx context.Context, activity pub.Activity, app core.App, 
 		}
 	} else {
 		// this list exists already
+		if record.GetString("author") != actor.Id || RecordHasLocalIdentity(app, record) {
+			return nil, fmt.Errorf("inbound list author does not own the stored object")
+		}
+		if activity.Type != pub.AnnounceType {
+			record.Set("public", true)
+		}
 		// ensure that it is fully synced to catch trail updates
-
 		record.Set("needs_full_sync", true)
-
 		if err := app.Save(record); err != nil {
 			return nil, err
 		}
@@ -697,7 +704,8 @@ func ListFromActivity(ctx context.Context, activity pub.Activity, app core.App, 
 
 	record.Set("name", l.Name.First().Value)
 	record.Set("description", l.Content.First().Value)
-	record.Set("public", true)
+	// A directed share grants access only to its recipient.
+	record.Set("public", activity.Type != pub.AnnounceType)
 	record.Set("iri", iri)
 	record.Set("author", actor.Id)
 	record.Set("needs_full_sync", true)
@@ -705,7 +713,7 @@ func ListFromActivity(ctx context.Context, activity pub.Activity, app core.App, 
 	if l.Attachment != nil {
 
 		avatarURL := ""
-		attachments, err := pub.ToItemCollection(l.Attachment)
+		attachments, err := ActivityPubAttachmentItems(l.Attachment)
 		if err != nil {
 			return nil, err
 		}
@@ -721,7 +729,7 @@ func ListFromActivity(ctx context.Context, activity pub.Activity, app core.App, 
 		}
 
 		if avatarURL != "" {
-			avatar, cleanup, err := DownloadRemoteFile(ctx, avatarURL, RemoteAvatarMaxBytes, actor.GetString("iri"))
+			avatar, cleanup, err := DownloadRemoteFile(context.Background(), avatarURL, RemoteFileLimit(record, "avatar", RemoteAvatarMaxBytes))
 			defer cleanup()
 			if err != nil {
 				return nil, err
@@ -772,7 +780,7 @@ func ObjectFromList(app core.App, list *core.Record) (*pub.Object, error) {
 	listObject.Published = list.GetDateTime("created").Time()
 	listObject.ID = pub.IRI(list.GetString("iri"))
 	listObject.URL = pub.IRI(activityURL)
-	listObject.Attachment = attachments
+	listObject.Attachment = ActivityPubAttachmentArray(attachments)
 	return listObject, nil
 }
 
@@ -809,33 +817,17 @@ func ObjectFromComment(app core.App, comment *core.Record, mentions *pub.ItemCol
 	return commentObject, nil
 }
 
-// TrailObjectMaxBytes is the largest object TrailObjectFromIRI and
-// CommentObjectFromIRI read.
-const TrailObjectMaxBytes int64 = 1 << 20
+var newTrailObjectHTTPClient = SafeHTTPClient
 
-// trailObjectHTTPClient builds the client TrailObjectFromIRI and
-// CommentObjectFromIRI use. Replaced in tests.
-var trailObjectHTTPClient = SafeHTTPClient
+func TrailObjectFromIRI(iri string) (*pub.Object, error) {
+	fetchURL := strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1)
 
-func TrailObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
-	return objectFromIRI(ctx, "trail", strings.Replace(iri, "api/v1/trail", "api/v1/activitypub/trail", 1))
-}
+	client := newTrailObjectHTTPClient()
 
-// CommentObjectFromIRI fetches the comment at iri from its host, with the same
-// limits as TrailObjectFromIRI. A Wanderer comment IRI is rewritten to its
-// ActivityPub endpoint; any other IRI is fetched as is.
-func CommentObjectFromIRI(ctx context.Context, iri string) (*pub.Object, error) {
-	return objectFromIRI(ctx, "comment", strings.Replace(iri, "api/v1/comment", "api/v1/activitypub/comment", 1))
-}
-
-func objectFromIRI(ctx context.Context, kind, fetchURL string) (*pub.Object, error) {
-	client := trailObjectHTTPClient()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
+	req, err := http.NewRequest(http.MethodGet, fetchURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept", "application/activity+json")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -845,33 +837,26 @@ func objectFromIRI(ctx context.Context, kind, fetchURL string) (*pub.Object, err
 
 	if resp.StatusCode != http.StatusOK {
 		// An error body decodes to an empty object, which would be stored as
-		// an object without an id.
-		return nil, fmt.Errorf("fetching %s %s returned: %d", kind, fetchURL, resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, TrailObjectMaxBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(body)) > TrailObjectMaxBytes {
-		return nil, fmt.Errorf("%s %s is larger than %d bytes", kind, fetchURL, TrailObjectMaxBytes)
+		// a trail without an id.
+		return nil, fmt.Errorf("fetching trail %s returned: %d", fetchURL, resp.StatusCode)
 	}
 
 	var object pub.Object
-	err = json.Unmarshal(body, &object)
-	if err != nil {
+	if err := DecodeFederationJSON(resp.Body, FederationObjectBodyLimit, &object); err != nil {
 		return nil, err
 	}
 	if object.ID == "" {
-		return nil, fmt.Errorf("fetching %s %s returned an object without an id", kind, fetchURL)
+		return nil, fmt.Errorf("fetching trail %s returned an object without an id", fetchURL)
 	}
 
 	return &object, nil
 }
 
-// VerifySignature verifies the HTTP signature of an inbox delivery against
-// publicKeyPem. body must be the exact bytes received.
-func VerifySignature(app core.App, req *http.Request, body []byte, publicKeyPem string) (bool, error) {
+func VerifySignature(app core.App, req *http.Request, publicKeyPem string, body []byte, actorIRI ...string) (bool, error) {
+	signature, err := CheckRequestSignature(req, body, time.Now())
+	if err != nil {
+		return false, err
+	}
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return false, fmt.Errorf("ORIGIN not set")
@@ -881,6 +866,7 @@ func VerifySignature(app core.App, req *http.Request, body []byte, publicKeyPem 
 		return false, fmt.Errorf("could not decode publicKeyPem to PUBLIC KEY pem block type")
 	}
 
+	req = req.Clone(req.Context())
 	req.URL = &url.URL{
 		Path: req.Header.Get("X-Forwarded-Path"),
 	}
@@ -898,30 +884,39 @@ func VerifySignature(app core.App, req *http.Request, body []byte, publicKeyPem 
 		return false, err
 	}
 
-	// Check the signed time and, if present, the Digest.
-	params, err := signatureParams(req.Header)
-	if err != nil {
-		return false, err
-	}
-	signed := signedHeaderNames(params)
-	if err := checkSignatureTime(req.Header, params, signed, time.Now()); err != nil {
-		return false, err
-	}
-	if err := verifyBodyDigest(req.Header, body, signed); err != nil {
-		return false, err
+	if len(actorIRI) > 0 && !SignatureKeyIsOnActorHost(signature.KeyID, actorIRI[0]) {
+		return false, fmt.Errorf("signature key id is not on the activity actor's host")
 	}
 
-	v, err := httpsig.NewVerifier(req)
-	if err != nil {
-		return false, err
+	rsaKey, ok := publicKey.(*rsa.PublicKey)
+	if !ok {
+		return false, fmt.Errorf("signature public key is not RSA")
 	}
-
-	err = v.Verify(publicKey, httpsig.RSA_SHA256)
+	err = signature.verify(req, rsaKey)
 	if err != nil {
 		return false, err
 	}
 
 	return true, nil
+}
+
+// SignatureKeyIsOnActorHost reports whether keyID names a key published by the
+// actor's own host. Servers disagree on the key's path: Mastodon and most
+// others use "<actor>#main-key", GoToSocial "<actor>/main-key", BookWyrm
+// "<actor>/#main-key", Hubzilla and PeerTube before 7.1 the actor IRI itself.
+// The host is the boundary that matters, because a signature is only ever
+// checked against the key stored for the activity's actor, and that key only
+// comes from a document whose id is the actor IRI that was fetched.
+func SignatureKeyIsOnActorHost(keyID, actorIRI string) bool {
+	key, keyErr := url.Parse(keyID)
+	actor, actorErr := url.Parse(actorIRI)
+	if keyErr != nil || actorErr != nil || key.User != nil || actor.User != nil {
+		return false
+	}
+	if (key.Scheme != "http" && key.Scheme != "https") || (actor.Scheme != "http" && actor.Scheme != "https") {
+		return false
+	}
+	return key.Host != "" && strings.EqualFold(key.Host, actor.Host)
 }
 
 func SplitHandle(handle string) (string, string) {

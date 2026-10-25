@@ -37,7 +37,7 @@ export default class Route {
 
     if (object.rtept) {
       if (!Array.isArray(object.rtept)) {
-        this.rtept = [object.rtept];
+        object.rtept = [object.rtept];
       }
       this.rtept = (object.rtept as Waypoint[]).map(rtept => new Waypoint(rtept))
     }

@@ -1,6 +1,7 @@
-import { trails_show } from "$lib/stores/trail_store";
-import { APIError } from "$lib/util/api_util";
-import { error, type Load, type NumericRange } from "@sveltejs/kit";
+import { trails_show } from "#lib/stores/trail_store.ts";
+import { remoteContentError } from "#lib/util/remote_content_error.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { error, type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ params, fetch, url }) => {
     try {
@@ -9,9 +10,8 @@ export const load: Load = async ({ params, fetch, url }) => {
         return { trail }
     } catch (e) {
         if (e instanceof APIError) {
-            error(e.status as NumericRange<400, 599>, {
-                message: e.status == 404 ? 'Not found' : e.message
-            });
+            const { message, ...properties } = remoteContentError(e);
+            error(e.status, message, properties);
         }
         console.error(e);
     }

@@ -1,5 +1,5 @@
-import { browser } from '$app/environment';
-import { getPb } from '$lib/pocketbase';
+import { browser } from '$app/env';
+import { getPb } from '#lib/pocketbase.ts';
 import { init, register } from 'svelte-i18n';
 import { defaultLocale, LOCALE_LOADERS, normalizeLocale } from './locales';
 

@@ -1,11 +1,11 @@
 <script lang="ts">
-    import type { Category } from "$lib/models/category";
-    import type { TrailFilter } from "$lib/models/trail";
-    import { searchLocations } from "$lib/stores/search_store";
-    import { tags_index } from "$lib/stores/tag_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { formatDistance, formatElevation } from "$lib/util/format_util";
-    import { getIconForLocation } from "$lib/util/icon_util";
+    import type { Category } from "#lib/models/category.ts";
+    import type { TrailFilter } from "#lib/models/trail.ts";
+    import { searchLocations } from "#lib/stores/search_store.ts";
+    import { tags_index } from "#lib/stores/tag_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { formatDistance, formatElevation } from "#lib/util/format_util.ts";
+    import { getIconForLocation } from "#lib/util/icon_util.ts";
     import { _ } from "svelte-i18n";
     import { slide } from "svelte/transition";
     import ActorSearch from "../actor_search.svelte";

@@ -1,18 +1,18 @@
 <script lang="ts">
     import { tick } from "svelte";
     import { _ } from "svelte-i18n";
-    import GpxMetricsComputation from "$lib/models/gpx/gpx-metrics-computation";
-    import type TrackSegment from "$lib/models/gpx/track-segment";
-    import type { ValhallaAnchor } from "$lib/models/valhalla";
+    import GpxMetricsComputation from "#lib/models/gpx/gpx-metrics-computation.ts";
+    import type TrackSegment from "#lib/models/gpx/track-segment.ts";
+    import type { ValhallaAnchor } from "#lib/models/valhalla.ts";
     import {
         searchLocationReverseStructured,
         type ReverseLocationResult,
-    } from "$lib/stores/search_store";
+    } from "#lib/stores/search_store.ts";
     import {
         formatDistance,
         formatElevation,
-    } from "$lib/util/format_util";
-    import { valhallaAnchorDisplay, valhallaAnchorTitle } from "$lib/util/valhalla_anchor_util";
+    } from "#lib/util/format_util.ts";
+    import { valhallaAnchorDisplay, valhallaAnchorTitle } from "#lib/util/valhalla_anchor_util.ts";
 
     interface Props {
         anchors: ValhallaAnchor[];

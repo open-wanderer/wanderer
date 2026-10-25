@@ -1,6 +1,8 @@
-import { forwardableHeaders } from '$lib/server/http';
-import { handleError } from '$lib/util/api_util';
-import { env as privateEnv } from '$env/dynamic/private';
+import { POCKETBASE_PROXY_SECRET } from '$app/env/private';
+
+import { forwardableHeaders } from '#lib/server/http.ts';
+import { INBOX_BODY_LIMIT, readBoundedRequestText } from '#lib/server/request_body.ts';
+import { handleError } from '#lib/util/api_util.ts';
 import { json, type RequestEvent } from '@sveltejs/kit';
 import type { APActivity } from 'activitypub-types';
 
@@ -31,7 +33,7 @@ import type { APActivity } from 'activitypub-types';
 export async function POST(event: RequestEvent) {
     try {
         // Forward the raw body unchanged so the signed Digest still matches.
-        const bodyText = await event.request.text();
+        const bodyText = await readBoundedRequestText(event.request, INBOX_BODY_LIMIT);
         const activity: APActivity = JSON.parse(bodyText);
         if (!activity.actor) {
             return json("Bad request", { status: 400 });
@@ -44,7 +46,7 @@ export async function POST(event: RequestEvent) {
         originalHeaders['X-Forwarded-Path'] = event.url.pathname;
 
         // Authenticate this internal hop to the backend.
-        originalHeaders['X-Internal-Secret'] = privateEnv.POCKETBASE_PROXY_SECRET ?? '';
+        originalHeaders['X-Internal-Secret'] = POCKETBASE_PROXY_SECRET ?? '';
 
         const response = await event.locals.pb.send("/activitypub/instance/inbox", {
             method: "POST",

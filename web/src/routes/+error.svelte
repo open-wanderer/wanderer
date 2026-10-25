@@ -1,8 +1,8 @@
 <script>
     import { page } from "$app/state";
-    import errorDark from "$lib/assets/svgs/empty_states/error_dark.svg";
-    import errorLight from "$lib/assets/svgs/empty_states/error_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import errorDark from "#lib/assets/svgs/empty_states/error_dark.svg";
+    import errorLight from "#lib/assets/svgs/empty_states/error_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 </script>
 
 <svelte:head>
@@ -25,5 +25,10 @@
         <p class="text-lg text-center mt-2">
             {page.error?.message}
         </p>
+        {#if page.error?.originURL}
+            <a class="text-base underline" href={page.error.originURL} rel="noreferrer">
+                View on the original instance
+            </a>
+        {/if}
     </div>
 </div>

@@ -1,25 +1,25 @@
 <script lang="ts">
-    import { invalidateAll } from "$app/navigation";
+    import { refreshAll } from "$app/navigation";
     import { page } from "$app/state";
-    import Button from "$lib/components/base/button.svelte";
-    import ConfirmModal from "$lib/components/confirm_modal.svelte";
-    import ApiTokenModal from "$lib/components/settings/api_token_modal.svelte";
-    import ApiTokenSuccessModal from "$lib/components/settings/api_token_success_modal.svelte";
-    import EmailModal from "$lib/components/settings/email_modal.svelte";
-    import PasswordModal from "$lib/components/settings/password_modal.svelte";
-    import type { APIToken } from "$lib/models/api_token";
+    import Button from "#lib/components/base/button.svelte";
+    import ConfirmModal from "#lib/components/confirm_modal.svelte";
+    import ApiTokenModal from "#lib/components/settings/api_token_modal.svelte";
+    import ApiTokenSuccessModal from "#lib/components/settings/api_token_success_modal.svelte";
+    import EmailModal from "#lib/components/settings/email_modal.svelte";
+    import PasswordModal from "#lib/components/settings/password_modal.svelte";
+    import type { APIToken } from "#lib/models/api_token.ts";
     import {
         api_tokens_create,
         api_tokens_delete,
-    } from "$lib/stores/api_token_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    } from "#lib/stores/api_token_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         currentUser,
         logout,
         users_delete,
         users_update,
         users_update_email,
-    } from "$lib/stores/user_store";
+    } from "#lib/stores/user_store.ts";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
 
@@ -97,7 +97,7 @@
             const tokenResponse = await api_tokens_create(token);
             rawAPIToken = tokenResponse.rawToken;
             tokenSuccessModal.openModal();
-            await invalidateAll();
+            await refreshAll();
         } catch (e) {
             show_toast({
                 text: $_("error-generating-token"),
@@ -112,7 +112,7 @@
     async function deleteAPIToken(token: APIToken) {
         try {
             const tokenResponse = await api_tokens_delete(token);
-            await invalidateAll();
+            await refreshAll();
         } catch (e) {
             show_toast({
                 text: $_("error-deleting-token"),

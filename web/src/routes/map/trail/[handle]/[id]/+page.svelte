@@ -1,9 +1,9 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import MetaTags from "$lib/components/base/meta_tags.svelte";
-    import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import TrailInfoPanel from "$lib/components/trail/trail_info_panel.svelte";
-    import { getFileURL } from "$lib/util/file_util.js";
+    import MetaTags from "#lib/components/base/meta_tags.svelte";
+    import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
+    import TrailInfoPanel from "#lib/components/trail/trail_info_panel.svelte";
+    import { getFileURL } from "#lib/util/file_util.ts";
     import * as M from "maplibre-gl";
     import "photoswipe/style.css";
     import { untrack } from "svelte";

@@ -2,16 +2,18 @@ package routes
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"pocketbase/federation"
 	"pocketbase/util"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -37,13 +39,19 @@ func RemoteListGet(e *core.RequestEvent) error {
 	if handle != "" {
 		record, err = findLocalListByRemoteInfo(e, ctx, handle, listID)
 		if err != nil {
-			if errors.Is(err, federation.ErrProfilePrivate) {
+			if errors.Is(err, federation.ErrProfilePrivate) || errors.Is(err, federation.ErrActorNotFound) {
 				return e.NotFoundError("profile is private", err)
+			}
+			if errors.Is(err, util.ErrRateLimited) {
+				return e.TooManyRequestsError("Too many requests", err)
+			}
+			if errors.Is(err, errRemoteUnavailable) {
+				return apis.NewApiError(http.StatusServiceUnavailable, "Remote instance unavailable", nil)
 			}
 			return e.InternalServerError("Failed to resolve list", err)
 		}
 
-		if record.Id == "" || record.GetBool("needs_full_sync") {
+		if record.Id == "" || record.GetBool("needs_full_sync") && (!hasCompletedFullSync(record) || util.IsLocalIRI(record.GetString("iri")) || remoteRecordHasLocalAuthor(e.App, record)) {
 			cachedID := record.Id
 			record, err = performFullListSync(e.App, ctx, e.Request.URL, record)
 			if err != nil {
@@ -53,8 +61,14 @@ func RemoteListGet(e *core.RequestEvent) error {
 				}
 				cached := cachedRecordFallback(e.App, "lists", cachedID, err)
 				if cached == nil {
+					if isRemoteDocumentLimitError(err) {
+						return remoteDocumentLimitError(e.App, record, "lists")
+					}
 					if errors.Is(err, util.ErrRateLimited) {
 						return e.TooManyRequestsError("Too many requests", err)
+					}
+					if errors.Is(err, errRemoteUnavailable) {
+						return apis.NewApiError(http.StatusServiceUnavailable, "Remote instance unavailable", nil)
 					}
 					return e.InternalServerError("Sync failed", err)
 				}
@@ -76,7 +90,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 			updatedAt := record.GetDateTime("updated").Time()
 
 			iri := record.GetString("iri")
-			if time.Now().UTC().Sub(updatedAt) > remoteSyncThreshold {
+			if record.GetBool("needs_full_sync") || time.Now().UTC().Sub(updatedAt) > remoteSyncThreshold || remoteListReferencesDue(e.App, iri) {
 				if _, alreadySyncing := listSyncing.LoadOrStore(iri, struct{}{}); !alreadySyncing {
 					urlCopy := *e.Request.URL
 					bgCtx := context.WithValue(context.Background(), "actor", ctx.Value("actor"))
@@ -123,7 +137,7 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle
 	// does for trails (#986). Bailing out here 500'd every /lists/@handle/id URL
 	// whose owner had set account privacy to "private", including their public
 	// lists.
-	actor, err := federation.GetActorByHandle(e.App, ctx, handle, false)
+	actor, err := resolveRemoteHandleActor(e, ctx, handle)
 	if actor == nil {
 		// No actor available at all — no cache, and the live lookup itself
 		// failed (e.g. remote instance unreachable, unknown handle). We can't
@@ -148,7 +162,13 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle
 	iri := fmt.Sprintf("%s://%s/api/v1/list/%s", actorURL.Scheme, actorURL.Host, trailID)
 
 	// 2. Check if this IRI already exists in our DB
-	existing, _ := e.App.FindFirstRecordByFilter("lists", "iri={:iri}||id={:id}", dbx.Params{"id": trailID, "iri": iri})
+	existing, _ := e.App.FindFirstRecordByFilter("lists", "iri={:iri}", dbx.Params{"iri": iri})
+	if existing == nil {
+		candidate, _ := e.App.FindRecordById("lists", trailID)
+		if candidate != nil && remoteHandleSelectsRecord(e.App, candidate, actor, iri) {
+			existing = candidate
+		}
+	}
 	if existing != nil {
 		return existing, nil
 	}
@@ -171,10 +191,18 @@ func findLocalListByRemoteInfo(e *core.RequestEvent, ctx context.Context, handle
 }
 
 func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, localList *core.Record) (*core.Record, error) {
+	return limitedRemoteSync(app, ctx, "lists", localList, func(ctx context.Context) (*core.Record, error) {
+		return performFullListSyncDocument(app, ctx, reqURL, localList)
+	})
+}
+
+func performFullListSyncDocument(app core.App, ctx context.Context, reqURL *url.URL, localList *core.Record) (*core.Record, error) {
+	ctx, cancel := context.WithTimeout(ctx, remoteSyncBudget)
+	defer cancel()
 	iri := localList.GetString("iri")
 
 	// Never federate with ourselves (see performFullSync in remote_trail.go).
-	if iri == "" || util.IsLocalIRI(iri) {
+	if iri == "" || util.IsLocalIRI(iri) || remoteRecordHasLocalAuthor(app, localList) {
 		if localList.GetBool("needs_full_sync") {
 			localList.Set("needs_full_sync", false)
 			if err := app.Save(localList); err != nil {
@@ -186,122 +214,105 @@ func performFullListSync(app core.App, ctx context.Context, reqURL *url.URL, loc
 
 	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	query := reqURL.Query()
+	query := url.Values{}
+	if reqURL != nil {
+		query = reqURL.Query()
+	}
 	query.Del("handle")
+	expands := strings.Split(query.Get("expand"), ",")
+	hasAuthor := false
+	for _, path := range expands {
+		if strings.TrimSpace(path) == "author" {
+			hasAuthor = true
+			break
+		}
+	}
+	if !hasAuthor {
+		expands = append(expands, "author")
+	}
+	query.Set("expand", strings.Trim(strings.Join(expands, ","), ","))
 	remoteUrl.RawQuery = query.Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteUrl.String(), nil)
+	document, err := fetchRemoteSyncDocument(ctx, client, remoteUrl, "list")
 	if err != nil {
-		return nil, err
+		return localList, err
 	}
-
-	res, err := client.Do(req)
+	defer document.close()
+	identity, err := document.identity(app, ctx, localList)
+	if err != nil {
+		return localList, err
+	}
+	previousTrails := append([]string(nil), localList.GetStringSlice("trails")...)
+	author, err := resolveRemoteTopLevelAuthor(app, ctx, localList, identity)
 	if err != nil {
 		return localList, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		statusErr := fmt.Errorf("remote list fetch %s returned: %d", remoteUrl.String(), res.StatusCode)
-		if res.StatusCode >= http.StatusInternalServerError {
-			return localList, fmt.Errorf("%w: %w", errRemoteUnavailable, statusErr)
-		}
-		if isGoneStatus(res.StatusCode) {
-			return localList, fmt.Errorf("%w: %w", errRemoteGone, statusErr)
-		}
-		return localList, statusErr
-	}
-
-	var remoteMap map[string]any
-	if err := json.NewDecoder(res.Body).Decode(&remoteMap); err != nil {
+	plan, err := document.networkPlan(app, ctx, localList, origin, "list")
+	if err != nil {
 		return localList, err
 	}
+	remoteMap := plan.data
 
-	// Trails hosted elsewhere are imported from their own host first; the
-	// sync below only links them.
-	importForeignListTrails(app, ctx, iri, remoteMap)
+	ctx = prepareRemoteChildAuthors(app, ctx, remoteMap, origin, "trails", "trail")
+	ctx = prepareRemoteListVisibility(app, ctx, remoteMap, origin)
+	ctx = prepareRemoteListReferences(app, ctx, localList, remoteMap, origin)
 
-	err = app.RunInTransaction(func(txApp core.App) error {
+	ctx, cleanupMedia, err := prepareRemoteMedia(ctx, plan.media.requests)
+	if err != nil {
+		return localList, err
+	}
+	defer cleanupMedia()
+	return document.process(ctx, func(remoteMap map[string]any) (*core.Record, error) {
 		remoteID, _ := remoteMap["id"].(string)
+		expand, _ := remoteMap["expand"].(map[string]any)
+		trails, _ := expand["trails"].([]any)
+		namedPrevious := previousListTrailsInDocument(app, previousTrails, trails, origin)
+		childrenCapped := capRemoteSyncChildren(app, remoteMap, origin, "trails")
+		ctx, err = prepareRemoteSyncTags(app, ctx, remoteMap, author, origin, "list")
+		if err != nil {
+			return localList, err
+		}
 
-		// 1. Sync Files
+		localList.Set("author", author)
 		syncListRecordFiles(ctx, localList, "lists", remoteID, origin, remoteMap)
-
-		// 2. Map Relations & Simple Fields
 		syncListMetadata(localList, remoteMap)
-
-		localList.Set("needs_full_sync", false)
-		localList.Set("full_sync_completed", true)
-
-		// 3. Sync Trails
+		localList.Set("author", author)
 		if expand, ok := remoteMap["expand"].(map[string]any); ok {
 			if trails, ok := expand["trails"].([]any); ok {
-				err = syncTrails(txApp, ctx, localList, origin, trails)
-				if err != nil {
-					return err
+				ids := []string{}
+				processed := 0
+				err = remoteSyncChildBatches(app, ctx, trails, func(tx core.App, batch []any) error {
+					working := localList.Fresh()
+					working.Set("trails", previousTrails)
+					if err := syncTrails(tx, ctx, working, origin, batch); err != nil {
+						return err
+					}
+					ids = append(ids, working.GetStringSlice("trails")...)
+					processed += len(batch)
+					return nil
+				})
+				if err != nil && !interruptedRemoteChildren(err) {
+					return localList, err
 				}
+				if childrenCapped || err != nil {
+					ids = retainUnprocessedListTrails(app, localList.GetString("author"), ids, previousTrails, trails[:processed], namedPrevious, origin)
+				}
+				localList.Set("trails", ids)
 			}
 		}
-
 		util.SanitizeHTMLFieldsWithLimits(localList)
-		if err := txApp.Save(localList); err != nil {
-			return err
-		}
-
-		return nil
+		return finishRemoteSyncChildren(app, ctx, localList, err)
 	})
-
-	return localList, err
-}
-
-// maxForeignListTrailImports bounds the trails one list sync imports from
-// hosts other than the list's; the rest follow on later syncs.
-const maxForeignListTrailImports = 20
-
-// importTrail is federation.ImportTrail, replaceable in tests.
-var importTrail = federation.ImportTrail
-
-// importForeignListTrails imports the trails of a pulled list that are hosted
-// neither here nor on the list's host and not stored yet, each from its own
-// host. Failures leave the trail out of the list.
-func importForeignListTrails(app core.App, ctx context.Context, listIRI string, remoteMap map[string]any) {
-	expand, _ := remoteMap["expand"].(map[string]any)
-	trails, _ := expand["trails"].([]any)
-
-	imported := 0
-	for _, tData := range trails {
-		raw, _ := tData.(map[string]any)
-		iri, _ := raw["iri"].(string)
-		if !federation.IsForeignPulledObject(iri, listIRI) {
-			continue
-		}
-		if stored, _ := app.FindFirstRecordByData("trails", "iri", iri); stored != nil {
-			continue
-		}
-		if imported == maxForeignListTrailImports {
-			app.Logger().Info("deferring foreign list trails to a later sync", "list", listIRI)
-			return
-		}
-		imported++
-		if _, err := importTrail(app, ctx, iri); err != nil {
-			app.Logger().Warn("skipping pulled trail not importable from its host", "iri", iri, "list", listIRI, "error", err)
-		}
-	}
 }
 
 func syncListMetadata(record *core.Record, data map[string]any) {
-	delete(data, "id")
-	delete(data, "avatar")
-	delete(data, "author")
-	delete(data, "iri")
-
-	stripLocalSyncFields(data)
-	record.Load(data)
+	loadRemoteRecordFields(record, data, "trails")
 }
 
 func syncListRecordFiles(ctx context.Context, record *core.Record, collection, remoteID, origin string, data map[string]any) {
 	if gpx, ok := data["avatar"].(string); ok && record.GetString("avatar") == "" {
-		if f, err := downloadFile(ctx, origin, collection, remoteID, gpx); err == nil {
+		if f, err := downloadFile(ctx, origin, collection, remoteID, gpx, remoteRecordFieldLimit(record, "avatar", util.RemoteAvatarMaxBytes)); err == nil {
 			record.Set("avatar", f)
 		}
 	}
@@ -311,11 +322,6 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 	col, _ := txApp.FindCollectionByNameOrId("trails")
 
 	localTrails := make([]string, 0, len(trails))
-
-	listAuthor, err := txApp.FindRecordById("activitypub_actors", list.GetString("author"))
-	if err != nil {
-		return err
-	}
 
 	for _, tData := range trails {
 		raw, ok := tData.(map[string]any)
@@ -327,60 +333,69 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 		if iri == "" {
 			iri = fmt.Sprintf("%s/api/v1/trail/%s", origin, tID)
 		}
-
-		// Only trails on the list origin's host may be written; others are linked if
-		// already stored, otherwise skipped.
-		authorIRI := ""
-		if expand, ok := raw["expand"].(map[string]any); ok {
-			if authorMap, ok := expand["author"].(map[string]any); ok {
-				authorIRI, _ = authorMap["iri"].(string)
+		trail, _ := txApp.FindFirstRecordByData("trails", "iri", iri)
+		fromOrigin := remoteSyncIRIMatchesOrigin(iri, origin)
+		if util.IsLocalIRI(iri) || !fromOrigin || (trail != nil && remoteRecordHasLocalAuthor(txApp, trail)) {
+			if !fromOrigin && !util.IsLocalIRI(iri) {
+				// Another origin's trail exists here only as that origin
+				// describes it, under the IRI it uses.
+				var err error
+				if trail, err = remoteListReferenceRecord(txApp, ctx, col, iri, trail); err != nil {
+					return err
+				}
 			}
-		}
-		checkedAuthorIRI := authorIRI
-		if checkedAuthorIRI == "" {
-			checkedAuthorIRI = listAuthor.GetString("iri")
-		}
-
-		trail, writable, err := federation.CheckPulledListTrail(txApp, iri, checkedAuthorIRI, list.GetString("iri"))
-		if err != nil {
-			txApp.Logger().Warn("skipping pulled trail", "iri", iri, "list", list.GetString("iri"), "error", err)
-			continue
-		}
-		if !writable {
 			if trail != nil {
+				if err := applyRemoteListVisibility(txApp, ctx, trail); err != nil {
+					return err
+				}
+				if remoteListAuthorCanViewLocalTrail(txApp, list.GetString("author"), trail) {
+					localTrails = append(localTrails, trail.Id)
+				}
+			}
+			continue
+		}
+		author, allowed, err := resolveRemoteSyncAuthor(txApp, ctx, list.GetString("author"), iri, raw)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			// A failed author refresh does not revoke an existing reference.
+			// Keep its stored content until that author can be confirmed again.
+			if trail != nil && slices.Contains(list.GetStringSlice("trails"), trail.Id) {
 				localTrails = append(localTrails, trail.Id)
-			} else {
-				txApp.Logger().Warn("skipping pulled trail not stored from its own host", "iri", iri, "list", list.GetString("iri"))
 			}
 			continue
 		}
 
-		actor := listAuthor
-		if authorIRI != "" {
-			actor, err = federation.GetActorByIRI(txApp, ctx, authorIRI, false)
-			if err != nil {
-				return err
-			}
+		existingID := ""
+		if trail != nil {
+			existingID = trail.Id
 		}
-		if _, err := federation.CheckRemoteObjectOwnership(txApp, "trails", iri, actor); err != nil {
-			txApp.Logger().Warn("skipping pulled trail", "iri", iri, "list", list.GetString("iri"), "error", err)
-			continue
-		}
-		author := actor.Id
-
 		if trail == nil {
 			trail = core.NewRecord(col)
 			trail.Set("needs_full_sync", true)
+		} else if !remoteSyncRecordCanUpdate(txApp, trail, author, "") {
+			localTrails = append(localTrails, trail.Id)
+			continue
 		}
 
-		syncTrailMetadata(txApp, trail, raw)
+		if fromOrigin {
+			syncTrailMetadata(txApp, ctx, trail, raw)
+		}
 
 		trail.Set("author", author)
 		trail.Set("iri", iri)
 
 		util.SanitizeHTMLFieldsWithLimits(trail)
-		if err := txApp.Save(trail); err != nil {
+		saved, err := saveRemoteSyncChild(txApp, trail)
+		if err != nil {
 			return err
+		}
+		if !saved {
+			if existingID != "" {
+				localTrails = append(localTrails, existingID)
+			}
+			continue
 		}
 
 		localTrails = append(localTrails, trail.Id)
@@ -389,4 +404,66 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 
 	list.Set("trails", localTrails)
 	return nil
+}
+
+// Store or refresh a placeholder only from the trail's own origin and
+// author. Opening it runs the full sync at that origin.
+func remoteListReferenceRecord(txApp core.App, ctx context.Context, col *core.Collection, iri string, trail *core.Record) (*core.Record, error) {
+	state := remoteListReferenceStateOf(ctx)
+	if trail != nil {
+		return trail, refreshRemoteListReference(txApp, ctx, state, trail)
+	}
+	reference, confirmed := state.confirmed[iri]
+	if !confirmed || remoteListReferenceIsLocal(reference.iri) {
+		return nil, nil
+	}
+	if stored, _ := txApp.FindFirstRecordByData("trails", "iri", reference.iri); stored != nil {
+		return stored, nil
+	}
+	actor, err := txApp.FindRecordById("activitypub_actors", reference.author)
+	if err != nil || actor.GetBool("is_local") || !remoteSyncIRIMatchesOrigin(actor.GetString("iri"), reference.iri) {
+		return nil, nil
+	}
+	trail = core.NewRecord(col)
+	trail.Set("needs_full_sync", true)
+	syncTrailMetadata(txApp, ctx, trail, reference.data)
+	trail.Set("author", actor.Id)
+	trail.Set("iri", reference.iri)
+	util.SanitizeHTMLFieldsWithLimits(trail)
+	saved, err := saveRemoteSyncChild(txApp, trail)
+	if err != nil || !saved {
+		if err == nil {
+			// An answer that cannot be stored is not requested again soon.
+			rememberRemoteListReferenceFailure(txApp, reference.iri)
+		}
+		return nil, err
+	}
+	return trail, nil
+}
+
+// A placeholder that was never opened follows its origin's answers.
+func refreshRemoteListReference(txApp core.App, ctx context.Context, state remoteListReferenceState, trail *core.Record) error {
+	reference, found := state.refreshed[trail.Id]
+	if !found || reference.author != trail.GetString("author") || trail.GetString("iri") != reference.iri ||
+		!trail.GetBool("public") || !trail.GetBool("needs_full_sync") || hasCompletedFullSync(trail) ||
+		remoteRecordHasLocalAuthor(txApp, trail) || util.RecordHasLocalIdentity(txApp, trail) {
+		return nil
+	}
+	syncTrailMetadata(txApp, ctx, trail, reference.data)
+	util.SanitizeHTMLFieldsWithLimits(trail)
+	saved, err := saveRemoteSyncChild(txApp, trail)
+	if !saved && err == nil {
+		rememberRemoteListReferenceFailure(txApp, reference.iri)
+	}
+	return err
+}
+
+// A public remote list is indexed with statistics from all its linked trails.
+// Merely naming a local private IRI must not expose those statistics.
+func remoteListAuthorCanViewLocalTrail(app core.App, author string, trail *core.Record) bool {
+	if trail.GetBool("public") || (author != "" && trail.GetString("author") == author) {
+		return true
+	}
+	count, err := app.CountRecords("trail_share", dbx.HashExp{"trail": trail.Id, "actor": author})
+	return err == nil && count > 0
 }

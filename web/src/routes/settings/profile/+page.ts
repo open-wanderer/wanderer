@@ -1,5 +1,5 @@
-import { categories_index } from "$lib/stores/category_store";
-import { category_preferences_index } from "$lib/stores/category_preference_store";
+import { categories_index } from "#lib/stores/category_store.ts";
+import { category_preferences_index } from "#lib/stores/category_preference_store.ts";
 import { type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ fetch }) => {

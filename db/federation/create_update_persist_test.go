@@ -1,7 +1,6 @@
 package federation
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -19,7 +18,7 @@ func TestUpdateListPersistsNeedsFullSync(t *testing.T) {
 	}
 
 	act := authorGuardAsUpdate(feedDedupListCreate(feedDedupAuthorIRI, feedDedupListIRI))
-	if err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act); err != nil {
 		t.Fatalf("Update from the stored author: %v", err)
 	}
 
@@ -50,7 +49,7 @@ func TestUpdateTrailFailureIsReturned(t *testing.T) {
 	failUpdates(app, "trails", failure)
 
 	act := authorGuardAsUpdate(feedDedupTrailCreate(feedDedupAuthorIRI, feedDedupTrailIRI))
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act)
 
 	if err == nil {
 		t.Fatal("a failed Update of a stored trail returned nil")
@@ -69,7 +68,7 @@ func TestUpdateListFailureIsReturned(t *testing.T) {
 	failUpdates(app, "lists", failure)
 
 	act := authorGuardAsUpdate(feedDedupListCreate(feedDedupAuthorIRI, feedDedupListIRI))
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act)
 
 	if err == nil {
 		t.Fatal("a failed Update of a stored list returned nil")

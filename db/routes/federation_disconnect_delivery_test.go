@@ -91,6 +91,8 @@ func newRecordingInbox(t *testing.T) *recordingInbox {
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	t.Cleanup(r.server.Close)
+	// The peer runs on loopback, which the public-address delivery client refuses.
+	t.Cleanup(federation.SetDeliveryClientForTesting(r.server.Client()))
 	return r
 }
 

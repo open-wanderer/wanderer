@@ -20,3 +20,15 @@ In any case, once you have successfully created your OAuth app you will receive 
 
 In the PocketBase admin panel navigate to the `users` table. Click the gear icon at the top to open the table's settings and navigate to `Options`. 
 In the tab `OAuth2`, add your provider and fill in the Client ID and Client Secret from the step before and save your changes.
+
+### OAuth with a self-signed certificate (Docker)
+
+To enable OAuth with a self-signed certificate for <span class="-tracking-[0.075em]">wanderer</span> in Docker, add the followiing configuration under the `db` container:
+
+```
+environment:
+  SSL_CERT_DIR: /certs:/etc/ssl/certs
+
+volumes:
+  - /path to the certificate container/certs:/certs:ro
+```

@@ -1,7 +1,6 @@
 package federation
 
 import (
-	"context"
 	"testing"
 
 	pub "github.com/go-ap/activitypub"
@@ -112,7 +111,7 @@ func TestCreateTrailOnForeignHostRefused(t *testing.T) {
 	a := feedDedupSeedActors(t, app)
 
 	act := feedDedupTrailCreate(feedDedupAuthorIRI, authorGuardForeignTrailIRI)
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	authorGuardAssertNoRows(t, app, "trails", authorGuardForeignTrailIRI)
@@ -126,7 +125,7 @@ func TestUpdateTrailOnForeignHostRefused(t *testing.T) {
 	trail := seedTrailRecord(t, app, authorGuardForeignTrailIRI, true, a.author.Id)
 
 	act := authorGuardAsUpdate(feedDedupTrailCreate(feedDedupAuthorIRI, authorGuardForeignTrailIRI))
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	reloaded, rerr := app.FindRecordById("trails", trail.Id)
@@ -145,11 +144,8 @@ func TestUpdateTrailFromNonAuthorRefused(t *testing.T) {
 
 	trail := seedTrailRecord(t, app, feedDedupTrailIRI, true, a.author.Id)
 
-	// The origin names the stored author, so the non-author stays refused.
-	stubTrailOrigin(t, feedDedupTrailIRI, feedDedupAuthorIRI, nil)
-
 	act := authorGuardAsUpdate(feedDedupTrailCreate(feedDedupOtherIRI, feedDedupTrailIRI))
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.other, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.other, a.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	reloaded, rerr := app.FindRecordById("trails", trail.Id)
@@ -170,7 +166,7 @@ func TestCreateListOnForeignHostRefused(t *testing.T) {
 	a := feedDedupSeedActors(t, app)
 
 	act := feedDedupListCreate(feedDedupAuthorIRI, authorGuardForeignListIRI)
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	authorGuardAssertNoRows(t, app, "lists", authorGuardForeignListIRI)
@@ -184,7 +180,7 @@ func TestUpdateListFromNonAuthorAddsNoFeedEntry(t *testing.T) {
 	list := authorGuardSeedList(t, app, feedDedupListIRI, a.author.Id)
 
 	act := authorGuardAsUpdate(feedDedupListCreate(feedDedupOtherIRI, feedDedupListIRI))
-	err := ProcessCreateOrUpdateActivity(app, context.Background(), a.other, a.alice, act)
+	err := ProcessCreateOrUpdateActivity(app, a.other, a.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	if got := feedDedupCount(t, app, a.alice.Id, list.Id); got != 0 {
@@ -206,7 +202,7 @@ func TestUpdateTrailFromAuthorStillApplies(t *testing.T) {
 	trail := seedTrailRecord(t, app, feedDedupTrailIRI, true, a.author.Id)
 
 	act := authorGuardAsUpdate(feedDedupTrailCreate(feedDedupAuthorIRI, feedDedupTrailIRI))
-	if err := ProcessCreateOrUpdateActivity(app, context.Background(), a.author, a.alice, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(app, a.author, a.alice, act); err != nil {
 		t.Fatalf("Update from the stored author: %v", err)
 	}
 

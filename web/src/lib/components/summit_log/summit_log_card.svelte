@@ -1,23 +1,23 @@
 <script lang="ts">
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import type { SummitLog } from "$lib/models/summit_log";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import type { SummitLog } from "#lib/models/summit_log.ts";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
 
-    import { theme } from "$lib/stores/theme_store";
+    import { theme } from "#lib/stores/theme_store.ts";
     import {
         getFileURL,
         isVideoURL,
         readAsDataURLAsync,
-    } from "$lib/util/file_util";
+    } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsText,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+    } from "#lib/util/format_util.ts";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
 
     let thumbnail: string = $state(
         $theme === "light" ? emptyStateTrailLight : emptyStateTrailDark,

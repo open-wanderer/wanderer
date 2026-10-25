@@ -9,7 +9,8 @@
 <script lang="ts">
     import type { ChangeEventHandler } from "svelte/elements";
     import Chip from "./chip.svelte";
-    import { textMatchSegments } from "$lib/util/text_match";
+    import { textMatchSegments } from "#lib/util/text_match.ts";
+    import { visibleComboboxItems } from "#lib/util/combobox_util.ts";
 
     interface Props {
         name?: string;
@@ -45,10 +46,12 @@
 
     let inputValue: string = $state("");
 
+    let visibleItems = $derived(visibleComboboxItems(items, value, multiple));
+
     let dropDownOpen = $derived(
         ((multiple && inputValue.length > 0) ||
             (!multiple && (value as string)?.length > 0)) &&
-            items.length > 0 &&
+            visibleItems.length > 0 &&
             searching,
     );
 
@@ -191,7 +194,7 @@
             class:none={!dropDownOpen}
             style="z-index: 1001"
         >
-            {#each items as item}
+            {#each visibleItems as item}
                 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                 <li

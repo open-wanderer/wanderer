@@ -103,11 +103,6 @@ func ProcessLikeActivity(app core.App, actor *core.Record, activity pub.Activity
 
 	trail, err := app.FindFirstRecordByData("trails", "iri", activity.Object.GetID().String())
 	if err != nil {
-		// A like carries no content, so a receiver that does not hold the trail
-		// has nothing to attach it to.
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
 		return err
 	}
 
@@ -122,20 +117,12 @@ func ProcessLikeActivity(app core.App, actor *core.Record, activity pub.Activity
 			return err
 		}
 
-		// The same like arrives at the user inbox and at the instance inbox.
-		existing, err := findTrailLike(app, trail.Id, actor.Id)
-		if err != nil {
-			return err
-		}
-		if existing != nil {
-			return nil
-		}
-
 		likeRecord := core.NewRecord(trailLikeCollection)
 		likeRecord.Set("trail", trail.Id)
 		likeRecord.Set("actor", actor.Id)
 		if err := app.Save(likeRecord); err != nil {
-			// The twin delivery may have won the unique index race.
+			// The same like arrives at the user inbox and at the instance
+			// inbox; the unique index keeps the first one.
 			if existing, lookupErr := findTrailLike(app, trail.Id, actor.Id); lookupErr == nil && existing != nil {
 				return nil
 			}

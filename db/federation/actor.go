@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,8 +24,20 @@ import (
 )
 
 var ErrProfilePrivate = errors.New("profile is private")
+var ErrActorNotFound = errors.New("actor not found")
+
+var newActorFetchHTTPClient = util.SafeHTTPClient
+var newWebfingerHTTPClient = util.SafeHTTPClient
 var ErrInvalidActorResponse = errors.New("invalid or incomplete actor response")
 var ErrInvalidCursor = errors.New("invalid collection cursor")
+
+// SetActorFetchClientForTesting replaces the client remote actor documents
+// are fetched with and returns a restore function. Tests only.
+func SetActorFetchClientForTesting(f func() *http.Client) (restore func()) {
+	previous := newActorFetchHTTPClient
+	newActorFetchHTTPClient = f
+	return func() { newActorFetchHTTPClient = previous }
+}
 
 type WebfingerResponse struct {
 	Subject string `json:"subject"`
@@ -64,20 +75,14 @@ func validateActorResponse(actor *pub.Actor) error {
 	return nil
 }
 
-// checkActorIDHost rejects an actor document whose id is on a different host
-// than the IRI it was fetched from.
-func checkActorIDHost(requestedIRI string, actor *pub.Actor) error {
-	if actor == nil || actor.GetID().String() == "" {
-		return fmt.Errorf("%w: missing actor id", ErrInvalidActorResponse)
-	}
-	if !sameHost(requestedIRI, actor.GetID().String()) {
-		return fmt.Errorf("actor id host mismatch: requested %s, got %s", requestedIRI, actor.GetID())
-	}
-	return nil
-}
-
 func GetActorByHandle(app core.App, ctx context.Context, handle string, includeFollows bool) (*core.Record, error) {
 	username, domain := util.SplitHandle(handle)
+	if domain != "" && isLocalHandleDomain(domain) {
+		domain = ""
+	}
+	if domain == "" {
+		username = strings.ToLower(username)
+	}
 
 	filter := "preferred_username={:username}&&"
 	if domain != "" {
@@ -89,6 +94,9 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 	var dbActor *core.Record
 	dbActor, err := app.FindFirstRecordByFilter("activitypub_actors", filter, dbx.Params{"username": username, "domain": domain})
 	if err != nil && err == sql.ErrNoRows {
+		if domain == "" {
+			return nil, ErrActorNotFound
+		}
 		collection, err := app.FindCollectionByNameOrId("activitypub_actors")
 		if err != nil {
 			return nil, err
@@ -109,6 +117,72 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 	return assembleActor(app, ctx, dbActor, includeFollows || dbActor.Id == "")
 }
 
+func isLocalHandleDomain(domain string) bool {
+	origin, err := url.Parse(os.Getenv("ORIGIN"))
+	if err != nil || origin.Hostname() == "" {
+		return false
+	}
+	handleDomain, err := url.Parse("//" + domain)
+	if err != nil || handleDomain.Host != domain || handleDomain.Hostname() == "" || strings.HasSuffix(handleDomain.Host, ":") {
+		return false
+	}
+	if !strings.EqualFold(handleDomain.Hostname(), origin.Hostname()) &&
+		!strings.EqualFold(handleDomain.Hostname(), strings.TrimPrefix(origin.Hostname(), "www.")) {
+		return false
+	}
+	if handleDomain.Port() == "" {
+		return true
+	}
+	port := origin.Port()
+	if port == "" {
+		switch origin.Scheme {
+		case "https":
+			port = "443"
+		case "http":
+			port = "80"
+		default:
+			return false
+		}
+	}
+	return handleDomain.Port() == port
+}
+
+func isLocalActorIRI(iri string) bool {
+	origin, err := url.Parse(os.Getenv("ORIGIN"))
+	if err != nil || origin.Hostname() == "" || (origin.Scheme != "http" && origin.Scheme != "https") {
+		return false
+	}
+	actorIRI, err := url.Parse(iri)
+	if err != nil || (actorIRI.Scheme != "http" && actorIRI.Scheme != "https") {
+		return false
+	}
+	if !strings.EqualFold(actorIRI.Hostname(), origin.Hostname()) &&
+		!strings.EqualFold(actorIRI.Hostname(), strings.TrimPrefix(origin.Hostname(), "www.")) {
+		return false
+	}
+	port := func(u *url.URL) string {
+		if u.Port() != "" {
+			return u.Port()
+		}
+		if u.Scheme == "https" {
+			return "443"
+		}
+		return "80"
+	}
+	originPort, actorPort := port(origin), port(actorIRI)
+	// Unlike handles, an IRI without a port uses its scheme's default port.
+	// The default HTTP endpoint can also be an alias of an HTTPS origin.
+	return actorPort == originPort || (origin.Scheme == "https" && originPort == "443" && actorIRI.Scheme == "http" && actorPort == "80")
+}
+
+type actorIdentityLookupKey struct{}
+
+// WithActorIdentityLookup avoids fetching follower collections when a sync only
+// needs to confirm a contributor's identity. Profile lookups keep their defaults.
+func WithActorIdentityLookup(ctx context.Context) context.Context {
+	return context.WithValue(ctx, actorIdentityLookupKey{}, true)
+}
+
 func GetActorByIRI(app core.App, ctx context.Context, iri string, includeFollows bool) (*core.Record, error) {
 	var dbActor *core.Record
 	dbActor, err := app.FindFirstRecordByFilter("activitypub_actors", "iri={:iri}", dbx.Params{"iri": iri})
@@ -126,11 +200,11 @@ func GetActorByIRI(app core.App, ctx context.Context, iri string, includeFollows
 		return nil, err
 	}
 
-	return assembleActor(app, ctx, dbActor, includeFollows || dbActor.Id == "")
+	return assembleActor(app, ctx, dbActor, includeFollows || (dbActor.Id == "" && ctx.Value(actorIdentityLookupKey{}) != true))
 }
 
 func iriFromHandle(ctx context.Context, domain string, username string) (string, error) {
-	client := util.SafeHTTPClient()
+	client := newWebfingerHTTPClient()
 
 	u := &url.URL{
 		Scheme: "https",
@@ -153,13 +227,14 @@ func iriFromHandle(ctx context.Context, domain string, username string) (string,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+			return "", ErrActorNotFound
+		}
 		return "", fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	limitedReader := io.LimitReader(resp.Body, 102400)
-
 	var wf WebfingerResponse
-	if err := json.NewDecoder(limitedReader).Decode(&wf); err != nil {
+	if err := util.DecodeFederationJSON(resp.Body, util.WebfingerBodyLimit, &wf); err != nil {
 		return "", fmt.Errorf("failed to decode JSON: %w", err)
 	}
 
@@ -229,10 +304,16 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		}
 
 	} else {
+		if isLocalActorIRI(dbActor.GetString("iri")) {
+			return nil, ErrActorNotFound
+		}
 
 		// check if value is still cached
 		twoHoursAgo := time.Now().UTC().Add(-2 * time.Hour)
-		if dbActor.GetDateTime("last_fetched").Time().After(twoHoursAgo) {
+		if CachedActorIdentityMatchesOrigin(dbActor) && dbActor.GetDateTime("last_fetched").Time().After(twoHoursAgo) {
+			if includeFollows {
+				return completeActorFollowCounts(app, ctx, dbActor)
+			}
 			return dbActor, nil
 		}
 		pubActor, followers, following, err := fetchRemoteActor(app, ctx, dbActor.GetString("iri"), includeFollows)
@@ -255,19 +336,24 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		if err != nil {
 			return nil, err
 		}
-		domain := strings.TrimPrefix(parsedUrl.Hostname(), "www.")
+		domain := parsedUrl.Host
 
 		// this is a race condition that gets triggered when the profile is opened for the first time
 		existingActor, _ := app.FindFirstRecordByData("activitypub_actors", "iri", dbActor.GetString("iri"))
 
 		if existingActor != nil {
+			if existingActor.GetBool("is_local") {
+				return nil, fmt.Errorf("%w: remote response matches a local actor", ErrInvalidActorResponse)
+			}
 			dbActor = existingActor
 		}
 
 		dbActor.Set("domain", domain)
 		dbActor.Set("followers", util.ItemID(pubActor.Followers))
 		dbActor.Set("inbox", util.ItemID(pubActor.Inbox))
-		dbActor.Set("iri", pubActor.GetID().String())
+		// Keep the requested identity stable after a same-host HTTPS upgrade.
+		// The new document and key were validated; rewriting the stored IRI
+		// would split existing follows and later activities into two actors.
 		dbActor.Set("username", pubActor.Name.String())
 		dbActor.Set("preferred_username", pubActor.PreferredUsername.String())
 		dbActor.Set("following", util.ItemID(pubActor.Following))
@@ -276,6 +362,8 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		dbActor.Set("icon", icon)
 		dbActor.Set("published", pubActor.Published.String())
 		dbActor.Set("public_key", pubActor.PublicKey.PublicKeyPem)
+		// A key confirmed at the origin ends the pre-upgrade key for good.
+		dbActor.Set("legacy_public_key", "")
 		dbActor.Set("last_fetched", time.Now())
 		if pubActor.Type == pub.ApplicationType {
 			dbActor.Set("actor_type", "instance")
@@ -283,9 +371,22 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 			dbActor.Set("actor_type", "person")
 		}
 
-		if includeFollows {
-			dbActor.Set("follower_count", int(followers.TotalItems))
-			dbActor.Set("following_count", int(following.TotalItems))
+		// A refreshed document starts a new count window. Keep an older total
+		// if its collection cannot be read. Only reads not yet attempted remain
+		// pending; failed attempts wait for the next actor document refresh.
+		for _, collection := range []struct {
+			url, count, pending string
+			page                *pub.OrderedCollectionPage
+		}{
+			{"followers", "follower_count", "follower_count_pending", followers},
+			{"following", "following_count", "following_count_pending", following},
+		} {
+			dbActor.Set(collection.pending, dbActor.GetString(collection.url) != "" && !includeFollows)
+			if collection.page != nil {
+				dbActor.Set(collection.count, int(collection.page.TotalItems))
+			} else if dbActor.GetString(collection.url) == "" {
+				dbActor.Set(collection.count, 0)
+			}
 		}
 	}
 
@@ -302,6 +403,48 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	return dbActor, nil
 }
 
+func completeActorFollowCounts(app core.App, ctx context.Context, actor *core.Record) (*core.Record, error) {
+	for _, collection := range []struct{ url, count, pending string }{
+		{"followers", "follower_count", "follower_count_pending"},
+		{"following", "following_count", "following_count_pending"},
+	} {
+		iri := actor.GetString(collection.url)
+		if iri == "" || !actor.GetBool(collection.pending) {
+			continue
+		}
+
+		// Claim the attempt before fetching, without holding a transaction or
+		// saving an actor snapshot over concurrent identity or count updates.
+		current := dbx.HashExp{
+			"id": actor.Id, "is_local": false,
+			"last_fetched": actor.GetString("last_fetched"),
+			collection.url: iri, collection.pending: true,
+		}
+		result, err := app.DB().Update("activitypub_actors", dbx.Params{collection.pending: false}, current).WithContext(ctx).Execute()
+		if err != nil {
+			return actor, err
+		}
+		claimed, err := result.RowsAffected()
+		if err != nil {
+			return actor, err
+		}
+		if claimed == 0 {
+			continue
+		}
+
+		if page, err := FetchCollection(app, ctx, iri); err == nil {
+			// Discard results superseded by a document refresh or another count
+			// update. Persist the completed read even if its caller has cancelled.
+			current[collection.pending] = false
+			current[collection.count] = actor.GetInt(collection.count)
+			if _, err := app.DB().Update("activitypub_actors", dbx.Params{collection.count: int(page.TotalItems)}, current).WithContext(context.WithoutCancel(ctx)).Execute(); err != nil {
+				return actor, err
+			}
+		}
+	}
+	return app.FindRecordById("activitypub_actors", actor.Id)
+}
+
 // Fetches an AP actor and optionally followers/following collections
 func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFollows bool) (*pub.Actor, *pub.OrderedCollectionPage, *pub.OrderedCollectionPage, error) {
 	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
@@ -309,7 +452,25 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 		return nil, nil, nil, fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
 	}
 
-	client := newHTTPClient()
+	// Preserve the caller's client and redirect policy; a fetched identity
+	// must continue to be served by its original host, including its port.
+	client := *newActorFetchHTTPClient()
+	previousRedirect := client.CheckRedirect
+	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("actor fetch exceeded redirect limit")
+		}
+		if next.URL.User != nil || (next.URL.Scheme != "http" && next.URL.Scheme != "https") || !strings.EqualFold(next.URL.Host, via[0].URL.Host) {
+			return fmt.Errorf("actor fetch redirected outside its origin host")
+		}
+		if via[len(via)-1].URL.Scheme == "https" && next.URL.Scheme == "http" {
+			return fmt.Errorf("actor fetch redirected from HTTPS to HTTP")
+		}
+		if previousRedirect != nil {
+			return previousRedirect(next, via)
+		}
+		return nil
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", iri, nil)
 	if err != nil {
@@ -361,21 +522,18 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("actor fetch failed: %v", err)
+		return nil, nil, nil, fmt.Errorf("actor fetch failed: %w", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+			return nil, nil, nil, ErrActorNotFound
+		}
 		return nil, nil, nil, fmt.Errorf("actor fetch failed: status %v", resp.StatusCode)
 	}
 
-	// Reject actor documents served from another host after a redirect.
-	if resp.Request != nil && resp.Request.URL != nil && !sameHost(iri, resp.Request.URL.String()) {
-		return nil, nil, nil, fmt.Errorf("actor fetch for %s was redirected to another host", iri)
-	}
-
 	var pubActor pub.Actor
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&pubActor); err != nil {
+	if err := util.DecodeFederationJSON(resp.Body, util.FederationActorBodyLimit, &pubActor); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -383,26 +541,59 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 	if err := validateActorResponse(&pubActor); err != nil {
 		return nil, nil, nil, fmt.Errorf("actor validation failed for %s: %w", iri, err)
 	}
-
-	if err := checkActorIDHost(iri, &pubActor); err != nil {
+	if err := validateFetchedActorIdentity(iri, &pubActor); err != nil {
 		return nil, nil, nil, err
 	}
 
-	var followers, following pub.OrderedCollectionPage
+	// A nil result records an unread or failed collection, distinct from zero.
+	var followers, following *pub.OrderedCollectionPage
 
 	if includeFollows {
-		// Fetch followers
-		if data, err := FetchCollection(app, ctx, util.ItemID(pubActor.Followers)); err == nil {
-			followers = *data
+		if iri := util.ItemID(pubActor.Followers); iri != "" {
+			followers, _ = FetchCollection(app, ctx, iri)
 		}
 
-		// Fetch following
-		if data, err := FetchCollection(app, ctx, util.ItemID(pubActor.Following)); err == nil {
-			following = *data
+		if iri := util.ItemID(pubActor.Following); iri != "" {
+			following, _ = FetchCollection(app, ctx, iri)
 		}
 	}
 
-	return &pubActor, &followers, &following, nil
+	return &pubActor, followers, following, nil
+}
+
+func validateFetchedActorIdentity(requested string, actor *pub.Actor) error {
+	documentIRI := actor.GetID().String()
+	if !actorIdentityMatchesDocument(requested, documentIRI) {
+		return fmt.Errorf("actor document does not match requested identity")
+	}
+	if actor.PublicKey.Owner.String() != documentIRI {
+		return fmt.Errorf("actor public key owner does not match identity")
+	}
+	if !util.SignatureKeyIsOnActorHost(actor.PublicKey.ID.String(), requested) {
+		return fmt.Errorf("actor public key id is not on the actor's host")
+	}
+	return nil
+}
+
+// A scheme upgrade changes only HTTP to HTTPS on the exact same host, port,
+// path and query. Downgrades and URL aliases do not establish identity.
+func actorIdentityMatchesDocument(requested, document string) bool {
+	parsed, err := url.Parse(requested)
+	if err != nil || parsed.User != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return false
+	}
+	return requested == document || (parsed.Scheme == "http" && document == "https://"+strings.TrimPrefix(requested, "http://"))
+}
+
+// Older caches stored the response ID alongside the requested host. A
+// mismatch requires a fresh lookup before the record can authenticate.
+func CachedActorIdentityMatchesOrigin(actor *core.Record) bool {
+	if actor == nil || strings.TrimSpace(actor.GetString("public_key")) == "" {
+		return false
+	}
+	parsed, err := url.Parse(actor.GetString("iri"))
+	domain := strings.TrimSpace(actor.GetString("domain"))
+	return err == nil && parsed.User == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != "" && domain != "" && strings.EqualFold(parsed.Host, domain)
 }
 
 // newHTTPClient is replaced in tests.
@@ -468,16 +659,15 @@ func FetchCollection(app core.App, ctx context.Context, collectionURL string) (*
 	if err != nil {
 		return nil, fmt.Errorf("collection fetch failed for %s: %v", collectionURL, err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, ErrProfilePrivate
 		}
 		return nil, fmt.Errorf("collection fetch %s returned: %v", collectionURL, resp.StatusCode)
 	}
-	defer resp.Body.Close()
-
 	var collection pub.OrderedCollectionPage
-	if err := json.NewDecoder(resp.Body).Decode(&collection); err != nil {
+	if err := util.DecodeFederationJSON(resp.Body, util.FederationObjectBodyLimit, &collection); err != nil {
 		return nil, err
 	}
 

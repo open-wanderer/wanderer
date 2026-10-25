@@ -1,4 +1,4 @@
-import { test as teardown } from '@playwright/test';
+import { test as teardown } from './fixtures';
 
 teardown('delete user', async ({ page }) => {
     await page.goto('/settings/account', { waitUntil: 'networkidle' });

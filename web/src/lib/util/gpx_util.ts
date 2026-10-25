@@ -1,20 +1,21 @@
-import GPX from "$lib/models/gpx/gpx";
-import { Trail } from "$lib/models/trail";
-import { kml, tcx } from "$lib/vendor/toGeoJSON/toGeoJSON";
+import GPX from "#lib/models/gpx/gpx.ts";
+import { Trail } from "#lib/models/trail.ts";
+import { kml, tcx } from "#lib/vendor/toGeoJSON/toGeoJSON.js";
 import cryptoRandomString from "crypto-random-string";
 //@ts-ignore
-import { browser } from "$app/environment";
-import Track from "$lib/models/gpx/track";
-import TrackSegment from "$lib/models/gpx/track-segment";
-import GPXWaypoint from "$lib/models/gpx/waypoint";
-import { Waypoint } from "$lib/models/waypoint";
-import { trails_show } from "$lib/stores/trail_store";
-import FitParser from "$lib/vendor/fit-parser/fit_parser";
+import { browser } from "$app/env";
+import Track from "#lib/models/gpx/track.ts";
+import TrackSegment from "#lib/models/gpx/track-segment.ts";
+import GPXWaypoint from "#lib/models/gpx/waypoint.ts";
+import { Waypoint } from "#lib/models/waypoint.ts";
+import { trails_show } from "#lib/stores/trail_store.ts";
+import FitParser from "#lib/vendor/fit-parser/fit_parser.ts";
 import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
 import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'geojson';
 import JSZip from "jszip";
 import { ClientResponseError, type AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
+import { joinContiguousTrackSegments } from "./gpx_segment_util";
 import { icons } from "./icon_util";
 
 
@@ -25,6 +26,10 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     if (gpx instanceof Error) {
         throw gpx;
     }
+
+    // Files are converted when they are imported (see fromFile). This covers
+    // route-only files that were stored before that.
+    gpx.convertRoutesToTracks();
     if (correctElevation) {
         try {
             await gpx.correctElevation(f)
@@ -131,6 +136,8 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         gpxWpt.sym = wp.icon
     }
 
+    joinContiguousTrackSegments(gpx);
+
     return gpx.toString();
 }
 
@@ -175,6 +182,11 @@ export async function applyGpxToForm(data: FormData, fields: readonly (typeof tr
     }
 }
 
+// A cheap check on the raw text, so that ordinary track files are not parsed twice.
+function isRouteOnlyGPX(content: string) {
+    return /<(?:[\w.-]+:)?rte[\s>]/.test(content) && !/<(?:[\w.-]+:)?trk[\s>]/.test(content);
+}
+
 export async function fromFile(file: File | Blob) {
     let gpxData = "";
     let gpxFile: Blob;
@@ -200,6 +212,15 @@ export async function fromFile(file: File | Blob) {
         });
     } else if (fileContent.includes("TrainingCenterDatabase")) {
         gpxData = fromTCX(fileContent);
+        gpxFile = new Blob([gpxData], {
+            type: "application/gpx+xml",
+        });
+    } else if (isRouteOnlyGPX(fileContent)) {
+        // GaiaGPS and similar planners export saved routes as <rte> with no
+        // <trk>. Store them as tracks so metrics, the map and export work (#1356).
+        const gpx = GPX.parse(fileContent);
+        gpx.convertRoutesToTracks();
+        gpxData = gpx.toString();
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
         });

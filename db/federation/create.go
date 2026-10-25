@@ -3,13 +3,11 @@ package federation
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"pocketbase/util"
@@ -220,6 +218,9 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 }
 
 func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.Record, typ pub.ActivityVocabularyType) error {
+	if summitLog.GetBool("federation_suppressed") {
+		return nil
+	}
 
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -347,7 +348,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	logObject.Tag = tags
 
 	logObject.StartTime = summitLog.GetDateTime("date").Time()
-	logObject.Attachment = attachments
+	logObject.Attachment = util.ActivityPubAttachmentArray(attachments)
 
 	activity := pub.ActivityNew(pub.IRI(id), typ, logObject)
 	activity.Actor = pub.IRI(summitLogAuthor.GetString("iri"))
@@ -466,22 +467,20 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 	return PostActivity(app, listAuthor, activity, recipients)
 }
 
-func ProcessCreateOrUpdateActivity(app core.App, ctx context.Context, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
-	ctx, cancel := util.WithRemoteAttachmentBudget(ctx)
-	defer cancel()
+func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
 
 	var err error
 	switch util.ObjectKindFromIRI(activity.Object.GetID().String()) {
 	case util.ObjectKindTrail:
-		err = processCreateOrUpdateTrailActivity(ctx, activity, app, actor, recipient)
+		err = processCreateOrUpdateTrailActivity(activity, app, actor, recipient)
 	case util.ObjectKindSummitLog:
-		err = processCreateOrUpdateSummitLogActivity(ctx, activity, app, actor)
+		err = processCreateOrUpdateSummitLogActivity(activity, app, actor)
 	case util.ObjectKindList:
-		err = processCreateOrUpdateListActivity(ctx, activity, app, actor, recipient)
+		err = processCreateOrUpdateListActivity(activity, app, actor, recipient)
 	default:
 		// Unchanged fallback: anything else is treated as a comment, which is
 		// what lets replies from other ActivityPub software be accepted.
-		err = processCreateOrUpdateCommentActivity(ctx, activity, app, actor)
+		err = processCreateOrUpdateCommentActivity(activity, app, actor)
 	}
 
 	if err != nil {
@@ -492,101 +491,21 @@ func ProcessCreateOrUpdateActivity(app core.App, ctx context.Context, actor *cor
 
 }
 
-// isLocalInstanceRecipient reports whether r is this instance's own instance
-// actor. It receives federated content but has no personal feed.
-func isLocalInstanceRecipient(r *core.Record) bool {
-	return r != nil && r.GetString("actor_type") == "instance" && r.GetBool("is_local")
-}
-
-// checkRemoteObjectOwnership refuses a remote Create or Update of a comment or
-// summit log whose IRI is empty, local, on a host other than the signer's, or
-// already stored under another author. It returns the stored row, or nil when the
-// object is new.
-func checkRemoteObjectOwnership(app core.App, collection, objectIRI string, signer *core.Record) (*core.Record, error) {
-	if objectIRI == "" {
-		return nil, fmt.Errorf("activity object has no id")
-	}
-	if util.IsLocalIRI(objectIRI) {
-		return nil, fmt.Errorf("refusing remote activity referencing local object %s", objectIRI)
-	}
-	if !sameHost(objectIRI, signer.GetString("iri")) {
-		return nil, fmt.Errorf("object %s is not on the signer's host", objectIRI)
-	}
-
-	existing, err := app.FindFirstRecordByData(collection, "iri", objectIRI)
+func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
+	trail, storedElsewhere, err := util.TrailFromConcurrentActivity(activity, app, actor)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if existing.GetString("author") != signer.Id {
-		return nil, fmt.Errorf("object %s is not authored by the signer", objectIRI)
-	}
-	return existing, nil
-}
-
-func processCreateOrUpdateTrailActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
-	objectIRI := activity.Object.GetID().String()
-	if !sameHost(objectIRI, actor.GetString("iri")) {
-		return fmt.Errorf("object %s is not on the signer's host", objectIRI)
+		return err
 	}
 
-	// A duplicate Create keeps the stored trail but still adds the recipient's feed
-	// entry. Only the stored author may create or update it.
-	existing, err := app.FindFirstRecordByData("trails", "iri", objectIRI)
-	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-		existing = nil
-	}
-	if existing != nil && existing.GetString("author") != actor.Id {
-		// The host check above guarantees this fetch goes to the signer's own host.
-		if err := confirmTrailAuthorAtOrigin(ctx, objectIRI, actor); err != nil {
-			return fmt.Errorf("object %s is not authored by the signer: %w", objectIRI, err)
-		}
-		previous := existing.GetString("author")
-		existing.Set("author", actor.Id)
-		if err := app.Save(existing); err != nil {
-			return err
-		}
-		app.Logger().Info("repaired legacy trail author", "iri", objectIRI, "previous_author", previous, "new_author", actor.Id)
-	}
-
-	trail := existing
-	duplicate := activity.Type == pub.CreateType && existing != nil
-	if !duplicate {
-		trail, err = util.TrailFromActivity(ctx, activity, app, actor)
-		if err != nil {
-			// A failed save of a row that already existed is a real failure.
-			if existing != nil {
-				return err
-			}
-			// A concurrent delivery of the same object stored it first; continue with that
-			// row so this recipient still gets a feed entry.
-			stored, rerr := app.FindFirstRecordByData("trails", "iri", objectIRI)
-			if rerr != nil || stored == nil {
-				return err
-			}
-			if stored.GetString("author") != actor.Id {
-				return fmt.Errorf("object %s is not authored by the signer", objectIRI)
-			}
-			app.Logger().Info("lost insert race against a parallel delivery", "iri", objectIRI)
-			duplicate = true
-			trail = stored
-		}
-	}
-
-	// Per-recipient feed entry (idempotent).
 	if recipient != nil && !isLocalInstanceRecipient(recipient) {
 		if _, err := util.InsertIntoFeed(app, recipient.Id, actor.Id, trail.Id, util.TrailFeed); err != nil {
 			return err
 		}
 	}
 
-	if duplicate {
-		// Duplicate deliveries do not re-send mention notifications.
+	// Among parallel deliveries of the same activity, only the delivery
+	// that stored the trail notifies the mentioned accounts.
+	if storedElsewhere {
 		return nil
 	}
 
@@ -599,7 +518,7 @@ func processCreateOrUpdateTrailActivity(ctx context.Context, activity pub.Activi
 		if t.GetType() == pub.MentionType {
 			mention := t.(*pub.Mention)
 			mentionedActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", mention.Href.GetID().String())
-			if err != nil {
+			if err != nil || (actor.GetBool("is_local") && (recipient == nil || mentionedActor.GetString("inbox") != recipient.GetString("inbox"))) {
 				continue
 			}
 			notification := util.Notification{
@@ -618,28 +537,44 @@ func processCreateOrUpdateTrailActivity(ctx context.Context, activity pub.Activi
 	return nil
 }
 
-func processCreateOrUpdateCommentActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record) error {
-	// Check ownership before any lookup, write or remote fetch.
-	if !actor.GetBool("is_local") {
-		if _, err := checkRemoteObjectOwnership(app, "comments", activity.Object.GetID().String(), actor); err != nil {
-			return err
+// Older peers put addressing only on the activity. Each absent object
+// address field may inherit its matching activity field; an explicit object
+// recipient list remains authoritative, including an explicitly empty list.
+func inboundCommentIsPublic(activity pub.Activity, object *pub.Object) bool {
+	to, cc := object.To, object.CC
+	if to == nil {
+		to = activity.To
+	}
+	if cc == nil {
+		cc = activity.CC
+	}
+	for _, recipients := range []pub.ItemCollection{to, cc} {
+		for _, recipient := range recipients {
+			if recipient == nil {
+				continue
+			}
+			switch recipient.GetID().String() {
+			case pub.PublicNS.String(), "as:Public", "Public":
+				return true
+			}
 		}
 	}
+	return false
+}
 
-	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
-	if activity.Type == pub.CreateType {
-		objectIRI := activity.Object.GetID().String()
-		existing, derr := app.FindFirstRecordByData("comments", "iri", objectIRI)
-		if derr == nil && existing != nil {
-			return nil // already have this comment
-		}
-		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
-			return derr
-		}
-	}
+func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, actor *core.Record) error {
 
 	commentObject, err := pub.ToObject(activity.Object)
 	if err != nil {
+		return err
+	}
+	if !inboundCommentIsPublic(activity, commentObject) {
+		return fmt.Errorf("comment is not publicly addressed")
+	}
+	if actor.GetBool("is_local") {
+		return nil
+	}
+	if err := validateInboundObjectAuthor(actor, commentObject); err != nil {
 		return err
 	}
 
@@ -653,7 +588,7 @@ func processCreateOrUpdateCommentActivity(ctx context.Context, activity pub.Acti
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
-			trail, err = fetchTrail(app, ctx, actor, commentObject.InReplyTo.GetLink().String())
+			trail, err = fetchTrail(app, actor, commentObject.InReplyTo.GetLink().String())
 			if err != nil {
 				return err
 			}
@@ -667,23 +602,9 @@ func processCreateOrUpdateCommentActivity(ctx context.Context, activity pub.Acti
 		return err
 	}
 
-	// no need to do anything else if the actor is local
-	if actor.GetBool("is_local") {
-		return nil
-	}
-
-	record, err := app.FindFirstRecordByData("comments", "iri", commentObject.ID.String())
+	record, newComment, err := remoteObjectRecord(app, "comments", commentObject.ID.String(), actor, trail.Id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			collection, err := app.FindCollectionByNameOrId("comments")
-			if err != nil {
-				return err
-			}
-
-			record = core.NewRecord(collection)
-		} else {
-			return err
-		}
+		return err
 	}
 
 	record.Set("iri", commentObject.ID.String())
@@ -695,6 +616,12 @@ func processCreateOrUpdateCommentActivity(ctx context.Context, activity pub.Acti
 	err = app.Save(record)
 	if err != nil {
 		return err
+	}
+
+	// A peer's comment can reach a user inbox and the instance inbox; only
+	// the delivery that stored it notifies.
+	if !newComment && activity.Type == pub.CreateType {
+		return nil
 	}
 
 	// send notifications to all mentioned actors
@@ -738,39 +665,26 @@ func processCreateOrUpdateCommentActivity(ctx context.Context, activity pub.Acti
 	return nil
 }
 
-func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record) error {
-	ctx, cancel := util.WithRemoteAttachmentBudget(ctx)
-	defer cancel()
-
-	// Check ownership before any lookup, write or remote fetch.
-	if !actor.GetBool("is_local") {
-		if _, err := checkRemoteObjectOwnership(app, "summit_logs", activity.Object.GetID().String(), actor); err != nil {
-			return err
-		}
-	}
-
-	// Broadcast-loop dedup: drop a duplicate Create whose content IRI is already stored.
-	if activity.Type == pub.CreateType {
-		objectIRI := activity.Object.GetID().String()
-		existing, derr := app.FindFirstRecordByData("summit_logs", "iri", objectIRI)
-		if derr == nil && existing != nil {
-			return nil // already have this summit log
-		}
-		if derr != nil && !errors.Is(derr, sql.ErrNoRows) {
-			return derr
-		}
-	}
-
+func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App, actor *core.Record) error {
 	logObject, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return err
+	}
+	if actor.GetBool("is_local") {
+		return nil
+	}
+	if err := validateInboundObjectAuthor(actor, logObject); err != nil {
+		return err
+	}
+	if logObject.InReplyTo == nil {
+		return fmt.Errorf("error processing summit log: InReplyTo empty")
 	}
 
 	trail, err := app.FindFirstRecordByData("trails", "iri", logObject.InReplyTo.GetID().String())
 	// if the trail is not present on this instance fetch it
 	if err != nil {
 		if err == sql.ErrNoRows {
-			trail, err = fetchTrail(app, ctx, actor, logObject.InReplyTo.GetLink().String())
+			trail, err = fetchTrail(app, actor, logObject.InReplyTo.GetLink().String())
 			if err != nil {
 				return err
 			}
@@ -784,25 +698,9 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 		return err
 	}
 
-	// no need to do anything else if the actor is local
-	if actor.GetBool("is_local") {
-		return nil
-	}
-
-	newSummitLog := false
-	record, err := app.FindFirstRecordByData("summit_logs", "iri", logObject.ID.String())
+	record, newSummitLog, err := remoteObjectRecord(app, "summit_logs", logObject.ID.String(), actor, trail.Id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			collection, err := app.FindCollectionByNameOrId("summit_logs")
-			if err != nil {
-				return err
-			}
-
-			record = core.NewRecord(collection)
-			newSummitLog = true
-		} else {
-			return err
-		}
+		return err
 	}
 
 	var distance, duration, elevation_gain, elevation_loss float64
@@ -818,9 +716,9 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 		}
 		content := tagObj.Content.First().Value.String()
 		if len(content) == 0 {
-			continue // guard against empty content — prevents index-out-of-range panic
+			continue
 		}
-		numeric := content[:len(content)-1] // strip unit suffix
+		numeric := content[:len(content)-1] // strip the unit suffix
 		switch tagObj.Name.First().Value.String() {
 		case "elevation_gain":
 			elevation_gain, err = strconv.ParseFloat(numeric, 64)
@@ -847,7 +745,7 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 	record.Set("iri", logObject.ID.String())
 
 	if logObject.Attachment != nil {
-		attachments, err := pub.ToItemCollection(logObject.Attachment)
+		attachments, err := util.ActivityPubAttachmentItems(logObject.Attachment)
 		if err != nil {
 			return err
 		}
@@ -876,9 +774,26 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 				"iri", logObject.ID.String(), "limit", photoLimit, "ignored", ignoredPhotos)
 		}
 
-		// Download the GPX before the photos.
+		if len(photoURLs) == 0 {
+			record.Set("photos", []*filesystem.File{})
+		} else {
+			photos := []*filesystem.File{}
+			for _, purl := range photoURLs {
+				photo, cleanup, err := util.DownloadRemoteFile(context.Background(), purl, util.RemoteFileLimit(record, "photos", util.RemotePhotoMaxBytes))
+				defer cleanup()
+				if err != nil {
+					continue
+				}
+				photos = append(photos, photo)
+			}
+
+			if len(photos) > 0 {
+				record.Set("photos", photos)
+			}
+		}
+
 		if gpxURL != "" {
-			gpx, cleanup, err := util.DownloadRemoteFile(ctx, gpxURL, util.RemoteGPXMaxBytes, actor.GetString("iri"))
+			gpx, cleanup, err := util.DownloadRemoteFile(context.Background(), gpxURL, util.RemoteFileLimit(record, "gpx", util.RemoteGPXMaxBytes))
 			defer cleanup()
 			if err != nil {
 				return err
@@ -886,38 +801,18 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 
 			record.Set("gpx", gpx)
 		}
-
-		if len(photoURLs) == 0 {
-			record.Set("photos", []*filesystem.File{})
-		} else {
-			photos := []*filesystem.File{}
-			overBudget := 0
-			for _, purl := range photoURLs {
-				photo, cleanup, err := util.DownloadRemoteFile(ctx, purl, util.RemotePhotoMaxBytes, actor.GetString("iri"))
-				defer cleanup()
-				if err != nil {
-					if errors.Is(err, util.ErrRemoteAttachmentBudgetExhausted) {
-						overBudget++
-					}
-					continue
-				}
-				photos = append(photos, photo)
-			}
-			if overBudget > 0 {
-				app.Logger().Info("skipping remote photos past the activity attachment budget",
-					"iri", logObject.ID.String(), "skipped", overBudget)
-			}
-
-			if len(photos) > 0 {
-				record.Set("photos", photos)
-			}
-		}
 	}
 
 	util.SanitizeHTMLFieldsWithLimits(record)
 	err = app.Save(record)
 	if err != nil {
 		return err
+	}
+
+	// A peer's summit log can reach a user inbox and the instance inbox; only
+	// the delivery that stored it notifies.
+	if !newSummitLog && activity.Type == pub.CreateType {
+		return nil
 	}
 
 	// send notifications to all mentioned actors
@@ -960,48 +855,12 @@ func processCreateOrUpdateSummitLogActivity(ctx context.Context, activity pub.Ac
 	return nil
 }
 
-func processCreateOrUpdateListActivity(ctx context.Context, activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
-	objectIRI := activity.Object.GetID().String()
-	if !sameHost(objectIRI, actor.GetString("iri")) {
-		return fmt.Errorf("object %s is not on the signer's host", objectIRI)
-	}
-
-	// A duplicate Create keeps the stored list but still adds the recipient's feed
-	// entry. Only the stored author may create or update it.
-	existing, err := app.FindFirstRecordByData("lists", "iri", objectIRI)
+func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, actor *core.Record, recipient *core.Record) error {
+	list, err := util.ListFromActivity(activity, app, actor)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-		existing = nil
-	}
-	if existing != nil && existing.GetString("author") != actor.Id {
-		return fmt.Errorf("object %s is not authored by the signer", objectIRI)
+		return err
 	}
 
-	list := existing
-	if activity.Type != pub.CreateType || existing == nil {
-		list, err = util.ListFromActivity(ctx, activity, app, actor)
-		if err != nil {
-			// A failed save of a row that already existed is a real failure.
-			if existing != nil {
-				return err
-			}
-			// A concurrent delivery of the same object stored it first; continue with that
-			// row.
-			stored, rerr := app.FindFirstRecordByData("lists", "iri", objectIRI)
-			if rerr != nil || stored == nil {
-				return err
-			}
-			if stored.GetString("author") != actor.Id {
-				return fmt.Errorf("object %s is not authored by the signer", objectIRI)
-			}
-			app.Logger().Info("lost insert race against a parallel delivery", "iri", objectIRI)
-			list = stored
-		}
-	}
-
-	// Per-recipient feed entry (idempotent).
 	if recipient != nil && !isLocalInstanceRecipient(recipient) {
 		if _, err := util.InsertIntoFeed(app, recipient.Id, actor.Id, list.Id, util.ListFeed); err != nil {
 			return err
@@ -1014,98 +873,6 @@ func processCreateOrUpdateListActivity(ctx context.Context, activity pub.Activit
 // fetchTrailObject is util.TrailObjectFromIRI, replaceable in tests.
 var fetchTrailObject = util.TrailObjectFromIRI
 
-const (
-	// trailAuthorConfirmTimeout bounds one origin confirmation fetch.
-	trailAuthorConfirmTimeout = 15 * time.Second
-	// trailAuthorConfirmRateLimitID is the rate-limit identifier for origin
-	// confirmation fetches.
-	trailAuthorConfirmRateLimitID = "trail-author-confirm"
-	// trailAuthorRefusalTTL is how long a refusal by the origin is remembered.
-	trailAuthorRefusalTTL = 5 * time.Minute
-	// trailAuthorTransientRefusalTTL is how long a failed confirmation (fetch
-	// error, timeout, rate limit, non-2xx) is remembered.
-	trailAuthorTransientRefusalTTL = 30 * time.Second
-	// trailAuthorRefusalMaxEntries bounds the refusal memory.
-	trailAuthorRefusalMaxEntries = 4096
-)
-
-// trailAuthorRefusalMemory remembers refused (object, signer) confirmations.
-type trailAuthorRefusalMemory struct {
-	mu      sync.Mutex
-	entries map[string]time.Time
-	now     func() time.Time
-}
-
-var trailAuthorRefusals = &trailAuthorRefusalMemory{now: time.Now}
-
-func (m *trailAuthorRefusalMemory) recent(key string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	expiry, ok := m.entries[key]
-	return ok && expiry.After(m.now())
-}
-
-// remember stores a refusal for ttl. When full, expired entries are dropped
-// first, then the whole memory is cleared.
-func (m *trailAuthorRefusalMemory) remember(key string, ttl time.Duration) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	now := m.now()
-	if m.entries == nil {
-		m.entries = map[string]time.Time{}
-	}
-	if _, ok := m.entries[key]; !ok && len(m.entries) >= trailAuthorRefusalMaxEntries {
-		for k, expiry := range m.entries {
-			if !expiry.After(now) {
-				delete(m.entries, k)
-			}
-		}
-		if len(m.entries) >= trailAuthorRefusalMaxEntries {
-			clear(m.entries)
-		}
-	}
-	m.entries[key] = now.Add(ttl)
-}
-
-func (m *trailAuthorRefusalMemory) reset() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.entries = nil
-	m.now = time.Now
-}
-
-// confirmTrailAuthorAtOrigin returns nil only if the trail's origin attributes
-// the trail at objectIRI to signer: the fetched object's id must equal objectIRI
-// and its attributedTo must equal the signer's IRI. It is used to repair trails
-// stored under the wrong author. The fetch has its own rate-limit identifier,
-// a trailAuthorConfirmTimeout deadline and a body limit; refusals are remembered
-// per object and signer.
-func confirmTrailAuthorAtOrigin(ctx context.Context, objectIRI string, signer *core.Record) error {
-	key := objectIRI + "\n" + signer.GetString("iri")
-	if trailAuthorRefusals.recent(key) {
-		return fmt.Errorf("origin recently refused to confirm this author change")
-	}
-
-	fetchCtx, cancel := context.WithTimeout(ctx, trailAuthorConfirmTimeout)
-	defer cancel()
-	fetchCtx = util.WithRateLimitIdentifier(fetchCtx, trailAuthorConfirmRateLimitID)
-
-	trailObject, err := fetchTrailObject(fetchCtx, objectIRI)
-	if err != nil {
-		trailAuthorRefusals.remember(key, trailAuthorTransientRefusalTTL)
-		return err
-	}
-	if trailObject.ID.String() != objectIRI {
-		trailAuthorRefusals.remember(key, trailAuthorRefusalTTL)
-		return fmt.Errorf("origin returned %q instead of %q", trailObject.ID.String(), objectIRI)
-	}
-	if trailObject.AttributedTo == nil || trailObject.AttributedTo.GetLink().String() != signer.GetString("iri") {
-		trailAuthorRefusals.remember(key, trailAuthorRefusalTTL)
-		return fmt.Errorf("origin does not attribute the trail to the signer")
-	}
-	return nil
-}
-
 // fetchTrail stores a copy of the remote trail at iri that a comment or
 // summit log by sender replies to. The trail belongs to whoever it is
 // attributed to, not to the sender: a copy filed under the sender's name
@@ -1115,8 +882,8 @@ func confirmTrailAuthorAtOrigin(ctx context.Context, objectIRI string, signer *c
 // its attributedTo is only trusted for an actor on that same host: a
 // Wanderer trail is always its author's, and a host naming an actor
 // elsewhere would otherwise file content under a stranger's name.
-func fetchTrail(app core.App, ctx context.Context, sender *core.Record, iri string) (*core.Record, error) {
-	trailObject, authorIRI, err := fetchAttributedTrail(ctx, iri)
+func fetchTrail(app core.App, sender *core.Record, iri string) (*core.Record, error) {
+	trailObject, authorIRI, err := fetchAttributedTrail(iri)
 	if err != nil {
 		return nil, err
 	}
@@ -1136,40 +903,19 @@ func fetchTrail(app core.App, ctx context.Context, sender *core.Record, iri stri
 	}
 
 	activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
-	return util.TrailFromActivity(ctx, *activity, app, author)
-}
-
-// ImportTrail stores a copy of the remote trail at iri, fetched from its own
-// host and filed under the actor it is attributed to there. It is used when a
-// list pulled from one host contains a trail from another.
-func ImportTrail(app core.App, ctx context.Context, iri string) (*core.Record, error) {
-	if util.IsLocalIRI(iri) {
-		return nil, fmt.Errorf("refusing to import local trail %s", iri)
-	}
-	trailObject, authorIRI, err := fetchAttributedTrail(ctx, iri)
-	if err != nil {
-		return nil, err
-	}
-	if trailObject.ID.String() != iri {
-		return nil, fmt.Errorf("origin returned %q instead of %q", trailObject.ID.String(), iri)
-	}
-
-	// A cached actor comes back even when refreshing it failed.
-	author, err := GetActorByIRI(app, ctx, authorIRI, false)
-	if author == nil {
-		return nil, fmt.Errorf("resolving author %s: %w", authorIRI, err)
-	}
-
-	activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
-	return util.TrailFromActivity(ctx, *activity, app, author)
+	return util.TrailFromActivity(*activity, app, author)
 }
 
 // fetchAttributedTrail fetches the trail at iri from its host and returns it
-// with its author's IRI, which must be on that same host.
-func fetchAttributedTrail(ctx context.Context, iri string) (*pub.Object, string, error) {
-	trailObject, err := fetchTrailObject(ctx, iri)
+// with its author's IRI. The host must serve it under iri and attribute it to
+// an actor on that same host.
+func fetchAttributedTrail(iri string) (*pub.Object, string, error) {
+	trailObject, err := fetchTrailObject(iri)
 	if err != nil {
 		return nil, "", err
+	}
+	if trailObject.ID.String() != iri {
+		return nil, "", fmt.Errorf("origin returned %q instead of %q", trailObject.ID.String(), iri)
 	}
 
 	var authorIRI string
@@ -1183,6 +929,35 @@ func fetchAttributedTrail(ctx context.Context, iri string) (*pub.Object, string,
 		return nil, "", fmt.Errorf("trail %s is attributed to %s on another host", iri, authorIRI)
 	}
 	return trailObject, authorIRI, nil
+}
+
+// remoteObjectRecord returns the record a remote actor's Create or Update
+// writes to, or a new one if iri is unknown. The object must live on the
+// actor's host, and an existing record must already belong to the actor, so a
+// remote actor can neither overwrite local records nor another actor's.
+func remoteObjectRecord(app core.App, collection, iri string, actor *core.Record, trailID string) (record *core.Record, isNew bool, err error) {
+	record, err = app.FindFirstRecordByData(collection, "iri", iri)
+	if err == nil {
+		if !inboundRecordCanUpdate(app, record, actor, trailID) {
+			return nil, false, fmt.Errorf("actor %s is not the author of %s %s", actor.GetString("iri"), collection, iri)
+		}
+		return record, false, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, false, err
+	}
+
+	col, err := app.FindCollectionByNameOrId(collection)
+	if err != nil {
+		return nil, false, err
+	}
+	return core.NewRecord(col), true, nil
+}
+
+// isLocalInstanceRecipient reports whether r is this instance's own instance
+// actor. It receives federated content but has no personal feed.
+func isLocalInstanceRecipient(r *core.Record) bool {
+	return r != nil && r.GetString("actor_type") == "instance" && r.GetBool("is_local")
 }
 
 func sameHost(a, b string) bool {
@@ -1234,4 +1009,27 @@ func ActorsFromMentions(app core.App, ctx context.Context, htmlStr string) ([]*c
 	}
 
 	return actors, nil
+}
+
+// The signer writes only objects from its own origin and attribution.
+func validateInboundObjectAuthor(actor *core.Record, object *pub.Object) error {
+	return util.ValidateRemoteObjectAuthor(actor, object.ID.String(), object.AttributedTo)
+}
+
+func inboundRecordCanUpdate(app core.App, record, actor *core.Record, trail string) bool {
+	if actor.GetBool("is_local") || util.RecordHasLocalIdentity(app, record) || record.GetString("trail") != trail || !sameHost(record.GetString("iri"), actor.GetString("iri")) {
+		return false
+	}
+	stored, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
+	if err != nil || stored.GetBool("is_local") {
+		return false
+	}
+	if record.GetString("author") == actor.Id {
+		return true
+	}
+	if record.Collection().Name != "summit_logs" || sameHost(stored.GetString("iri"), record.GetString("iri")) {
+		return false
+	}
+	parent, err := app.FindRecordById("trails", trail)
+	return err == nil && parent.GetString("author") == stored.Id
 }

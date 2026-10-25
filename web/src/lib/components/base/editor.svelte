@@ -18,9 +18,9 @@
     import Toggle from "./toggle.svelte";
     import type { SearchItem } from "./search.svelte";
     import type { SuggestionProps } from "@tiptap/suggestion";
-    import type { Actor, ActorSearchResult } from "$lib/models/activitypub/actor";
-    import { searchActors } from "$lib/stores/search_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    import type { Actor, ActorSearchResult } from "#lib/models/activitypub/actor.ts";
+    import { searchActors } from "#lib/stores/search_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
 
     let element: HTMLElement;
     let editor: Editor | undefined = $state();
@@ -327,7 +327,7 @@
         } catch (e) {
             if (
                 e instanceof ZodError &&
-                e.errors[0].code === "invalid_string"
+                e.issues[0].code === "invalid_format"
             ) {
                 linkURLError = $_("not-a-valid-url");
             }

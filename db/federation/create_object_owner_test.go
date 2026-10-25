@@ -1,33 +1,11 @@
 package federation
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
-)
-
-const (
-	ownerLocalIRI       = "https://trails.example.com/api/v1/activitypub/user/alice"
-	ownerYIRI           = "https://remote.example.com/api/v1/activitypub/user/yauthor"
-	ownerXIRI           = "https://remote.example.com/api/v1/activitypub/user/xother"
-	ownerZIRI           = "https://third.example.com/api/v1/activitypub/user/zthird"
-	ownerMIRI           = "https://social.example/users/m"
-	ownerRemoteTrailIRI = "https://remote.example.com/api/v1/trail/t1"
-	ownerLocalTrailIRI  = "https://trails.example.com/api/v1/trail/lt1"
-
-	ownerLocalCommentIRI   = "https://trails.example.com/api/v1/comment/c1"
-	ownerRemoteCommentIRI  = "https://remote.example.com/api/v1/comment/c2"
-	ownerForeignCommentIRI = "https://third.example.com/api/v1/comment/c3"
-
-	ownerLocalLogIRI   = "https://trails.example.com/api/v1/summit-log/s1"
-	ownerRemoteLogIRI  = "https://remote.example.com/api/v1/summit-log/s2"
-	ownerForeignLogIRI = "https://third.example.com/api/v1/summit-log/s3"
-
-	ownerLocalListIRI = "https://trails.example.com/api/v1/list/ll1"
 )
 
 type ownerFixture struct {
@@ -59,17 +37,15 @@ func ownerGuardApp(t *testing.T) *ownerFixture {
 	return f
 }
 
-func ownerText(s string) pub.NaturalLanguageValues {
-	return pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, s))
-}
-
 // ownerCommentActivity builds a Create or Update of a Note replying to trailIRI.
 func ownerCommentActivity(typ pub.ActivityVocabularyType, actorIRI, objectIRI, trailIRI, text string) pub.Activity {
 	obj := &pub.Object{
-		ID:        pub.IRI(objectIRI),
-		Type:      pub.NoteType,
-		Content:   ownerText(text),
-		InReplyTo: pub.IRI(trailIRI),
+		ID:           pub.IRI(objectIRI),
+		Type:         pub.NoteType,
+		Content:      ownerText(text),
+		InReplyTo:    pub.IRI(trailIRI),
+		AttributedTo: pub.IRI(actorIRI),
+		To:           pub.ItemCollection{pub.PublicNS},
 	}
 	act := pub.ActivityNew(pub.IRI("https://remote.example.com/api/v1/activitypub/activity/o1"), typ, obj)
 	act.Actor = pub.IRI(actorIRI)
@@ -122,7 +98,7 @@ func TestUpdateLocalCommentFromRemoteRefused(t *testing.T) {
 	seeded := ownerSeedComment(t, f.app, ownerLocalCommentIRI, f.alice.Id, f.localTrail.Id, "original")
 
 	act := ownerCommentActivity(pub.UpdateType, ownerYIRI, ownerLocalCommentIRI, ownerLocalTrailIRI, "hijacked")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	ownerAssertUnchanged(t, f.app, "comments", seeded)
@@ -133,7 +109,7 @@ func TestUpdateRemoteCommentFromOtherActorSameHostRefused(t *testing.T) {
 	seeded := ownerSeedComment(t, f.app, ownerRemoteCommentIRI, f.y.Id, f.remoteTrail.Id, "original")
 
 	act := ownerCommentActivity(pub.UpdateType, ownerXIRI, ownerRemoteCommentIRI, ownerRemoteTrailIRI, "hijacked")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.x, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.x, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	ownerAssertUnchanged(t, f.app, "comments", seeded)
@@ -144,7 +120,7 @@ func TestUpdateRemoteCommentFromOtherHostRefused(t *testing.T) {
 	seeded := ownerSeedComment(t, f.app, ownerRemoteCommentIRI, f.y.Id, f.remoteTrail.Id, "original")
 
 	act := ownerCommentActivity(pub.UpdateType, ownerZIRI, ownerRemoteCommentIRI, ownerRemoteTrailIRI, "hijacked")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.z, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.z, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	ownerAssertUnchanged(t, f.app, "comments", seeded)
@@ -154,7 +130,7 @@ func TestCreateCommentOnForeignHostRefused(t *testing.T) {
 	f := ownerGuardApp(t)
 
 	act := ownerCommentActivity(pub.CreateType, ownerYIRI, ownerForeignCommentIRI, ownerRemoteTrailIRI, "smuggled")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	if n := ownerCount(t, f.app, "comments", ownerForeignCommentIRI); n != 0 {
@@ -167,7 +143,7 @@ func TestUpdateCommentFromAuthorStillApplies(t *testing.T) {
 	seeded := ownerSeedComment(t, f.app, ownerRemoteCommentIRI, f.y.Id, f.remoteTrail.Id, "original")
 
 	act := ownerCommentActivity(pub.UpdateType, ownerYIRI, ownerRemoteCommentIRI, ownerRemoteTrailIRI, "edited")
-	if err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act); err != nil {
 		t.Fatalf("Update from the stored author: %v", err)
 	}
 
@@ -188,7 +164,7 @@ func TestCreateMastodonStyleReplyStillStored(t *testing.T) {
 	const noteIRI = "https://social.example/users/m/statuses/1"
 
 	act := ownerCommentActivity(pub.CreateType, ownerMIRI, noteIRI, ownerRemoteTrailIRI, "nice trail")
-	if err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.m, f.alice, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(f.app, f.m, f.alice, act); err != nil {
 		t.Fatalf("Create of a reply from another ActivityPub server: %v", err)
 	}
 
@@ -238,21 +214,6 @@ func addSummitLogsCollection(t *testing.T, app core.App) {
 	}
 }
 
-// ownerSummitLogActivity builds a Create or Update of a summit log replying to trailIRI.
-func ownerSummitLogActivity(typ pub.ActivityVocabularyType, actorIRI, objectIRI, trailIRI, text string) pub.Activity {
-	obj := &pub.Object{
-		ID:        pub.IRI(objectIRI),
-		Type:      pub.NoteType,
-		Content:   ownerText(text),
-		InReplyTo: pub.IRI(trailIRI),
-		StartTime: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
-		Tag:       pub.ItemCollection{},
-	}
-	act := pub.ActivityNew(pub.IRI("https://remote.example.com/api/v1/activitypub/activity/o2"), typ, obj)
-	act.Actor = pub.IRI(actorIRI)
-	return *act
-}
-
 func ownerSeedSummitLog(t *testing.T, app core.App, iri, authorID, trailID, text string) *core.Record {
 	t.Helper()
 	col, err := app.FindCollectionByNameOrId("summit_logs")
@@ -275,7 +236,7 @@ func TestUpdateLocalSummitLogFromRemoteRefused(t *testing.T) {
 	seeded := ownerSeedSummitLog(t, f.app, ownerLocalLogIRI, f.alice.Id, f.localTrail.Id, "original")
 
 	act := ownerSummitLogActivity(pub.UpdateType, ownerYIRI, ownerLocalLogIRI, ownerLocalTrailIRI, "hijacked")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	ownerAssertUnchanged(t, f.app, "summit_logs", seeded)
@@ -286,7 +247,7 @@ func TestUpdateRemoteSummitLogFromOtherActorRefused(t *testing.T) {
 	seeded := ownerSeedSummitLog(t, f.app, ownerRemoteLogIRI, f.y.Id, f.remoteTrail.Id, "original")
 
 	act := ownerSummitLogActivity(pub.UpdateType, ownerXIRI, ownerRemoteLogIRI, ownerRemoteTrailIRI, "hijacked")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.x, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.x, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	ownerAssertUnchanged(t, f.app, "summit_logs", seeded)
@@ -297,7 +258,7 @@ func TestUpdateRemoteSummitLogFromOtherHostRefused(t *testing.T) {
 	seeded := ownerSeedSummitLog(t, f.app, ownerRemoteLogIRI, f.y.Id, f.remoteTrail.Id, "original")
 
 	act := ownerSummitLogActivity(pub.UpdateType, ownerZIRI, ownerRemoteLogIRI, ownerRemoteTrailIRI, "hijacked")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.z, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.z, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	ownerAssertUnchanged(t, f.app, "summit_logs", seeded)
@@ -307,7 +268,7 @@ func TestCreateSummitLogOnForeignHostRefused(t *testing.T) {
 	f := ownerGuardApp(t)
 
 	act := ownerSummitLogActivity(pub.CreateType, ownerYIRI, ownerForeignLogIRI, ownerRemoteTrailIRI, "smuggled")
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	if n := ownerCount(t, f.app, "summit_logs", ownerForeignLogIRI); n != 0 {
@@ -320,7 +281,7 @@ func TestUpdateSummitLogFromAuthorStillApplies(t *testing.T) {
 	seeded := ownerSeedSummitLog(t, f.app, ownerRemoteLogIRI, f.y.Id, f.remoteTrail.Id, "original")
 
 	act := ownerSummitLogActivity(pub.UpdateType, ownerYIRI, ownerRemoteLogIRI, ownerRemoteTrailIRI, "edited")
-	if err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act); err != nil {
 		t.Fatalf("Update from the stored author: %v", err)
 	}
 
@@ -340,7 +301,7 @@ func TestUpdateLocalTrailFromRemoteRefused(t *testing.T) {
 	f := ownerGuardApp(t)
 
 	act := authorGuardAsUpdate(feedDedupTrailCreate(ownerYIRI, ownerLocalTrailIRI))
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	got, rerr := f.app.FindRecordById("trails", f.localTrail.Id)
@@ -360,7 +321,7 @@ func TestUpdateLocalListFromRemoteRefused(t *testing.T) {
 	list := authorGuardSeedList(t, f.app, ownerLocalListIRI, f.alice.Id)
 
 	act := authorGuardAsUpdate(feedDedupListCreate(ownerYIRI, ownerLocalListIRI))
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.alice, act)
 
 	authorGuardRequireRefused(t, err)
 	got, rerr := f.app.FindRecordById("lists", list.Id)

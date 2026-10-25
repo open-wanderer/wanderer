@@ -44,6 +44,7 @@ func newOAuthMetadataFixture(t *testing.T, prepareAuth ...func(map[string]any)) 
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 	f := &oauthMetadataFixture{app: app}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.tokenRequests.Add(1)

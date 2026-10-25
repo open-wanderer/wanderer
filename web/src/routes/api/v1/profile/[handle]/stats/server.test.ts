@@ -1,7 +1,7 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/util/activitypub_server_util", () => ({
+vi.mock("#lib/util/activitypub_server_util.ts", () => ({
     getActorResponseForHandle: vi.fn(async () => ({
         actor: {
             id: "actor0000000001",

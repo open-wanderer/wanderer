@@ -49,7 +49,7 @@ func UpdateTagReferences(app core.App, tagID string, client meilisearch.ServiceM
 			patches = append(patches, map[string]any{"id": trail.Id, "tags": tags})
 		}
 		if len(patches) > 0 {
-			if _, err := index.UpdateDocuments(patches, nil); err != nil {
+			if _, err := index.UpdateDocuments(patches, SearchWriteOptions); err != nil {
 				return err
 			}
 		}

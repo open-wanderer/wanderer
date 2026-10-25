@@ -52,39 +52,39 @@ type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+func closeIdleHTTPConnections(client HTTPDoer) {
+	if closer, ok := client.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
+}
+
 // NewSafeURLClient builds an SSRF-safe HTTP client that allows ports 80 and 443.
 // timeout is the per-request deadline; checkRedirect may be nil.
 func NewSafeURLClient(timeout time.Duration, checkRedirect func(*http.Request, []*http.Request) error) HTTPDoer {
-	return newSafeURLClient(timeout, checkRedirect, []int{80, 443}, nil)
-}
-
-// newSafeURLClient builds the safeurl client. allowedIPs is applied only when
-// non-empty.
-func newSafeURLClient(timeout time.Duration, checkRedirect func(*http.Request, []*http.Request) error, ports []int, allowedIPs []string) HTTPDoer {
 	b := safeurl.GetConfigBuilder().
 		SetTimeout(timeout).
 		SetAllowedSchemes("http", "https").
-		SetAllowedPorts(ports...).
+		SetAllowedPorts(80, 443).
 		// safeurl's built-in blocklist covers NAT64, 6to4 and Teredo, but not the
 		// deprecated IPv4-compatible form (RFC 4291), which embeds an IPv4 the
 		// same way: ::7f00:1 is 127.0.0.1.
 		SetBlockedIPsCIDR("::/96").
 		EnableIPv6(true).
 		AllowSendingCredentials(false)
-	if len(allowedIPs) > 0 {
-		b = b.SetAllowedIPs(allowedIPs...)
-	}
 	if checkRedirect != nil {
 		b = b.SetCheckRedirect(checkRedirect)
 	}
 	return safeurl.Client(b.Build())
 }
 
+var newPublicURLClient = NewSafeURLClient
+
 func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
 	if maxBytes <= 0 {
 		maxBytes = DefaultPluginMediaMaxBytes
 	}
-	client := NewSafeURLClient(60*time.Second, publicMediaRedirectPolicy)
+	client := newPublicURLClient(60*time.Second, publicMediaRedirectPolicy)
+	defer closeIdleHTTPConnections(client)
 	return fetchBounded(ctx, client, rawURL, maxBytes)
 }
 
@@ -128,7 +128,7 @@ func fetchBoundedTo(ctx context.Context, client HTTPDoer, rawURL string, maxByte
 		return "", "", err
 	}
 
-	n, err := io.Copy(dst, io.LimitReader(resp.Body, maxBytes+1))
+	n, err := io.Copy(dst, io.LimitReader(boundedFederatedBody(ctx, resp.Body), maxBytes+1))
 	if err != nil {
 		return "", "", err
 	}
@@ -296,10 +296,10 @@ func isReservedAddr(addr netip.Addr) bool {
 		addr.IsMulticast() || addr.IsUnspecified() {
 		return true
 	}
-	return IsSpecialPurposeIP(addr)
+	return isSpecialPurposeIP(addr)
 }
 
-func IsSpecialPurposeIP(addr netip.Addr) bool {
+func isSpecialPurposeIP(addr netip.Addr) bool {
 	for _, prefix := range specialPurposePrefixes {
 		if prefix.Contains(addr) {
 			return true

@@ -1,6 +1,6 @@
-import { env } from '$env/dynamic/private';
+import { ORIGIN } from '$app/env/private';
 
-import { handleError } from '$lib/util/api_util';
+import { handleError } from '#lib/util/api_util.ts';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**
@@ -25,7 +25,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  */
 export async function GET(event: RequestEvent) {
     try {
-        const iri = `${env.ORIGIN}/api/v1/activitypub/instance`;
+        const iri = `${ORIGIN}/api/v1/activitypub/instance`;
 
         const actor = await event.locals.pb
             .collection("activitypub_actors")

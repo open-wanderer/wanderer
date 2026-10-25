@@ -330,6 +330,8 @@ manifest, for example:
 }
 ```
 
+The host enforces `limits.maxItems` for each sync response. Returning more items fails the call with `sync_item_limit_exceeded`; the host does not silently truncate the response.
+
 `auth` contains only values the host is allowed to pass to the plugin. For
 OAuth plugins, refresh tokens and client secrets are not included in normal sync
 capability input. Depending on the auth model, `auth` may contain values such

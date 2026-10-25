@@ -1,9 +1,9 @@
 import {
     UserCategoryPreferenceUpsertSchema,
-} from "$lib/models/api/category_preference_schema";
-import type { UserCategoryPreference } from "$lib/models/category_preference";
-import { Collection, handleError } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+} from "#lib/models/api/category_preference_schema.ts";
+import type { UserCategoryPreference } from "#lib/models/category_preference.ts";
+import { Collection, handleError } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -27,7 +27,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         if (!event.locals.user) {
-            return json([]);
+            return Response.json([]);
         }
 
         const preferences = await event.locals.pb
@@ -39,7 +39,7 @@ export async function GET(event: RequestEvent) {
                 requestKey: null,
             });
 
-        return json(preferences);
+        return Response.json(preferences);
     } catch (e) {
         return handleError(e);
     }
@@ -75,7 +75,7 @@ export async function GET(event: RequestEvent) {
 export async function PUT(event: RequestEvent) {
     try {
         if (!event.locals.user) {
-            return json({ message: "Unauthorized" }, { status: 401 });
+            return Response.json({ message: "Unauthorized" }, { status: 401 });
         }
 
         const data = await event.request.json();
@@ -113,7 +113,7 @@ export async function PUT(event: RequestEvent) {
                       requestKey: null,
                   });
 
-        return json(saved);
+        return Response.json(saved);
     } catch (e) {
         return handleError(e);
     }

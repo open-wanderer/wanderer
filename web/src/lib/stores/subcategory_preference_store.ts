@@ -1,5 +1,5 @@
-import type { UserSubcategoryPreference } from "$lib/models/subcategory_preference";
-import { APIError } from "$lib/util/api_util";
+import type { UserSubcategoryPreference } from "#lib/models/subcategory_preference.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { writable, type Writable } from "svelte/store";
 
 export const subcategoryPreferences: Writable<UserSubcategoryPreference[]> =

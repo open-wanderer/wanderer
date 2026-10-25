@@ -1,22 +1,11 @@
 package federation
 
 import (
-	"context"
 	"testing"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
-)
-
-const (
-	feedDedupAuthorIRI   = "https://remote.example.com/api/v1/activitypub/user/rauthor"
-	feedDedupOtherIRI    = "https://remote.example.com/api/v1/activitypub/user/xother"
-	feedDedupAliceIRI    = "https://trails.example.com/api/v1/activitypub/user/alice"
-	feedDedupBobIRI      = "https://trails.example.com/api/v1/activitypub/user/bob"
-	feedDedupInstanceIRI = "https://trails.example.com/api/v1/activitypub/instance"
-	feedDedupTrailIRI    = "https://remote.example.com/api/v1/trail/t1"
-	feedDedupListIRI     = "https://remote.example.com/api/v1/list/l1"
 )
 
 // feedDedupAddListsCollection adds a minimal lists collection.
@@ -61,36 +50,6 @@ func newFeedDedupTestApp(t *testing.T) core.App {
 	return app
 }
 
-func feedDedupTrailCreate(actorIRI, trailIRI string) pub.Activity {
-	obj := &pub.Object{
-		ID:      pub.IRI(trailIRI),
-		Type:    pub.NoteType,
-		Name:    pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Test Trail")),
-		Content: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "")),
-		Location: &pub.Place{
-			Type:      pub.PlaceType,
-			Latitude:  47.5,
-			Longitude: 11.5,
-			Name:      pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Test Place")),
-		},
-	}
-	act := pub.ActivityNew(pub.IRI("https://remote.example.com/api/v1/activitypub/activity/c1"), pub.CreateType, obj)
-	act.Actor = pub.IRI(actorIRI)
-	return *act
-}
-
-func feedDedupListCreate(actorIRI, listIRI string) pub.Activity {
-	obj := &pub.Object{
-		ID:      pub.IRI(listIRI),
-		Type:    pub.NoteType,
-		Name:    pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Test List")),
-		Content: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "desc")),
-	}
-	act := pub.ActivityNew(pub.IRI("https://remote.example.com/api/v1/activitypub/activity/c2"), pub.CreateType, obj)
-	act.Actor = pub.IRI(actorIRI)
-	return *act
-}
-
 func feedDedupCount(t *testing.T, app core.App, actorID, itemID string) int {
 	t.Helper()
 	n, err := app.CountRecords("feed", dbx.HashExp{"actor": actorID, "item": itemID})
@@ -100,24 +59,9 @@ func feedDedupCount(t *testing.T, app core.App, actorID, itemID string) int {
 	return int(n)
 }
 
-type feedDedupActors struct {
-	author, other, alice, bob, instance *core.Record
-}
-
-func feedDedupSeedActors(t *testing.T, app core.App) feedDedupActors {
-	t.Helper()
-	return feedDedupActors{
-		author:   createTestActor(t, app, feedDedupAuthorIRI, "person", false),
-		other:    createTestActor(t, app, feedDedupOtherIRI, "person", false),
-		alice:    createTestActor(t, app, feedDedupAliceIRI, "person", true),
-		bob:      createTestActor(t, app, feedDedupBobIRI, "person", true),
-		instance: createTestActor(t, app, feedDedupInstanceIRI, "instance", true),
-	}
-}
-
 func feedDedupDeliver(t *testing.T, app core.App, actor, recipient *core.Record, act pub.Activity) {
 	t.Helper()
-	if err := ProcessCreateOrUpdateActivity(app, context.Background(), actor, recipient, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(app, actor, recipient, act); err != nil {
 		t.Fatalf("ProcessCreateOrUpdateActivity to %s: %v", recipient.GetString("iri"), err)
 	}
 }
@@ -185,11 +129,8 @@ func TestCreateTrailDuplicateFromNonAuthorAddsNoFeedEntry(t *testing.T) {
 
 	trail := seedTrailRecord(t, app, feedDedupTrailIRI, true, a.author.Id)
 
-	// The origin names the stored author, so the non-author stays refused.
-	stubTrailOrigin(t, feedDedupTrailIRI, feedDedupAuthorIRI, nil)
-
 	act := feedDedupTrailCreate(feedDedupOtherIRI, feedDedupTrailIRI)
-	if err := ProcessCreateOrUpdateActivity(app, context.Background(), a.other, a.alice, act); err == nil {
+	if err := ProcessCreateOrUpdateActivity(app, a.other, a.alice, act); err == nil {
 		t.Error("duplicate Create from a non-author was accepted, want an error")
 	}
 

@@ -233,4 +233,47 @@ describe("GPX.parse", () => {
         expect(features.distance).toBeDefined();
         expect((gpx as any)._features).toBe(features);
     });
+
+    // Builds a <rte> with `count` points that steadily climb in position and elevation.
+    function route(count: number): string {
+        const pts = Array.from({ length: count }, (_, i) =>
+            `<rtept lat="${47 + i * 0.001}" lon="${11 + i * 0.001}"><ele>${100 + i * 10}</ele></rtept>`
+        ).join("");
+        return `<rte><name>r</name>${pts}</rte>`;
+    }
+
+    it("converts a route-only file to a track so metrics are computed (#1356)", () => {
+        // GaiaGPS and similar planners export saved routes as <rte> with no <trk>.
+        const gpx = GPX.parse(`<gpx version="1.1" creator="GaiaGPS" xmlns="${GPX_NS}">${route(8)}</gpx>`);
+
+        // A route-only file produces zero metrics before conversion.
+        expect(gpx.features.distance).toBe(0);
+
+        gpx.convertRoutesToTracks();
+
+        expect(trackPointCount(gpx)).toBe(8);
+        expect(gpx.rte).toBeUndefined();
+        // The cached (zero) metrics are recomputed from the new track.
+        expect(gpx.features.distance).toBeGreaterThan(0);
+        expect(gpx.features.elevationGain).toBeGreaterThan(0);
+    });
+
+    it("reads a route with a single point (#1356)", () => {
+        const gpx = GPX.parse(`<gpx version="1.1" creator="x" xmlns="${GPX_NS}"><rte><rtept lat="47" lon="11"/></rte></gpx>`);
+
+        expect(gpx.rte?.[0].rtept?.map((point) => [point.$.lat, point.$.lon])).toEqual([[47, 11]]);
+    });
+
+    it("leaves a file that already has a track untouched", () => {
+        const gpx = GPX.parse(
+            `<gpx version="1.1" creator="x" xmlns="${GPX_NS}">${route(2)}${track("")}</gpx>`
+        );
+
+        gpx.convertRoutesToTracks();
+
+        expect(gpx.trk).toHaveLength(1);
+        expect(gpx.rte).toHaveLength(1);
+        expect(trackPointCount(gpx)).toBe(2);
+    });
+
 });

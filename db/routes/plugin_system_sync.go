@@ -282,6 +282,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 	state := map[string]any{}
 	hasMore := true
 	policy := sessions.policy
+	limits := pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit}
 	providerCategoryBackfillsRemaining := 0
 	if hasUsableCategoryMapping(categoryMapping(hostConfig)) {
 		providerCategoryBackfillsRemaining = defaultPluginProviderCategoryBackfillLimit
@@ -295,7 +296,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			Auth:    pluginsystem.PluginInputAuth(plugin, auth),
 			State:   state,
 			Options: pluginConfig,
-			Limits:  pluginSystemSyncLimits{MaxItems: defaultPluginSyncBatchLimit},
+			Limits:  limits,
 		}
 		inputBytes, err := json.Marshal(input)
 		if err != nil {
@@ -311,6 +312,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		}
 		if output.Error != nil {
 			return nil, pluginsystem.PluginCapabilityError{Err: output.Error}
+		}
+		if len(output.Items) > limits.MaxItems {
+			return nil, pluginsystem.SyncItemLimitError{Returned: len(output.Items), MaxItems: limits.MaxItems}
 		}
 		app.Logger().Info("plugin capability batch returned items", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "batch", batch, "items", len(output.Items), "has_more", output.HasMore)
 
@@ -419,27 +423,7 @@ func providerCategoryBackfillCandidatesForSync(app core.App, userID string, prov
 		return candidates, nil
 	}
 
-	params := dbx.Params{
-		"user":     userID,
-		"provider": provider,
-	}
-	seenExternalIDs := map[string]bool{}
-	idFilters := make([]string, 0, len(externalIDs))
-	for _, externalID := range externalIDs {
-		if externalID == "" || seenExternalIDs[externalID] {
-			continue
-		}
-		seenExternalIDs[externalID] = true
-		paramName := fmt.Sprintf("external_id_%d", len(idFilters))
-		params[paramName] = externalID
-		idFilters = append(idFilters, "external_id={:"+paramName+"}")
-	}
-	if len(idFilters) == 0 {
-		return candidates, nil
-	}
-
-	filter := "user={:user} && provider={:provider} && (" + strings.Join(idFilters, " || ") + ")"
-	refs, err := app.FindRecordsByFilter("trail_external_reference", filter, "", len(idFilters), 0, params)
+	refs, err := util.FindTrailExternalReferencesForUser(app, userID, provider, externalIDs)
 	if err != nil || len(refs) == 0 {
 		return candidates, err
 	}

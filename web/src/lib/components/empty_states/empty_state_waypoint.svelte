@@ -1,7 +1,7 @@
 <script lang="ts">
-    import emptyStateWaypointDark from "$lib/assets/svgs/empty_states/empty_state_waypoint_dark.svg";
-    import emptyStateWaypointLight from "$lib/assets/svgs/empty_states/empty_state_waypoint_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import emptyStateWaypointDark from "#lib/assets/svgs/empty_states/empty_state_waypoint_dark.svg";
+    import emptyStateWaypointLight from "#lib/assets/svgs/empty_states/empty_state_waypoint_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     import { _ } from "svelte-i18n";
     interface Props {

@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -49,8 +50,25 @@ func newInboxes(t *testing.T) *inboxes {
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	t.Cleanup(in.server.Close)
+	useLoopbackDeliveryClient(t)
+	// A hit at one inbox does not mean all sibling/local deliveries have
+	// finished. Drain them before restoring the client or closing the app.
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := WaitForDeliveries(ctx); err != nil {
+			t.Errorf("drain fixture deliveries: %v", err)
+		}
+	})
 
 	return in
+}
+
+// useLoopbackDeliveryClient lets PostActivity reach httptest servers, which
+// the production delivery client refuses as loopback.
+func useLoopbackDeliveryClient(t *testing.T) {
+	t.Helper()
+	t.Cleanup(SetDeliveryClientForTesting(&http.Client{Timeout: 10 * time.Second}))
 }
 
 func (in *inboxes) url(name string) string {
@@ -101,6 +119,7 @@ func setupSummitLogDeleteTestApp(t *testing.T) *summitLogFixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(

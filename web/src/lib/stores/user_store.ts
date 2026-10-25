@@ -1,6 +1,6 @@
-import type { User, UserAnonymous } from "$lib/models/user";
-import { getPb } from "$lib/pocketbase";
-import { APIError } from "$lib/util/api_util";
+import type { User, UserAnonymous } from "#lib/models/user.ts";
+import { getPb } from "#lib/pocketbase.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type AuthMethodsList } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 

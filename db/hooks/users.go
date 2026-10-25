@@ -1,9 +1,14 @@
 package hooks
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/util"
+	"strings"
+
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/dbx"
@@ -79,7 +84,13 @@ func UpdateUserHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 // display names - OpenStreetMap, for instance - therefore end up with a
 // generated "usersNNNNNN" name. Sanitising the value first keeps the name the
 // user signed up with recognisable.
-func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+//
+// trusted reports whether the claims of a provider slot are trusted (see
+// OAuth2EmailHandler). Only for those, a missing username falls back to the
+// display name: it is part of the actor IRI and the federated handle of the
+// account and cannot be changed afterwards, so it must not be taken from
+// providers the administrator has not opted in.
+func OAuth2UsernameHandler(trusted func(provider string) bool) func(e *core.RecordAuthWithOAuth2RequestEvent) error {
 	return func(e *core.RecordAuthWithOAuth2RequestEvent) error {
 		if !e.IsNewRecord || e.OAuth2User == nil || e.Collection == nil {
 			return e.Next()
@@ -102,8 +113,16 @@ func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) erro
 			return e.Next()
 		}
 
-		// only rewrite a value the mapped field would reject
 		username := e.OAuth2User.Username
+
+		// generic OIDC providers without a preferred_username claim, such as
+		// Cloudflare Access, would otherwise get a generated name or their
+		// opaque subject id; the display name is more recognisable
+		if (username == "" || username == e.OAuth2User.Id) && trusted != nil && trusted(e.ProviderName) {
+			username = e.OAuth2User.Name
+		}
+
+		// only rewrite a value the mapped field would reject
 		if field.ValidatePlainValue(username) != nil {
 			username = util.SanitizeUsername(username, field.Min, field.Max)
 		}
@@ -118,6 +137,75 @@ func OAuth2UsernameHandler() func(e *core.RecordAuthWithOAuth2RequestEvent) erro
 		// checks it is free inside the create transaction, and generates a
 		// username if it is not
 		e.OAuth2User.Username = username
+
+		return e.Next()
+	}
+}
+
+// OAuth2EmailHandler keeps the email of users of generic OIDC providers that
+// do not send an email_verified claim, such as Cloudflare Access.
+//
+// PocketBase only takes the email from the normalised OAuth2 user when the
+// provider marks it as verified, so these accounts end up without one. For the
+// provider slots the administrator trusts (trusted), the raw email claim is
+// handed to PocketBase as if the provider had verified it, both for new
+// accounts and for existing ones that have no email yet.
+//
+// It has to be the OAuth2 user email, not create data: PocketBase only creates
+// the account as verified when the two match. An unverified account is treated
+// as possibly pre-created by an attacker on every later OAuth2 login - its
+// password is reset, which invalidates the sessions of other devices - and
+// confirming its email unlinks the provider again.
+//
+// An email_verified claim of any value, false and null included, means the
+// provider has an opinion and is left alone. The email is also not taken when
+// another account already uses it: PocketBase links accounts by verified
+// emails only, and trusting a claim must not grant access to an existing
+// account or fail with a uniqueness error.
+func OAuth2EmailHandler(trusted func(provider string) bool) func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+	return func(e *core.RecordAuthWithOAuth2RequestEvent) error {
+		if e.OAuth2User == nil || e.Collection == nil || e.OAuth2User.Email != "" || trusted == nil || !trusted(e.ProviderName) {
+			return e.Next()
+		}
+
+		if _, present := e.OAuth2User.RawUser["email_verified"]; present {
+			return e.Next()
+		}
+
+		// a value submitted by the client for a new account takes precedence
+		if e.Record == nil {
+			if v, _ := e.CreateData[core.FieldNameEmail].(string); v != "" {
+				return e.Next()
+			}
+		}
+
+		email, _ := e.OAuth2User.RawUser["email"].(string)
+		email = strings.TrimSpace(email)
+		if email == "" || is.EmailFormat.Validate(email) != nil {
+			return e.Next()
+		}
+
+		// an account that already has a different email keeps it; PocketBase
+		// compares the addresses exactly as well
+		if e.Record != nil && e.Record.Email() != "" && e.Record.Email() != email {
+			return e.Next()
+		}
+
+		// the account being authenticated may already have the address
+		owner, err := e.App.FindAuthRecordByEmail(e.Collection, email)
+		if err == nil {
+			if e.Record == nil || owner.Id != e.Record.Id {
+				e.App.Logger().Warn(
+					"OIDC email not assigned because another account uses it",
+					"provider", e.ProviderName,
+				)
+				return e.Next()
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+
+		e.OAuth2User.Email = email
 
 		return e.Next()
 	}

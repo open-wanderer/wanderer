@@ -38,54 +38,6 @@ func addTrailsCollection(t *testing.T, app core.App) {
 	}
 }
 
-// addCommentsCollection adds a minimal comments collection to the test app.
-// Fields needed: id, iri (text), author (text), trail (text), text (text).
-func addCommentsCollection(t *testing.T, app core.App) {
-	t.Helper()
-	commentsJSON := `[{
-		"id": "pbc_comments_test1",
-		"name": "comments",
-		"type": "base",
-		"system": false,
-		"listRule": null,
-		"viewRule": null,
-		"createRule": null,
-		"updateRule": null,
-		"deleteRule": null,
-		"fields": [
-			{"autogeneratePattern":"[a-z0-9]{15}","hidden":false,"id":"text3208210256","max":15,"min":15,"name":"id","pattern":"^[a-z0-9]+$","presentable":false,"primaryKey":true,"required":true,"system":true,"type":"text"},
-			{"autogeneratePattern":"","hidden":false,"id":"textcommentiri1","max":0,"min":0,"name":"iri","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
-			{"autogeneratePattern":"","hidden":false,"id":"textcommentaut1","max":0,"min":0,"name":"author","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
-			{"autogeneratePattern":"","hidden":false,"id":"textcommenttrl1","max":0,"min":0,"name":"trail","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
-			{"autogeneratePattern":"","hidden":false,"id":"textcommenttxt1","max":0,"min":0,"name":"text","pattern":"","presentable":false,"primaryKey":false,"required":false,"system":false,"type":"text"},
-			{"hidden":false,"id":"autodate2990389176","name":"created","onCreate":true,"onUpdate":false,"presentable":false,"system":false,"type":"autodate"},
-			{"hidden":false,"id":"autodate3332085495","name":"updated","onCreate":true,"onUpdate":true,"presentable":false,"system":false,"type":"autodate"}
-		],
-		"indexes": []
-	}]`
-	if err := app.ImportCollectionsByMarshaledJSON([]byte(commentsJSON), false); err != nil {
-		t.Fatalf("create comments collection: %v", err)
-	}
-}
-
-// seedTrailRecord inserts a trail record with the given IRI and public flag.
-func seedTrailRecord(t *testing.T, app core.App, iri string, public bool, authorId string) *core.Record {
-	t.Helper()
-	col, err := app.FindCollectionByNameOrId("trails")
-	if err != nil {
-		t.Fatalf("find trails collection: %v", err)
-	}
-	r := core.NewRecord(col)
-	r.Set("iri", iri)
-	r.Set("public", public)
-	r.Set("author", authorId)
-	r.Set("name", "Test Trail")
-	if err := app.Save(r); err != nil {
-		t.Fatalf("save trail record: %v", err)
-	}
-	return r
-}
-
 // TestProcessCreateOrUpdateTrailActivityDedupOnCreate verifies that a Create
 // activity whose object IRI already exists in the trails collection is silently
 // dropped (returns nil, count stays at 1).
@@ -121,7 +73,7 @@ func TestProcessCreateOrUpdateTrailActivityDedupOnCreate(t *testing.T) {
 	// ProcessCreateOrUpdateActivity routes on the object IRI.
 	recipient := createTestActor(t, app, "https://trails.example.com/api/v1/activitypub/instance", "instance", true)
 
-	result := ProcessCreateOrUpdateActivity(app, context.Background(), actor, recipient, *activity)
+	result := ProcessCreateOrUpdateActivity(app, actor, recipient, *activity)
 	if result != nil {
 		t.Errorf("expected nil (dedup path), got error: %v", result)
 	}
@@ -162,7 +114,7 @@ func TestProcessCreateOrUpdateTrailActivityAllowsUpdate(t *testing.T) {
 	recipient := createTestActor(t, app, "https://trails.example.com/api/v1/activitypub/instance", "instance", true)
 
 	// The Update passes the dedup and fails in TrailFromActivity.
-	result := ProcessCreateOrUpdateActivity(app, context.Background(), actor, recipient, *activity)
+	result := ProcessCreateOrUpdateActivity(app, actor, recipient, *activity)
 	_ = result // fails on the incomplete test schema
 
 	// No duplicate row was inserted.

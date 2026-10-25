@@ -1,6 +1,6 @@
 <script lang="ts">
     
-    import { browser } from "$app/environment";
+    import { browser } from "$app/env";
     import { beforeNavigate } from "$app/navigation";
     import type { Snippet } from 'svelte';
     import { backIn, backOut } from "svelte/easing";
@@ -25,7 +25,8 @@
         }
     });
 
-    beforeNavigate(() => {
+    beforeNavigate(({ shallow }) => {
+        if (shallow) return;
         open = false;
     });
 </script>

@@ -1,5 +1,5 @@
-import { handleError } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { handleError } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -51,7 +51,7 @@ export async function POST(event: RequestEvent) {
             body,
             fetch: event.fetch,
         });
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e);
     }

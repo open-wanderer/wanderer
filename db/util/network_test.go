@@ -3,14 +3,20 @@ package util
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestFetchPublicURLRejectsUnsafeInputs(t *testing.T) {
@@ -252,5 +258,122 @@ func TestConnectorIPAllowed(t *testing.T) {
 				t.Fatalf("got %v, want %v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestSafeDeliveryClientRefusesLoopback(t *testing.T) {
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+	}))
+	defer server.Close()
+
+	resp, err := SafeDeliveryClient(time.Second).Post(server.URL+"/inbox", "application/activity+json", strings.NewReader("{}"))
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("expected the loopback delivery to fail")
+	}
+	if !strings.Contains(err.Error(), "SSRF blocked") {
+		t.Fatalf("expected the address to be blocked by policy, got: %v", err)
+	}
+	if n := hits.Load(); n != 0 {
+		t.Fatalf("loopback server received %d requests, want 0", n)
+	}
+}
+
+func TestSafeDeliveryClientOffersHTTP2(t *testing.T) {
+	client := SafeDeliveryClient(time.Second)
+	t.Cleanup(client.CloseIdleConnections)
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport = %T, want *http.Transport", client.Transport)
+	}
+	// Apply the protocol defaults as the first request would.
+	client.CloseIdleConnections()
+	if transport.TLSClientConfig == nil || !slices.Contains(transport.TLSClientConfig.NextProtos, "h2") || !slices.Contains(transport.TLSClientConfig.NextProtos, "http/1.1") {
+		t.Fatalf("delivery client must offer h2 and http/1.1, got %+v", transport.TLSClientConfig)
+	}
+}
+
+func TestSafeDeliveryClientKeepsAddressPolicyForHTTP2(t *testing.T) {
+	var hits, connections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	server.EnableHTTP2 = true
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+
+	client := SafeDeliveryClient(time.Second)
+	t.Cleanup(client.CloseIdleConnections)
+	transport := client.Transport.(*http.Transport)
+	transport.TLSClientConfig = &tls.Config{RootCAs: server.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs}
+
+	// A plain dialer provides a control for the same HTTP/2 receiver.
+	control := transport.Clone()
+	control.DialContext = (&net.Dialer{Timeout: time.Second}).DialContext
+	t.Cleanup(control.CloseIdleConnections)
+	response, err := (&http.Client{Transport: control, Timeout: time.Second}).Post(server.URL+"/inbox", "application/activity+json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("control delivery: %v", err)
+	}
+	response.Body.Close()
+	if response.ProtoMajor != 2 {
+		t.Fatalf("control used %s, want HTTP/2", response.Proto)
+	}
+	connectionsBefore, hitsBefore := connections.Load(), hits.Load()
+
+	response, err = client.Post(server.URL+"/inbox", "application/activity+json", strings.NewReader("{}"))
+	if err == nil {
+		response.Body.Close()
+		t.Fatal("expected the private address delivery to fail")
+	}
+	if !strings.Contains(err.Error(), "blocked") {
+		t.Fatalf("expected the address to be blocked by policy, got: %v", err)
+	}
+	if connections.Load() != connectionsBefore || hits.Load() != hitsBefore {
+		t.Fatalf("receiver saw %d additional connections and %d requests, want none", connections.Load()-connectionsBefore, hits.Load()-hitsBefore)
+	}
+}
+
+func TestSafeDeliveryClientDoesNotFollowRedirects(t *testing.T) {
+	redirect := &http.Request{URL: &url.URL{Scheme: "http", Host: "127.0.0.1", Path: "/internal"}}
+	if err := SafeDeliveryClient(time.Second).CheckRedirect(redirect, nil); !errors.Is(err, http.ErrUseLastResponse) {
+		t.Fatalf("CheckRedirect = %v, want http.ErrUseLastResponse", err)
+	}
+}
+
+func TestSafeDeliveryClientDoesNotConsumeActorFetchBudget(t *testing.T) {
+	previous := ActivityPubRateLimiter
+	ActivityPubRateLimiter = NewRateLimiter(1, time.Hour)
+	t.Cleanup(func() { ActivityPubRateLimiter = previous })
+	if err := ActivityPubRateLimiter.CheckRateLimit("system", "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hits.Add(1) }))
+	t.Cleanup(server.Close)
+	client := SafeDeliveryClient(time.Second)
+	if transport, ok := client.Transport.(*http.Transport); !ok || transport.Proxy != nil {
+		t.Fatal("delivery transport must connect directly without an environment proxy")
+	}
+	response, err := client.Post(server.URL+"/inbox", "application/activity+json", strings.NewReader("{}"))
+	if response != nil {
+		response.Body.Close()
+	}
+	if err == nil || errors.Is(err, ErrRateLimited) || !strings.Contains(err.Error(), "blocked: 127.0.0.1") {
+		t.Fatalf("delivery must reach address policy independently of actor fetch budget: %v", err)
+	}
+	if _, err := SafeHTTPClient().Post(server.URL+"/inbox", "application/activity+json", strings.NewReader("{}")); !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("actor fetch must retain its exhausted budget: %v", err)
+	}
+	if hits.Load() != 0 {
+		t.Fatalf("loopback server received %d requests", hits.Load())
 	}
 }

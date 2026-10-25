@@ -44,8 +44,7 @@ func attachmentUseClient(t *testing.T, c HTTPDoer) {
 	t.Cleanup(restore)
 }
 
-// attachmentIsolatedTempDir points os.TempDir at a fresh directory so the test
-// sees every temp file DownloadRemoteFile leaves behind.
+// attachmentIsolatedTempDir points os.TempDir at a fresh directory.
 func attachmentIsolatedTempDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -123,7 +122,7 @@ func TestDownloadRemoteFileHasDeadline(t *testing.T) {
 	})})
 	attachmentIsolatedTempDir(t)
 
-	_, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/a.gpx", RemoteGPXMaxBytes, "")
+	_, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/a.gpx", RemoteGPXMaxBytes)
 	if err != nil {
 		t.Fatalf("DownloadRemoteFile: %v", err)
 	}
@@ -142,14 +141,14 @@ func TestDownloadRemoteFileSizeLimit(t *testing.T) {
 	attachmentIsolatedTempDir(t)
 
 	attachmentUseClient(t, attachmentStaticClient(bytes.Repeat([]byte("x"), limit+1)))
-	if _, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/track.gpx", limit, ""); err == nil {
+	if _, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/track.gpx", limit); err == nil {
 		cleanup()
 		t.Fatal("body of limit+1 bytes was accepted")
 	}
 
 	exact := bytes.Repeat([]byte("y"), limit)
 	attachmentUseClient(t, attachmentStaticClient(exact))
-	f, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/track.gpx", limit, "")
+	f, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/track.gpx", limit)
 	if err != nil {
 		t.Fatalf("body of exactly limit bytes was refused: %v", err)
 	}
@@ -172,7 +171,7 @@ func TestDownloadRemoteFileStreamsToDisk(t *testing.T) {
 	tmp := attachmentIsolatedTempDir(t)
 	attachmentUseClient(t, attachmentStaticClient([]byte("gpx-body")))
 
-	f, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/track.gpx", RemoteGPXMaxBytes, "")
+	f, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/track.gpx", RemoteGPXMaxBytes)
 	if err != nil {
 		t.Fatalf("DownloadRemoteFile: %v", err)
 	}
@@ -206,7 +205,7 @@ func TestDownloadRemoteFileSizeLimitRemovesTemp(t *testing.T) {
 	tmp := attachmentIsolatedTempDir(t)
 	attachmentUseClient(t, attachmentStaticClient(bytes.Repeat([]byte("x"), 64)))
 
-	f, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/big.gpx", 16, "")
+	f, cleanup, err := DownloadRemoteFile(context.Background(), "http://example.com/big.gpx", 16)
 	if cleanup == nil {
 		t.Fatal("cleanup must never be nil")
 	}
@@ -231,7 +230,7 @@ func TestDownloadRemoteFileDefaultRefusesLoopback(t *testing.T) {
 	}))
 	defer server.Close()
 
-	f, cleanup, err := DownloadRemoteFile(context.Background(), server.URL+"/internal.gpx", RemoteGPXMaxBytes, "")
+	f, cleanup, err := DownloadRemoteFile(context.Background(), server.URL+"/internal.gpx", RemoteGPXMaxBytes)
 	if cleanup != nil {
 		defer cleanup()
 	}

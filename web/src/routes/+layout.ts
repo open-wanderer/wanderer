@@ -1,5 +1,5 @@
 // +layout.ts
-import '$lib/i18n'
+import '#lib/i18n/index.ts'
 import { waitLocale } from 'svelte-i18n'
 import type { LayoutLoad } from './$types'
 

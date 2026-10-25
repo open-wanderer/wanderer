@@ -349,6 +349,7 @@
   "plugin-error-provider-unavailable": "Der Anbieter ist momentan nicht erreichbar. Versuche es später erneut.",
   "plugin-error-invalid-request": "Das Plugin hat eine ungültige Anfrage gesendet.",
   "plugin-error-internal": "Das Plugin ist unerwartet fehlgeschlagen.",
+  "plugin-error-sync-item-limit-exceeded": "Das Plugin hat mehr Einträge als erlaubt zurückgegeben. Wende dich an den Plugin-Entwickler.",
   "plugin-error-reconnect-required": "Die Plugin-Autorisierung ist abgelaufen. Verbinde das Plugin erneut.",
   "invalid-date": "Ungültiges Datum",
   "invalid-username": "Ungültiger Nutzername",

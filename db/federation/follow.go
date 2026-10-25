@@ -235,6 +235,7 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 
 	// a remote actor has requested the follow
 	// this means we have not yet created a follow entry in our db
+	repeated := false
 	if !actor.GetBool("is_local") {
 		followCollection, err := app.FindCollectionByNameOrId("follows")
 		if err != nil {
@@ -247,19 +248,6 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 			return processInstanceFollow(app, followCollection, actor, object, activity)
 		}
 
-		// Skip duplicate Follow deliveries for an existing pair.
-		existing, existErr := app.FindFirstRecordByFilter(
-			"follows",
-			"follower={:follower} && followee={:followee}",
-			dbx.Params{"follower": actor.Id, "followee": object.Id},
-		)
-		if existErr == nil && existing != nil {
-			return nil // already recorded; treat as duplicate delivery
-		}
-		if existErr != nil && !errors.Is(existErr, sql.ErrNoRows) {
-			return existErr
-		}
-
 		followRecord := core.NewRecord(followCollection)
 		followRecord.Set("follower", actor.Id)
 		followRecord.Set("followee", object.Id)
@@ -268,7 +256,11 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 		followRecord.Set("status", "accepted")
 		err = app.Save(followRecord)
 		if err != nil {
-			return err
+			// Repeated requests for the same follow receive their own Accept.
+			if _, findErr := app.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": object.Id}); findErr != nil {
+				return err
+			}
+			repeated = true
 		}
 	}
 
@@ -301,8 +293,8 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 	if err != nil {
 		return err
 	}
-	// Follow notifications are only sent for user-level follows.
-	if object.GetString("actor_type") == "instance" {
+	// Follow notifications are sent once, and only for user-level follows.
+	if repeated || object.GetString("actor_type") == "instance" {
 		return nil
 	}
 	notification := util.Notification{
@@ -425,7 +417,7 @@ func CreateRejectFollowActivity(app core.App, follow *core.Record) error {
 
 func ProcessRejectActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	followActivity, ok := activity.Object.(*pub.Activity)
-	if !ok {
+	if !ok || followActivity == nil {
 		return fmt.Errorf("ProcessRejectActivity: object is not *pub.Activity, got %T", activity.Object)
 	}
 
@@ -450,7 +442,7 @@ func ProcessRejectActivity(app core.App, actor *core.Record, activity pub.Activi
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 	// The object may be an IRI only; return an error instead of panicking.
 	followActivity, ok := activity.Object.(*pub.Activity)
-	if !ok {
+	if !ok || followActivity == nil {
 		return fmt.Errorf("ProcessAcceptActivity: object is not *pub.Activity, got %T", activity.Object)
 	}
 

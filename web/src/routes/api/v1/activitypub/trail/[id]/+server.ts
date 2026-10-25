@@ -1,6 +1,6 @@
 
-import { handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 
 /**
@@ -41,7 +41,7 @@ export async function GET(event: RequestEvent) {
         const headers = new Headers()
         headers.append("Content-Type", "application/activity+json")
 
-        return json({
+        return Response.json({
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
             ],

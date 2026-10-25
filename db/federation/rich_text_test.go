@@ -28,6 +28,7 @@ func TestIncomingActivitiesExplicitlyBoundRichText(t *testing.T) {
 				`<p onclick="blocked()"><strong>Safe `+strings.Repeat(`'"&山🚲`, 3000)+`</strong></p>`))
 			object.Location = &pub.Place{Name: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "Somewhere"))}
 			object.StartTime = time.Now()
+			object.To = pub.ItemCollection{pub.PublicNS}
 			if kind == "comment" || kind == "summit-log" {
 				trail := f.record(t, "trails", map[string]any{"author": author.Id,
 					"iri": "https://remote.example/api/v1/trail/parent", "public": true})
@@ -39,16 +40,16 @@ func TestIncomingActivitiesExplicitlyBoundRichText(t *testing.T) {
 			switch kind {
 			case "trail":
 				collection = "trails"
-				_, err = util.TrailFromActivity(context.Background(), *activity, f.app, author)
+				_, err = util.TrailFromActivity(*activity, f.app, author)
 			case "list":
 				collection = "lists"
-				_, err = util.ListFromActivity(context.Background(), *activity, f.app, author)
+				_, err = util.ListFromActivity(*activity, f.app, author)
 			case "comment":
 				collection, field = "comments", "text"
-				err = processCreateOrUpdateCommentActivity(context.Background(), *activity, f.app, author)
+				err = processCreateOrUpdateCommentActivity(*activity, f.app, author)
 			case "summit-log":
 				collection, field = "summit_logs", "text"
-				err = processCreateOrUpdateSummitLogActivity(context.Background(), *activity, f.app, author)
+				err = processCreateOrUpdateSummitLogActivity(*activity, f.app, author)
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -70,6 +71,7 @@ func TestLocalBioProjectionExplicitlyBoundsActorSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 	add := func(name string, fields ...core.Field) *core.Collection {
 		t.Helper()
 		collection := core.NewBaseCollection(name)

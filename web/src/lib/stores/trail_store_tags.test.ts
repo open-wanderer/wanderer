@@ -1,5 +1,5 @@
-import { TagCreateSchema } from "$lib/models/api/tag_schema";
-import { Trail } from "$lib/models/trail";
+import { TagCreateSchema } from "#lib/models/api/tag_schema.ts";
+import { Trail } from "#lib/models/trail.ts";
 import type { AuthRecord } from "pocketbase";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { trails_create, trails_update } from "./trail_store";

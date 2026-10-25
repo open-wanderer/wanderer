@@ -1,6 +1,8 @@
 package util
 
 import (
+	"sync"
+
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -14,17 +16,33 @@ const (
 )
 
 // InsertIntoFeed adds an item to an actor's feed and returns the feed row. An
-// item appears at most once per actor; if a concurrent insert of the same item
-// wins, its row is returned.
-func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string, feedType FeedType) (*core.Record, error) {
-	// an item appears at most once in an actor's feed — repeated Update
-	// activities for an already-known item must not create duplicate entries
-	const filter = "actor = {:actor} && item = {:item}"
-	params := dbx.Params{"actor": actorId, "item": itemId}
+// item appears at most once per actor.
+//
+// Nontransactional callers serialize a missing item through its insertion.
+// A transaction already holds the database writer and must not wait here.
+var feedEntryCreation sync.Mutex
 
-	existing, err := app.FindFirstRecordByFilter("feed", filter, params)
-	if err == nil && existing != nil {
+func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string, feedType FeedType) (*core.Record, error) {
+	lookup := func() *core.Record {
+		existing, err := app.FindFirstRecordByFilter(
+			"feed",
+			"actor = {:actor} && item = {:item}",
+			dbx.Params{"actor": actorId, "item": itemId},
+		)
+		if err == nil {
+			return existing
+		}
+		return nil
+	}
+	if existing := lookup(); existing != nil {
 		return existing, nil
+	}
+	if !app.IsTransactional() {
+		feedEntryCreation.Lock()
+		defer feedEntryCreation.Unlock()
+		if existing := lookup(); existing != nil {
+			return existing, nil
+		}
 	}
 
 	collection, err := app.FindCollectionByNameOrId("feed")
@@ -40,8 +58,9 @@ func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string
 	record.Set("type", string(feedType))
 
 	if saveErr := app.Save(record); saveErr != nil {
-		// a concurrent insert of the same item won
-		if winner, findErr := app.FindFirstRecordByFilter("feed", filter, params); findErr == nil && winner != nil {
+		// A concurrent insert of the same item won, e.g. inside a transaction
+		// or in another process; the unique (actor, item) index refused ours.
+		if winner := lookup(); winner != nil {
 			return winner, nil
 		}
 		return record, saveErr

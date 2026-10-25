@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	urlpath "path"
 	"path/filepath"
 	"slices"
@@ -22,6 +23,7 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
+	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/tkrajina/gpxgo/gpx"
 )
 
@@ -66,6 +68,11 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	} else if existing != nil {
 		return &Result{TrailID: existing.Id, Skipped: true}, nil
+	}
+	// Fail before saving a trail or its deduplication reference if the related
+	// local summit log cannot be given its canonical identity.
+	if opts.CreateSummitLogForCompleted && item.Kind == "completed" && os.Getenv("ORIGIN") == "" {
+		return nil, fmt.Errorf("ORIGIN not set")
 	}
 	difficulty := normalizedDifficulty(item.Difficulty)
 
@@ -877,13 +884,21 @@ func removeRawQueryParamOrdered(rawQuery string, name string) string {
 // createSummitLog mirrors completed imported trails into summit_logs when the
 // user has enabled that compatibility option.
 func createSummitLog(app core.App, trailID string, actorID string, date time.Time, metrics trailMetrics) error {
+	origin := os.Getenv("ORIGIN")
+	if origin == "" {
+		return fmt.Errorf("ORIGIN not set")
+	}
 	collection, err := app.FindCollectionByNameOrId("summit_logs")
 	if err != nil {
 		return err
 	}
 
 	record := core.NewRecord(collection)
+	// Server-side imports bypass the native Summit Book request hook. Allocate
+	// the ID first so the initial save includes the same local IRI.
+	record.Id = security.RandomStringWithAlphabet(core.DefaultIdLength, core.DefaultIdAlphabet)
 	record.Load(map[string]any{
+		"iri":            fmt.Sprintf("%s/api/v1/summit-log/%s", origin, record.Id),
 		"distance":       metrics.Distance,
 		"elevation_gain": metrics.ElevationGain,
 		"elevation_loss": metrics.ElevationLoss,

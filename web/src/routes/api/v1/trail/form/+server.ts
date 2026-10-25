@@ -1,6 +1,6 @@
-import type { Trail } from '$lib/models/trail';
-import { Collection, handleError, uploadCreate } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { Trail } from '#lib/models/trail.ts';
+import { Collection, handleError, uploadCreate } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -32,7 +32,7 @@ export async function PUT(event: RequestEvent) {
     try {        
         const r = await uploadCreate<Trail>(event, Collection.trails)
         enrichRecord(r);
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

@@ -1,7 +1,6 @@
 package federation
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -22,10 +21,6 @@ import (
 // Attachment downloads must not reach loopback or private addresses, must be
 // limited in size, time and number, and must not leave temp files behind.
 
-// attachmentGPXFixtureMaxSize is larger than the production gpx maxSize so the
-// oversize test hits the download limit, not the collection validation.
-const attachmentGPXFixtureMaxSize = 64 << 20
-
 type attachmentFixture struct {
 	app   core.App
 	owner feedDedupActors
@@ -41,13 +36,13 @@ func attachmentAddCollections(t *testing.T, app core.App) {
 	trails.Fields.Add(
 		text("iri"), text("author"), text("name"),
 		&core.BoolField{Name: "public"},
-		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: attachmentGPXFixtureMaxSize},
+		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: util.RemoteGPXMaxBytes},
 		&core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 20 << 20},
 	)
 	summitLogs := core.NewBaseCollection("summit_logs")
 	summitLogs.Fields.Add(
 		text("iri"), text("author"), text("trail"), text("text"),
-		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: attachmentGPXFixtureMaxSize},
+		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: util.RemoteGPXMaxBytes},
 		&core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 20 << 20},
 	)
 	lists := core.NewBaseCollection("lists")
@@ -150,7 +145,7 @@ func attachmentTrailActivity(f *attachmentFixture, attachments ...pub.Item) pub.
 }
 
 func attachmentDeliverTrail(f *attachmentFixture, attachments ...pub.Item) error {
-	return ProcessCreateOrUpdateActivity(f.app, context.Background(), f.owner.author, f.owner.alice, attachmentTrailActivity(f, attachments...))
+	return ProcessCreateOrUpdateActivity(f.app, f.owner.author, f.owner.alice, attachmentTrailActivity(f, attachments...))
 }
 
 // attachmentSummitLogActivity builds a Create of a summit log by y on a trail
@@ -220,7 +215,7 @@ func TestSummitLogCreateDoesNotFetchLoopbackAttachment(t *testing.T) {
 	server, hits := attachmentServer(t, attachmentSmallBody)
 
 	act := attachmentSummitLogActivity(t, f, attachmentGPX(server.URL+"/internal.gpx"))
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.owner.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.y, f.owner.alice, act)
 
 	if err == nil {
 		t.Error("summit log whose GPX is on a loopback address was accepted")
@@ -239,7 +234,7 @@ func TestListCreateDoesNotFetchLoopbackAvatar(t *testing.T) {
 
 	act := feedDedupListCreate(feedDedupAuthorIRI, feedDedupListIRI)
 	act.Object.(*pub.Object).Attachment = pub.ItemCollection{attachmentImage(server.URL + "/internal.png")}
-	err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.owner.author, f.owner.alice, act)
+	err := ProcessCreateOrUpdateActivity(f.app, f.owner.author, f.owner.alice, act)
 
 	if err == nil {
 		t.Error("list whose avatar is on a loopback address was accepted")
@@ -300,14 +295,12 @@ func TestTrailCreateDownloadsAtMostMaxPhotos(t *testing.T) {
 		t.Fatalf("trail with 105 photos: %v", err)
 	}
 
-	// The smaller of the photos maxSelect and the per-activity budget applies.
-	want := min(99, util.RemoteActivityAttachmentMaxFiles)
-	if n := hits.total(); n != want {
-		t.Errorf("photo requests = %d, want %d", n, want)
+	if n := hits.total(); n != 99 {
+		t.Errorf("photo requests = %d, want 99", n)
 	}
 	stored := attachmentStored(t, f.app, "trails", feedDedupTrailIRI)
-	if n := len(stored.GetStringSlice("photos")); n != want {
-		t.Errorf("stored photos = %d, want %d", n, want)
+	if n := len(stored.GetStringSlice("photos")); n != 99 {
+		t.Errorf("stored photos = %d, want 99", n)
 	}
 }
 
@@ -317,18 +310,16 @@ func TestSummitLogCreateDownloadsAtMostMaxPhotos(t *testing.T) {
 	server, hits := attachmentServer(t, attachmentSmallBody)
 
 	act := attachmentSummitLogActivity(t, f, attachmentManyPhotos(server.URL, 105)...)
-	if err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.owner.alice, act); err != nil {
+	if err := ProcessCreateOrUpdateActivity(f.app, f.y, f.owner.alice, act); err != nil {
 		t.Fatalf("summit log with 105 photos: %v", err)
 	}
 
-	// The smaller of the photos maxSelect and the per-activity budget applies.
-	want := min(99, util.RemoteActivityAttachmentMaxFiles)
-	if n := hits.total(); n != want {
-		t.Errorf("photo requests = %d, want %d", n, want)
+	if n := hits.total(); n != 99 {
+		t.Errorf("photo requests = %d, want 99", n)
 	}
 	stored := attachmentStored(t, f.app, "summit_logs", ownerRemoteLogIRI)
-	if n := len(stored.GetStringSlice("photos")); n != want {
-		t.Errorf("stored photos = %d, want %d", n, want)
+	if n := len(stored.GetStringSlice("photos")); n != 99 {
+		t.Errorf("stored photos = %d, want 99", n)
 	}
 }
 
@@ -376,7 +367,7 @@ func TestTrailCreateLeavesNoAttachmentTempFiles(t *testing.T) {
 		server, _ := attachmentServer(t, attachmentSmallBody)
 
 		act := attachmentSummitLogActivity(t, f, attachmentGPX(server.URL+"/t.gpx"), attachmentImage(server.URL+"/p.png"))
-		if err := ProcessCreateOrUpdateActivity(f.app, context.Background(), f.y, f.owner.alice, act); err != nil {
+		if err := ProcessCreateOrUpdateActivity(f.app, f.y, f.owner.alice, act); err != nil {
 			t.Fatalf("Create: %v", err)
 		}
 		attachmentRequireNoTempFiles(t, tmp)
