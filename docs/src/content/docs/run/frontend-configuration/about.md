@@ -30,10 +30,10 @@ Depending on how you installed <span class="-tracking-[0.075em]">wanderer</span>
 2. Find the `volumes` section of the `web` container.
 3. Look for the following line (it is commented out by default):
 ```yaml 
- - ./data/about.md:/app/build/client/md/about.md
+ - ./data/md:/app/build/client/md
  ```
 4. Uncomment the line (remove the `#` at the beginning, if present).
-5. Make sure the left-hand side (`./data/about.md`) points to a valid Markdown file on your host machine.
+5. Make sure the left-hand side (`./data/md`) points to a directory that contains only `about.md`, a valid Markdown file on your host machine.
 6. Save your changes and restart the container:
 ```bash
 docker compose restart web

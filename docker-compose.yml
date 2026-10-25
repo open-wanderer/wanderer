@@ -73,7 +73,7 @@ services:
       PUBLIC_MAP_MAX_POLYLINES: 100
     volumes:
       - ./data/uploads:/app/uploads
-      # - ./data/about.md:/app/build/client/md/about.md
+      # - ./data/md:/app/build/client/md
     ports:
       - "3000:3000"
     networks:
