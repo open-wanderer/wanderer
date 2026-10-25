@@ -217,7 +217,13 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   factory Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
 
   factory Trail.empty() =>
-      Trail(id: '', name: '', created: DateTime.now(), updated: DateTime.now());
+      Trail(
+        id: '',
+        name: '',
+        created: DateTime.now(),
+        updated: DateTime.now(),
+        difficulty: TrailDifficulty.easy,
+      );
 }
 
 @freezed

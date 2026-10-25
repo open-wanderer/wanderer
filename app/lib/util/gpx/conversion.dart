@@ -615,6 +615,7 @@ Trail trailFromGpx(
     elevationLoss: metrics.elevationLoss,
     duration: metrics.durationMs / 1000,
     movingDuration: movingDurationSeconds,
+    difficulty: TrailDifficulty.easy,
     minLat: hasFiniteBounds ? metrics.minLat : 0,
     maxLat: hasFiniteBounds ? metrics.maxLat : 0,
     minLon: hasFiniteBounds ? metrics.minLon : 0,

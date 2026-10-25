@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gpx/gpx.dart';
 import 'package:gpx/gpx.dart' as pub;
+import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 
 void main() {
@@ -695,6 +696,12 @@ void main() {
         expect(trail.description, '');
       },
     );
+
+    test('a new trail defaults to easy', () {
+      final xml = _gpxXml([_trkptXml(47.0, 11.0)]);
+      final trail = trailFromGpx(parseGpxSafely(xml));
+      expect(trail.difficulty, TrailDifficulty.easy);
+    });
 
     test('lat/lon come from the first track point', () {
       final xml = _gpxXml([_trkptXml(47.5, 11.5), _trkptXml(47.6, 11.6)]);
