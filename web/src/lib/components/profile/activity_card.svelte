@@ -106,6 +106,7 @@
                                 id: activity.id,
                             },
                             photo,
+                            "600x0",
                         )}
                         alt=""
                     />

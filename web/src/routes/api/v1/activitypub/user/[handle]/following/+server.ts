@@ -80,6 +80,17 @@ export async function GET(event: RequestEvent) {
         const headers = new Headers()
         headers.append("Content-Type", "application/activity+json")
 
+        // Without ?page, serve the collection itself (required by GoToSocial).
+        if (!event.url.searchParams.has("page")) {
+            return json({
+                "@context": "https://www.w3.org/ns/activitystreams",
+                id: `${id}/following`,
+                type: "OrderedCollection",
+                totalItems: followers.totalItems,
+                first: `${id}/following?page=1`,
+            }, { headers });
+        }
+
         return json(following, { headers });
     } catch (e) {
         return handleError(e)

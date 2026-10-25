@@ -628,7 +628,7 @@
     },
     {
       "id": "8:5734302023385580278",
-      "lastPropertyId": "8:143030534291058117",
+      "lastPropertyId": "9:682150364037804139",
       "name": "LocalSettingsEntity",
       "properties": [
         {
@@ -665,6 +665,11 @@
         {
           "id": "8:143030534291058117",
           "name": "demTileTemplate",
+          "type": 9
+        },
+        {
+          "id": "9:682150364037804139",
+          "name": "recentServersJson",
           "type": 9
         }
       ],

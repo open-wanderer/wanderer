@@ -25,7 +25,9 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
 | ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
 | POCKETBASE_ENCRYPTION_KEY      | Valid 32 character AES key. Used to encrypt secrets                                                               |                       |
+| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation is rejected (fail closed). |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
+| POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE | Valid cron expression. Sets how often the search indexes are compared with the database and repaired. The job can also be run from the Crons page of the PocketBase dashboard | `0 4 * * *` |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
 | POCKETBASE_SMTP_SENDER_ADDRESS | The email address used as the "From" address in outgoing emails                                                   |                       |
 | POCKETBASE_SMTP_SENDER_NAME    | The display name shown as the sender in outgoing emails                                                           |                       |
@@ -33,8 +35,15 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_SMTP_PORT           | The port number used to connect to the SMTP server                                                                |                       |
 | POCKETBASE_SMTP_USERNAME       | The username used to authenticate with the SMTP server                                                            |                       |
 | POCKETBASE_SMTP_PASSWORD       | The password used to authenticate with the SMTP server                                                            |                       |
+| OIDC_SCOPES                    | Comma-separated OIDC scopes for the `oidc` provider. Only needed for providers that reject the defaults, such as OpenStreetMap (`openid`). See [Auth providers](/run/backend-configuration/auth-providers) | openid,profile,email |
+| OIDC2_SCOPES                   | Same as `OIDC_SCOPES`, for the `oidc2` provider                                                                   | openid,profile,email |
+| OIDC3_SCOPES                   | Same as `OIDC_SCOPES`, for the `oidc3` provider                                                                   | openid,profile,email |
+| OIDC_TRUST_EMAIL               | Set to `true` to trust the email and display name of the `oidc` provider when it sends an email without an `email_verified` claim and no username, as Cloudflare Access does. See [Auth providers](/run/backend-configuration/auth-providers#providers-that-do-not-send-email_verified) | false                |
+| OIDC2_TRUST_EMAIL              | Same as `OIDC_TRUST_EMAIL`, for the `oidc2` provider                                                              | false                |
+| OIDC3_TRUST_EMAIL              | Same as `OIDC_TRUST_EMAIL`, for the `oidc3` provider                                                              | false                |
 | REGION_ARCHIVE_CRON_SCHEDULE   | Valid cron expression (UTC). Sets when offline [region archives](/run/backend-configuration/region-catalogue) are rebuilt | 0 3 * * *             |
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
+| REGION_ARCHIVE_REBUILD_DAYS    | Age in days at which a region's vector archive is rebuilt from a newer Protomaps build                            | 7                     |
 
 Plugins are not configured through an environment variable. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
@@ -45,14 +54,41 @@ bundles and configuring self-hosted connector trust settings.
 | Environment Variable    | Description                                                                      | Default                             |
 | ----------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
-| BODY_SIZE_LIMIT         | Maximum allowed upload size                                                      | Infinity                            |
+| BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; K, M and G suffixes use powers of 1024, `Infinity` permits uploads of any size after sign-in | 2G                                  |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
+| POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must match the value set on the `db` service. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
 | PUBLIC_PRIVATE_INSTANCE | Setting this to true will block visitors from viewing content without an account | false                               |
 | PUBLIC_MAP_MAX_POLYLINES | Maximum number of polylines (route previews) to show simultaneously on the map, based on result density | 100 |
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
+
+### Visitor IP addresses
+
+These settings are provided by [SvelteKit adapter-node](https://svelte.dev/docs/kit/adapter-node#ADDRESS_HEADER-and-XFF_DEPTH).
+
+For a direct deployment, leave `ADDRESS_HEADER` unset. SvelteKit's Node adapter
+uses the connection's socket address, which the web service forwards to
+PocketBase. Behind a reverse proxy, configure these variables on the `web`
+service only when the proxy is controlled and direct access to the web service
+is blocked. The proxy must overwrite public forwarding headers with an
+authoritative address or a controlled proxy chain.
+
+| Environment Variable | Description | Default |
+| -------------------- | ----------- | ------- |
+| ADDRESS_HEADER | Trusted header used by adapter-node to resolve the client address, for example `X-Forwarded-For` | Unset (socket address) |
+| XFF_DEPTH | When `ADDRESS_HEADER=X-Forwarded-For`, number of trusted proxy hops, counted from the right of the header | 1 |
+
+For one controlled reverse proxy that overwrites `X-Forwarded-For` with the
+visitor's address, set `ADDRESS_HEADER=X-Forwarded-For` and `XFF_DEPTH=1`.
+For multiple proxies, match `XFF_DEPTH` to the trusted chain; do not trust an
+arbitrary leftmost address supplied by the visitor. Misconfiguration lets
+visitors forge the address used for rate limiting.
+
+Configure PocketBase's [User IP proxy headers](/run/backend-configuration#visitor-ip-addresses)
+and restrict access to the backend as described there. `POCKETBASE_PROXY_SECRET`
+protects federation delivery only and does not authenticate these IP headers.
 
 ## Map tiles & assets
 
@@ -97,3 +133,5 @@ services:
 
 Provider plugin connector CAs are configured per connector when a plugin
 supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.
+
+`BODY_SIZE_LIMIT` controls the adapter ceiling and multipart upload limit together. The sample Compose default is `2G`, enough for 99 default-sized photos and a GPX file in one request. When started through `server.js`, as in the provided image and `npm start`, the web server uses `2G` when the variable is unset; an invalid value logs a warning and also uses `2G`. `Infinity` permits uploads of any size by signed-in users, including in older Compose files. Increase this one variable when raising collection file limits, allowing space for multipart headers. Upload routes authenticate before reading or parsing the body. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB. Configure reverse-proxy request limits accordingly.

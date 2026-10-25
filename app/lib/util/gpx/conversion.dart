@@ -11,6 +11,7 @@ import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/theme/icons.dart';
+import 'package:wanderer/util/gpx/route_anchor_marks.dart';
 import 'package:wanderer/vendor/gpx/gpx_reader.dart';
 
 /// The single sanctioned parse entry point for any GPX this app did not
@@ -40,8 +41,14 @@ import 'package:wanderer/vendor/gpx/gpx_reader.dart';
 /// call site out of that tolerance: the two non-import sites previously did,
 /// which made a server-authored track fail to open (swallowed by a broad
 /// `catch`) and, once cached, permanently un-openable offline.
+///
+/// A web route export's `wanderer:anchor` marks are turned back into
+/// `trkseg` boundaries here, so every caller sees the legs the route was
+/// drawn with (see [splitTrackSegmentsAtAnchors]).
 Gpx parseGpxSafely(String xml) {
-  return GpxReader().fromString(xml);
+  final gpx = GpxReader().fromString(xml);
+  splitTrackSegmentsAtAnchors(gpx);
+  return gpx;
 }
 
 /// The Dart analogue of `parseElevation` (`gpx-metrics-computation.ts:15-24`).

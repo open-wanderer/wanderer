@@ -97,7 +97,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         return Scaffold(
           appBar: AppBar(
             leading: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
             ),
           ),
@@ -175,6 +175,9 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         trail != null &&
         trail.id.isNotEmpty &&
         ref.watch(downloadingTrailIdsProvider).contains(trail.id);
+    // The action bar is pinned to the screen edge, so it pads itself clear
+    // of the system navigation bar (edge-to-edge on Android 15+).
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     return Scaffold(
       extendBodyBehindAppBar: true,
       // Scoped to the notifier: only the AppBar rebuilds as the scroll fade
@@ -185,7 +188,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
           valueListenable: _appBarOpacity,
           builder: (context, opacity, _) => AppBar(
             leading: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
               style: IconButton.styleFrom(
                 backgroundColor: theme.colorScheme.surface.withValues(
@@ -219,7 +222,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
         children: [
           Positioned.fill(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 72),
+              padding: EdgeInsets.only(bottom: 72 + bottomInset),
               child: panel,
             ),
           ),
@@ -231,7 +234,7 @@ class _TrailDetailScreenState extends ConsumerState<TrailDetailScreen> {
               bottom: 0,
               child: Container(
                 color: theme.scaffoldBackgroundColor,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
                 child: Row(
                   children: isUnsynced
                       ? [

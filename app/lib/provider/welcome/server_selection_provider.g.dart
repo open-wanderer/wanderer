@@ -34,7 +34,7 @@ final class ServerSelectionNotifierProvider
 }
 
 String _$serverSelectionNotifierHash() =>
-    r'fed88e170f18eccdb25c076c038d896040d98fed';
+    r'c25b514f9c984625c36368fd623b688044114e51';
 
 abstract class _$ServerSelectionNotifier extends $AsyncNotifier<ServerState> {
   FutureOr<ServerState> build();

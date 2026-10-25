@@ -27,6 +27,11 @@ Official Docker images do not include provider plugins. Download plugin bundle
 archives from the GitHub release assets, extract them, and copy the extracted
 plugin directory into the mounted `./data/plugins` directory.
 
+To update a plugin, replace its entire installed bundle, including both
+`plugin.json` and `plugin.wasm`, then restart the backend. Check the plugin
+version on the Plugins settings page after restarting. Updating the Docker
+image alone does not replace installed bundles.
+
 There is no built-in plugin store. Community plugins can be installed the same
 way, but only install plugin bundles from sources you trust.
 

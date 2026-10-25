@@ -10,6 +10,9 @@
 
     let { title = $_("export"), onexport }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `export-modal-${uid}`;
+
     let modal: Modal;
 
     export function openModal() {
@@ -37,7 +40,7 @@
     }
 </script>
 
-<Modal id="export-modal" {title} size="md:min-w-sm" bind:this={modal}>
+<Modal id={modalId} {title} size="md:min-w-sm" bind:this={modal}>
     {#snippet content()}
         <div>
             <div class="mb-3">
@@ -49,23 +52,23 @@
             </div>
             <div class="mb-2">
                 <input
-                    id="include-photos-checkbox"
+                    id={`${modalId}-include-photos-checkbox`}
                     type="checkbox"
                     bind:checked={exportSettings.photos}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-photos-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-photos-checkbox`} class="ms-2 text-sm"
                     >{$_("photos")}</label
                 >
             </div>
             <div class="mb-2">
                 <input
-                    id="include-summit-log-checkbox"
+                    id={`${modalId}-include-summit-log-checkbox`}
                     type="checkbox"
                     bind:checked={exportSettings.summitLog}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                 />
-                <label for="include-summit-log-checkbox" class="ms-2 text-sm"
+                <label for={`${modalId}-include-summit-log-checkbox`} class="ms-2 text-sm"
                     >{$_("summit-book")}</label
                 >
             </div>

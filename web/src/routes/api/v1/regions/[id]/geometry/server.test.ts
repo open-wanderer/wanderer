@@ -6,7 +6,8 @@ import { GET } from './+server';
 function buildEvent(
   id = 'canada.alberta.south',
   record?: { path: string; polygon: object; bbox: number[] },
-  getFirstListItemImpl?: (filter: string) => Promise<unknown>
+  getFirstListItemImpl?: (filter: string) => Promise<unknown>,
+  authenticated = true
 ): RequestEvent {
   const filterMock = vi.fn(
     (expr: string, params: Record<string, unknown>) =>
@@ -30,6 +31,7 @@ function buildEvent(
       pb: {
         filter: filterMock,
         collection: collectionMock,
+        authStore: { record: authenticated ? { id: 'user' } : null },
       },
     },
     fetch: vi.fn(),
@@ -37,6 +39,15 @@ function buildEvent(
 }
 
 describe('GET /api/v1/regions/[id]/geometry', () => {
+  it('answers anonymous requests with 401 instead of the rule-hidden 404', async () => {
+    const event = buildEvent('monaco', { path: 'monaco', polygon: {}, bbox: [7.4, 43.7, 7.5, 43.8] }, undefined, false);
+
+    const response = await GET(event);
+
+    expect(response.status).toBe(401);
+    expect(event.locals.pb.collection).not.toHaveBeenCalled();
+  });
+
   it('returns 200 with { path, polygon, bbox } from the cached row', async () => {
     const record = {
       path: 'canada.alberta.south',

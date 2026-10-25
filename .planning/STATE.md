@@ -1,17 +1,20 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.8
-milestone_name: milestone
+current_phase: 39
+current_phase_name: unified-tile-model
 status: executing
-stopped_at: Completed 39-08-PLAN.md
-last_updated: "2026-09-10T06:24:24.328Z"
-last_activity: 2026-09-09 -- Phase 39 execution started
+stopped_at: Phase 40 context gathered
+last_updated: "2026-10-14T15:40:27.744Z"
+last_activity: 2026-10-05
+last_activity_desc: "Completed quick task 261005-pwz: Sync status banner on the trail detail screen"
+state_head: 2ffb6b401b9238669fd2d74d10582b39845fca63
 progress:
-  total_phases: 8
+  total_phases: 6
   completed_phases: 5
-  total_plans: 53
+  total_plans: 44
   completed_plans: 53
-  percent: 63
+milestone_name: milestone
 ---
 
 # Project State
@@ -28,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-08-07)
 Phase: 39 (unified-tile-model) — EXECUTING
 Plan: 9 of 9
 Status: Ready to execute
-Last activity: 2026-09-12 - Completed quick task 260912-m1i: Show current user position on elevation profile while navigating a track
+Last activity: 2026-10-14 - Completed quick task 261014-nqn: Namespace-based route anchors: web stores drawn routes as one marked segment (PR #1377), app mirrors it
 
 ## v1.8 Phases — SHIPPED 2026-08-07
 
@@ -475,6 +478,7 @@ Recent decisions affecting current work:
 - v1.7 ROADMAP.md created 2026-07-24: 4 phases (28-31) superseding the single-phase "Phase 28" draft sketched ahead of formal milestone scoping. See Decisions above for the phase-split rationale.
 - v1.8 ROADMAP.md created 2026-07-31: 4 phases (33-36), continuing numbering from Phase 32. See Decisions above for the phase-split and sequencing rationale.
 - Phase 37 added 2026-08-02 (unscheduled): Way Types & Surfaces Breakdown (mobile-first), promoted from `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`. **Deliberately NOT part of v1.8** — it is online-only trail enrichment sharing no requirement with REC-*/SYNC-*, so v1.8 remains 4 phases (33-36) and its progress counters are unchanged. Filed under a new "Unscheduled — after v1.8" section in ROADMAP.md; `/gsd-new-milestone` should claim it explicitly. **Blocked on Phase 36** by file overlap, not preference: `app/lib/models/trail.dart` (36-01 done, 36-07 pending — both sides regenerate freezed/g.dart), the `api/v1/trail` create/update handlers (36's SYNC-04 idempotency work), and `db/migrations/` against the same `trails` collection. Session-local research rescued to `.planning/phases/37-way-types-surfaces-breakdown-mobile-first/37-RESEARCH-SOURCE.md` before cleanup could reclaim it.
+- Phases 40–44 added 2026-10-06 (unscheduled): Image Pipeline Overhaul — 40 Photo Metadata Into the Database, 41 Upload-Time Image Variants, 42 Responsive Images on the Web, 43 Private Originals and Federated Variants, 44 App Image Variants. Promoted from `/gsd-explore` (`.planning/notes/image-pipeline-overhaul.md`) and spikes 001–003 (`.planning/spikes/`). Each phase is one PR layer of a single `gh stack` on `dev` (web + db work, unlike the app phases above); Phase 44 lands on the stack only once `feature/app` has merged into `dev`. Layer 0 stays a quick task (todo `2026-10-06-photo-location-reads-stripped-thumb`).
 
 ### Pending Todos
 
@@ -530,6 +534,13 @@ Recent decisions affecting current work:
 | 260809-vir | Region boundary map screen. New `GET /api/v1/regions/{path}/geometry` SvelteKit route reads the `region_geometry` PocketBase collection directly (`getFirstListItem` + `pb.filter` param binding, zod-validated path param) and returns `{path, polygon, bbox}`. It is deliberately NOT a proxy to the Go `/regions/{id}/geometry` route, which stays superuser-gated because it performs an outbound CoMaps fetch on cache miss (D-13) — this one is a pure cached-row read where a missing row is a 404, never a build trigger. Readable by any authenticated user via the `listRule`/`viewRule` opened in migration `1786307618_updated_region_geometry.go`. Client side: freezed `RegionGeometry` model, riverpod provider family keyed by region path, and a new full-screen `settings_offline_regions_map_screen.dart` reached from the map icon on each active region card (`/settings/region/map?path=…`, query param so the screen survives a deep link). The camera fits the region's bbox read from the **locally cached** `RegionEntity` — instant, no network wait — while the boundary polygon draws whenever the geometry resolves, through a single guarded `_maybeDrawPolygon` reached from both `onStyleLoaded` and the geometry listener so either resolution order renders. Paint values (`#1055c9` fill @ 0.18, same line @ width 2) are ported verbatim from the PocketBase admin region catalog (`regions_ext/regions_ui.html:1298-1300`) and are identical in light and dark. No loading UI by design: the map is up immediately and a fetch failure is a toast only, leaving the polygon undrawn. On-device verification still outstanding | 2026-08-09 | 8d964b91,9d05c543,59fa5370 | Needs Review | [260809-vir-…](./quick/260809-vir-region-geometry-map-screen/) |
 | 260906-uwx | Tune tracelet's position filters to stop the stationary GPS jitter a tester reported (a starburst of criss-crossing segments over one Leipzig block while standing still, against clean komoot/third-app tracks of the same walk). The app was disabling and under-tuning filtering tracelet already provides: `_foregroundConfig()` overrode the `Config.highAccuracy()` preset's own 5 m `distanceFilter` with 0.0, so every multipath-perturbed fix was recorded; `GeoConfig.filter` was never configured at all, leaving `trackingAccuracyThreshold` at 100 m and `maxImpliedSpeed` at 80 m/s (288 km/h) — vehicle-scale defaults no pedestrian spike can breach — under `policy: adjust`, which *corrects and records* a breaching fix rather than dropping it. The two profiles also filtered asymmetrically: `Config.highAccuracy()` enables the Kalman filter and `Config.balanced()` disables it, so a screen-off (backgrounded) recording lost GPS smoothing entirely. Fix is one shared `LocationFilter` constant — 30 m accuracy ceiling, 15 m/s implied speed, `policy: ignore`, Kalman + mock rejection on — applied to **both** profiles specifically so they cannot drift apart again. Foreground `distanceFilter` set to 3.0, deliberately below the preset's 5.0 to limit switchback chord-shortcutting, and `enableDeadReckoning` switched off: the preset turns it on with a 0 s activation delay, so handheld IMU estimation engages exactly in the street-canyon case where it drifts. Accuracy ceiling is 30 m not 25 because most recording is expected outdoors in non-urban terrain, where canopy and gorges routinely report 15–25 m. Acquisition-time SDK settings only — the CONV-05 distance smoothing and the load-bearing elevation `thresholdXY_m` / `GpxMetricsComputation(5, 5)` filter are measurement-time gates over an accumulated track and are untouched; elevation output unchanged. `flutter analyze` clean on the changed file, `flutter test` 1124 passed. **Not verified on device — field test required**, and nothing in the Dart suite exercises native acquisition settings. Known residual risk: multipath spikes often report optimistic accuracy, so `maxImpliedSpeed` is the load-bearing gate, not the accuracy ceiling; `distanceFilter: 3.0` is an unvalidated guess without raw GPX; dropouts now leave gaps rather than IMU estimates. Diagnosis in `.planning/debug/recording-gps-jitter-still.md` | 2026-09-06 | 14ee779f | Needs Review | [260906-uwx-…](./quick/260906-uwx-tune-tracelet-position-filters-to-stop-s/) |
 | 260912-m1i | Show the user's current position on the elevation profile while navigating a track (new `TrackPositionMatcher` over the raw GPX polyline, opt-in `livePositionMeters` marker on `ElevationProfile`, wired into `NavigationScreen` from the same fix as the map marker). Not verified on device. | 2026-09-12 | aafe3544,957abe8f,60245b83 | Needs Review | [260912-m1i-…](./quick/260912-m1i-show-current-user-position-on-elevation/) |
+| 260926-ijp | Persist a "Last used" section (max 2, most recent first, deduped by normalized URL) in the instance picker, between the URL field and the remote list; recorded on successful password/OAuth login (register covered via login), stored in `LocalSettingsEntity.recentServersJson` so it survives logout. Also makes `setSelectedServer` tolerant of an unloaded servers.json and fixes the `s.name!` crash on nameless entries. Not verified on device. | 2026-09-26 | 81923e64..e59f35e5 | Needs Review | [260926-ijp-…](./quick/260926-ijp-persist-successful-custom-server-urls-to/) |
+| 260929-n4d | Empty state for profile feeds with zero items in the app's `_FeedSection` (was `SizedBox.shrink()`): other profiles show "{username} has no activity yet.", own profile shows "You have no activity yet." plus a New Trail button. Never shown while loading or on error. New keys in all 14 ARB locales; 5 widget tests. `flutter test` 1186 passed. Not verified on device. | 2026-09-29 | e846aa47,59692beb | Needs Review | [260929-n4d-…](./quick/260929-n4d-add-an-empty-state-for-profiles-without-/) |
+| 260930-s3w | Cursor-based paging for remote follower/following lists: backend returns the remote `next` link and accepts it back as a strictly validated `cursor` (same scheme/host/path, else 400), so each page costs one remote request instead of re-walking from the root (k(k+3)/2 → k for k pages). Legacy `?page=N` walk kept for old clients. Backend + web on `fix/federation-cursor-paging` (off dev), app on `feature/app`. Go/svelte-check/flutter test green; not verified live. | 2026-09-30 | 9361ee36,1303a41e (fix/federation-cursor-paging), eeac540a (feature/app) | Needs Review | [260930-s3w-…](./quick/260930-s3w-cursor-based-paging-for-remote-follower-/) |
+| 261005-grz | Persist ended recordings as local drafts: new `draft` TrailSyncState (appended, index 4) excluded from the upload drain and manual retry; ending a recording writes the draft row before clearing the active-nav session (and stops the persist timer); edit-form save promotes draft → pending on the same row; "Draft" chip. Fixes recordings lost when the OS kills the app before Save. CTA/"Upload as is" deferred to round 2. flutter test green except pre-existing settings_screen_test; not verified on device. | 2026-10-05 | c2ca3503d,a8a8ccde6,7f435bce4 (l10n key landed in 741fb36b2) | Needs Review | [261005-grz-…](./quick/261005-grz-persist-ended-recordings-as-local-drafts/) |
+| 261005-pwz | Sync status section on the trail detail screen (round 2 of recording drafts): shared per-state colors for chip + section (amber draft, red failed, neutral pending/uploading); section below the stat chips replaces the detail-screen chip — draft: Upload / Discard (confirm), pending: Upload now (retry, online only), uploading: spinner, failed: Retry. Owner-scoped promoteDraftToPending + discardDraft. DESIGN.md note on disk only (file is gitignored). flutter test green except pre-existing settings_screen_test; not verified on device. | 2026-10-05 | 341f40830,17b8abd65,25ee4dce4,c29f4114d | Needs Review | [261005-pwz-…](./quick/261005-pwz-sync-status-banner-on-the-trail-detail-s/) |
+| 261005-kif | Android: trust user-installed CA certificates in dart:io (#1255). MainActivity method channel returns `user:` certs from AndroidCAStore; main() adds them to SecurityContext.defaultContext before any HTTP client. Read at launch only. 15 new tests green; Kotlin not compiled, not verified on device. | 2026-10-05 | e582380fd,3cf73e73d | Needs Review | [261005-kif-…](./quick/261005-kif-android-trust-user-installed-ca-certific/) |
+| 261014-nqn | Namespace-based route anchors: web stores drawn routes as one marked segment (PR #1377), app mirrors it | 2026-10-14 | 2ffb6b401 | — | [261014-nqn-namespace-based-route-anchors-web-save-t](./quick/261014-nqn-namespace-based-route-anchors-web-save-t/) |
 
 ## Deferred Items
 
@@ -625,9 +636,9 @@ Items acknowledged and deferred at v1.5 milestone close on 2026-07-24 (recorded 
 
 ## Session Continuity
 
-Last session: 2026-09-09T22:21:57.761Z
-Stopped at: Completed 39-08-PLAN.md
-Resume file: None
+Last session: 2026-10-06T10:40:31.069Z
+Stopped at: Phase 40 context gathered
+Resume file: .planning/phases/40-photo-metadata-into-the-database/40-CONTEXT.md
 
 ## Operator Next Steps
 

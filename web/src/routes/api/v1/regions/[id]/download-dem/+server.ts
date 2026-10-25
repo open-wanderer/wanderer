@@ -1,13 +1,7 @@
+import { RegionIdSchema } from '$lib/models/api/region_schema';
+import { proxyRegionArchive } from '$lib/server/region_archive';
 import { handleError } from '$lib/util/api_util';
 import { type RequestEvent } from '@sveltejs/kit';
-import { z } from 'zod';
-
-const RegionIdSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[a-z0-9][a-z0-9_.'-]*$/, 'Invalid region id')
-    .refine((v) => !v.includes('..'), 'Invalid region id'),
-});
 
 /**
  * @swagger
@@ -28,65 +22,86 @@ const RegionIdSchema = z.object({
  *         required: true
  *         schema:
  *           type: string
- *         description: Region id
+ *         description: Region id (the region's materialized path)
+ *       - in: header
+ *         name: Range
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Byte range to resume a download, e.g. `bytes=1048576-`
+ *       - in: header
+ *         name: If-Range
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: >
+ *           ETag from the interrupted download. If the archive was rebuilt in the
+ *           meantime, the whole new file is returned with 200 instead of a 206.
+ *       - in: header
+ *         name: If-None-Match
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: ETag of a copy the client already has
  *     responses:
  *       200:
- *         description: The DEM .pmtiles file as a binary stream
+ *         description: The whole dem .pmtiles file as a binary stream, with ETag and Last-Modified
  *         content:
  *           application/octet-stream:
  *             schema:
  *               type: string
  *               format: binary
+ *       206:
+ *         description: The requested byte range, with Content-Range
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       304:
+ *         description: The archive matches the ETag sent in If-None-Match
  *       400:
  *         description: Invalid region id
  *       401:
  *         description: Unauthorized
  *       404:
  *         description: Region DEM archive not ready yet
+ *       416:
+ *         description: The requested range is outside the archive
  *       500:
  *         description: Internal Server Error
+ *       504:
+ *         description: The backend did not respond
+ *   head:
+ *     summary: Check a region's DEM (terrain) archive without downloading it
+ *     tags:
+ *       - Regions
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: The archive exists; Content-Length, ETag and Last-Modified describe it
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Region DEM archive not ready yet
  */
 export async function GET(event: RequestEvent) {
+  return proxy(event, 'GET');
+}
+
+export async function HEAD(event: RequestEvent) {
+  return proxy(event, 'HEAD');
+}
+
+async function proxy(event: RequestEvent, method: 'GET' | 'HEAD') {
   try {
     const { id } = RegionIdSchema.parse(event.params);
-    const range = event.request.headers.get('Range');
-
-    const response = await event.fetch(
-      `${event.locals.pb.baseURL}/regions/${id}/download-dem`,
-      {
-        headers: {
-          Authorization: event.locals.pb.authStore.token
-            ? `Bearer ${event.locals.pb.authStore.token}`
-            : '',
-          ...(range ? { Range: range } : {}),
-        },
-      }
-    );
-
-    if (!response.ok) {
-      return new Response(response.body, { status: response.status });
-    }
-
-    return new Response(response.body, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${id}-dem.pmtiles"`,
-        // Forward Content-Length if present so the client can show download progress
-        ...(response.headers.get('Content-Length')
-          ? { 'Content-Length': response.headers.get('Content-Length')! }
-          : {}),
-        // Forward Content-Range/Accept-Ranges so a resumed (Range) request's
-        // 206 Partial Content response carries the byte-offset info the
-        // client needs to append correctly
-        ...(response.headers.get('Content-Range')
-          ? { 'Content-Range': response.headers.get('Content-Range')! }
-          : {}),
-        ...(response.headers.get('Accept-Ranges')
-          ? { 'Accept-Ranges': response.headers.get('Accept-Ranges')! }
-          : {}),
-      },
-    });
+    return await proxyRegionArchive(event, `/regions/${id}/download-dem`, `${id}-dem.pmtiles`, method);
   } catch (e) {
     return handleError(e);
   }

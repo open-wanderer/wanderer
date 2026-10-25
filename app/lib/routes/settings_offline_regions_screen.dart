@@ -206,7 +206,7 @@ class _SettingsOfflineRegionsScreenState
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const BackButtonIcon(),
           onPressed: () => context.pop(),
         ),
         title: WandererSearchBar(

@@ -31,6 +31,9 @@
 
     let { trail, onsave }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `share-modal-${uid}`;
+
     let modal: Modal;
 
     let displayShareError = $state(false);
@@ -135,7 +138,7 @@
 </script>
 
 <Modal
-    id="share-modal"
+    id={modalId}
     title={$_("share-this-trail")}
     size="md:min-w-sm overflow-visible"
     bind:this={modal}
@@ -204,7 +207,7 @@
 
             <h4 class="font-semibold mt-4 mb-2">{$_("public-access")}</h4>
             <RadioGroup
-                name="account"
+                name={`${modalId}-public-access`}
                 items={publicShareItems}
                 selected={$linkShares.length == 0 ? 0 : 1}
                 onchange={handlePublicAccessChange}

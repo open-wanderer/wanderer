@@ -1154,7 +1154,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           leading: IconButton(
-            icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+            icon: const BackButtonIcon(),
             onPressed: () => _hasUnsavedChanges
                 ? _confirmDiscard(context)
                 : (context.canPop()
@@ -1235,10 +1235,16 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                     top: 40,
                   ),
                   controls: [
-                    const WandererMapCompass(
+                    WandererMapCompass(
                       hideIfRotatedNorth: true,
 
-                      padding: EdgeInsets.only(top: 112, right: 4),
+                      padding: EdgeInsets.only(
+                        top:
+                            MediaQuery.paddingOf(context).top +
+                            kToolbarHeight +
+                            8,
+                        right: 4,
+                      ),
                     ),
                   ],
                   onMapCreated: (controller) => _mapController = controller,

@@ -164,7 +164,7 @@ func PluginSystemOAuthCallback(e *core.RequestEvent) error {
 	}
 	pluginsystem.StoreOAuthToken(auth, contextName, token)
 	for _, field := range pluginsystem.InternalOAuthTransientFields() {
-		delete(auth, field)
+		auth[field] = nil
 	}
 
 	instance.Set("auth", auth)

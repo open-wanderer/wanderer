@@ -9,7 +9,11 @@ import 'package:wanderer/store/local_trail_store.dart';
 // There is no ObjectBox test harness for plain
 // `flutter test`, so every Store-touching function here is covered only at
 // source level (see the plan's grep-based acceptance criteria) or verified
-// on-device.
+// on-device. The one exception is persistDraftThenClearSession: it is
+// Store-free by design, so its write-then-clear ordering is covered
+// behaviourally with fakes. promoteDraftToPending and isOwnDraftRow are
+// covered at source level (test/store/local_trail_draft_gate_test.dart) and
+// their decision, isOwnDraft, behaviourally.
 // ---------------------------------------------------------------------------
 
 void main() {
@@ -124,6 +128,29 @@ void main() {
     test('returns false when multiple accounts hold the trail in their '
         'offline library', () {
       expect(shouldDeleteUploadedRow(const ['user-a', 'user-b']), isFalse);
+    });
+  });
+
+  group('resolveLocalSaveModeForRow (draft)', () {
+    final draft = Trail.empty().copyWith(
+      id: '',
+      localId: 'local-1-0',
+      syncState: TrailSyncState.draft,
+    );
+
+    test('routes a persisted draft row to updateLocal, never createLocal', () {
+      expect(
+        resolveLocalSaveModeForRow(
+          screenTrail: draft,
+          persistedLocalId: 'local-1-0',
+          persisted: draft,
+        ),
+        LocalSaveMode.updateLocal,
+      );
+    });
+
+    test('resolveLocalSaveMode on a draft trail is updateLocal', () {
+      expect(resolveLocalSaveMode(draft), LocalSaveMode.updateLocal);
     });
   });
 
@@ -418,6 +445,94 @@ void main() {
     });
   });
 
+  group('TrailSyncState ordering', () {
+    test('draft is appended last; synced stays at index 0', () {
+      expect(TrailSyncState.draft.index, 4);
+      expect(TrailSyncState.synced.index, 0);
+      expect(TrailSyncState.values.last, TrailSyncState.draft);
+    });
+
+    test('a draft counts as unsynced', () {
+      expect(isUnsyncedState(TrailSyncState.draft), isTrue);
+    });
+  });
+
+  group('syncStateAfterLocalEdit', () {
+    test('promotes draft to pending', () {
+      expect(
+        syncStateAfterLocalEdit(TrailSyncState.draft),
+        TrailSyncState.pending,
+      );
+    });
+
+    test('carries every other state forward unchanged', () {
+      for (final state in [
+        TrailSyncState.synced,
+        TrailSyncState.pending,
+        TrailSyncState.uploading,
+        TrailSyncState.failed,
+      ]) {
+        expect(syncStateAfterLocalEdit(state), state);
+      }
+    });
+  });
+
+  group('persistDraftThenClearSession', () {
+    test('calls writeDraft then clearSession and returns the localId', () {
+      final log = <String>[];
+
+      final localId = persistDraftThenClearSession(
+        writeDraft: () {
+          log.add('write');
+          return 'local-9-0';
+        },
+        clearSession: () => log.add('clear'),
+      );
+
+      expect(log, ['write', 'clear']);
+      expect(localId, 'local-9-0');
+    });
+
+    test('the draft survives a simulated restart and the session is gone', () {
+      final durable = <String, TrailSyncState>{};
+      var activeNavRowPresent = true;
+
+      final localId = persistDraftThenClearSession(
+        writeDraft: () {
+          durable['local-9-0'] = TrailSyncState.draft;
+          return 'local-9-0';
+        },
+        clearSession: () => activeNavRowPresent = false,
+      );
+
+      // A fresh process reads only what was durably stored.
+      final afterRestart = Map<String, TrailSyncState>.of(durable);
+      expect(afterRestart[localId], TrailSyncState.draft);
+      expect(activeNavRowPresent, isFalse);
+    });
+
+    test('a throwing writeDraft rethrows and never clears the session', () {
+      final durable = <String, TrailSyncState>{};
+      var activeNavRowPresent = true;
+      var clearCalled = false;
+
+      expect(
+        () => persistDraftThenClearSession(
+          writeDraft: () => throw StateError('disk full'),
+          clearSession: () {
+            clearCalled = true;
+            activeNavRowPresent = false;
+          },
+        ),
+        throwsStateError,
+      );
+
+      expect(clearCalled, isFalse);
+      expect(activeNavRowPresent, isTrue);
+      expect(durable, isEmpty);
+    });
+  });
+
   group('isDrainDue', () {
     TrailEntity buildEntity({
       required TrailSyncState syncState,
@@ -460,6 +575,13 @@ void main() {
 
     test('is false for a synced row', () {
       final entity = buildEntity(syncState: TrailSyncState.synced);
+
+      expect(isDrainDue(entity, DateTime.now()), isFalse);
+    });
+
+    test('is false for a draft row even with a null syncNextAttemptAt -- a '
+        'draft must never upload before the user saves the form', () {
+      final entity = buildEntity(syncState: TrailSyncState.draft);
 
       expect(isDrainDue(entity, DateTime.now()), isFalse);
     });
@@ -615,6 +737,54 @@ void main() {
       );
 
       expect(isLiveCaptureRow(entity), isFalse);
+    });
+  });
+
+  group('isOwnDraft', () {
+    TrailEntity buildEntity({
+      String? owner,
+      required TrailSyncState syncState,
+    }) {
+      return TrailEntity(
+        id: 'server-id',
+        name: 'Test Trail',
+        created: DateTime(2026, 1, 1),
+        updated: DateTime(2026, 1, 1),
+        owner: owner,
+        localId: 'local-1-0',
+        syncState: syncState,
+      );
+    }
+
+    test('is false for a null entity', () {
+      expect(isOwnDraft(null, accountId: 'a'), isFalse);
+    });
+
+    test("is true for the account's own draft", () {
+      final entity = buildEntity(owner: 'a', syncState: TrailSyncState.draft);
+      expect(isOwnDraft(entity, accountId: 'a'), isTrue);
+    });
+
+    for (final state in [
+      TrailSyncState.pending,
+      TrailSyncState.uploading,
+      TrailSyncState.failed,
+      TrailSyncState.synced,
+    ]) {
+      test('is false for an own ${state.name} row', () {
+        final entity = buildEntity(owner: 'a', syncState: state);
+        expect(isOwnDraft(entity, accountId: 'a'), isFalse);
+      });
+    }
+
+    test("is false for another account's draft", () {
+      final entity = buildEntity(owner: 'b', syncState: TrailSyncState.draft);
+      expect(isOwnDraft(entity, accountId: 'a'), isFalse);
+    });
+
+    test('is false for an owner-less draft', () {
+      final entity = buildEntity(owner: null, syncState: TrailSyncState.draft);
+      expect(isOwnDraft(entity, accountId: 'a'), isFalse);
     });
   });
 }

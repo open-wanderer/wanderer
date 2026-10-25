@@ -1,8 +1,11 @@
 package regions
 
 import (
+	"net"
+	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNeedsVectorRebuild(t *testing.T) {
@@ -10,19 +13,68 @@ func TestNeedsVectorRebuild(t *testing.T) {
 		name       string
 		storedDate string
 		currDate   string
+		maxAgeDays int
 		want       bool
 	}{
-		{"date advanced -> stale", "20260720", "20260721", true},
-		{"same date -> fresh", "20260721", "20260721", false},
-		{"never built (empty stored date) -> must build", "", "20260721", true},
+		{"one day newer -> still fresh", "20260720", "20260721", 7, false},
+		{"six days newer -> still fresh", "20260715", "20260721", 7, false},
+		{"seven days newer -> stale", "20260714", "20260721", 7, true},
+		{"across a month boundary", "20260628", "20260705", 7, true},
+		{"daily rebuilds when configured", "20260720", "20260721", 1, true},
+		{"same date -> fresh", "20260721", "20260721", 1, false},
+		{"never built (empty stored date) -> must build", "", "20260721", 7, true},
+		{"unreadable stored date -> must build", "2026-07-21", "20260721", 7, true},
+		{"unreadable current date -> keep", "20260701", "", 7, false},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := needsVectorRebuild(c.storedDate, c.currDate); got != c.want {
-				t.Errorf("needsVectorRebuild(%q, %q) = %v, want %v", c.storedDate, c.currDate, got, c.want)
+			if got := needsVectorRebuild(c.storedDate, c.currDate, c.maxAgeDays); got != c.want {
+				t.Errorf("needsVectorRebuild(%q, %q, %d) = %v, want %v", c.storedDate, c.currDate, c.maxAgeDays, got, c.want)
 			}
 		})
+	}
+}
+
+func TestRebuildDays(t *testing.T) {
+	for value, want := range map[string]int{"": 7, "14": 14, "1": 1, "0": 7, "-3": 7, "weekly": 7} {
+		t.Setenv("REGION_ARCHIVE_REBUILD_DAYS", value)
+		if got := rebuildDays(); got != want {
+			t.Errorf("rebuildDays() with %q = %d, want %d", value, got, want)
+		}
+	}
+}
+
+func TestURLExistsGivesUpOnAHungServer(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			// Accept and never answer.
+			defer conn.Close()
+		}
+	}()
+
+	previous := protomapsHTTPClient
+	protomapsHTTPClient = &http.Client{Timeout: 200 * time.Millisecond}
+	defer func() { protomapsHTTPClient = previous }()
+
+	done := make(chan bool, 1)
+	go func() { done <- urlExists("http://" + listener.Addr().String() + "/20260721.pmtiles") }()
+	select {
+	case exists := <-done:
+		if exists {
+			t.Fatal("urlExists = true for a server that never answers")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("urlExists did not return for a server that never answers")
 	}
 }
 

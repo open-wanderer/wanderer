@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/server_instance.dart';
+import 'package:wanderer/provider/welcome/recent_servers_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 import 'package:wanderer/routes/server_selection_screen.dart';
+import 'package:wanderer/util/recent_servers.dart';
 
 /// Serves a selection without touching the network — the real notifier fetches
 /// wanderer.to/server/servers.json in `build()`. An empty instance list keeps
@@ -20,15 +24,44 @@ class _StubServerSelection extends ServerSelectionNotifier {
   Future<ServerState> build() async => ServerState(available, selected);
 }
 
+/// A servers.json fetch that never settles — used to prove the "Last used"
+/// section renders alongside the loading spinner, not only once data arrives.
+class _PendingServerSelection extends ServerSelectionNotifier {
+  @override
+  Future<ServerState> build() {
+    return Completer<ServerState>().future;
+  }
+}
+
+/// Keeps the recent list in memory instead of ObjectBox, so the remove button
+/// can be exercised end to end.
+class _StubRecentServers extends RecentServersNotifier {
+  _StubRecentServers(this.initial);
+
+  final List<ServerInstance> initial;
+
+  @override
+  List<ServerInstance> build() => initial;
+
+  @override
+  void remove(ServerInstance server) {
+    state = removeRecentServer(state, server);
+  }
+}
+
 Widget _harness(
   ServerInstance? selected, {
   List<ServerInstance> available = const [],
+  List<ServerInstance> recent = const [],
+  ServerSelectionNotifier Function()? serverSelectionOverride,
 }) {
   return ProviderScope(
     overrides: [
       serverSelectionProvider.overrideWith(
-        () => _StubServerSelection(selected, available),
+        serverSelectionOverride ??
+            () => _StubServerSelection(selected, available),
       ),
+      recentServersProvider.overrideWith(() => _StubRecentServers(recent)),
     ],
     child: const MaterialApp(
       localizationsDelegates: [
@@ -83,4 +116,103 @@ void main() {
     // is the branch offering the custom-URL button.
     expect(find.textContaining('No servers match'), findsOneWidget);
   });
+
+  testWidgets('with no recorded servers, no Last used text is rendered', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_harness(null));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last used'), findsNothing);
+    expect(find.text('Community instances'), findsNothing);
+  });
+
+  testWidgets(
+    'renders a Last used header and tiles for recorded servers, nameless-safe',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          null,
+          recent: const [
+            ServerInstance(url: 'https://self.hosted.example'),
+            ServerInstance(name: 'Wanderer', url: 'https://wanderer.to'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Last used'), findsOneWidget);
+      expect(find.text('Community instances'), findsOneWidget);
+      expect(find.text('self.hosted.example'), findsOneWidget);
+      expect(find.text('Wanderer'), findsOneWidget);
+    },
+  );
+
+  testWidgets('the X button removes a Last used entry, and only there', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(
+        null,
+        available: const [ServerInstance(url: 'https://remote.example')],
+        recent: const [
+          ServerInstance(url: 'https://self.hosted.example'),
+          ServerInstance(url: 'https://other.example'),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // One per Last used tile; the remote list gets none.
+    expect(find.byTooltip('Remove'), findsNWidgets(2));
+
+    await tester.tap(find.byTooltip('Remove').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('self.hosted.example'), findsNothing);
+    expect(find.text('other.example'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Remove'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last used'), findsNothing);
+    expect(find.byTooltip('Remove'), findsNothing);
+  });
+
+  testWidgets(
+    'Last used renders alongside the spinner while servers.json is loading',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          null,
+          recent: const [ServerInstance(url: 'https://self.hosted.example')],
+          serverSelectionOverride: _PendingServerSelection.new,
+        ),
+      );
+      // The stub notifier never completes, so pumpAndSettle would hang.
+      await tester.pump();
+
+      expect(find.text('Last used'), findsOneWidget);
+      expect(find.text('self.hosted.example'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a nameless entry in the remote list renders without a null-bang crash',
+    (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          null,
+          available: const [
+            ServerInstance(url: 'https://nameless.example'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('nameless.example'), findsOneWidget);
+    },
+  );
 }

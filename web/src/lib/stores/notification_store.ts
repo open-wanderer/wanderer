@@ -6,7 +6,7 @@ let notifications: Notification[] = [];
 
 export async function notifications_index(data: { recipient: string, seen?: boolean }, page: number = 1, perPage: number = 10, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/notification?' + new URLSearchParams({
-        filter: `created<=@month&&recipient='${data.recipient}'` + (data.seen !== undefined ? `&&seen=${data.seen}` : ''),
+        filter: `recipient='${data.recipient}'` + (data.seen !== undefined ? `&&seen=${data.seen}` : ''),
         sort: '+seen,-created',
         expand: 'author',
         page: page.toString(),

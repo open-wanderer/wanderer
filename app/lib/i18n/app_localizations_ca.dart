@@ -12,6 +12,32 @@ class AppLocalizationsCa extends AppLocalizations {
   String get about => 'Quant a';
 
   @override
+  String get about_changelog => 'Novetats';
+
+  @override
+  String get about_discord_subtitle => 'Xateja amb la comunitat';
+
+  @override
+  String get about_github_subtitle => 'Codi font, incidències i contribucions';
+
+  @override
+  String get about_license => 'Llicència';
+
+  @override
+  String get about_licenses => 'Llicències de codi obert';
+
+  @override
+  String get about_privacy_policy => 'Política de privadesa';
+
+  @override
+  String get about_report_bug => 'Informa d\'un error';
+
+  @override
+  String about_version(String version) {
+    return 'Versió $version';
+  }
+
+  @override
   String get appearance => 'Aparença';
 
   @override
@@ -708,10 +734,52 @@ class AppLocalizationsCa extends AppLocalizations {
   String get summit_book => 'Llibre de cims';
 
   @override
+  String get sync_discard_draft_confirm =>
+      'Voleu eliminar aquest enregistrament? No s\'ha pujat enlloc.';
+
+  @override
+  String get sync_draft => 'Esborrany';
+
+  @override
   String get sync_failed => 'La pujada ha fallat · Toca per tornar-ho a provar';
 
   @override
   String get sync_pending => 'Pendent de pujar';
+
+  @override
+  String get sync_section_failed_body =>
+      'La pujada no s\'ha completat. Torna-ho a provar.';
+
+  @override
+  String get sync_section_pending_online_body =>
+      'Es pujarà automàticament d\'aquí a un moment.';
+
+  @override
+  String get sync_section_uploading_body =>
+      'S\'està enviant aquest sender al teu servidor.';
+
+  @override
+  String get sync_section_draft_body =>
+      'Aquest enregistrament només és en aquest dispositiu.';
+
+  @override
+  String get sync_section_draft_title => 'Encara no s\'ha pujat';
+
+  @override
+  String get sync_section_failed_title => 'La pujada ha fallat';
+
+  @override
+  String get sync_section_pending_offline_body =>
+      'Es pujarà quan tornis a estar en línia';
+
+  @override
+  String get sync_section_retry => 'Torna-ho a provar';
+
+  @override
+  String get sync_section_upload => 'Puja';
+
+  @override
+  String get sync_section_upload_now => 'Puja-ho ara';
 
   @override
   String get sync_uploading => 'S\'està pujant…';
@@ -793,6 +861,21 @@ class AppLocalizationsCa extends AppLocalizations {
   @override
   String get wrong_username_or_password =>
       'Nom d\'usuari o contrasenya incorrectes';
+
+  @override
+  String get server_incompatible_title => 'Servidor no compatible';
+
+  @override
+  String get server_incompatible =>
+      'Aquest servidor executa una versió de wanderer que l\'aplicació no admet. Iniciar sessió serà possible un cop s\'actualitzi.';
+
+  @override
+  String server_incompatible_version(String version) {
+    return 'Versió del servidor: $version';
+  }
+
+  @override
+  String get server_incompatible_docs => 'Com actualitzar el servidor';
 
   @override
   String get you_have_arrived => 'Has arribat';
@@ -917,6 +1000,14 @@ class AppLocalizationsCa extends AppLocalizations {
   String get feed => 'Canal';
 
   @override
+  String get profile_feed_empty_own => 'Encara no tens cap activitat.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username encara no té cap activitat.';
+  }
+
+  @override
   String get no_trails_yet => 'Encara no hi ha senders.';
 
   @override
@@ -947,6 +1038,12 @@ class AppLocalizationsCa extends AppLocalizations {
   @override
   String get enter_server_url_hint =>
       'Introdueix l\'URL del servidor (p. ex. wanderer.to)';
+
+  @override
+  String get last_used => 'Últim ús';
+
+  @override
+  String get community_instances => 'Instàncies de la comunitat';
 
   @override
   String get search_library => 'Cerca a la biblioteca…';

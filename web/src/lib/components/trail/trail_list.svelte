@@ -32,11 +32,11 @@
     let {
         filter = $bindable(null),
         trails = $bindable([]),
-        pagination = {
+        pagination = $bindable({
             page: 1,
             totalPages: 1,
             items: 25,
-        },
+        }),
         loading = false,
         fullWidthCards = false,
         onupdate,
@@ -74,6 +74,20 @@
         ondisplaychange?.(selectedDisplayOption);
     }
 
+    function roundItems(items: number, display: string): number {
+        const cards = display === "cards";
+        if (items > 50) {
+            return cards ? 96 : 100;
+        }
+        if (items > 25) {
+            return cards ? 48 : 50;
+        }
+        if (items > 12) {
+            return cards ? 24 : 25;
+        }
+        return cards ? 12 : 10;
+    }
+
     const sortOptions: SelectItem[] = [
         { text: $_("name"), value: "name" },
         { text: $_("distance"), value: "distance" },
@@ -105,45 +119,8 @@
                 filter.sortOrder;
         }
         if (paginationItems) {
-            pagination.items = +paginationItems;
-
-            let itemsChanged = false;
-            if (selectedDisplayOption == "cards") {
-                if (pagination.items > 50) {
-                    pagination.items = 96;
-                    itemsChanged = true;
-                } else if (pagination.items > 25) {
-                    pagination.items = 48;
-                    itemsChanged = true;
-                } else if (pagination.items > 12) {
-                    pagination.items = 24;
-                    itemsChanged = true;
-                } else {
-                    pagination.items = 12;
-                    itemsChanged = true;
-                }
-            } else {
-                if (pagination.items > 50) {
-                    pagination.items = 100;
-                    itemsChanged = true;
-                } else if (pagination.items > 25) {
-                    pagination.items = 50;
-                    itemsChanged = true;
-                } else if (pagination.items > 12) {
-                    pagination.items = 25;
-                    itemsChanged = true;
-                } else {
-                    pagination.items = 10;
-                    itemsChanged = true;
-                }
-            }
-
-            if (itemsChanged) {
-                localStorage.setItem(
-                    "paginationItems",
-                    pagination.items.toString(),
-                );
-            }
+            pagination.items = roundItems(+paginationItems, selectedDisplayOption);
+            localStorage.setItem("paginationItems", pagination.items.toString());
         }
         onupdate?.(filter, selection);
         notifyDisplayChange();
@@ -152,42 +129,11 @@
     function setDisplayOption() {
         localStorage.setItem("displayOption", selectedDisplayOption);
 
-        let itemsChanged = false;
-        if (selectedDisplayOption == "cards") {
-            if (pagination.items > 50) {
-                pagination.items = 96;
-                itemsChanged = true;
-            } else if (pagination.items > 25) {
-                pagination.items = 48;
-                itemsChanged = true;
-            } else if (pagination.items > 12) {
-                pagination.items = 24;
-                itemsChanged = true;
-            } else {
-                pagination.items = 12;
-                itemsChanged = true;
-            }
-        } else {
-            if (pagination.items > 50) {
-                pagination.items = 100;
-                itemsChanged = true;
-            } else if (pagination.items > 25) {
-                pagination.items = 50;
-                itemsChanged = true;
-            } else if (pagination.items > 12) {
-                pagination.items = 25;
-                itemsChanged = true;
-            } else {
-                pagination.items = 10;
-                itemsChanged = true;
-            }
-        }
+        const previousItems = pagination.items;
+        pagination.items = roundItems(previousItems, selectedDisplayOption);
 
-        if (itemsChanged) {
-            localStorage.setItem(
-                "paginationItems",
-                pagination.items.toString(),
-            );
+        if (pagination.items !== previousItems) {
+            setItemsPerPage();
         }
         notifyDisplayChange();
     }

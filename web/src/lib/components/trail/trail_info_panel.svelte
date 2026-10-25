@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import Tabs from "$lib/components/base/tabs.svelte";
@@ -73,6 +74,7 @@
     import Combobox, { type ComboboxItem } from "../base/combobox.svelte";
     import { tags_index } from "$lib/stores/tag_store";
     import { withShareToken } from "$lib/util/url_util";
+    import { normalizeNewTagName } from "$lib/util/tag_name";
 
     interface Props {
         initTrail: Trail;
@@ -240,7 +242,7 @@
 
     function getHeaderPhotos() {
         if (trail.photos.length) {
-            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p));
+            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p, "600x0"));
         } else {
             return $theme === "light"
                 ? [emptyStateTrailLight]
@@ -343,8 +345,14 @@
     }
 
     async function markTrailAsCompleted() {
-        trail.completed = true;
-        const updatedTrail: Trail = { ...trail };
+        const oldestSummitLogDate = $summitLogs
+            .map((log) => log.date)
+            .sort()[0];
+        const updatedTrail: Trail = {
+            ...trail,
+            completed: true,
+            completed_at: trail.completed_at || oldestSummitLogDate,
+        };
         await trails_update(trail, updatedTrail);
     }
 
@@ -511,7 +519,6 @@
                             onclick={trail.photos.length
                                 ? () => gallery.openGallery(i)
                                 : null}
-                            autoplay
                             loop
                             src={photo}
                         ></video>
@@ -537,6 +544,7 @@
                     <div class="flex-1">
                         <Combobox
                             bind:value={tagDraftItems}
+                            normalizeNewItemText={normalizeNewTagName}
                             onupdate={searchTags}
                             items={tagItems}
                             placeholder={`${$_("tags")}...`}
@@ -856,7 +864,7 @@
                             >
                         {:else}
                             <div class="prose dark:prose-invert">
-                                {@html trail.description}
+                                {@html sanitizeHTML(trail.description)}
                             </div>
                         {/if}
                     </article>
@@ -941,7 +949,7 @@
                                     <img
                                         class="rounded-xl cursor-pointer hover:scale-105 transition-transform"
                                         onclick={() => gallery.openGallery(i)}
-                                        src={getFileURL(trail, photo)}
+                                        src={getFileURL(trail, photo, "600x0")}
                                         alt=""
                                     />
                                 {/if}
@@ -960,6 +968,7 @@
                                     src={getFileURL(
                                         $currentUser,
                                         $currentUser.avatar,
+                                        "100x100",
                                     ) ||
                                         `https://api.dicebear.com/7.x/initials/svg?seed=${$currentUser.username?.toLowerCase()}&backgroundType=gradientLinear`}
                                     alt="avatar"

@@ -1,9 +1,10 @@
 # ==========================================
 # 1. DOWNLOAD CURL (Native Intel Execution)
 # ==========================================
-FROM --platform=$BUILDPLATFORM curlimages/curl:8.18.0 AS download-curl
+FROM --platform=$BUILDPLATFORM curlimages/curl:8.22.0 AS download-curl
 
-ENV CURL_VERSION=8.18.0
+# renovate: datasource=github-releases depName=stunnel/static-curl packageName=stunnel/static-curl
+ENV CURL_VERSION=8.22.0
 
 # Explicitly pull target arch since platform is pinned to host
 ARG TARGETARCH
@@ -31,7 +32,7 @@ chmod +x /tmp/curl ;
 # ==========================================
 # 2. DOWNLOAD PMTILES (Native Intel Execution)
 # ==========================================
-FROM --platform=$BUILDPLATFORM curlimages/curl:8.18.0 AS download-pmtiles
+FROM --platform=$BUILDPLATFORM curlimages/curl:8.22.0 AS download-pmtiles
 
 ENV PMTILES_VERSION=1.28.0
 ARG TARGETARCH
@@ -59,7 +60,7 @@ chmod +x /tmp/pmtiles ;
 # ==========================================
 # 3. BUILD POCKETBASE (Native Intel Cross-Compilation)
 # ==========================================
-FROM golang:1.26@sha256:9d2f36f06329b2a141b9db99ffa32765cf695ee57b813ca29e245e8670bcbfff AS build
+FROM --platform=$BUILDPLATFORM golang:1.26@sha256:9d2f36f06329b2a141b9db99ffa32765cf695ee57b813ca29e245e8670bcbfff AS build
 
 WORKDIR /app
 
@@ -70,11 +71,10 @@ COPY . .
 
 ARG TARGETOS
 ARG TARGETARCH
-RUN go mod download
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/pocketbase
 RUN install -d -m 1777 /rootfs/tmp
 
-RUN --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -ldflags="-s -w" -o /app/pocketbase
 

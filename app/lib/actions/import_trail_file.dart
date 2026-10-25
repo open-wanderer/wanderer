@@ -16,6 +16,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/gpx/replace_elevations.dart';
 import 'package:wanderer/util/geo/reverse_geocode.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
 import 'package:wanderer/actions/resolve_track_save_options.dart';
@@ -133,7 +134,25 @@ Future<void> importTrailFile({
     var finalGpx = gpx;
     var finalGpxData = gpxXml;
 
-    if (recalcHeights || followRoads) {
+    if (recalcHeights && !followRoads) {
+      // Heights only: the geometry is unchanged, so write the new altitudes
+      // into the original text instead of rebuilding the track, which would
+      // drop per-point times, extensions and route anchor marks. A failed
+      // fetch leaves the file untouched.
+      final shape = [
+        for (final point in gpx.allPoints) {'lat': point.lat, 'lon': point.lon},
+      ];
+      final heights = shape.length >= 2
+          ? await fetchHeightsForShape(ref, shape)
+          : const <num>[];
+      if (heights.isNotEmpty) {
+        finalGpxData = await compute(replaceTrackElevationsMessage, (
+          gpxXml,
+          heights,
+        ));
+        finalGpx = await compute(parseGpxSafely, finalGpxData);
+      }
+    } else if (followRoads) {
       // Mirror `_saveRecordedTrack`'s pipeline (navigation_screen.dart):
       // full-resolution shape, snap before heights so elevation reflects
       // the final (possibly snapped) shape, original first/last times

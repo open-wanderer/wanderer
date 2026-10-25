@@ -1,5 +1,47 @@
+<script module lang="ts">
+    const scrollLocks = new Set<HTMLDialogElement>();
+    let scrollState: {
+        body: HTMLElement;
+        x: number;
+        y: number;
+        styles: { property: string; value: string; priority: string }[];
+    } | undefined;
+
+    function acquireScrollLock(dialog: HTMLDialogElement) {
+        if (scrollLocks.size === 0) {
+            const body = document.body;
+            scrollState = {
+                body,
+                x: window.scrollX,
+                y: window.scrollY,
+                styles: ["position", "top", "width"].map((property) => ({
+                    property,
+                    value: body.style.getPropertyValue(property),
+                    priority: body.style.getPropertyPriority(property),
+                })),
+            };
+            body.style.top = `-${scrollState.y}px`;
+            body.style.position = "fixed";
+            body.style.width = "100%";
+        }
+        scrollLocks.add(dialog);
+    }
+
+    function releaseScrollLock(dialog: HTMLDialogElement | undefined) {
+        if (!dialog || !scrollLocks.delete(dialog) || scrollLocks.size > 0 || !scrollState) {
+            return;
+        }
+        const saved = scrollState;
+        scrollState = undefined;
+        for (const { property, value, priority } of saved.styles) {
+            saved.body.style.setProperty(property, value, priority);
+        }
+        window.scrollTo({ left: saved.x, top: saved.y, behavior: "instant" });
+    }
+</script>
+
 <script lang="ts">
-    import type { Snippet } from "svelte";
+    import { onDestroy, type Snippet } from "svelte";
 
     interface Props {
         id: string;
@@ -21,30 +63,43 @@
         onclose,
     }: Props = $props();
 
-    export function openModal() {
-        document.body.style.top = `-${window.scrollY}px`;
-        document.body.style.position = "fixed";
-        document.body.style.width = "100%";
+    let dialog: HTMLDialogElement | undefined;
+    let lockedDialog: HTMLDialogElement | undefined;
 
-        (document.getElementById(id) as HTMLDialogElement).showModal();
+    export function openModal() {
+        if (!dialog || dialog.open) return;
+        acquireScrollLock(dialog);
+        lockedDialog = dialog;
+        try {
+            dialog.showModal();
+        } catch (error) {
+            releaseScrollLock(dialog);
+            throw error;
+        }
     }
 
     export function closeModal() {
-        const scrollY = document.body.style.top;
-        document.body.style.position = "";
-        document.body.style.top = "";
-        window.scrollTo(0, parseInt(scrollY || "0") * -1);
-
-        (document.getElementById(id) as HTMLDialogElement).close();
+        dialog?.close();
+        releaseScrollLock(dialog);
     }
+
+    function handleClose(event: Event) {
+        const closedDialog = event.currentTarget as HTMLDialogElement;
+        // A queued close event can arrive after this dialog has been reopened.
+        if (!closedDialog.open) releaseScrollLock(closedDialog);
+        onclose?.();
+    }
+
+    onDestroy(() => releaseScrollLock(lockedDialog));
 </script>
 
 {@render children?.({ openModal })}
 <dialog
     {id}
+    bind:this={dialog}
     tabindex="-1"
     aria-hidden="true"
-    onclose={() => onclose?.()}
+    onclose={handleClose}
     class="{size} max-h-full rounded-xl text-content"
 >
     <!-- Modal content -->

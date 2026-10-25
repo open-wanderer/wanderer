@@ -75,7 +75,7 @@ class _WaypointCreateScreenState extends ConsumerState<WaypointCreateScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+          icon: const BackButtonIcon(),
           onPressed: () => context.pop(),
         ),
         title: Text(isEdit ? l10n.edit_waypoint : l10n.add_waypoint),

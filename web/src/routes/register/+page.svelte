@@ -1,13 +1,11 @@
 <script lang="ts">
-    import { invalidateAll } from "$app/navigation";
-    import { page } from "$app/state";
     import Button from "$lib/components/base/button.svelte";
     import TextField from "$lib/components/base/text_field.svelte";
     import LogoTextTwoLineDark from "$lib/components/logo/logo_text_two_line_dark.svelte";
     import LogoTextTwoLineLight from "$lib/components/logo/logo_text_two_line_light.svelte";
     import { Language } from "$lib/models/settings";
     import type { User } from "$lib/models/user";
-    import { settings_update } from "$lib/stores/settings_store";
+    import { settings_for_user, settings_update } from "$lib/stores/settings_store";
     import { theme } from "$lib/stores/theme_store";
     import { show_toast } from "$lib/stores/toast_store.svelte";
     import { login, users_create } from "$lib/stores/user_store";
@@ -59,8 +57,9 @@
         }),
         onSubmit: async (newUser) => {
             loading = true;
+            let createdUser: User;
             try {
-                await users_create(newUser);
+                createdUser = await users_create(newUser);
             } catch (e) {
                 if (
                     e instanceof APIError &&
@@ -92,22 +91,30 @@
                     type: "error",
                     text: $_("error-during-login"),
                 });
+                return;
             }
             try {
-                await invalidateAll();
+                // Auth refreshes may invalidate the layout concurrently. Read
+                // the new user's settings from the authenticated API directly.
+                const settings = await settings_for_user(createdUser.id);
                 const browserLang: Language = window.navigator.language
                     .toLocaleLowerCase()
                     .slice(0, 2) as Language;
                 const language = Object.values(Language).includes(browserLang)
                     ? browserLang
                     : Language.en;
-                await settings_update({ id: page.data.settings.id, language });
+                await settings_update({ id: settings.id, language });
             } catch (e) {
-                console.error(e);
-            } finally {
-                window.location.href = "/";
-                loading = false;
+                // The account is already usable. Carry the notice across the
+                // full reload without blocking signup on an optional preference.
+                try {
+                    sessionStorage.setItem("registration-settings-save-failed", "1");
+                } catch {
+                    // Signup must also finish when browser storage is disabled.
+                }
             }
+            window.location.href = "/";
+            loading = false;
         },
     });
 </script>

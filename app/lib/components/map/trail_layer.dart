@@ -131,7 +131,7 @@ class TrailLayer {
     // doc.
     await style.addImageFromIconData(
       id: _kTrailArrowImageId,
-      iconData: Icons.arrow_left,
+      iconData: Icons.arrow_right,
       size: 32,
       color: Colors.white,
     );
@@ -201,7 +201,7 @@ class TrailLayer {
     // this must stay distinct from the basemap's own `arrow` icon.
     await style.addImageFromIconData(
       id: _kTrailArrowImageId,
-      iconData: Icons.arrow_left,
+      iconData: Icons.arrow_right,
       size: 32,
       color: Colors.white,
     );

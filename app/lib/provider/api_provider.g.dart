@@ -40,7 +40,7 @@ final class ApiProvider extends $NotifierProvider<Api, Dio> {
   }
 }
 
-String _$apiHash() => r'0d66870c46bb27323f51f24eeb9570da21f1dcef';
+String _$apiHash() => r'cc64e98ef9e612e4cafc2c40e8c008a6c99bbee8';
 
 abstract class _$Api extends $Notifier<Dio> {
   Dio build();

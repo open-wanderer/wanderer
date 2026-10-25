@@ -1,5 +1,6 @@
 <script lang="ts">
     import * as M from "maplibre-gl";
+    import "$lib/util/maplibre_worker";
 
     import GPX from "$lib/models/gpx/gpx";
     import { fromFile } from "$lib/util/gpx_util";

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -46,49 +47,99 @@ type ConnectorHTTPPolicy struct {
 	TLSCABundle  []byte
 }
 
+// HTTPDoer is satisfied by *safeurl.WrappedClient and *http.Client.
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+func closeIdleHTTPConnections(client HTTPDoer) {
+	if closer, ok := client.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
+}
+
+// NewSafeURLClient builds an SSRF-safe HTTP client that allows ports 80 and 443.
+// timeout is the per-request deadline; checkRedirect may be nil.
+func NewSafeURLClient(timeout time.Duration, checkRedirect func(*http.Request, []*http.Request) error) HTTPDoer {
+	b := safeurl.GetConfigBuilder().
+		SetTimeout(timeout).
+		SetAllowedSchemes("http", "https").
+		SetAllowedPorts(80, 443).
+		// safeurl's built-in blocklist covers NAT64, 6to4 and Teredo, but not the
+		// deprecated IPv4-compatible form (RFC 4291), which embeds an IPv4 the
+		// same way: ::7f00:1 is 127.0.0.1.
+		SetBlockedIPsCIDR("::/96").
+		EnableIPv6(true).
+		AllowSendingCredentials(false)
+	if checkRedirect != nil {
+		b = b.SetCheckRedirect(checkRedirect)
+	}
+	return safeurl.Client(b.Build())
+}
+
+var newPublicURLClient = NewSafeURLClient
+
 func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
 	if maxBytes <= 0 {
 		maxBytes = DefaultPluginMediaMaxBytes
 	}
+	client := newPublicURLClient(60*time.Second, publicMediaRedirectPolicy)
+	defer closeIdleHTTPConnections(client)
+	return fetchBounded(ctx, client, rawURL, maxBytes)
+}
+
+// fetchBounded downloads rawURL into memory, refusing bodies larger than
+// maxBytes.
+func fetchBounded(ctx context.Context, client HTTPDoer, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
+	var buf bytes.Buffer
+	contentType, finalURL, err := fetchBoundedTo(ctx, client, rawURL, maxBytes, &buf)
+	if err != nil {
+		return nil, err
+	}
+	body := buf.Bytes()
+	if body == nil {
+		body = []byte{}
+	}
+	return &SafeFetchResult{Body: body, ContentType: contentType, FinalURL: finalURL}, nil
+}
+
+// fetchBoundedTo streams the body of a GET for rawURL into dst, refusing bodies
+// larger than maxBytes and non-2xx responses. It returns the Content-Type and
+// the final URL after redirects. On error dst may hold a partial body.
+func fetchBoundedTo(ctx context.Context, client HTTPDoer, rawURL string, maxBytes int64, dst io.Writer) (contentType, finalURL string, err error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil, fmt.Errorf("invalid public URL")
+		return "", "", fmt.Errorf("invalid public URL")
 	}
 	if parsed.User != nil {
-		return nil, fmt.Errorf("public URL must not include credentials")
+		return "", "", fmt.Errorf("public URL must not include credentials")
 	}
-	config := safeurl.GetConfigBuilder().
-		SetTimeout(60*time.Second).
-		SetAllowedSchemes("http", "https").
-		SetAllowedPorts(80, 443).
-		EnableIPv6(true).
-		AllowSendingCredentials(false).
-		SetCheckRedirect(publicMediaRedirectPolicy).
-		Build()
-	client := safeurl.Client(config)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	if err := ValidatePluginMediaStatus(resp.StatusCode); err != nil {
-		return nil, err
+		return "", "", err
 	}
 
-	body, err := ReadBoundedForPlugin(resp.Body, maxBytes)
+	n, err := io.Copy(dst, io.LimitReader(boundedFederatedBody(ctx, resp.Body), maxBytes+1))
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
-	return &SafeFetchResult{
-		Body:        body,
-		ContentType: resp.Header.Get("Content-Type"),
-		FinalURL:    resp.Request.URL.String(),
-	}, nil
+	if n > maxBytes {
+		return "", "", fmt.Errorf("response exceeds maximum size")
+	}
+	finalURL = rawURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	return resp.Header.Get("Content-Type"), finalURL, nil
 }
 
 func ValidatePluginMediaStatus(statusCode int) error {
@@ -215,20 +266,37 @@ func connectorIPAllowed(ip net.IP, allowPrivate bool) bool {
 	if !ok {
 		return false
 	}
+	// The literal address and the IPv4 it may embed are both subject to the policy.
+	for _, candidate := range policyCandidates(addr) {
+		if isReservedAddr(candidate) {
+			return false
+		}
+		if candidate.IsPrivate() && !allowPrivate {
+			return false
+		}
+	}
+	return true
+}
+
+// policyCandidates returns every address that must clear the IP policy before a
+// dial is allowed: the literal address, plus any IPv4 it embeds via an IPv6
+// transition mechanism. Both are unmapped, since netip's IsPrivate and friends
+// do not see through the 4-in-6 form.
+func policyCandidates(addr netip.Addr) []netip.Addr {
+	return []netip.Addr{addr.Unmap(), unwrapTransitionIP(addr)}
+}
+
+// isReservedAddr reports whether addr belongs to a range that must never be
+// dialled, regardless of any allow-private escape hatch.
+func isReservedAddr(addr netip.Addr) bool {
 	if addr.Is4In6() {
 		addr = addr.Unmap()
 	}
 	if addr.IsLoopback() || addr.IsLinkLocalUnicast() || addr.IsLinkLocalMulticast() ||
 		addr.IsMulticast() || addr.IsUnspecified() {
-		return false
+		return true
 	}
-	if isSpecialPurposeIP(addr) {
-		return false
-	}
-	if addr.IsPrivate() {
-		return allowPrivate
-	}
-	return true
+	return isSpecialPurposeIP(addr)
 }
 
 func isSpecialPurposeIP(addr netip.Addr) bool {
@@ -240,6 +308,42 @@ func isSpecialPurposeIP(addr netip.Addr) bool {
 	return false
 }
 
+// unwrapTransitionIP returns the IPv4 address embedded in an IPv6 transition
+// address, or addr unchanged when nothing is embedded. The transition families
+// themselves are also listed in specialPurposePrefixes; unwrapping additionally
+// covers the network-specific NAT64 prefixes (RFC 6052 permits /32 through /64),
+// which cannot be enumerated.
+func unwrapTransitionIP(addr netip.Addr) netip.Addr {
+	addr = addr.Unmap()
+	if !addr.Is6() {
+		return addr
+	}
+	b := addr.As16()
+
+	switch {
+	// NAT64 well-known prefix 64:ff9b::/96 (RFC 6052)
+	case nat64WellKnown.Contains(addr):
+		return netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]})
+	// 6to4 2002::/16 (RFC 3056) — IPv4 sits in bytes 2..5
+	case sixToFour.Contains(addr):
+		return netip.AddrFrom4([4]byte{b[2], b[3], b[4], b[5]})
+	// Teredo 2001::/32 (RFC 4380) — client IPv4 is the last 4 bytes, XOR 0xff
+	case teredo.Contains(addr):
+		return netip.AddrFrom4([4]byte{b[12] ^ 0xff, b[13] ^ 0xff, b[14] ^ 0xff, b[15] ^ 0xff})
+	// IPv4-compatible ::a.b.c.d (deprecated by RFC 4291)
+	case ipv4Compatible.Contains(addr) && !addr.IsUnspecified() && !addr.IsLoopback():
+		return netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]})
+	}
+	return addr
+}
+
+var (
+	nat64WellKnown = netip.MustParsePrefix("64:ff9b::/96")
+	sixToFour      = netip.MustParsePrefix("2002::/16")
+	teredo         = netip.MustParsePrefix("2001::/32")
+	ipv4Compatible = netip.MustParsePrefix("::/96")
+)
+
 var specialPurposePrefixes = mustPrefixes(
 	"0.0.0.0/8",
 	"100.64.0.0/10",
@@ -247,6 +351,7 @@ var specialPurposePrefixes = mustPrefixes(
 	"169.254.0.0/16",
 	"192.0.0.0/24",
 	"192.0.2.0/24",
+	"192.88.99.0/24",
 	"198.18.0.0/15",
 	"198.51.100.0/24",
 	"203.0.113.0/24",
@@ -254,9 +359,13 @@ var specialPurposePrefixes = mustPrefixes(
 	"240.0.0.0/4",
 	"::/128",
 	"::1/128",
+	"::/96",
 	"64:ff9b::/96",
+	"64:ff9b:1::/48",
 	"100::/64",
+	"2001::/32",
 	"2001:db8::/32",
+	"2002::/16",
 	"fe80::/10",
 	"ff00::/8",
 )

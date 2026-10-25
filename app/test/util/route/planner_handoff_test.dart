@@ -11,6 +11,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/gpx/route_anchor_marks.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
 
 // Tests for the pure handoff helpers (no network/navigation), plus
@@ -283,6 +284,35 @@ final _twoLegRoute = <List<ml.Geographic>>[
   ],
 ];
 
+/// The planner's in-memory layout for [_twoLegRoute]-sized input: one
+/// `Trkseg` per leg, the anchor opening leg 1.
+Gpx _plannedTwoLeg() {
+  final gpx = Gpx();
+  gpx.trks = [
+    Trk(
+      trksegs: [
+        Trkseg(
+          trkpts: [
+            Wpt(lat: 47.000, lon: 9.000),
+            Wpt(lat: 47.0005, lon: 9.0015),
+          ],
+        ),
+        Trkseg(
+          trkpts: [
+            Wpt(lat: 47.001, lon: 9.001),
+            Wpt(lat: 47.0015, lon: 9.0025),
+            Wpt(lat: 47.002, lon: 9.002),
+          ],
+        ),
+      ],
+    ),
+  ];
+  return gpx;
+}
+
+int _occurrences(String haystack, String needle) =>
+    needle.allMatches(haystack).length;
+
 /// Seeds [routeAnchorsProvider] with an edit session over [legs], exactly as
 /// RoutePlannerScreen does on open, and lets each segment's fire-and-forget
 /// height fetch settle. Anchors are the legs' shared boundary points.
@@ -320,6 +350,7 @@ Future<Trail> _buildDraftTrail(
   String? subcategory,
   double? durationSeconds,
   Duration? movingDuration,
+  bool plannedRoute = false,
 }) async {
   return (await tester.runAsync(
     () => buildDraftTrail(
@@ -329,6 +360,7 @@ Future<Trail> _buildDraftTrail(
       subcategory: subcategory,
       durationSeconds: durationSeconds,
       movingDuration: movingDuration,
+      plannedRoute: plannedRoute,
     ),
   ))!;
 }
@@ -410,6 +442,44 @@ void main() {
       final result = await _buildDraftTrail(tester, ref, gpx);
 
       expect(identical(result.expand!.gpx, gpx), isTrue);
+    });
+
+    testWidgets('a planned route is stored as one marked segment', (
+      tester,
+    ) async {
+      final gpx = _plannedTwoLeg();
+      final ref = await _pumpRef(tester);
+
+      final result = await _buildDraftTrail(
+        tester,
+        ref,
+        gpx,
+        plannedRoute: true,
+      );
+
+      final xml = result.expand!.gpxData!;
+      expect(_occurrences(xml, '<trkseg>'), 1);
+      expect(_occurrences(xml, '<wanderer:anchor'), 1);
+      expect(xml, contains('xmlns:wanderer="$routeAnchorNamespace"'));
+      expect(identical(result.expand!.gpx, gpx), isTrue);
+      expect(gpx.trks.single.trksegs, hasLength(2));
+      expect(
+        gpx.trks.single.trksegs
+            .expand((s) => s.trkpts)
+            .every((p) => p.extensions.isEmpty),
+        isTrue,
+      );
+    });
+
+    testWidgets('a recording keeps its own segments, unmarked', (tester) async {
+      final gpx = _plannedTwoLeg();
+      final ref = await _pumpRef(tester);
+
+      final result = await _buildDraftTrail(tester, ref, gpx);
+
+      final xml = result.expand!.gpxData!;
+      expect(_occurrences(xml, '<trkseg>'), 2);
+      expect(xml, isNot(contains('wanderer:')));
     });
 
     testWidgets('passes a supplied category id through', (tester) async {
@@ -664,6 +734,31 @@ void main() {
 
       // Heights from each segment's own fetch are carried onto the export.
       expect(gpx.trks.single.trksegs.first.trkpts.first.ele, 500);
+    });
+
+    testWidgets('the stored form splits back into the same legs and anchors', (
+      tester,
+    ) async {
+      final ref = await _pumpHeightRef(
+        tester,
+        (shape) => List<num>.filled(shape.length, 500),
+      );
+      await _seedRoute(tester, ref, _twoLegRoute);
+
+      final gpx = (await tester.runAsync(() => buildFinalPlannedGpx(ref)))!;
+      final parsed = parseGpxSafely(serializePlannedRoute(gpx));
+
+      expect(parsed.trks.single.trksegs, gpx.trks.single.trksegs);
+      final anchors = anchorsFromTrack(parsed);
+      expect(anchors, hasLength(3));
+      expect(
+        [
+          for (final a in anchors) [a.lat, a.lon],
+        ],
+        [
+          for (final a in anchorsFromTrack(gpx)) [a.lat, a.lon],
+        ],
+      );
     });
 
     testWidgets('the flattened point stream carries no duplicated boundary '
@@ -1179,6 +1274,20 @@ void main() {
       expect(identical(result.expand!.gpx, finalGpx), isTrue);
       expect(result.expand!.gpxData, isNotEmpty);
       expect(result.expand!.gpxData, contains('<gpx'));
+    });
+
+    test('stores a multi-leg route as one marked segment and keeps the '
+        'per-leg expand.gpx', () {
+      final finalGpx = _plannedTwoLeg();
+
+      final result = mergeRouteIntoTrail(buildSampleTrail(), finalGpx);
+
+      final xml = result.expand!.gpxData!;
+      expect(_occurrences(xml, '<trkseg>'), 1);
+      expect(_occurrences(xml, '<wanderer:anchor'), 1);
+      expect(xml, contains('xmlns:wanderer="$routeAnchorNamespace"'));
+      expect(identical(result.expand!.gpx, finalGpx), isTrue);
+      expect(finalGpx.trks.single.trksegs, hasLength(2));
     });
 
     test('preserves title/description/id and existing waypoints unchanged', () {

@@ -71,7 +71,7 @@ export async function GET(event: RequestEvent) {
             type: "OrderedCollectionPage",
             first: id + "/followers?page=1",
             ...(intPage > 1 ? { prev: `${id}/followers?page=${intPage - 1}` } : {}),
-            ...(hasNextPage ? { next: `${id}/outbox?page=${intPage + 1}` } : {}),
+            ...(hasNextPage ? { next: `${id}/followers?page=${intPage + 1}` } : {}),
             partOf: id + "/followers",
             totalItems: followers.totalItems,
         orderedItems: followers.items.filter(f => f.expand?.follower !== undefined).map<string>(f => f.expand!.follower.iri)
@@ -79,6 +79,17 @@ export async function GET(event: RequestEvent) {
 
         const headers = new Headers()
         headers.append("Content-Type", "application/activity+json")
+
+        // Without ?page, serve the collection itself (required by GoToSocial).
+        if (!event.url.searchParams.has("page")) {
+            return json({
+                "@context": "https://www.w3.org/ns/activitystreams",
+                id: `${id}/followers`,
+                type: "OrderedCollection",
+                totalItems: followers.totalItems,
+                first: `${id}/followers?page=1`,
+            }, { headers });
+        }
 
         return json(followersPage, { headers });
     } catch (e) {

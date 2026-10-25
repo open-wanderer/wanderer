@@ -166,17 +166,16 @@
 
     async function search(q: string) {
         try {
-            const r = await searchTrails(q, {
-                filter: `author = ${$currentUser?.actor} OR public = true`,
-                sort: ["name:desc"],
-                limit: 3,
-            });
+            const filter = [`author = ${$currentUser?.actor} OR public = true`];
+            if ($formData.trails?.length) {
+                filter.push(
+                    `id NOT IN [${$formData.trails.map((id) => `'${id}'`).join(", ")}]`,
+                );
+            }
+            const r = await searchTrails(q, { filter, limit: 20 });
 
             searchDropdownItems = r
-                .filter(
-                    (h: TrailSearchResult) => !$formData.trails?.includes(h.id),
-                )
-                .map((t) => ({
+                .map((t: TrailSearchResult) => ({
                     text: t.name,
                     description: `${t.location ?? "-"}`,
                     value: t.id,
@@ -364,6 +363,7 @@
                                       trail,
                                       trail.photos.at(trail.thumbnail ?? 0) ??
                                           trail.photos[0],
+                                      "600x0",
                                   )
                                 : $theme === "light"
                                   ? emptyStateTrailLight

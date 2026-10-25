@@ -9,11 +9,14 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
+import 'package:wanderer/components/welcome/server_compatibility_alert.dart';
 import 'package:wanderer/components/welcome/server_selctor.dart';
 import 'package:wanderer/components/welcome/topography_background.dart';
 import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/welcome/server_compatibility_provider.dart';
+import 'package:wanderer/util/server_compatibility.dart';
 
 import '/i18n/app_localizations.dart';
 
@@ -25,8 +28,10 @@ class LoginScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loginState = ref.watch(authProvider);
+    final isServerIncompatible = ref.watch(selectedServerIncompatibleProvider);
 
     void submit() {
+      if (isServerIncompatible) return;
       if (_formKey.currentState?.saveAndValidate() ?? false) {
         final data = _formKey.currentState!.value;
         ref
@@ -47,6 +52,9 @@ class LoginScreen extends ConsumerWidget {
       next.whenOrNull(
         error: (error, _) {
           String displayMessage = "An unexpected error occurred";
+
+          // Already on screen as the selected server's alert, which stays put.
+          if (error is IncompatibleServerException) return;
 
           if (error is DioException) {
             try {
@@ -81,7 +89,7 @@ class LoginScreen extends ConsumerWidget {
           Positioned.fill(child: TopographyBackground()),
           SafeArea(
             child: IconButton(
-              icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+              icon: const BackButtonIcon(),
               onPressed: () => context.pop(),
             ),
           ),
@@ -112,6 +120,8 @@ class LoginScreen extends ConsumerWidget {
                         SizedBox(height: 12),
 
                         ServerSelector(icon: FontAwesomeIcons.pencil),
+                        if (isServerIncompatible)
+                          const ServerCompatibilityAlert(),
                         WandererTextField(
                           name: 'username',
                           label:
@@ -143,6 +153,7 @@ class LoginScreen extends ConsumerWidget {
                             primary: true,
                             large: true,
                             loading: loginState.isLoading,
+                            disabled: isServerIncompatible,
                             onPressed: submit,
                             child: Text(AppLocalizations.of(context)!.login),
                           ),

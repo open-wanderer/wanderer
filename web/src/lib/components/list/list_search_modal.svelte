@@ -22,6 +22,9 @@
 
     let { lists = [], trails, children, onchange }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `list-search-modal-${uid}`;
+
     let modal: Modal;
     let searchItems: SearchItem[] = $state([]);
     let query = $state("");
@@ -150,7 +153,7 @@
                 description: getListDescriptionPreview(list.description),
                 value: list,
                 icon: list.avatar
-                    ? getFileURL(list, list.avatar)
+                    ? getFileURL(list, list.avatar, "100x100")
                     : $theme === "light"
                       ? emptyStateTrailLight
                       : emptyStateTrailDark,
@@ -172,7 +175,7 @@
 </script>
 
 <Modal
-    id="list-search-modal"
+    id={modalId}
     title={$_("select-list")}
     size="md:min-w-sm"
     bind:this={modal}
@@ -215,7 +218,7 @@
                             <img
                                 class="w-12 aspect-square rounded-full"
                                 src={list.avatar
-                                    ? getFileURL(list, list.avatar)
+                                    ? getFileURL(list, list.avatar, "100x100")
                                     : $theme === "light"
                                       ? emptyStateTrailLight
                                       : emptyStateTrailDark}

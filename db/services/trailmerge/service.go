@@ -35,6 +35,7 @@ var (
 	ErrRequiresMultipleTrails   = errors.New("trail_merge_requires_multiple_trails")
 	ErrMissingSourceTrailID     = errors.New("trail_merge_missing_source_trail_id")
 	ErrSourceActorMismatch      = errors.New("trail_merge_source_actor_mismatch")
+	ErrMergeNotAllowed          = errors.New("trail_merge_not_allowed")
 )
 
 type MergeSettings struct {
@@ -199,6 +200,9 @@ func Merge(app core.App, client meilisearch.ServiceManager, ctx context.Context,
 		if err != nil {
 			return err
 		}
+		if !CanMerge(txApp, actor.Id, source, target, settings.Delete) {
+			return ErrMergeNotAllowed
+		}
 
 		mergeCtx := mergeContext{
 			App:      txApp,
@@ -236,6 +240,9 @@ func Merge(app core.App, client meilisearch.ServiceManager, ctx context.Context,
 			return err
 		}
 
+		if record.GetBool("federation_suppressed") {
+			continue
+		}
 		if err := federation.CreateSummitLogActivity(app, ctx, record, pub.CreateType); err != nil {
 			return err
 		}
@@ -255,7 +262,7 @@ func Merge(app core.App, client meilisearch.ServiceManager, ctx context.Context,
 }
 
 func CanMerge(app core.App, actorID string, source *core.Record, target *core.Record, deleteSource bool) bool {
-	if source == nil || target == nil {
+	if actorID == "" || source == nil || target == nil {
 		return false
 	}
 	if source.Id == target.Id {
@@ -264,7 +271,7 @@ func CanMerge(app core.App, actorID string, source *core.Record, target *core.Re
 	if !canEditTrail(app, target, actorID) {
 		return false
 	}
-	if deleteSource && !canDeleteTrail(source, actorID) {
+	if !canDeleteTrail(source, actorID) {
 		return false
 	}
 
@@ -612,7 +619,20 @@ func suggestForManualSelection(app core.App, actorID string, trailIDs []string) 
 		if err != nil {
 			return nil, err
 		}
+		if !canEditTrail(app, trail, actorID) {
+			return nil, ErrSourceActorMismatch
+		}
 		trails = append(trails, trail)
+	}
+	selectable := map[string]bool{}
+	for _, candidate := range trails {
+		selectable[candidate.Id] = true
+		for _, source := range trails {
+			if source.Id != candidate.Id && !canDeleteTrail(source, actorID) {
+				selectable[candidate.Id] = false
+				break
+			}
+		}
 	}
 
 	selection, err := chooseTargetTrail(app, trails, nil)
@@ -622,8 +642,17 @@ func suggestForManualSelection(app core.App, actorID string, trailIDs []string) 
 
 	suggestedTrailID := selection.TrailID
 	reason := selection.Reason
-	if suggestedTrailID == "" && len(trails) > 0 {
-		suggestedTrailID = trails[0].Id
+	if !selectable[suggestedTrailID] {
+		suggestedTrailID = ""
+		for _, candidate := range trails {
+			if selectable[candidate.Id] {
+				suggestedTrailID = candidate.Id
+				break
+			}
+		}
+		if suggestedTrailID == "" {
+			return nil, ErrMergeNotAllowed
+		}
 		reason = "deterministic_fallback"
 	}
 
@@ -648,7 +677,7 @@ func suggestForManualSelection(app core.App, actorID string, trailIDs []string) 
 			Score:      score,
 			Reason:     reasonForCandidate(candidate.Id == suggestedTrailID, reason),
 			Warnings:   warnings,
-			Selectable: canEditTrail(app, candidate, actorID),
+			Selectable: selectable[candidate.Id],
 		})
 	}
 
@@ -1234,6 +1263,8 @@ func createTrailSummitLog(ctx mergeContext) (string, error) {
 		}
 	}
 
+	// Trail descriptions can be longer than the generated summit-log field.
+	util.SanitizeHTMLFieldsWithLimits(record)
 	if err := ctx.App.Save(record); err != nil {
 		return "", err
 	}
@@ -1267,14 +1298,15 @@ func mergeExistingSummitLogs(ctx mergeContext) ([]string, error) {
 
 		record := core.NewRecord(collection)
 		record.Load(map[string]any{
-			"text":           sourceLog.GetString("text"),
-			"distance":       sourceLog.GetFloat("distance"),
-			"elevation_gain": sourceLog.GetFloat("elevation_gain"),
-			"elevation_loss": sourceLog.GetFloat("elevation_loss"),
-			"duration":       sourceLog.GetFloat("duration"),
-			"date":           sourceLog.GetDateTime("date"),
-			"author":         sourceLog.GetString("author"),
-			"trail":          ctx.Target.Id,
+			"text":                  sourceLog.GetString("text"),
+			"distance":              sourceLog.GetFloat("distance"),
+			"elevation_gain":        sourceLog.GetFloat("elevation_gain"),
+			"elevation_loss":        sourceLog.GetFloat("elevation_loss"),
+			"duration":              sourceLog.GetFloat("duration"),
+			"date":                  sourceLog.GetDateTime("date"),
+			"author":                sourceLog.GetString("author"),
+			"trail":                 ctx.Target.Id,
+			"federation_suppressed": sourceLog.GetBool("federation_suppressed") || sourceLog.GetString("author") != ctx.ActorID,
 		})
 
 		if gpxFile, err := cloneRecordFile(ctx.App, sourceLog, "gpx"); err != nil {
@@ -1358,6 +1390,8 @@ func mergeTrailComments(ctx mergeContext) ([]string, error) {
 			"author": ctx.ActorID,
 			"trail":  ctx.Target.Id,
 		})
+		// Attribution is added to an existing comment and consumes its budget.
+		util.SanitizeHTMLFieldsWithLimits(record)
 		if err := ctx.App.Save(record); err != nil {
 			return nil, err
 		}

@@ -1,8 +1,8 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect } from '../../fixtures';
 import { ListsPage } from '../../pages/lists_page';
 
-// Run tests serially to avoid race conditions with shared list data
-base.describe.configure({ mode: 'serial' });
+// Serial CRUD and cleanup may each wait for asynchronous search indexing.
+base.describe.configure({ mode: 'serial', timeout: 60_000 });
 
 const test = base.extend<{ listsPage: ListsPage }>({
     listsPage: async ({ page }, use) => {
@@ -96,6 +96,10 @@ base('renders one shared-list layout when previewing inline rich text', async ({
             `/lists/@${author.preferred_username}@${author.domain}/${createdList.id}`,
             { waitUntil: 'domcontentloaded' },
         );
+
+        // The full SSR load exposes controls before their client handlers attach.
+        // The map canvas appears after hydration and makes the interaction ready.
+        await expect(page.locator('#trail-map canvas.maplibregl-canvas')).toBeVisible();
 
         const heading = page.getByRole('heading', { name: testListName });
         await expect(heading).toHaveCount(1);

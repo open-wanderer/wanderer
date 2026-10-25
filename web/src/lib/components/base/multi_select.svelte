@@ -9,7 +9,7 @@
         label?: string;
         name?: string;
         placeholder?: string;
-        onchange?: (value: SelectItem[]) => void;
+        onchange?: (value: SelectItem[], changedItem?: SelectItem) => void;
     }
 
     let {
@@ -28,12 +28,12 @@
         const itemIndex = value.findIndex((i) => i.value == item.value);
 
         if (itemIndex >= 0) {
-            value.splice(itemIndex, 1);
+            value = value.filter((_, index) => index !== itemIndex);
         } else {
-            value.push(item);
+            value = [...value, item];
         }
 
-        onchange?.(value);
+        onchange?.(value, item);
     }
 
     function removeItem(e: Event, item: SelectItem) {

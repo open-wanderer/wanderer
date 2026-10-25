@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import type { Comment } from "$lib/models/comment";
     import { formatTimeSince } from "$lib/util/format_util";
     import { _ } from "svelte-i18n";
@@ -103,7 +104,7 @@
         {#if editing}
             <Editor extraClasses="mt-2" bind:value={editedComment}></Editor>
         {:else}
-            {@html comment.text}
+            {@html sanitizeHTML(comment.text)}
         {/if}
     </div>
 </div>

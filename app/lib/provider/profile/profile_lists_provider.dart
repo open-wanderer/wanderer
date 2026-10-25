@@ -51,6 +51,7 @@ class ProfileListsNotifier extends _$ProfileListsNotifier
 
   Future<void> search(String q) async {
     _q = q;
+    resetPaging();
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => _fetchPage(handle: _handle, page: 1, q: _q),

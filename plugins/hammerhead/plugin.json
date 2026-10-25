@@ -4,7 +4,7 @@
   "type": "trails",
   "name": "Hammerhead",
   "description": "Imports Hammerhead routes and activities, and can send wanderer routes to Hammerhead.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "runtime": {
     "type": "wasm",
     "entrypoint": "plugin.wasm"

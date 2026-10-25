@@ -9,8 +9,10 @@ import 'package:wanderer/components/base/wanderer_button.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/api_error.dart';
 import 'package:wanderer/provider/auth_provider.dart';
-import 'package:wanderer/provider/oauth_providers_provider.dart';
+import 'package:wanderer/provider/auth_methods_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/welcome/server_compatibility_provider.dart';
+import 'package:wanderer/util/server_compatibility.dart';
 
 /// Renders an "or" divider followed by one button per OAuth2 provider
 /// configured on [serverUrl] — meant to sit below the Login/Register buttons
@@ -34,8 +36,9 @@ class _OAuthProviderButtonsState extends ConsumerState<OAuthProviderButtons> {
 
   @override
   Widget build(BuildContext context) {
-    final providers = ref.watch(oauthProvidersProvider(widget.serverUrl));
+    final authMethods = ref.watch(authMethodsProvider(widget.serverUrl));
     final authState = ref.watch(authProvider);
+    final isServerIncompatible = ref.watch(selectedServerIncompatibleProvider);
 
     ref.listen(authProvider, (previous, next) {
       next.whenOrNull(
@@ -44,6 +47,9 @@ class _OAuthProviderButtonsState extends ConsumerState<OAuthProviderButtons> {
           setState(() => _pendingProviderName = null);
 
           String displayMessage = "An unexpected error occurred";
+          // Already on screen as the selected server's alert, which stays put.
+          if (error is IncompatibleServerException) return;
+
           if (error is DioException) {
             try {
               displayMessage = ApiError.fromJson(error.response?.data).message;
@@ -67,9 +73,12 @@ class _OAuthProviderButtonsState extends ConsumerState<OAuthProviderButtons> {
       );
     });
 
-    return providers.when(
-      data: (list) {
-        if (list.isEmpty) return const SizedBox.shrink();
+    return authMethods.when(
+      data: (methods) {
+        final list = methods.oauthProviders;
+        if (list.isEmpty || isServerIncompatible) {
+          return const SizedBox.shrink();
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

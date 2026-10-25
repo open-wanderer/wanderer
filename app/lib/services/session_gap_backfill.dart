@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:tracelet/tracelet.dart' as tl;
@@ -33,9 +34,22 @@ const Duration _kMaxStepElapsed = Duration(seconds: 60);
 /// [hasUsableAltitude] gating — so a resumed session's totals do not depend on
 /// where the app happened to be killed.
 ///
+/// [ensureTraceletReady] must bring tracelet's native SDK to its `ready` state
+/// (see `TraceletPositionSource.ensureReady`). It is awaited before the store is
+/// read because the SDK answers `getLocations()` with an empty list — as an
+/// ordinary success, not an error — until `ready()` has run in this process. A
+/// relaunch after the process was killed is a fresh process, and `ready()` is
+/// otherwise only called once the recording screen exists, i.e. after this has
+/// already run. Without this step the backfill silently spliced nothing on every
+/// real cold start, whatever tracelet had recorded while the app was dead.
+///
 /// Best-effort: any failure leaves [row] untouched and the session resumes
 /// with what it already had. Returns the number of points spliced in.
-Future<int> backfillSessionGap(ActiveNavigationEntity row) async {
+Future<int> backfillSessionGap(
+  ActiveNavigationEntity row, {
+  required Future<void> Function() ensureTraceletReady,
+  @visibleForTesting Future<List<tl.Location>> Function()? readStoredLocations,
+}) async {
   // Paused sessions accumulate nothing live, so they must not backfill either.
   if (row.isPaused) return 0;
 
@@ -51,10 +65,14 @@ Future<int> backfillSessionGap(ActiveNavigationEntity row) async {
 
   final List<tl.Location> stored;
   try {
+    await ensureTraceletReady();
     // Fetched unfiltered and narrowed here: tracelet does not export SQLQuery.
-    // Retention is bounded by PersistenceConfig.maxDaysToPersist (1 by
-    // default), so the set stays small.
-    stored = await tl.Tracelet.getLocations();
+    // Retention is bounded by PersistenceConfig.maxDaysToPersist, 3 days by
+    // default since tracelet 3.8.3, so the set stays small. Note the cap was
+    // enforced by nothing at all before 3.8.x (tracelet #361) — the queue grew
+    // unbounded — so on a long-lived install the first run after the upgrade
+    // may see a much larger set than this comment used to imply.
+    stored = await (readStoredLocations ?? tl.Tracelet.getLocations)();
   } catch (_) {
     return 0;
   }

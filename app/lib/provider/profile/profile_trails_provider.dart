@@ -114,6 +114,7 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
 
   Future<void> search(String q) async {
     _q = q;
+    resetPaging();
     // The bare `AsyncLoading()` this replaced discarded the previous value,
     // so `hasValue` was false and `when` rendered `loading()`
     // unconditionally -- a guaranteed full-screen spinner on every

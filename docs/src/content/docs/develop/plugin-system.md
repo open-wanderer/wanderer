@@ -330,6 +330,8 @@ manifest, for example:
 }
 ```
 
+The host enforces `limits.maxItems` for each sync response. Returning more items fails the call with `sync_item_limit_exceeded`; the host does not silently truncate the response.
+
 `auth` contains only values the host is allowed to pass to the plugin. For
 OAuth plugins, refresh tokens and client secrets are not included in normal sync
 capability input. Depending on the auth model, `auth` may contain values such
@@ -456,6 +458,37 @@ rules, deduplicates by provider/external ID, and stores the returned state.
 Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records. Waypoint `distance_from_start` is derived
 by the host from the nearest position on the imported GPX track.
+
+### Provider difficulty
+
+`item.difficulty` is an optional string containing the provider's coarse
+difficulty rating. The accepted values are `easy`, `moderate`, and `difficult`.
+Omit the field or send an empty string when no supported rating is available;
+the host then stores an unknown difficulty. For example:
+
+```json
+{ "difficulty": "moderate" }
+```
+
+This rating follows the provider's meaning and is not a universal physical or
+technical scale. Komoot's `difficulty.grade` maps directly to these three
+values. Swiss-hike maps its physical requirement (`tief`, `mittel`, `hoch`) to
+`easy`, `moderate`, `difficult`; it does not map technical hiking grades to this
+field. Plugins must leave unrecognized provider ratings unknown.
+
+The host stores unsupported string values as an unknown difficulty, so such a
+trail is imported without a rating. The field must be a JSON string; any other
+type is invalid plugin output and the import fails.
+`metadata.difficulty` and other raw provider metadata do not set the stored
+difficulty. Existing imports are skipped by deduplication and keep their current
+difficulty, including empty values and user edits.
+
+The field is optional, so older plugins remain valid without changing their
+capability version. External Go plugins need an SDK release containing
+`TrailImport.Difficulty` to use the typed field. A host with support for this
+field is required to persist the provider rating; older hosts ignore it.
+
+### Media sources
 
 Media sources have two trust models:
 

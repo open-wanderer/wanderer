@@ -13,6 +13,7 @@ import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
 import 'package:wanderer/util/route/segment.dart';
 
@@ -188,7 +189,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
+          icon: const BackButtonIcon(),
           onPressed: () => context.canPop()
               ? context.pop()
               : context.pushReplacement('/map'),
@@ -256,7 +257,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     // Duration.zero is avoided: the Android binding passes it to
     // `animateCamera` as null, which throws. Mirrors TrailMap's fit.
-    await controller.fitBounds(
+    // fitBoundsReliably: the first fit after style load silently no-ops on iOS.
+    await fitBoundsReliably(
+      controller,
       bounds: bounds,
       padding: padding,
       nativeDuration: const Duration(milliseconds: 1),
@@ -348,13 +351,16 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         // Top-right controls column hosts undo/redo; the search control
         // lives in the app-bar title (see _buildSearchBar) and the
         // auto-routing toggle lives in the Settings tab.
-        const WandererMapCompass(
+        WandererMapCompass(
           hideIfRotatedNorth: true,
 
-          padding: EdgeInsets.only(top: 236, right: 4),
+          padding: EdgeInsets.only(
+            top: MediaQuery.paddingOf(context).top + kToolbarHeight + 132,
+            right: 4,
+          ),
         ),
         Positioned(
-          top: 112,
+          top: MediaQuery.paddingOf(context).top + kToolbarHeight + 8,
           right: 0,
           child: Column(
             mainAxisSize: MainAxisSize.min,

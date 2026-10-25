@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
@@ -223,7 +224,7 @@
                 {$_("about")}
             </h2>
             <div class="prose dark:prose-invert">
-                {@html about}
+                {@html sanitizeHTML(about)}
             </div>
         </div>
     </section>

@@ -12,6 +12,32 @@ class AppLocalizationsCs extends AppLocalizations {
   String get about => 'O aplikaci';
 
   @override
+  String get about_changelog => 'What\'s new';
+
+  @override
+  String get about_discord_subtitle => 'Chat with the community';
+
+  @override
+  String get about_github_subtitle => 'Source code, issues and contributions';
+
+  @override
+  String get about_license => 'License';
+
+  @override
+  String get about_licenses => 'Open source licenses';
+
+  @override
+  String get about_privacy_policy => 'Privacy policy';
+
+  @override
+  String get about_report_bug => 'Report a bug';
+
+  @override
+  String about_version(String version) {
+    return 'Version $version';
+  }
+
+  @override
   String get appearance => 'Vzhled';
 
   @override
@@ -709,10 +735,52 @@ class AppLocalizationsCs extends AppLocalizations {
   String get summit_book => 'Vrcholová kniha';
 
   @override
+  String get sync_discard_draft_confirm =>
+      'Delete this recording? It hasn\'t been uploaded anywhere.';
+
+  @override
+  String get sync_draft => 'Draft';
+
+  @override
   String get sync_failed => 'Nahrávání selhalo · Klepnutím opakujete';
 
   @override
   String get sync_pending => 'Čeká na nahrání';
+
+  @override
+  String get sync_section_failed_body =>
+      'The upload didn\'t go through. Try again.';
+
+  @override
+  String get sync_section_pending_online_body =>
+      'Uploads automatically in a moment.';
+
+  @override
+  String get sync_section_uploading_body =>
+      'Sending this trail to your server.';
+
+  @override
+  String get sync_section_draft_body =>
+      'This recording is only on this device.';
+
+  @override
+  String get sync_section_draft_title => 'Not uploaded yet';
+
+  @override
+  String get sync_section_failed_title => 'Upload failed';
+
+  @override
+  String get sync_section_pending_offline_body =>
+      'Uploads when you\'re back online';
+
+  @override
+  String get sync_section_retry => 'Retry';
+
+  @override
+  String get sync_section_upload => 'Upload';
+
+  @override
+  String get sync_section_upload_now => 'Upload now';
 
   @override
   String get sync_uploading => 'Nahrávání…';
@@ -796,6 +864,21 @@ class AppLocalizationsCs extends AppLocalizations {
   @override
   String get wrong_username_or_password =>
       'Nesprávné uživatelské jméno nebo heslo';
+
+  @override
+  String get server_incompatible_title => 'Server not supported';
+
+  @override
+  String get server_incompatible =>
+      'This server runs a version of wanderer that the app does not support. Signing in becomes possible once it is updated.';
+
+  @override
+  String server_incompatible_version(String version) {
+    return 'Server version: $version';
+  }
+
+  @override
+  String get server_incompatible_docs => 'How to update the server';
 
   @override
   String get you_have_arrived => 'Dorazili jste';
@@ -919,6 +1002,14 @@ class AppLocalizationsCs extends AppLocalizations {
   String get feed => 'Kanál';
 
   @override
+  String get profile_feed_empty_own => 'Zatím nemáte žádnou aktivitu.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username zatím nemá žádnou aktivitu.';
+  }
+
+  @override
   String get no_trails_yet => 'Zatím žádné trasy.';
 
   @override
@@ -948,6 +1039,12 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get enter_server_url_hint => 'Zadejte URL serveru (např. wanderer.to)';
+
+  @override
+  String get last_used => 'Naposledy použité';
+
+  @override
+  String get community_instances => 'Komunitní instance';
 
   @override
   String get search_library => 'Prohledat knihovnu…';

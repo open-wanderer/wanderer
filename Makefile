@@ -10,7 +10,7 @@ db-vet:
 
 .PHONY: db-test
 db-test:
-	cd db && go test ./...
+	cd db && go test -timeout 30m ./...
 
 .PHONY: db-build
 db-build:

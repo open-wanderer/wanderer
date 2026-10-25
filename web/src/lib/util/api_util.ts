@@ -1,4 +1,4 @@
-import { error, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { error, isHttpError, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodSchema } from "zod";
 import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
@@ -112,6 +112,7 @@ export async function update<T>(event: RequestEvent, schema: ZodSchema, collecti
 }
 
 export async function uploadCreate<T>(event: RequestEvent, collection: Collection) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
@@ -123,26 +124,110 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
     return r
 }
 
-export async function uploadUpdate<T>(event: RequestEvent, collection: Collection) {
+export async function uploadUpdate<T>(event: RequestEvent, collection: Collection, data?: FormData) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
+    const params = event.params
+    const safeParams = RecordIdSchema.parse(params);
+
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
-    const data = await event.request.formData();
-    if (!data.has('id')) {
-        throw new Error("data has no id")
+    data ??= await event.request.formData();
+
+    // The path is authoritative. An id in the body is optional but must
+    // agree with it, so a client cannot address one record and update another.
+    const bodyId = data.get('id');
+    if (bodyId !== null && bodyId !== safeParams.id) {
+        throw new ClientResponseError({
+            status: 400,
+            response: { message: "id_mismatch", expected: safeParams.id },
+        });
     }
 
+    stripImmutableUpdateFields(collection, data);
 
-    const r = await event.locals.pb.collection(Collection[collection]).update<T>(data.get('id')!.toString(), data, safeSearchParams)
+    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data, safeSearchParams)
 
     return r
 }
 
-export async function upload<T>(event: RequestEvent, collection: Collection) {
+const immutableUpdateFields: Partial<Record<Collection, readonly string[]>> = {
+    [Collection.trails]: ["author"],
+    [Collection.lists]: ["author"],
+    [Collection.comments]: ["author", "trail"],
+    [Collection.waypoints]: ["author", "trail"],
+    [Collection.summit_logs]: ["author", "trail"],
+    [Collection.plugin_instances]: ["user", "plugin_id"],
+    [Collection.trail_share]: ["trail"],
+    [Collection.list_share]: ["list"],
+    [Collection.trail_link_share]: ["trail"],
+    [Collection.follows]: ["follower"],
+    [Collection.settings]: ["user"],
+    [Collection.user_category_preferences]: ["user"],
+    [Collection.user_subcategory_preferences]: ["user"],
+};
+
+// API update bodies cannot change ownership or protected relation bindings.
+// Include PocketBase's modifiers and its JSON part inside multipart bodies.
+function stripImmutableUpdateFields(collection: Collection, data: FormData) {
+    const fields = immutableUpdateFields[collection];
+    if (!fields) return;
+
+    const protectedKey = (key: string) => fields.includes(key.replace(/^[+-]+|[+-]+$/g, ""));
+    for (const key of [...data.keys()]) {
+        if (protectedKey(key)) data.delete(key);
+    }
+
+    const payloads = data.getAll("@jsonPayload");
+    if (!payloads.length) return;
+    const sanitizedPayloads = payloads.map((payload) => {
+        let body: unknown;
+        try {
+            body = typeof payload === "string" ? JSON.parse(payload) : null;
+        } catch {
+            body = null;
+        }
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+            throw new ClientResponseError({ status: 400, response: { message: "invalid_json_payload" } });
+        }
+        for (const key of Object.keys(body)) {
+            if (protectedKey(key)) delete (body as Record<string, unknown>)[key];
+        }
+        return JSON.stringify(body);
+    });
+    data.delete("@jsonPayload");
+    for (const payload of sanitizedPayloads) data.append("@jsonPayload", payload);
+}
+
+/**
+ * Rejects a multipart body that carries none of the collection's file fields.
+ *
+ * PocketBase silently drops multipart parts whose name does not match a
+ * collection field, which would turn a misnamed part into a 200 no-op.
+ * Accepts the field itself as well as PocketBase's "+"/"-" modifiers.
+ */
+export function assertFileField(data: FormData, fileFields: readonly string[]) {
+    const hasFileField = [...data.keys()].some((key) =>
+        fileFields.some((field) => key === field || key === `${field}+` || key === `${field}-`)
+    );
+    if (!hasFileField) {
+        throw new ClientResponseError({
+            status: 400,
+            response: { message: "missing_file", expected: fileFields },
+        });
+    }
+}
+
+export async function upload<T>(event: RequestEvent, collection: Collection, fileFields: readonly string[]) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
     const data = await event.request.formData();
+
+    assertFileField(data, fileFields);
+
+    stripImmutableUpdateFields(collection, data);
 
     const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, data)
 
@@ -159,14 +244,20 @@ export async function remove(event: RequestEvent, collection: Collection) {
 }
 
 export function handleError(e: any) {
-    if (e instanceof ZodError) {
+    // Upload helpers reject anonymous requests before reading the body; API
+    // clients expect that rejection as JSON rather than an error page.
+    if (isHttpError(e, 401)) {
+        return json({ message: e.body.message }, { status: 401 })
+    } else if (isHttpError(e)) {
+        throw e;
+    } else if (e instanceof ZodError) {
         return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
         return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
     } else if (e instanceof SyntaxError) {
         return json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {
-        return json({ message: e.message }, { status: 500 })
+        return json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
     } else {
         const message = typeof e?.message === "string"
             ? e.message

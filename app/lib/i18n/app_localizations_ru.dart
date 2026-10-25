@@ -12,6 +12,32 @@ class AppLocalizationsRu extends AppLocalizations {
   String get about => 'О';
 
   @override
+  String get about_changelog => 'Что нового';
+
+  @override
+  String get about_discord_subtitle => 'Чат с сообществом';
+
+  @override
+  String get about_github_subtitle => 'Source code, issues and contributions';
+
+  @override
+  String get about_license => 'Лицензия';
+
+  @override
+  String get about_licenses => 'Open source licenses';
+
+  @override
+  String get about_privacy_policy => 'Политика конфиденциальности';
+
+  @override
+  String get about_report_bug => 'Сообщить об ошибке';
+
+  @override
+  String about_version(String version) {
+    return 'Версия $version';
+  }
+
+  @override
   String get appearance => 'Внешний вид';
 
   @override
@@ -702,10 +728,52 @@ class AppLocalizationsRu extends AppLocalizations {
   String get summit_book => 'История поездок';
 
   @override
+  String get sync_discard_draft_confirm =>
+      'Delete this recording? It hasn\'t been uploaded anywhere.';
+
+  @override
+  String get sync_draft => 'Draft';
+
+  @override
   String get sync_failed => 'Upload failed · Tap to retry';
 
   @override
   String get sync_pending => 'Waiting to upload';
+
+  @override
+  String get sync_section_failed_body =>
+      'The upload didn\'t go through. Try again.';
+
+  @override
+  String get sync_section_pending_online_body =>
+      'Uploads automatically in a moment.';
+
+  @override
+  String get sync_section_uploading_body =>
+      'Sending this trail to your server.';
+
+  @override
+  String get sync_section_draft_body =>
+      'This recording is only on this device.';
+
+  @override
+  String get sync_section_draft_title => 'Not uploaded yet';
+
+  @override
+  String get sync_section_failed_title => 'Upload failed';
+
+  @override
+  String get sync_section_pending_offline_body =>
+      'Uploads when you\'re back online';
+
+  @override
+  String get sync_section_retry => 'Retry';
+
+  @override
+  String get sync_section_upload => 'Upload';
+
+  @override
+  String get sync_section_upload_now => 'Upload now';
 
   @override
   String get sync_uploading => 'Uploading…';
@@ -786,6 +854,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get wrong_username_or_password => 'Неверный логин или пароль';
+
+  @override
+  String get server_incompatible_title => 'Server not supported';
+
+  @override
+  String get server_incompatible =>
+      'This server runs a version of wanderer that the app does not support. Signing in becomes possible once it is updated.';
+
+  @override
+  String server_incompatible_version(String version) {
+    return 'Server version: $version';
+  }
+
+  @override
+  String get server_incompatible_docs => 'How to update the server';
 
   @override
   String get you_have_arrived => 'You\'ve arrived';
@@ -908,6 +991,14 @@ class AppLocalizationsRu extends AppLocalizations {
   String get feed => 'Feed';
 
   @override
+  String get profile_feed_empty_own => 'У вас ещё нет активностей.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return 'У $username ещё нет активностей.';
+  }
+
+  @override
   String get no_trails_yet => 'No trails yet.';
 
   @override
@@ -937,6 +1028,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get enter_server_url_hint => 'Enter server URL (e.g. wanderer.to)';
+
+  @override
+  String get last_used => 'Last used';
+
+  @override
+  String get community_instances => 'Community instances';
 
   @override
   String get search_library => 'Search library…';

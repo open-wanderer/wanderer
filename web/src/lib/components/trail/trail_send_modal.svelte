@@ -18,6 +18,9 @@
 
     let { trail, share }: Props = $props();
 
+    const uid = $props.id();
+    const modalId = `send-modal-${uid}`;
+
     let modal: Modal;
     let loading = $state(false);
     let sending = $state("");
@@ -106,7 +109,7 @@
     }
 </script>
 
-<Modal id="send-modal" title={$_("send-to")} size="md:min-w-sm" bind:this={modal}>
+<Modal id={modalId} title={$_("send-to")} size="md:min-w-sm" bind:this={modal}>
     {#snippet content()}
         {#if loading}
             <div class="flex justify-center p-4">

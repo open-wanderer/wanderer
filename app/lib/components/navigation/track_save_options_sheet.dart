@@ -39,8 +39,10 @@ Future<(bool recalcHeights, bool followRoads)?> showTrackSaveOptionsSheet(
     builder: (context) => Padding(
       padding: switch (source) {
         TrackSaveOptionsSource.recording => EdgeInsets.zero,
-        TrackSaveOptionsSource.import => const EdgeInsets.only(
-          bottom: kBottomNavigationBarHeight + 48,
+        // Import runs from the shell, where this padding is the bottom app
+        // bar's full height; 24 more clears the docked FAB's overhang.
+        TrackSaveOptionsSource.import => EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom + 24,
         ),
       },
       child: _TrackSaveOptionsSheetContent(source: source),

@@ -1,7 +1,7 @@
 name: wanderer
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0+9
+version: 0.1.0+10
 
 environment:
   sdk: ^3.11.5
@@ -43,6 +43,7 @@ dependencies:
   meta: ^1.18.0
   objectbox: ^5.3.1
   objectbox_flutter_libs: ^5.3.1
+  package_info_plus: ^9.0.1
   path: ^1.9.1
   path_provider: ^2.1.5
   pmtiles: ^1.2.0
@@ -56,7 +57,7 @@ dependencies:
   timeago: ^3.7.1
   tiptap_flutter:
     path: vendor/tiptap_flutter
-  tracelet: ^3.5.0
+  tracelet: ^3.8.8
   url_launcher: ^6.3.2
   xml: ^6.3.0
   cached_network_image: ^3.4.1

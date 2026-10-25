@@ -1,0 +1,66 @@
+[
+  {
+    "data": {
+      "code": "remote_document_limit",
+      "origin_url": "http://remote.example:39165/trail/view/@riley/trailbytes00001"
+    },
+    "message": "This content is too large to load here. You can view it on its original instance.",
+    "status": 422,
+    "detail": {
+      "data": {
+        "code": "remote_document_limit",
+        "origin_url": "http://remote.example:39165/trail/view/@riley/trailbytes00001"
+      },
+      "message": "This content is too large to load here. You can view it on its original instance.",
+      "status": 422
+    }
+  },
+  {
+    "data": {
+      "code": "remote_document_limit",
+      "origin_url": "http://remote.example:39165/trail/view/@riley/trailtoken00001"
+    },
+    "message": "This content is too large to load here. You can view it on its original instance.",
+    "status": 422,
+    "detail": {
+      "data": {
+        "code": "remote_document_limit",
+        "origin_url": "http://remote.example:39165/trail/view/@riley/trailtoken00001"
+      },
+      "message": "This content is too large to load here. You can view it on its original instance.",
+      "status": 422
+    }
+  },
+  {
+    "data": {
+      "code": "remote_document_limit",
+      "origin_url": "http://remote.example:39165/lists/@riley/listbytes000001"
+    },
+    "message": "This content is too large to load here. You can view it on its original instance.",
+    "status": 422,
+    "detail": {
+      "data": {
+        "code": "remote_document_limit",
+        "origin_url": "http://remote.example:39165/lists/@riley/listbytes000001"
+      },
+      "message": "This content is too large to load here. You can view it on its original instance.",
+      "status": 422
+    }
+  },
+  {
+    "data": {
+      "code": "remote_document_limit",
+      "origin_url": "http://remote.example:39165/lists/@riley/listtoken000001"
+    },
+    "message": "This content is too large to load here. You can view it on its original instance.",
+    "status": 422,
+    "detail": {
+      "data": {
+        "code": "remote_document_limit",
+        "origin_url": "http://remote.example:39165/lists/@riley/listtoken000001"
+      },
+      "message": "This content is too large to load here. You can view it on its original instance.",
+      "status": 422
+    }
+  }
+]

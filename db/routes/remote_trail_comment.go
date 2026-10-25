@@ -1,16 +1,14 @@
 package routes
 
 import (
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"path"
-	"pocketbase/federation"
 	"pocketbase/util"
 	"strconv"
-	"strings"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
@@ -18,7 +16,6 @@ import (
 
 func RemoteTrailCommentsList(e *core.RequestEvent) error {
 	trailID := e.Request.PathValue("id")
-	expandQuery := e.Request.URL.Query().Get("expand")
 	sort := e.Request.URL.Query().Get("sort")
 
 	if sort == "" {
@@ -89,12 +86,9 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 		return err
 	}
 
-	// 4. Handle Expand
-	if expandQuery != "" {
-		errs := e.App.ExpandRecords(filteredRecords, strings.Split(expandQuery, ","), nil)
-		if len(errs) > 0 {
-			fmt.Printf("Expand errors: %v\n", errs)
-		}
+	// 4. Apply view rules to every requested relation, including nested expands.
+	if err := enrichRemoteRecords(e, filteredRecords...); err != nil {
+		return err
 	}
 
 	// 5. Manually construct the response object
@@ -107,8 +101,13 @@ func RemoteTrailCommentsList(e *core.RequestEvent) error {
 	})
 }
 
+var newRemoteCommentSyncHTTPClient = util.SafeHTTPClient
+
 func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
-	client := util.SafeHTTPClient()
+	if util.IsLocalIRI(trail.GetString("iri")) || remoteRecordHasLocalAuthor(e.App, trail) {
+		return nil
+	}
+	client := newRemoteCommentSyncHTTPClient()
 
 	var userActor *core.Record
 	if e.Auth != nil {
@@ -121,7 +120,10 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 	}
 
 	trailIRI := trail.GetString("iri")
-	u, _ := url.Parse(trailIRI)
+	u, err := url.Parse(trailIRI)
+	if err != nil || !remoteSyncIRIMatchesOrigin(trailIRI, trailIRI) {
+		return fmt.Errorf("invalid remote trail origin")
+	}
 
 	remoteTrailID := path.Base(u.Path)
 
@@ -129,58 +131,140 @@ func syncRemoteComments(e *core.RequestEvent, trail *core.Record) error {
 
 	req, _ := http.NewRequestWithContext(ctx, "GET", remoteURL, nil)
 	res, err := client.Do(req)
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
 		if errors.Is(err, util.ErrRateLimited) {
 			return e.TooManyRequestsError("Too many requests", err)
 		}
 		return fmt.Errorf("remote fetch failed: %w", err)
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("remote fetch returned status %d", res.StatusCode)
+	}
 
 	var remoteData struct {
-		Items []map[string]any `json:"items"`
+		Items      []map[string]any `json:"items"`
+		TotalItems *int             `json:"totalItems"`
+		TotalPages *int             `json:"totalPages"`
 	}
-	if err := json.NewDecoder(res.Body).Decode(&remoteData); err != nil {
+	if err := util.DecodeFederationJSON(res.Body, util.FederationObjectBodyLimit, &remoteData); err != nil {
 		return err
 	}
 
-	collection, _ := e.App.FindCollectionByNameOrId("comments")
-
-	return e.App.RunInTransaction(func(txApp core.App) error {
-		for _, raw := range remoteData.Items {
-			remoteIRI, _ := raw["iri"].(string)
-			if remoteIRI == "" {
-				remoteID, _ := raw["id"].(string)
-				remoteIRI = fmt.Sprintf("%s://%s/api/v1/comment/%s", u.Scheme, u.Host, remoteID)
-			}
-
-			// Find existing record by IRI or ID to avoid duplicates
-			commentRecord, _ := txApp.FindFirstRecordByData("comments", "iri", remoteIRI)
-			if commentRecord == nil {
-				commentRecord = core.NewRecord(collection)
-				commentRecord.Set("iri", remoteIRI)
-				commentRecord.Set("trail", trail.Id)
-			}
-
-			// Resolve federated author
-			if expand, ok := raw["expand"].(map[string]any); ok {
-				if author, ok := expand["author"].(map[string]any); ok {
-					authorIRI, _ := author["iri"].(string)
-					actor, err := federation.GetActorByIRI(txApp, ctx, authorIRI, false)
-					if err == nil {
-						raw["author"] = actor.Id
-					}
-				}
-			}
-
-			delete(raw, "id")
-			delete(raw, "trail")
-			delete(raw, "expand")
-			delete(raw, "iri")
-			commentRecord.Load(raw)
-
-			if err := txApp.Save(commentRecord); err != nil {
+	collection, err := e.App.FindCollectionByNameOrId("comments")
+	if err != nil {
+		return err
+	}
+	type preparedComment struct {
+		iri, author string
+		data        map[string]any
+		canonical   bool
+	}
+	prepared := []preparedComment{}
+	complete := remoteData.Items != nil
+	if remoteData.TotalItems != nil || remoteData.TotalPages != nil {
+		complete = complete && (remoteData.TotalItems == nil || *remoteData.TotalItems == len(remoteData.Items)) &&
+			(remoteData.TotalPages == nil || *remoteData.TotalPages == 1 || *remoteData.TotalPages == 0 && len(remoteData.Items) == 0)
+	} else {
+		complete = complete && len(remoteData.Items) < canonicalRemoteRecordLimit
+	}
+	listed := map[string]bool{}
+	references := []canonicalCommentReference{}
+	referenced := map[string]struct{}{}
+	// Actor refreshes run before the transaction; no provider lookup may hold
+	// the write lock needed to save a comment.
+	for _, raw := range remoteData.Items {
+		iri, _ := raw["iri"].(string)
+		if iri == "" {
+			id, _ := raw["id"].(string)
+			if id == "" {
+				complete = false
 				continue
+			}
+			iri = fmt.Sprintf("%s://%s/api/v1/comment/%s", u.Scheme, u.Host, id)
+		}
+		if !remoteSyncIRIMatchesOrigin(iri, iri) {
+			complete = false
+			continue
+		}
+		listed[iri] = true
+		if util.IsLocalIRI(iri) {
+			continue
+		}
+		if !remoteSyncIRIMatchesOrigin(iri, trailIRI) {
+			if _, duplicate := referenced[iri]; duplicate {
+				continue
+			}
+			referenced[iri] = struct{}{}
+			references = append(references, canonicalCommentReference{iri: iri, updated: canonicalLogUpdatedHint(raw)})
+			prepared = append(prepared, preparedComment{iri: iri, canonical: true})
+			continue
+		}
+		author, allowed, authorErr := resolveRemoteSyncAuthor(e.App, ctx, trail.GetString("author"), iri, raw)
+		if authorErr != nil || !allowed {
+			continue
+		}
+		actor, actorErr := e.App.FindRecordById("activitypub_actors", author)
+		if actorErr != nil || actor.GetBool("is_local") {
+			continue
+		}
+		for _, key := range []string{"id", "trail", "author", "expand", "iri"} {
+			delete(raw, key)
+		}
+		stripLocalSyncFields(raw)
+		prepared = append(prepared, preparedComment{iri: iri, author: author, data: raw})
+	}
+	if complete {
+		for _, reference := range omittedRemoteCommentReferences(e.App, trail, listed) {
+			references = append(references, reference)
+			prepared = append(prepared, preparedComment{iri: reference.iri, canonical: true})
+		}
+	}
+	canonical := fetchCanonicalRemoteComments(e.App, ctx, client, trail, references)
+	return e.App.RunInTransaction(func(txApp core.App) error {
+		for _, item := range prepared {
+			var trusted canonicalRemoteComment
+			if item.canonical {
+				var ok bool
+				if trusted, ok = canonical[item.iri]; !ok {
+					continue
+				}
+				item.author, item.data = trusted.author, trusted.data
+			}
+			comment, err := txApp.FindFirstRecordByData("comments", "iri", item.iri)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+			if item.canonical && trusted.removed {
+				if err := removeConfirmedGoneComment(txApp, trail, comment, trusted); err != nil {
+					return err
+				}
+				continue
+			}
+			if comment != nil {
+				if !remoteSyncRecordCanUpdate(txApp, comment, item.author, trail.Id) {
+					if item.canonical {
+						canonicalRemoteLogCache.failure(trusted.cacheKey, trusted.updatedHint)
+					}
+					continue
+				}
+			} else {
+				comment = core.NewRecord(collection)
+			}
+			loadRemoteRecordFields(comment, item.data)
+			comment.Set("iri", item.iri)
+			comment.Set("trail", trail.Id)
+			comment.Set("author", item.author)
+			util.SanitizeHTMLFieldsWithLimits(comment)
+			if err := txApp.Save(comment); err != nil {
+				txApp.Logger().Warn("skipped remote comment that failed validation", "iri", item.iri, "error", err)
+				if item.canonical {
+					canonicalRemoteLogCache.failure(trusted.cacheKey, trusted.updatedHint)
+				}
+				continue
+			}
+			if item.canonical {
+				canonicalRemoteLogCache.successAfterCommit(txApp, trusted.cacheKey, trusted.updatedHint, comment.GetString("updated"))
 			}
 		}
 		return nil

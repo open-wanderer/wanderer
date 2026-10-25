@@ -55,8 +55,6 @@ export async function login(user: User) {
 }
 
 export async function oauth_login(data: { name: string, code: string, codeVerifier: string }) {
-    const pb = getPb();
-
     const r = await fetch('/api/v1/auth/oauth', {
         method: 'POST',
         body: JSON.stringify(data)
@@ -65,9 +63,6 @@ export async function oauth_login(data: { name: string, code: string, codeVerifi
         const response = await r.json();
         throw new APIError(r.status, response.message, response.detail)
     }
-
-    pb.authStore.loadFromCookie(document.cookie)
-
 }
 
 
@@ -75,6 +70,24 @@ export async function logout() {
     const pb = getPb();
 
     pb.authStore.clear();
+}
+
+async function userUpdateError(response: Response): Promise<APIError> {
+    let body: { message?: unknown; detail?: unknown } | undefined;
+    try {
+        const parsed: unknown = await response.json();
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+            body = parsed;
+        }
+    } catch {
+        // Proxies can return HTML or an empty body. Keep the HTTP status so the
+        // UI can still explain size limits, rate limits, and server failures.
+    }
+    return new APIError(
+        response.status,
+        typeof body?.message === "string" ? body.message : response.statusText,
+        body?.detail,
+    );
 }
 
 export async function users_update(user: User | { [K in keyof User]?: User[K] }, avatar?: File) {
@@ -85,8 +98,7 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
     })
 
     if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+        throw await userUpdateError(r);
     }
 
 
@@ -102,8 +114,7 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
         })
 
         if (!r.ok) {
-            const response = await r.json();
-            throw new APIError(r.status, response.message, response.detail)
+            throw await userUpdateError(r);
         }
 
     }

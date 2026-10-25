@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private'
 import { env as envPub } from '$env/dynamic/public'
 import type { Settings } from '$lib/models/settings'
 
-import PocketBase from 'pocketbase'
+import PocketBase, { ClientResponseError } from 'pocketbase'
 import { isRouteProtected } from '$lib/util/authorization_util'
 import { error, json, redirect, text, type Handle } from '@sveltejs/kit'
 import { sequence } from '@sveltejs/kit/hooks'
@@ -11,9 +11,12 @@ import { locale } from 'svelte-i18n'
 import type { Actor } from '$lib/models/activitypub/actor'
 import { normalizeLocale } from '$lib/i18n/locales'
 import { handleError } from '$lib/util/api_util'
+import { apiErrorsAsJson, isApiRequest } from '$lib/server/api_errors'
+import { limitRequestBodies } from '$lib/server/request_body'
 
 const SEARCH_TOKEN_VERSION = 1;
 const SEARCH_TOKEN_TTL_MS = 60 * 60 * 24 * 1000;
+const HEALTH_PATH = "/api/v1/health";
 
 function csrf(allowedPaths: string[]): Handle {
   return async ({ event, resolve }) => {
@@ -29,7 +32,7 @@ function csrf(allowedPaths: string[]): Handle {
 
     if (forbidden) {
       const message = `Cross-site ${request.method} form submissions are forbidden`;
-      if (request.headers.get("accept") === "application/json") {
+      if (isApiRequest(url) || request.headers.get("accept") === "application/json") {
         return json({ message }, { status: 403 });
       }
       return text(message, { status: 403 });
@@ -54,7 +57,29 @@ function isFormContentType(request: Request) {
 
 const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
+  pb.beforeSend = (url, options) => {
+    // Keep a plain object: the SDK reads headers by key after beforeSend
+    // (e.g. to JSON-serialize the body), which a Headers instance breaks.
+    const headers: Record<string, string> = {}
+    for (const [key, value] of Object.entries(options.headers ?? {})) {
+      if (key.toLowerCase() !== 'x-forwarded-for') headers[key] = value
+    }
+    try {
+      headers['X-Forwarded-For'] = event.getClientAddress()
+    } catch {
+      // ADDRESS_HEADER is set but this request has none (e.g. a healthcheck).
+    }
+    return { url, options: { ...options, headers } }
+  }
   const url = new URL(event.request.url);
+
+  // The health probe reports whether PocketBase is reachable, so it must not
+  // depend on the token checks and search-token fetch below: those fail with
+  // a 500 while PocketBase is down, and clients only treat 503 as offline.
+  if (url.pathname === HEALTH_PATH) {
+    event.locals.pb = pb
+    return resolve(event)
+  }
 
   // Handle API token based auth for API requests
   if (event.request.headers.has("Authorization") && url.pathname.startsWith("/api")) {
@@ -71,6 +96,14 @@ const auth: Handle = async ({ event, resolve }) => {
         })
         pb.authStore.save(authData.token, authData.record)
       } catch (e) {
+        // Only a 401 rejects the token; a missing auth endpoint or a backend
+        // failure is not a token rejection.
+        if (e instanceof ClientResponseError && e.status === 401) {
+          return json({ message: "invalid_token" }, {
+            status: 401,
+            headers: { "WWW-Authenticate": 'Bearer error="invalid_token"' },
+          })
+        }
         throw error(500, "Failed to verify API token " + e)
       }
 
@@ -193,4 +226,4 @@ const removeLinkFromHeaders: Handle =
   }
 
 
-export const handle = sequence(csrf(['/api/v1']), auth, removeLinkFromHeaders)
+export const handle = sequence(apiErrorsAsJson, limitRequestBodies, csrf(['/api/v1']), auth, removeLinkFromHeaders)

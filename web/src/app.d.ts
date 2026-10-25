@@ -6,10 +6,15 @@ import PocketBase from 'pocketbase';
 // for information about these interfaces
 declare global {
 	namespace App {
-		// interface Error {}
+		interface Error {
+            message: string;
+            originURL?: string;
+        }
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			lightbox?: { id: string; index: number };
+		}
 		// interface Platform {}
 		interface Locals {
 			pb: PocketBase

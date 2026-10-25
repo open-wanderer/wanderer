@@ -20,7 +20,12 @@
     }
 
     let { user }: Props = $props();
-    const navUser = $derived($currentUser ?? user);
+    // `currentUser` is undefined until the client auth store has been
+    // initialised. An explicit null means that the user logged out and must
+    // not fall back to the (now stale) server-rendered prop.
+    const navUser = $derived(
+        $currentUser === undefined ? user : $currentUser,
+    );
 
     let navBarItems = [
         { text: "Home", value: "/" },
@@ -97,14 +102,19 @@
         }
     });
 
+    function handleLogout() {
+        drawerOpen = false;
+        void logout();
+        window.location.assign("/");
+    }
+
     function handleDropdownClick(item: { text: string; value: any }) {
         if (item.value == "profile") {
             goto(`/profile/@${$currentUser?.username?.toLowerCase()}`);
         } else if (item.value == "trails") {
             goto(`/profile/@${$currentUser?.username?.toLowerCase()}/trails`);
         } else if (item.value == "logout") {
-            logout();
-            window.location.href = "/";
+            handleLogout();
         } else if (item.value == "settings") {
             goto("/settings/profile");
         }
@@ -153,7 +163,7 @@
                 >
                     <img
                         class="rounded-full w-10 aspect-square"
-                        src={getFileURL(navUser, navUser.avatar) ||
+                        src={getFileURL(navUser, navUser.avatar, "100x100") ||
                             `https://api.dicebear.com/7.x/initials/svg?seed=${navUser.username.toLowerCase()}&backgroundType=gradientLinear`}
                         alt="avatar"
                     />
@@ -173,10 +183,7 @@
                 </a>
                 <button
                     aria-label="Logout"
-                    onclick={() => {
-                        logout();
-                        window.location.href = "/";
-                    }}
+                    onclick={handleLogout}
                     class="btn-icon"
                     ><i class="fa-solid fa-arrow-right-from-bracket"
                     ></i></button
@@ -258,7 +265,7 @@
                         >
                             <img
                                 class="rounded-full w-full h-full"
-                                src={getFileURL(navUser, navUser.avatar) ||
+                                src={getFileURL(navUser, navUser.avatar, "100x100") ||
                                     `https://api.dicebear.com/7.x/initials/svg?seed=${navUser.username.toLowerCase()}&backgroundType=gradientLinear`}
                                 alt="avatar"
                             />

@@ -23,6 +23,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
+import 'package:wanderer/services/user_ca_trust.dart';
 import 'package:wanderer/provider/account_scope_invalidation.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
@@ -40,6 +41,13 @@ import 'actions/import_trail_file.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // On Android, dart:io trusts only system CAs, so self-hosted instances
+  // behind a user-installed private root CA fail TLS (#1255). This must run
+  // before the tile proxy or any HTTP client connects. Certificates are read
+  // once per launch, so a CA installed while the app runs needs a restart.
+  // Best-effort: never throws.
+  await trustUserCaCertificates();
 
   final appDocDir = await getApplicationDocumentsDirectory();
 
@@ -540,11 +548,17 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     ActiveNavigationEntity row,
     NavigateResponse response,
   ) async {
+    // Probe first: offline it only resolves once its request times out, and
+    // every fix tracelet records between the backfill below and the screen
+    // subscribing to `onLocation` is in neither — so the backfill goes last.
+    await ref.read(onlineStatusProvider.notifier).refresh();
     // Splice in whatever tracelet recorded while the app was dead before the
     // screen seeds itself from this row — its resume seeds are family provider
     // keys, resolved once in initState, so they cannot be amended afterwards.
-    await backfillSessionGap(row);
-    await ref.read(onlineStatusProvider.notifier).refresh();
+    await backfillSessionGap(
+      row,
+      ensureTraceletReady: _readyTraceletForBackfill,
+    );
     navigatorKey.currentContext?.push(
       '/trail/${row.trailId}/navigate',
       // No fresh fix to seed on resume — same as a brand-new session pending
@@ -557,10 +571,35 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   /// as [_pushNavigationResume] — to settle the app-wide online status, not
   /// to select a map style path.
   Future<void> _pushRecordingResume(ActiveNavigationEntity row) async {
-    // See [_pushNavigationResume] — must land before the screen reads the row.
-    await backfillSessionGap(row);
+    // See [_pushNavigationResume] — the probe goes first, and the backfill must
+    // land before the screen reads the row.
     await ref.read(onlineStatusProvider.notifier).refresh();
+    await backfillSessionGap(
+      row,
+      ensureTraceletReady: _readyTraceletForBackfill,
+    );
     navigatorKey.currentContext?.push('/record', extra: row);
+  }
+
+  /// Readies tracelet's native SDK so [backfillSessionGap] can read its store.
+  ///
+  /// Until `ready()` has run in the process the SDK reports an empty store, and
+  /// on a relaunch that has not happened yet: the recording screen is what
+  /// normally readies it, and it does not exist until after the backfill. The
+  /// screen readies it again with the same profile, as every later session in a
+  /// process already does, so nothing about its own startup changes.
+  ///
+  /// Generic notification wording: a navigation session's trail-specific text is
+  /// applied by the screen once the trail resolves, exactly as when the trail
+  /// is still loading at `start()`.
+  Future<void> _readyTraceletForBackfill() async {
+    final ctx = navigatorKey.currentContext;
+    final l10n = ctx == null ? null : AppLocalizations.of(ctx);
+    if (l10n == null) return;
+    await TraceletPositionSource.ensureReady(
+      notificationTitle: l10n.location_tracking_notification_title,
+      notificationText: l10n.location_tracking_notification_text,
+    );
   }
 
   /// Resumes an in-progress `ActiveSessionType.rec` row — mirrors

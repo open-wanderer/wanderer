@@ -158,7 +158,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const BackButtonIcon(),
           onPressed: () => context.pop(),
         ),
         title: Text(l10n.account),
@@ -315,6 +315,9 @@ class _BioSectionState extends ConsumerState<_BioSection> {
       await ref
           .read(settingsProvider.notifier)
           .saveToServer(settings.copyWith(bio: _current));
+      // The profile's bio is the actor summary, cached by the keepAlive
+      // ownProfileProvider; refresh it so the profile shows the new bio.
+      ref.invalidate(ownProfileProvider);
     } catch (_) {
       if (!mounted) return;
       ref

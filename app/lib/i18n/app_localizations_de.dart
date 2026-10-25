@@ -12,6 +12,32 @@ class AppLocalizationsDe extends AppLocalizations {
   String get about => 'Über';
 
   @override
+  String get about_changelog => 'What\'s new';
+
+  @override
+  String get about_discord_subtitle => 'Chat with the community';
+
+  @override
+  String get about_github_subtitle => 'Source code, issues and contributions';
+
+  @override
+  String get about_license => 'License';
+
+  @override
+  String get about_licenses => 'Open source licenses';
+
+  @override
+  String get about_privacy_policy => 'Privacy policy';
+
+  @override
+  String get about_report_bug => 'Report a bug';
+
+  @override
+  String about_version(String version) {
+    return 'Version $version';
+  }
+
+  @override
   String get appearance => 'Darstellung';
 
   @override
@@ -710,10 +736,52 @@ class AppLocalizationsDe extends AppLocalizations {
   String get summit_book => 'Gipfelbuch';
 
   @override
+  String get sync_discard_draft_confirm =>
+      'Diese Aufnahme löschen? Sie wurde nirgends hochgeladen.';
+
+  @override
+  String get sync_draft => 'Entwurf';
+
+  @override
   String get sync_failed => 'Upload fehlgeschlagen · Zum Wiederholen tippen';
 
   @override
   String get sync_pending => 'Warten auf Upload';
+
+  @override
+  String get sync_section_failed_body =>
+      'Der Upload hat nicht geklappt. Versuche es erneut.';
+
+  @override
+  String get sync_section_pending_online_body =>
+      'Wird gleich automatisch hochgeladen.';
+
+  @override
+  String get sync_section_uploading_body =>
+      'Diese Route wird an deinen Server gesendet.';
+
+  @override
+  String get sync_section_draft_body =>
+      'Diese Aufnahme ist nur auf diesem Gerät gespeichert.';
+
+  @override
+  String get sync_section_draft_title => 'Noch nicht hochgeladen';
+
+  @override
+  String get sync_section_failed_title => 'Upload fehlgeschlagen';
+
+  @override
+  String get sync_section_pending_offline_body =>
+      'Wird hochgeladen, sobald du wieder online bist';
+
+  @override
+  String get sync_section_retry => 'Erneut versuchen';
+
+  @override
+  String get sync_section_upload => 'Hochladen';
+
+  @override
+  String get sync_section_upload_now => 'Jetzt hochladen';
 
   @override
   String get sync_uploading => 'Wird hochgeladen…';
@@ -795,6 +863,21 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get wrong_username_or_password =>
       'Falscher Nutzername oder falsches Passwort';
+
+  @override
+  String get server_incompatible_title => 'Server nicht unterstützt';
+
+  @override
+  String get server_incompatible =>
+      'Auf diesem Server läuft eine wanderer-Version, die die App nicht unterstützt. Anmelden ist möglich, sobald er aktualisiert wurde.';
+
+  @override
+  String server_incompatible_version(String version) {
+    return 'Serverversion: $version';
+  }
+
+  @override
+  String get server_incompatible_docs => 'Server aktualisieren';
 
   @override
   String get you_have_arrived => 'Angekommen';
@@ -919,6 +1002,14 @@ class AppLocalizationsDe extends AppLocalizations {
   String get feed => 'Feed';
 
   @override
+  String get profile_feed_empty_own => 'Du hast noch keine Aktivitäten.';
+
+  @override
+  String profile_feed_empty_other(String username) {
+    return '$username hat noch keine Aktivitäten.';
+  }
+
+  @override
   String get no_trails_yet => 'Noch keine Routen.';
 
   @override
@@ -948,6 +1039,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get enter_server_url_hint => 'Server-URL eingeben (z.B. wanderer.to)';
+
+  @override
+  String get last_used => 'Zuletzt verwendet';
+
+  @override
+  String get community_instances => 'Community-Instanzen';
 
   @override
   String get search_library => 'Bibliothek durchsuchen…';

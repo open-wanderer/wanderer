@@ -164,7 +164,7 @@
         {#each (photos ?? []).concat(photoPreviews) as photo, i}
             <div class="shrink-0 grow-0 basis-auto">
                 <PhotoCard
-                    src={i >= photos.length ? photo : getFileURL(parent, photo)}
+                    src={i >= photos.length ? photo : getFileURL(parent, photo, "600x0")}
                     ondelete={() => handlePhotoDelete(i)}
                     isThumbnail={thumbnail === i}
                     onthumbnail={() => makePhotoThumbnail(i)}

@@ -1,3 +1,163 @@
+# 0.21.2
+
+## Breaking Changes
+
+- The sample Compose configuration now binds PocketBase to `127.0.0.1:8090` and requires an explicit `POCKETBASE_PROXY_SECRET` shared by `db` and `web`. Update existing deployments to use the same local port binding. Replace a copied `dev-proxy-secret-change-me` value with your own random secret, for example with `openssl rand -hex 32`; the dashboard remains available through an SSH tunnel. The web interface and mobile app do not need port 8090.
+- The sample web configuration now defaults to `BODY_SIZE_LIMIT=2G`, allowing a trail, summit log or waypoint to upload up to 99 default-sized photos in one request. This variable also controls the multipart upload limit; increase it when raising collection file limits. Existing `Infinity` settings allow uploads of any size after sign-in. The provided image starts through `server.js`, which uses `2G` when the variable is unset; invalid values produce a warning and also use `2G` at startup. Upload routes check authentication before reading or parsing the body. Other route limits remain 64 KiB for login, 2 MiB for ActivityPub inboxes and 1 MiB for ordinary requests. Configure reverse-proxy limits accordingly.
+
+## Security
+
+- ActivityPub and remote data processing apply additional validation and resource limits.
+- Updated ActivityPub content handling. (GHSA-fprh-3pp9-68m9, thanks @zer0d4y5)
+- Updated remote attachment handling. (GHSA-j9m4-8qwf-jvx6, thanks @zaara2004)
+- Updated remote file retrieval. (GHSA-3xp7-7492-j2q6, thanks @zaara2004)
+- Remote ActivityPub deliveries use public inbox addresses. (GHSA-vprp-gr6m-j375)
+
+## Federation
+
+- Incoming ActivityPub deliveries are only accepted with a signed body digest and a current signature date, as Mastodon requires. Deliveries from servers whose clock is off by more than an hour are rejected.
+- Accounts registered before an `ORIGIN` hostname or port change cannot publish new federated content to updated peers. Changing only `http` to `https` remains supported.
+- Trails and lists continue to synchronize with peers older than v0.20.0. Comments and summit logs from v0.19 peers are imported through their individual endpoints.
+- Replies from other ActivityPub software are imported only when publicly addressed and available without a signed request. Reply object retrieval is capped at 30 per refresh, 256 KiB per object and 2 MiB over 10 seconds, with 2 seconds per request.
+- Remote account deletions are applied once the account's origin confirms deletion with HTTP 410, or with HTTP 404 for wanderer accounts whose deletion is signed with their pre-upgrade key. Temporary origin errors leave the cached account in place.
+- If a delivery is rejected shortly after upgrading, repeat the action on the sending instance. Existing wanderer senders do not retry rejected activities automatically.
+- Trails in a remote list that are hosted on a third instance are loaded from that instance, up to 30 at a time; longer lists fill in with later refreshes. Trails that instance does not serve publicly are omitted, and trails it cannot serve at the moment appear once it responds again.
+- Summit log entries, comments and trails in remote lists from accounts on other instances appear with a later refresh when a refresh cannot confirm them within its fetch limits.
+- Activities between accounts on the same instance are delivered internally.
+- Remote deliveries go only to public inbox addresses, do not follow redirects, and do not use `HTTP_PROXY` or `HTTPS_PROXY`.
+- Incoming attachments are fetched only from public addresses, with a 30-second deadline per file. GPX and avatars default to 5 MiB and photos to 20 MiB; downloads follow the configured collection file limits.
+- **Loading remote content:** New trails and lists from other instances load with limited parallelism. Many slow instances can delay the first view or cause it to fail temporarily; previously completed copies remain readable. Remote lists load up to about 1,000 trails. Documents are limited to 32 MiB and 1,000,000 JSON tokens. Larger content shows a message and a link to view it on its original instance.
+- File downloads share a 30-second, 64 MiB budget per sync; metadata and completed files are retained, and later refreshes fill missing files. Concurrent refreshes are limited and child records are written in short batches. Previously completed copies remain readable when a refresh fails.
+- Replies to this instance's own trails that were delivered directly to it before this update remain visible until removed, including replies that are not public at their origin.
+
+# 0.21.1
+
+## Upgrade Notes
+- The Hammerhead plugin is now at version 0.1.2 and fixes the elevation profiles of imported Dashboard activities. To update, replace the plugin bundle, restart the backend, and check the version in the plugin settings, as described in the [plugin documentation](https://wanderer.to/run/installation/plugins). Activities that were imported before keep their wrong profile. (PR #1316, thanks @slothful-vassal)
+- The web service now forwards the visitor's IP address to PocketBase. To use it for PocketBase's IP rate limits and logs, set **User IP proxy headers** to `X-Forwarded-For` in the PocketBase settings, and make sure the `db` service is no longer reachable from outside, as described in the [backend configuration](https://wanderer.to/run/backend-configuration). If you set `ADDRESS_HEADER`, requests that reach the web service without that header now fail. (PR #1421, thanks @mvanhorn)
+- On the first start, migrations clean stored rich text and tag names. Rich text that is longer than its field allows after cleaning is shortened, and a downgrade does not restore it. (PR #1320, #1323, thanks @slothful-vassal)
+
+## Features
+- The photo lightbox now closes with the browser's back button or the back gesture on mobile. (PR #1264, thanks @hellofrancois)
+
+## Security
+- Rich text from imports, federation, and profile summaries is now sanitized before it is stored, and a migration cleans existing records. (PR #1320, thanks @slothful-vassal)
+- Users who may edit a record can no longer change its owner or move it to another trail. This also prevents taking over trails and lists that were shared for editing. (PR #1319, thanks @slothful-vassal)
+- Fixed a stored XSS in combobox suggestions. (PR #1318, thanks @slothful-vassal)
+- Comments on private trails are no longer federated, and a migration removes the activities already stored for them. (PR #1348)
+
+## Performance
+- The backend no longer rebuilds every search index on start, only indexes that changed. A new nightly `search-repair` job writes missing or outdated search documents and removes stale ones. Set its schedule with `POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE` (default `0 4 * * *`). (PR #1335)
+- Opening long tracks no longer freezes the browser. (PR #1289, #1291, #1269, thanks @hellofrancois)
+- Follower lists of remote accounts now load each page with a single request. (PR #1292)
+
+## Bug Fixes
+- Posts from wanderer now reach GoToSocial. (PR #1285, thanks @huggenknubbel)
+- Incoming federation no longer fails behind reverse proxies that send `Connection: upgrade`. (PR #1286, thanks @huggenknubbel)
+- Attachments are now always sent as an array, and single attachment objects from other servers are accepted. (PR #1382, thanks @slothful-vassal)
+- Failures while processing incoming activities or sending notification emails are now logged. (PR #1380, thanks @slothful-vassal)
+- Notifications no longer disappear from October through February. (PR #1384, thanks @SomSamantray)
+- Hammerhead imports now keep Dashboard elevations in metres instead of dividing them by 1,000. (PR #1316, thanks @slothful-vassal)
+- Strava syncing no longer stops when the access token expires. Revoking a plugin connection now removes its tokens, and a completed OAuth login can no longer be reused. (PR #1317, thanks @slothful-vassal)
+- Plugin syncs reject oversized batches with a clear error message. (PR #1381, thanks @slothful-vassal)
+- Deleting a trail with a summit log from a Komoot or Strava import no longer fails. (PR #1350, thanks @developerjillur)
+- Invalid or revoked API tokens now return `401` instead of `500`. (PR #1314, thanks @snowyukitty)
+- New accounts from OIDC providers that send neither `email_verified` nor `preferred_username`, such as Cloudflare Access, now keep their email address (unverified) and display name. (PR #1346)
+- OIDC login in Safari no longer shows an `invalid_grant` error. (PR #1332)
+- A profile's trails page no longer fails for signed-out visitors, which also broke viewing remote users' trails. (PR #1333)
+- GPX files that contain only routes now import with distance, elevation, and duration. (PR #1363, thanks @ryanchou1994)
+- Drawn routes are now stored and exported as one continuous track segment, so devices such as Garmin Explore show the whole route. (PR #1370, thanks @mvanhorn, #1377)
+- Waypoint distances are now stored in metres for users with imperial units. (PR #1344)
+- Photo waypoints on out-and-back tracks are now placed on the right pass. (PR #1345)
+- Reverse geocoding with the public Nominatim service now respects its rate limit during bulk imports and retries when it is rate limited. (PR #1367, thanks @jay23606)
+- Tag names no longer keep control characters, and entering an existing tag name reuses that tag. (PR #1323, thanks @slothful-vassal)
+- The list editor's trail search no longer comes up empty when the top matches are already in the list. (PR #1417, thanks @simonvanlierde)
+- Multi-select fields no longer suggest items that are already selected. (PR #1372, thanks @developerjillur)
+- Menus on trail cards, such as delete and duplicate, now act on their own card instead of the first one in the list, and scrolling works again after closing a dialog. (PR #1303, thanks @mrhard9090, #1307, thanks @slothful-vassal)
+- A failed profile image upload now shows an error. (PR #1304, thanks @mrhard9090)
+- The browser language chosen at signup is now saved. (PR #1379, thanks @slothful-vassal)
+- Deleted lists no longer reappear in the overview, and a failing search index no longer stops the backend when a trail or account is deleted. (PR #1326, #1327, thanks @slothful-vassal)
+
+## Documentation
+- The Docker installation guide now explains the three required secrets more clearly. (PR #1287, thanks @erikvanoosten)
+- Added instructions for OAuth with self-signed certificates. (PR #1368, thanks @indevd)
+- The mobile app pages now explain that the app's map needs `PROTOMAPS_API_KEY` or `TILE_SERVER_URL`, and that login fails on instances without the `-app` images. (PR #1330, #1331)
+- Added instructions for updating a plugin. (PR #1316, thanks @slothful-vassal)
+
+## Maintenance
+- Translation updates via Crowdin. (PR #1295)
+- Updated web, docs, and Docker dependencies.
+- Build and CI fixes. (PR #1362, #1324, #1322, #1281, thanks @slothful-vassal)
+
+# 0.21.0
+
+## Mobile app beta
+The wanderer mobile app for Android and iOS is now officially in public beta. Record and navigate trails, work offline with downloaded regions, and sync with your wanderer instance. Join via [TestFlight](https://testflight.apple.com/join/6VCR4QpV), the [Google Play open test](https://play.google.com/apps/testing/com.openwanderer.wanderer), or download the APK from the `app-v*` pre-releases on GitHub. Install instructions and a feature matrix are at [wanderer.to/app](https://wanderer.to/app). Comments, summit logs, and lists are read-only in the app for now. (PR #1256, #1265)
+
+## Breaking Changes
+> [!CAUTION]
+> **New required environment variable `POCKETBASE_PROXY_SECRET`.** Inbound ActivityPub deliveries are now authenticated between the `web` and `db` services (GHSA-mr29-2qg5-m4fw, PR #1205). Set `POCKETBASE_PROXY_SECRET` to the **same** random value on both the `db` and the `web` service before you upgrade. If it is missing or the values differ, your instance rejects all incoming federation. Generate a value with, for example, `openssl rand -hex 32`. See the [environment configuration](https://wanderer.to/run/environment-configuration) docs and the sample `docker-compose.yml`.
+
+## Features
+- Statistics page: trails marked as completed now count as activities even without a summit log. Adds period presets, a custom date range, an independently browsable calendar, and an activity chart that adapts its granularity. (PR #1162, thanks @slothful-vassal)
+- Selecting a trail for a summit log now also fills in its date. (PR #1099, thanks @hhornburg)
+- Plugin imports now keep the provider's difficulty rating (Komoot supported) instead of always storing `easy`. (PR #1266, thanks @slothful-vassal)
+- Plugin settings have a new info modal showing a plugin's purpose, availability, version, homepage, and an optional donation link. (PR #1166, thanks @slothful-vassal)
+- New `OIDC_SCOPES` environment variable to override the scopes requested by the OIDC providers. (PR #1027, thanks @mfuhrmann)
+- OAuth2 signups now keep the provider username, transliterated to a valid wanderer username, instead of a generated `usersNNNNNN`. (PR #1159, thanks @mfuhrmann)
+- Added a privacy policy at `/privacy`, linked from the footer. (PR #1203)
+
+## Security
+- Remote actors can no longer delete local trails or lists they do not own via ActivityPub `Delete`. (GHSA-xcwc-jhv2-w4h6, PR #1205)
+- The inbox route no longer trusts a client-supplied `X-Forwarded-Path`. (GHSA-mr29-2qg5-m4fw, PR #1205)
+- `waypoints` creation now checks trail ownership. (GHSA-vj82-xj83-jp85, PR #1205)
+- `comments`, `summit_logs`, and `trail_like` now bind the author to the authenticated user, so content can no longer be created in another user's name. (GHSA-332v-mq7g-5hqf, PR #1205)
+- The SSRF filter now blocks IPv6 transition addresses that embed internal IPv4 addresses. (GHSA-8j93-xvwx-jjg3, PR #1205)
+- Anonymous requests and remote accounts can no longer read or change private trails, lists, comments, and shares. (PR #1232, #1238, thanks @slothful-vassal)
+- API responses no longer expand related records the caller is not allowed to view. (PR #1223, thanks @slothful-vassal)
+- Share updates can no longer grant access to another user's trail or list, and private cross-instance shares are rejected by the API. (PR #1222, #1234, thanks @slothful-vassal)
+
+## Performance
+- Cards, galleries, map popups, and avatars now load PocketBase thumbnails instead of full-resolution photos. (PR #1268, thanks @fparadise)
+- Faster elevation profile smoothing. (PR #1267, thanks @fparadise)
+- Plugin mime type and error handling optimized. (PR #1115, thanks @slothful-vassal)
+
+## Bug Fixes
+- Replacing a trail's track through the API now recalculates distance, duration, and elevation. (PR #1228)
+- `POST /api/v1/{trail,list,summit-log}/form/{id}` now updates the record named in the path. A body `id` that does not match the path returns `400 id_mismatch`. (PR #1225)
+- `POST /api/v1/{waypoint,user}/{id}/file` returns `400 missing_file` when no part matches a file field (`photos`, `avatar`) instead of silently doing nothing. The `/file` endpoints of trail, list, and summit-log are deprecated in favor of `form/{id}` and will be removed in a future release. (PR #1226)
+- Unknown paths under `/api` return a JSON `404` instead of an HTML page, and wrong methods return a JSON `405`. (PR #1227)
+- Fixed blank vector base maps after the MapLibre 6 upgrade. (PR #1243)
+- GPX 1.0 files no longer get a duplicate `xmlns` attribute after editing or exporting. (PR #1271, thanks @mrhard9090)
+- Trails whose author is missing no longer crash search initialization. (PR #1273, thanks @mvanhorn)
+- Trail date filters now include the whole selected days in your local time zone. (PR #1260, thanks @slothful-vassal)
+- Upload duplicate detection no longer misses matches outside the first 20 search results. (PR #1263, thanks @slothful-vassal)
+- Renaming a tag now updates trail search results. (PR #1262, thanks @slothful-vassal)
+- Radius filters now accept coordinates of 0 and no longer apply the same constraint twice. (PR #1259, thanks @slothful-vassal)
+- The map's elevation loss filter now uses the correct limit. (PR #1258, thanks @slothful-vassal)
+- Removing one share no longer hides a trail or list from its other recipients in search. (PR #1257, thanks @slothful-vassal)
+- Trail list pagination now stays correct when the page size or display mode changes. (PR #1250, thanks @slothful-vassal)
+- HTML-to-text previews and GPX parsing now use real parsers instead of regular expressions. (PR #1247, thanks @slothful-vassal)
+- Background sync no longer overwrites the local sync status or changes records while a request is being answered. (PR #1224, thanks @slothful-vassal)
+- Remote trails and lists fall back to cached data when the remote instance is unreachable. (PR #1103)
+- Videos in galleries and the lightbox no longer autoplay. (PR #1209, thanks @fparadise)
+- Fixed the actor endpoint failing on bios containing subdivision flag emoji. (PR #1186)
+- The fullscreen map now keeps the share token of a shared trail link. (PR #1172, thanks @pttydou)
+- Fixed a 500 error on public lists owned by a private profile. (PR #1156)
+- Fixed duplicated rendering of shared lists. (PR #1134, thanks @snowyukitty)
+
+## Documentation
+- Documentation for the mobile app beta: install page, what works where, creating and editing trails, and troubleshooting. (PR #1256)
+- Re-added Further Heights to the server list. (PR #1171, thanks @mozillamonks)
+
+## Maintenance
+- Built with Go 1.26 and TinyGo 0.41.1. Go 1.25 is no longer supported upstream. (PR #1195, thanks @slothful-vassal)
+- Upgraded MapLibre GL to v6. (PR #1211)
+- Removed the unused PDFKit dependency. (PR #1236, thanks @slothful-vassal)
+- Translation updates via Crowdin, including Czech and Italian. (PR #1135, thanks @mfortini)
+- Updated web, docs, and Docker dependencies.
+- The release workflow now cuts release branches from dev. (PR #1278)
+
 # v0.20.0
 
 ## Breaking Changes

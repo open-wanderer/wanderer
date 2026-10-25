@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'colors.dart';
 
 class AppTheme {
@@ -77,6 +78,14 @@ class AppTheme {
 
       sliderTheme: SliderThemeData(
         showValueIndicator: ShowValueIndicator.onDrag,
+      ),
+
+      // One back arrow on every platform. Without this, AppBar's implied
+      // leading and BackButton render the Cupertino chevron on iOS; explicit
+      // back buttons use BackButtonIcon so they pick this up too.
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (context) =>
+            const FaIcon(FontAwesomeIcons.arrowLeft, size: 18),
       ),
     );
   }

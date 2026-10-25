@@ -8,27 +8,33 @@ part of 'tile_proxy_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Exposes the resolved loopback base URL (e.g. `http://127.0.0.1:54321`) of
-/// the app-wide [TileProxyServer] — mirrors `objectbox_store_provider.dart`'s
-/// exact `keepAlive` "overridden in main.dart" shape. The server's port is
-/// fixed for the app process lifetime (it never needs to stop), so there is
-/// no `update*` method here, unlike `api_provider.dart`'s mutable base URL.
+/// Exposes the resolved loopback base URL (e.g.
+/// `http://127.0.0.1:54321/<32-hex-secret>`) of the app-wide
+/// [TileProxyServer] — same `keepAlive` "overridden in main.dart" shape as
+/// `objectbox_store_provider.dart`. Port and secret are persisted and stable
+/// across launches, not merely for the process lifetime, so there is no
+/// `update*` method. The URL carries the per-install secret: never log it or
+/// surface it in UI.
 
 @ProviderFor(TileProxyBaseUrl)
 final tileProxyBaseUrlProvider = TileProxyBaseUrlProvider._();
 
-/// Exposes the resolved loopback base URL (e.g. `http://127.0.0.1:54321`) of
-/// the app-wide [TileProxyServer] — mirrors `objectbox_store_provider.dart`'s
-/// exact `keepAlive` "overridden in main.dart" shape. The server's port is
-/// fixed for the app process lifetime (it never needs to stop), so there is
-/// no `update*` method here, unlike `api_provider.dart`'s mutable base URL.
+/// Exposes the resolved loopback base URL (e.g.
+/// `http://127.0.0.1:54321/<32-hex-secret>`) of the app-wide
+/// [TileProxyServer] — same `keepAlive` "overridden in main.dart" shape as
+/// `objectbox_store_provider.dart`. Port and secret are persisted and stable
+/// across launches, not merely for the process lifetime, so there is no
+/// `update*` method. The URL carries the per-install secret: never log it or
+/// surface it in UI.
 final class TileProxyBaseUrlProvider
     extends $NotifierProvider<TileProxyBaseUrl, String> {
-  /// Exposes the resolved loopback base URL (e.g. `http://127.0.0.1:54321`) of
-  /// the app-wide [TileProxyServer] — mirrors `objectbox_store_provider.dart`'s
-  /// exact `keepAlive` "overridden in main.dart" shape. The server's port is
-  /// fixed for the app process lifetime (it never needs to stop), so there is
-  /// no `update*` method here, unlike `api_provider.dart`'s mutable base URL.
+  /// Exposes the resolved loopback base URL (e.g.
+  /// `http://127.0.0.1:54321/<32-hex-secret>`) of the app-wide
+  /// [TileProxyServer] — same `keepAlive` "overridden in main.dart" shape as
+  /// `objectbox_store_provider.dart`. Port and secret are persisted and stable
+  /// across launches, not merely for the process lifetime, so there is no
+  /// `update*` method. The URL carries the per-install secret: never log it or
+  /// surface it in UI.
   TileProxyBaseUrlProvider._()
     : super(
         from: null,
@@ -58,11 +64,13 @@ final class TileProxyBaseUrlProvider
 
 String _$tileProxyBaseUrlHash() => r'175844101b9b032f7116539bff9b0e32788b77ed';
 
-/// Exposes the resolved loopback base URL (e.g. `http://127.0.0.1:54321`) of
-/// the app-wide [TileProxyServer] — mirrors `objectbox_store_provider.dart`'s
-/// exact `keepAlive` "overridden in main.dart" shape. The server's port is
-/// fixed for the app process lifetime (it never needs to stop), so there is
-/// no `update*` method here, unlike `api_provider.dart`'s mutable base URL.
+/// Exposes the resolved loopback base URL (e.g.
+/// `http://127.0.0.1:54321/<32-hex-secret>`) of the app-wide
+/// [TileProxyServer] — same `keepAlive` "overridden in main.dart" shape as
+/// `objectbox_store_provider.dart`. Port and secret are persisted and stable
+/// across launches, not merely for the process lifetime, so there is no
+/// `update*` method. The URL carries the per-install secret: never log it or
+/// surface it in UI.
 
 abstract class _$TileProxyBaseUrl extends $Notifier<String> {
   String build();

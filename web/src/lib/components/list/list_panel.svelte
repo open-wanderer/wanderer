@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { sanitizeHTML } from "$lib/util/sanitize_html";
     import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
     import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
     import type { List } from "$lib/models/list";
@@ -135,7 +136,7 @@
     <img
         class="w-full object-cover max-h-64"
         src={list.avatar
-            ? getFileURL(list, list.avatar)
+            ? getFileURL(list, list.avatar, "600x0")
             : $theme === "light"
               ? emptyStateTrailLight
               : emptyStateTrailDark}
@@ -194,7 +195,7 @@
                 >
             {:else}
                 <div class="prose dark:prose-invert">
-                    {@html list.description}
+                    {@html sanitizeHTML(list.description)}
                 </div>
             {/if}
         </div>

@@ -96,6 +96,10 @@ class TraceletPositionSource {
     useKalmanFilter: true,
   );
 
+  /// The foreground profile, with this instance's notification wording.
+  tl.Config _foregroundConfig() =>
+      _foregroundConfigFor(_notificationTitle!, _notificationText!);
+
   /// Continuous tracking with a 3 m distance filter while moving.
   ///
   /// Nested configs are chained via their own `copyWith` — replacing
@@ -113,7 +117,13 @@ class TraceletPositionSource {
   /// and with a 0 s activation delay it engages the moment GPS degrades —
   /// precisely the street-canyon case — where handheld pedestrian IMU
   /// estimation drifts and adds to the jitter it is meant to bridge.
-  tl.Config _foregroundConfig() => tl.Config.highAccuracy().copyWith(
+  ///
+  /// Static, taking the notification wording, so [ensureReady] can build the
+  /// identical config before any instance exists.
+  static tl.Config _foregroundConfigFor(
+    String notificationTitle,
+    String notificationText,
+  ) => tl.Config.highAccuracy().copyWith(
     geo: tl.Config.highAccuracy().geo.copyWith(
       distanceFilter: 3.0,
       enableDeadReckoning: false,
@@ -136,7 +146,10 @@ class TraceletPositionSource {
     ),
     app: const tl.AppConfig(stopOnTerminate: false),
     android: tl.Config.highAccuracy().android.copyWith(
-      foregroundService: _foregroundServiceConfig(),
+      foregroundService: _foregroundServiceConfigFor(
+        notificationTitle,
+        notificationText,
+      ),
     ),
   );
 
@@ -158,13 +171,18 @@ class TraceletPositionSource {
   );
 
   tl.ForegroundServiceConfig _foregroundServiceConfig() =>
-      tl.ForegroundServiceConfig(
-        channelId: 'wanderer_tracking',
-        channelName: 'Wanderer Tracking',
-        notificationTitle: _notificationTitle!,
-        notificationText: _notificationText!,
-        notificationSmallIcon: 'ic_notification_icon',
-      );
+      _foregroundServiceConfigFor(_notificationTitle!, _notificationText!);
+
+  static tl.ForegroundServiceConfig _foregroundServiceConfigFor(
+    String notificationTitle,
+    String notificationText,
+  ) => tl.ForegroundServiceConfig(
+    channelId: 'wanderer_tracking',
+    channelName: 'Wanderer Tracking',
+    notificationTitle: notificationTitle,
+    notificationText: notificationText,
+    notificationSmallIcon: 'ic_notification_icon',
+  );
 
   Future<void> start({
     required String notificationTitle,
@@ -182,14 +200,39 @@ class TraceletPositionSource {
       _controller.add(seed);
     }
 
+    await ensureReady(
+      notificationTitle: notificationTitle,
+      notificationText: notificationText,
+    );
+    await tl.Tracelet.start();
+  }
+
+  /// Brings tracelet's native SDK to its `ready` state with the foreground
+  /// profile, without subscribing to anything or starting a session.
+  ///
+  /// This is a precondition for reading tracelet's store, not just for
+  /// tracking: the native SDK answers `getLocations()` with an empty list until
+  /// `ready()` has run in the current process, and does so as an ordinary
+  /// success rather than an error. A relaunch after the process was killed is a
+  /// fresh process, so `session_gap_backfill.dart` has to ready the SDK itself
+  /// before it can see the fixes recorded while the app was dead.
+  ///
+  /// Idempotent in practice — every recording after the first in a process
+  /// calls `ready()` again through [start] — but not free: with a session
+  /// enabled natively, `ready()` re-enters it.
+  static Future<void> ensureReady({
+    required String notificationTitle,
+    required String notificationText,
+  }) async {
     // Must happen before the service exists: on Android 13+ the
     // foreground-service notification is suppressed without
     // POST_NOTIFICATIONS, and granting it later doesn't surface the running
     // service's notification retroactively.
     await _ensureNotificationPermission();
 
-    await tl.Tracelet.ready(_foregroundConfig());
-    await tl.Tracelet.start();
+    await tl.Tracelet.ready(
+      _foregroundConfigFor(notificationTitle, notificationText),
+    );
   }
 
   /// Best-effort POST_NOTIFICATIONS request; a no-op below Android 13 and on
@@ -206,8 +249,13 @@ class TraceletPositionSource {
     } catch (_) {}
   }
 
-  /// Swaps between the foreground and background profiles without
-  /// stopping/restarting the underlying tracking session.
+  /// Swaps between the foreground and background profiles. The foreground
+  /// service and the session survive the swap, but the native pipeline does
+  /// not: tracelet's `setConfig()` restarts it in place (stop, then resume)
+  /// whenever a location or motion key changes, which these two profiles do on
+  /// every swap (accuracy, distance filter, update interval, and — because
+  /// [_backgroundConfig] inherits the `balanced` preset's motion block —
+  /// `motionDetectionMode` and `stationaryTrackingMode` too).
   Future<void> setForeground(bool foreground) async {
     _foreground = foreground;
     await tl.Tracelet.setConfig(

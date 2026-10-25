@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"pocketbase/federation"
@@ -55,52 +54,25 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 		return e.BadRequestError(fmt.Sprintf("Actor has no %s collection", followType), nil)
 	}
 
-	// 2. Fetch Remote Content
-	client := util.SafeHTTPClient()
-	req, _ := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s?page=%d", collectionIRI, page), nil)
-	req.Header.Set("Accept", "application/activity+json")
-
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	// 2. Fetch the requested page, following the collection's own links
+	// A cursor names the page directly and costs one remote request
+	var collection *pub.OrderedCollectionPage
+	if cursor := e.Request.URL.Query().Get("cursor"); cursor != "" {
+		collection, err = federation.FetchCollectionCursor(e.App, ctx, collectionIRI, cursor)
+	} else {
+		collection, err = federation.FetchCollectionPage(e.App, ctx, collectionIRI, page)
+	}
+	if err != nil {
+		if errors.Is(err, federation.ErrInvalidCursor) {
+			return e.BadRequestError("Invalid cursor", err)
+		}
 		if errors.Is(err, util.ErrRateLimited) {
 			return e.TooManyRequestsError("Too many requests", err)
 		}
 		return e.InternalServerError("Failed to fetch remote collection", err)
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return e.InternalServerError("Failed to read response body", err)
-	}
-
-	// 3. Proper Unmarshaling using go-ap
-	// This returns a pub.Item interface which could be an OrderedCollection,
-	// OrderedCollectionPage, or even a simple Object.
-	data, err := pub.UnmarshalJSON(body)
-	if err != nil {
-		return e.InternalServerError("Failed to unmarshal ActivityPub JSON", err)
-	}
-
-	var items pub.ItemCollection
-	var totalItems uint = 0
-
-	// 4. Type assertion using go-ap's type switch pattern
-	err = pub.OnOrderedCollectionPage(data, func(p *pub.OrderedCollectionPage) error {
-		items = p.OrderedItems
-		totalItems = p.TotalItems
-		return nil
-	})
-
-	// Fallback: some instances might return a plain OrderedCollection
-	// if the page isn't strictly formatted as a Page object
-	if err != nil || items == nil {
-		_ = pub.OnOrderedCollection(data, func(c *pub.OrderedCollection) error {
-			items = c.OrderedItems
-			totalItems = c.TotalItems
-			return nil
-		})
-	}
+	items := collection.OrderedItems
+	totalItems := collection.TotalItems
 
 	// 5. Resolve IRIs to Local Records
 	timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -161,5 +133,6 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 		"totalItems": totalItems,
 		"totalPages": math.Ceil(float64(totalItems) / float64(perPage)),
 		"items":      resolvedItems,
+		"next":       federation.CollectionNext(collectionIRI, collection, page),
 	})
 }

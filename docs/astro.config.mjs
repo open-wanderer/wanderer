@@ -97,15 +97,18 @@ export default defineConfig({
         badge: { text: 'Beta', variant: 'caution' },
         items: [
           { label: 'Getting started', link: '/app/getting-started/' },
+          { label: 'What works where', link: '/app/what-works-where/' },
           { label: 'Find trails', link: '/app/find-trails/' },
           { label: 'Trail details', link: '/app/trail-details/' },
           { label: 'Record a trail', link: '/app/record-a-trail/' },
           { label: 'Plan a route', link: '/app/plan-a-route/' },
+          { label: 'Create & edit a trail', link: '/app/edit-a-trail/' },
           { label: 'Navigate a trail', link: '/app/navigate-a-trail/' },
           { label: 'Offline use', link: '/app/offline-use/' },
           { label: 'Lists', link: '/app/lists/' },
           { label: 'Profile', link: '/app/profile/' },
           { label: 'App settings', link: '/app/settings/' },
+          { label: 'Troubleshooting', link: '/app/troubleshooting/' },
         ]
       },
       {
@@ -139,6 +142,7 @@ export default defineConfig({
               { label: 'Backing up your server', link: '/run/backend-configuration/backup-server/' },
               { label: 'Custom categories', link: '/run/backend-configuration/custom-categories/' },
               { label: 'Adjust Filesize Limits', link: '/run/backend-configuration/adjust-filesize-limits/' },
+              { label: 'Mobile app support', link: '/run/backend-configuration/mobile-app/' },
               { label: 'Region catalogue', link: '/run/backend-configuration/region-catalogue/' },
               { label: 'Custom map tiles & assets', link: '/run/backend-configuration/map-tiles/' },
             ]

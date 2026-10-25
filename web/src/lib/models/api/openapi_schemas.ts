@@ -149,14 +149,18 @@
  *       properties:
  *         name:
  *           type: string
- *           description: Tag name
+ *           maxLength: 5000
+ *           pattern: '^[^\u0000-\u001f\u007f]*$(?![\s\S])'
+ *           description: Plain-text tag name. Empty names, Unicode, punctuation, and literal markup are preserved. C0 and DEL controls are rejected. Length is measured in Unicode code points.
  *
  *     TagUpdateInput:
  *       type: object
  *       properties:
  *         name:
  *           type: string
- *           description: Tag name
+ *           maxLength: 5000
+ *           pattern: '^[^\u0000-\u001f\u007f]*$(?![\s\S])'
+ *           description: Plain-text tag name. Empty names, Unicode, punctuation, and literal markup are preserved. C0 and DEL controls are rejected. Length is measured in Unicode code points.
  *
  *     CategoryTranslation:
  *       type: object
@@ -354,6 +358,7 @@
  *         - name
  *         - author
  *         - public
+ *         - completed
  *       properties:
  *         id:
  *           type: string
@@ -373,6 +378,11 @@
  *           format: date
  *         public:
  *           type: boolean
+ *         completed:
+ *           type: boolean
+ *         completed_at:
+ *           type: string
+ *           format: date-time
  *         difficulty:
  *           type: string
  *           enum: [easy, moderate, difficult]
@@ -435,6 +445,7 @@
  *         - name
  *         - author
  *         - public
+ *         - completed
  *       properties:
  *         id:
  *           type: string
@@ -454,6 +465,11 @@
  *           format: date
  *         public:
  *           type: boolean
+ *         completed:
+ *           type: boolean
+ *         completed_at:
+ *           type: string
+ *           format: date-time
  *         difficulty:
  *           type: string
  *           enum: [easy, moderate, difficult]
@@ -512,6 +528,11 @@
  *           format: date
  *         public:
  *           type: boolean
+ *         completed:
+ *           type: boolean
+ *         completed_at:
+ *           type: string
+ *           format: date-time
  *         difficulty:
  *           type: string
  *           enum: [easy, moderate, difficult]
@@ -649,6 +670,23 @@
  *         updated:
  *           type: string
  *           format: date-time
+ *
+ *     StatisticActivity:
+ *       allOf:
+ *         - $ref: '#/components/schemas/SummitLog'
+ *         - type: object
+ *           required:
+ *             - source
+ *             - collectionId
+ *             - collectionName
+ *           properties:
+ *             source:
+ *               type: string
+ *               enum: [summit_log, completed_trail]
+ *             collectionId:
+ *               type: string
+ *             collectionName:
+ *               type: string
  *
  *     SummitLogInput:
  *       type: object

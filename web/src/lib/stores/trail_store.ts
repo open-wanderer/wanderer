@@ -6,7 +6,7 @@ import type { Waypoint } from "$lib/models/waypoint";
 import { APIError } from "$lib/util/api_util";
 import { deepEqual } from "$lib/util/deep_util";
 import { getFileURL, objectToFormData } from "$lib/util/file_util";
-import { noSubcategoryFilterCategory } from "$lib/util/trail_filter_util";
+import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "$lib/util/trail_filter_util";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -334,7 +334,7 @@ export async function trails_show(id: string, handle?: string, share?: string, l
 
     if (!r.ok) {
         const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+        throw new APIError(r.status, response.message, response.detail ?? response.data)
     }
 
     const response: Trail = await r.json()
@@ -722,6 +722,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
             difficulty: h.difficulty == 0 ? "easy" : h.difficulty == 1 ? "moderate" : "difficult",
             distance: h.distance,
             duration: h.duration,
+            moving_duration: h.moving_duration,
             elevation_gain: h.elevation_gain,
             elevation_loss: h.elevation_loss,
             id: h.id,
@@ -851,12 +852,14 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND likes = ${user?.actor}`
     }
 
-    if (filter.startDate) {
-        filterText += ` AND date >= ${new Date(filter.startDate).getTime() / 1000}`
+    const startDate = trailFilterDateBoundary(filter.startDate);
+    if (startDate !== undefined) {
+        filterText += ` AND date >= ${startDate}`
     }
 
-    if (filter.endDate) {
-        filterText += ` AND date <= ${new Date(filter.endDate).getTime() / 1000}`
+    const endDate = trailFilterDateBoundary(filter.endDate, true);
+    if (endDate !== undefined) {
+        filterText += ` AND date < ${endDate}`
     }
 
     const selectedSubcategoryIds = filter.subcategory ?? [];
@@ -915,10 +918,12 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
         filterText += ` AND completed = ${filter.completed}`;
     }
 
-    if (filter.near.lat && filter.near.lon && includeGeo) {
-        filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
-    }
-    if (filter.near.lat && filter.near.lon && includeGeo) {
+    if (includeGeo
+        && typeof filter.near.lat === "number" && Number.isFinite(filter.near.lat)
+        && Math.abs(filter.near.lat) <= 90
+        && typeof filter.near.lon === "number" && Number.isFinite(filter.near.lon)
+        && Math.abs(filter.near.lon) <= 180
+        && Number.isFinite(filter.near.radius) && filter.near.radius > 0) {
         filterText += ` AND _geoRadius(${filter.near.lat}, ${filter.near.lon}, ${filter.near.radius})`
     }
 

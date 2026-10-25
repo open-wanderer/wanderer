@@ -63,7 +63,7 @@ func ResolveGeometry(app core.App, region *core.Record) (map[string]any, [4]floa
 	}
 
 	// Absent row (lookupErr != nil) or malformed row (fell through above):
-	// refetch from CoMaps. Only if this fails does the caller's setError
+	// refetch from CoMaps. Only if this fails does the caller's setVectorError
 	// last-resort apply.
 	geometry, bbox, err := FetchGeometry(commitSHA, comapsID)
 	if err != nil {

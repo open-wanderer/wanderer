@@ -15,6 +15,8 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/subcategory_preference_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/gpx/conversion.dart' show serializeGpxToXml;
+import 'package:wanderer/util/gpx/route_anchor_marks.dart'
+    show serializePlannedRoute;
 import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/models/route_travel_bucket.dart';
 import 'package:wanderer/actions/import_trail_file.dart';
@@ -331,6 +333,10 @@ Future<List<num>> fetchHeightsForShape(
 /// ported computation (`trailFromGpx`, reached via the local trail builder
 /// below) over the recorded GPX, so every persisted stat besides moving time
 /// stays reproducible by a later recompute over the same GPX.
+///
+/// [plannedRoute] is true when [finalGpx] is the planner's per-leg layout,
+/// which is stored as one marked segment through [serializePlannedRoute]. A
+/// recording keeps its own segments, whose boundaries are real gaps.
 Future<Trail> buildDraftTrail(
   WidgetRef ref,
   Gpx finalGpx, {
@@ -338,12 +344,17 @@ Future<Trail> buildDraftTrail(
   String? subcategory,
   double? durationSeconds,
   Duration? movingDuration,
+  bool plannedRoute = false,
 }) async {
   // Still produced: `expand.gpxData` is what `util/trail/form_data.dart` uploads
   // as the trail's track file on save. Serialized off the UI thread (compute,
   // never a capturing closure — the enclosing scope holds a WidgetRef) — this
   // runs at the recording Stop tap / planner Finish, over the full track.
-  final xml = await compute(serializeGpxToXml, finalGpx);
+  // The planner runs serializePlannedRoute, a recording the plain writer.
+  final xml = await compute(
+    plannedRoute ? serializePlannedRoute : serializeGpxToXml,
+    finalGpx,
+  );
 
   Trail trail = await buildLocalTrail(
     ref,
@@ -380,7 +391,7 @@ Future<Trail> buildDraftTrail(
 /// (extracted from [finishPlanning] so the edit-mode handoff can pop this
 /// same value instead of forward-pushing a draft trail).
 ///
-/// Builds the route's export [Gpx]: **one `Trkseg` per leg**, each starting
+/// Builds the route's [Gpx] in memory: **one `Trkseg` per leg**, each starting
 /// exactly on its opening anchor.
 ///
 /// A leg omits its closing point — that point opens the next leg's `Trkseg`,
@@ -391,10 +402,12 @@ Future<Trail> buildDraftTrail(
 /// leg would also round-trip, but would leave a duplicated coordinate at
 /// every boundary that compounds on each successive save/re-edit cycle.
 ///
-/// That layout is the entire mechanism by which a route's structure survives
-/// a save/reload — nothing anchor-related is persisted on `Trail`, so
-/// [anchorsFromTrack] rebuilds anchors from `trkseg` boundaries on the way
-/// back in. Emitting a single flattened segment here (as an earlier version
+/// That layout is how a route's structure lives in memory — nothing
+/// anchor-related is persisted on `Trail`. The anchors survive a save/reload
+/// only through the stored file, written as one marked segment by
+/// [serializePlannedRoute] and split back into this layout by
+/// [parseGpxSafely]; [anchorsFromTrack] then rebuilds them from `trkseg`
+/// boundaries. Emitting a single flattened segment here (as an earlier version
 /// did, via [buildNavShape] + [mergeHeightsIntoGpx]) collapsed every
 /// intermediate anchor to a bare start/end pair on re-edit. Deliberately does
 /// NOT reuse [plannedGpxProvider], whose `skip(1)` layout puts boundaries one
@@ -574,6 +587,7 @@ Future<void> finishPlanning({
     category: selection?.categoryId,
     subcategory: selection?.subcategoryId,
     durationSeconds: anchorsState.estimatedDurationSeconds,
+    plannedRoute: true,
   );
 
   pendingImportedTrail = draftTrail;
@@ -585,6 +599,9 @@ Future<void> finishPlanning({
 /// mirroring web's `initRouteAnchors` (`+page.svelte:553-577`): one anchor
 /// at the first point of every `trkseg`, plus the last point of the final
 /// segment. No interior sampling, no reverse-geocoding at seed time.
+///
+/// Reads the per-leg layout; a stored route's single marked segment has
+/// already been split back into it by [parseGpxSafely].
 ///
 /// Returns an empty list for a trackless (no `trks`) [gpx].
 List<ml.Geographic> anchorsFromTrack(Gpx gpx) {
@@ -691,7 +708,9 @@ List<List<ml.Geographic>> segmentPolylinesFromTrack(
 /// moving time".
 ///
 /// Sets both `expand.gpxData` and `expand.gpx` — setting only one produces a
-/// trail that saves with no track, or previews incorrectly.
+/// trail that saves with no track, or previews incorrectly. `gpxData` is the
+/// stored form (one marked segment); `gpx` stays the per-leg in-memory [Gpx]
+/// that the planner reseeds from.
 ///
 /// lat/lon/bounds are recomputed from [finalGpx]'s bounds when available,
 /// falling back to [existing]'s prior values when the merged route has no
@@ -701,7 +720,7 @@ Trail mergeRouteIntoTrail(
   Gpx finalGpx, {
   double? estimatedDurationSeconds,
 }) {
-  final xml = GpxWriter().asString(finalGpx);
+  final xml = serializePlannedRoute(finalGpx);
   final bounds = finalGpx.getBounds();
   return existing.copyWith(
     // An edited route's Gpx still carries no `time`, so re-derive `duration`

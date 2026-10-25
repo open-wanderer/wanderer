@@ -6,6 +6,7 @@ const WaypointClusterPointSchema = z.object({
     id: z.string().min(1),
     lat: z.number().min(-90).max(90),
     lon: z.number().min(-180).max(180),
+    time: z.number().int().optional(),
 });
 
 const WaypointClusterSchema = z.object({

@@ -1,0 +1,66 @@
+name: "📱 App Bug Report (beta)"
+description: File a bug report for the wanderer mobile app.
+labels: ["bug", "app"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing the app! Before filing, check [what works where](https://wanderer.to/app/what-works-where/); some things are not in the beta yet on purpose.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead? Screenshots or a screen recording help a lot. Please convert .gpx files to .txt and attach them when appropriate.
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android (Google Play open test)
+        - Android (APK from GitHub)
+        - iOS (TestFlight)
+    validations:
+      required: true
+  - type: dropdown
+    id: activity
+    attributes:
+      label: What were you doing?
+      options:
+        - Browsing or searching trails
+        - Viewing a trail
+        - Recording a trail
+        - Navigating a trail
+        - Planning a route
+        - Importing a file
+        - Creating or editing a trail
+        - Downloading trails or offline maps
+        - Using the app offline
+        - Lists or profiles
+        - Settings, login or instance selection
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS version
+      placeholder: ex. Pixel 8, Android 15 / iPhone 13, iOS 18.1
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Shown in TestFlight / Google Play, or the file name of the APK you installed.
+      placeholder: ex. 0.1.0 (10)
+    validations:
+      required: true
+  - type: input
+    id: instance-version
+    attributes:
+      label: Instance version
+      description: The wanderer version of the instance the app is connected to. Ask your instance administrator if you don't know it.
+      placeholder: ex. v0.21.0-app

@@ -16,7 +16,7 @@ class _StubAuth extends Auth {
 
 void main() {
   testWidgets(
-    'settings screen lists all 7 rows including Offline Maps/Regions',
+    'settings screen lists all 8 rows including Offline Maps/Regions and About',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -36,10 +36,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Exactly seven settings rows render (24-02 adds Offline Maps/Regions).
-      expect(find.byType(ListTile), findsNWidgets(7));
+      // Exactly eight settings rows render (24-02 added Offline Maps/Regions,
+      // the about screen added About).
+      expect(find.byType(ListTile), findsNWidgets(8));
 
-      // The seven English labels are present.
+      // The eight English labels are present.
       expect(find.text('My Account'), findsOneWidget);
       expect(find.text('Privacy'), findsOneWidget);
       expect(find.text('Language & Units'), findsOneWidget);
@@ -47,6 +48,7 @@ void main() {
       expect(find.text('Categories'), findsOneWidget);
       expect(find.text('Offline Maps/Regions'), findsOneWidget);
       expect(find.text('Appearance'), findsOneWidget);
+      expect(find.text('About'), findsOneWidget);
     },
   );
 }

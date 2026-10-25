@@ -37,6 +37,19 @@ describe("formatHTMLAsText", () => {
         expect(formatHTMLAsText('<a href="/x?a=1&b=2" title="a > b">link</a>')).toBe(
             "link",
         );
+        expect(formatHTMLAsText('<p title="a > b">paragraph</p>')).toBe(
+            "paragraph",
+        );
+    });
+
+    it("ignores entire comments containing markup and angle brackets", () => {
+        expect(
+            formatHTMLAsText("before<!-- > hidden <b>comment</b> -->after"),
+        ).toBe("beforeafter");
+    });
+
+    it("preserves literal angle brackets in text", () => {
+        expect(formatHTMLAsText("2 < 3 and 5 > 4")).toBe("2 < 3 and 5 > 4");
     });
 
     it("drops script and style content", () => {
@@ -46,6 +59,22 @@ describe("formatHTMLAsText", () => {
         expect(formatHTMLAsText("<style>p { color: red; }</style>keep")).toBe(
             "keep",
         );
+    });
+
+    it.each(["script", "style"])("drops unclosed %s content", (tag) => {
+        expect(formatHTMLAsText(`<p>keep</p><${tag}>hidden`)).toBe("keep");
+    });
+
+    it("does not treat a self-closing script tag as closed HTML", () => {
+        expect(formatHTMLAsText("keep<script/>hidden<p>also hidden</p>")).toBe(
+            "keep",
+        );
+    });
+
+    it("parses malformed markup without rebuilding tags by deletion", () => {
+        expect(
+            formatHTMLAsText("<scrip<script>removed</script>t>alert(123)</script>"),
+        ).toBe("removedt>alert(123)");
     });
 
     it("decodes named and numeric entities", () => {

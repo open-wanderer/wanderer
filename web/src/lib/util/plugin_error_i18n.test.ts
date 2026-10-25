@@ -1,7 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { addMessages, init, locale } from "svelte-i18n";
 import de from "$lib/i18n/locales/de.json";
 import en from "$lib/i18n/locales/en.json";
-import { pluginSetupErrorKey } from "./plugin_error_i18n";
+import { pluginSetupErrorKey, translatePluginError } from "./plugin_error_i18n";
+
+describe("sync item limit error", () => {
+    beforeAll(() => {
+        addMessages("en", en);
+        addMessages("de", de);
+        init({ fallbackLocale: "en", initialLocale: "en" });
+    });
+
+    it.each(["en", "de"])("translates the instance status in %s", (language) => {
+        locale.set(language);
+        const messages = language === "de" ? de : en;
+        expect(translatePluginError("sync_item_limit_exceeded", "backend fallback")).toBe(
+            messages["plugin-error-sync-item-limit-exceeded"],
+        );
+    });
+});
 
 describe("pluginSetupErrorKey", () => {
     it.each([

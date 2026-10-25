@@ -260,7 +260,20 @@ void main() {
       expect(entity.syncState, TrailSyncState.synced);
     });
 
-    test('dbSyncState round-trips each of the four enum values', () {
+    test('dbSyncState 4 reads back as TrailSyncState.draft', () {
+      final entity = TrailEntity(
+        id: 'abc123xyz456789',
+        name: 'Draft',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+      );
+
+      entity.dbSyncState = 4;
+
+      expect(entity.syncState, TrailSyncState.draft);
+    });
+
+    test('dbSyncState round-trips every enum value', () {
       final entity = TrailEntity(
         id: 'abc123xyz456789',
         name: 'RoundTrip',

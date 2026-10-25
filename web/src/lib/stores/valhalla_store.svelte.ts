@@ -17,8 +17,8 @@ const emtpyTrack = new Track({ trkseg: [] })
 class ValhallaStore {
     route: GPX = $state(new GPX({ trk: [emtpyTrack] }));
     anchors: ValhallaAnchor[] = $state([]);
-    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[] }[] = $state([]);
-    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[] }[] = $state([]);
+    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
+    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
 }
 
 export const valhallaStore = new ValhallaStore();
@@ -177,6 +177,7 @@ export function reverseRoute() {
     const reverseDelta = diff(snapshot, valhallaStore.route);
     valhallaStore.route = applyChangeset(valhallaStore.route, delta);
     pushToUndoStack(delta, reverseDelta)
+    valhallaStore.undoStack[valhallaStore.undoStack.length - 1].reversesRoute = true
 
     valhallaStore.route.features = valhallaStore.route.getTotals();
 

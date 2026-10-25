@@ -13,8 +13,9 @@ import FitParser from "$lib/vendor/fit-parser/fit_parser";
 import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
 import type { Feature, FeatureCollection, GeoJsonProperties, Position } from 'geojson';
 import JSZip from "jszip";
-import type { AuthRecord } from "pocketbase";
+import { ClientResponseError, type AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
+import { joinContiguousTrackSegments } from "./gpx_segment_util";
 import { icons } from "./icon_util";
 
 
@@ -25,6 +26,10 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     if (gpx instanceof Error) {
         throw gpx;
     }
+
+    // Files are converted when they are imported (see fromFile). This covers
+    // route-only files that were stored before that.
+    gpx.convertRoutesToTracks();
     if (correctElevation) {
         try {
             await gpx.correctElevation(f)
@@ -139,7 +144,55 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         gpxWpt.sym = wp.icon
     }
 
+    joinContiguousTrackSegments(gpx);
+
     return gpx.toString();
+}
+
+export const trailGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss", "lat", "lon"] as const;
+export const summitLogGpxFields = ["distance", "duration", "elevation_gain", "elevation_loss"] as const;
+const positionFields: readonly string[] = ["lat", "lon"];
+
+export async function applyGpxToForm(data: FormData, fields: readonly (typeof trailGpxFields)[number][], correctElevation: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+    const file = data.get("gpx");
+    if (!(file instanceof Blob) || file.size === 0) {
+        return;
+    }
+
+    let gpxFile: Blob;
+    let gpx: GPX;
+    let trail: Trail;
+    try {
+        const converted = await fromFile(file);
+        gpxFile = converted.gpxFile;
+        ({ gpx, trail } = await gpx2trail(converted.gpxData, undefined, correctElevation, f));
+    } catch (e) {
+        console.error(e);
+        throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } });
+    }
+
+    if (gpxFile !== file) {
+        const name = file instanceof File ? file.name.replace(/\.[^.]*$/, "") + ".gpx" : "trail.gpx";
+        data.set("gpx", gpxFile, name);
+    }
+
+    // Statistics are computed from track points only. A route-only file
+    // (<rte>/<rtept>) yields zeros, which must not replace the stored values.
+    const hasTrackPoints = gpx.trk?.some((trk) => trk.trkseg?.some((seg) => (seg.trkpt?.length ?? 0) > 0)) ?? false;
+
+    for (const field of fields) {
+        if (!hasTrackPoints && !positionFields.includes(field)) {
+            continue;
+        }
+        if (!data.has(field) && trail[field] !== undefined) {
+            data.set(field, String(trail[field]));
+        }
+    }
+}
+
+// A cheap check on the raw text, so that ordinary track files are not parsed twice.
+function isRouteOnlyGPX(content: string) {
+    return /<(?:[\w.-]+:)?rte[\s>]/.test(content) && !/<(?:[\w.-]+:)?trk[\s>]/.test(content);
 }
 
 export async function fromFile(file: File | Blob) {
@@ -170,6 +223,15 @@ export async function fromFile(file: File | Blob) {
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
         });
+    } else if (isRouteOnlyGPX(fileContent)) {
+        // GaiaGPS and similar planners export saved routes as <rte> with no
+        // <trk>. Store them as tracks so metrics, the map and export work (#1356).
+        const gpx = GPX.parse(fileContent);
+        gpx.convertRoutesToTracks();
+        gpxData = gpx.toString();
+        gpxFile = new Blob([gpxData], {
+            type: "application/gpx+xml",
+        });
     } else {
         gpxData = fileContent;
         gpxFile = file;
@@ -189,10 +251,25 @@ export function fromKML(kmlData: string) {
     return gpx
 }
 
-export async function fromKMZ(kmzData: ArrayBuffer) {
+// A KMZ is a zip, so a small upload can expand into a huge doc.kml.
+const MAX_KMZ_DOCUMENT_BYTES = 100 * 1024 * 1024;
+
+export class FileTooLargeError extends Error {}
+
+export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = MAX_KMZ_DOCUMENT_BYTES) {
     const zip = new JSZip()
-    const zipContents = await zip.loadAsync(kmzData)
-    const kmlFile = await zip.file('doc.kml')?.async('string');
+    await zip.loadAsync(kmzData)
+    const entry = zip.file('doc.kml');
+    // JSZip exposes the size from the zip directory only on this internal
+    // field; checking it avoids inflating the document to find out.
+    const declaredSize = (entry as unknown as { _data?: { uncompressedSize?: number } } | null)?._data?.uncompressedSize;
+    if (declaredSize !== undefined && declaredSize > maxDocumentBytes) {
+        throw new FileTooLargeError("KMZ document is too large");
+    }
+    const kmlFile = await entry?.async('string');
+    if (kmlFile !== undefined && kmlFile.length > maxDocumentBytes) {
+        throw new FileTooLargeError("KMZ document is too large");
+    }
     return fromKML(kmlFile ?? "")
 }
 

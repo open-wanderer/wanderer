@@ -61,6 +61,12 @@ class _CountingAdapter implements HttpClientAdapter {
 
   int get requestCount => requestedPages.length;
 
+  /// Lets only the oldest in-flight response complete.
+  void releaseOldest() => _gates.removeAt(0).complete();
+
+  /// Lets only the newest in-flight response complete.
+  void releaseNewest() => _gates.removeLast().complete();
+
   /// Lets every in-flight response complete.
   void release() {
     for (final gate in _gates) {
@@ -226,5 +232,58 @@ void main() {
       ['1'],
       reason: 'hasMore is false — never fetches',
     );
+  });
+
+  /// Starts a page-2 fetch, then refreshes the provider and lets the new
+  /// page 1 land while page 2 is still in flight -- a pull-to-refresh mid
+  /// scroll. Returns the still-pending page-2 call, wrapped so `async` does
+  /// not await it.
+  Future<({Future<void> stale})> refreshDuringPageTwo() async {
+    await settleFirstPage();
+    final stale = container.read(provider.notifier).loadNextPage();
+    await pumpEventQueue();
+
+    container.invalidate(provider);
+    final refreshed = container.read(provider.future);
+    await pumpEventQueue();
+    expect(adapter.requestedPages, ['1', '2', '1']);
+
+    adapter.releaseNewest();
+    await refreshed;
+    return (stale: stale);
+  }
+
+  test('a page that lands after a refresh is discarded', () async {
+    final (:stale) = await refreshDuringPageTwo();
+
+    adapter.release();
+    await stale;
+
+    final state = container.read(provider).value!;
+    expect(state.page, 1, reason: 'the refreshed list, not the old one');
+    expect(state.items.length, 1);
+  });
+
+  test('a discarded page does not unlock the next fetch early', () async {
+    final (:stale) = await refreshDuringPageTwo();
+    final notifier = container.read(provider.notifier);
+
+    final fresh = notifier.loadNextPage();
+    await pumpEventQueue();
+    expect(adapter.requestedPages, ['1', '2', '1', '2']);
+
+    // The stale page-2 finishing must leave the fresh fetch's flag alone.
+    adapter.releaseOldest();
+    await stale;
+    final burst = [for (var i = 0; i < 10; i++) notifier.loadNextPage()];
+    await pumpEventQueue();
+    expect(adapter.requestedPages, ['1', '2', '1', '2']);
+
+    adapter.release();
+    await Future.wait([fresh, ...burst]);
+
+    final state = container.read(provider).value!;
+    expect(state.page, 2);
+    expect(state.items.length, 2);
   });
 }

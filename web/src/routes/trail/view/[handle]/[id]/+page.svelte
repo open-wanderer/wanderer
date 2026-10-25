@@ -23,7 +23,7 @@
                 authors: [
                     `${page.url.origin}/profile/@${data.trail.expand?.author?.preferred_username ?? ""}`,
                 ],
-                tags: data.trail.expand?.tags?.map((t) => t.name),
+                tags: [...new Set(data.trail.expand?.tags?.map((t) => t.name) ?? [])],
             },
             images: data.trail.photos.map((p) => ({
                 url: page.url.origin + getFileURL(data.trail, p),

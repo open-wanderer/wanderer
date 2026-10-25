@@ -1,13 +1,16 @@
 import type { User } from "$lib/models/user";
-import { Collection, upload } from "$lib/util/api_util";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { Collection, handleError, upload } from "$lib/util/api_util";
+import { json, type RequestEvent } from "@sveltejs/kit";
+
+const fileFields = ["avatar"] as const;
 
 /**
  * @swagger
  * /api/v1/user/{id}/file:
  *   post:
  *     summary: Upload user file
- *     description: Uploads a file (avatar) for a user
+ *     description: >
+ *       Replaces a user's avatar. The multipart field must be named `avatar`; a request without it is rejected with 400.
  *     tags:
  *       - Users
  *     parameters:
@@ -23,7 +26,7 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *           schema:
  *             type: object
  *             properties:
- *               file:
+ *               avatar:
  *                 type: string
  *                 format: binary
  *     responses:
@@ -34,7 +37,7 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  *             schema:
  *               $ref: '#/components/schemas/User'
  *       400:
- *         description: Bad Request
+ *         description: Bad Request (no `avatar` field in the body)
  *       404:
  *         description: Not Found
  *       500:
@@ -42,9 +45,9 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function POST(event: RequestEvent) {
     try {
-        const r = await upload<User>(event, Collection.users);
+        const r = await upload<User>(event, Collection.users, fileFields);
         return json(r);
     } catch (e: any) {
-        throw error(e.status, e)
+        return handleError(e);
     }
 }

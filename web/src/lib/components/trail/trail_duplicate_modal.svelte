@@ -15,6 +15,11 @@
 
     let { onduplicate }: Props = $props();
 
+    // Every trail card renders its own dropdown, and with it its own copy of this
+    // modal, so the dialog id must be unique per instance.
+    const uid = $props.id();
+    const modalId = `trail-duplicate-modal-${uid}`;
+
     let modal: Modal;
     let sourceTrail: Trail | undefined = $state();
     let settings: TrailDuplicateOptions = $state({
@@ -51,7 +56,7 @@
     });
 </script>
 
-<Modal id="trail-duplicate-modal" title={$_("duplicate")} size="min-w-md" bind:this={modal}>
+<Modal id={modalId} title={$_("duplicate")} size="min-w-md" bind:this={modal}>
     {#snippet content()}
         <div>
             {#if sourceTrail?.name}

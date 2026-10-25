@@ -67,9 +67,10 @@ type SeedCatalog struct {
 // baked-in default so a maintainer can refresh the catalog ad hoc
 // without editing source.
 //
-// The run issues exactly one HTTP request: with geometry no longer
-// carried in this catalog, there is nothing left to derive from a leaf's
-// .poly file, so the ~1,150-file scrape this tool used to perform is gone.
+// The run issues two HTTP requests, hierarchy.txt and CoMaps' English region
+// names (see displayNamesPath): with geometry no longer carried in this
+// catalog, there is nothing left to derive from a leaf's .poly file, so the
+// ~1,150-file scrape this tool used to perform is gone.
 // The output is plain, pretty-printed JSON — no gzip layer — since
 // the pure-hierarchy catalog is small enough (~292 KB) to commit and review
 // directly; a maintainer refresh is now a reviewable diff rather than an
@@ -84,7 +85,7 @@ func SeedRegions() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "seed-regions",
-		Short: "Fetch CoMaps hierarchy.txt from comaps/comaps's GitHub mirror and write a plain, pretty-printed, hierarchy-only regions JSON catalog",
+		Short: "Fetch CoMaps hierarchy.txt and English region names from comaps/comaps's GitHub mirror and write a plain, pretty-printed, hierarchy-only regions JSON catalog",
 		Run: func(cmd *cobra.Command, args []string) {
 			if !commitHashPattern.MatchString(commit) {
 				log.Fatalf("seed-regions: --commit %q is not a valid git commit hash (expected 7-40 hex characters)", commit)
@@ -100,6 +101,18 @@ func SeedRegions() *cobra.Command {
 			nodes, err := ParseHierarchy(hierarchyData)
 			if err != nil {
 				log.Fatalf("seed-regions: failed to parse hierarchy.txt: %v", err)
+			}
+
+			namesData, err := fetch(baseURL+displayNamesPath, 8<<20)
+			if err != nil {
+				log.Fatalf("seed-regions: failed to fetch %s: %v", displayNamesPath, err)
+			}
+			names, err := ParseDisplayNames(namesData)
+			if err != nil {
+				log.Fatalf("seed-regions: failed to parse %s: %v", displayNamesPath, err)
+			}
+			if missing := ApplyDisplayNames(nodes, names); missing > 0 {
+				fmt.Printf("seed-regions: %d regions have no CoMaps display name and keep the name derived from their id\n", missing)
 			}
 
 			rows := make([]SeedRow, len(nodes))
@@ -135,7 +148,7 @@ func SeedRegions() *cobra.Command {
 				log.Fatalf("seed-regions: failed to write %s: %v", out, err)
 			}
 
-			fmt.Printf("seed-regions: wrote %d rows (%d groups, %d leaves) to %s (plain pretty-printed JSON, commit %s, one HTTP request)\n",
+			fmt.Printf("seed-regions: wrote %d rows (%d groups, %d leaves) to %s (plain pretty-printed JSON, commit %s)\n",
 				len(rows), groupCount, leafCount, out, commit)
 		},
 	}

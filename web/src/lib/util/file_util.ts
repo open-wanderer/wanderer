@@ -7,7 +7,8 @@ export function getFileURL(record: { [key: string]: any; }, filename?: string, t
         return filename;
     }
 
-    return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumb ? '?thumb=' + thumb : ''}`
+    const thumbQuery = thumb && !isVideoURL(filename) ? `?thumb=${thumb}` : '';
+    return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumbQuery}`;
 }
 
 export function isURL(value: string) {
@@ -32,11 +33,16 @@ export function readAsDataURLAsync(file: File) {
     });
 }
 
+const videoExtensions = /\.(mp4|webm|ogg|ogv)$/i;
+
 export function isVideoURL(url: string) {
     if (url.startsWith("data")) {
         return url.startsWith("data:video")
     }
-    return url.includes("mp4") || url.includes("ogg") || url.includes("webm")
+    // Match the extension rather than a substring, so a photo whose name merely
+    // contains "ogg" or "mp4" (doggo.jpg) is not mistaken for a video.
+    const path = url.split(/[?#]/, 1)[0];
+    return videoExtensions.test(path)
 }
 
 export function saveAs(data: Blob, fileName: string) {

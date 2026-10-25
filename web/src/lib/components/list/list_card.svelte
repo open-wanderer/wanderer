@@ -34,7 +34,7 @@
     <img
         class="w-16 md:w-20 aspect-square rounded-full object-cover"
         src={list.avatar
-            ? getFileURL(list, list.avatar)
+            ? getFileURL(list, list.avatar, "300x300")
             : $theme === "light"
               ? emptyStateTrailLight
               : emptyStateTrailDark}

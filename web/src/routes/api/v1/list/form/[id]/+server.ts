@@ -7,7 +7,8 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  * /api/v1/list/form/{id}:
  *   post:
  *     summary: Update list with file upload
- *     description: Updates a list with file upload (avatar)
+ *     description: >
+ *       Updates a list with file upload (avatar). The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
  *     tags:
  *       - Lists
  *     parameters:
@@ -26,7 +27,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  *       200:
  *         description: List
  *       400:
- *         description: Bad Request
+ *         description: Bad Request (invalid id, or body `id` differs from the path)
  *       404:
  *         description: Not Found
  *       500:

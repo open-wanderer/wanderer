@@ -1,18 +1,17 @@
 import type { FeedItem } from "$lib/models/feed";
 import type { ListFilter } from "$lib/models/list";
-import type { SummitLog, SummitLogFilter } from "$lib/models/summit_log";
+import type { SummitLogFilter } from "$lib/models/summit_log";
 import { defaultTrailSearchAttributes, Trail, type TrailFilter, type TrailSearchResult } from "$lib/models/trail";
 import { APIError } from "$lib/util/api_util";
 import type { Hits } from "meilisearch";
 import type { ListResult } from "pocketbase";
 import { searchResultToLists } from "./list_store";
 import type { ListSearchResult } from "./search_store";
-import { buildFilterText } from "./summit_log_store";
 import { searchResultToTrailList } from "./trail_store";
 import type { Actor } from "$lib/models/activitypub/actor";
+import type { StatisticActivity } from "$lib/models/statistic_activity";
 
 let feed: FeedItem[] = []
-let follows: Actor[] = [];
 
 export async function profile_show(handle: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     let r = await f('/api/v1/profile/' + handle, {
@@ -114,14 +113,26 @@ export async function profile_trails_index(handle: string, filter: TrailFilter, 
 }
 
 export async function profile_stats_index(handle: string, filter: SummitLogFilter, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
-    const filterText = buildFilterText(filter);
-
-    const r = await f(`/api/v1/profile/${handle}/stats?` + new URLSearchParams({
-        filter: filterText,
+    const searchParams = new URLSearchParams({
         expand: "trail.category,trail.subcategory,trail.subcategory.category,author",
         sort: "+date",
-    }), {
+    });
+    if (filter.startDate) {
+        searchParams.set("startDate", filter.startDate);
+    }
+    if (filter.endDate) {
+        searchParams.set("endDate", filter.endDate);
+    }
+    if (filter.category.length > 0) {
+        searchParams.set("category", filter.category.join(","));
+    }
+    if ((filter.subcategory?.length ?? 0) > 0) {
+        searchParams.set("subcategory", filter.subcategory!.join(","));
+    }
+
+    const r = await f(`/api/v1/profile/${handle}/stats?` + searchParams, {
         method: 'GET',
+        cache: 'no-store',
     })
 
     if (!r.ok) {
@@ -129,16 +140,17 @@ export async function profile_stats_index(handle: string, filter: SummitLogFilte
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    const result: SummitLog[] = await r.json();
+    const result: StatisticActivity[] = await r.json();
 
     return result;
 
 }
 
-export async function profile_follows_index(handle: string, type: "followers" | "following", page: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
+export async function profile_follows_index(handle: string, type: "followers" | "following", page: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch, cursor?: string) {
     const r = await f(`/api/v1/profile/${handle}/follows?` + new URLSearchParams({
         type,
         page: page.toString(),
+        ...(cursor ? { cursor } : {}),
     }), {
         method: 'GET',
     })
@@ -148,11 +160,8 @@ export async function profile_follows_index(handle: string, type: "followers" | 
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    const fetchedFollows: ListResult<Actor> = await r.json();
+    // Only this page's items; the caller owns the list it appends them to
+    const fetchedFollows: ListResult<Actor> & { next?: string } = await r.json();
 
-    const result = page > 1 ? [...follows, ...fetchedFollows.items] : fetchedFollows.items
-
-    follows = result;
-
-    return { ...fetchedFollows, items: result };
+    return fetchedFollows;
 }

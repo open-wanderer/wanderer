@@ -87,7 +87,7 @@ export async function lists_show(id: string, handle?: string, f: (url: RequestIn
 
     if (!r.ok) {
         const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+        throw new APIError(r.status, response.message, response.detail ?? response.data)
     }
 
     const response = await r.json()

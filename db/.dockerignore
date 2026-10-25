@@ -4,12 +4,13 @@
 !hooks
 !go.*
 !integrations
-!main.go
-!trail_merge_routes.go
+!*.go
+*_test.go
 !migrations
 !plugins
 !pluginsystem
 !routes
+!tagname
 !templates
 !services
 !util
