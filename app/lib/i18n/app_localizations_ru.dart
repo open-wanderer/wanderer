@@ -12,7 +12,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get about => 'О';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'Внешний вид';
 
   @override
   String get account => 'Account';
@@ -53,7 +53,7 @@ class AppLocalizationsRu extends AppLocalizations {
       'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Permissions → Location and choose \"Allow all the time\".';
 
   @override
-  String get background_location_confirm => 'Open settings';
+  String get background_location_confirm => 'Открыть настройки';
 
   @override
   String get background_location_title => 'Keep recording in the background';
@@ -167,10 +167,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get delete => 'Удалить';
 
   @override
-  String get not_now => 'Not now';
+  String get not_now => 'Не сейчас';
 
   @override
-  String get open => 'Open';
+  String get open => 'Открыть';
 
   @override
   String get delete_account => 'Удалить аккаунт';

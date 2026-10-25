@@ -1,5 +1,5 @@
 {
-  "@@locale": "pt-PT",
+  "@@locale": "pt",
   "about": "Sobre",
   "@about": {
     "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."

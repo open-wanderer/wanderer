@@ -50,13 +50,14 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get background_location_body =>
-      'wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Permissions → Location and choose \"Allow all the time\".';
+      'Aplikace Wanderer shromažďuje údaje o poloze na pozadí, takže se vaše trasa nadále zaznamenává i při vypnuté obrazovce nebo zavřené aplikaci. Zaznamenaná trasa zůstává ve vašem zařízení, dokud se nerozhodnete ji uložit.\n\nSystém Android nabízí tuto možnost pouze v nastavení systému: otevřete Oprávnění → Poloha a vyberte možnost „Povolit vždy“.';
 
   @override
-  String get background_location_confirm => 'Open settings';
+  String get background_location_confirm => 'Otevřít nastavení';
 
   @override
-  String get background_location_title => 'Keep recording in the background';
+  String get background_location_title =>
+      'Pokračovat v zaznamenávání na pozadí';
 
   @override
   String get basic_info => 'Základní informace';
@@ -169,7 +170,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get delete => 'Vymazat';
 
   @override
-  String get not_now => 'Not now';
+  String get not_now => 'Teď ne';
 
   @override
   String get open => 'Otevřít';
