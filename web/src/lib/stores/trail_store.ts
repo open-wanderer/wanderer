@@ -7,6 +7,8 @@ import { APIError } from "#lib/util/api_util.ts";
 import { deepEqual } from "#lib/util/deep_util.ts";
 import { getFileURL, objectToFormData } from "#lib/util/file_util.ts";
 import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "#lib/util/trail_filter_util.ts";
+import { TRAIL_SEARCH_LIMIT } from "#lib/config/search.ts";
+import { buildTrailSearchBoundsFilter, type TrailSearchBounds } from "#lib/util/trail_search_util.ts";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -55,41 +57,63 @@ export async function trails_recommend(size: number, f: (url: RequestInfo | URL,
 
 }
 
-export async function trails_search_filter(filter: TrailFilter, page: number = 1, perPage: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
-    const user = get(currentUser)
+type TrailSearchResponse = {
+    page: number;
+    hitsPerPage: number;
+    totalPages: number;
+    totalHits: number;
+    hits: Hits<TrailSearchResult>;
+};
 
-    let filterText: string = buildFilterText(user, filter, true);
+async function searchTrailResults(
+    filter: TrailFilter,
+    page: number,
+    perPage: number,
+    f: typeof fetch,
+    bounds?: TrailSearchBounds,
+): Promise<TrailSearchResponse> {
+    let filterText = buildFilterText(get(currentUser), filter, true);
+    if (bounds) {
+        filterText += ` AND (${buildTrailSearchBoundsFilter(bounds)})`;
+    }
 
-
-    let r = await f("/api/v1/search/trails", {
+    const sort = filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort;
+    const response = await f("/api/v1/search/trails", {
         method: "POST",
         body: JSON.stringify({
             q: filter.q,
             options: {
                 filter: filterText,
                 attributesToRetrieve: defaultTrailSearchAttributes,
-                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
+                ...(sort !== "relevance" ? {
+                    sort: [`${sort}:${filter.sortOrder === "+" ? "asc" : "desc"}`],
+                } : {}),
                 hitsPerPage: perPage,
-                page: page
-            }
+                page,
+            },
         }),
     });
 
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+    if (!response.ok) {
+        const cause = await response.json();
+        throw new APIError(response.status, cause.message, cause.detail);
     }
+    const result: TrailSearchResponse = await response.json();
+    return {
+        ...result,
+        totalPages: Math.min(result.totalPages, Math.ceil(TRAIL_SEARCH_LIMIT / perPage)),
+    };
+}
 
-    const result: { page: number, totalPages: number, hits: Hits<TrailSearchResult> } = await r.json();
-
-    if (result.hits.length == 0) {
-        return { items: [], ...result };
-    }
-
-    const resultTrails: Trail[] = await searchResultToTrailList(result.hits)
-
-    return { items: resultTrails, ...result };
-
+export async function trails_search_filter(
+    filter: TrailFilter,
+    page = 1,
+    perPage: number,
+    f: typeof fetch = fetch,
+    bounds?: TrailSearchBounds,
+) {
+    const result = await searchTrailResults(filter, page, perPage, f, bounds);
+    return { ...result, items: await searchResultToTrailList(result.hits) };
 }
 
 const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);

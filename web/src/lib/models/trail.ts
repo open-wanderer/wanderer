@@ -278,6 +278,7 @@ interface TrailFilter {
     near: {
         lat?: number,
         lon?: number,
+        name?: string,
         radius: number
     }
     distanceMin: number,
@@ -293,7 +294,7 @@ interface TrailFilter {
     endDate?: string;
     completed?: boolean;
     liked?: boolean;
-    sort: "name" | "distance" | "elevation_gain" | "created";
+    sort: "relevance" | "name" | "distance" | "duration" | "difficulty" | "elevation_gain" | "elevation_loss" | "like_count" | "created" | "date";
     sortOrder: "+" | "-"
 }
 
