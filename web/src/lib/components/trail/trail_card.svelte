@@ -27,7 +27,6 @@
         hovered: boolean;
         onmouseenter?: MouseEventHandler<HTMLDivElement>;
         onmouseleave?: MouseEventHandler<HTMLDivElement>;
-        onTrailSelect?: () => void;
     }
 
     let {
@@ -37,7 +36,6 @@
         hovered = false,
         onmouseenter,
         onmouseleave,
-        onTrailSelect,
     }: Props = $props();
 
     let thumbnail = $derived(
@@ -56,11 +54,6 @@
         (trail.expand?.trail_share_via_trail?.length ?? 0) > 0,
     );
 
-    function handleInputClick(e: Event) {
-        e.stopPropagation();
-        onTrailSelect?.();
-        hovered = true;
-    }
     // expand and collapse the tags
     let expandedTags = $state(false);
 
@@ -76,6 +69,7 @@
     class="trail-card relative rounded-2xl border border-input-border min-w-72 h-[386px] bg-background {fullWidth
         ? ''
         : 'lg:w-72'} cursor-pointer flex flex-col"
+    class:hovered
     class:bg-secondary-hover={selected}
     {onmouseenter}
     {onmouseleave}
@@ -103,19 +97,6 @@
             />
         {/if}
     </div>
-    {#if hovered || selected}
-        <div
-            class="flex absolute top-4 left-4 w-8 h-8 rounded-full items-center justify-center bg-background text-content"
-        >
-            <input
-                id="trail-selected"
-                type="checkbox"
-                class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
-                bind:checked={selected}
-                onclick={(e) => handleInputClick(e)}
-            />
-        </div>
-    {/if}
     {#if (trail.public || trailIsShared) && $currentUser}
         <div
             class="flex absolute top-4 right-4 {trail.public && trailIsShared
@@ -277,7 +258,10 @@
         transition: 0.25s ease;
     }
 
-    .trail-card:hover #header-img {
-        scale: 1.075;
+    @media (hover: hover) {
+        .trail-card:hover #header-img,
+        .trail-card.hovered #header-img {
+            scale: 1.075;
+        }
     }
 </style>
