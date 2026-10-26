@@ -21,8 +21,17 @@
         onchange,
     }: Props = $props();
 
+    const id = $props.id();
     let showDropdown = $state(false);
     let dropdownRef = $state();
+
+    function handleTriggerKeydown(event: KeyboardEvent) {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            showDropdown = !showDropdown;
+        }
+    }
 
     function toggleItem(item: SelectItem) {
         const itemIndex = value.findIndex((i) => i.value == item.value);
@@ -43,7 +52,6 @@
     }
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div class="relative max-w-full">
     {#if label.length}
         <label for={name} class="text-sm font-medium pb-1 block">
@@ -51,7 +59,12 @@
         </label>
     {/if}
     <div
-        role="presentation"
+        role="button"
+        tabindex="0"
+        aria-label={label || placeholder}
+        aria-expanded={showDropdown}
+        aria-controls={`${id}-options`}
+        onkeydown={handleTriggerKeydown}
         class="relative min-w-44 w-full flex flex-wrap items-center gap-2 border border-input-border bg-input-background min-h-[50px] p-3 rounded-md transition-colors focus:border-input-border-focus focus:outline-none focus:ring-0 cursor-pointer pr-6"
         onclick={() => (showDropdown = !showDropdown)}
     >
@@ -74,11 +87,14 @@
     <!-- Dropdown menu -->
     {#if showDropdown}
         <div
+            id={`${id}-options`}
             bind:this={dropdownRef}
             class="absolute z-10 mt-1 w-full bg-menu-background border border-input-border rounded-md max-h-40 overflow-y-auto shadow-lg"
         >
             {#each items as item}
                 <button
+                    type="button"
+                    aria-pressed={value.some(selected => selected.value === item.value)}
                     onclick={() => toggleItem(item)}
                     class="px-3 py-2 hover:bg-menu-item-background-hover cursor-pointer flex justify-between items-center w-full"
                 >

@@ -57,7 +57,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                     export const trail = writable({});
                     export async function trails_show(id) { return { id, name: id }; }
                 `;
-                if (id === resolve(root, 'src/lib/stores/search_store.ts')) return 'export async function searchActors() { return []; }';
+                if (id === resolve(root, 'src/lib/stores/search_store.ts')) return 'export async function searchActors() { return []; } export async function searchLocations() { return []; }';
                 if (id === '\0fixture:toast') return 'export function show_toast() {}';
 
                 let source: string;

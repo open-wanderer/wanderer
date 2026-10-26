@@ -291,7 +291,7 @@
             {/if}
             <p class="text-sm font-medium pb-4">{$_("distance")}</p>
             <DoubleSlider
-                minValue={filter.distanceMin}
+                minValue={0}
                 maxValue={filter.distanceLimit}
                 bind:currentMin={filter.distanceMin}
                 bind:currentMax={filter.distanceMax}
@@ -309,7 +309,7 @@
             <hr class="my-4 border-separator" />
             <p class="text-sm font-medium pb-4">{$_("elevation-gain")}</p>
             <DoubleSlider
-                minValue={filter.elevationGainMin}
+                minValue={0}
                 maxValue={filter.elevationGainLimit}
                 bind:currentMin={filter.elevationGainMin}
                 bind:currentMax={filter.elevationGainMax}
@@ -328,7 +328,7 @@
             <hr class="my-4 border-separator" />
             <p class="text-sm font-medium pb-4">{$_("elevation-loss")}</p>
             <DoubleSlider
-                minValue={filter.elevationLossMin}
+                minValue={0}
                 maxValue={filter.elevationLossLimit}
                 bind:currentMin={filter.elevationLossMin}
                 bind:currentMax={filter.elevationLossMax}
