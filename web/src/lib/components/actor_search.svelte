@@ -7,6 +7,7 @@
 
     interface Props {
         label?: string;
+        placeholder?: string;
         value?: string;
         includeSelf?: boolean;
         clearAfterSelect?: boolean;
@@ -16,6 +17,7 @@
 
     let {
         label = "",
+        placeholder,
         value = $bindable(""),
         includeSelf = true,
         clearAfterSelect = true,
@@ -60,7 +62,7 @@
 <Search
     onupdate={(q) => updateActors(q)}
     onclick={(item) => onClick(item)}
-    placeholder={`${$_("username")}...`}
+    placeholder={placeholder ?? `${$_("username")}...`}
     items={searchItems}
     {clearAfterSelect}
     {label}

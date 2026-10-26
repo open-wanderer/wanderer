@@ -1,13 +1,15 @@
 <script lang="ts">
-    import noUiSlider from "nouislider";
+    import * as noUiSlider from "nouislider";
     import "nouislider/dist/nouislider.css";
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { type Options as SliderOptions } from "nouislider";
 
     interface Props {
         minValue?: number;
         maxValue?: number;
         currentValue?: any;
+        label?: string;
+        formatValue?: (value: number) => string;
         onset?: (value: number) => void;
     }
 
@@ -15,40 +17,60 @@
         minValue = 0,
         maxValue = 100,
         currentValue = $bindable(maxValue / 2),
+        label,
+        formatValue,
         onset,
         ...sliderOptions
     }: Props & Partial<SliderOptions> = $props();
 
-    let sliderContainer: any = $state();
+    const id = $props.id();
+    let sliderContainer: HTMLDivElement;
+    let slider = $state.raw<noUiSlider.API>();
 
-    onMount(() => {
-        const updateValues = (values: string[]) => {
-            currentValue = parseFloat(values[0]);
-        };
-
-        noUiSlider.create(sliderContainer, {
-            start: currentValue,
-            connect: [true, false],
-            ...sliderOptions,
-            range: {
-                min: minValue,
-                max: maxValue,
-            },
-        });
-
-        sliderContainer.noUiSlider.on("update", updateValues);
-
-        sliderContainer.noUiSlider.on("set", () => {
-            onset?.(currentValue);
+    $effect(() => {
+        const api = slider;
+        const lower = minValue;
+        const upper = Math.max(lower + 1, maxValue);
+        const value = currentValue;
+        if (!api) return;
+        untrack(() => {
+            if (api.options.range.min !== lower || api.options.range.max !== upper) {
+                api.updateOptions({ range: { min: lower, max: upper }, start: value }, false);
+            } else if (Math.abs(value - Number(api.get(true))) > 1e-7) {
+                api.set(value, false);
+            }
         });
     });
 
+    onMount(() => {
+        const api = noUiSlider.create(sliderContainer, {
+            start: currentValue,
+            connect: [true, false],
+            ariaFormat: { to: value => formatValue?.(value) ?? String(value) },
+            handleAttributes: [label ? { "aria-label": label } : {}],
+            ...sliderOptions,
+            range: {
+                min: minValue,
+                max: Math.max(minValue + 1, maxValue),
+            },
+        });
+
+        api.on("update", (values) => {
+            currentValue = parseFloat(String(values[0]));
+        });
+        api.on("set", () => {
+            onset?.(currentValue);
+        });
+        slider = api;
+        return () => { api.destroy(); slider = undefined; };
+    });
+
     export function set(value: number) {
-        sliderContainer.noUiSlider.set(value);
+        slider?.set(value);
     }
 </script>
 
-<div class="my-4" id="slider" bind:this={sliderContainer}></div>
+<div class="my-4" {id} bind:this={sliderContainer}></div>
 
 <style lang="postcss">
     @reference "tailwindcss";
