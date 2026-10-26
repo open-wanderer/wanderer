@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	userIndexMigration  = "1776767721_updated_activitypub_actors.go"
-	inboxIndexMigration = "1778583029_updated_activitypub_actors.go"
+	userIndexMigration       = "1776767721_updated_activitypub_actors.go"
+	inboxIndexMigration      = "1778583029_updated_activitypub_actors.go"
+	userLookupIndexMigration = "1791713195_activitypub_actors_user_lookup_index.go"
 )
 
 // Migrations an instance on dev has not applied yet. Some carry timestamps
@@ -30,6 +31,7 @@ var upgradeMigrations = []string{
 	"1791200001_updated_profile_feed.go",
 	"1791200002_restore_actor_handle_index.go",
 	"1791200200_correlate_trail_bounds_view.go",
+	userLookupIndexMigration,
 }
 
 // The delete-recipient queries join activitypub_actors on inbox; without that
@@ -73,8 +75,48 @@ func TestActorIndexesSurviveEitherMigrationOrder(t *testing.T) {
 			if !strings.HasPrefix(handle, "CREATE UNIQUE INDEX") {
 				t.Errorf("username/domain index = %q, want it unique", handle)
 			}
+
+			assertActorUserLookupUsesIndex(t, app)
 		})
 	}
+}
+
+// The partial unique user index cannot serve `user = ?`, so without the lookup
+// index the per-request actor lookups scan every actor.
+func assertActorUserLookupUsesIndex(t *testing.T, app core.App) {
+	t.Helper()
+	for _, query := range []string{
+		"SELECT id FROM activitypub_actors WHERE user = {:user} LIMIT 1",
+		"SELECT id FROM activitypub_actors WHERE (is_local = 1 AND user = {:user}) LIMIT 1",
+	} {
+		var plan []struct {
+			ID     int    `db:"id"`
+			Parent int    `db:"parent"`
+			Unused int    `db:"notused"`
+			Detail string `db:"detail"`
+		}
+		if err := app.DB().NewQuery("EXPLAIN QUERY PLAN " + query).
+			Bind(map[string]any{"user": "abc"}).All(&plan); err != nil {
+			t.Fatal(err)
+		}
+		if len(plan) == 0 || !strings.Contains(plan[0].Detail, "USING INDEX") {
+			t.Errorf("plan for %q = %+v, want an index search", query, plan)
+		}
+	}
+}
+
+// Instances can create the lookup index by hand before they upgrade.
+func TestUserLookupIndexMigrationToleratesAnExistingIndex(t *testing.T) {
+	app := newApp(t)
+	before, after := splitUpgradeMigrations(sortedMigrations())
+	applyMigrations(t, app, before)
+
+	if _, err := app.DB().NewQuery("CREATE INDEX idx_activitypub_actors_user_lookup ON activitypub_actors (user)").Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	applyMigrations(t, app, after)
+	assertActorUserLookupUsesIndex(t, app)
 }
 
 func TestUpgradeKeepsTheOldestSettingsRecordPerUser(t *testing.T) {
