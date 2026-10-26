@@ -53,13 +53,14 @@
         trails?: Set<Trail> | undefined;
         mode: "overview" | "map" | "list" | "multi-select";
         toggle?: Snippet<[any]>;
+        showMergeDialog?: boolean;
         onDelete?: () => void;
         onShare?: () => void;
         onUpdate?: (updatedTrails?: Trail[]) => void;
         onMerge?: (result: MergeResult) => void;
     }
 
-    let { trails, mode, toggle, onDelete, onShare, onUpdate, onMerge }: Props = $props();
+    let { trails, mode, toggle, showMergeDialog = true, onDelete, onShare, onUpdate, onMerge }: Props = $props();
 
     let confirmModal: ConfirmModal;
     let listSelectModal: ListSearchModal;
@@ -958,6 +959,7 @@
     }
 </script>
 
+{#if dropdownItems().some(item => !item.separator)}
 <Dropdown
     items={dropdownItems()}
     onchange={(item) => handleDropdownClick(item)}
@@ -965,6 +967,7 @@
     {#snippet children({ toggleMenu: openDropdown })}
         {#if toggle}{@render toggle({
                 toggleMenu: openDropdown,
+                loading,
             })}
         {:else if loading}
             <div class:w-16={isMultiselectMode()}></div>
@@ -992,6 +995,7 @@
         {/if}
     {/snippet}
 </Dropdown>
+{/if}
 
 <ConfirmModal
     text={$_("delete-trail-confirm")}
@@ -1034,4 +1038,4 @@
     onapply={(changes) => updateTrailsBulk(changes)}
 ></TrailBulkEditModal>
 
-<MergeDialog/>
+{#if showMergeDialog}<MergeDialog />{/if}

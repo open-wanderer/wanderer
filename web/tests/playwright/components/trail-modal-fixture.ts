@@ -45,7 +45,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 if (id === '\0fixture:navigation') return 'export function goto() {}';
                 if (id === '\0fixture:i18n') return `
                     import { writable } from 'svelte/store';
-                    export const _ = writable(key => key);
+                    export const _ = writable((key, options) => key === 'trail-results-select-trail' ? 'Select ' + options.values.name : key);
                     export const locale = writable('en');
                 `;
                 if (id === resolve(root, 'src/lib/stores/user_store.ts')) return `
