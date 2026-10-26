@@ -9,6 +9,7 @@
     import { _ } from "svelte-i18n";
     import { backInOut, cubicOut } from "svelte/easing";
     import { Tween } from "svelte/motion";
+    import CreateMenu from "./create_menu.svelte";
     import Drawer from "./base/drawer.svelte";
     import Dropdown from "./base/dropdown.svelte";
     import LogoTextLight from "./logo/logo_text_light.svelte";
@@ -40,11 +41,6 @@
 
         { text: $_("settings"), value: "settings", icon: "cog" },
         { text: $_("logout"), value: "logout", icon: "right-from-bracket" },
-    ];
-
-    const importDropdownItems = [
-        { text: $_("from-file"), value: "file", icon: "file-import" },
-        { text: $_("from-url"), value: "url", icon: "server" },
     ];
 
     const indicatorPosition = new Tween(0, {
@@ -120,13 +116,7 @@
         }
     }
 
-    function handleImportDropdownClick(item: { text: string; value: any }) {
-        if (item.value == "file") {
-            goto(`/settings/export`);
-        } else if (item.value == "url") {
-            urlImportModal.openModal();
-        }
-    }
+
 </script>
 
 <Drawer bind:open={drawerOpen}>
@@ -151,9 +141,7 @@
     <hr class="my-6 border-input-border" />
     <div class="flex flex-col basis-full">
         {#if navUser}
-            <a class="btn-primary text-center mx-4" href="/trail/edit/new"
-                ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
-            >
+            <CreateMenu inline onselect={() => drawerOpen = false} onurlimport={() => urlImportModal.openModal()} />
             <div class="basis-full"></div>
             <hr class="border-input-border" />
             <div class="flex gap-4 items-center justify-between m-4">
@@ -227,28 +215,7 @@
                     : 'moon'}"
                 onclick={() => toggleTheme()}
             ></button>
-            <nav data-sveltekit-reload>
-                <div class="flex">
-                    <a
-                        class="btn-primary btn-large !rounded-r-none focus:ring-0"
-                        href="/trail/edit/new"
-                        ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
-                    >
-                    <Dropdown
-                        items={importDropdownItems}
-                        onchange={(item) => handleImportDropdownClick(item)}
-                    >
-                        {#snippet children({ toggleMenu: openDropdown })}
-                            <button
-                                onclick={openDropdown}
-                                class="bg-primary rounded-r-lg text-white min-h-12 hover:bg-primary-hover px-3"
-                                aria-label="Open trail create dropdown"
-                                ><i class="fa fa-caret-down"></i></button
-                            >
-                        {/snippet}
-                    </Dropdown>
-                </div>
-            </nav>
+            <CreateMenu onurlimport={() => urlImportModal.openModal()} />
             {#if page.data.notifications}
                 <NotificationDropdown></NotificationDropdown>
             {/if}
