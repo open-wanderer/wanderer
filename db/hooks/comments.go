@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/federation"
@@ -80,7 +81,11 @@ func UpdateCommentHandler() func(e *core.RecordRequestEvent) error {
 func DeleteCommentHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 
-		err := federation.CreateCommentDeleteActivity(e.App, client, e.Record)
+		// The Delete reads its audience back from the rows the purge removes.
+		err := errors.Join(
+			federation.CreateCommentDeleteActivity(e.App, client, e.Record),
+			federation.DeleteObjectActivities(e.App, e.Record.GetString("iri")),
+		)
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"pocketbase/federation"
@@ -89,6 +90,10 @@ func UpdateListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 			return err
 		}
 
+		if err := syncActivityVisibility(e); err != nil {
+			return err
+		}
+
 		err = federation.CreateListActivity(e.App, e.Record, pub.UpdateType)
 		if err != nil {
 			return err
@@ -139,7 +144,10 @@ func DeleteListHandler(client meilisearch.ServiceManager) func(e *core.RecordEve
 		}
 
 		audience, _ := record.GetRaw(listDeleteRecipientsKey).(federation.DeleteAudience)
-		err = federation.CreateListDeleteActivity(e.App, record, audience)
+		err = errors.Join(
+			federation.CreateListDeleteActivity(e.App, record, audience),
+			federation.DeleteObjectActivities(e.App, record.GetString("iri")),
+		)
 		if err != nil {
 			return err
 		}
