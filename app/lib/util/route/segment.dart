@@ -43,6 +43,34 @@ String buildSegmentsGeoJson(List<RouteSegment> segments) {
   });
 }
 
+/// Whether [a] and [b] are known to produce the same [buildSegmentsGeoJson]
+/// output, decided without encoding anything: same length and, per position,
+/// the same anchor ids, the same state and the very same polyline list.
+///
+/// The fields the GeoJSON does not carry (durations, elevation profiles and
+/// elevations) are ignored on purpose, so a segment that only gained heights
+/// compares equal to its predecessor. The polyline is compared by identity of
+/// the underlying list (the freezed view's `==`), O(1) per segment, so `false`
+/// does not prove the GeoJSON differs - only `true` is a guarantee.
+///
+/// Keep this in step with [buildSegmentsGeoJson]: a field added to the GeoJSON
+/// must be added here too (segment_test.dart cross-checks the two).
+bool segmentsRenderIdentically(List<RouteSegment> a, List<RouteSegment> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    final x = a[i];
+    final y = b[i];
+    if (x.beforeAnchorId != y.beforeAnchorId ||
+        x.afterAnchorId != y.afterAnchorId ||
+        x.state != y.state ||
+        x.polyline != y.polyline) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// Splits [segment] into two, inserting [newAnchorId] as the shared boundary
 /// anchor at the point on the existing polyline closest to [tapPoint].
 ///

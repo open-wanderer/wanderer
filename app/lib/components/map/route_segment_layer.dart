@@ -25,17 +25,58 @@ class RouteSegmentLayer {
 
   bool _added = false;
 
+  // What the native source holds after the last successful add/upload, so an
+  // update that would change nothing can be skipped. An upload hands MapLibre
+  // the WHOLE route as one string over JNI and makes it re-parse and re-tile
+  // it: about 2 ms at rest and up to 27 ms inside an anchor-creation burst on
+  // a Pixel for a ~570-point route. A creation emits four state changes that
+  // touch the segments, two of which only attach elevations to geometry the
+  // map already shows, so half of the uploads used to be byte-identical.
+  ml.StyleController? _style;
+  List<RouteSegment>? _segments;
+  String? _data;
+
+  void _forget() {
+    _style = null;
+    _segments = null;
+    _data = null;
+  }
+
   /// Draws/updates the segment lines for [segments].
   ///
   /// On first call, adds the `GeoJsonSource` and all five style layers (draw
   /// order: routed casing under routed, so 2px of white shows as an
   /// outline). On subsequent calls, updates the existing source's data in
-  /// place via [ml.StyleController.updateGeoJsonSource] to avoid flicker.
+  /// place via [ml.StyleController.updateGeoJsonSource] to avoid flicker -
+  /// unless [segments] would draw exactly what [style] already shows (e.g. a
+  /// segment that only gained elevations), in which case nothing is encoded or
+  /// uploaded.
   Future<void> update(
     ml.StyleController style,
     List<RouteSegment> segments,
   ) async {
+    // A different StyleController is a different native style: it has none of
+    // our layers yet, so it is never skipped.
+    final shown =
+        _added &&
+        identical(style, _style) &&
+        _segments != null &&
+        _data != null;
+
+    // Cheap check first (ids, state, polyline identity): skips the encode too.
+    if (shown && segmentsRenderIdentically(_segments!, segments)) {
+      _segments = segments;
+      return;
+    }
+
     final data = buildSegmentsGeoJson(segments);
+
+    // Safety net for the same drawing rebuilt into fresh lists (e.g. a segment
+    // re-routed to the path it already had).
+    if (shown && data == _data) {
+      _segments = segments;
+      return;
+    }
 
     if (!_added) {
       await style.addSource(ml.GeoJsonSource(id: sourceId, data: data));
@@ -140,12 +181,25 @@ class RouteSegmentLayer {
       );
 
       _added = true;
+      _style = style;
+      _segments = segments;
+      _data = data;
       return;
     }
 
     // Already added — update the source's data in place rather than
     // removing/re-adding the source or layers.
-    await style.updateGeoJsonSource(id: sourceId, data: data);
+    _style = style;
+    _segments = segments;
+    _data = data;
+    try {
+      await style.updateGeoJsonSource(id: sourceId, data: data);
+    } catch (_) {
+      // Unknown whether the native side took it: forget what we think it
+      // shows, so the next update uploads instead of being skipped.
+      _forget();
+      rethrow;
+    }
   }
 
   /// Removes the layers/source added by [update], in reverse order. Safe to
@@ -167,5 +221,6 @@ class RouteSegmentLayer {
       await style.removeSource(sourceId);
     } catch (_) {}
     _added = false;
+    _forget();
   }
 }

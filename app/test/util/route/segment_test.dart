@@ -161,4 +161,85 @@ void main() {
       expect(decoded['type'], 'FeatureCollection');
     });
   });
+
+  group('segmentsRenderIdentically', () {
+    List<Geographic> line(double lon, int n) => [
+      for (var i = 0; i < n; i++)
+        Geographic(lon: lon + i * 1e-4, lat: 47 + i * 1e-4),
+    ];
+
+    RouteSegment seg({
+      String before = 'a1',
+      String after = 'a2',
+      List<Geographic>? polyline,
+      SegmentState state = SegmentState.routed,
+    }) => RouteSegment(
+      beforeAnchorId: before,
+      afterAnchorId: after,
+      polyline: polyline ?? line(9, 5),
+      state: state,
+    );
+
+    test('fields the GeoJSON does not carry never matter', () {
+      final base = seg();
+      final withHeights = base.copyWith(
+        durationSeconds: 600,
+        elevationProfile: line(9, 3),
+        elevations: const [1, 2, 3],
+      );
+
+      expect(segmentsRenderIdentically([base], [withHeights]), isTrue);
+      expect(
+        segmentsRenderIdentically(
+          [withHeights],
+          [
+            withHeights.copyWith(elevations: const [9]),
+          ],
+        ),
+        isTrue,
+      );
+      expect(buildSegmentsGeoJson([base]), buildSegmentsGeoJson([withHeights]));
+    });
+
+    test('anything the GeoJSON does carry makes it false', () {
+      final base = seg();
+      final changed = <String, List<RouteSegment>>{
+        'before id': [seg(before: 'x')],
+        'after id': [seg(after: 'x')],
+        'state': [seg(state: SegmentState.blocked)],
+        'polyline': [seg(polyline: line(9, 6))],
+        'polyline with the same content in a new list': [
+          seg(polyline: line(9, 5)),
+        ],
+        'one more segment': [base, seg(before: 'a2', after: 'a3')],
+        'no segment': const [],
+      };
+
+      for (final entry in changed.entries) {
+        expect(
+          segmentsRenderIdentically([base], entry.value),
+          isFalse,
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('it never claims "identical" for inputs that encode differently', () {
+      final polylines = [line(9, 5), line(9, 5), line(9.5, 5), line(9, 7)];
+      final candidates = <List<RouteSegment>>[
+        const [],
+        for (final p in polylines)
+          for (final st in SegmentState.values) [seg(polyline: p, state: st)],
+        [seg(), seg(before: 'a2', after: 'a3')],
+      ];
+
+      for (final a in candidates) {
+        for (final b in candidates) {
+          if (segmentsRenderIdentically(a, b)) {
+            expect(buildSegmentsGeoJson(a), buildSegmentsGeoJson(b));
+          }
+        }
+      }
+    });
+  });
 }
