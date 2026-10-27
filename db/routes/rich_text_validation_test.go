@@ -24,6 +24,7 @@ func TestRichTextAPIRejectsOverlongWritesWithoutSilentTextLoss(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 	comments := core.NewBaseCollection("comments")
 	comments.CreateRule = types.Pointer("")
 	comments.UpdateRule = types.Pointer("")

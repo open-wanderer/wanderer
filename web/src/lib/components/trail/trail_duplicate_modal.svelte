@@ -1,12 +1,12 @@
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
+    import Modal from "#lib/components/base/modal.svelte";
+    import Toggle from "#lib/components/base/toggle.svelte";
     import {
         defaultTrailDuplicateOptions,
         normalizeTrailDuplicateOptions,
         type Trail,
         type TrailDuplicateOptions,
-    } from "$lib/models/trail";
+    } from "#lib/models/trail.ts";
     import { _ } from "svelte-i18n";
 
     interface Props {

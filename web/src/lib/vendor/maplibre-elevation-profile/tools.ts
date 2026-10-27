@@ -1,4 +1,4 @@
-import { haversineDistance } from "$lib/models/gpx/utils";
+import { haversineDistance } from "#lib/models/gpx/utils.ts";
 import type {
     Position
 } from "geojson";

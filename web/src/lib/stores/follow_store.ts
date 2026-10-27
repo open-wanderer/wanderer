@@ -1,6 +1,6 @@
-import type { Actor } from "$lib/models/activitypub/actor";
-import type { Follow } from "$lib/models/follow";
-import { APIError } from "$lib/util/api_util";
+import type { Actor } from "#lib/models/activitypub/actor.ts";
+import type { Follow } from "#lib/models/follow.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 
 let follows: Actor[] = [];

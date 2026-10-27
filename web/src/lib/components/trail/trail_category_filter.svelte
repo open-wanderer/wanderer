@@ -1,14 +1,14 @@
 <script lang="ts">
-    import type { Category } from "$lib/models/category";
-    import type { Subcategory } from "$lib/models/subcategory";
-    import { categoryPreferences } from "$lib/stores/category_preference_store";
-    import { subcategoryPreferences } from "$lib/stores/subcategory_preference_store";
-    import { subcategories } from "$lib/stores/subcategory_store";
+    import type { Category } from "#lib/models/category.ts";
+    import type { Subcategory } from "#lib/models/subcategory.ts";
+    import { categoryPreferences } from "#lib/stores/category_preference_store.ts";
+    import { subcategoryPreferences } from "#lib/stores/subcategory_preference_store.ts";
+    import { subcategories } from "#lib/stores/subcategory_store.ts";
     import {
         type CategoryFilterSelection,
         noSubcategoryFilterCategory,
         noSubcategoryFilterValue,
-    } from "$lib/util/trail_filter_util";
+    } from "#lib/util/trail_filter_util.ts";
     import {
         displayCategoryIcon,
         displayCategoryName,
@@ -20,7 +20,7 @@
         sortedCategoriesByPreference,
         sortedSubcategoriesByPreference,
         subcategoryVisible,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
     import { _, locale } from "svelte-i18n";
     import type { SelectItem } from "../base/select.svelte";
 

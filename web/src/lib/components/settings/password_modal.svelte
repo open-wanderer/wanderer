@@ -1,8 +1,8 @@
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
+    import Modal from "#lib/components/base/modal.svelte";
     import { _ } from "svelte-i18n";
     import TextField from "../base/text_field.svelte";
-    import { validator } from "@felte/validator-zod";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { z } from "zod";
 

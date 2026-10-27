@@ -1,12 +1,12 @@
-import type { SummitLog } from "$lib/models/summit_log";
-import type { Tag } from "$lib/models/tag";
-import { MAP_MAX_POLYLINES } from "$lib/config/map";
-import { defaultTrailSearchAttributes, Trail, type TrailBoundingBox, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "$lib/models/trail";
-import type { Waypoint } from "$lib/models/waypoint";
-import { APIError } from "$lib/util/api_util";
-import { deepEqual } from "$lib/util/deep_util";
-import { getFileURL, objectToFormData } from "$lib/util/file_util";
-import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "$lib/util/trail_filter_util";
+import type { SummitLog } from "#lib/models/summit_log.ts";
+import type { Tag } from "#lib/models/tag.ts";
+import { MAP_MAX_POLYLINES } from "#lib/config/map.ts";
+import { defaultTrailSearchAttributes, Trail, type TrailBoundingBox, type TrailFilter, type TrailFilterValues, type TrailSearchResult } from "#lib/models/trail.ts";
+import type { Waypoint } from "#lib/models/waypoint.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { deepEqual } from "#lib/util/deep_util.ts";
+import { getFileURL, objectToFormData } from "#lib/util/file_util.ts";
+import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "#lib/util/trail_filter_util.ts";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -334,7 +334,7 @@ export async function trails_show(id: string, handle?: string, share?: string, l
 
     if (!r.ok) {
         const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+        throw new APIError(r.status, response.message, response.detail ?? response.data)
     }
 
     const response: Trail = await r.json()

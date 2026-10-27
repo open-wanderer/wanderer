@@ -1,9 +1,9 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import Toggle from "$lib/components/base/toggle.svelte";
-    import { NotificationType } from "$lib/models/notification";
-    import type { Settings } from "$lib/models/settings";
-    import { settings_update } from "$lib/stores/settings_store";
+    import Toggle from "#lib/components/base/toggle.svelte";
+    import { NotificationType } from "#lib/models/notification.ts";
+    import type { Settings } from "#lib/models/settings.ts";
+    import { settings_update } from "#lib/stores/settings_store.ts";
     import { _ } from "svelte-i18n";
 
     const s =  (page.data.settings as Settings)?.notifications

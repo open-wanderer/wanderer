@@ -21,7 +21,7 @@ test.beforeAll(async () => {
         cacheDir,
         appType: 'custom',
         logLevel: 'error',
-        resolve: { alias: { $lib: join(root, 'src/lib') } },
+        resolve: { alias: { '#lib': join(root, 'src/lib') } },
         server: { host: '127.0.0.1', port: 0 },
     });
     server.middlewares.use((request, response, next) => {

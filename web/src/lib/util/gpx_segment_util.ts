@@ -1,6 +1,6 @@
-import GPX from "$lib/models/gpx/gpx";
-import TrackSegment from "$lib/models/gpx/track-segment";
-import GPXWaypoint from "$lib/models/gpx/waypoint";
+import GPX from "#lib/models/gpx/gpx.ts";
+import TrackSegment from "#lib/models/gpx/track-segment.ts";
+import GPXWaypoint from "#lib/models/gpx/waypoint.ts";
 
 // The route editor takes its anchors from the boundaries between track
 // segments. When a drawn route is saved or exported, the point where two

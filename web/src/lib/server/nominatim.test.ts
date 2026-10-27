@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const config = vi.hoisted(() => ({ baseUrl: "https://nominatim.openstreetmap.org" }));
 
-vi.mock("$app/environment", () => ({ version: "test" }));
-vi.mock("$lib/server/url", () => ({ resolveBaseUrl: () => config.baseUrl }));
+vi.mock("$app/env", () => ({ version: "test" }));
+vi.mock("#lib/server/url.ts", () => ({ resolveBaseUrl: () => config.baseUrl }));
 
 import { fetchNominatim } from "./nominatim";
 

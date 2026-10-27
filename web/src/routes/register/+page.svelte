@@ -1,16 +1,16 @@
 <script lang="ts">
-    import Button from "$lib/components/base/button.svelte";
-    import TextField from "$lib/components/base/text_field.svelte";
-    import LogoTextTwoLineDark from "$lib/components/logo/logo_text_two_line_dark.svelte";
-    import LogoTextTwoLineLight from "$lib/components/logo/logo_text_two_line_light.svelte";
-    import { Language } from "$lib/models/settings";
-    import type { User } from "$lib/models/user";
-    import { settings_for_user, settings_update } from "$lib/stores/settings_store";
-    import { theme } from "$lib/stores/theme_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { login, users_create } from "$lib/stores/user_store";
-    import { APIError } from "$lib/util/api_util";
-    import { validator } from "@felte/validator-zod";
+    import Button from "#lib/components/base/button.svelte";
+    import TextField from "#lib/components/base/text_field.svelte";
+    import LogoTextTwoLineDark from "#lib/components/logo/logo_text_two_line_dark.svelte";
+    import LogoTextTwoLineLight from "#lib/components/logo/logo_text_two_line_light.svelte";
+    import { Language } from "#lib/models/settings.ts";
+    import type { User } from "#lib/models/user.ts";
+    import { settings_for_user, settings_update } from "#lib/stores/settings_store.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { login, users_create } from "#lib/stores/user_store.ts";
+    import { APIError } from "#lib/util/api_util.ts";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { ClientResponseError } from "pocketbase";
     import { _ } from "svelte-i18n";

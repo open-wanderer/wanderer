@@ -1,4 +1,4 @@
-import { assertFileField, handleError } from "$lib/util/api_util";
+import { assertFileField, handleError } from "#lib/util/api_util.ts";
 import type { RequestEvent } from "@sveltejs/kit";
 import { POST as formPOST } from "../../form/[id]/+server";
 
@@ -43,6 +43,7 @@ const fileFields = ["avatar"] as const;
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
+    if (!event.locals.user) return Response.json({ message: "Unauthorized" }, { status: 401 });
     // The form handler reads the body itself, so validate a clone.
     try {
         assertFileField(await event.request.clone().formData(), fileFields);

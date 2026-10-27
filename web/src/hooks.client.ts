@@ -1,6 +1,6 @@
-import type { User } from '$lib/models/user';
-import { getPb } from '$lib/pocketbase';
-import { currentUser } from '$lib/stores/user_store';
+import type { User } from '#lib/models/user.ts';
+import { getPb } from '#lib/pocketbase.ts';
+import { currentUser } from '#lib/stores/user_store.ts';
 
 const pb = getPb();
 pb.authStore.loadFromCookie(document.cookie)

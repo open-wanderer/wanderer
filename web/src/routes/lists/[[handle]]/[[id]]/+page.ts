@@ -1,8 +1,9 @@
-import { browser } from "$app/environment";
-import { type ListFilter } from "$lib/models/list";
-import { lists_search_filter, lists_show } from "$lib/stores/list_store";
-import { APIError } from "$lib/util/api_util";
-import { error, type Load, type NumericRange } from "@sveltejs/kit";
+import { browser } from "$app/env";
+import { type ListFilter } from "#lib/models/list.ts";
+import { lists_search_filter, lists_show } from "#lib/stores/list_store.ts";
+import { remoteContentError } from "#lib/util/remote_content_error.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { error, type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ params, fetch, url }) => {
     const filter: ListFilter = {
@@ -22,9 +23,8 @@ export const load: Load = async ({ params, fetch, url }) => {
             lists = { items: [list], page: 1, totalPages: 1, hits: [] }
         } catch (e) {
             if (e instanceof APIError) {
-                error(e.status as NumericRange<400, 599>, {
-                    message: e.status == 404 ? 'Not found' : e.message
-                });
+                const { message, ...properties } = remoteContentError(e);
+                error(e.status, message, properties);
             }
             throw e
         }

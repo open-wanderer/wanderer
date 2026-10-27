@@ -21,6 +21,7 @@ func TestProviderCategoryBackfillQueriesAboveFilterLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 	collection := core.NewBaseCollection("trail_external_reference")
 	collection.Fields.Add(&core.TextField{Name: "user"}, &core.TextField{Name: "provider"}, &core.TextField{Name: "external_id"},
 		&core.TextField{Name: "provider_category"}, &core.DateField{Name: "provider_category_checked_at"})
@@ -135,6 +136,7 @@ func TestSyncPluginAcceptsListAtItemLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 	output, err := json.Marshal(pluginSystemListOutput{Items: make([]pluginsystem.TrailSummary, defaultPluginSyncBatchLimit)})
 	if err != nil {
 		t.Fatal(err)

@@ -1,8 +1,8 @@
-import type { Trail } from "$lib/models/trail";
-import { categories_index } from "$lib/stores/category_store";
-import { feed_index } from "$lib/stores/feed_store";
-import { subcategories_index } from "$lib/stores/subcategory_store";
-import { trails_recommend } from "$lib/stores/trail_store";
+import type { Trail } from "#lib/models/trail.ts";
+import { categories_index } from "#lib/stores/category_store.ts";
+import { feed_index } from "#lib/stores/feed_store.ts";
+import { subcategories_index } from "#lib/stores/subcategory_store.ts";
+import { trails_recommend } from "#lib/stores/trail_store.ts";
 import type { Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ fetch }) => {

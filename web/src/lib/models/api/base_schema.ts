@@ -3,13 +3,13 @@ import { z } from "zod";
 
 const RecordOptionsSchema = z.object({
     expand: z.string().optional(),
-    query: z.record(z.string()).optional(),
+    query: z.record(z.string(), z.string()).optional(),
     requestKey: z.string().optional()
 })
 
 const RecordListOptionsSchema = RecordOptionsSchema.extend({
-    page: z.number({ coerce: true }).int().nonnegative().optional(),
-    perPage: z.number({ coerce: true }).int().optional(),
+    page: z.coerce.number().int().nonnegative().optional(),
+    perPage: z.coerce.number().int().optional(),
     sort: z.string().optional(),
     filter: z.string().optional(),
     expand: z.string().optional(),

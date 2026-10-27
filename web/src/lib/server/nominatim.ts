@@ -1,5 +1,5 @@
-import { version } from "$app/environment";
-import { resolveBaseUrl } from "$lib/server/url";
+import { version } from "$app/env";
+import { resolveBaseUrl } from "#lib/server/url.ts";
 import type { RequestEvent } from "@sveltejs/kit";
 
 const NOMINATIM_RATE_LIMIT_MS = 1000;

@@ -1,12 +1,12 @@
 {
   "name": "wanderer",
-  "version": "0.21.0",
+  "version": "0.21.2",
   "private": true,
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "openapi:generate": "node scripts/generate-openapi.js",
-    "start": "node watcher.js & node build",
+    "start": "node watcher.js & node server.js",
     "preview": "vite preview",
     "test": "npm run test:integration && npm run test:unit",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -16,26 +16,27 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/enhanced-img": "^1.0.0",
-    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/kit": "^3.0.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/typography": "^0.5.20",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.2",
     "postcss": "^8.5.28",
     "svelte": "^5.57.1",
-    "svelte-check": "^4.7.6",
+    "svelte-check": "^4.7.7",
     "sveltekit-openapi-generator": "^0.1.6",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",
-    "vite": "8.3.1"
+    "vite": "8.3.5"
   },
   "type": "module",
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "dependencies": {
-    "@felte/validator-zod": "^1.0.18",
     "@fortawesome/fontawesome-free": "^7.3.1",
-    "@sveltejs/adapter-node": "^5.5.7",
+    "@sveltejs/adapter-node": "^6.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@threlte/core": "^8.6.0",
     "@threlte/extras": "^9.21.1",
@@ -83,11 +84,12 @@
     "tailwindcss": "^4.3.2",
     "three": "^0.186.0",
     "vitest": "^4.1.11",
-    "zod": "^3.24.1"
+    "zod": "^4.6.6"
   },
   "overrides": {
     "sveltekit-openapi-generator": {
-      "vite": "$vite"
+      "vite": "$vite",
+      "@sveltejs/kit": "^3.0.0"
     }
   }
 }

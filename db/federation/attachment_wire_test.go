@@ -165,6 +165,7 @@ func TestLegacyBareAndArrayAttachmentsImportAfterWireParsing(t *testing.T) {
 					_, _ = w.Write(data)
 				}))
 				t.Cleanup(server.Close)
+				t.Cleanup(util.SetRemoteAttachmentClientForTesting(server.Client()))
 				attachment := pub.Object{Type: pub.ImageType, MediaType: pub.MimeType(contentType), URL: pub.IRI(server.URL + "/" + filename)}
 				if field == "gpx" {
 					attachment.Type = pub.DocumentType

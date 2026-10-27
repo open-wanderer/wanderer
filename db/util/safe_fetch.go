@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -46,19 +47,22 @@ type ConnectorHTTPPolicy struct {
 	TLSCABundle  []byte
 }
 
-func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
-	if maxBytes <= 0 {
-		maxBytes = DefaultPluginMediaMaxBytes
+// HTTPDoer is satisfied by *safeurl.WrappedClient and *http.Client.
+type HTTPDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+func closeIdleHTTPConnections(client HTTPDoer) {
+	if closer, ok := client.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
 	}
-	parsed, err := url.Parse(rawURL)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil, fmt.Errorf("invalid public URL")
-	}
-	if parsed.User != nil {
-		return nil, fmt.Errorf("public URL must not include credentials")
-	}
-	config := safeurl.GetConfigBuilder().
-		SetTimeout(60*time.Second).
+}
+
+// NewSafeURLClient builds an SSRF-safe HTTP client that allows ports 80 and 443.
+// timeout is the per-request deadline; checkRedirect may be nil.
+func NewSafeURLClient(timeout time.Duration, checkRedirect func(*http.Request, []*http.Request) error) HTTPDoer {
+	b := safeurl.GetConfigBuilder().
+		SetTimeout(timeout).
 		SetAllowedSchemes("http", "https").
 		SetAllowedPorts(80, 443).
 		// safeurl's built-in blocklist covers NAT64, 6to4 and Teredo, but not the
@@ -66,33 +70,76 @@ func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFe
 		// same way: ::7f00:1 is 127.0.0.1.
 		SetBlockedIPsCIDR("::/96").
 		EnableIPv6(true).
-		AllowSendingCredentials(false).
-		SetCheckRedirect(publicMediaRedirectPolicy).
-		Build()
-	client := safeurl.Client(config)
+		AllowSendingCredentials(false)
+	if checkRedirect != nil {
+		b = b.SetCheckRedirect(checkRedirect)
+	}
+	return safeurl.Client(b.Build())
+}
+
+var newPublicURLClient = NewSafeURLClient
+
+func FetchPublicURL(ctx context.Context, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
+	if maxBytes <= 0 {
+		maxBytes = DefaultPluginMediaMaxBytes
+	}
+	client := newPublicURLClient(60*time.Second, publicMediaRedirectPolicy)
+	defer closeIdleHTTPConnections(client)
+	return fetchBounded(ctx, client, rawURL, maxBytes)
+}
+
+// fetchBounded downloads rawURL into memory, refusing bodies larger than
+// maxBytes.
+func fetchBounded(ctx context.Context, client HTTPDoer, rawURL string, maxBytes int64) (*SafeFetchResult, error) {
+	var buf bytes.Buffer
+	contentType, finalURL, err := fetchBoundedTo(ctx, client, rawURL, maxBytes, &buf)
+	if err != nil {
+		return nil, err
+	}
+	body := buf.Bytes()
+	if body == nil {
+		body = []byte{}
+	}
+	return &SafeFetchResult{Body: body, ContentType: contentType, FinalURL: finalURL}, nil
+}
+
+// fetchBoundedTo streams the body of a GET for rawURL into dst, refusing bodies
+// larger than maxBytes and non-2xx responses. It returns the Content-Type and
+// the final URL after redirects. On error dst may hold a partial body.
+func fetchBoundedTo(ctx context.Context, client HTTPDoer, rawURL string, maxBytes int64, dst io.Writer) (contentType, finalURL string, err error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", "", fmt.Errorf("invalid public URL")
+	}
+	if parsed.User != nil {
+		return "", "", fmt.Errorf("public URL must not include credentials")
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	if err := ValidatePluginMediaStatus(resp.StatusCode); err != nil {
-		return nil, err
+		return "", "", err
 	}
 
-	body, err := ReadBoundedForPlugin(resp.Body, maxBytes)
+	n, err := io.Copy(dst, io.LimitReader(boundedFederatedBody(ctx, resp.Body), maxBytes+1))
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
-	return &SafeFetchResult{
-		Body:        body,
-		ContentType: resp.Header.Get("Content-Type"),
-		FinalURL:    resp.Request.URL.String(),
-	}, nil
+	if n > maxBytes {
+		return "", "", fmt.Errorf("response exceeds maximum size")
+	}
+	finalURL = rawURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	return resp.Header.Get("Content-Type"), finalURL, nil
 }
 
 func ValidatePluginMediaStatus(statusCode int) error {

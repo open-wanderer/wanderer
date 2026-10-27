@@ -1,33 +1,33 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import directionCaret from "$lib/assets/svgs/caret-right-solid.svg";
-    import GPX from "$lib/models/gpx/gpx";
-    import type { Trail } from "$lib/models/trail";
-    import type { Waypoint } from "$lib/models/waypoint";
-    import { theme } from "$lib/stores/theme_store";
-    import { findStartAndEndPoints } from "$lib/util/geojson_util";
+    import directionCaret from "#lib/assets/svgs/caret-right-solid.svg";
+    import GPX from "#lib/models/gpx/gpx.ts";
+    import type { Trail } from "#lib/models/trail.ts";
+    import type { Waypoint } from "#lib/models/waypoint.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { findStartAndEndPoints } from "#lib/util/geojson_util.ts";
     import {
         createMarkerFromWaypoint,
         createPopupFromTrail,
         FontawesomeMarker,
-    } from "$lib/util/maplibre_util";
-    import { decodePolyline } from "$lib/util/polyline_util";
-    import type { ElevationProfileControl } from "$lib/vendor/maplibre-elevation-profile/elevationprofile-control";
-    import { FullscreenControl } from "$lib/vendor/maplibre-fullscreen/fullscreen-control";
-    import MaplibreGraticule from "$lib/vendor/maplibre-graticule/maplibre-graticule";
-    import { CaretLayer } from "$lib/vendor/maplibre-layer-manager/caret-layer";
-    import { ClusterLayer } from "$lib/vendor/maplibre-layer-manager/cluster-layer";
-    import { baseMapStyles } from "$lib/vendor/maplibre-layer-manager/layers";
-    import { LayerManager } from "$lib/vendor/maplibre-layer-manager/maplibre-layer-manager";
-    import type { OverpassPopupActionFactory } from "$lib/vendor/maplibre-layer-manager/overpass-layer";
-    import { PreviewLayer } from "$lib/vendor/maplibre-layer-manager/preview-layer";
-    import { TerrainLayer } from "$lib/vendor/maplibre-layer-manager/terrain-layer";
-    import { TrailLayer } from "$lib/vendor/maplibre-layer-manager/trail-layer";
-    import { StyleSwitcherControl } from "$lib/vendor/maplibre-style-switcher/style-switcher-control";
+    } from "#lib/util/maplibre_util.ts";
+    import { decodePolyline } from "#lib/util/polyline_util.ts";
+    import type { ElevationProfileControl } from "#lib/vendor/maplibre-elevation-profile/elevationprofile-control.ts";
+    import { FullscreenControl } from "#lib/vendor/maplibre-fullscreen/fullscreen-control.ts";
+    import MaplibreGraticule from "#lib/vendor/maplibre-graticule/maplibre-graticule.ts";
+    import { CaretLayer } from "#lib/vendor/maplibre-layer-manager/caret-layer.ts";
+    import { ClusterLayer } from "#lib/vendor/maplibre-layer-manager/cluster-layer.ts";
+    import { baseMapStyles } from "#lib/vendor/maplibre-layer-manager/layers.ts";
+    import { LayerManager } from "#lib/vendor/maplibre-layer-manager/maplibre-layer-manager.ts";
+    import type { OverpassPopupActionFactory } from "#lib/vendor/maplibre-layer-manager/overpass-layer.ts";
+    import { PreviewLayer } from "#lib/vendor/maplibre-layer-manager/preview-layer.ts";
+    import { TerrainLayer } from "#lib/vendor/maplibre-layer-manager/terrain-layer.ts";
+    import { TrailLayer } from "#lib/vendor/maplibre-layer-manager/trail-layer.ts";
+    import { StyleSwitcherControl } from "#lib/vendor/maplibre-style-switcher/style-switcher-control.ts";
     import type { Feature, FeatureCollection, GeoJSON } from "geojson";
     import * as M from "maplibre-gl";
     import "maplibre-gl/dist/maplibre-gl.css";
-    import "$lib/util/maplibre_worker";
+    import "#lib/util/maplibre_worker.ts";
     import { onDestroy, onMount, untrack } from "svelte";
 
     interface Props {
@@ -880,7 +880,7 @@
         };
         const ElevationProfileControl = (
             await import(
-                "$lib/vendor/maplibre-elevation-profile/elevationprofile-control"
+                "#lib/vendor/maplibre-elevation-profile/elevationprofile-control.ts"
             )
         ).ElevationProfileControl;
 

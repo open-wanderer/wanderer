@@ -1,4 +1,4 @@
-import StyleSwitcher from "$lib/components/map/style_switcher.svelte";
+import StyleSwitcher from "#lib/components/map/style_switcher.svelte";
 import { type ControlPosition, type IControl, type StyleSpecification } from "maplibre-gl";
 import { mount } from "svelte";
 import type { MapState, pois } from "../maplibre-layer-manager/layers";

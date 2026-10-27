@@ -25,6 +25,7 @@ func setupAuthTokenTest(t *testing.T) *pbtests.TestApp {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	users, err := app.FindCollectionByNameOrId("users")
 	if err != nil {

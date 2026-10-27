@@ -1,20 +1,20 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import type { Notification } from "$lib/models/notification";
+    import type { Notification } from "#lib/models/notification.ts";
     import {
         notifications_index,
         notifications_mark_as_seen,
-    } from "$lib/stores/notification_store";
-    import { currentUser } from "$lib/stores/user_store";
+    } from "#lib/stores/notification_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
     import { onMount } from "svelte";
     import { fly } from "svelte/transition";
     import SkeletonNotificationCard from "../base/skeleton_notification_card.svelte";
     import NotificationCard from "./notification_card.svelte";
     import { _ } from "svelte-i18n";
-    import emptyStateNotificationDark from "$lib/assets/svgs/empty_states/empty_state_notification_dark.svg";
-    import emptyStateNotificationLight from "$lib/assets/svgs/empty_states/empty_state_notification_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import emptyStateNotificationDark from "#lib/assets/svgs/empty_states/empty_state_notification_dark.svg";
+    import emptyStateNotificationLight from "#lib/assets/svgs/empty_states/empty_state_notification_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     let notifications: Notification[] = $state([]);
 

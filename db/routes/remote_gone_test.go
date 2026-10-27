@@ -55,11 +55,13 @@ func setupGoneTest(t *testing.T, status int, collection, path string, handler fu
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(
 		&core.TextField{Name: "preferred_username"},
 		&core.TextField{Name: "domain"},
+		&core.TextField{Name: "public_key"},
 		&core.TextField{Name: "iri"},
 		&core.BoolField{Name: "is_local"},
 		&core.DateField{Name: "last_fetched"},
@@ -70,6 +72,7 @@ func setupGoneTest(t *testing.T, status int, collection, path string, handler fu
 	actor := core.NewRecord(actors)
 	actor.Set("preferred_username", "alice")
 	actor.Set("domain", "remote.example")
+	actor.Set("public_key", "verified-test-key")
 	actor.Set("iri", "https://remote.example/actor/alice")
 	actor.Set("last_fetched", time.Now())
 	if err := app.Save(actor); err != nil {
@@ -123,6 +126,7 @@ func (f *goneFixture) get(t *testing.T, id string) *httptest.ResponseRecorder {
 	e.Request.SetPathValue("id", id)
 	response := httptest.NewRecorder()
 	e.Response = response
+	t.Cleanup(func() { f.waitSyncIdle(t, id) })
 	if err := f.handler(e); err != nil {
 		// Route errors are rendered by PocketBase; here they surface as
 		// the returned error, carrying their status.
@@ -133,6 +137,26 @@ func (f *goneFixture) get(t *testing.T, id string) *httptest.ResponseRecorder {
 		response.Code = apiErr.Status
 	}
 	return response
+}
+
+// Keep fixture clients and databases alive until the actual refresh has ended.
+func (f *goneFixture) waitSyncIdle(t *testing.T, id string) {
+	t.Helper()
+	iri := "https://remote.example/api/v1/" + f.path + "/" + id
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		var busy bool
+		if f.path == "trail" {
+			_, busy = trailSyncing.Load(iri)
+		} else {
+			_, busy = listSyncing.Load(iri)
+		}
+		if !busy {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("background refresh for %s did not finish", iri)
 }
 
 func (f *goneFixture) waitGone(t *testing.T, id string) {
@@ -158,7 +182,7 @@ func TestRemoteGetKeepsCopyOnForbidden(t *testing.T) {
 		record := f.cached(t, needsFullSync)
 
 		f.get(t, record.Id)
-		time.Sleep(200 * time.Millisecond) // a background refresh would drop it asynchronously
+		f.waitSyncIdle(t, record.Id)
 		if _, err := f.app.FindRecordById("trails", record.Id); err != nil {
 			t.Fatalf("copy dropped on a 403 (needs_full_sync=%v)", needsFullSync)
 		}
@@ -179,6 +203,10 @@ func TestRemoteGetDropsCopyReportedGone(t *testing.T) {
 			t.Run(name+"/blocking sync answers 404 and drops the copy", func(t *testing.T) {
 				f := setupGoneTest(t, status, tt.collection, tt.path, tt.handler)
 				record := f.cached(t, true)
+				record.Set("full_sync_completed", false)
+				if err := f.app.Save(record); err != nil {
+					t.Fatal(err)
+				}
 
 				if got := f.get(t, record.Id).Code; got != http.StatusNotFound {
 					t.Fatalf("status = %d, want 404", got)

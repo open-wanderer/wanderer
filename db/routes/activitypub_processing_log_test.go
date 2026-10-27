@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
@@ -60,6 +61,7 @@ func testInboxProcessingWarning(t *testing.T, mailFailure bool) {
 		t.Fatal(err)
 	}
 	t.Cleanup(base.Cleanup)
+	drainTestAppStartupLogs(t, base)
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(&core.TextField{Name: "iri"}, &core.TextField{Name: "inbox"}, &core.TextField{Name: "domain"}, &core.TextField{Name: "public_key"}, &core.BoolField{Name: "is_local"}, &core.TextField{Name: "user"}, &core.TextField{Name: "username"}, &core.TextField{Name: "preferred_username"})
 	if err := base.Save(actors); err != nil {
@@ -135,11 +137,12 @@ func testInboxProcessingWarning(t *testing.T, mailFailure bool) {
 	req := httptest.NewRequest(http.MethodPost, "https://local.example"+path, strings.NewReader(body))
 	req.Header.Set("X-Internal-Secret", "inbox-test-secret")
 	req.Header.Set("X-Forwarded-Path", path)
-	signer, _, err := httpsig.NewSigner([]httpsig.Algorithm{httpsig.RSA_SHA256}, httpsig.DigestSha256, []string{"(request-target)"}, httpsig.Signature, 60)
+	req.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+	signer, _, err := httpsig.NewSigner([]httpsig.Algorithm{httpsig.RSA_SHA256}, httpsig.DigestSha256, []string{"(request-target)", "date", "digest"}, httpsig.Signature, 60)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := signer.SignRequest(key, remoteIRI+"#main-key", req, nil); err != nil {
+	if err := signer.SignRequest(key, remoteIRI+"#main-key", req, []byte(body)); err != nil {
 		t.Fatal(err)
 	}
 	response := httptest.NewRecorder()

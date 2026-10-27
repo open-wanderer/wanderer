@@ -20,7 +20,7 @@ func mentionFixture(t *testing.T) (f *addressingFixture, author, trailAuthor *co
 	if err != nil {
 		t.Fatal(err)
 	}
-	actors.Fields.Add(&core.DateField{Name: "last_fetched"})
+	actors.Fields.Add(&core.DateField{Name: "last_fetched"}, &core.TextField{Name: "public_key"})
 	if err := f.app.Save(actors); err != nil {
 		t.Fatal(err)
 	}
@@ -30,6 +30,7 @@ func mentionFixture(t *testing.T) (f *addressingFixture, author, trailAuthor *co
 	mentioned := f.actor(t, "carol", false)
 	mentioned.Set("domain", "remote.example")
 	mentioned.Set("last_fetched", time.Now())
+	mentioned.Set("public_key", "trusted cached actor key")
 	if err := f.app.Save(mentioned); err != nil {
 		t.Fatal(err)
 	}

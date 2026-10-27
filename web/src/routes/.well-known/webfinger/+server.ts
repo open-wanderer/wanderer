@@ -1,13 +1,13 @@
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import { error, type RequestEvent } from '@sveltejs/kit';
 import type PocketBase from "pocketbase";
 // @ts-ignore
-import { env } from "$env/dynamic/private"
+import { ORIGIN } from "$app/env/private"
 // @ts-ignore
-import { handleError } from "$lib/util/api_util";
+import { handleError } from "#lib/util/api_util.ts";
 // @ts-ignore
-import { splitUsername } from "$lib/util/activitypub_util";
+import { splitUsername } from "#lib/util/activitypub_util.ts";
 // @ts-ignore
-import type { WebfingerResponse } from '$lib/models/activitypub/webfinger_response';
+import type { WebfingerResponse } from '#lib/models/activitypub/webfinger_response.ts';
 
 export async function GET(event: RequestEvent) {
 
@@ -21,21 +21,21 @@ export async function GET(event: RequestEvent) {
         let iri: string;
         let profile: string;
         let handle: string;
-        const hostname = new URL(env.ORIGIN).hostname;
+        const hostname = new URL(ORIGIN).hostname;
         if (resource.startsWith("acct:")) {
             const [username, domain] = splitUsername(resource.replace("acct:", ""))
 
             if (hostname !== domain) {
-                return json({ message: "Not found" }, { status: 404 });
+                return Response.json({ message: "Not found" }, { status: 404 });
             }
-            iri = `${env.ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
-            profile = `${env.ORIGIN}/profile/@${username.toLowerCase()}`
+            iri = `${ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
+            profile = `${ORIGIN}/profile/@${username.toLowerCase()}`
             handle = resource;
 
-        } else if (new RegExp(`${env.ORIGIN}\/profile\/@.*`, "g").test(resource)) {
+        } else if (new RegExp(`${ORIGIN}\/profile\/@.*`, "g").test(resource)) {
             const username = resource.split('/').pop()!.replace("@", "")
-            iri = `${env.ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
-            profile = `${env.ORIGIN}/profile/@${username.toLowerCase()}`
+            iri = `${ORIGIN}/api/v1/activitypub/user/${username.toLowerCase()}`
+            profile = `${ORIGIN}/profile/@${username.toLowerCase()}`
             handle = `@${username}@${hostname}`
         } else {
             return error(400, "Bad request");
@@ -61,7 +61,7 @@ export async function GET(event: RequestEvent) {
             ],
         }
 
-        return json(r)
+        return Response.json(r)
     } catch (err) {
         return handleError(err)
     }

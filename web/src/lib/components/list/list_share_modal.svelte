@@ -1,21 +1,21 @@
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
-    import type { List } from "$lib/models/list";
-    import type { ListShare } from "$lib/models/list_share";
+    import Modal from "#lib/components/base/modal.svelte";
+    import type { List } from "#lib/models/list.ts";
+    import type { ListShare } from "#lib/models/list_share.ts";
     import {
         list_share_create_for_actor,
         list_share_delete,
         list_share_index,
         list_share_update,
         shares,
-    } from "$lib/stores/list_share_store";
-    import { currentUser } from "$lib/stores/user_store";
+    } from "#lib/stores/list_share_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
     import { _ } from "svelte-i18n";
     import ActorSearch from "../actor_search.svelte";
     import Button from "../base/button.svelte";
     import type { SelectItem } from "../base/select.svelte";
     import Select from "../base/select.svelte";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
 
     interface Props {
         list: List;

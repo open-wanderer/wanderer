@@ -1,16 +1,16 @@
 <script lang="ts">
-    import { browser } from "$app/environment";
+    import { browser } from "$app/env";
     import { beforeNavigate, goto } from "$app/navigation";
     import { page } from "$app/state";
-    import TrailFilterPanel from "$lib/components/trail/trail_filter_panel.svelte";
-    import TrailList from "$lib/components/trail/trail_list.svelte";
-    import type { Trail, TrailFilter } from "$lib/models/trail";
-    import { trails_search_filter } from "$lib/stores/trail_store";
+    import TrailFilterPanel from "#lib/components/trail/trail_filter_panel.svelte";
+    import TrailList from "#lib/components/trail/trail_list.svelte";
+    import type { Trail, TrailFilter } from "#lib/models/trail.ts";
+    import { trails_search_filter } from "#lib/stores/trail_store.ts";
     import type { Snapshot } from "@sveltejs/kit";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
-    import { APIError } from "$lib/util/api_util";
-    import { sanitizeTrailFilter } from "$lib/util/trail_filter_util";
+    import { APIError } from "#lib/util/api_util.ts";
+    import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
 
     const TRAIL_LIST_FILTER_STORAGE_KEY = "trailListFilter";
 
@@ -200,10 +200,10 @@
             }
         }
 
-        page.url.searchParams.set("page", newPage.toString());
-        goto(`?${page.url.searchParams.toString()}`, {
-            keepFocus: true,
-            noScroll: !scrollToTop,
+        const url = new URL(page.url.href);
+        url.searchParams.set("page", newPage.toString());
+        goto(`?${url.searchParams.toString()}`, { reset: false }).then(() => {
+            if (scrollToTop) window.scrollTo(0, 0);
         });
     }
 

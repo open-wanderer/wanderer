@@ -1,14 +1,14 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import Button from "$lib/components/base/button.svelte";
-    import TextField from "$lib/components/base/text_field.svelte";
-    import LogoTextTwoLineDark from "$lib/components/logo/logo_text_two_line_dark.svelte";
-    import LogoTextTwoLineLight from "$lib/components/logo/logo_text_two_line_light.svelte";
-    import { theme } from "$lib/stores/theme_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { users_confirm_reset } from "$lib/stores/user_store";
-    import { validator } from "@felte/validator-zod";
+    import Button from "#lib/components/base/button.svelte";
+    import TextField from "#lib/components/base/text_field.svelte";
+    import LogoTextTwoLineDark from "#lib/components/logo/logo_text_two_line_dark.svelte";
+    import LogoTextTwoLineLight from "#lib/components/logo/logo_text_two_line_light.svelte";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { users_confirm_reset } from "#lib/stores/user_store.ts";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
     import { z } from "zod";

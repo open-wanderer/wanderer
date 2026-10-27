@@ -1,6 +1,6 @@
-import type { ActorSearchResult } from "$lib/models/activitypub/actor";
-import { defaultTrailSearchAttributes, type TrailSearchResult } from "$lib/models/trail";
-import { APIError } from "$lib/util/api_util";
+import type { ActorSearchResult } from "#lib/models/activitypub/actor.ts";
+import { defaultTrailSearchAttributes, type TrailSearchResult } from "#lib/models/trail.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import type { Hits, MultiSearchParams, MultiSearchResponse, MultiSearchResult, SearchParams, SearchResponse } from "meilisearch";
 
 export type LocationSearchResult = {

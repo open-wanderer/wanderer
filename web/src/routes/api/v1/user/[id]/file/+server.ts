@@ -1,6 +1,6 @@
-import type { User } from "$lib/models/user";
-import { Collection, handleError, upload } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import type { User } from "#lib/models/user.ts";
+import { Collection, handleError, upload } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 const fileFields = ["avatar"] as const;
 
@@ -46,7 +46,7 @@ const fileFields = ["avatar"] as const;
 export async function POST(event: RequestEvent) {
     try {
         const r = await upload<User>(event, Collection.users, fileFields);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

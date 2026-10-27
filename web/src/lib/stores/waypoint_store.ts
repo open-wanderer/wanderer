@@ -1,5 +1,5 @@
-import { Waypoint } from "$lib/models/waypoint";
-import { APIError } from "$lib/util/api_util";
+import { Waypoint } from "#lib/models/waypoint.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
 import type { AuthRecord } from "pocketbase";

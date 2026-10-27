@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Toggle from "$lib/components/base/toggle.svelte";
+    import Toggle from "#lib/components/base/toggle.svelte";
     import { _ } from "svelte-i18n";
 
     interface Props {
