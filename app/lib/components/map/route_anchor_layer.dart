@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/map/map_marker_gestures.dart';
+import 'package:wanderer/components/map/screen_marker_layer.dart';
 import 'package:wanderer/models/route_anchor.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
 
 /// Interactive route-anchor markers rendered as Flutter widgets over the
-/// native map via a single [ml.WidgetLayer]: numbered, draggable markers
+/// native map via a single [ScreenMarkerLayer]: numbered, draggable markers
 /// whose displayed number is always derived from the anchor's current
 /// position in the anchor list — never a stored field.
 ///
@@ -45,9 +46,10 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
   ///
   /// Rebuilding N marker subtrees per frame (gesture detectors,
   /// AnimatedScales, blurred-shadow containers) is the expensive part, and
-  /// that *is* avoidable: [ml.WidgetLayer] repositions markers itself via
-  /// `toScreenLocations`, so as long as it receives the same `Widget`
-  /// instances, element diffing skips their subtrees entirely.
+  /// that *is* avoidable: [ScreenMarkerLayer] repositions markers itself, so
+  /// as long as it receives the same list (and so the same `Widget`
+  /// instances), element diffing skips their subtrees entirely and its own
+  /// per-marker wrappers are reused too.
   List<ml.Marker>? _cachedMarkers;
   List<RouteAnchor>? _cachedAnchors;
   String? _cachedSelectedId;
@@ -76,6 +78,9 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
       // Anchors keep their single-finger drag; MapMarkerGestures only
       // hands two-finger gestures back to the map.
       child: MapMarkerGestures(
+        // Keys the marker's slot in the layer so its AnimatedScale state
+        // follows the anchor across inserts and removals, not the list index.
+        key: ValueKey(anchor.id),
         onTap: () => widget.onAnchorTap?.call(anchor.id),
         onPanStart: (details) {
           final c = ml.MapController.maybeOf(context);
@@ -135,7 +140,7 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
         _cachedBrightness == brightness;
 
     if (cacheValid && _draggingAnchorId == null) {
-      return ml.WidgetLayer(allowInteraction: true, markers: cached);
+      return ScreenMarkerLayer(markers: cached);
     }
 
     // A drag re-projects a fixed screen offset through the live camera, so
@@ -156,7 +161,7 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
           isDragging: true,
           point: controller.toLngLat(_dragOffset!),
         );
-        return ml.WidgetLayer(allowInteraction: true, markers: markers);
+        return ScreenMarkerLayer(markers: markers);
       }
     }
 
@@ -187,7 +192,7 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
       _invalidateMarkers();
     }
 
-    return ml.WidgetLayer(allowInteraction: true, markers: markers);
+    return ScreenMarkerLayer(markers: markers);
   }
 }
 
