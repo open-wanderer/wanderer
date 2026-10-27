@@ -57,6 +57,28 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
 
   void _invalidateMarkers() => _cachedMarkers = null;
 
+  /// Whether [anchors] would yield the same markers as the ones cached.
+  ///
+  /// A marker renders its position in the list and its coordinates, and acts
+  /// on its id - nothing else. So `copyWith(location: ...)` (the reverse-geocode
+  /// result the provider writes after every creation and drag) must not rebuild
+  /// the whole marker set: comparing by list identity did, which re-created
+  /// every marker's gesture detector, scale animation and decorated box a
+  /// second time per creation. The cache holds the latest list instance after a
+  /// structural match, so the per-camera-frame check stays an identity test.
+  bool _sameMarkerInputs(List<RouteAnchor> anchors) {
+    final cached = _cachedAnchors;
+    if (cached == null) return false;
+    if (identical(anchors, cached)) return true;
+    if (anchors.length != cached.length) return false;
+    for (var i = 0; i < anchors.length; i++) {
+      final a = anchors[i];
+      final b = cached[i];
+      if (a.id != b.id || a.lat != b.lat || a.lon != b.lon) return false;
+    }
+    return true;
+  }
+
   void _clearDrag() {
     setState(() {
       _draggingAnchorId = null;
@@ -135,9 +157,10 @@ class _RouteAnchorLayerState extends ConsumerState<RouteAnchorLayer> {
     final cached = _cachedMarkers;
     final cacheValid =
         cached != null &&
-        identical(anchors, _cachedAnchors) &&
+        _sameMarkerInputs(anchors) &&
         _cachedSelectedId == widget.selectedAnchorId &&
         _cachedBrightness == brightness;
+    if (cacheValid) _cachedAnchors = anchors;
 
     if (cacheValid && _draggingAnchorId == null) {
       return ScreenMarkerLayer(markers: cached);
