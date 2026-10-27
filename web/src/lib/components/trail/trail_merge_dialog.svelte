@@ -3,7 +3,7 @@
         processMergeQueue,
         mergeStore,
         type Merge,
-    } from "$lib/stores/trail_merge_store.svelte";
+    } from "#lib/stores/trail_merge_store.svelte.ts";
     import { slide } from "svelte/transition";
     import { _ } from "svelte-i18n";
     import { goto } from "$app/navigation";

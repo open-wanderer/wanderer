@@ -1,8 +1,8 @@
-import { List } from "$lib/models/list";
-import { lists_show } from "$lib/stores/list_store";
-import { APIError } from "$lib/util/api_util";
-import { getFileURL } from "$lib/util/file_util";
-import { error, type Load, type NumericRange } from "@sveltejs/kit";
+import { List } from "#lib/models/list.ts";
+import { lists_show } from "#lib/stores/list_store.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { getFileURL } from "#lib/util/file_util.ts";
+import { error, type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ params, fetch, data }) => {
     if (!params.id) {
@@ -22,7 +22,7 @@ export const load: Load = async ({ params, fetch, data }) => {
 
         } catch (e) {
             if (e instanceof APIError) {
-                throw error(e.status as NumericRange<400, 599>, e.message)
+                throw error(e.status, e.message)
             }
             throw e
         }

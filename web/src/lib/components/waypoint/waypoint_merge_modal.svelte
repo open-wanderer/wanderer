@@ -1,5 +1,5 @@
 <script module lang="ts">
-    import type { Waypoint } from "$lib/models/waypoint";
+    import type { Waypoint } from "#lib/models/waypoint.ts";
 
     export type WaypointMerge = {
         incoming: Waypoint;
@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-    import { browser } from "$app/environment";
+    import { browser } from "$app/env";
     import { _ } from "svelte-i18n";
     import Modal from "../base/modal.svelte";
     import RadioGroup, { type RadioItem } from "../base/radio_group.svelte";

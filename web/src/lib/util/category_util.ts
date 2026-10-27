@@ -1,7 +1,7 @@
-import type { Category } from "$lib/models/category";
-import type { UserCategoryPreference } from "$lib/models/category_preference";
-import type { Subcategory } from "$lib/models/subcategory";
-import type { UserSubcategoryPreference } from "$lib/models/subcategory_preference";
+import type { Category } from "#lib/models/category.ts";
+import type { UserCategoryPreference } from "#lib/models/category_preference.ts";
+import type { Subcategory } from "#lib/models/subcategory.ts";
+import type { UserSubcategoryPreference } from "#lib/models/subcategory_preference.ts";
 
 type CategoryDisplayEntity = Pick<Category | Subcategory, "name" | "translations">;
 type CategoryShortNameEntity = Pick<

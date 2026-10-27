@@ -1,6 +1,6 @@
-import { TrailLikeCreateSchema } from '$lib/models/api/trail_like_schema';
-import { Collection, handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { TrailLikeCreateSchema } from '#lib/models/api/trail_like_schema.ts';
+import { Collection, handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 
 /**
@@ -37,7 +37,7 @@ export async function POST(event: RequestEvent) {
 
         const r = await event.locals.pb.collection(Collection.trail_like).delete(like.id)
 
-        return json({ 'acknowledged': r })
+        return Response.json({ 'acknowledged': r })
     } catch (e: any) {
         handleError(e)
     }

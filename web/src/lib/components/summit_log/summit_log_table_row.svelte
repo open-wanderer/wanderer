@@ -1,20 +1,20 @@
 <script lang="ts">
-    import type { SummitLog } from "$lib/models/summit_log";
+    import type { SummitLog } from "#lib/models/summit_log.ts";
 
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
+    import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsText,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import {
         displayCategoryName,
         displaySubcategoryLabel,
         displayTrailCategoryBadgeIcon,
         displayTrailCategoryIcon,
         trailCategoryKey,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
     import { _, locale } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";

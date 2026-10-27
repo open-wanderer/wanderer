@@ -39,6 +39,7 @@ func setupAddressingTestApp(t *testing.T) *addressingFixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	add := func(name string, fields ...core.Field) *core.Collection {
 		c := core.NewBaseCollection(name)
@@ -70,6 +71,7 @@ func setupAddressingTestApp(t *testing.T) *addressingFixture {
 	add("lists", append(text("iri", "name", "description"), &core.BoolField{Name: "public"}, rel("author", actors.Id))...)
 	add("comments", append(text("iri", "text"), rel("author", actors.Id), rel("trail", trails.Id))...)
 	add("summit_logs", append(text("iri", "text"), rel("author", actors.Id), rel("trail", trails.Id))...)
+	add("feed", text("actor", "author", "item", "type")...)
 	add("activitypub_activities", append(text("iri", "type", "actor", "published"),
 		&core.JSONField{Name: "to"}, &core.JSONField{Name: "cc"}, &core.JSONField{Name: "object"})...)
 

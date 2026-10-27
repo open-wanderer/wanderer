@@ -1,8 +1,8 @@
-import { env } from '$env/dynamic/public';
-import { UserCreateSchema } from '$lib/models/api/user_schema';
-import type { User } from '$lib/models/user';
-import { Collection, handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { PUBLIC_DISABLE_SIGNUP } from '$app/env/public';
+import { UserCreateSchema } from '#lib/models/api/user_schema.ts';
+import type { User } from '#lib/models/user.ts';
+import { Collection, handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
 
 /**
@@ -31,7 +31,7 @@ import { ClientResponseError } from 'pocketbase';
  *         description: Internal Server Error
  */
 export async function PUT(event: RequestEvent) {
-    if (env.PUBLIC_DISABLE_SIGNUP === "true") {
+    if (PUBLIC_DISABLE_SIGNUP === "true") {
         throw new ClientResponseError({ status: 401, response: { messgage: "Forbidden" } })
     }
 
@@ -44,7 +44,7 @@ export async function PUT(event: RequestEvent) {
 
         await event.locals.pb.collection('users').requestVerification(safeData.email);
 
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

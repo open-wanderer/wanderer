@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const external = vi.hoisted(() => ({
     fromFile: vi.fn(), gpx2trail: vi.fn(), searchLocationReverse: vi.fn(), trails_create: vi.fn(),
 }));
-vi.mock("$lib/util/gpx_util", () => ({ fromFile: external.fromFile, gpx2trail: external.gpx2trail }));
-vi.mock("$lib/stores/search_store", () => ({ searchLocationReverse: external.searchLocationReverse }));
-vi.mock("$lib/stores/trail_store", () => ({ trails_create: external.trails_create }));
+vi.mock("#lib/util/gpx_util.ts", () => ({ fromFile: external.fromFile, gpx2trail: external.gpx2trail }));
+vi.mock("#lib/stores/search_store.ts", () => ({ searchLocationReverse: external.searchLocationReverse }));
+vi.mock("#lib/stores/trail_store.ts", () => ({ trails_create: external.trails_create }));
 
 import { PUT } from "./+server";
 

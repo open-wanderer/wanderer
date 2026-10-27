@@ -1,7 +1,7 @@
-import { SummitLogUpdateSchema } from "$lib/models/api/summit_log_schema";
-import type { SummitLog } from "$lib/models/summit_log";
-import { Collection, handleError, remove, show, update } from "$lib/util/api_util";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { SummitLogUpdateSchema } from "#lib/models/api/summit_log_schema.ts";
+import type { SummitLog } from "#lib/models/summit_log.ts";
+import { Collection, handleError, remove, show, update } from "#lib/util/api_util.ts";
+import { error, type RequestEvent } from "@sveltejs/kit";
 
 
 /**
@@ -36,7 +36,7 @@ import { error, json, type RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         const r = await show<SummitLog>(event, Collection.summit_logs)
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }
@@ -78,7 +78,7 @@ export async function GET(event: RequestEvent) {
 export async function POST(event: RequestEvent) {
     try {
         const r = await update<SummitLog>(event, SummitLogUpdateSchema, Collection.summit_logs)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e)
     }
@@ -108,7 +108,7 @@ export async function POST(event: RequestEvent) {
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.summit_logs)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

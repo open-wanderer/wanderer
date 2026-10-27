@@ -1,6 +1,6 @@
 <script lang="ts">
   
-  import { theme } from "$lib/stores/theme_store";
+  import { theme } from "#lib/stores/theme_store.ts";
   import { T } from "@threlte/core";
   import { useDraco, useGltf } from "@threlte/extras";
   import { backInOut } from "svelte/easing";

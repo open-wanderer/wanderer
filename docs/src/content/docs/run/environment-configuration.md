@@ -3,7 +3,7 @@ title: Environment configuration
 description: How to configure <span class="-tracking-[0.075em]">wanderer</span> with environment variables
 ---
 
-Global settings for <span class="-tracking-[0.075em]">wanderer</span> can be adjusted via environment variables. If you deployed <span class="-tracking-[0.075em]">wanderer</span> with docker you can change the environment variables directly in the `docker-compose.yaml`. If you deployed <span class="-tracking-[0.075em]">wanderer</span> on bare-metal you can change the environment variables in the launch script.
+Global settings for <span class="-tracking-[0.075em]">wanderer</span> can be adjusted via environment variables. If you deployed <span class="-tracking-[0.075em]">wanderer</span> with docker you can set them in the `.env` file next to your `docker-compose.yml` (see [`.env.example`](https://github.com/open-wanderer/wanderer/blob/main/.env.example)). If you deployed <span class="-tracking-[0.075em]">wanderer</span> on bare-metal you can change the environment variables in the launch script.
 
 ## Common
 These variables are shared between all three services.
@@ -11,7 +11,7 @@ These variables are shared between all three services.
 | Environment Variable | Description                                                      | Default                                     |
 | -------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
 | MEILI_URL            | IP or hostname (including the port) of your meilisearch instance | http://search:7700                          |
-| MEILI_MASTER_KEY     | Master API key for your meilisearch instance                     | vODkljPcfFANYNepCHyDyGjzAMPcdHnrb6X5KyXQPWo |
+| MEILI_MASTER_KEY     | **Required.** Master API key for your meilisearch instance. Generate with `openssl rand -hex 32` |                                             |
 
 ## Meilisearch
 Since we use an unmodified installation of meilisearch you can use all variables listed in meilisearch's documentation. You can find a full list over [here](https://www.meilisearch.com/docs/learn/configuration/instance_options).
@@ -24,8 +24,8 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | Environment Variable           | Description                                                                                                       | Default               |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
 | ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
-| POCKETBASE_ENCRYPTION_KEY      | Valid 32 character AES key. Used to encrypt secrets                                                               |                       |
-| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation is rejected (fail closed). |                       |
+| POCKETBASE_ENCRYPTION_KEY      | **Required.** Valid 32 character AES key. Used to encrypt secrets. Generate with `openssl rand -hex 16`. Never change it after the first start, or stored secrets can no longer be decrypted |                       |
+| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation is rejected (fail closed). Generate with `openssl rand -hex 32` |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
 | POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE | Valid cron expression. Sets how often the search indexes are compared with the database and repaired. The job can also be run from the Crons page of the PocketBase dashboard | `0 4 * * *` |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
@@ -53,7 +53,7 @@ bundles and configuring self-hosted connector trust settings.
 | Environment Variable    | Description                                                                      | Default                             |
 | ----------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
-| BODY_SIZE_LIMIT         | Maximum allowed upload size                                                      | Infinity                            |
+| BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; K, M and G suffixes use powers of 1024, `Infinity` permits uploads of any size after sign-in | 2G                                  |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
 | POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery. Must match the value set on the `db` service. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
@@ -62,6 +62,32 @@ bundles and configuring self-hosted connector trust settings.
 | UPLOAD_FOLDER           | Folder from which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                                   | /app/uploads                        |
 | UPLOAD_USER             | Username for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
 | UPLOAD_PASSWORD         | Password for the account with which <span class="-tracking-[0.075em]">wanderer</span> auto-uploads trails                 |                                     |
+
+### Visitor IP addresses
+
+These settings are provided by [SvelteKit adapter-node](https://svelte.dev/docs/kit/adapter-node#ADDRESS_HEADER-and-XFF_DEPTH).
+
+For a direct deployment, leave `ADDRESS_HEADER` unset. SvelteKit's Node adapter
+uses the connection's socket address, which the web service forwards to
+PocketBase. Behind a reverse proxy, configure these variables on the `web`
+service only when the proxy is controlled and direct access to the web service
+is blocked. The proxy must overwrite public forwarding headers with an
+authoritative address or a controlled proxy chain.
+
+| Environment Variable | Description | Default |
+| -------------------- | ----------- | ------- |
+| ADDRESS_HEADER | Trusted header used by adapter-node to resolve the client address, for example `X-Forwarded-For` | Unset (socket address) |
+| XFF_DEPTH | When `ADDRESS_HEADER=X-Forwarded-For`, number of trusted proxy hops, counted from the right of the header | 1 |
+
+For one controlled reverse proxy that overwrites `X-Forwarded-For` with the
+visitor's address, set `ADDRESS_HEADER=X-Forwarded-For` and `XFF_DEPTH=1`.
+For multiple proxies, match `XFF_DEPTH` to the trusted chain; do not trust an
+arbitrary leftmost address supplied by the visitor. Misconfiguration lets
+visitors forge the address used for rate limiting.
+
+Configure PocketBase's [User IP proxy headers](/run/backend-configuration#visitor-ip-addresses)
+and restrict access to the backend as described there. `POCKETBASE_PROXY_SECRET`
+protects federation delivery only and does not authenticate these IP headers.
 
 ## Map tiles & assets
 
@@ -106,3 +132,5 @@ services:
 
 Provider plugin connector CAs are configured per connector when a plugin
 supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.
+
+`BODY_SIZE_LIMIT` controls the adapter ceiling and multipart upload limit together. The sample Compose default is `2G`, enough for 99 default-sized photos and a GPX file in one request. When started through `server.js`, as in the provided image and `npm start`, the web server uses `2G` when the variable is unset; an invalid value logs a warning and also uses `2G`. `Infinity` permits uploads of any size by signed-in users, including in older Compose files. Increase this one variable when raising collection file limits, allowing space for multipart headers. Upload routes authenticate before reading or parsing the body. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB. Configure reverse-proxy request limits accordingly.

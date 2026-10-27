@@ -1,19 +1,26 @@
-import { env } from '$env/dynamic/private'
-import { env as envPub } from '$env/dynamic/public'
-import type { Settings } from '$lib/models/settings'
+import { MEILI_URL, ORIGIN } from '$app/env/private'
+import { PUBLIC_DISABLE_SIGNUP, PUBLIC_POCKETBASE_URL } from '$app/env/public'
+import type { Settings } from '#lib/models/settings.ts'
 
 import PocketBase, { ClientResponseError } from 'pocketbase'
-import { isRouteProtected } from '$lib/util/authorization_util'
-import { error, json, redirect, text, type Handle } from '@sveltejs/kit'
-import { sequence } from '@sveltejs/kit/hooks'
+import { isRouteProtected } from '#lib/util/authorization_util.ts'
+import { error, redirect } from '@sveltejs/kit'
+import { sequence, type Handle } from '@sveltejs/kit/hooks'
 import { Meilisearch } from 'meilisearch'
 import { locale } from 'svelte-i18n'
-import type { Actor } from '$lib/models/activitypub/actor'
-import { normalizeLocale } from '$lib/i18n/locales'
-import { handleError } from '$lib/util/api_util'
-import { apiErrorsAsJson, isApiRequest } from '$lib/server/api_errors'
+import type { Actor } from '#lib/models/activitypub/actor.ts'
+import { normalizeLocale } from '#lib/i18n/locales.ts'
+import { handleError } from '#lib/util/api_util.ts'
+import { apiErrorsAsJson, isApiRequest } from '#lib/server/api_errors.ts'
+import { limitRequestBodies } from '#lib/server/request_body.ts'
 
 const SEARCH_TOKEN_VERSION = 1;
+
+// adapter-node no longer applies ORIGIN to event.url, which otherwise
+// defaults to https behind a plain-http deployment.
+function publicOrigin(url: URL): string {
+  return ORIGIN ? new URL(ORIGIN).origin : url.origin
+}
 
 function csrf(allowedPaths: string[]): Handle {
   return async ({ event, resolve }) => {
@@ -24,15 +31,15 @@ function csrf(allowedPaths: string[]): Handle {
         request.method === "PUT" ||
         request.method === "PATCH" ||
         request.method === "DELETE") &&
-      request.headers.get("origin") !== url.origin &&
+      request.headers.get("origin") !== publicOrigin(url) &&
       !allowedPaths.some(p => url.pathname.startsWith(p));
 
     if (forbidden) {
       const message = `Cross-site ${request.method} form submissions are forbidden`;
       if (isApiRequest(url) || request.headers.get("accept") === "application/json") {
-        return json({ message }, { status: 403 });
+        return Response.json({ message }, { status: 403 });
       }
-      return text(message, { status: 403 });
+      return new Response(message, { status: 403 });
     }
 
     return resolve(event);
@@ -53,7 +60,21 @@ function isFormContentType(request: Request) {
 }
 
 const auth: Handle = async ({ event, resolve }) => {
-  const pb = new PocketBase(envPub.PUBLIC_POCKETBASE_URL)
+  const pb = new PocketBase(PUBLIC_POCKETBASE_URL)
+  pb.beforeSend = (url, options) => {
+    // Keep a plain object: the SDK reads headers by key after beforeSend
+    // (e.g. to JSON-serialize the body), which a Headers instance breaks.
+    const headers: Record<string, string> = {}
+    for (const [key, value] of Object.entries(options.headers ?? {})) {
+      if (key.toLowerCase() !== 'x-forwarded-for') headers[key] = value
+    }
+    try {
+      headers['X-Forwarded-For'] = event.getClientAddress()
+    } catch {
+      // ADDRESS_HEADER is set but this request has none (e.g. a healthcheck).
+    }
+    return { url, options: { ...options, headers } }
+  }
   const url = new URL(event.request.url);
 
   // Handle API token based auth for API requests
@@ -74,7 +95,7 @@ const auth: Handle = async ({ event, resolve }) => {
         // Only a 401 rejects the token; a missing auth endpoint or a backend
         // failure is not a token rejection.
         if (e instanceof ClientResponseError && e.status === 401) {
-          return json({ message: "invalid_token" }, {
+          return Response.json({ message: "invalid_token" }, {
             status: 401,
             headers: { "WWW-Authenticate": 'Bearer error="invalid_token"' },
           })
@@ -89,7 +110,7 @@ const auth: Handle = async ({ event, resolve }) => {
   }
 
 
-  const secure = event.url.protocol === "https:"
+  const secure = publicOrigin(event.url).startsWith("https:")
   let meiliCookie = event.cookies.get('meilisearch_token');
   let meilisearchToken: string | undefined = undefined;
   const currentUserId = pb.authStore.record?.id || 'public';
@@ -128,12 +149,12 @@ const auth: Handle = async ({ event, resolve }) => {
   // validate the user existence and if the path is acceesible
   if (!pb.authStore.record && isRouteProtected(url)) {
     if (url.pathname.startsWith("/api")) {
-      return json({ message: "Unauthorized" }, { status: 401 })
+      return Response.json({ message: "Unauthorized" }, { status: 401 })
     }
     throw redirect(302, '/login?r=' + url.pathname);
   } else if (pb.authStore.record && url.pathname === "/login") {
     throw redirect(302, '/');
-  } else if (envPub.PUBLIC_DISABLE_SIGNUP === "true" && url.pathname === "/register") {
+  } else if (PUBLIC_DISABLE_SIGNUP === "true" && url.pathname === "/register") {
     throw redirect(302, '/');
   }
 
@@ -155,7 +176,7 @@ const auth: Handle = async ({ event, resolve }) => {
     settings = await pb.collection('settings').getFirstListItem<Settings>(`user="${pb.authStore.record.id}"`, { requestKey: null })
     actor = await pb.collection("activitypub_actors").getFirstListItem(`is_local=1&&user='${pb.authStore.record.id}'`)
   }
-  const meiliHost = env.MEILI_URL;
+  const meiliHost = MEILI_URL;
   if (!meiliHost) {
     throw error(500, "Missing MEILI_URL");
   }
@@ -200,4 +221,4 @@ const removeLinkFromHeaders: Handle =
   }
 
 
-export const handle = sequence(apiErrorsAsJson, csrf(['/api/v1']), auth, removeLinkFromHeaders)
+export const handle = sequence(apiErrorsAsJson, limitRequestBodies, csrf(['/api/v1']), auth, removeLinkFromHeaders)

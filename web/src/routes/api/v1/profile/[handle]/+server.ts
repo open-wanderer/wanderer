@@ -1,7 +1,7 @@
-import type { Profile } from '$lib/models/profile';
-import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
-import { handleError } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import type { Profile } from '#lib/models/profile.ts';
+import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import { error, type RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -32,7 +32,7 @@ import { error, json, type RequestEvent } from '@sveltejs/kit';
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
     if (!handle) {
-        return error(400, { message: "Bad request" })
+        return error(400, "Bad request")
     }
 
     try {
@@ -52,7 +52,7 @@ export async function GET(event: RequestEvent) {
             error: actorError ?? undefined
         }
 
-        return json({ profile, actor: actor })
+        return Response.json({ profile, actor: actor })
     } catch (e) {
         if (e instanceof Error && e.message == "fetch failed") {
             return error(404, "Not found")

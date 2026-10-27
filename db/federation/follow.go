@@ -76,6 +76,7 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 	// a remote actor has requested the follow
 	// this means we have not yet created a follow entry in our db
 	// we accept it immediately
+	repeated := false
 	if !actor.GetBool("is_local") {
 		followCollection, err := app.FindCollectionByNameOrId("follows")
 		if err != nil {
@@ -87,7 +88,11 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 		followRecord.Set("status", "accepted")
 		err = app.Save(followRecord)
 		if err != nil {
-			return err
+			// Repeated requests for the same follow receive their own Accept.
+			if _, findErr := app.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": object.Id}); findErr != nil {
+				return err
+			}
+			repeated = true
 		}
 	}
 
@@ -120,6 +125,9 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 	if err != nil {
 		return err
 	}
+	if repeated {
+		return nil
+	}
 	// send a notification to the followee
 	notification := util.Notification{
 		Type: util.NewFollower,
@@ -135,7 +143,10 @@ func ProcessFollowActivity(app core.App, actor *core.Record, activity pub.Activi
 
 func ProcessAcceptActivity(app core.App, actor *core.Record, activity pub.Activity) error {
 
-	followActivity := activity.Object.(*pub.Activity)
+	followActivity, ok := activity.Object.(*pub.Activity)
+	if !ok || followActivity == nil {
+		return fmt.Errorf("accept object must be a follow activity")
+	}
 
 	follower, err := app.FindFirstRecordByData("activitypub_actors", "iri", followActivity.Actor)
 	if err != nil {

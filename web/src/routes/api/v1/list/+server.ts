@@ -1,7 +1,7 @@
-import { ListCreateSchema } from '$lib/models/api/list_schema';
-import type { List } from '$lib/models/list';
-import { Collection, create, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { ListCreateSchema } from '#lib/models/api/list_schema.ts';
+import type { List } from '#lib/models/list.ts';
+import { Collection, create, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -52,7 +52,7 @@ export async function GET(event: RequestEvent) {
             }
           
         }
-        return json(r)
+        return Response.json(r)
     } catch (e) {
         return handleError(e)
     }
@@ -86,7 +86,7 @@ export async function GET(event: RequestEvent) {
 export async function PUT(event: RequestEvent) {
     try {
         const r = await create<List>(event, ListCreateSchema, Collection.lists)
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

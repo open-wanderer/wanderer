@@ -1,5 +1,5 @@
 import type { Trail } from "./trail";
-import { normalizeTagName } from "$lib/util/tag_name";
+import { normalizeTagName } from "#lib/util/tag_name.ts";
 
 export class Tag {
     id?: string;

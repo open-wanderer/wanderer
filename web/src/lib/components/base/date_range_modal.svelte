@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { dateInputValue } from "$lib/util/date_util";
+    import { dateInputValue } from "#lib/util/date_util.ts";
     import { _ } from "svelte-i18n";
     import Calendar from "./calendar.svelte";
     import Modal from "./modal.svelte";

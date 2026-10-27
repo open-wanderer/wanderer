@@ -1,9 +1,9 @@
 import {
     PluginInstanceCreateSchema,
-} from "$lib/models/api/plugin_instance_schema";
-import type { PluginInstance } from "$lib/models/plugin_instance";
-import { Collection, create, handleError, list } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+} from "#lib/models/api/plugin_instance_schema.ts";
+import type { PluginInstance } from "#lib/models/plugin_instance.ts";
+import { Collection, create, handleError, list } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -43,7 +43,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<PluginInstance>(event, Collection.plugin_instances);
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e);
     }
@@ -104,7 +104,7 @@ export async function PUT(event: RequestEvent) {
             PluginInstanceCreateSchema,
             Collection.plugin_instances,
         );
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e);
     }

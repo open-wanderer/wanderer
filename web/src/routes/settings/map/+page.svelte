@@ -2,24 +2,24 @@
     import { page } from "$app/state";
     import Search, {
         type SearchItem,
-    } from "$lib/components/base/search.svelte";
+    } from "#lib/components/base/search.svelte";
     import Select, {
         type SelectItem,
-    } from "$lib/components/base/select.svelte";
+    } from "#lib/components/base/select.svelte";
 
-    import Slider from "$lib/components/base/slider.svelte";
-    import TextField from "$lib/components/base/text_field.svelte";
+    import Slider from "#lib/components/base/slider.svelte";
+    import TextField from "#lib/components/base/text_field.svelte";
     import {
         searchLocations,
         type LocationSearchResult,
-    } from "$lib/stores/search_store";
-    import { settings_update } from "$lib/stores/settings_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { getIconForLocation } from "$lib/util/icon_util";
+    } from "#lib/stores/search_store.ts";
+    import { settings_update } from "#lib/stores/settings_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { getIconForLocation } from "#lib/util/icon_util.ts";
     import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
-    import Toggle from "$lib/components/base/toggle.svelte";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    import Toggle from "#lib/components/base/toggle.svelte";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
 
     let settings = $derived(page.data.settings);
 

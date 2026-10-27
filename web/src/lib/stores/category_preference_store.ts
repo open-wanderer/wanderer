@@ -1,5 +1,5 @@
-import type { UserCategoryPreference } from "$lib/models/category_preference";
-import { APIError } from "$lib/util/api_util";
+import type { UserCategoryPreference } from "#lib/models/category_preference.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { writable, type Writable } from "svelte/store";
 
 export const categoryPreferences: Writable<UserCategoryPreference[]> = writable(

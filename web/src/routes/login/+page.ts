@@ -1,4 +1,4 @@
-import { users_auth_methods } from "$lib/stores/user_store";
+import { users_auth_methods } from "#lib/stores/user_store.ts";
 import { type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ fetch }) => {

@@ -1,31 +1,31 @@
 <script lang="ts">
-    import ConfirmModal from "$lib/components/confirm_modal.svelte";
-    import PluginCard from "$lib/components/settings/plugins/plugin_card.svelte";
-    import PluginInfoModal from "$lib/components/settings/plugins/plugin_info_modal.svelte";
-    import PluginInstanceSettingsModal from "$lib/components/settings/plugins/plugin_instance_settings_modal.svelte";
-    import type { Category } from "$lib/models/category.js";
-    import type { PluginInstance } from "$lib/models/plugin_instance.js";
-    import type { PluginProvider } from "$lib/models/plugin_provider.js";
-    import type { Subcategory } from "$lib/models/subcategory.js";
+    import ConfirmModal from "#lib/components/confirm_modal.svelte";
+    import PluginCard from "#lib/components/settings/plugins/plugin_card.svelte";
+    import PluginInfoModal from "#lib/components/settings/plugins/plugin_info_modal.svelte";
+    import PluginInstanceSettingsModal from "#lib/components/settings/plugins/plugin_instance_settings_modal.svelte";
+    import type { Category } from "#lib/models/category.ts";
+    import type { PluginInstance } from "#lib/models/plugin_instance.ts";
+    import type { PluginProvider } from "#lib/models/plugin_provider.ts";
+    import type { Subcategory } from "#lib/models/subcategory.ts";
     import {
         plugin_category_remap_apply,
         plugin_category_remap_preview,
         plugin_instances_create,
         plugin_instances_update,
-    } from "$lib/stores/plugin_instance_store.js";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    } from "#lib/stores/plugin_instance_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         pluginDescription as localizedPluginDescription,
         pluginInformation as localizedPluginInformation,
         pluginTitle as localizedPluginTitle,
-    } from "$lib/util/plugin_i18n";
+    } from "#lib/util/plugin_i18n.ts";
     import {
         pluginSetupErrorKey,
         translatePluginError,
-    } from "$lib/util/plugin_error_i18n";
+    } from "#lib/util/plugin_error_i18n.ts";
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
-    import { theme } from "$lib/stores/theme_store";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     let { data } = $props();
 

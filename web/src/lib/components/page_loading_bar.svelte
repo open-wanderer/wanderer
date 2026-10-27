@@ -252,7 +252,7 @@
       clearTimeout(progressBarStartTimeout);
       progressBarStartTimeout = null;
     }
-    if (noNavigationProgress) return;
+    if (noNavigationProgress || nav.shallow) return;
 
     if (nav.to?.route.id) {
       // Internal navigation.

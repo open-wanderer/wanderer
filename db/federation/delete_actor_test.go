@@ -1,12 +1,22 @@
 package federation
 
 import (
+	"context"
 	"testing"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
+	"github.com/pocketbase/pocketbase/tools/logger"
 )
+
+func drainTestAppStartupLogs(t *testing.T, app core.App) {
+	t.Helper()
+	// Startup logs predate TestApp disabling storage; drain them while the app is live.
+	if err := app.Logger().Handler().(*logger.BatchHandler).WriteAll(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // A federated Delete naming an actor is the only incoming activity that can
 // remove a whole account's content, so the guard that keeps it to "an actor may
@@ -22,6 +32,7 @@ func setupActorDeleteTestApp(t *testing.T) *pbtests.TestApp {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
+	drainTestAppStartupLogs(t, app)
 
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(
@@ -30,6 +41,14 @@ func setupActorDeleteTestApp(t *testing.T) *pbtests.TestApp {
 	)
 	if err := app.Save(actors); err != nil {
 		t.Fatal(err)
+	}
+
+	for _, name := range []string{"trails", "lists", "comments", "summit_logs", "waypoints"} {
+		collection := core.NewBaseCollection(name)
+		collection.Fields.Add(&core.TextField{Name: "iri"}, &core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1, CascadeDelete: true})
+		if err := app.Save(collection); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	return app

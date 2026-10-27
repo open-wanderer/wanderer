@@ -1,4 +1,3 @@
-import { json } from "@sveltejs/kit";
 
 function safeJson(text: string): any {
     try {
@@ -12,9 +11,9 @@ export async function proxyJsonResponse(response: Response) {
     const text = await response.text();
     const payload = text.length ? safeJson(text) : {};
     if (!response.ok) {
-        return json(payload, { status: response.status });
+        return Response.json(payload, { status: response.status });
     }
-    return json(payload);
+    return Response.json(payload);
 }
 
 // Hop-by-hop headers must not be forwarded; Node's fetch rejects some of

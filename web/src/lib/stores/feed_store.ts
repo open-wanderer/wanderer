@@ -1,5 +1,5 @@
-import type { FeedItem } from "$lib/models/feed";
-import { APIError } from "$lib/util/api_util";
+import type { FeedItem } from "#lib/models/feed.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import type { ListResult } from "pocketbase";
 
 let feed: FeedItem[] = []

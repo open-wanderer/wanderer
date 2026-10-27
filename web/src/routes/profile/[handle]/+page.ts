@@ -1,5 +1,5 @@
-import type { ListFilter } from "$lib/models/list";
-import { profile_lists_index, profile_feed_index } from "$lib/stores/profile_store";
+import type { ListFilter } from "#lib/models/list.ts";
+import { profile_lists_index, profile_feed_index } from "#lib/stores/profile_store.ts";
 import { error, type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ params, fetch, parent }) => {

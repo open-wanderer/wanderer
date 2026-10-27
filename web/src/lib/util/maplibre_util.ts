@@ -1,9 +1,9 @@
-import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-import { haversineDistance } from "$lib/models/gpx/utils";
-import type { Trail } from "$lib/models/trail";
-import type { Waypoint } from "$lib/models/waypoint";
-import { theme } from "$lib/stores/theme_store";
+import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+import { haversineDistance } from "#lib/models/gpx/utils.ts";
+import type { Trail } from "#lib/models/trail.ts";
+import type { Waypoint } from "#lib/models/waypoint.ts";
+import { theme } from "#lib/stores/theme_store.ts";
 import * as M from "maplibre-gl";
 import { _ } from "svelte-i18n";
 import { get } from "svelte/store";

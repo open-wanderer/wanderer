@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { isURL } from "$lib/util/file_util";
+    import { isURL } from "#lib/util/file_util.ts";
     import type { Snippet } from "svelte";
     import type { SearchItem } from "./search.svelte";
     import { _ } from "svelte-i18n";

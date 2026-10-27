@@ -1,7 +1,7 @@
 <script lang="ts">
-    import emptyStateSearchDark from "$lib/assets/svgs/empty_states/empty_state_search_dark.svg";
-    import emptyStateSearchLight from "$lib/assets/svgs/empty_states/empty_state_search_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import emptyStateSearchDark from "#lib/assets/svgs/empty_states/empty_state_search_dark.svg";
+    import emptyStateSearchLight from "#lib/assets/svgs/empty_states/empty_state_search_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     import { _ } from "svelte-i18n";
     interface Props {

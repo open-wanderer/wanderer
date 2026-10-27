@@ -20,6 +20,7 @@ func TestRemoteTrailCommentsListAppliesNestedViewRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer app.Cleanup()
+	drainTestAppStartupLogs(t, app)
 
 	save := func(model core.Model) {
 		t.Helper()

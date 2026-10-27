@@ -20,12 +20,12 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
             enforce: 'pre',
             resolveId(id) {
                 if (id.startsWith('fixture:')) return `\0${id}`;
-                if (id === '$app/environment') return '\0fixture:environment';
+                if (id === '$app/env') return '\0fixture:environment';
                 if (id === '$app/state') return '\0fixture:state';
                 if (id === '$app/navigation') return '\0fixture:navigation';
                 if (id === 'svelte-i18n') return '\0fixture:i18n';
-                if (id === '$lib/stores/toast_store.svelte') return '\0fixture:toast';
-                if (id.startsWith('$lib/')) {
+                if (id === '#lib/stores/toast_store.svelte.ts') return '\0fixture:toast';
+                if (id.startsWith('#lib/')) {
                     const path = resolve(root, 'src/lib', id.slice(5));
                     if (extname(id)) return path.endsWith('.js') && !existsSync(path) ? path.slice(0, -3) + '.ts' : path;
                     return [path + '.ts', path + '.js', resolve(path, 'index.ts'), resolve(path, 'index.js')].find(existsSync);
@@ -42,7 +42,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 `;
                 if (id === '\0fixture:environment') return 'export const browser = true;';
                 if (id === '\0fixture:state') return 'export const page = { url: new URL(location.href), params: {}, data: {} };';
-                if (id === '\0fixture:navigation') return 'export function pushState() {}';
+                if (id === '\0fixture:navigation') return 'export function goto() {}';
                 if (id === '\0fixture:i18n') return `
                     import { writable } from 'svelte/store';
                     export const _ = writable(key => key);
@@ -64,16 +64,16 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 if (id in sourceStubs) source = sourceStubs[id];
                 else if (id === '\0fixture:pair.svelte') source = pairSource ?? `
                     <script>
-                        import Duplicate from '$lib/components/trail/trail_duplicate_modal.svelte';
-                        import Export from '$lib/components/trail/trail_export_modal.svelte';
-                        import Share from '$lib/components/trail/trail_share_modal.svelte';
-                        import Send from '$lib/components/trail/trail_send_modal.svelte';
-                        import Merge from '$lib/components/trail/trail_merge_modal.svelte';
-                        import Confirm from '$lib/components/confirm_modal.svelte';
-                        import Lists from '$lib/components/list/list_search_modal.svelte';
-                        import BulkEdit from '$lib/components/trail/trail_bulk_edit_modal.svelte';
-                        import Editor from '$lib/components/base/editor.svelte';
-                        import Modal from '$lib/components/base/modal.svelte';
+                        import Duplicate from '#lib/components/trail/trail_duplicate_modal.svelte';
+                        import Export from '#lib/components/trail/trail_export_modal.svelte';
+                        import Share from '#lib/components/trail/trail_share_modal.svelte';
+                        import Send from '#lib/components/trail/trail_send_modal.svelte';
+                        import Merge from '#lib/components/trail/trail_merge_modal.svelte';
+                        import Confirm from '#lib/components/confirm_modal.svelte';
+                        import Lists from '#lib/components/list/list_search_modal.svelte';
+                        import BulkEdit from '#lib/components/trail/trail_bulk_edit_modal.svelte';
+                        import Editor from '#lib/components/base/editor.svelte';
+                        import Modal from '#lib/components/base/modal.svelte';
                         const duplicates = {}, exports = {}, shares = {}, sends = {}, merges = {}, confirmations = {}, lists = {}, bulkEdits = {};
                         let namedConfirmation;
                         let editorParent;

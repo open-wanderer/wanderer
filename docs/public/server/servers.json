@@ -124,5 +124,14 @@
         "region": ["North America"],
         "language": ["English"],
         "category": ["General"]
+    },
+    {
+        "name": "MojeStezky.cz",
+        "url": "https://mojestezky.cz",
+        "description": "A friendly community Wanderer instance for Czech and Slovak outdoor enthusiasts. MojeStezky.cz is mainly focused on hiking and trail sharing, but also welcomes cycling, running, water activities and other ways of exploring the outdoors.",
+        "image": "/server/imgs/mojestezky.cz.jpg",
+        "region": ["Czechia", "Slovakia", "Europe"],
+        "language": ["Czech", "Slovak", "English"],
+        "category": ["Hiking", "Cycling", "Running", "Water Activities", "General Outdoor"]
     }
 ]

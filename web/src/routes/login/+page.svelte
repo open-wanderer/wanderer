@@ -1,16 +1,16 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import { env } from "$env/dynamic/public";
-    import Button from "$lib/components/base/button.svelte";
-    import TextField from "$lib/components/base/text_field.svelte";
-    import LogoTextTwoLineDark from "$lib/components/logo/logo_text_two_line_dark.svelte";
-    import LogoTextTwoLineLight from "$lib/components/logo/logo_text_two_line_light.svelte";
-    import type { User } from "$lib/models/user";
-    import { theme } from "$lib/stores/theme_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { login } from "$lib/stores/user_store";
-    import { APIError } from "$lib/util/api_util";
-    import { validator } from "@felte/validator-zod";
+    import { PUBLIC_DISABLE_SIGNUP } from "$app/env/public";
+    import Button from "#lib/components/base/button.svelte";
+    import TextField from "#lib/components/base/text_field.svelte";
+    import LogoTextTwoLineDark from "#lib/components/logo/logo_text_two_line_dark.svelte";
+    import LogoTextTwoLineLight from "#lib/components/logo/logo_text_two_line_light.svelte";
+    import type { User } from "#lib/models/user.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { login } from "#lib/stores/user_store.ts";
+    import { APIError } from "#lib/util/api_util.ts";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { type AuthProviderInfo } from "pocketbase";
     import { _ } from "svelte-i18n";
@@ -119,7 +119,7 @@
                     {loading}>Login</Button
                 >
             </div>
-            {#if env.PUBLIC_DISABLE_SIGNUP !== "true"}
+            {#if PUBLIC_DISABLE_SIGNUP !== "true"}
                 <span
                     >{$_("no-account")}
                     <a class="text-blue-500 underline" href="/register"
