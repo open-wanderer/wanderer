@@ -1,6 +1,6 @@
-import type { Notification } from '$lib/models/notification';
-import { Collection, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { Notification } from '#lib/models/notification.ts';
+import { Collection, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -46,7 +46,7 @@ export async function GET(event: RequestEvent) {
     try {
         const r = await list<Notification>(event, Collection.notifications);
 
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }

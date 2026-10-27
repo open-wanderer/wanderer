@@ -1,28 +1,28 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import "$lib/assets/fonts/IBMPlexSans-Regular-normal";
-    import "$lib/assets/fonts/IBMPlexSans-SemiBold-bold";
-    import "$lib/assets/fonts/fa-solid-900-normal";
-    import Button from "$lib/components/base/button.svelte";
-    import Select from "$lib/components/base/select.svelte";
-    import LogoText from "$lib/components/logo/logo_text.svelte";
-    import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import type { Settings } from "$lib/models/settings";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { trail } from "$lib/stores/trail_store";
+    import "#lib/assets/fonts/IBMPlexSans-Regular-normal.js";
+    import "#lib/assets/fonts/IBMPlexSans-SemiBold-bold.js";
+    import "#lib/assets/fonts/fa-solid-900-normal.js";
+    import Button from "#lib/components/base/button.svelte";
+    import Select from "#lib/components/base/select.svelte";
+    import LogoText from "#lib/components/logo/logo_text.svelte";
+    import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
+    import type { Settings } from "#lib/models/settings.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { trail } from "#lib/stores/trail_store.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsText,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import {
         calculatePixelPerMeter,
         calculateScaleFactor,
-    } from "$lib/util/maplibre_util";
+    } from "#lib/util/maplibre_util.ts";
 
-    import { createRect, createText } from "$lib/util/svg_util";
-    import QrCodeWithLogo from "$lib/vendor/qr-code-with-logos/index";
+    import { createRect, createText } from "#lib/util/svg_util.ts";
+    import QrCodeWithLogo from "#lib/vendor/qr-code-with-logos/index.js";
     import { jsPDF } from "jspdf";
     import * as M from "maplibre-gl";
     import { onMount, tick } from "svelte";

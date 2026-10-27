@@ -1,7 +1,7 @@
-import { error, isHttpError, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { error, isHttpError, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError, type ListResult } from "pocketbase";
-import { ZodError, type ZodSchema } from "zod";
-import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
+import { ZodError, type ZodType } from "zod";
+import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "#lib/models/api/base_schema.ts";
 
 export class APIError extends Error {
     status: number;
@@ -84,7 +84,7 @@ export async function show<T>(event: RequestEvent, collection: Collection) {
     return r
 }
 
-export async function create<T>(event: RequestEvent, schema: ZodSchema, collection: Collection) {
+export async function create<T>(event: RequestEvent, schema: ZodType<Record<string, any>>, collection: Collection) {
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
@@ -96,7 +96,7 @@ export async function create<T>(event: RequestEvent, schema: ZodSchema, collecti
     return r
 }
 
-export async function update<T>(event: RequestEvent, schema: ZodSchema, collection: Collection) {
+export async function update<T>(event: RequestEvent, schema: ZodType<Record<string, any>>, collection: Collection) {
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
@@ -112,6 +112,7 @@ export async function update<T>(event: RequestEvent, schema: ZodSchema, collecti
 }
 
 export async function uploadCreate<T>(event: RequestEvent, collection: Collection) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
@@ -124,6 +125,7 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
 }
 
 export async function uploadUpdate<T>(event: RequestEvent, collection: Collection, data?: FormData) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
@@ -217,6 +219,7 @@ export function assertFileField(data: FormData, fileFields: readonly string[]) {
 }
 
 export async function upload<T>(event: RequestEvent, collection: Collection, fileFields: readonly string[]) {
+    if (!event.locals.user) throw error(401, "Unauthorized");
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
@@ -241,22 +244,26 @@ export async function remove(event: RequestEvent, collection: Collection) {
 }
 
 export function handleError(e: any) {
-    if (isHttpError(e)) {
+    // Upload helpers reject anonymous requests before reading the body; API
+    // clients expect that rejection as JSON rather than an error page.
+    if (isHttpError(e, 401)) {
+        return Response.json({ message: e.body.message }, { status: 401 })
+    } else if (isHttpError(e)) {
         throw e;
     } else if (e instanceof ZodError) {
-        return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
+        return Response.json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
-        return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
+        return Response.json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
     } else if (e instanceof SyntaxError) {
-        return json({ message: "invalid_json" }, { status: 400 })
+        return Response.json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {
-        return json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
+        return Response.json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
     } else {
         const message = typeof e?.message === "string"
             ? e.message
             : typeof e === "string"
                 ? e
                 : "internal_server_error";
-        return json({ message, detail: e }, { status: 500 })
+        return Response.json({ message, detail: e }, { status: 500 })
     }
 }

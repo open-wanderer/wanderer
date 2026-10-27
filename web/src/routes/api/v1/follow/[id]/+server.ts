@@ -1,5 +1,5 @@
-import { Collection, handleError, remove } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { Collection, handleError, remove } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 
 /**
@@ -26,7 +26,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.follows)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e)
     }

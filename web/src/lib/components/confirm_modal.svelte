@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
+    import Modal from "#lib/components/base/modal.svelte";
     import type { Snippet } from "svelte";
     import { _ } from "svelte-i18n";
 

@@ -1,34 +1,34 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
     import Search, {
         type SearchItem,
-    } from "$lib/components/base/search.svelte";
-    import EmptyStateFeed from "$lib/components/empty_states/empty_state_feed.svelte";
-    import FeedCard from "$lib/components/profile/feed_card.svelte";
-    import Scene from "$lib/components/3D/scene.svelte";
-    import TrailCard from "$lib/components/trail/trail_card.svelte";
+    } from "#lib/components/base/search.svelte";
+    import EmptyStateFeed from "#lib/components/empty_states/empty_state_feed.svelte";
+    import FeedCard from "#lib/components/profile/feed_card.svelte";
+    import Scene from "#lib/components/3D/scene.svelte";
+    import TrailCard from "#lib/components/trail/trail_card.svelte";
     import {
         defaultTrailSearchAttributes,
         type TrailSearchResult,
-    } from "$lib/models/trail.js";
-    import { feed_index } from "$lib/stores/feed_store.js";
+    } from "#lib/models/trail.ts";
+    import { feed_index } from "#lib/stores/feed_store.ts";
     import {
         searchActors,
         searchMulti,
         type ListSearchResult,
         type LocationSearchResult,
-    } from "$lib/stores/search_store.js";
-    import { theme } from "$lib/stores/theme_store";
-    import { getIconForLocation } from "$lib/util/icon_util.js";
+    } from "#lib/stores/search_store.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { getIconForLocation } from "#lib/util/icon_util.ts";
     import { Canvas } from "@threlte/core";
     import { marked } from "marked";
     import { onMount, untrack } from "svelte";
     import { _ } from "svelte-i18n";
-    import StarSky from "$lib/components/3D/star_sky.svelte";
+    import StarSky from "#lib/components/3D/star_sky.svelte";
     import { fade } from "svelte/transition";
 
     let { data } = $props();

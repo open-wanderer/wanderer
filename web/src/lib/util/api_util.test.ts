@@ -13,7 +13,7 @@ function uploadEvent(data: FormData) {
         params: { id: "record000000001" },
         url: new URL("https://example.com/api/v1/test/record000000001"),
         request: { formData: async () => data },
-        locals: { pb: { collection: vi.fn(() => ({ update, create })) } },
+        locals: { user: { id: "owner0000000001" }, pb: { collection: vi.fn(() => ({ update, create })) } },
     } as unknown as RequestEvent;
     return { event, update, create };
 }
@@ -22,13 +22,27 @@ describe("handleError", () => {
     it("preserves SvelteKit HTTP errors", () => {
         let httpError: unknown;
         try {
-            error(404, { message: "Actor not found" });
+            error(404, "Actor not found");
         } catch (caught) {
             httpError = caught;
         }
 
         expect(isHttpError(httpError, 404)).toBe(true);
         expect(() => handleError(httpError)).toThrow(httpError);
+    });
+
+    it("answers rejected anonymous requests with JSON", async () => {
+        let httpError: unknown;
+        try {
+            error(401, "Unauthorized");
+        } catch (caught) {
+            httpError = caught;
+        }
+
+        const response = handleError(httpError);
+        expect(response?.status).toBe(401);
+        expect(response?.headers.get("content-type")).toContain("application/json");
+        expect(await response?.json()).toEqual({ message: "Unauthorized" });
     });
 
     it.each(["content-length", "chunked"])("preserves body size errors for %s uploads", async (framing) => {
@@ -44,7 +58,7 @@ describe("handleError", () => {
         };
 
         try {
-            const request = await getRequest({
+            const request = getRequest({
                 request: incoming,
                 base: "http://localhost:3000",
                 bodySizeLimit: 512 * 1024,

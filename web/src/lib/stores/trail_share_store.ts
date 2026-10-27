@@ -1,5 +1,5 @@
-import type { TrailShare } from "$lib/models/trail_share";
-import { APIError } from "$lib/util/api_util";
+import type { TrailShare } from "#lib/models/trail_share.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 

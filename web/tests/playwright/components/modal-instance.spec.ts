@@ -4,7 +4,7 @@ import { buildTrailModalFixture, mountTrailModalFixture } from './trail-modal-fi
 // Deliberate duplicate ids ensure DOM lookup cannot hide behind unique caller ids.
 const pairSource = `
     <script>
-        import Modal from '$lib/components/base/modal.svelte';
+        import Modal from '#lib/components/base/modal.svelte';
         let first, second;
     </script>
     <section data-testid="first-modal">

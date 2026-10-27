@@ -1,11 +1,11 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import type { Trail, TrailFilter } from "$lib/models/trail";
+    import type { Trail, TrailFilter } from "#lib/models/trail.ts";
     import {
         formatDistance,
         formatElevation,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import type { SelectItem } from "../base/select.svelte";
     import ShareInfo from "../share_info.svelte";

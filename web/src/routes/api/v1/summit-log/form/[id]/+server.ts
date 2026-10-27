@@ -1,8 +1,8 @@
-import type { SummitLog } from "$lib/models/summit_log";
-import { Collection, handleError, uploadUpdate } from "$lib/util/api_util";
-import { applyGpxToForm, summitLogGpxFields } from "$lib/util/gpx_util";
-import { RecordIdSchema } from "$lib/models/api/base_schema";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import type { SummitLog } from "#lib/models/summit_log.ts";
+import { Collection, handleError, uploadUpdate } from "#lib/util/api_util.ts";
+import { applyGpxToForm, summitLogGpxFields } from "#lib/util/gpx_util.ts";
+import { RecordIdSchema } from "#lib/models/api/base_schema.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -44,7 +44,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function POST(event: RequestEvent) {
     if (!event.locals.user) {
-        return json({ message: "Unauthorized" }, { status: 401 });
+        return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
     try {
         RecordIdSchema.parse(event.params);
@@ -52,7 +52,7 @@ export async function POST(event: RequestEvent) {
         await applyGpxToForm(data, summitLogGpxFields, true, event.fetch);
         const r = await uploadUpdate<SummitLog>(event, Collection.summit_logs, data)
         r.date = r.date?.substring(0, 10) ?? "";
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

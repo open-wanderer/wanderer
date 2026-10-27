@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"pocketbase/tagname"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
@@ -105,5 +107,58 @@ func TestResolveFederatedTagFailureDiagnostics(t *testing.T) {
 	}
 	if !strings.Contains(logs.String(), "tag_save_failed") || strings.Contains(logs.String(), privateInput) || strings.Contains(logs.String(), "validation_") {
 		t.Fatalf("unsafe or missing save diagnostic: %s", &logs)
+	}
+}
+
+func TestResolveFederatedTagSharesConcurrentCreation(t *testing.T) {
+	app, err := pbtests.NewTestApp(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(app.Cleanup)
+	collection := core.NewBaseCollection("tags")
+	collection.Fields.Add(&core.TextField{Name: "name", Max: tagname.MaxLength, Pattern: tagname.Pattern})
+	if err := app.Save(collection); err != nil {
+		t.Fatal(err)
+	}
+	// A slow insert keeps every delivery's lookup before the first commit.
+	app.OnRecordCreate("tags").BindFunc(func(e *core.RecordEvent) error {
+		time.Sleep(100 * time.Millisecond)
+		return e.Next()
+	})
+	const deliveries = 8
+	var arrived sync.WaitGroup
+	arrived.Add(deliveries)
+	start := make(chan struct{})
+	ids := make(chan string, deliveries)
+	var wg sync.WaitGroup
+	for i := 0; i < deliveries; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			arrived.Done()
+			<-start
+			record, err := ResolveFederatedTag(app, "summit")
+			if err != nil || record == nil {
+				t.Errorf("resolution = %v, %v", record, err)
+				return
+			}
+			ids <- record.Id
+		}()
+	}
+	arrived.Wait()
+	close(start)
+	wg.Wait()
+	close(ids)
+	first := ""
+	for id := range ids {
+		if first == "" {
+			first = id
+		} else if id != first {
+			t.Fatalf("parallel resolutions returned different tags: %s and %s", first, id)
+		}
+	}
+	if count, err := app.CountRecords("tags"); err != nil || count != 1 {
+		t.Fatalf("tag records = %d, %v; want one shared tag", count, err)
 	}
 }

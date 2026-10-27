@@ -1,4 +1,4 @@
-import type { ComboboxItem } from "$lib/components/base/combobox.svelte";
+import type { ComboboxItem } from "#lib/components/base/combobox.svelte";
 
 // Suggestions the combobox should offer. In multiple mode, items that are
 // already selected are left out (matched by text, like the component does when

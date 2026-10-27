@@ -1,6 +1,6 @@
-import type { Waypoint } from "$lib/models/waypoint";
-import { Collection, handleError, upload } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import type { Waypoint } from "#lib/models/waypoint.ts";
+import { Collection, handleError, upload } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 const fileFields = ["photos"] as const;
 
@@ -48,7 +48,7 @@ const fileFields = ["photos"] as const;
 export async function POST(event: RequestEvent) {
     try {
         const r = await upload<Waypoint>(event, Collection.waypoints, fileFields);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

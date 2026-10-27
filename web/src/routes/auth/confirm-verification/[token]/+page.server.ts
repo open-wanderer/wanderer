@@ -1,4 +1,4 @@
-import { Collection } from "$lib/util/api_util";
+import { Collection } from "#lib/util/api_util.ts";
 import { error, type ServerLoad } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
 

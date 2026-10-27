@@ -1,14 +1,14 @@
 <script lang="ts">
-    import type { Actor } from "$lib/models/activitypub/actor";
-    import type { TimelineItem } from "$lib/models/timeline";
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
+    import type { Actor } from "#lib/models/activitypub/actor.ts";
+    import type { TimelineItem } from "#lib/models/timeline.ts";
+    import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsText,
         formatHTMLAsTextPreview,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     interface Props {
         activity: TimelineItem;

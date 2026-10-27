@@ -47,6 +47,7 @@ for (const [locale, language] of [['de-CH', 'de'], ['fr-FR', 'fr'], ['ja-JP', 'e
                 expect(saved.expand.settings_via_user[0]).toMatchObject({ user: userId, language });
             } finally {
                 if (userId) {
+                    await page.waitForLoadState('networkidle');
                     const login = await request.post('/api/v1/auth/login', { data: { username, password } });
                     expect(login.ok(), 'Authenticate cleanup of the registration account').toBeTruthy();
                     const deleted = await request.delete(`/api/v1/user/${userId}`);
@@ -113,6 +114,7 @@ test.describe('registration when the language cannot be saved', () => {
             await expect(page.getByText('Error saving settings', { exact: true })).toHaveCount(0);
         } finally {
             if (userId) {
+                await page.waitForLoadState('networkidle');
                 const login = await request.post('/api/v1/auth/login', { data: { username, password } });
                 expect(login.ok()).toBeTruthy();
                 const deleted = await request.delete(`/api/v1/user/${userId}`);

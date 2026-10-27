@@ -1,6 +1,6 @@
-import { invalidateAll } from "$app/navigation";
-import { Settings } from "$lib/models/settings";
-import { APIError } from "$lib/util/api_util";
+import { refreshAll } from "$app/navigation";
+import { Settings } from "#lib/models/settings.ts";
+import { APIError } from "#lib/util/api_util.ts";
 
 export async function settings_show(userId: string, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/settings/' + userId, {
@@ -54,7 +54,7 @@ export async function settings_update(settings: Settings) {
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    await invalidateAll()
+    await refreshAll()
     return await r.json();
 
 }

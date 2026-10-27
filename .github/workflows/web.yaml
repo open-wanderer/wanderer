@@ -33,7 +33,12 @@ jobs:
 
       - name: Start test stack
         timeout-minutes: 15
-        run: docker compose up -d --wait --wait-timeout 840
+        run: |
+          sed -e 's/^MEILI_MASTER_KEY=.*/MEILI_MASTER_KEY=web-ci-meili-master-key/' \
+              -e 's/^POCKETBASE_ENCRYPTION_KEY=.*/POCKETBASE_ENCRYPTION_KEY=fde406459dc1f6ca6f348e1f44a9a2af/' \
+              -e 's/^POCKETBASE_PROXY_SECRET=.*/POCKETBASE_PROXY_SECRET=web-ci-proxy-secret/' \
+              .env.example > .env
+          docker compose up -d --wait --wait-timeout 840
 
       - run: make web-install
       - run: make web-playwright-install

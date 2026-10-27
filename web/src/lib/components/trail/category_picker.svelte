@@ -6,19 +6,19 @@
 </script>
 
 <script lang="ts">
-    import { categories, categories_index } from "$lib/stores/category_store";
+    import { categories, categories_index } from "#lib/stores/category_store.ts";
     import {
         categoryPreferences,
         category_preferences_index,
-    } from "$lib/stores/category_preference_store";
+    } from "#lib/stores/category_preference_store.ts";
     import {
         subcategories,
         subcategories_index,
-    } from "$lib/stores/subcategory_store";
+    } from "#lib/stores/subcategory_store.ts";
     import {
         subcategoryPreferences,
         subcategory_preferences_index,
-    } from "$lib/stores/subcategory_preference_store";
+    } from "#lib/stores/subcategory_preference_store.ts";
     import {
         designSelectableCategories,
         displayCategoryIcon,
@@ -28,7 +28,7 @@
         displaySubcategoryLabel,
         sortedSubcategoriesByPreference,
         subcategoryVisible,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
     import { onDestroy, onMount } from "svelte";
     import { _, locale } from "svelte-i18n";
 

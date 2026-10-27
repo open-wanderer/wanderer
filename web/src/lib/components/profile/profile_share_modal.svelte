@@ -1,11 +1,11 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import Modal from "$lib/components/base/modal.svelte";
-    import QrCodeWithLogo from "$lib/vendor/qr-code-with-logos";
+    import Modal from "#lib/components/base/modal.svelte";
+    import QrCodeWithLogo from "#lib/vendor/qr-code-with-logos/index.js";
     import { onMount } from "svelte";
     import { _ } from "svelte-i18n";
     import TextField from "../base/text_field.svelte";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
 
     let modal: Modal;
 

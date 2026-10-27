@@ -1,14 +1,14 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
-    import type { Waypoint } from "$lib/models/waypoint";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
+    import type { Waypoint } from "#lib/models/waypoint.ts";
     import {
         getFileURL,
         isVideoURL,
         readAsDataURLAsync,
-    } from "$lib/util/file_util";
+    } from "#lib/util/file_util.ts";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
-    import { browser } from "$app/environment";
+    import { browser } from "$app/env";
     import PhotoGallery from "../photo_gallery.svelte";
 
     interface Props {

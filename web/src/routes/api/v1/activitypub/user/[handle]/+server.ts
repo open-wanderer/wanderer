@@ -1,10 +1,10 @@
-import { env } from '$env/dynamic/private';
+import { ORIGIN } from '$app/env/private';
 
-import type { Actor } from '$lib/models/activitypub/actor';
-import type { UserAnonymous } from "$lib/models/user";
-import { splitUsername } from '$lib/util/activitypub_util';
-import { handleError } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import type { Actor } from '#lib/models/activitypub/actor.ts';
+import type { UserAnonymous } from "#lib/models/user.ts";
+import { splitUsername } from '#lib/util/activitypub_util.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import { error, type RequestEvent } from '@sveltejs/kit';
 import { type APActor, type APRoot } from 'activitypub-types';
 
 
@@ -39,18 +39,18 @@ export async function GET(event: RequestEvent) {
     try {
         let fullUsername = event.params.handle;
         if (!fullUsername) {
-            return json({ message: "Bad request" }, { status: 400 });
+            return Response.json({ message: "Bad request" }, { status: 400 });
         }
 
         fullUsername = fullUsername.replace(/^@/, "");
 
-        const [username, domain] = splitUsername(fullUsername, env.ORIGIN)
+        const [username, domain] = splitUsername(fullUsername, ORIGIN)
 
         const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=1`)
         const user: UserAnonymous = await event.locals.pb.collection("users_anonymous").getOne(actor.user!)
 
 
-        const id = `${env.ORIGIN}/api/v1/activitypub/user/${username}`
+        const id = `${ORIGIN}/api/v1/activitypub/user/${username}`
 
         const r: APRoot<APActor & { publicKey: { id: string, owner: string, publicKeyPem: string } }> = {
             "@context": [
@@ -66,11 +66,11 @@ export async function GET(event: RequestEvent) {
             preferredUsername: actor.preferred_username,
             followers: id + '/followers',
             following: id + '/following',
-            url: `${env.ORIGIN}/profile/@${username}`,
+            url: `${ORIGIN}/profile/@${username}`,
             published: new Date(user.created ?? "").toISOString(),
             icon: {
                 type: "Image",
-                url: user.avatar ? `${env.ORIGIN}/api/v1/files/users/${user.id}/${user.avatar}` : undefined
+                url: user.avatar ? `${ORIGIN}/api/v1/files/users/${user.id}/${user.avatar}` : undefined
             },
             publicKey: {
                 id: id + '#main-key',
@@ -82,7 +82,7 @@ export async function GET(event: RequestEvent) {
         const headers = new Headers()
         headers.append("Content-Type", "application/activity+json")
 
-        return json(r, { headers });
+        return Response.json(r, { headers });
     } catch (e) {
         return handleError(e)
     }

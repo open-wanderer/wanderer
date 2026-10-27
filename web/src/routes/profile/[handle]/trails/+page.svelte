@@ -1,9 +1,9 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import TrailList from "$lib/components/trail/trail_list.svelte";
-    import type { TrailFilter } from "$lib/models/trail.js";
-    import { profile_trails_index } from "$lib/stores/profile_store.js";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    import TrailList from "#lib/components/trail/trail_list.svelte";
+    import type { TrailFilter } from "#lib/models/trail.ts";
+    import { profile_trails_index } from "#lib/stores/profile_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 

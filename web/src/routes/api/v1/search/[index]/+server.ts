@@ -1,5 +1,5 @@
-import { withTrailPreferenceMeiliFilter } from "$lib/server/category_preference_filter";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { withTrailPreferenceMeiliFilter } from "#lib/server/category_preference_filter.ts";
+import { error, type RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -54,7 +54,7 @@ export async function POST(event: RequestEvent) {
             };
         }
         const r = await event.locals.ms.index(event.params.index as string).search(data.q, data.options);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         console.error(e);
 

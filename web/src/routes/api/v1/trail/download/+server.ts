@@ -1,6 +1,6 @@
-import { handleError } from "$lib/util/api_util";
-import { DownloadError, fetchExternalFile } from "$lib/util/secure_fetch_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { handleError } from "#lib/util/api_util.ts";
+import { DownloadError, fetchExternalFile } from "#lib/util/secure_fetch_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -39,7 +39,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
  */
 export async function POST(event: RequestEvent) {
     if (!event.locals.user) {
-        return json({ message: "Unauthorized" }, { status: 401 });
+        return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     try {
@@ -54,7 +54,7 @@ export async function POST(event: RequestEvent) {
         });
     } catch (e) {
         if (e instanceof DownloadError) {
-            return json({ message: e.message }, { status: e.status });
+            return Response.json({ message: e.message }, { status: e.status });
         }
         return handleError(e);
     }

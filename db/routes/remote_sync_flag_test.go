@@ -16,7 +16,19 @@ func TestSyncTrailsKeepsLocalSyncFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer app.Cleanup()
+	drainTestAppStartupLogs(t, app)
 
+	actors := core.NewBaseCollection("activitypub_actors")
+	actors.Fields.Add(&core.TextField{Name: "iri"}, &core.BoolField{Name: "is_local"})
+	if err := app.Save(actors); err != nil {
+		t.Fatal(err)
+	}
+	actor := core.NewRecord(actors)
+	actor.Id = "actor0000000001"
+	actor.Set("iri", "https://remote.example/users/alice")
+	if err := app.Save(actor); err != nil {
+		t.Fatal(err)
+	}
 	trails := core.NewBaseCollection("trails")
 	trails.Fields.Add(
 		&core.TextField{Name: "iri"},

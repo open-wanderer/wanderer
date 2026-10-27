@@ -1,5 +1,5 @@
-import type { SummitLog } from "$lib/models/summit_log";
-import type { Trail } from "$lib/models/trail";
+import type { SummitLog } from "#lib/models/summit_log.ts";
+import type { Trail } from "#lib/models/trail.ts";
 import { describe, expect, it } from "vitest";
 import {
     buildCompletedTrailFilter,

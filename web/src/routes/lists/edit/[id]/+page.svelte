@@ -1,40 +1,40 @@
 <script lang="ts">
-    import { type List } from "$lib/models/list";
+    import { type List } from "#lib/models/list.ts";
     import { _ } from "svelte-i18n";
 
     import { page } from "$app/state";
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import Button from "$lib/components/base/button.svelte";
-    import Editor from "$lib/components/base/editor.svelte";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import Button from "#lib/components/base/button.svelte";
+    import Editor from "#lib/components/base/editor.svelte";
     import Search, {
         type SearchItem,
-    } from "$lib/components/base/search.svelte";
-    import TextField from "$lib/components/base/text_field.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
-    import ConfirmModal from "$lib/components/confirm_modal.svelte";
-    import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import { ListCreateSchema } from "$lib/models/api/list_schema.js";
-    import { TrailCreateSchema } from "$lib/models/api/trail_schema.js";
-    import type { Trail, TrailSearchResult } from "$lib/models/trail.js";
-    import { TrailShare } from "$lib/models/trail_share.js";
-    import { lists_create, lists_update } from "$lib/stores/list_store.js";
-    import { searchTrails } from "$lib/stores/search_store.js";
-    import { theme } from "$lib/stores/theme_store.js";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
+    } from "#lib/components/base/search.svelte";
+    import TextField from "#lib/components/base/text_field.svelte";
+    import Toggle from "#lib/components/base/toggle.svelte";
+    import ConfirmModal from "#lib/components/confirm_modal.svelte";
+    import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
+    import { ListCreateSchema } from "#lib/models/api/list_schema.ts";
+    import { TrailCreateSchema } from "#lib/models/api/trail_schema.ts";
+    import type { Trail, TrailSearchResult } from "#lib/models/trail.ts";
+    import { TrailShare } from "#lib/models/trail_share.ts";
+    import { lists_create, lists_update } from "#lib/stores/list_store.ts";
+    import { searchTrails } from "#lib/stores/search_store.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         trail_share_create,
         trail_share_index,
-    } from "$lib/stores/trail_share_store.js";
-    import { trails_show, trails_update } from "$lib/stores/trail_store";
-    import { currentUser } from "$lib/stores/user_store.js";
-    import { getFileURL } from "$lib/util/file_util.js";
+    } from "#lib/stores/trail_share_store.ts";
+    import { trails_show, trails_update } from "#lib/stores/trail_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
-    import { validator } from "@felte/validator-zod";
+    } from "#lib/util/format_util.ts";
+    import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { z } from "zod";
     import { onMount, untrack } from "svelte";
@@ -166,17 +166,16 @@
 
     async function search(q: string) {
         try {
-            const r = await searchTrails(q, {
-                filter: `author = ${$currentUser?.actor} OR public = true`,
-                sort: ["name:desc"],
-                limit: 3,
-            });
+            const filter = [`author = ${$currentUser?.actor} OR public = true`];
+            if ($formData.trails?.length) {
+                filter.push(
+                    `id NOT IN [${$formData.trails.map((id) => `'${id}'`).join(", ")}]`,
+                );
+            }
+            const r = await searchTrails(q, { filter, limit: 20 });
 
             searchDropdownItems = r
-                .filter(
-                    (h: TrailSearchResult) => !$formData.trails?.includes(h.id),
-                )
-                .map((t) => ({
+                .map((t: TrailSearchResult) => ({
                     text: t.name,
                     description: `${t.location ?? "-"}`,
                     value: t.id,

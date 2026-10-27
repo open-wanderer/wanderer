@@ -1,5 +1,5 @@
-import type { TrailLike } from "$lib/models/trail_like";
-import { APIError } from "$lib/util/api_util";
+import type { TrailLike } from "#lib/models/trail_like.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 
 export async function trail_like_index(data: { trail?: string, actor?: string }, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {

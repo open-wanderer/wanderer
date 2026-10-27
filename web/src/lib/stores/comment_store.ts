@@ -1,5 +1,5 @@
-import { Comment } from "$lib/models/comment";
-import { APIError } from "$lib/util/api_util";
+import { Comment } from "#lib/models/comment.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";

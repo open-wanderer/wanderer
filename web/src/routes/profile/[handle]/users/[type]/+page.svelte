@@ -1,8 +1,8 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import { profile_follows_index } from "$lib/stores/profile_store.js";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
-    import { APIError } from "$lib/util/api_util.js";
+    import { profile_follows_index } from "#lib/stores/profile_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { APIError } from "#lib/util/api_util.ts";
     import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
     let { data } = $props();

@@ -1,8 +1,8 @@
 <script lang="ts">
-    import type { FeedItem } from "$lib/models/feed";
-    import type { List } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
+    import type { FeedItem } from "#lib/models/feed.ts";
+    import type { List } from "#lib/models/list.ts";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
@@ -10,13 +10,13 @@
         formatHTMLAsTextPreview,
         formatTimeHHMM,
         formatTimeSince,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import {
         displayCategoryIcon,
         displayCategoryName,
         displaySubcategoryIcon,
         displaySubcategoryLabel,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
     import { _, locale } from "svelte-i18n";
     import TrailDropdown from "../trail/trail_dropdown.svelte";
     interface Props {

@@ -16,14 +16,13 @@ This can lead to non-intuitive errors such as: editing and creating a trail, whi
 
 ### Body Size Limit
 
-The `BODY_SIZE_LIMIT` is a setting for the frontend, which fails requests if their payload is too large with an `500: Payload Too Large` error.
-The standard value for this setting is `512kb`.
+The `BODY_SIZE_LIMIT` setting controls both the frontend adapter's request ceiling and the multipart upload limit. The provided Docker Compose configuration defaults to `2G`, which accommodates 99 photos at the default 20 MiB field limit, a GPX file and multipart headers in one request. The provided image and `npm start` launch the web server through `server.js`, which uses `2G` when the variable is unset. An invalid value logs a warning and also uses `2G` at this startup step. Set `Infinity` to allow uploads of any size by signed-in users, as in previous Compose configurations.
+Upload routes authenticate before reading or parsing multipart bodies. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB.
 
-To adjust it, configure the `BODY_SIZE_LIMIT` [Environment Variable](../environment-configuration.md) to a value of you liking.
-To disable this limit entirely you can set this variable to `Infinity`.
+When raising the backend file limits, set the single `BODY_SIZE_LIMIT` [Environment Variable](../../environment-configuration.md) high enough for all files in a request plus multipart headers. For Docker Compose, set it in the `.env` file beside `docker-compose.yml`; source deployments can export it before starting the web server. Check the reverse proxy's request limit as well.
 
 ```sh
-export BODY_SIZE_LIMIT=Infinity
+BODY_SIZE_LIMIT=3G
 ```
 
 <Aside type="tip">Read more about the limitations and configuration possibilities on the [SvelteKit Reference](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT).</Aside>
