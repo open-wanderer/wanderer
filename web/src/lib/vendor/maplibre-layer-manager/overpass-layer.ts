@@ -156,7 +156,7 @@ export class OverpassLayer implements BaseLayer {
         if (!q.length) {
             return;
         }
-        const r = await fetch(`${this.overpassApiURL}?data=${q}`)
+        const r = await fetch(`${this.overpassApiURL}?data=${encodeURIComponent(q)}`)
         const response: OverpassResponse = await r.json();
 
         this.cacheData(x, y, response, activeQueries)
