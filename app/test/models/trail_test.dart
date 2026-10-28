@@ -51,4 +51,25 @@ void main() {
       );
     });
   });
+
+  group('Trail original track', () {
+    test('never reaches the JSON the upload is built from', () {
+      final trail = Trail(
+        id: 'trail-1',
+        name: 'Sample Trail',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        originalGpxData: '<gpx/>',
+        trackFollowsRoads: true,
+        trackHeightsRecalculated: true,
+      );
+
+      final json = trail.toJson();
+
+      expect(json.keys, isNot(contains('originalGpxData')));
+      expect(json.keys, isNot(contains('trackFollowsRoads')));
+      expect(json.keys, isNot(contains('trackHeightsRecalculated')));
+      expect(json.values, isNot(contains('<gpx/>')));
+    });
+  });
 }

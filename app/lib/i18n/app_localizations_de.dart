@@ -612,6 +612,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Ersetzen Sie die aufgezeichnete GPS-Höhe durch genauere Werte aus Kartendaten.';
 
   @override
+  String get track_transform_failed =>
+      'Couldn\'t adjust the track. Check your connection and try again.';
+
+  @override
   String get save => 'Speichern';
 
   @override

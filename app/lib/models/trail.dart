@@ -143,6 +143,28 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
     @JsonKey(includeFromJson: false, includeToJson: false)
     @Default(TrailSyncState.synced)
     TrailSyncState syncState,
+
+    /// The captured track as it was before "Follow roads" / "Recalculate
+    /// heights" ran, so the editor can switch either transform off again.
+    /// Set only on a fresh recording or import, and dropped once the trail
+    /// leaves the draft state for the upload queue. Device-local only —
+    /// never serialized, same rationale as [localId]: the raw track can carry
+    /// more than the user chose to share.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    String? originalGpxData,
+
+    /// Whether `expand.gpxData` is [originalGpxData] snapped to roads.
+    /// Device-local only, meaningful only while [originalGpxData] is set.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(false)
+    bool trackFollowsRoads,
+
+    /// Whether `expand.gpxData` carries recalculated heights instead of the
+    /// captured ones. Device-local only, meaningful only while
+    /// [originalGpxData] is set.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(false)
+    bool trackHeightsRecalculated,
   }) = _Trail;
 
   const Trail._();

@@ -46,6 +46,13 @@ class TrailEntity {
   double minLat;
   double minLon;
   String? gpxData;
+
+  /// The captured track before the post-capture transforms ran -- see
+  /// `Trail.originalGpxData`. Only ever set on a draft row.
+  String? originalGpxData;
+  bool trackFollowsRoads = false;
+  bool trackHeightsRecalculated = false;
+
   String? navCacheJson;
   String? description;
   @Property(type: PropertyType.dateUtc)
@@ -270,6 +277,9 @@ class TrailEntity {
     entity.subcategoryRecordId = trail.subcategory;
     entity.completed = trail.completed;
     entity.tagsJson = encodeTrailTags(trail.expand?.tags);
+    entity.originalGpxData = trail.originalGpxData;
+    entity.trackFollowsRoads = trail.trackFollowsRoads;
+    entity.trackHeightsRecalculated = trail.trackHeightsRecalculated;
 
     if (trail.expand?.waypointsViaTrail != null) {
       final waypointEntities = trail.expand!.waypointsViaTrail!
@@ -392,6 +402,9 @@ extension TrailEntityMapping on TrailEntity {
       localPhotos: localPhotos.isNotEmpty ? localPhotos : photos,
       localId: localId,
       syncState: syncState,
+      originalGpxData: includeGpx ? originalGpxData : null,
+      trackFollowsRoads: trackFollowsRoads,
+      trackHeightsRecalculated: trackHeightsRecalculated,
       updated: updated,
       created: created,
       expand: TrailExpand(

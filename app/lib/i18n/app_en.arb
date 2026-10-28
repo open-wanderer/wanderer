@@ -322,6 +322,7 @@
   "follow_roads_description": "Snap the recorded path to the nearest roads and trails.",
   "recalculate_heights": "Recalculate heights",
   "recalculate_heights_description": "Replace recorded GPS elevation with more accurate values from the map.",
+  "track_transform_failed": "Couldn't adjust the track. Check your connection and try again.",
   "save": "Save",
   "save_recording_options": "Save recording",
   "save_track": "Save track",

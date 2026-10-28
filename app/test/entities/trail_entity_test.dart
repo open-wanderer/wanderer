@@ -146,18 +146,21 @@ void main() {
       expect(roundTripped.subcategory, isNull);
     });
 
-    test('malformed tagsJson degrades to no tags instead of hiding the row', () {
-      final entity = TrailEntity(
-        id: 'abc123xyz456789',
-        name: 'Corrupt tags',
-        created: DateTime(2026),
-        updated: DateTime(2026),
-      );
-      entity.tagsJson = 'not json at all';
+    test(
+      'malformed tagsJson degrades to no tags instead of hiding the row',
+      () {
+        final entity = TrailEntity(
+          id: 'abc123xyz456789',
+          name: 'Corrupt tags',
+          created: DateTime(2026),
+          updated: DateTime(2026),
+        );
+        entity.tagsJson = 'not json at all';
 
-      expect(entity.toModel().expand?.tags, isEmpty);
-      expect(entity.toModel().name, 'Corrupt tags');
-    });
+        expect(entity.toModel().expand?.tags, isEmpty);
+        expect(entity.toModel().name, 'Corrupt tags');
+      },
+    );
   });
 
   group('toModel() and malformed cached GPX', () {
@@ -200,26 +203,23 @@ void main() {
   });
 
   group('local-first round trip', () {
-    test(
-      'a TrailEntity with a minted local id round-trips to id == "" and '
-      'preserves localId',
-      () {
-        final localId = mintLocalId();
-        final entity = TrailEntity(
-          id: localId,
-          name: 'Unsynced',
-          created: DateTime(2026),
-          updated: DateTime(2026),
-          localId: localId,
-          syncState: TrailSyncState.pending,
-        );
+    test('a TrailEntity with a minted local id round-trips to id == "" and '
+        'preserves localId', () {
+      final localId = mintLocalId();
+      final entity = TrailEntity(
+        id: localId,
+        name: 'Unsynced',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        localId: localId,
+        syncState: TrailSyncState.pending,
+      );
 
-        final model = entity.toModel();
+      final model = entity.toModel();
 
-        expect(model.id, '');
-        expect(model.localId, localId);
-      },
-    );
+      expect(model.id, '');
+      expect(model.localId, localId);
+    });
 
     test('a TrailEntity with a server-shaped id round-trips with that id', () {
       const serverId = 'abc123xyz456789';
@@ -233,19 +233,16 @@ void main() {
       expect(entity.toModel().id, serverId);
     });
 
-    test(
-      'a default-constructed TrailEntity reports TrailSyncState.synced',
-      () {
-        final entity = TrailEntity(
-          id: 'abc123xyz456789',
-          name: 'Default',
-          created: DateTime(2026),
-          updated: DateTime(2026),
-        );
+    test('a default-constructed TrailEntity reports TrailSyncState.synced', () {
+      final entity = TrailEntity(
+        id: 'abc123xyz456789',
+        name: 'Default',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+      );
 
-        expect(entity.syncState, TrailSyncState.synced);
-      },
-    );
+      expect(entity.syncState, TrailSyncState.synced);
+    });
 
     test('dbSyncState falls back to synced for an out-of-range value', () {
       final entity = TrailEntity(
@@ -288,85 +285,76 @@ void main() {
       }
     });
 
-    test(
-      'a Trail carrying localId/syncState: pending survives fromModel and '
-      'back',
-      () {
-        final localId = mintLocalId();
-        final trail = Trail(
-          id: localId,
-          name: 'Pending Trail',
-          created: DateTime(2026),
-          updated: DateTime(2026),
-          localId: localId,
-          syncState: TrailSyncState.pending,
-        );
+    test('a Trail carrying localId/syncState: pending survives fromModel and '
+        'back', () {
+      final localId = mintLocalId();
+      final trail = Trail(
+        id: localId,
+        name: 'Pending Trail',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        localId: localId,
+        syncState: TrailSyncState.pending,
+      );
 
-        final entity = TrailEntity.fromModel(trail);
+      final entity = TrailEntity.fromModel(trail);
 
-        expect(entity.localId, localId);
-        expect(entity.syncState, TrailSyncState.pending);
+      expect(entity.localId, localId);
+      expect(entity.syncState, TrailSyncState.pending);
 
-        final roundTripped = entity.toModel();
+      final roundTripped = entity.toModel();
 
-        expect(roundTripped.localId, localId);
-        expect(roundTripped.syncState, TrailSyncState.pending);
-      },
-    );
+      expect(roundTripped.localId, localId);
+      expect(roundTripped.syncState, TrailSyncState.pending);
+    });
 
-    test(
-      'a Waypoint with id: "", a localKey and two localPhotos survives '
-      'fromModel -> toModel intact (regression guard)',
-      () {
-        final waypoint = Waypoint(
-          id: '',
-          lat: 47.0,
-          lon: 11.0,
-          author: '000000000000000',
-          created: DateTime(2026),
-          updated: DateTime(2026),
-          localKey: mintLocalId(),
-          localPhotos: const ['photo1.jpg', 'photo2.jpg'],
-        );
+    test('a Waypoint with id: "", a localKey and two localPhotos survives '
+        'fromModel -> toModel intact (regression guard)', () {
+      final waypoint = Waypoint(
+        id: '',
+        lat: 47.0,
+        lon: 11.0,
+        author: '000000000000000',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        localKey: mintLocalId(),
+        localPhotos: const ['photo1.jpg', 'photo2.jpg'],
+      );
 
-        final entity = WaypointEntity.fromModel(waypoint);
-        final roundTripped = entity.toModel();
+      final entity = WaypointEntity.fromModel(waypoint);
+      final roundTripped = entity.toModel();
 
-        expect(roundTripped.id, '');
-        expect(roundTripped.localKey, waypoint.localKey);
-        expect(roundTripped.localPhotos, ['photo1.jpg', 'photo2.jpg']);
-      },
-    );
+      expect(roundTripped.id, '');
+      expect(roundTripped.localKey, waypoint.localKey);
+      expect(roundTripped.localPhotos, ['photo1.jpg', 'photo2.jpg']);
+    });
 
-    test(
-      'two Waypoints with id: "" and different localKeys produce two '
-      'WaypointEntity rows with different ids (unique-collision guard)',
-      () {
-        final waypointA = Waypoint(
-          id: '',
-          lat: 47.0,
-          lon: 11.0,
-          author: '000000000000000',
-          created: DateTime(2026),
-          updated: DateTime(2026),
-          localKey: mintLocalId(),
-        );
-        final waypointB = Waypoint(
-          id: '',
-          lat: 47.1,
-          lon: 11.1,
-          author: '000000000000000',
-          created: DateTime(2026),
-          updated: DateTime(2026),
-          localKey: mintLocalId(),
-        );
+    test('two Waypoints with id: "" and different localKeys produce two '
+        'WaypointEntity rows with different ids (unique-collision guard)', () {
+      final waypointA = Waypoint(
+        id: '',
+        lat: 47.0,
+        lon: 11.0,
+        author: '000000000000000',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        localKey: mintLocalId(),
+      );
+      final waypointB = Waypoint(
+        id: '',
+        lat: 47.1,
+        lon: 11.1,
+        author: '000000000000000',
+        created: DateTime(2026),
+        updated: DateTime(2026),
+        localKey: mintLocalId(),
+      );
 
-        final entityA = WaypointEntity.fromModel(waypointA);
-        final entityB = WaypointEntity.fromModel(waypointB);
+      final entityA = WaypointEntity.fromModel(waypointA);
+      final entityB = WaypointEntity.fromModel(waypointB);
 
-        expect(entityA.id, isNot(equals(entityB.id)));
-      },
-    );
+      expect(entityA.id, isNot(equals(entityB.id)));
+    });
   });
 
   group('author round-trip -- the orphaned-relation guard', () {
@@ -390,7 +378,9 @@ void main() {
     });
 
     test('the sentinel author default is not persisted as a record id', () {
-      final entity = TrailEntity.fromModel(buildTrail(author: '000000000000000'));
+      final entity = TrailEntity.fromModel(
+        buildTrail(author: '000000000000000'),
+      );
 
       expect(entity.authorRecordId, isNull);
     });
@@ -398,7 +388,42 @@ void main() {
     test('summaryAuthorActorId falls back to Trail.author when the expand '
         'carries no author, and is null for the sentinel', () {
       expect(buildTrail().summaryAuthorActorId, 'actor-abc');
-      expect(buildTrail(author: '000000000000000').summaryAuthorActorId, isNull);
+      expect(
+        buildTrail(author: '000000000000000').summaryAuthorActorId,
+        isNull,
+      );
+    });
+  });
+
+  group('TrailEntity original track round-trip', () {
+    Trail buildCapture() => Trail(
+      id: 'trail-1',
+      name: 'Sample Trail',
+      created: DateTime(2026),
+      updated: DateTime(2026),
+      syncState: TrailSyncState.draft,
+      originalGpxData: '<gpx>original</gpx>',
+      trackFollowsRoads: true,
+      trackHeightsRecalculated: true,
+      expand: const TrailExpand(gpxData: '<gpx>snapped</gpx>'),
+    );
+
+    test('the original and both flags survive fromModel -> toModel', () {
+      final roundTripped = TrailEntity.fromModel(buildCapture()).toModel();
+
+      expect(roundTripped.originalGpxData, '<gpx>original</gpx>');
+      expect(roundTripped.trackFollowsRoads, isTrue);
+      expect(roundTripped.trackHeightsRecalculated, isTrue);
+      expect(roundTripped.expand?.gpxData, '<gpx>snapped</gpx>');
+    });
+
+    test('a list row (includeGpx: false) skips the original like gpxData', () {
+      final row = TrailEntity.fromModel(
+        buildCapture(),
+      ).toModel(includeGpx: false);
+
+      expect(row.originalGpxData, isNull);
+      expect(row.expand?.gpxData, isNull);
     });
   });
 }

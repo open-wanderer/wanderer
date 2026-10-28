@@ -23,11 +23,13 @@ import 'package:wanderer/components/base/wanderer_select.dart';
 import 'package:wanderer/components/base/wanderer_text_field.dart';
 import 'package:wanderer/components/trail/category_picker.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
+import 'package:wanderer/components/trail/track_option_card.dart';
 import 'package:wanderer/components/trail/waypoint_card.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
+import 'package:wanderer/models/valhalla_profile.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -55,6 +57,7 @@ import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/geo/reverse_geocode.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
+import 'package:wanderer/util/route/track_transforms.dart';
 import 'package:wanderer/util/route/valhalla.dart';
 
 class TrailCreateScreen extends ConsumerStatefulWidget {
@@ -88,6 +91,10 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
   bool _saving = false;
   List<String> _removedServerPhotos = [];
+
+  // A track transform's network round trip is in flight; the switches stay
+  // disabled until it lands.
+  bool _transformingTrack = false;
 
   // Seeded from widget.trail.localId so re-opening an unsynced trail resumes
   // against the same local row instead of minting a new one.
@@ -324,24 +331,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     BuildContext context,
     List<ml.Geographic> points,
   ) async {
-    // Read the live field value directly — deliberately no saveAndValidate(),
-    // which would surface unrelated validation errors mid-fill.
-    final categoryValue =
-        _formKey.currentState?.fields['category']?.value as String?;
-    final subcategories = ref.read(subcategoryProvider);
-    final selection = CategoryPicker.resolve(categoryValue, subcategories);
-    // Fall back to the trail's own saved values only when the form field is
-    // empty/unset (e.g. before the picker mounts a value).
-    final categoryId = selection?.category ?? trail.category;
-    final subcategoryId = selection?.subcategory ?? trail.subcategory;
-    final category = (ref.read(categoryProvider).value ?? const [])
-        .firstWhereOrNull((c) => c.id == categoryId);
-
-    final profile = resolveValhallaProfile(
-      category: category,
-      subcategoryId: subcategoryId,
-      subcategories: subcategories,
-    );
+    final profile = _liveValhallaProfile();
 
     final newGpx = await context.push<Gpx>(
       '/route-planner',
@@ -371,12 +361,98 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
         .read(routeAnchorsProvider)
         .estimatedDurationSeconds;
     setState(
-      () => trail = mergeRouteIntoTrail(
-        trail,
-        newGpx,
-        estimatedDurationSeconds: estimatedDurationSeconds,
-      ),
+      () => trail =
+          mergeRouteIntoTrail(
+            trail,
+            newGpx,
+            estimatedDurationSeconds: estimatedDurationSeconds,
+          ).copyWith(
+            // The planned route replaces the captured geometry, so the kept
+            // original no longer describes this track and the transform
+            // switches have nothing left to undo.
+            originalGpxData: null,
+            trackFollowsRoads: false,
+            trackHeightsRecalculated: false,
+          ),
     );
+  }
+
+  /// The Valhalla profile for the category currently picked in the form.
+  ValhallaProfile? _liveValhallaProfile() {
+    // Read the live field value directly — deliberately no saveAndValidate(),
+    // which would surface unrelated validation errors mid-fill.
+    final categoryValue =
+        _formKey.currentState?.fields['category']?.value as String?;
+    final subcategories = ref.read(subcategoryProvider);
+    final selection = CategoryPicker.resolve(categoryValue, subcategories);
+    // Fall back to the trail's own saved values only when the form field is
+    // empty/unset (e.g. before the picker mounts a value).
+    final categoryId = selection?.category ?? trail.category;
+    final subcategoryId = selection?.subcategory ?? trail.subcategory;
+    final category = (ref.read(categoryProvider).value ?? const [])
+        .firstWhereOrNull((c) => c.id == categoryId);
+
+    return resolveValhallaProfile(
+      category: category,
+      subcategoryId: subcategoryId,
+      subcategories: subcategories,
+    );
+  }
+
+  /// Re-derives the track from the kept original (`Trail.originalGpxData`)
+  /// with the requested transforms, so either one can be switched off again
+  /// until the trail is saved. Snapping matches against the category picked
+  /// in the form right now.
+  ///
+  /// A transform that was asked for but did not take (the request failed) is
+  /// reported, and the switch shows what the track actually is.
+  Future<void> _onTrackTransformsChanged({
+    required bool followRoads,
+    required bool recalcHeights,
+  }) async {
+    final originalXml = trail.originalGpxData;
+    if (originalXml == null || _transformingTrack) return;
+    setState(() => _transformingTrack = true);
+
+    try {
+      final track = await applyTrackTransforms(
+        ref,
+        originalXml: originalXml,
+        followRoads: followRoads,
+        recalcHeights: recalcHeights,
+        costing: _liveValhallaProfile()?.costing ?? 'pedestrian',
+      );
+      final measured = await measureTrack(track);
+      if (!mounted) return;
+
+      setState(() {
+        trail = withTransformedTrack(trail, track, measured: measured);
+        // Waypoint distances follow the new geometry.
+        trail = trail.copyWith(
+          expand: trail.expand!.copyWith(
+            waypointsViaTrail: [
+              for (final wp in trail.expand?.waypointsViaTrail ?? const [])
+                _withDistanceFromStart(wp),
+            ],
+          ),
+        );
+      });
+
+      if (track.followsRoads != followRoads ||
+          track.heightsRecalculated != recalcHeights) {
+        ref
+            .read(toastProvider.notifier)
+            .add(
+              ToastMessage(
+                type: ToastType.error,
+                icon: FontAwesomeIcons.circleExclamation,
+                text: AppLocalizations.of(context)!.track_transform_failed,
+              ),
+            );
+      }
+    } finally {
+      if (mounted) setState(() => _transformingTrack = false);
+    }
   }
 
   void _onServerPhotosChanged(List<String> remainingFilenames) {
@@ -1302,6 +1378,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                             onElevationLineTouch: (p) => setState(
                               () => _elevationMarkerPosition = p?.lonlat,
                             ),
+                            transformingTrack: _transformingTrack,
+                            onTrackTransformsChanged: _onTrackTransformsChanged,
                           ),
                         );
                       },
@@ -1328,6 +1406,12 @@ class TrailForm extends ConsumerWidget {
   final void Function(Waypoint waypoint) onDeleteWaypoint;
   final void Function(List<String> remainingFilenames) onPhotosChanged;
   final void Function(TrackPoint? point) onElevationLineTouch;
+  final bool transformingTrack;
+  final Future<void> Function({
+    required bool followRoads,
+    required bool recalcHeights,
+  })
+  onTrackTransformsChanged;
   const TrailForm({
     super.key,
     required this.scrollController,
@@ -1339,6 +1423,8 @@ class TrailForm extends ConsumerWidget {
     required this.onDeleteWaypoint,
     required this.onPhotosChanged,
     required this.onElevationLineTouch,
+    required this.transformingTrack,
+    required this.onTrackTransformsChanged,
   });
 
   @override
@@ -1374,6 +1460,14 @@ class TrailForm extends ConsumerWidget {
                 onLineTouch: onElevationLineTouch,
               ),
             SizedBox(height: 12),
+            if (trail.originalGpxData != null) ...[
+              _TrackTransformSwitches(
+                trail: trail,
+                busy: transformingTrack,
+                onChanged: onTrackTransformsChanged,
+              ),
+              SizedBox(height: 12),
+            ],
             WandererTextField(
               name: 'name',
               initialValue: trail.name,
@@ -1585,6 +1679,66 @@ class TrailForm extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "Follow roads" / "Recalculate heights" for a capture that still keeps its
+/// original track. Each switch re-derives the track from that original, so
+/// either can be turned off again until the trail is saved.
+///
+/// Offline, only a change that needs no request is allowed: the one that
+/// leaves both transforms off, which just restores the original.
+class _TrackTransformSwitches extends ConsumerWidget {
+  final Trail trail;
+  final bool busy;
+  final Future<void> Function({
+    required bool followRoads,
+    required bool recalcHeights,
+  })
+  onChanged;
+
+  const _TrackTransformSwitches({
+    required this.trail,
+    required this.busy,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final isOnline = ref.watch(onlineStatusProvider);
+    final followRoads = trail.trackFollowsRoads;
+    final recalcHeights = trail.trackHeightsRecalculated;
+
+    bool allowed(bool roads, bool heights) =>
+        !busy && (isOnline || (!roads && !heights));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TrackOptionCard(
+          title: l10n.recalculate_heights,
+          subtitle: l10n.recalculate_heights_description,
+          value: recalcHeights,
+          onChanged: allowed(followRoads, !recalcHeights)
+              ? (v) => onChanged(followRoads: followRoads, recalcHeights: v)
+              : null,
+        ),
+        const SizedBox(height: 8),
+        TrackOptionCard(
+          title: l10n.follow_roads,
+          subtitle: l10n.follow_roads_description,
+          value: followRoads,
+          onChanged: allowed(!followRoads, recalcHeights)
+              ? (v) => onChanged(followRoads: v, recalcHeights: recalcHeights)
+              : null,
+        ),
+        if (busy) ...[
+          const SizedBox(height: 8),
+          const LinearProgressIndicator(minHeight: 2),
+        ],
+      ],
     );
   }
 }

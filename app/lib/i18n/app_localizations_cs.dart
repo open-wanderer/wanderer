@@ -614,6 +614,10 @@ class AppLocalizationsCs extends AppLocalizations {
       'Nahradit zaznamenané údaje o nadmořské výšce z GPS přesnějšími hodnotami z mapy.';
 
   @override
+  String get track_transform_failed =>
+      'Couldn\'t adjust the track. Check your connection and try again.';
+
+  @override
   String get save => 'Uložit';
 
   @override

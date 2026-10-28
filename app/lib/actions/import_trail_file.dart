@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show compute, debugPrint;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -16,9 +15,8 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
-import 'package:wanderer/util/gpx/replace_elevations.dart';
 import 'package:wanderer/util/geo/reverse_geocode.dart';
-import 'package:wanderer/util/route/planner_handoff.dart';
+import 'package:wanderer/util/route/track_transforms.dart';
 import 'package:wanderer/actions/resolve_track_save_options.dart';
 
 /// Supported trail file extensions for both the in-app picker and inbound
@@ -126,92 +124,34 @@ Future<void> importTrailFile({
     if (!navContext.mounted) return;
 
     // (false, false) covers BOTH the offline path and "the user declined
-    // both toggles online" — the single most important branch below:
-    // it is what makes an offline import work end to end, since neither
-    // conditional block runs and no network call is ever attempted.
+    // both toggles online": applyTrackTransforms returns the parsed track
+    // unchanged without a network call, which is what makes an offline
+    // import work end to end.
     final (recalcHeights, followRoads) = options;
 
-    var finalGpx = gpx;
-    var finalGpxData = gpxXml;
-
-    if (recalcHeights && !followRoads) {
-      // Heights only: the geometry is unchanged, so write the new altitudes
-      // into the original text instead of rebuilding the track, which would
-      // drop per-point times, extensions and route anchor marks. A failed
-      // fetch leaves the file untouched.
-      final shape = [
-        for (final point in gpx.allPoints) {'lat': point.lat, 'lon': point.lon},
-      ];
-      final heights = shape.length >= 2
-          ? await fetchHeightsForShape(ref, shape)
-          : const <num>[];
-      if (heights.isNotEmpty) {
-        finalGpxData = await compute(replaceTrackElevationsMessage, (
-          gpxXml,
-          heights,
-        ));
-        finalGpx = await compute(parseGpxSafely, finalGpxData);
-      }
-    } else if (followRoads) {
-      // Mirror `_saveRecordedTrack`'s pipeline (navigation_screen.dart):
-      // full-resolution shape, snap before heights so elevation reflects
-      // the final (possibly snapped) shape, original first/last times
-      // preserved so the GPX-derived duration survives the transform.
-      final points = gpx.allPoints;
-      var workingShape = [
-        for (final point in points) {'lat': point.lat, 'lon': point.lon},
-      ];
-
-      if (followRoads && workingShape.length >= 2) {
-        // An imported file has no category yet (the user picks one on
-        // trail_create_screen) — 'pedestrian' is the same fallback
-        // costingForTrail itself uses for an unresolved category.
-        // `fallbackShape` is the full-resolution geometry, NOT the ≤500-point
-        // request hint: a failed/rejected snap must leave the imported track
-        // at its own resolution rather than persisting a decimation of it
-        workingShape = await snapShapeToRoads(
-          ref,
-          buildNavShape(points),
-          'pedestrian',
-          fallbackShape: workingShape,
-        );
-      }
-
-      var heights = const <num>[];
-      if (recalcHeights && workingShape.length >= 2) {
-        heights = await fetchHeightsForShape(ref, workingShape);
-      }
-
-      // Both transform helpers already fall back silently on failure
-      // (a failed snap returns its input shape, a failed height fetch
-      // returns an empty list), so a mid-import network drop degrades to
-      // the untransformed track rather than failing the import outright.
-      final originalWaypoints = gpx.allWaypoints;
-      // `source: gpx` is load-bearing, not defensive: only the track
-      // GEOMETRY is being replaced here, so the source document's own
-      // metadata name/description, its `<wpt>` markers, its routes and its
-      // track name must survive the transform. Without it the re-serialised
-      // `finalGpxData` below — which is what gets uploaded and persisted —
-      // would permanently drop every imported waypoint and fall back to
-      // naming the trail after the file.
-      finalGpx = mergeHeightsIntoGpx(
-        workingShape,
-        heights,
-        startTime: originalWaypoints.firstOrNull?.time,
-        endTime: originalWaypoints.lastOrNull?.time,
-        source: gpx,
-      );
-      // Re-serialise so the saved track matches its own computed metrics —
-      // passing the untransformed original text here would save a track
-      // that disagrees with the trail built from finalGpx below.
-      finalGpxData = await compute(serializeGpxToXml, finalGpx);
-    }
-
-    trail = await buildLocalTrail(
+    // An imported file has no category yet (the user picks one on
+    // trail_create_screen) — 'pedestrian' is the same fallback
+    // costingForTrail itself uses for an unresolved category.
+    final track = await applyTrackTransforms(
       ref,
-      finalGpx,
+      originalXml: gpxXml,
+      followRoads: followRoads,
+      recalcHeights: recalcHeights,
+      costing: 'pedestrian',
+    );
+
+    final built = await buildLocalTrail(
+      ref,
+      track.gpx,
       fallbackName: name,
-      gpxData: finalGpxData,
+      gpxData: track.xml,
+    );
+    // The original file text rides along so the editor can undo either
+    // transform until the trail is saved.
+    trail = built.copyWith(
+      originalGpxData: gpxXml,
+      trackFollowsRoads: track.followsRoads,
+      trackHeightsRecalculated: track.heightsRecalculated,
     );
   } catch (e, st) {
     // Every distinct failure mode in the block above — an unreadable file,

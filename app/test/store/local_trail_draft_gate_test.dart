@@ -337,4 +337,27 @@ void main() {
       );
     });
   });
+
+  group('original track (store-side invariants)', () {
+    // `Trail.originalGpxData` may only live on a draft: every write that
+    // moves a row into the upload queue must drop it, or the raw track would
+    // outlive the upload on this device.
+    for (final declaration in const [
+      'String saveNewLocalTrail(',
+      'bool promoteDraftToPending(',
+      'LocalUpdateOutcome updateLocalTrail(',
+    ]) {
+      test('$declaration drops the original track', () {
+        final body = sliceBody(readStore(), declaration);
+
+        expect(
+          body.contains('_dropTrackOriginal(entity)'),
+          isTrue,
+          reason:
+              '$declaration can leave a row outside the draft state, so it '
+              'must clear originalGpxData and the transform flags.',
+        );
+      });
+    }
+  });
 }

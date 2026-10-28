@@ -611,6 +611,10 @@ class AppLocalizationsCa extends AppLocalizations {
       'Substitueix l\'elevació enregistrada pel GPS per valors més precisos del mapa.';
 
   @override
+  String get track_transform_failed =>
+      'Couldn\'t adjust the track. Check your connection and try again.';
+
+  @override
   String get save => 'Desa';
 
   @override

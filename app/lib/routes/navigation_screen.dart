@@ -12,6 +12,7 @@ import 'package:flutter_rotation_sensor/flutter_rotation_sensor.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:objectbox/objectbox.dart';
@@ -47,15 +48,17 @@ import 'package:wanderer/store/current_account.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/gpx/conversion.dart' show serializeGpxToXml;
 import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/util/region/proxy_style_rewriter.dart';
 import 'package:wanderer/util/geo/polyline.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
+import 'package:wanderer/util/route/track_transforms.dart';
 import 'package:wanderer/util/route/track_position_matcher.dart';
 import 'package:wanderer/models/route_travel_bucket.dart';
-import 'package:wanderer/actions/resolve_track_save_options.dart';
 import 'package:wanderer/services/tracelet_position_source.dart';
 import 'package:wanderer/actions/import_trail_file.dart';
+import 'package:wanderer/actions/resolve_track_save_options.dart';
 import 'package:wanderer/util/route/valhalla.dart';
 
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s
@@ -962,17 +965,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// Cancelling/dismissing an online sheet still aborts the save entirely —
   /// no change to the session.
   ///
-  /// When "Follow roads" is on, the breadcrumb is snapped to the road
-  /// network via [snapShapeToRoads] BEFORE "Recalculate heights" runs, so
-  /// elevation reflects the final (possibly snapped) shape. Both transforms
-  /// are best-effort with silent fallback (see [snapShapeToRoads]'s and
-  /// `/valhalla/height`'s own fallback behavior) — a failure never blocks
-  /// the save nor surfaces an error toast.
-  ///
-  /// Any transform path (snap and/or heights) yields a timeless track — the
-  /// merge/handoff helpers here are elevation-only, matching the planner
-  /// handoff. Only the no-transform path preserves the recorded breadcrumb's
-  /// timestamps verbatim.
+  /// The transforms run through [applyTrackTransforms], best-effort with
+  /// silent fallback — a failure never blocks the save nor surfaces an error
+  /// toast. The untransformed breadcrumb is stored on the draft as its
+  /// original track, so the editor can still switch either transform off.
   Future<void> _saveRecordedTrack(BuildContext context) async {
     final options = await resolveTrackSaveOptions(
       ref,
@@ -989,73 +985,30 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
       final originalTrail = ref.read(trailProvider(widget.id)).value;
 
-      Gpx gpx;
       final (recalcHeights, followRoads) = options;
-      if (recalcHeights || followRoads) {
-        final breadcrumbPoints = [
-          for (final wpt in navState.breadcrumb)
-            if (wpt.lat != null && wpt.lon != null)
-              ml.Geographic(lat: wpt.lat!, lon: wpt.lon!),
-        ];
-        // Full recorded resolution — NOT [buildNavShape]'s downsampled form.
-        // Downsampling to Valhalla's 500-point cap is fine for an outbound
-        // routing *request* hint but must never define what gets saved.
-        var workingShape = [
-          for (final p in breadcrumbPoints) {'lat': p.lat, 'lon': p.lon},
-        ];
-
-        if (followRoads && workingShape.length >= 2) {
-          // `_recordingCosting` (from `showTravelProfileSheet` at record
-          // start, see `_openRecorder`) wins for a trail-less recording,
-          // where `originalTrail` is always null and `costingForCategory`
-          // would otherwise always fall back to pedestrian regardless of
-          // the recorded activity. Falls through to the trail's own
-          // category for a real trail's navigate/save flow.
-          final costing =
-              _recordingCosting ??
-              costingForTrail(
-                originalTrail,
-                subcategories: ref.read(subcategoryProvider),
-              );
-          // buildNavShape's cap applies only to this outbound hint — the
-          // matched path Valhalla returns replaces workingShape entirely.
-          // `fallbackShape` is what enforces that: without it a failed or
-          // rejected snap returned the hint itself, so a flaky connection
-          // silently saved a 500-point decimation of a full-resolution
-          // recording.
-          workingShape = await snapShapeToRoads(
-            ref,
-            buildNavShape(breadcrumbPoints),
-            costing,
-            fallbackShape: workingShape,
-          );
-        }
-
-        // Real recorded start/end times survive the transform (snap/height
-        // merge builds a fresh trackless Gpx from lat/lon/ele only) so the
-        // server can still derive an accurate duration instead of 0.
-        final startTime = navState.breadcrumb.firstOrNull?.time;
-        final endTime = navState.breadcrumb.lastOrNull?.time;
-
-        if (recalcHeights && workingShape.length >= 2) {
-          final heights = await fetchHeightsForShape(ref, workingShape);
-          gpx = mergeHeightsIntoGpx(
-            workingShape,
-            heights,
-            startTime: startTime,
-            endTime: endTime,
-          );
-        } else {
-          gpx = mergeHeightsIntoGpx(
-            workingShape,
-            const [],
-            startTime: startTime,
-            endTime: endTime,
-          );
-        }
-      } else {
-        gpx = buildGpxFromPoints(navState.breadcrumb);
-      }
+      // The full recorded breadcrumb, times and all. Kept as the draft's
+      // original track so the editor can undo either transform.
+      final recorded = buildGpxFromPoints(navState.breadcrumb);
+      final recordedXml = await compute(serializeGpxToXml, recorded);
+      final track = await applyTrackTransforms(
+        ref,
+        originalXml: recordedXml,
+        followRoads: followRoads,
+        recalcHeights: recalcHeights,
+        // `_recordingCosting` (from `showTravelProfileSheet` at record
+        // start, see `_openRecorder`) wins for a trail-less recording,
+        // where `originalTrail` is always null and `costingForCategory`
+        // would otherwise always fall back to pedestrian regardless of
+        // the recorded activity. Falls through to the trail's own
+        // category for a real trail's navigate/save flow.
+        costing:
+            _recordingCosting ??
+            costingForTrail(
+              originalTrail,
+              subcategories: ref.read(subcategoryProvider),
+            ),
+      );
+      final gpx = track.gpx;
 
       // For a real trail, keep its own category/subcategory. For a trail-less
       // recording, derive a (sub)category from the chosen travel profile
@@ -1096,12 +1049,17 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
       // derivation is invented here. No planner-style estimated duration
       // fallback is passed either — `duration` must come from the
       // GPX so a later web recompute reproduces it.
-      final trail = await buildDraftTrail(
+      final draft = await buildDraftTrail(
         ref,
         gpx,
         category: category,
         subcategory: subcategory,
         movingDuration: navStats.elapsed,
+      );
+      final trail = draft.copyWith(
+        originalGpxData: recordedXml,
+        trackFollowsRoads: track.followsRoads,
+        trackHeightsRecalculated: track.heightsRecalculated,
       );
 
       // Durability ordering: the draft row is written BEFORE the session row

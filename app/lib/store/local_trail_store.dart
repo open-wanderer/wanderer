@@ -380,6 +380,7 @@ String saveNewLocalTrail(
     entity.localId = localId;
     entity.owner = ownerAccountId;
     entity.syncState = asDraft ? TrailSyncState.draft : TrailSyncState.pending;
+    if (!asDraft) _dropTrackOriginal(entity);
     entity.syncAttempts = 0;
     entity.syncNextAttemptAt = null;
     entity.localPhotos = trailLocalPhotos;
@@ -413,6 +414,16 @@ String saveNewLocalTrail(
   });
 
   return localId;
+}
+
+/// Drops the pre-transform track a capture keeps while it is a draft (see
+/// `Trail.originalGpxData`). Every write that moves a row into the upload
+/// queue calls this: from then on the transformed track is final, and the
+/// raw one must not outlive the upload on this device either.
+void _dropTrackOriginal(TrailEntity entity) {
+  entity.originalGpxData = null;
+  entity.trackFollowsRoads = false;
+  entity.trackHeightsRecalculated = false;
 }
 
 /// Writes a draft row via [writeDraft], and only after it returned releases
@@ -469,6 +480,7 @@ bool promoteDraftToPending(
     if (!isOwnDraft(entity, accountId: accountId)) return false;
 
     entity!.syncState = syncStateAfterLocalEdit(entity.syncState);
+    _dropTrackOriginal(entity);
     // A fresh queue entry, the same bookkeeping saveNewLocalTrail gives a new
     // pending row.
     entity.syncAttempts = 0;
@@ -565,6 +577,7 @@ LocalUpdateOutcome updateLocalTrail(
     entity.owner = existing.owner;
     entity.localId = existing.localId;
     entity.syncState = syncStateAfterLocalEdit(existing.syncState);
+    _dropTrackOriginal(entity);
     entity.syncAttempts = existing.syncAttempts;
     entity.syncNextAttemptAt = existing.syncNextAttemptAt;
     entity.savedByUserIds = existing.savedByUserIds;

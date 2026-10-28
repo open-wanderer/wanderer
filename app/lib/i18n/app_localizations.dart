@@ -1162,6 +1162,12 @@ abstract class AppLocalizations {
   /// **'Replace recorded GPS elevation with more accurate values from the map.'**
   String get recalculate_heights_description;
 
+  /// No description provided for @track_transform_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t adjust the track. Check your connection and try again.'**
+  String get track_transform_failed;
+
   /// No description provided for @save.
   ///
   /// In en, this message translates to:

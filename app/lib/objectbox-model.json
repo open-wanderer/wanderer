@@ -358,7 +358,7 @@
     },
     {
       "id": "6:5034082009762803572",
-      "lastPropertyId": "40:5633987781709141042",
+      "lastPropertyId": "43:6714850291729218023",
       "name": "TrailEntity",
       "properties": [
         {
@@ -561,6 +561,21 @@
           "id": "40:5633987781709141042",
           "name": "authorRecordId",
           "type": 9
+        },
+        {
+          "id": "41:5932086776653694163",
+          "name": "originalGpxData",
+          "type": 9
+        },
+        {
+          "id": "42:8517137984344132738",
+          "name": "trackFollowsRoads",
+          "type": 1
+        },
+        {
+          "id": "43:6714850291729218023",
+          "name": "trackHeightsRecalculated",
+          "type": 1
         }
       ],
       "relations": []

@@ -446,7 +446,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 5034082009762803572),
     name: 'TrailEntity',
-    lastPropertyId: const obx_int.IdUid(40, 5633987781709141042),
+    lastPropertyId: const obx_int.IdUid(43, 6714850291729218023),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -683,6 +683,24 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(40, 5633987781709141042),
         name: 'authorRecordId',
         type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(41, 5932086776653694163),
+        name: 'originalGpxData',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(42, 8517137984344132738),
+        name: 'trackFollowsRoads',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(43, 6714850291729218023),
+        name: 'trackHeightsRecalculated',
+        type: 1,
         flags: 0,
       ),
     ],
@@ -1863,7 +1881,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final authorRecordIdOffset = object.authorRecordId == null
             ? null
             : fbb.writeString(object.authorRecordId!);
-        fbb.startTable(41);
+        final originalGpxDataOffset = object.originalGpxData == null
+            ? null
+            : fbb.writeString(object.originalGpxData!);
+        fbb.startTable(44);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1902,6 +1923,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addBool(37, object.completed);
         fbb.addOffset(38, tagsJsonOffset);
         fbb.addOffset(39, authorRecordIdOffset);
+        fbb.addOffset(40, originalGpxDataOffset);
+        fbb.addBool(41, object.trackFollowsRoads);
+        fbb.addBool(42, object.trackHeightsRecalculated);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -2105,7 +2129,22 @@ obx_int.ModelDefinition getObjectBoxModel() {
               ).vTableGetNullable(buffer, rootOffset, 80)
               ..authorRecordId = const fb.StringReader(
                 asciiOptimization: true,
-              ).vTableGetNullable(buffer, rootOffset, 82);
+              ).vTableGetNullable(buffer, rootOffset, 82)
+              ..originalGpxData = const fb.StringReader(
+                asciiOptimization: true,
+              ).vTableGetNullable(buffer, rootOffset, 84)
+              ..trackFollowsRoads = const fb.BoolReader().vTableGet(
+                buffer,
+                rootOffset,
+                86,
+                false,
+              )
+              ..trackHeightsRecalculated = const fb.BoolReader().vTableGet(
+                buffer,
+                rootOffset,
+                88,
+                false,
+              );
         object.author.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -3320,6 +3359,21 @@ class TrailEntity_ {
   /// See [TrailEntity.authorRecordId].
   static final authorRecordId = obx.QueryStringProperty<TrailEntity>(
     _entities[4].properties[37],
+  );
+
+  /// See [TrailEntity.originalGpxData].
+  static final originalGpxData = obx.QueryStringProperty<TrailEntity>(
+    _entities[4].properties[38],
+  );
+
+  /// See [TrailEntity.trackFollowsRoads].
+  static final trackFollowsRoads = obx.QueryBooleanProperty<TrailEntity>(
+    _entities[4].properties[39],
+  );
+
+  /// See [TrailEntity.trackHeightsRecalculated].
+  static final trackHeightsRecalculated = obx.QueryBooleanProperty<TrailEntity>(
+    _entities[4].properties[40],
   );
 
   /// see [TrailEntity.waypoints]

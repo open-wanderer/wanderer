@@ -607,6 +607,10 @@ class AppLocalizationsIt extends AppLocalizations {
       'Replace recorded GPS elevation with more accurate values from the map.';
 
   @override
+  String get track_transform_failed =>
+      'Couldn\'t adjust the track. Check your connection and try again.';
+
+  @override
   String get save => 'Salva';
 
   @override

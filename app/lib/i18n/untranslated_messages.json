@@ -1,77 +1,94 @@
 {
   "ca": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "cs": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
+  "de": [
+    "track_transform_failed"
+  ],
+
   "es": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "eu": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "fr": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "hu": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "it": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "nl": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "no": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "pl": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "pt": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "ru": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "zh": [
+    "track_transform_failed",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
