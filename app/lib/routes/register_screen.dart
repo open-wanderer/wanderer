@@ -89,98 +89,107 @@ class RegisterScreen extends ConsumerWidget {
       );
     });
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: TopographyBackground()),
-          SafeArea(
-            child: IconButton(
-              icon: const BackButtonIcon(),
-              onPressed: () => context.pop(),
-            ),
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: FormBuilder(
-                key: _formKey,
-                autovalidateMode: AutovalidateMode.onUnfocus,
-                child: SingleChildScrollView(
-                  // One autofill context for the whole sign-up, so the
-                  // password manager saves username, email and the generated
-                  // password as a single entry.
-                  child: AutofillGroup(
-                    child: Column(
-                      spacing: 12,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SvgPicture.asset(
-                          "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
-                          semanticsLabel: 'wanderer logo with text',
-                        ),
-                        Text(
-                          AppLocalizations.of(context)!.slogan,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        SizedBox(height: 12),
-
-                        ServerSelector(icon: FontAwesomeIcons.pencil),
-                        if (isServerIncompatible)
-                          const ServerCompatibilityAlert(),
-                        WandererTextField(
-                          name: 'username',
-                          label: AppLocalizations.of(context)!.username,
-                          autofillHints: const [AutofillHints.newUsername],
-                          textInputAction: TextInputAction.next,
-                          validator: FormBuilderValidators.required(),
-                        ),
-                        WandererTextField(
-                          name: 'email',
-                          label: AppLocalizations.of(context)!.email,
-                          autofillHints: const [AutofillHints.email],
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: FormBuilderValidators.compose([
-                            FormBuilderValidators.required(),
-                            FormBuilderValidators.email(),
-                          ]),
-                        ),
-                        WandererTextField(
-                          name: 'password',
-                          label: AppLocalizations.of(context)!.password,
-                          isPassword: true,
-                          // newPassword — not password — is what makes iOS
-                          // and Android offer to *generate* a strong one
-                          // instead of suggesting an existing login.
-                          autofillHints: const [AutofillHints.newPassword],
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => submit(),
-                          validator: FormBuilderValidators.compose([
-                            FormBuilderValidators.required(),
-                            FormBuilderValidators.minLength(8),
-                          ]),
-                        ),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: WandererButton(
-                            primary: true,
-                            large: true,
-                            loading: registerState.isLoading,
-                            disabled: isServerIncompatible,
-                            onPressed: submit,
-                            child: Text(AppLocalizations.of(context)!.register),
+    // Leaving mid-sign-up would abandon a request whose result still lands
+    // in authProvider, so neither the back button nor a system back gesture
+    // is offered until it settles.
+    return PopScope(
+      canPop: !registerState.isLoading,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(child: TopographyBackground()),
+            if (!registerState.isLoading)
+              SafeArea(
+                child: IconButton(
+                  icon: const BackButtonIcon(),
+                  onPressed: () => context.pop(),
+                ),
+              ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: FormBuilder(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUnfocus,
+                  child: SingleChildScrollView(
+                    // One autofill context for the whole sign-up, so the
+                    // password manager saves username, email and the generated
+                    // password as a single entry.
+                    child: AutofillGroup(
+                      child: Column(
+                        spacing: 12,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset(
+                            "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
+                            semanticsLabel: 'wanderer logo with text',
                           ),
-                        ),
-                      ],
+                          Text(
+                            AppLocalizations.of(context)!.slogan,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          SizedBox(height: 12),
+
+                          ServerSelector(icon: FontAwesomeIcons.pencil),
+                          if (isServerIncompatible)
+                            const ServerCompatibilityAlert(),
+                          WandererTextField(
+                            name: 'username',
+                            label: AppLocalizations.of(context)!.username,
+                            autofillHints: const [AutofillHints.newUsername],
+                            textInputAction: TextInputAction.next,
+                            validator: FormBuilderValidators.required(),
+                          ),
+                          WandererTextField(
+                            name: 'email',
+                            label: AppLocalizations.of(context)!.email,
+                            autofillHints: const [AutofillHints.email],
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            validator: FormBuilderValidators.compose([
+                              FormBuilderValidators.required(),
+                              FormBuilderValidators.email(),
+                            ]),
+                          ),
+                          WandererTextField(
+                            name: 'password',
+                            label: AppLocalizations.of(context)!.password,
+                            isPassword: true,
+                            // newPassword — not password — is what makes iOS
+                            // and Android offer to *generate* a strong one
+                            // instead of suggesting an existing login.
+                            autofillHints: const [AutofillHints.newPassword],
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => submit(),
+                            validator: FormBuilderValidators.compose([
+                              FormBuilderValidators.required(),
+                              FormBuilderValidators.minLength(8),
+                            ]),
+                          ),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: WandererButton(
+                              primary: true,
+                              large: true,
+                              loading: registerState.isLoading,
+                              disabled: isServerIncompatible,
+                              onPressed: submit,
+                              child: Text(
+                                AppLocalizations.of(context)!.register,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
