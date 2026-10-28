@@ -15,6 +15,7 @@ import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
+import 'package:wanderer/components/map/center_on_location_button.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/map/trail_markers.dart';
@@ -708,38 +709,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 child: child!,
               );
             },
-            child: StreamBuilder<LocationMarkerPosition?>(
-              stream: ref.watch(liveLocationProvider),
-              builder: (context, snapshot) {
-                final position = snapshot.data;
-                return Material(
-                  color: Theme.of(context).colorScheme.surface,
-                  elevation: 4,
-                  shadowColor: Colors.black26,
-                  shape: const CircleBorder(),
-                  child: IconButton(
-                    icon: const FaIcon(
-                      FontAwesomeIcons.locationCrosshairs,
-                      size: 18,
-                    ),
-                    tooltip: AppLocalizations.of(
-                      context,
-                    )!.center_on_my_location,
-                    onPressed: position == null
-                        ? null
-                        : () {
-                            _controller?.animateCamera(
-                              center: ml.Geographic(
-                                lat: position.latitude,
-                                lon: position.longitude,
-                              ),
-                              zoom: _kPointZoom,
-                              nativeDuration: const Duration(milliseconds: 750),
-                            );
-                          },
-                  ),
-                );
-              },
+            child: CenterOnLocationButton(
+              onPressed: (center) => _controller?.animateCamera(
+                center: center,
+                zoom: _kPointZoom,
+                nativeDuration: const Duration(milliseconds: 750),
+              ),
             ),
           ),
 

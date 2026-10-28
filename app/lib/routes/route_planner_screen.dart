@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
+import 'package:wanderer/components/map/center_on_location_button.dart';
+import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/route_anchor_layer.dart';
 import 'package:wanderer/components/map/route_segment_layer.dart';
 import 'package:wanderer/components/route_planner/route_anchor_sheet.dart';
@@ -214,6 +216,22 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       body: Stack(
         children: [
           Positioned.fill(child: _buildMap(context, state, styleJson)),
+          // Rides above RouteAnchorSheet's 164px docked peek, like the map
+          // screen's button above its result sheet; the sheet covers it when
+          // dragged open.
+          Positioned(
+            bottom: state.anchors.isNotEmpty
+                ? 164 + 12
+                : MediaQuery.paddingOf(context).bottom + 16,
+            right: 16,
+            child: CenterOnLocationButton(
+              onPressed: (center) => _mapController?.animateCamera(
+                center: center,
+                zoom: 14,
+                nativeDuration: const Duration(milliseconds: 750),
+              ),
+            ),
+          ),
           // The tabbed sheet mounts only once the route has >=1 anchor, and
           // unmounts entirely when it returns to empty — no empty state.
           if (state.anchors.isNotEmpty) RouteAnchorSheet(),
@@ -353,6 +371,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         notifier.appendAnchor(event.point);
       },
       children: [
+        // First, so anchors stay on top of the dot when they overlap.
+        const LocationMarkerLayer(),
         RouteAnchorLayer(),
         // Top-right controls column hosts undo/redo; the search control
         // lives in the app-bar title (see _buildSearchBar) and the
