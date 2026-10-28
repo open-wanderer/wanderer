@@ -234,8 +234,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: _FeedSection(handle: h, actor: actor, isOwn: isOwn),
             ),
 
-          // Bottom padding
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          // Bottom padding -- inside the shell's `extendBody` Scaffold the
+          // bottom inset is the nav bar's full height, which overlaps the page.
+          SliverToBoxAdapter(
+            child: SizedBox(height: MediaQuery.paddingOf(context).bottom + 24),
+          ),
         ],
       ),
     );
