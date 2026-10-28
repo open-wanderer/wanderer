@@ -47,7 +47,6 @@
   "account_privacy": "Privadesa del compte",
   "add_bio": "Afegeix biografia",
   "add_waypoint": "Afegeix punt de ruta",
-  "adjust_track": "Ajusta el traçat",
   "after": "Després de",
   "@after": {
     "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
@@ -322,8 +321,8 @@
   "follow_roads_description": "Ajusta el traçat enregistrat a les carreteres i camins més propers.",
   "recalculate_heights": "Recalcula les altituds",
   "recalculate_heights_description": "Substitueix l'elevació enregistrada pel GPS per valors més precisos del mapa.",
+  "track_transform_failed": "Couldn't adjust the track. Check your connection and try again.",
   "save": "Desa",
-  "save_recording_options": "Desa l'enregistrament",
   "save_track": "Desa el traçat",
   "search": "Cerca",
   "search_for_trails_places": "Cerca senders, llistes, llocs",
