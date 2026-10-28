@@ -677,5 +677,17 @@
   "plan_route_from_here": "Route von hier planen",
   "@plan_route_from_here": {
     "description": "Button in the map screen's selected-location panel that opens the route planner centered on that location."
+  },
+  "recent_searches": "Letzte Suchanfragen",
+  "@recent_searches": {
+    "description": "Heading above the search history shown on the search screens while the query is empty."
+  },
+  "clear_search_history": "Suchverlauf löschen",
+  "@clear_search_history": {
+    "description": "Tooltip of the trashcan next to the search history heading, and title of its confirmation dialog."
+  },
+  "clear_search_history_confirm": "Alle letzten Suchanfragen entfernen?",
+  "@clear_search_history_confirm": {
+    "description": "Body of the dialog confirming that the whole search history is removed."
   }
 }
