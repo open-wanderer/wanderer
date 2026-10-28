@@ -2169,6 +2169,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect to the internet to search for trails. Downloaded trails are still available.'**
   String get offline_trail_search_body;
+
+  /// Heading of the map screen panel shown after tapping an empty spot on the map.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected location'**
+  String get selected_location;
+
+  /// Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} from your location'**
+  String distance_from_your_location(String distance);
+
+  /// Button in the map screen's selected-location panel that opens the route planner centered on that location.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan route from here'**
+  String get plan_route_from_here;
 }
 
 class _AppLocalizationsDelegate

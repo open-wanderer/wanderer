@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gpx/gpx.dart' show Wpt;
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/components/async_loader.dart';
 import 'package:wanderer/components/base/trail_collection_map.dart';
@@ -17,12 +18,15 @@ import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
 import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
 import 'package:wanderer/components/map/trail_markers.dart';
+import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/route_travel_bucket.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/provider/foreground_position_stream_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/map_camera_provider.dart';
 import 'package:wanderer/provider/map_style_json_provider.dart';
 import 'package:wanderer/provider/map_style_sources_provider.dart';
@@ -35,6 +39,8 @@ import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
+import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/gpx/conversion.dart' show haversineMeters;
 import 'package:wanderer/util/map/sheet_metrics.dart';
 
 /// Zoom used when centering on a specific point (GPS fix or saved home
@@ -61,6 +67,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   TrailSearchResult? _selectedTrail;
   List<ml.Geographic>? _selectedPolyline;
+
+  /// A tapped empty spot on the map, marked with a pin and offered as a
+  /// route planner starting point. Mutually exclusive with [_selectedTrail].
+  ml.Geographic? _selectedLocation;
+
+  bool get _hasSelection => _selectedTrail != null || _selectedLocation != null;
 
   /// A GPS fix resolved after first build, used to re-center the camera once
   /// available. Only takes effect when there is neither an explicit
@@ -241,6 +253,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     setState(() {
       _selectedTrail = trails.firstWhereOrNull((t) => t.id == trailId);
       _selectedPolyline = null;
+      _selectedLocation = null;
     });
 
     ref.read(trailPolylineProvider(trailId).future).then((polyline) {
@@ -572,19 +585,25 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   return;
                 }
 
-                // Background tap (not on a cluster or a marker widget) —
-                // deselect and collapse the sheet.
-                if (_sheetController.isAttached) {
-                  _sheetController.animateTo(
-                    sheetMediumsize,
-                    curve: Curves.easeOut,
-                    duration: const Duration(milliseconds: 300),
-                  );
+                // Background tap (not on a cluster or a marker widget). With
+                // a trail selected it only deselects, so dismissing the trail
+                // panel doesn't immediately open the location panel in its
+                // place; otherwise it drops (or moves) the location marker.
+                if (_selectedTrail != null) {
+                  if (_sheetController.isAttached) {
+                    _sheetController.animateTo(
+                      sheetMediumsize,
+                      curve: Curves.easeOut,
+                      duration: const Duration(milliseconds: 300),
+                    );
+                  }
+                  setState(() {
+                    _selectedTrail = null;
+                    _selectedPolyline = null;
+                  });
+                  return;
                 }
-                setState(() {
-                  _selectedTrail = null;
-                  _selectedPolyline = null;
-                });
+                setState(() => _selectedLocation = event.point);
                 return;
               }
 
@@ -615,6 +634,22 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 ml.WidgetLayer(
                   allowInteraction: true,
                   markers: unclusteredMarkers,
+                ),
+              if (_selectedLocation != null)
+                ml.WidgetLayer(
+                  markers: [
+                    ml.Marker(
+                      point: _selectedLocation!,
+                      size: const Size(32, 40),
+                      // Pin tip, not its center, sits on the tapped point.
+                      alignment: Alignment.bottomCenter,
+                      child: FaIcon(
+                        FontAwesomeIcons.locationDot,
+                        size: 36,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
               const LocationMarkerLayer(),
               // Clears the search bar below the status bar.
@@ -647,7 +682,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         // past medium. Hidden while offline — neither the FAB nor the
         // search-this-area button below it can do anything useful without
         // connectivity.
-        if (_selectedTrail == null && isOnline)
+        if (!_hasSelection && isOnline)
           ValueListenableBuilder<double>(
             valueListenable: _sheetSize,
             builder: (context, sheetSize, child) {
@@ -695,7 +730,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           ),
 
-        if (_selectedTrail == null && isOnline)
+        if (!_hasSelection && isOnline)
           ValueListenableBuilder(
             valueListenable: _sheetSize,
             builder: (context, sheetSize, child) {
@@ -747,150 +782,164 @@ class _MapScreenState extends ConsumerState<MapScreen>
             },
           ),
 
-        Opacity(
+        // Hidden, not removed, so it keeps its size across a selection — but
+        // an invisible sheet still hit-tests, so map taps over it (anywhere
+        // below its last snap height) would never reach the map.
+        //
+        // The key must sit on this outermost widget: the conditional buttons
+        // above drop out of the Stack on selection, and an unkeyed child here
+        // gets remounted, leaving two sheets on one controller (the old one's
+        // dispose detaches it from the new one, which then crashes in
+        // _onExtentReplaced on its next rebuild).
+        IgnorePointer(
           key: const ValueKey('trail_sheet'),
-          opacity: _selectedTrail == null ? 1 : 0,
-          child: DraggableScrollableSheet(
-            controller: _sheetController,
-            initialChildSize: sheetMediumsize,
-            minChildSize: sheetMinSize,
-            maxChildSize: sheetMaxSize,
-            snap: true,
-            snapSizes: [sheetMinSize, sheetMediumsize, sheetMaxSize],
-            builder: (context, scrollController) {
-              _sheetScrollController = scrollController;
-              return ValueListenableBuilder<double>(
-                valueListenable: _sheetSize,
-                builder: (context, size, child) => Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).canvasColor,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(size >= sheetMaxSize ? 0 : 16),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, -2),
+          ignoring: _hasSelection,
+          child: Opacity(
+            opacity: _hasSelection ? 0 : 1,
+            child: DraggableScrollableSheet(
+              controller: _sheetController,
+              initialChildSize: sheetMediumsize,
+              minChildSize: sheetMinSize,
+              maxChildSize: sheetMaxSize,
+              snap: true,
+              snapSizes: [sheetMinSize, sheetMediumsize, sheetMaxSize],
+              builder: (context, scrollController) {
+                _sheetScrollController = scrollController;
+                return ValueListenableBuilder<double>(
+                  valueListenable: _sheetSize,
+                  builder: (context, size, child) => Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).canvasColor,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(size >= sheetMaxSize ? 0 : 16),
                       ),
-                    ],
-                  ),
-                  child: child,
-                ),
-                // Keyed on connectivity alone, deliberately NOT on
-                // `searchResultAsync.hasError`: `mapTrailSearchProvider` is
-                // keepAlive, so returning to this screen offline after an
-                // online visit replays the previous results with no error set —
-                // stale trails for a viewport whose map has been replaced by the
-                // offline takeover. This also matches the takeover above and
-                // list_screen, both of which gate on connectivity alone.
-                child: !isOnline
-                    ? _buildSheetOfflineState(scrollController)
-                    : AsyncLoader(
-                        asyncValue: searchResultAsync,
-                        mockData: List.generate(
-                          5,
-                          (_) => TrailSearchResult.mock(),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, -2),
                         ),
-                        // .builder, not children: the result list accumulates
-                        // across pages, and pre-constructing every row widget
-                        // on each sheet rebuild scaled with the whole result
-                        // set instead of the visible slice. Index 0 is the
-                        // header; the remainder is one row per trail (or the
-                        // single empty state).
-                        builder: (trails) => ListView.builder(
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            8,
-                            16,
-                            shellBottom + 24,
+                      ],
+                    ),
+                    child: child,
+                  ),
+                  // Keyed on connectivity alone, deliberately NOT on
+                  // `searchResultAsync.hasError`: `mapTrailSearchProvider` is
+                  // keepAlive, so returning to this screen offline after an
+                  // online visit replays the previous results with no error set —
+                  // stale trails for a viewport whose map has been replaced by the
+                  // offline takeover. This also matches the takeover above and
+                  // list_screen, both of which gate on connectivity alone.
+                  child: !isOnline
+                      ? _buildSheetOfflineState(scrollController)
+                      : AsyncLoader(
+                          asyncValue: searchResultAsync,
+                          mockData: List.generate(
+                            5,
+                            (_) => TrailSearchResult.mock(),
                           ),
-                          controller: scrollController,
-                          itemCount: 1 + (trails.isEmpty ? 1 : trails.length),
-                          itemBuilder: (context, index) {
-                            if (index > 0) {
-                              if (trails.isEmpty) {
-                                return _buildSheetEmptyState(context);
-                              }
-                              final t = trails[index - 1];
-                              return TrailCard(
-                                key: ValueKey(t.id),
-                                trail: t,
-                                onTrailSelect: () =>
-                                    context.push("/trail/${t.id}", extra: t),
-                              );
-                            }
-                            return ValueListenableBuilder<double>(
-                              valueListenable: _sheetSize,
-                              builder: (context, size, child) {
-                                final opacity = sheetHeaderOpacity(
-                                  size,
-                                  sheetMediumsize: sheetMediumsize,
+                          // .builder, not children: the result list accumulates
+                          // across pages, and pre-constructing every row widget
+                          // on each sheet rebuild scaled with the whole result
+                          // set instead of the visible slice. Index 0 is the
+                          // header; the remainder is one row per trail (or the
+                          // single empty state).
+                          builder: (trails) => ListView.builder(
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              8,
+                              16,
+                              shellBottom + 24,
+                            ),
+                            controller: scrollController,
+                            itemCount: 1 + (trails.isEmpty ? 1 : trails.length),
+                            itemBuilder: (context, index) {
+                              if (index > 0) {
+                                if (trails.isEmpty) {
+                                  return _buildSheetEmptyState(context);
+                                }
+                                final t = trails[index - 1];
+                                return TrailCard(
+                                  key: ValueKey(t.id),
+                                  trail: t,
+                                  onTrailSelect: () =>
+                                      context.push("/trail/${t.id}", extra: t),
                                 );
+                              }
+                              return ValueListenableBuilder<double>(
+                                valueListenable: _sheetSize,
+                                builder: (context, size, child) {
+                                  final opacity = sheetHeaderOpacity(
+                                    size,
+                                    sheetMediumsize: sheetMediumsize,
+                                  );
 
-                                return Column(
-                                  children: [
-                                    if (opacity > 0.0)
-                                      Opacity(
-                                        opacity: opacity,
-                                        child: Column(
-                                          children: [
-                                            Center(
-                                              child: Container(
-                                                width: 30,
-                                                height: 5,
-                                                margin: const EdgeInsets.only(
-                                                  top: 4,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.outline,
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
-                                              ),
-                                            ),
-
-                                            Padding(
-                                              padding: const EdgeInsets.all(
-                                                8.0,
-                                              ),
-                                              child: Center(
-                                                child: Opacity(
-                                                  opacity: trails.isNotEmpty
-                                                      ? 1
-                                                      : (1 - size / sheetMediumsize)
-                                                            .clamp(0, 1),
-                                                  child: Text(
-                                                    "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                                    style: Theme.of(
+                                  return Column(
+                                    children: [
+                                      if (opacity > 0.0)
+                                        Opacity(
+                                          opacity: opacity,
+                                          child: Column(
+                                            children: [
+                                              Center(
+                                                child: Container(
+                                                  width: 30,
+                                                  height: 5,
+                                                  margin: const EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(
                                                       context,
-                                                    ).textTheme.labelLarge,
+                                                    ).colorScheme.outline,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
+
+                                              Padding(
+                                                padding: const EdgeInsets.all(
+                                                  8.0,
+                                                ),
+                                                child: Center(
+                                                  child: Opacity(
+                                                    opacity: trails.isNotEmpty
+                                                        ? 1
+                                                        : (1 - size / sheetMediumsize)
+                                                              .clamp(0, 1),
+                                                    child: Text(
+                                                      "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                                      style: Theme.of(
+                                                        context,
+                                                      ).textTheme.labelLarge,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      SizedBox(
+                                        height: dynamicSheetPadding(
+                                          size,
+                                          sheetMinSize: sheetMinSize,
+                                          sheetMediumsize: sheetMediumsize,
+                                          sheetMaxSize: sheetMaxSize,
                                         ),
                                       ),
-                                    SizedBox(
-                                      height: dynamicSheetPadding(
-                                        size,
-                                        sheetMinSize: sheetMinSize,
-                                        sheetMediumsize: sheetMediumsize,
-                                        sheetMaxSize: sheetMaxSize,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
 
@@ -1053,7 +1102,120 @@ class _MapScreenState extends ConsumerState<MapScreen>
               ),
             ),
           ),
+
+        if (_selectedLocation != null)
+          Positioned(
+            bottom: shellBottom + 37,
+            left: 16,
+            right: 16,
+            child: Dismissible(
+              // Stable, not keyed on the point: re-tapping the map only moves
+              // the pin, and a per-point key remounted the panel (flicker).
+              key: const ValueKey('selected_location_panel'),
+              direction: DismissDirection.down,
+              onDismissed: (_) => setState(() => _selectedLocation = null),
+              child: _buildSelectedLocationPanel(_selectedLocation!),
+            ),
+          ),
       ],
+    );
+  }
+
+  /// Location counterpart of the selected-trail [TrailListItem], styled to
+  /// match it.
+  Widget _buildSelectedLocationPanel(ml.Geographic location) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final unit = ref.watch(unitProvider);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.fromLTRB(16, 4, 4, 16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.selected_location,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const FaIcon(FontAwesomeIcons.xmark, size: 18),
+                tooltip: l10n.close,
+                onPressed: () => setState(() => _selectedLocation = null),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Omitted rather than showing a placeholder while there is
+                // no fix (permission denied, GPS still searching).
+                StreamBuilder<LocationMarkerPosition?>(
+                  stream: ref.watch(liveLocationProvider),
+                  builder: (context, snapshot) {
+                    final position = snapshot.data;
+                    if (position == null) return const SizedBox.shrink();
+                    final meters = haversineMeters(
+                      Wpt(lat: position.latitude, lon: position.longitude),
+                      Wpt(lat: location.lat, lon: location.lon),
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        l10n.distance_from_your_location(
+                          formatDistance(meters, unit: unit),
+                        ),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _planRouteFrom(location),
+                  icon: const FaIcon(FontAwesomeIcons.route, size: 14),
+                  label: Text(l10n.plan_route_from_here),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Same entry flow as the trail source screen's planner option — pick a
+  /// travel profile, then open the planner — but centered on [location]
+  /// instead of the user's position.
+  Future<void> _planRouteFrom(ml.Geographic location) async {
+    final bucket = await showTravelProfileSheet(context);
+    if (!mounted || bucket == null) return;
+    context.push(
+      '/route-planner',
+      extra: {
+        'travelProfile': bucket.costing,
+        'costingOptions': bucket.costingOptions,
+        'lat': location.lat,
+        'lon': location.lon,
+      },
     );
   }
 

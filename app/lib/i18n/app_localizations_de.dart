@@ -1213,4 +1213,15 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get offline_trail_search_body =>
       'Verbinde dich mit dem Internet, um nach Routen zu suchen. Heruntergeladene Routen sind verfügbar.';
+
+  @override
+  String get selected_location => 'Ausgewählter Ort';
+
+  @override
+  String distance_from_your_location(String distance) {
+    return '$distance von deinem Standort';
+  }
+
+  @override
+  String get plan_route_from_here => 'Route von hier planen';
 }

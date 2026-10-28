@@ -660,5 +660,8 @@
   "offline_trail_search_body": "Chcete-li vyhledávat trasy, připojte se k internetu. Stažené trasy jsou nadále dostupné.",
   "@offline_trail_search_body": {
     "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
-  }
+  },
+  "selected_location": "Selected location",
+  "distance_from_your_location": "{distance} from your location",
+  "plan_route_from_here": "Plan route from here"
 }

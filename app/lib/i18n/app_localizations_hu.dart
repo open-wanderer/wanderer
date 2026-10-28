@@ -1199,4 +1199,15 @@ class AppLocalizationsHu extends AppLocalizations {
   @override
   String get offline_trail_search_body =>
       'Connect to the internet to search for trails. Downloaded trails are still available.';
+
+  @override
+  String get selected_location => 'Selected location';
+
+  @override
+  String distance_from_your_location(String distance) {
+    return '$distance from your location';
+  }
+
+  @override
+  String get plan_route_from_here => 'Plan route from here';
 }

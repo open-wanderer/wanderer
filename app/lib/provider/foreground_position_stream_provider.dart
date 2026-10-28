@@ -59,15 +59,19 @@ final foregroundPositionStreamProvider =
 /// Scopes a live GPS subscription to widget lifetime.
 ///
 /// Watching this acquires the receiver; when the last watcher is disposed
-/// the receiver stops. Returns the same broadcast stream as
-/// [foregroundPositionStreamProvider] so error handling (service disabled /
-/// permission denied) is unchanged for callers.
+/// the receiver stops. Returns [ForegroundPositionStream.replaying] —
+/// the same events as [foregroundPositionStreamProvider], errors (service
+/// disabled / permission denied) included, but each new listener first gets
+/// the latest fix. Without that, a widget mounted after the first fix (a
+/// location button re-shown after a panel closes) waited forever on a
+/// stationary device, which emits nothing more under `_settings`' distance
+/// filter.
 final liveLocationProvider =
     Provider.autoDispose<Stream<LocationMarkerPosition?>>((ref) {
       final notifier = ref.read(foregroundPositionStreamProvider.notifier);
       notifier.acquire();
       ref.onDispose(notifier.release);
-      return ref.read(foregroundPositionStreamProvider);
+      return notifier.replaying;
     });
 
 class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
@@ -75,6 +79,15 @@ class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<ServiceStatus>? _statusSub;
   late StreamController<LocationMarkerPosition?> _controller;
+
+  /// The most recent fix from the running receiver, replayed to new
+  /// [replaying] listeners. Cleared whenever the receiver stops or reports
+  /// a reset/error, so it never outlives the session that produced it.
+  LocationMarkerPosition? _latest;
+
+  /// Broadcast view of [state] that hands each new listener [_latest]
+  /// before forwarding live events.
+  late Stream<LocationMarkerPosition?> replaying;
 
   /// Number of live consumers. The receiver runs only while this is > 0.
   int _consumers = 0;
@@ -235,6 +248,7 @@ class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
   void _cancelPosition() {
     _positionSub?.cancel();
     _positionSub = null;
+    _latest = null;
   }
 
   Future<void> _startPositionStream() async {
@@ -278,15 +292,14 @@ class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
         .listen(
           (pos) {
             if (!_controller.isClosed) {
-              _controller.add(
-                LocationMarkerPosition(
-                  latitude: pos.latitude,
-                  longitude: pos.longitude,
-                  accuracy: pos.accuracy,
-                  heading: pos.heading,
-                  headingAccuracy: pos.headingAccuracy,
-                ),
+              _latest = LocationMarkerPosition(
+                latitude: pos.latitude,
+                longitude: pos.longitude,
+                accuracy: pos.accuracy,
+                heading: pos.heading,
+                headingAccuracy: pos.headingAccuracy,
               );
+              _controller.add(_latest);
             }
           },
           onError: (_) {
@@ -304,6 +317,7 @@ class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
         _statusSub = Geolocator.getServiceStatusStream().listen((status) {
           if (_controller.isClosed) return;
           if (status == ServiceStatus.enabled) {
+            _latest = null;
             _controller.add(null); // reset layer to "locating"
             // Only resume if something is actually watching; otherwise the
             // receiver would restart on a GPS toggle with no consumer.
@@ -342,6 +356,17 @@ class ForegroundPositionStream extends Notifier<Stream<LocationMarkerPosition?>>
     // the receiver — acquire() does.
     final ghost = _controller.stream.listen(null, onError: (_) {});
     ref.onDispose(ghost.cancel);
+
+    replaying = Stream<LocationMarkerPosition?>.multi((listener) {
+      final latest = _latest;
+      if (latest != null) listener.add(latest);
+      final sub = _controller.stream.listen(
+        listener.add,
+        onError: listener.addError,
+        onDone: listener.close,
+      );
+      listener.onCancel = sub.cancel;
+    }, isBroadcast: true);
 
     return _controller.stream;
   }
