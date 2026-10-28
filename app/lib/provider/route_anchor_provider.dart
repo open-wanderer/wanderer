@@ -513,7 +513,16 @@ class RouteAnchors extends _$RouteAnchors {
   /// Resets the single keepAlive instance to a brand-new empty session.
   /// Called once at planner-screen mount so a re-entry never leaks the
   /// previous session's route. Cancels every in-flight request first.
-  void resetForSession(String profile, Map<String, dynamic>? opts) {
+  ///
+  /// [startAnchor] seeds the session's first anchor (planning "from here"
+  /// off a tapped map location). Like [seedFromTrack]'s seed it is part of
+  /// the baseline, not an undoable edit — so it does not go through
+  /// [appendAnchor].
+  void resetForSession(
+    String profile,
+    Map<String, dynamic>? opts, {
+    Geographic? startAnchor,
+  }) {
     for (final token in _inFlight.values) {
       token.cancel();
     }
@@ -530,8 +539,16 @@ class RouteAnchors extends _$RouteAnchors {
     _elevationInFlight.clear();
     _elevationGeneration.clear();
 
+    final start = startAnchor == null
+        ? null
+        : RouteAnchor(
+            id: UniqueKey().toString(),
+            lat: startAnchor.lat,
+            lon: startAnchor.lon,
+          );
+
     state = RouteAnchorsState(
-      anchors: const [],
+      anchors: [?start],
       segments: const [],
       autoRoutingEnabled: true,
       travelProfile: profile,
@@ -539,6 +556,7 @@ class RouteAnchors extends _$RouteAnchors {
       undoStack: const [],
       redoStack: const [],
     );
+    if (start != null) _resolveAnchorLocation(start.id, start).ignore();
   }
 
   /// Seeds the single keepAlive instance from an existing track's

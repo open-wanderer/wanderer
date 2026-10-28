@@ -682,6 +682,34 @@ void main() {
         expect(result.costingOptions, isNull);
       },
     );
+
+    test(
+      'resetForSession with startAnchor seeds one anchor that undo cannot '
+      'remove, and the next append connects to it',
+      () async {
+        final container = _buildThreeAnchorSeededContainer(
+          (options, index) async => const _CannedResponse.failure(),
+          autoRoutingEnabled: false,
+        );
+        final notifier = container.read(routeAnchorsProvider.notifier);
+
+        notifier.resetForSession('pedestrian', null, startAnchor: _anchorA);
+
+        var result = container.read(routeAnchorsProvider);
+        expect(result.anchors.map((a) => a.point), [_anchorA]);
+        expect(result.segments, isEmpty);
+        expect(result.undoStack, isEmpty);
+
+        notifier.appendAnchor(_anchorB);
+        result = container.read(routeAnchorsProvider);
+        expect(result.anchors.map((a) => a.point), [_anchorA, _anchorB]);
+        expect(result.segments, hasLength(1));
+
+        notifier.undo();
+        result = container.read(routeAnchorsProvider);
+        expect(result.anchors.map((a) => a.point), [_anchorA]);
+      },
+    );
   });
 
   group('RouteAnchors - seedFromTrack (quick-260718-e9j)', () {

@@ -363,12 +363,16 @@ class Router extends _$Router {
             // preserves the original recorded route until the user edits it.
             final seedSegmentPolylines =
                 extra?['seedSegmentPolylines'] as List<List<Geographic>>?;
+            // Ignored without a real lat/lon — it would anchor (0,0).
+            final anchorAtCenter =
+                extra?['anchorAtCenter'] == true && lat != null && lon != null;
             return RoutePlannerScreen(
               travelProfile: profile,
               initialCostingOptions: costingOptions,
               initialCenter: center,
               seedAnchors: seedAnchors,
               seedSegmentPolylines: seedSegmentPolylines,
+              anchorAtCenter: anchorAtCenter,
             );
           },
         ),

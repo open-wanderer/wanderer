@@ -1204,7 +1204,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   /// Same entry flow as the trail source screen's planner option — pick a
   /// travel profile, then open the planner — but centered on [location]
-  /// instead of the user's position.
+  /// instead of the user's position, with [location] as the first anchor.
   Future<void> _planRouteFrom(ml.Geographic location) async {
     final bucket = await showTravelProfileSheet(context);
     if (!mounted || bucket == null) return;
@@ -1215,6 +1215,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
         'costingOptions': bucket.costingOptions,
         'lat': location.lat,
         'lon': location.lon,
+        'anchorAtCenter': true,
       },
     );
   }

@@ -54,6 +54,10 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
   /// pair(s) in [RouteAnchors.seedFromTrack].
   final List<List<ml.Geographic>>? seedSegmentPolylines;
 
+  /// When true, a new (non-edit) session starts with an anchor at
+  /// [initialCenter] — the map screen's "Plan route from here".
+  final bool anchorAtCenter;
+
   const RoutePlannerScreen({
     super.key,
     required this.travelProfile,
@@ -61,6 +65,7 @@ class RoutePlannerScreen extends ConsumerStatefulWidget {
     required this.initialCenter,
     this.seedAnchors,
     this.seedSegmentPolylines,
+    this.anchorAtCenter = false,
   });
 
   @override
@@ -131,6 +136,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             .resetForSession(
               widget.travelProfile,
               widget.initialCostingOptions,
+              startAnchor: widget.anchorAtCenter ? widget.initialCenter : null,
             );
       }
       setState(() => _sessionReady = true);
