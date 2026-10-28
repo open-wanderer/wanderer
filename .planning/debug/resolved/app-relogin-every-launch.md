@@ -1,5 +1,5 @@
 ---
-status: awaiting_reporter
+status: resolved
 trigger: "#1411. Probably too little info to infer a full causation chain. Let me know what info I should ask for"
 goal: find_and_fix
 created: 2026-10-19
@@ -129,7 +129,18 @@ next_action: |
 
 ## Resolution
 
-root_cause:
-fix:
-verification:
-files_changed: []
+root_cause: |
+  User.toEntity() saved UserEntity.serverUrl from the actor IRI. The backend
+  mints the IRI from ORIGIN at account creation and never updates it. The
+  reporter's account was created on an LXC under its IP, and the instance
+  later moved to Docker behind a domain. On every cold start Auth.build
+  pointed the API at the old IP and looked up pb_auth under that host,
+  found none, and showed the welcome screen. Confirmed by the reporter: the
+  iri field holds the old LXC IP.
+fix: |
+  toEntity takes the URL the client is talking to (Api.serverUrl, the
+  normalized selected server). serverUrlFromActorIri removed.
+verification: |
+  Regression test test/models/user_test.dart; full app suite passes (1419).
+  Not yet verified on the reporter's device.
+files_changed: [app/lib/models/user.dart, app/lib/provider/api_provider.dart, app/lib/provider/auth_provider.dart, app/lib/util/server_url.dart, app/test/models/user_test.dart, app/test/util/server_url_test.dart]
