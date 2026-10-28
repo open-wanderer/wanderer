@@ -241,6 +241,7 @@ class Router extends _$Router {
                 return MapScreen(
                   initialCenter: initialCenter,
                   initialZoom: initialZoom,
+                  focusRequest: state.extra,
                 );
               },
             ),

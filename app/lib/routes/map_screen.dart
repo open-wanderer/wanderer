@@ -54,7 +54,19 @@ class MapScreen extends ConsumerStatefulWidget {
   final ml.Geographic? initialCenter;
   final double? initialZoom;
 
-  const MapScreen({super.key, this.initialCenter, this.initialZoom});
+  /// The navigation that asked for [initialCenter]; a different object means
+  /// a new request to fly there. Compared by identity, not by coordinates:
+  /// picking the same place again after the camera moved away (own-location
+  /// button, panning) must still fly, while a plain rebuild of the same
+  /// route must not.
+  final Object? focusRequest;
+
+  const MapScreen({
+    super.key,
+    this.initialCenter,
+    this.initialZoom,
+    this.focusRequest,
+  });
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
@@ -171,7 +183,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
   void didUpdateWidget(MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     final newCenter = widget.initialCenter;
-    if (newCenter != null && newCenter != oldWidget.initialCenter) {
+    if (newCenter != null &&
+        !identical(widget.focusRequest, oldWidget.focusRequest)) {
       final controller = _controller;
       if (controller == null) return;
       controller
