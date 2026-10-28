@@ -42,6 +42,7 @@ import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/provider/trail/trail_polyline_provider.dart';
 import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/gpx/conversion.dart' show haversineMeters;
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:wanderer/util/map/sheet_metrics.dart';
 
 /// Zoom used when centering on a specific point (GPS fix or saved home
@@ -273,7 +274,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref.read(trailPolylineProvider(trailId).future).then((polyline) {
       if (!mounted || _selectedTrail?.id != trailId) return;
       if (polyline != null) {
-        _controller?.fitBounds(
+        _controller?.fitBoundsKeepingRotation(
           bounds: ml.LngLatBounds.fromPoints(polyline),
           padding: const EdgeInsets.fromLTRB(40, 56, 40, 248),
           nativeDuration: const Duration(milliseconds: 750),

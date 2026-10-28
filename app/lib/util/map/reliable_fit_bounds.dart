@@ -19,6 +19,29 @@ const int _kMaxAttempts = 5;
 /// laying out the platform view before the next attempt.
 const Duration _kRetryDelay = Duration(milliseconds: 100);
 
+extension FitBoundsKeepingRotation on ml.MapController {
+  /// [ml.MapController.fitBounds] that keeps the current bearing and pitch.
+  ///
+  /// maplibre_android 0.3.5 sends an omitted bearing/pitch as `-1.0`, which
+  /// the SDK's `CameraBoundsUpdate` forwards to native as a literal value
+  /// rather than "keep current" — every fit rotated the map by 1°, enough to
+  /// show the compass. iOS ignores both arguments.
+  Future<void> fitBoundsKeepingRotation({
+    required ml.LngLatBounds bounds,
+    EdgeInsets padding = EdgeInsets.zero,
+    Duration nativeDuration = const Duration(seconds: 2),
+  }) {
+    final camera = getCamera();
+    return fitBounds(
+      bounds: bounds,
+      bearing: camera.bearing,
+      pitch: camera.pitch,
+      padding: padding,
+      nativeDuration: nativeDuration,
+    );
+  }
+}
+
 /// Calls [ml.MapController.fitBounds] and verifies the camera actually
 /// changed, retrying a few times if it didn't.
 ///
@@ -48,7 +71,7 @@ Future<void> fitBoundsReliably(
   final before = controller.getCamera();
 
   for (var attempt = 0; attempt < _kMaxAttempts; attempt++) {
-    await controller.fitBounds(
+    await controller.fitBoundsKeepingRotation(
       bounds: bounds,
       padding: padding,
       nativeDuration: nativeDuration,

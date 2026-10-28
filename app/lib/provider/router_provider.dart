@@ -17,6 +17,7 @@ import 'package:wanderer/provider/pending_trail_import_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 import 'package:wanderer/routes/global_search_screen.dart';
 import 'package:wanderer/routes/home_screen.dart';
+import 'package:wanderer/util/map/map_page.dart';
 import 'package:wanderer/routes/library_screen.dart';
 import 'package:wanderer/routes/list_detail_map_screen.dart';
 import 'package:wanderer/routes/list_detail_screen.dart';
@@ -324,10 +325,10 @@ class Router extends _$Router {
         ),
         GoRoute(
           path: '/settings/region/map',
-          builder: (context, state) {
+          pageBuilder: mapPageBuilder((context, state) {
             final path = state.uri.queryParameters['path'] ?? '';
             return SettingsOfflineRegionsMapScreen(path: path);
-          },
+          }),
         ),
         GoRoute(
           path: '/search',
@@ -347,7 +348,7 @@ class Router extends _$Router {
         ),
         GoRoute(
           path: '/route-planner',
-          builder: (context, state) {
+          pageBuilder: mapPageBuilder((context, state) {
             final extra = state.extra as Map<String, dynamic>?;
             final profile = extra?['travelProfile'] as String? ?? 'pedestrian';
             final costingOptions =
@@ -375,11 +376,11 @@ class Router extends _$Router {
               seedSegmentPolylines: seedSegmentPolylines,
               anchorAtCenter: anchorAtCenter,
             );
-          },
+          }),
         ),
         GoRoute(
           path: '/record',
-          builder: (context, state) {
+          pageBuilder: mapPageBuilder((context, state) {
             // extra: either an ActiveNavigationEntity resume seed when
             // re-entering an in-progress recording (see main.dart's
             // _maybeResume rec branch), or a {'lat', 'lon', 'position',
@@ -418,11 +419,11 @@ class Router extends _$Router {
               initialPosition: seedPosition,
               recordingCosting: recordingCosting,
             );
-          },
+          }),
         ),
         GoRoute(
           path: '/trail/create/edit',
-          builder: (context, state) {
+          pageBuilder: mapPageBuilder((context, state) {
             final extra = state.extra;
             if (extra is Trail) {
               pendingImportedTrail = null;
@@ -434,7 +435,7 @@ class Router extends _$Router {
             final pending = pendingImportedTrail;
             if (pending != null) return TrailCreateScreen(trail: pending);
             return const TrailSourceSelectScreen();
-          },
+          }),
         ),
         GoRoute(
           // Declared before '/trail/:id' by convention (same as
@@ -451,10 +452,10 @@ class Router extends _$Router {
           routes: [
             GoRoute(
               path: 'map',
-              builder: (context, state) {
+              pageBuilder: mapPageBuilder((context, state) {
                 final localId = state.pathParameters['localId']!;
                 return TrailDetailMapScreen(id: '', localId: localId);
-              },
+              }),
             ),
           ],
         ),
@@ -467,14 +468,14 @@ class Router extends _$Router {
           routes: [
             GoRoute(
               path: 'map',
-              builder: (context, state) {
+              pageBuilder: mapPageBuilder((context, state) {
                 final trailId = state.pathParameters['id']!;
                 return TrailDetailMapScreen(id: trailId);
-              },
+              }),
             ),
             GoRoute(
               path: 'navigate',
-              builder: (context, state) {
+              pageBuilder: mapPageBuilder((context, state) {
                 final trailId = state.pathParameters['id']!;
                 final extra = state.extra;
                 if (extra
@@ -493,7 +494,7 @@ class Router extends _$Router {
                   resumeSession: resumeSession,
                   initialPosition: seedPosition,
                 );
-              },
+              }),
             ),
           ],
         ),
@@ -514,10 +515,10 @@ class Router extends _$Router {
           routes: [
             GoRoute(
               path: 'map',
-              builder: (context, state) {
+              pageBuilder: mapPageBuilder((context, state) {
                 final listId = state.pathParameters['id']!;
                 return ListDetailMapScreen(id: listId);
-              },
+              }),
             ),
           ],
         ),
@@ -537,10 +538,10 @@ class Router extends _$Router {
               routes: [
                 GoRoute(
                   path: 'map',
-                  builder: (context, state) {
+                  pageBuilder: mapPageBuilder((context, state) {
                     final handle = state.pathParameters['handle']!;
                     return ProfileTrailMapScreen(handle: handle);
-                  },
+                  }),
                 ),
               ],
             ),

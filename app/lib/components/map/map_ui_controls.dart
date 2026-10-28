@@ -89,7 +89,16 @@ class _WandererMapCompassState extends State<WandererMapCompass> {
           child: InkWell(
             onTap: () {
               if (widget.rotateNorthOnPressed) {
+                // animateCamera always sends a padding (zero by default),
+                // which drops the inset a padded fitBounds left behind and
+                // re-centers the view. Pinning the center to what is on
+                // screen now keeps the rotation in place. The compass
+                // Container fills the map, so its size is the map's.
+                final size = (context.findRenderObject() as RenderBox?)?.size;
                 controller.animateCamera(
+                  center: size == null
+                      ? null
+                      : controller.toLngLat(size.center(Offset.zero)),
                   bearing: 0,
                   nativeDuration: const Duration(milliseconds: 200),
                 );

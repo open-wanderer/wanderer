@@ -6,6 +6,8 @@
 // coordinates. It supports both collapsed selections (cursor) and range
 // selections (highlighted rectangles).
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../engine/protocol_types.dart';
@@ -47,10 +49,15 @@ class EditorSelectionOverlay extends StatefulWidget {
   State<EditorSelectionOverlay> createState() => _EditorSelectionOverlayState();
 }
 
-class _EditorSelectionOverlayState extends State<EditorSelectionOverlay>
-    with SingleTickerProviderStateMixin {
-  /// Animation controller for the cursor blink effect.
-  late AnimationController _blinkController;
+class _EditorSelectionOverlayState extends State<EditorSelectionOverlay> {
+  /// Toggles the caret every half second while the editor has focus.
+  ///
+  /// A [Timer], not an AnimationController: a controller's ticker requests a
+  /// frame on every vsync for as long as it runs, so a 500 ms blink kept the
+  /// whole host screen redrawing at the display's refresh rate. It also
+  /// started in initState regardless of focus, so every screen showing an
+  /// unfocused editor redrew continuously.
+  Timer? _blinkTimer;
 
   /// Whether the cursor is currently visible in the blink cycle.
   bool _cursorVisible = true;
@@ -58,62 +65,43 @@ class _EditorSelectionOverlayState extends State<EditorSelectionOverlay>
   @override
   void initState() {
     super.initState();
-    _blinkController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _blinkController.addStatusListener(_onBlinkStatus);
-    _startBlinking();
+    if (widget.hasFocus) _startBlinking();
   }
 
   @override
   void didUpdateWidget(EditorSelectionOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    /// Reset the blink cycle when the selection changes so the cursor
-    /// is immediately visible at its new position.
-    if (oldWidget.selection != widget.selection) {
-      _resetBlink();
-    }
     if (oldWidget.hasFocus != widget.hasFocus) {
       if (widget.hasFocus) {
         _startBlinking();
       } else {
         _stopBlinking();
       }
-    }
-  }
-
-  void _onBlinkStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      setState(() {
-        _cursorVisible = !_cursorVisible;
-      });
-      _blinkController.forward(from: 0);
+    } else if (widget.hasFocus && oldWidget.selection != widget.selection) {
+      /// Restart the blink cycle when the selection changes so the cursor
+      /// is immediately visible at its new position.
+      _startBlinking();
     }
   }
 
   void _startBlinking() {
     _cursorVisible = true;
-    _blinkController.forward(from: 0);
+    _blinkTimer?.cancel();
+    _blinkTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      setState(() => _cursorVisible = !_cursorVisible);
+    });
   }
 
   void _stopBlinking() {
-    _blinkController.stop();
+    _blinkTimer?.cancel();
+    _blinkTimer = null;
     _cursorVisible = false;
-  }
-
-  void _resetBlink() {
-    _blinkController.stop();
-    setState(() {
-      _cursorVisible = true;
-    });
-    _blinkController.forward(from: 0);
   }
 
   @override
   void dispose() {
-    _blinkController.dispose();
+    _blinkTimer?.cancel();
     super.dispose();
   }
 

@@ -224,12 +224,21 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 ? 164 + 12
                 : MediaQuery.paddingOf(context).bottom + 16,
             right: 16,
-            child: CenterOnLocationButton(
-              onPressed: (center) => _mapController?.animateCamera(
-                center: center,
-                zoom: 14,
-                nativeDuration: const Duration(milliseconds: 750),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (state.anchors.length >= 2) ...[
+                  _buildFitRouteButton(state),
+                  const SizedBox(height: 12),
+                ],
+                CenterOnLocationButton(
+                  onPressed: (center) => _mapController?.animateCamera(
+                    center: center,
+                    zoom: 14,
+                    nativeDuration: const Duration(milliseconds: 750),
+                  ),
+                ),
+              ],
             ),
           ),
           // The tabbed sheet mounts only once the route has >=1 anchor, and
@@ -253,31 +262,18 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     final controller = _mapController;
     if (controller == null || !_editMode) return;
 
-    final points = <ml.Geographic>[
+    final bounds = _routeBounds([
       for (final polyline
           in widget.seedSegmentPolylines ?? const <List<ml.Geographic>>[])
         ...polyline,
       // A seeded session with no polylines still has anchors to frame.
       ...?widget.seedAnchors,
-    ];
-    if (points.isEmpty) return;
+    ]);
+    // initCenter/initZoom already frame a single point.
+    if (bounds == null) return;
 
-    final bounds = ml.LngLatBounds.fromPoints(points);
-    final hasExtent =
-        bounds.latitudeNorth != bounds.latitudeSouth ||
-        bounds.longitudeEast != bounds.longitudeWest;
-    if (!hasExtent) return; // initCenter/initZoom already frame a single point.
-
-    // The map fills the whole screen (extendBodyBehindAppBar), so inset for
-    // the two things floating over it: the transparent app bar up top and
-    // RouteAnchorSheet's 164px docked peek at the bottom. Read before the
-    // await, while the frame's MediaQuery is still current.
-    final padding = EdgeInsets.fromLTRB(
-      32,
-      MediaQuery.paddingOf(context).top + kToolbarHeight + 16,
-      32,
-      164 + 16,
-    );
+    // Read before the await, while the frame's MediaQuery is still current.
+    final padding = _routePadding(context);
 
     // Duration.zero is avoided: the Android binding passes it to
     // `animateCamera` as null, which throws. Mirrors TrailMap's fit.
@@ -289,6 +285,39 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       nativeDuration: const Duration(milliseconds: 1),
     );
   }
+
+  /// Frames the route as currently planned, from the fit-to-route button.
+  void _fitCurrentRoute(RouteAnchorsState state) {
+    final bounds = _routeBounds([
+      for (final segment in state.segments) ...segment.polyline,
+      for (final anchor in state.anchors) anchor.point,
+    ]);
+    if (bounds == null) return;
+    _mapController?.fitBoundsKeepingRotation(
+      bounds: bounds,
+      padding: _routePadding(context),
+    );
+  }
+
+  /// Bounds of [points], or `null` when they don't span an area to fit.
+  ml.LngLatBounds? _routeBounds(List<ml.Geographic> points) {
+    if (points.isEmpty) return null;
+    final bounds = ml.LngLatBounds.fromPoints(points);
+    final hasExtent =
+        bounds.latitudeNorth != bounds.latitudeSouth ||
+        bounds.longitudeEast != bounds.longitudeWest;
+    return hasExtent ? bounds : null;
+  }
+
+  /// The map fills the whole screen (extendBodyBehindAppBar), so inset for
+  /// the two things floating over it: the transparent app bar up top and
+  /// RouteAnchorSheet's 164px docked peek at the bottom.
+  EdgeInsets _routePadding(BuildContext context) => EdgeInsets.fromLTRB(
+    32,
+    MediaQuery.paddingOf(context).top + kToolbarHeight + 16,
+    32,
+    164 + 16,
+  );
 
   Widget _buildMap(
     BuildContext context,
@@ -505,6 +534,21 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               ? ref.read(routeAnchorsProvider.notifier).redo
               : null,
         ),
+      ),
+    );
+  }
+
+  /// Fit-to-route button, stacked above [CenterOnLocationButton] and styled
+  /// to match it. Uses the trail detail map's expand icon.
+  Widget _buildFitRouteButton(RouteAnchorsState state) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: 4,
+      shadowColor: Colors.black26,
+      shape: const CircleBorder(),
+      child: IconButton(
+        icon: const FaIcon(FontAwesomeIcons.expand, size: 18),
+        onPressed: () => _fitCurrentRoute(state),
       ),
     );
   }

@@ -1354,9 +1354,11 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                         ),
                       ],
                     ),
+                    // The form goes in as `child` so a drag, which changes
+                    // `_sheetSize` every frame, only re-pads it. Built inside
+                    // the builder it was rebuilt in full on every drag frame.
                     child: ValueListenableBuilder<double>(
                       valueListenable: _sheetSize,
-
                       builder: (context, size, child) {
                         return Padding(
                           padding: EdgeInsets.only(
@@ -1364,25 +1366,26 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                                 ? _getDynamicPadding(size)
                                 : 8.0,
                           ),
-                          child: TrailForm(
-                            scrollController: scrollController,
-                            formKey: _formKey,
-                            trail: trail,
-                            onCreateWaypoint: (context) =>
-                                _onCreateWaypoint(context),
-                            onCreateWaypointsFromPhotos:
-                                _onCreateWaypointsFromPhotos,
-                            onEditWaypoint: _onEditWaypoint,
-                            onDeleteWaypoint: _onDeleteWaypoint,
-                            onPhotosChanged: _onServerPhotosChanged,
-                            onElevationLineTouch: (p) => setState(
-                              () => _elevationMarkerPosition = p?.lonlat,
-                            ),
-                            transformingTrack: _transformingTrack,
-                            onTrackTransformsChanged: _onTrackTransformsChanged,
-                          ),
+                          child: child,
                         );
                       },
+                      child: TrailForm(
+                        scrollController: scrollController,
+                        formKey: _formKey,
+                        trail: trail,
+                        onCreateWaypoint: (context) =>
+                            _onCreateWaypoint(context),
+                        onCreateWaypointsFromPhotos:
+                            _onCreateWaypointsFromPhotos,
+                        onEditWaypoint: _onEditWaypoint,
+                        onDeleteWaypoint: _onDeleteWaypoint,
+                        onPhotosChanged: _onServerPhotosChanged,
+                        onElevationLineTouch: (p) => setState(
+                          () => _elevationMarkerPosition = p?.lonlat,
+                        ),
+                        transformingTrack: _transformingTrack,
+                        onTrackTransformsChanged: _onTrackTransformsChanged,
+                      ),
                     ),
                   );
                 },
@@ -1454,10 +1457,14 @@ class TrailForm extends ConsumerWidget {
             Divider(),
             SizedBox(height: 12),
             if (trail.expand?.gpx != null)
-              ElevationProfile(
-                trail: trail,
-                gpx: trail.expand!.gpx!,
-                onLineTouch: onElevationLineTouch,
+              // The chart draws every track point as a curve; isolated so the
+              // sheet resizing during a drag doesn't redraw it each frame.
+              RepaintBoundary(
+                child: ElevationProfile(
+                  trail: trail,
+                  gpx: trail.expand!.gpx!,
+                  onLineTouch: onElevationLineTouch,
+                ),
               ),
             SizedBox(height: 12),
             if (trail.originalGpxData != null) ...[

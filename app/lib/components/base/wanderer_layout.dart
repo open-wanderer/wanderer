@@ -50,74 +50,87 @@ class WandererLayout extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
-      extendBody: true,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'new_trail',
-        shape: const StadiumBorder(),
-        elevation: 2,
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? Theme.of(context).colorScheme.secondaryContainer
-            : Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        onPressed: () => router.pushReplacement('/trail/create'),
-        child: const FaIcon(FontAwesomeIcons.plus, size: 18),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Theme.of(context).colorScheme.surface,
-        height: kBottomNavigationBarHeight,
-        padding: EdgeInsets.zero,
-        // `extendBody: true` puts the page content directly behind the bar, and
-        // Material alone doesn't absorb pointer events — without this, taps in
-        // the gaps between nav items fall through to the page underneath.
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {},
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
-                label: AppLocalizations.of(context)!.trail(2),
-                selected: selectedIndex == 0,
-                selectedColor: selectedColor,
-                unselectedColor: unselectedColor,
-                onTap: () => onTap(0),
-              ),
-              _NavItem(
-                icon: const FaIcon(FontAwesomeIcons.list),
-                label: AppLocalizations.of(context)!.list(2),
-                selected: selectedIndex == 1,
-                selectedColor: selectedColor,
-                unselectedColor: unselectedColor,
-                onTap: () => onTap(1),
-              ),
-              const SizedBox(width: kBottomNavigationBarHeight - 16),
-              _NavItem(
-                icon: const FaIcon(FontAwesomeIcons.bookAtlas),
-                label: AppLocalizations.of(context)!.library,
-                selected: selectedIndex == 2,
-                selectedColor: selectedColor,
-                unselectedColor: unselectedColor,
-                onTap: () => onTap(2),
-              ),
-              _NavItem(
-                icon: _NavAvatar(user: user, isOnline: isOnline),
-                label: AppLocalizations.of(context)!.profile,
-                selected: selectedIndex == 3,
-                selectedColor: selectedColor,
-                unselectedColor: unselectedColor,
-                onTap: () => onTap(3),
-              ),
-            ],
+    // A tab other than the map is a root screen with nothing beneath it, so
+    // system back would close the app. Send it to the map instead; back on
+    // the map itself still exits. Only consulted while the shell is the top
+    // route — screens pushed over it pop as usual.
+    final isRootTab =
+        router.state.uri.path != '/map' && !Navigator.of(context).canPop();
+
+    return PopScope(
+      canPop: !isRootTab,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) router.go('/map');
+      },
+      child: Scaffold(
+        extendBody: true,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'new_trail',
+          shape: const StadiumBorder(),
+          elevation: 2,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.secondaryContainer
+              : Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          onPressed: () => router.pushReplacement('/trail/create'),
+          child: const FaIcon(FontAwesomeIcons.plus, size: 18),
+        ),
+        bottomNavigationBar: BottomAppBar(
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 8,
+          color: Theme.of(context).colorScheme.surface,
+          height: kBottomNavigationBarHeight,
+          padding: EdgeInsets.zero,
+          // `extendBody: true` puts the page content directly behind the bar, and
+          // Material alone doesn't absorb pointer events — without this, taps in
+          // the gaps between nav items fall through to the page underneath.
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  icon: const FaIcon(FontAwesomeIcons.mapLocationDot),
+                  label: AppLocalizations.of(context)!.trail(2),
+                  selected: selectedIndex == 0,
+                  selectedColor: selectedColor,
+                  unselectedColor: unselectedColor,
+                  onTap: () => onTap(0),
+                ),
+                _NavItem(
+                  icon: const FaIcon(FontAwesomeIcons.list),
+                  label: AppLocalizations.of(context)!.list(2),
+                  selected: selectedIndex == 1,
+                  selectedColor: selectedColor,
+                  unselectedColor: unselectedColor,
+                  onTap: () => onTap(1),
+                ),
+                const SizedBox(width: kBottomNavigationBarHeight - 16),
+                _NavItem(
+                  icon: const FaIcon(FontAwesomeIcons.bookAtlas),
+                  label: AppLocalizations.of(context)!.library,
+                  selected: selectedIndex == 2,
+                  selectedColor: selectedColor,
+                  unselectedColor: unselectedColor,
+                  onTap: () => onTap(2),
+                ),
+                _NavItem(
+                  icon: _NavAvatar(user: user, isOnline: isOnline),
+                  label: AppLocalizations.of(context)!.profile,
+                  selected: selectedIndex == 3,
+                  selectedColor: selectedColor,
+                  unselectedColor: unselectedColor,
+                  onTap: () => onTap(3),
+                ),
+              ],
+            ),
           ),
         ),
+        body:
+            child, // Removed Center() to let the child page handle its own layout
       ),
-      body:
-          child, // Removed Center() to let the child page handle its own layout
     );
   }
 

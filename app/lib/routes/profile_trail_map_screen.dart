@@ -205,7 +205,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
     ref.read(trailPolylineProvider(trailId).future).then((polyline) {
       if (!mounted || _selectedTrail?.id != trailId) return;
       if (polyline != null) {
-        _controller?.fitBounds(
+        _controller?.fitBoundsKeepingRotation(
           bounds: ml.LngLatBounds.fromPoints(polyline),
           padding: const EdgeInsets.fromLTRB(40, 56, 40, 248),
           nativeDuration: const Duration(milliseconds: 750),

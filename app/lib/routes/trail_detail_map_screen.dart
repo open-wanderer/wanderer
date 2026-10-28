@@ -15,6 +15,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_provider.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
+import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 
 class TrailDetailMapScreen extends ConsumerStatefulWidget {
   final String id;
@@ -278,7 +279,10 @@ class _TrailDetailMapScreenState extends ConsumerState<TrailDetailMapScreen> {
                         right: 40,
                         top: 40,
                       );
-                _mapController?.fitBounds(bounds: bounds, padding: padding);
+                _mapController?.fitBoundsKeepingRotation(
+                  bounds: bounds,
+                  padding: padding,
+                );
               },
             ),
             IconButton(

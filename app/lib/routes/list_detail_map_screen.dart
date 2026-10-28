@@ -40,7 +40,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
     setState(() => _selectedTrail = null);
     final bounds = _combinedBoundsCache;
     if (bounds != null) {
-      _controller?.fitBounds(
+      _controller?.fitBoundsKeepingRotation(
         bounds: bounds,
         padding: const EdgeInsets.all(40),
         nativeDuration: const Duration(milliseconds: 750),
@@ -58,7 +58,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
       latitudeSouth: trail.minLat,
     );
 
-    _controller?.fitBounds(
+    _controller?.fitBoundsKeepingRotation(
       bounds: bounds,
       padding: const EdgeInsets.fromLTRB(40, 56, 40, 120),
       nativeDuration: const Duration(milliseconds: 750),
