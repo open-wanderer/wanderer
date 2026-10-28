@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/base/wanderer_no_results.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/components/trail/trail_quick_filter_bar.dart';
@@ -25,6 +26,7 @@ class ProfileTrailScreen extends ConsumerStatefulWidget {
 
 class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
   late final ScrollController _scrollController;
+  String _query = '';
 
   @override
   void initState() {
@@ -99,9 +101,12 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: WandererSearchBar(
               hintText: l10n.search,
-              onChanged: (q) => ref
-                  .read(profileTrailsProvider(widget.handle).notifier)
-                  .search(q),
+              onChanged: (q) {
+                setState(() => _query = q.trim());
+                ref
+                    .read(profileTrailsProvider(widget.handle).notifier)
+                    .search(q);
+              },
             ),
           ),
           TrailQuickFilterBar(filterId: 'profile_trail_${widget.handle}'),
@@ -166,7 +171,9 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                           profileTrailsProvider(widget.handle),
                         ),
                         child: state.trails.isEmpty
-                            ? (state.isOwnHandle
+                            ? (_query.isNotEmpty
+                                  ? WandererNoResults(query: _query)
+                                  : state.isOwnHandle
                                   ? _OwnTrailsEmptyState(
                                       icon: FontAwesomeIcons.cloudArrowUp,
                                       title: l10n.own_trails_empty_title,

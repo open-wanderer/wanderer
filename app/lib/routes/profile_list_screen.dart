@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/base/wanderer_no_results.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/list/list_list_item.dart';
 import 'package:wanderer/components/list/list_quick_filter_bar.dart';
@@ -19,6 +20,7 @@ class ProfileListScreen extends ConsumerStatefulWidget {
 
 class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
   late final ScrollController _scrollController;
+  String _query = '';
 
   @override
   void initState() {
@@ -60,9 +62,12 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: WandererSearchBar(
               hintText: AppLocalizations.of(context)!.search,
-              onChanged: (q) => ref
-                  .read(profileListsProvider(widget.handle).notifier)
-                  .search(q),
+              onChanged: (q) {
+                setState(() => _query = q.trim());
+                ref
+                    .read(profileListsProvider(widget.handle).notifier)
+                    .search(q);
+              },
             ),
           ),
           Align(
@@ -78,7 +83,9 @@ class _ProfileListScreenState extends ConsumerState<ProfileListScreen> {
                 onRefresh: () async =>
                     ref.invalidate(profileListsProvider(widget.handle)),
                 child: state.lists.isEmpty
-                    ? _EmptyState()
+                    ? (_query.isNotEmpty
+                          ? WandererNoResults(query: _query)
+                          : _EmptyState())
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

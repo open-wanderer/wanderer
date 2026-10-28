@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:wanderer/components/base/wanderer_no_results.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart';
@@ -195,23 +195,7 @@ class _ResultsList extends StatelessWidget {
     }
 
     if (!state.hasResults) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SvgPicture.asset(
-              "assets/svgs/empty_state_search_${Theme.of(context).brightness.name}.svg",
-              semanticsLabel: 'wanderer comment empty state',
-              height: 120,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              l10n.no_results_for_query(state.query),
-              style: TextStyle(color: Colors.grey.shade500),
-            ),
-          ],
-        ),
-      );
+      return WandererNoResults(query: state.query);
     }
 
     return ListView(
