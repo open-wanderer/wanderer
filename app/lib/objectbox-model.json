@@ -974,10 +974,51 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "13:4676683893580730501",
+      "lastPropertyId": "6:4756847332702777632",
+      "name": "SearchHistoryEntity",
+      "properties": [
+        {
+          "id": "1:22844111561118981",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7143057000820591564",
+          "name": "accountId",
+          "indexId": "25:7709695258168272042",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "3:5251127243326205080",
+          "name": "key",
+          "type": 9
+        },
+        {
+          "id": "4:4258881604691988225",
+          "name": "kind",
+          "type": 9
+        },
+        {
+          "id": "5:2531686859314683909",
+          "name": "payload",
+          "type": 9
+        },
+        {
+          "id": "6:4756847332702777632",
+          "name": "usedAt",
+          "type": 10
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "12:7228865513396600510",
-  "lastIndexId": "24:7121962790424774298",
+  "lastEntityId": "13:4676683893580730501",
+  "lastIndexId": "25:7709695258168272042",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

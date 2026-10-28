@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wanderer/components/base/wanderer_no_results.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/base/wanderer_no_results.dart';
+import 'package:wanderer/components/search/search_history_list.dart';
+import 'package:wanderer/components/search/search_result_tiles.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/global_search_models.dart';
+import 'package:wanderer/models/search_history_item.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
+import 'package:wanderer/provider/search/search_history_provider.dart';
 
 /// Location-only search shell mirroring [GlobalSearchScreen]'s visual
 /// structure, minus the category-chip row and every non-location result
@@ -99,19 +102,40 @@ class _LocationSearchScreenState extends ConsumerState<LocationSearchScreen> {
   }
 }
 
-class _LocationResultsList extends StatelessWidget {
+class _LocationResultsList extends ConsumerWidget {
   final GlobalSearchState state;
 
   const _LocationResultsList({required this.state});
 
+  Widget _tile(BuildContext context, WidgetRef ref, LocationSearchResult l) {
+    return SearchLocationTile(
+      location: l,
+      onTap: () {
+        ref.read(searchHistoryProvider.notifier).record(LocationHistoryItem(l));
+        context.pop(l);
+      },
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (state.query.isEmpty) {
+      final history = ref
+          .watch(searchHistoryProvider)
+          .whereType<LocationHistoryItem>()
+          .toList();
+      if (history.isNotEmpty) {
+        return SearchHistoryList(
+          items: history,
+          tileBuilder: (item) =>
+              _tile(context, ref, (item as LocationHistoryItem).location),
+        );
+      }
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -134,43 +158,7 @@ class _LocationResultsList extends StatelessWidget {
     }
 
     return ListView(
-      children: locations
-          .map((location) => _LocationResultTile(location: location))
-          .toList(),
-    );
-  }
-}
-
-class _LocationResultTile extends StatelessWidget {
-  final LocationSearchResult location;
-
-  const _LocationResultTile({required this.location});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => context.pop(location),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const FaIcon(
-          FontAwesomeIcons.locationDot,
-          size: 18,
-          color: Colors.orange,
-        ),
-      ),
-      title: Text(location.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: location.description.isNotEmpty
-          ? Text(
-              location.description,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-          : null,
+      children: [for (final l in locations) _tile(context, ref, l)],
     );
   }
 }

@@ -43,6 +43,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderOrFamily;
 import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/route_anchor_provider.dart';
+import 'package:wanderer/provider/search/search_history_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
@@ -100,6 +101,9 @@ final accountScopedProviders = <ProviderOrFamily>[
   // row, so Delete stays offered on a trail that is now fully synced.
   localTrailProvider,
   ownLiveCaptureProvider,
+  // Auto-dispose, but the search screens stay mounted under a pushed trail
+  // or profile, so a history read for account A would outlive a switch to B.
+  searchHistoryProvider,
 ];
 
 /// Invalidates every provider in [accountScopedProviders] from widget-tree

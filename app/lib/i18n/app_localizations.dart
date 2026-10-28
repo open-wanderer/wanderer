@@ -2187,6 +2187,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Plan route from here'**
   String get plan_route_from_here;
+
+  /// Heading above the search history shown on the search screens while the query is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get recent_searches;
+
+  /// Tooltip of the trashcan next to the search history heading, and title of its confirmation dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search history'**
+  String get clear_search_history;
+
+  /// Body of the dialog confirming that the whole search history is removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all recent searches?'**
+  String get clear_search_history_confirm;
 }
 
 class _AppLocalizationsDelegate

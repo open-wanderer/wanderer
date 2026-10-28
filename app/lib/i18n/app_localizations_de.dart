@@ -1224,4 +1224,14 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get plan_route_from_here => 'Route von hier planen';
+
+  @override
+  String get recent_searches => 'Letzte Suchanfragen';
+
+  @override
+  String get clear_search_history => 'Suchverlauf löschen';
+
+  @override
+  String get clear_search_history_confirm =>
+      'Alle letzten Suchanfragen entfernen?';
 }

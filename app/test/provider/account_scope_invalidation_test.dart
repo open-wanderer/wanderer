@@ -5,6 +5,7 @@ import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/region/region_provider.dart';
 import 'package:wanderer/provider/region/tile_repository_provider.dart';
+import 'package:wanderer/provider/search/search_history_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/trail/local_trail_provider.dart';
 import 'package:wanderer/provider/trail/trail_download_state_provider.dart';
@@ -53,6 +54,11 @@ void main() {
             'did not record the trail — the exact shape this exists '
             'to eliminate.',
       );
+    });
+
+    test('contains searchHistoryProvider -- the history is per account '
+        'and the search screens stay mounted under pushed routes', () {
+      expect(accountScopedProviders, contains(searchHistoryProvider));
     });
 
     test('contains no duplicate entries', () {

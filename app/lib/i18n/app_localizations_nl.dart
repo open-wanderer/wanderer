@@ -1212,4 +1212,13 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get plan_route_from_here => 'Plan route from here';
+
+  @override
+  String get recent_searches => 'Recent searches';
+
+  @override
+  String get clear_search_history => 'Clear search history';
+
+  @override
+  String get clear_search_history_confirm => 'Remove all recent searches?';
 }

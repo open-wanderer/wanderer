@@ -195,6 +195,9 @@ abstract class LocationSearchResult with _$LocationSearchResult {
     required String category,
     required String type,
   }) = _LocationSearchResult;
+
+  factory LocationSearchResult.fromJson(Map<String, dynamic> json) =>
+      _$LocationSearchResultFromJson(json);
 }
 
 @freezed

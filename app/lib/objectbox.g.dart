@@ -20,6 +20,7 @@ import 'entities/category_entity.dart';
 import 'entities/downloaded_tile_package_entity.dart';
 import 'entities/local_settings_entity.dart';
 import 'entities/region_entity.dart';
+import 'entities/search_history_entity.dart';
 import 'entities/settings_entity.dart';
 import 'entities/subcategory_entity.dart';
 import 'entities/trail_entity.dart';
@@ -1173,6 +1174,53 @@ final _entities = <obx_int.ModelEntity>[
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(13, 4676683893580730501),
+    name: 'SearchHistoryEntity',
+    lastPropertyId: const obx_int.IdUid(6, 4756847332702777632),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 22844111561118981),
+        name: 'obxId',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 7143057000820591564),
+        name: 'accountId',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(25, 7709695258168272042),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 5251127243326205080),
+        name: 'key',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 4258881604691988225),
+        name: 'kind',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 2531686859314683909),
+        name: 'payload',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 4756847332702777632),
+        name: 'usedAt',
+        type: 10,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -1218,8 +1266,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(12, 7228865513396600510),
-    lastIndexId: const obx_int.IdUid(24, 7121962790424774298),
+    lastEntityId: const obx_int.IdUid(13, 4676683893580730501),
+    lastIndexId: const obx_int.IdUid(25, 7709695258168272042),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [1110440324073703466],
@@ -2712,6 +2760,59 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
+    SearchHistoryEntity: obx_int.EntityDefinition<SearchHistoryEntity>(
+      model: _entities[11],
+      toOneRelations: (SearchHistoryEntity object) => [],
+      toManyRelations: (SearchHistoryEntity object) => {},
+      getId: (SearchHistoryEntity object) => object.obxId,
+      setId: (SearchHistoryEntity object, int id) {
+        object.obxId = id;
+      },
+      objectToFB: (SearchHistoryEntity object, fb.Builder fbb) {
+        final accountIdOffset = fbb.writeString(object.accountId);
+        final keyOffset = fbb.writeString(object.key);
+        final kindOffset = fbb.writeString(object.kind);
+        final payloadOffset = fbb.writeString(object.payload);
+        fbb.startTable(7);
+        fbb.addInt64(0, object.obxId);
+        fbb.addOffset(1, accountIdOffset);
+        fbb.addOffset(2, keyOffset);
+        fbb.addOffset(3, kindOffset);
+        fbb.addOffset(4, payloadOffset);
+        fbb.addInt64(5, object.usedAt.millisecondsSinceEpoch);
+        fbb.finish(fbb.endTable());
+        return object.obxId;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final accountIdParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final keyParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final kindParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 10, '');
+        final payloadParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 12, '');
+        final usedAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
+          isUtc: true,
+        );
+        final object = SearchHistoryEntity(
+          accountId: accountIdParam,
+          key: keyParam,
+          kind: kindParam,
+          payload: payloadParam,
+          usedAt: usedAtParam,
+        )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+
+        return object;
+      },
+    ),
   };
 
   return obx_int.ModelDefinition(model, bindings);
@@ -3595,5 +3696,38 @@ class RegionEntity_ {
   /// See [RegionEntity.path].
   static final path = obx.QueryStringProperty<RegionEntity>(
     _entities[10].properties[19],
+  );
+}
+
+/// [SearchHistoryEntity] entity fields to define ObjectBox queries.
+class SearchHistoryEntity_ {
+  /// See [SearchHistoryEntity.obxId].
+  static final obxId = obx.QueryIntegerProperty<SearchHistoryEntity>(
+    _entities[11].properties[0],
+  );
+
+  /// See [SearchHistoryEntity.accountId].
+  static final accountId = obx.QueryStringProperty<SearchHistoryEntity>(
+    _entities[11].properties[1],
+  );
+
+  /// See [SearchHistoryEntity.key].
+  static final key = obx.QueryStringProperty<SearchHistoryEntity>(
+    _entities[11].properties[2],
+  );
+
+  /// See [SearchHistoryEntity.kind].
+  static final kind = obx.QueryStringProperty<SearchHistoryEntity>(
+    _entities[11].properties[3],
+  );
+
+  /// See [SearchHistoryEntity.payload].
+  static final payload = obx.QueryStringProperty<SearchHistoryEntity>(
+    _entities[11].properties[4],
+  );
+
+  /// See [SearchHistoryEntity.usedAt].
+  static final usedAt = obx.QueryDateProperty<SearchHistoryEntity>(
+    _entities[11].properties[5],
   );
 }

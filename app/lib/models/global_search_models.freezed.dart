@@ -987,6 +987,7 @@ as String?,
 
 }
 
+
 /// @nodoc
 mixin _$LocationSearchResult {
 
@@ -997,6 +998,8 @@ mixin _$LocationSearchResult {
 @pragma('vm:prefer-inline')
 $LocationSearchResultCopyWith<LocationSearchResult> get copyWith => _$LocationSearchResultCopyWithImpl<LocationSearchResult>(this as LocationSearchResult, _$identity);
 
+  /// Serializes this LocationSearchResult to a JSON map.
+  Map<String, dynamic> toJson();
 
 
 @override
@@ -1004,7 +1007,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is LocationSearchResult&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.category, category) || other.category == category)&&(identical(other.type, type) || other.type == type));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,name,description,lat,lon,category,type);
 
@@ -1184,11 +1187,11 @@ return $default(_that.name,_that.description,_that.lat,_that.lon,_that.category,
 }
 
 /// @nodoc
-
+@JsonSerializable()
 
 class _LocationSearchResult implements LocationSearchResult {
   const _LocationSearchResult({required this.name, required this.description, required this.lat, required this.lon, required this.category, required this.type});
-  
+  factory _LocationSearchResult.fromJson(Map<String, dynamic> json) => _$LocationSearchResultFromJson(json);
 
 @override final  String name;
 @override final  String description;
@@ -1203,14 +1206,17 @@ class _LocationSearchResult implements LocationSearchResult {
 @pragma('vm:prefer-inline')
 _$LocationSearchResultCopyWith<_LocationSearchResult> get copyWith => __$LocationSearchResultCopyWithImpl<_LocationSearchResult>(this, _$identity);
 
-
+@override
+Map<String, dynamic> toJson() {
+  return _$LocationSearchResultToJson(this, );
+}
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _LocationSearchResult&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.category, category) || other.category == category)&&(identical(other.type, type) || other.type == type));
 }
 
-
+@JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode => Object.hash(runtimeType,name,description,lat,lon,category,type);
 

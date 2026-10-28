@@ -675,5 +675,8 @@
   "plan_route_from_here": "Route von hier planen",
   "@plan_route_from_here": {
     "description": "Button in the map screen's selected-location panel that opens the route planner centered on that location."
-  }
+  },
+  "recent_searches": "Letzte Suchanfragen",
+  "clear_search_history": "Suchverlauf löschen",
+  "clear_search_history_confirm": "Alle letzten Suchanfragen entfernen?"
 }

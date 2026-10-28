@@ -125,6 +125,28 @@ Map<String, dynamic> _$ListSearchResultToJson(_ListSearchResult instance) =>
       'iri': instance.iri,
     };
 
+_LocationSearchResult _$LocationSearchResultFromJson(
+  Map<String, dynamic> json,
+) => _LocationSearchResult(
+  name: json['name'] as String,
+  description: json['description'] as String,
+  lat: (json['lat'] as num).toDouble(),
+  lon: (json['lon'] as num).toDouble(),
+  category: json['category'] as String,
+  type: json['type'] as String,
+);
+
+Map<String, dynamic> _$LocationSearchResultToJson(
+  _LocationSearchResult instance,
+) => <String, dynamic>{
+  'name': instance.name,
+  'description': instance.description,
+  'lat': instance.lat,
+  'lon': instance.lon,
+  'category': instance.category,
+  'type': instance.type,
+};
+
 _ActorSearchResult _$ActorSearchResultFromJson(Map<String, dynamic> json) =>
     _ActorSearchResult(
       id: json['id'] as String? ?? '',

@@ -1,1 +1,79 @@
-{}
+{
+  "ca": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "cs": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "es": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "eu": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "fr": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "hu": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "it": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "nl": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "no": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "pl": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "pt": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "ru": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ],
+
+  "zh": [
+    "recent_searches",
+    "clear_search_history",
+    "clear_search_history_confirm"
+  ]
+}

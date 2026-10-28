@@ -1,23 +1,15 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:math' as math;
-
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wanderer/components/base/wanderer_no_results.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:maplibre/maplibre.dart';
+import 'package:wanderer/components/base/wanderer_no_results.dart';
+import 'package:wanderer/components/search/search_history_list.dart';
+import 'package:wanderer/components/search/search_result_tiles.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/global_search_models.dart';
-import 'package:wanderer/models/subcategory.dart';
+import 'package:wanderer/models/search_history_item.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/search/global_search_provider.dart';
-import 'package:wanderer/provider/trail/category_provider.dart';
-import 'package:wanderer/provider/trail/subcategory_provider.dart';
-import 'package:wanderer/util/format.dart';
-import 'package:wanderer/util/geo/polyline.dart';
+import 'package:wanderer/provider/search/search_history_provider.dart';
 
 class GlobalSearchScreen extends ConsumerStatefulWidget {
   const GlobalSearchScreen({super.key});
@@ -92,8 +84,15 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CategoryChips(state: state, notifier: notifier, l10n: l10n),
-          const Divider(height: 1),
+          // Only once there is something to narrow down. A specific
+          // category stays reachable even when it found nothing, so the
+          // hiker can switch back to the others.
+          if (state.query.isNotEmpty &&
+              (state.hasResults ||
+                  state.category != GlobalSearchCategory.all)) ...[
+            _CategoryChips(state: state, notifier: notifier, l10n: l10n),
+            const Divider(height: 1),
+          ],
           Expanded(
             child: _ResultsList(state: state, l10n: l10n, unit: unit),
           ),
@@ -161,7 +160,31 @@ class _CategoryChips extends StatelessWidget {
   }
 }
 
-class _ResultsList extends StatelessWidget {
+/// Opens [item] and remembers it in the search history -- the one path
+/// for both a live result and a history entry, so tapping either moves it
+/// to the top of the history.
+void _open(BuildContext context, WidgetRef ref, SearchHistoryItem item) {
+  ref.read(searchHistoryProvider.notifier).record(item);
+  switch (item) {
+    case TrailHistoryItem(:final trail):
+      context.push('/trail/${trail.id}');
+    case ListHistoryItem(:final list):
+      context.push('/list/${list.id}');
+    case LocationHistoryItem(:final location):
+      context.go(
+        '/map',
+        extra: {'lat': location.lat, 'lon': location.lon, 'zoom': 13.0},
+      );
+    case ActorHistoryItem(:final actor):
+      context.push(
+        actor.isLocal
+            ? '/profile/@${actor.preferredUsername}'
+            : '/profile/@${actor.preferredUsername}@${actor.domain}',
+      );
+  }
+}
+
+class _ResultsList extends ConsumerWidget {
   final GlobalSearchState state;
   final AppLocalizations l10n;
   final String unit;
@@ -172,13 +195,40 @@ class _ResultsList extends StatelessWidget {
     required this.unit,
   });
 
+  Widget _tile(BuildContext context, WidgetRef ref, SearchHistoryItem item) {
+    void onTap() => _open(context, ref, item);
+    return switch (item) {
+      TrailHistoryItem(:final trail) => SearchTrailTile(
+        trail: trail,
+        unit: unit,
+        onTap: onTap,
+      ),
+      ListHistoryItem(:final list) => SearchListTile(list: list, onTap: onTap),
+      LocationHistoryItem(:final location) => SearchLocationTile(
+        location: location,
+        onTap: onTap,
+      ),
+      ActorHistoryItem(:final actor) => SearchActorTile(
+        actor: actor,
+        onTap: onTap,
+      ),
+    };
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (state.query.isEmpty) {
+      final history = ref.watch(searchHistoryProvider);
+      if (history.isNotEmpty) {
+        return SearchHistoryList(
+          items: history,
+          tileBuilder: (item) => _tile(context, ref, item),
+        );
+      }
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -200,281 +250,15 @@ class _ResultsList extends StatelessWidget {
 
     return ListView(
       children: [
-        ...state.visibleTrails.map((t) => _TrailTile(trail: t, unit: unit)),
-        ...state.visibleLists.map((l) => _ListTile(list: l)),
-        ...state.visibleLocations.map((l) => _LocationTile(location: l)),
-        ...state.visibleActors.map((a) => _ActorTile(actor: a)),
+        for (final t in state.visibleTrails)
+          _tile(context, ref, TrailHistoryItem(t)),
+        for (final l in state.visibleLists)
+          _tile(context, ref, ListHistoryItem(l)),
+        for (final l in state.visibleLocations)
+          _tile(context, ref, LocationHistoryItem(l)),
+        for (final a in state.visibleActors)
+          _tile(context, ref, ActorHistoryItem(a)),
       ],
     );
   }
-}
-
-class _TrailTile extends ConsumerWidget {
-  final TrailSearchResult trail;
-  final String unit;
-
-  const _TrailTile({required this.trail, required this.unit});
-
-  String _difficultyLabel(BuildContext context, int difficulty) {
-    final l10n = AppLocalizations.of(context)!;
-    return difficulty == 0
-        ? l10n.easy
-        : difficulty == 1
-        ? l10n.moderate
-        : l10n.difficult;
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final locale = Localizations.localeOf(context);
-    final categories = ref.watch(categoryProvider).value ?? [];
-    final subcategories = ref.watch(subcategoryProvider);
-
-    final Category? category = trail.categoryId != null
-        ? categories.firstWhereOrNull((c) => c.id == trail.categoryId)
-        : null;
-    final subcategory = trail.subcategoryId != null
-        ? subcategories.firstWhereOrNull((s) => s.id == trail.subcategoryId)
-        : null;
-    final categoryLabel = (category != null && subcategory != null)
-        ? '${category.displayName(locale)} / ${subcategory.displayName(locale)}'
-        : category?.displayName(locale);
-
-    return ListTile(
-      onTap: () => context.push('/trail/${trail.id}'),
-      leading: _PolylinePreview(
-        polyline: trail.polyline,
-        color: Theme.of(context).colorScheme.primary,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-      ),
-      title: Text(trail.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        [
-          ?categoryLabel,
-          _difficultyLabel(context, trail.difficulty),
-          formatDistance(trail.distance, unit: unit),
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: trail.authorName.isNotEmpty
-          ? CircleAvatar(
-              radius: 14,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: CachedNetworkImageProvider(
-                trail.authorAvatar.isNotEmpty
-                    ? trail.authorAvatar
-                    : 'https://api.dicebear.com/7.x/initials/png?seed=${trail.authorName}',
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-class _ListTile extends StatelessWidget {
-  final ListSearchResult list;
-
-  const _ListTile({required this.list});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(child: FaIcon(FontAwesomeIcons.layerGroup, size: 18)),
-      ),
-      onTap: () => context.push('/list/${list.id}'),
-      title: Text(list.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        '${list.trails} ${l10n.trail(list.trails)}${list.authorName.isNotEmpty ? ' · ${list.authorName}' : ''}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-}
-
-class _LocationTile extends StatelessWidget {
-  final LocationSearchResult location;
-
-  const _LocationTile({required this.location});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () => context.go(
-        '/map',
-        extra: {'lat': location.lat, 'lon': location.lon, 'zoom': 13.0},
-      ),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const FaIcon(
-          FontAwesomeIcons.locationDot,
-          size: 18,
-          color: Colors.orange,
-        ),
-      ),
-      title: Text(location.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: location.description.isNotEmpty
-          ? Text(
-              location.description,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-          : null,
-    );
-  }
-}
-
-class _ActorTile extends StatelessWidget {
-  final ActorSearchResult actor;
-
-  const _ActorTile({required this.actor});
-
-  @override
-  Widget build(BuildContext context) {
-    final displayName = actor.username.isNotEmpty
-        ? actor.username
-        : actor.preferredUsername;
-    final subtitle =
-        '@${actor.preferredUsername}${actor.isLocal ? "" : "@${actor.domain}"}';
-
-    return ListTile(
-      leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: Colors.grey.shade300,
-        backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
-            ? CachedNetworkImageProvider(actor.icon!)
-            : CachedNetworkImageProvider(
-                'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
-              ),
-      ),
-      title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(subtitle),
-      onTap: () {
-        final route = actor.isLocal
-            ? '/profile/@${actor.preferredUsername}'
-            : '/profile/@${actor.preferredUsername}@${actor.domain}';
-        context.push(route);
-      },
-    );
-  }
-}
-
-class _PolylinePreview extends StatelessWidget {
-  final String? polyline;
-  final Color color;
-  final Color backgroundColor;
-
-  const _PolylinePreview({
-    required this.polyline,
-    required this.color,
-    required this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    List<Geographic>? points;
-    if (polyline != null && polyline!.isNotEmpty) {
-      try {
-        points = PolylineUtil.decode(polyline!);
-      } catch (_) {}
-    }
-
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: points != null && points.length >= 2
-            ? CustomPaint(
-                painter: _PolylinePainter(points: points, color: color),
-              )
-            : FaIcon(FontAwesomeIcons.route, size: 20, color: color),
-      ),
-    );
-  }
-}
-
-class _PolylinePainter extends CustomPainter {
-  final List<Geographic> points;
-  final Color color;
-
-  const _PolylinePainter({required this.points, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    double minLat = double.infinity, maxLat = -double.infinity;
-    double minLng = double.infinity, maxLng = -double.infinity;
-
-    for (final p in points) {
-      if (p.lat < minLat) minLat = p.lat;
-      if (p.lat > maxLat) maxLat = p.lat;
-      if (p.lon < minLng) minLng = p.lon;
-      if (p.lon > maxLng) maxLng = p.lon;
-    }
-
-    final latRange = maxLat - minLat;
-    final lngRange = maxLng - minLng;
-    if (latRange == 0 && lngRange == 0) return;
-
-    const padding = 5.0;
-    final w = size.width - padding * 2;
-    final h = size.height - padding * 2;
-
-    final scale = latRange == 0
-        ? w / lngRange
-        : lngRange == 0
-        ? h / latRange
-        : math.min(w / lngRange, h / latRange);
-
-    final dx = padding + (w - lngRange * scale) / 2;
-    final dy = padding + (h - latRange * scale) / 2;
-
-    final path = Path();
-    for (int i = 0; i < points.length; i++) {
-      final x = dx + (points[i].lon - minLng) * scale;
-      final y = dy + (maxLat - points[i].lat) * scale;
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
-    }
-
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.white.withValues(alpha: 0.7)
-        ..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..strokeWidth = 1.5
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_PolylinePainter old) =>
-      old.points != points || old.color != color;
 }
