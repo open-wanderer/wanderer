@@ -57,9 +57,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get add_waypoint => 'Dodaj Punkt';
 
   @override
-  String get adjust_track => 'Adjust track';
-
-  @override
   String get after => 'Po';
 
   @override
@@ -611,9 +608,6 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get save => 'Zapisz';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

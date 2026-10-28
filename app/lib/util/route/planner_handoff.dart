@@ -549,9 +549,8 @@ Future<Gpx> buildFinalPlannedGpx(WidgetRef ref) async {
 /// A session running a costing outside the 5 picker buckets simply yields no
 /// category pre-fill — no default bucket is ever substituted.
 ///
-/// Takes no save-options toggles. The planner used to route Finish through
-/// the shared online gate (`resolve_track_save_options.dart`), which offered
-/// "recalculate heights" and "follow roads"; both were removed because
+/// Keeps no original track, so the editor offers no "Recalculate heights" /
+/// "Follow roads" switches for a planned route. Both are pointless here because
 /// neither could improve a planned route. Heights are already fetched per
 /// segment from the same deterministic DEM endpoint, so a refetch returned
 /// identical values, and the geometry is already Valhalla-routed — see

@@ -214,12 +214,6 @@ abstract class AppLocalizations {
   /// **'Add Waypoint'**
   String get add_waypoint;
 
-  /// No description provided for @adjust_track.
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust track'**
-  String get adjust_track;
-
   /// Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance.
   ///
   /// In en, this message translates to:
@@ -1173,12 +1167,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get save;
-
-  /// No description provided for @save_recording_options.
-  ///
-  /// In en, this message translates to:
-  /// **'Save recording'**
-  String get save_recording_options;
 
   /// No description provided for @save_track.
   ///

@@ -57,9 +57,6 @@ class AppLocalizationsEu extends AppLocalizations {
   String get add_waypoint => 'Gehitu bidepuntua';
 
   @override
-  String get adjust_track => 'Adjust track';
-
-  @override
   String get after => 'Ondoren';
 
   @override
@@ -611,9 +608,6 @@ class AppLocalizationsEu extends AppLocalizations {
 
   @override
   String get save => 'Gorde';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

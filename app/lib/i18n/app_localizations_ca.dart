@@ -57,9 +57,6 @@ class AppLocalizationsCa extends AppLocalizations {
   String get add_waypoint => 'Afegeix punt de ruta';
 
   @override
-  String get adjust_track => 'Ajusta el traçat';
-
-  @override
   String get after => 'Després de';
 
   @override
@@ -616,9 +613,6 @@ class AppLocalizationsCa extends AppLocalizations {
 
   @override
   String get save => 'Desa';
-
-  @override
-  String get save_recording_options => 'Desa l\'enregistrament';
 
   @override
   String get save_track => 'Desa el traçat';

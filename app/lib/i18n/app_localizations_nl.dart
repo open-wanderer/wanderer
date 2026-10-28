@@ -57,9 +57,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get add_waypoint => 'Routepunt toevoegen';
 
   @override
-  String get adjust_track => 'Pas spoor aan';
-
-  @override
   String get after => 'Na';
 
   @override
@@ -612,9 +609,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get save => 'Bewaren';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

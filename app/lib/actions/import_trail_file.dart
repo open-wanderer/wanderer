@@ -16,8 +16,6 @@ import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/util/geo/reverse_geocode.dart';
-import 'package:wanderer/util/route/track_transforms.dart';
-import 'package:wanderer/actions/resolve_track_save_options.dart';
 
 /// Supported trail file extensions for both the in-app picker and inbound
 /// share intents. `allowedExtensions` on the file picker is only a hint, so
@@ -38,12 +36,10 @@ Trail? pendingImportedTrail;
 /// is transcoded server-side via [transcodeToGpx] and then
 /// measured locally, same as a native `.gpx`.
 ///
-/// After parsing, gates the same two post-capture toggles the recording and
-/// route-planner paths offer (see `resolve_track_save_options.dart`):
-/// shown only when online, skipped entirely offline (both toggles treated
-/// as declined, so the parsed track is used unchanged) — this is what makes
-/// an offline import complete end to end with no network call. A cancelled
-/// sheet aborts the import with no toast (not an error).
+/// The parsed track is used unchanged and also kept as the trail's original
+/// track; "Follow roads" and "Recalculate heights" are offered in the editor
+/// (see `track_transforms.dart`). A `.gpx` import therefore completes
+/// end to end with no network call.
 ///
 /// Shows an error toast (and does not navigate) on an unsupported extension
 /// or a genuine conversion failure.
@@ -114,45 +110,16 @@ Future<void> importTrailFile({
       return;
     }
 
-    if (!navContext.mounted) return;
-    final options = await resolveTrackSaveOptions(
-      ref,
-      navContext,
-      TrackSaveOptionsSource.import,
-    );
-    if (options == null) return;
-    if (!navContext.mounted) return;
-
-    // (false, false) covers BOTH the offline path and "the user declined
-    // both toggles online": applyTrackTransforms returns the parsed track
-    // unchanged without a network call, which is what makes an offline
-    // import work end to end.
-    final (recalcHeights, followRoads) = options;
-
-    // An imported file has no category yet (the user picks one on
-    // trail_create_screen) — 'pedestrian' is the same fallback
-    // costingForTrail itself uses for an unresolved category.
-    final track = await applyTrackTransforms(
-      ref,
-      originalXml: gpxXml,
-      followRoads: followRoads,
-      recalcHeights: recalcHeights,
-      costing: 'pedestrian',
-    );
-
     final built = await buildLocalTrail(
       ref,
-      track.gpx,
+      gpx,
       fallbackName: name,
-      gpxData: track.xml,
+      gpxData: gpxXml,
     );
-    // The original file text rides along so the editor can undo either
-    // transform until the trail is saved.
-    trail = built.copyWith(
-      originalGpxData: gpxXml,
-      trackFollowsRoads: track.followsRoads,
-      trackHeightsRecalculated: track.heightsRecalculated,
-    );
+    // The file text doubles as the original track, so the editor can apply
+    // "Follow roads" / "Recalculate heights" and undo them until the trail is
+    // saved.
+    trail = built.copyWith(originalGpxData: gpxXml);
   } catch (e, st) {
     // Every distinct failure mode in the block above — an unreadable file,
     // transcodeToGpx's StateError, a FormatException from an unsanitised

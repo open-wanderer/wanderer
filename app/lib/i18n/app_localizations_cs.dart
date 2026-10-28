@@ -57,9 +57,6 @@ class AppLocalizationsCs extends AppLocalizations {
   String get add_waypoint => 'Přidat bod trasy';
 
   @override
-  String get adjust_track => 'Upravit záznam trasy';
-
-  @override
   String get after => 'Po';
 
   @override
@@ -619,9 +616,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get save => 'Uložit';
-
-  @override
-  String get save_recording_options => 'Uložit záznam';
 
   @override
   String get save_track => 'Uložit trasu';

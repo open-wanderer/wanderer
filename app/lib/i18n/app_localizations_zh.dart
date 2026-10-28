@@ -56,9 +56,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get add_waypoint => '添加坐标';
 
   @override
-  String get adjust_track => 'Adjust track';
-
-  @override
   String get after => '之后';
 
   @override
@@ -609,9 +606,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get save => '保存';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

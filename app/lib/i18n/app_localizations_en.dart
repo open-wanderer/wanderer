@@ -57,9 +57,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get add_waypoint => 'Add Waypoint';
 
   @override
-  String get adjust_track => 'Adjust track';
-
-  @override
   String get after => 'After';
 
   @override
@@ -611,9 +608,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get save => 'Save';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

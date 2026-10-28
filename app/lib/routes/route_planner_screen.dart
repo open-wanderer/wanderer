@@ -532,11 +532,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   /// [finishPlanning] to forward-push a draft Trail (built entirely on-device
   /// — see `buildDraftTrail`).
   ///
-  /// Neither branch shows a save-options sheet. The planner used to route the
-  /// forward-push branch through the shared online gate
-  /// (`resolve_track_save_options.dart`), but neither toggle it offered could
-  /// change a planned route's output, so it was removed — see
-  /// [finishPlanning].
+  /// Neither branch offers the post-capture track transforms: neither could
+  /// change a planned route's output — see [finishPlanning].
   ///
   /// [_finishing] guards against a double-tap firing two concurrent
   /// conversions/navigations, and the guard is sound only because nothing is

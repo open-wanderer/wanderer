@@ -57,9 +57,6 @@ class AppLocalizationsDe extends AppLocalizations {
   String get add_waypoint => 'Wegpunkt hinzufügen';
 
   @override
-  String get adjust_track => 'Pfad anpassen';
-
-  @override
   String get after => 'Nach';
 
   @override
@@ -617,9 +614,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get save => 'Speichern';
-
-  @override
-  String get save_recording_options => 'Aufnahme speichern';
 
   @override
   String get save_track => 'Pfad speichern';

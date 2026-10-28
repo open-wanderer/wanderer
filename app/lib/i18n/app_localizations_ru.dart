@@ -57,9 +57,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get add_waypoint => 'Добавить путевую точку';
 
   @override
-  String get adjust_track => 'Adjust track';
-
-  @override
   String get after => 'После';
 
   @override
@@ -611,9 +608,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get save => 'Сохранить';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

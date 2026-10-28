@@ -53,12 +53,10 @@ import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/util/region/proxy_style_rewriter.dart';
 import 'package:wanderer/util/geo/polyline.dart';
 import 'package:wanderer/util/route/planner_handoff.dart';
-import 'package:wanderer/util/route/track_transforms.dart';
 import 'package:wanderer/util/route/track_position_matcher.dart';
 import 'package:wanderer/models/route_travel_bucket.dart';
 import 'package:wanderer/services/tracelet_position_source.dart';
 import 'package:wanderer/actions/import_trail_file.dart';
-import 'package:wanderer/actions/resolve_track_save_options.dart';
 import 'package:wanderer/util/route/valhalla.dart';
 
 /// The three actions offered by [_NavigationScreenState._confirmExit]'s
@@ -957,25 +955,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
   /// `import_trail_file.dart`'s `importTrailFile` precedent for this same
   /// toast-and-stay behaviour.
   ///
-  /// Opens the shared online gate (see `resolve_track_save_options.dart`)
-  /// FIRST, before the [_savingTrack] guard, so both call sites
-  /// (exit-dialog and completion-banner) inherit it with no change. The
-  /// sheet itself is now shown only when online; offline, the save
-  /// proceeds straight through with both transforms off.
-  /// Cancelling/dismissing an online sheet still aborts the save entirely —
-  /// no change to the session.
-  ///
-  /// The transforms run through [applyTrackTransforms], best-effort with
-  /// silent fallback — a failure never blocks the save nor surfaces an error
-  /// toast. The untransformed breadcrumb is stored on the draft as its
-  /// original track, so the editor can still switch either transform off.
+  /// The breadcrumb is saved unchanged and also kept on the draft as its
+  /// original track, so "Follow roads" / "Recalculate heights" are applied
+  /// (and undone) in the editor rather than here.
   Future<void> _saveRecordedTrack(BuildContext context) async {
-    final options = await resolveTrackSaveOptions(
-      ref,
-      context,
-      TrackSaveOptionsSource.recording,
-    );
-    if (options == null) return;
     if (_savingTrack) return;
     setState(() => _savingTrack = true);
 
@@ -985,30 +968,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
 
       final originalTrail = ref.read(trailProvider(widget.id)).value;
 
-      final (recalcHeights, followRoads) = options;
-      // The full recorded breadcrumb, times and all. Kept as the draft's
-      // original track so the editor can undo either transform.
-      final recorded = buildGpxFromPoints(navState.breadcrumb);
-      final recordedXml = await compute(serializeGpxToXml, recorded);
-      final track = await applyTrackTransforms(
-        ref,
-        originalXml: recordedXml,
-        followRoads: followRoads,
-        recalcHeights: recalcHeights,
-        // `_recordingCosting` (from `showTravelProfileSheet` at record
-        // start, see `_openRecorder`) wins for a trail-less recording,
-        // where `originalTrail` is always null and `costingForCategory`
-        // would otherwise always fall back to pedestrian regardless of
-        // the recorded activity. Falls through to the trail's own
-        // category for a real trail's navigate/save flow.
-        costing:
-            _recordingCosting ??
-            costingForTrail(
-              originalTrail,
-              subcategories: ref.read(subcategoryProvider),
-            ),
-      );
-      final gpx = track.gpx;
+      // The full recorded breadcrumb, times and all, doubling as the
+      // draft's original track.
+      final gpx = buildGpxFromPoints(navState.breadcrumb);
+      final recordedXml = await compute(serializeGpxToXml, gpx);
 
       // For a real trail, keep its own category/subcategory. For a trail-less
       // recording, derive a (sub)category from the chosen travel profile
@@ -1056,11 +1019,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         subcategory: subcategory,
         movingDuration: navStats.elapsed,
       );
-      final trail = draft.copyWith(
-        originalGpxData: recordedXml,
-        trackFollowsRoads: track.followsRoads,
-        trackHeightsRecalculated: track.heightsRecalculated,
-      );
+      final trail = draft.copyWith(originalGpxData: recordedXml);
 
       // Durability ordering: the draft row is written BEFORE the session row
       // is released, so an OS kill in between can never lose the recording.

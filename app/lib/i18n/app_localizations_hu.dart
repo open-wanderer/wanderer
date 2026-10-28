@@ -57,9 +57,6 @@ class AppLocalizationsHu extends AppLocalizations {
   String get add_waypoint => 'Útvonalpont hozzáadása';
 
   @override
-  String get adjust_track => 'Adjust track';
-
-  @override
   String get after => 'After';
 
   @override
@@ -611,9 +608,6 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get save => 'Mentés';
-
-  @override
-  String get save_recording_options => 'Save recording';
 
   @override
   String get save_track => 'Save track';

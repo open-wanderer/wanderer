@@ -26,8 +26,7 @@ class MissingCoverageSelection {
 /// The user surface: a bottom modal sheet listing every
 /// region overlapping a trail's bbox that isn't yet `downloaded`/
 /// `updateAvailable`, with independent Vector/DEM checkboxes per region
-/// and a single always-enabled Download button. Mirrors
-/// `track_save_options_sheet.dart`'s shape; the region rows mirror
+/// and a single always-enabled Download button. The region rows mirror
 /// `settings_offline_regions_screen.dart`'s styling.
 ///
 /// Returns `null` when dismissed (swipe/tap-outside) — the caller must abort
