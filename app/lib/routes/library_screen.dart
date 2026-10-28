@@ -84,94 +84,95 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     return SafeArea(
       bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _onQueryChanged,
-                cursorColor: Theme.of(context).colorScheme.onSurface,
-                decoration: InputDecoration(
-                  hintText: l10n.search_library,
-                  hintStyle: TextStyle(color: Colors.grey),
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _query.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchDebounce?.cancel();
-                            _searchController.clear();
-                            setState(() => _query = '');
-                          },
-                        )
-                      : null,
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                    borderRadius: BorderRadius.circular(56),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onQueryChanged,
+              cursorColor: Theme.of(context).colorScheme.onSurface,
+              decoration: InputDecoration(
+                hintText: l10n.search_library,
+                hintStyle: TextStyle(color: Colors.grey),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchDebounce?.cancel();
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                      )
+                    : null,
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(56),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      width: 1,
-                    ),
-                  ),
-                  isDense: true,
+                  borderRadius: BorderRadius.circular(56),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(56),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    width: 1,
+                  ),
+                ),
+                isDense: true,
               ),
             ),
-            // showOfflineChip: false -- every row on this screen is already
-            // downloaded by definition, so the chip would be a
-            // visible-but-inert control (toggling it never changes the
-            // list), which reads as a bug rather than a feature.
-            const TrailQuickFilterBar(
-              filterId: 'library',
-              showOfflineChip: false,
-            ),
-            Expanded(
-              child: visible.isEmpty
-                  // An empty library and an over-narrow search/filter are
-                  // different problems, so they get different artwork and a
-                  // body line that names the actual way out.
-                  ? trailLibrary.isEmpty
-                        ? _LibraryEmptyState.icon(
-                            icon: FontAwesomeIcons.cloudArrowDown,
-                            title: l10n.library_empty_title,
-                            body: l10n.library_empty_body,
-                          )
-                        : _LibraryEmptyState.artwork(
-                            asset: 'search',
-                            title: l10n.no_trails_found,
-                            body: l10n.library_empty_search_body,
-                          )
-                  : ListView.builder(
-                      itemCount: visible.length,
-                      itemBuilder: (context, i) {
-                        final trail = visible[i];
-                        final location = trailDetailLocation(trail);
-                        return TrailCard(
-                          // Key so a filter/sort reorder MOVES elements
-                          // instead of rebuilding every card's subtree from
-                          // scratch. localId disambiguates unsynced rows,
-                          // whose server id is blanked.
-                          key: ValueKey(trail.localId ?? trail.id),
-                          trail: trail,
-                          onTrailSelect: location == null
-                              ? null
-                              : () => router.push(location),
-                          onLongPress: () =>
-                              _showContextMenu(context, trail, router),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+          ),
+          // showOfflineChip: false -- every row on this screen is already
+          // downloaded by definition, so the chip would be a
+          // visible-but-inert control (toggling it never changes the
+          // list), which reads as a bug rather than a feature.
+          const TrailQuickFilterBar(
+            filterId: 'library',
+            showOfflineChip: false,
+          ),
+          Expanded(
+            child: visible.isEmpty
+                // An empty library and an over-narrow search/filter are
+                // different problems, so they get different artwork and a
+                // body line that names the actual way out.
+                ? trailLibrary.isEmpty
+                      ? _LibraryEmptyState.icon(
+                          icon: FontAwesomeIcons.cloudArrowDown,
+                          title: l10n.library_empty_title,
+                          body: l10n.library_empty_body,
+                        )
+                      : _LibraryEmptyState.artwork(
+                          asset: 'search',
+                          title: l10n.no_trails_found,
+                          body: l10n.library_empty_search_body,
+                        )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    itemCount: visible.length,
+                    itemBuilder: (context, i) {
+                      final trail = visible[i];
+                      final location = trailDetailLocation(trail);
+                      return TrailCard(
+                        // Key so a filter/sort reorder MOVES elements
+                        // instead of rebuilding every card's subtree from
+                        // scratch. localId disambiguates unsynced rows,
+                        // whose server id is blanked.
+                        key: ValueKey(trail.localId ?? trail.id),
+                        trail: trail,
+                        onTrailSelect: location == null
+                            ? null
+                            : () => router.push(location),
+                        onLongPress: () =>
+                            _showContextMenu(context, trail, router),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

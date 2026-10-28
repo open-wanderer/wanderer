@@ -914,7 +914,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
