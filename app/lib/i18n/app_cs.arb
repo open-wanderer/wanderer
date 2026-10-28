@@ -47,7 +47,6 @@
   "account_privacy": "Ochrana osobních údajů",
   "add_bio": "Přidat informace o mně",
   "add_waypoint": "Přidat bod trasy",
-  "adjust_track": "Upravit záznam trasy",
   "after": "Po",
   "@after": {
     "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
@@ -322,8 +321,8 @@
   "follow_roads_description": "Přizpůsobit zaznamenanou trasu nejbližším silnicím a stezkám.",
   "recalculate_heights": "Přepočítat nadmořské výšky",
   "recalculate_heights_description": "Nahradit zaznamenané údaje o nadmořské výšce z GPS přesnějšími hodnotami z mapy.",
+  "track_transform_failed": "Couldn't adjust the track. Check your connection and try again.",
   "save": "Uložit",
-  "save_recording_options": "Uložit záznam",
   "save_track": "Uložit trasu",
   "search": "Vyhledat",
   "search_for_trails_places": "Vyhledat trasy, seznamy, místa",
