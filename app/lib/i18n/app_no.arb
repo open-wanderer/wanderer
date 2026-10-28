@@ -662,6 +662,20 @@
     "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
   },
   "selected_location": "Selected location",
+  "@selected_location": {
+    "description": "Heading of the map screen panel shown after tapping an empty spot on the map."
+  },
   "distance_from_your_location": "{distance} from your location",
-  "plan_route_from_here": "Plan route from here"
+  "@distance_from_your_location": {
+    "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "plan_route_from_here": "Plan route from here",
+  "@plan_route_from_here": {
+    "description": "Button in the map screen's selected-location panel that opens the route planner centered on that location."
+  }
 }

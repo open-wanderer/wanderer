@@ -669,7 +669,9 @@
   "@distance_from_your_location": {
     "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
     "placeholders": {
-      "distance": { "type": "String" }
+      "distance": {
+        "type": "String"
+      }
     }
   },
   "plan_route_from_here": "Route von hier planen",
