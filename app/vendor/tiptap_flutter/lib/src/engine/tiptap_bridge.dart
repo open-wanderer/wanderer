@@ -642,7 +642,7 @@ class TiptapBridge {
       '(content length: ${content?.length ?? 0}, editable: $editable)',
     );
     return sendCommand(CommandName.init, {
-      if (content != null) ProtocolKey.content: content,
+      ProtocolKey.content: ?content,
       ProtocolKey.editable: editable,
     });
   }
@@ -741,7 +741,7 @@ class TiptapBridge {
     );
     return sendCommand(CommandName.insertText, {
       ProtocolKey.text: text,
-      if (range != null) ProtocolKey.range: range,
+      ProtocolKey.range: ?range,
     });
   }
 
@@ -754,9 +754,7 @@ class TiptapBridge {
       LogDirection.system,
       'Deleting${range != null ? ' range $range' : ' at cursor (backspace)'}',
     );
-    return sendCommand(CommandName.deleteRange, {
-      if (range != null) ProtocolKey.range: range,
-    });
+    return sendCommand(CommandName.deleteRange, {ProtocolKey.range: ?range});
   }
 
   /// Perform a backspace operation at the current cursor position.
@@ -798,7 +796,7 @@ class TiptapBridge {
     );
     return sendCommand(CommandName.exec, {
       ProtocolKey.command: commandName,
-      if (args != null) ProtocolKey.args: args,
+      ProtocolKey.args: ?args,
     });
   }
 
@@ -818,7 +816,7 @@ class TiptapBridge {
     );
     return sendCommand(CommandName.setTextSelection, {
       ProtocolKey.anchor: anchor,
-      if (head != null) ProtocolKey.head: head,
+      ProtocolKey.head: ?head,
     });
   }
 
@@ -848,9 +846,7 @@ class TiptapBridge {
       LogDirection.system,
       'Focusing${position != null ? ' at position: $position' : ''}',
     );
-    return sendCommand(CommandName.focus, {
-      if (position != null) ProtocolKey.position: position,
-    });
+    return sendCommand(CommandName.focus, {ProtocolKey.position: ?position});
   }
 
   /// Remove logical focus from the editor.
@@ -885,7 +881,7 @@ class TiptapBridge {
     );
     return sendCommand(CommandName.isActive, {
       ProtocolKey.name: name,
-      if (attrs != null) ProtocolKey.attrs: attrs,
+      ProtocolKey.attrs: ?attrs,
     });
   }
 
@@ -904,7 +900,7 @@ class TiptapBridge {
     );
     return sendCommand(CommandName.canExec, {
       ProtocolKey.command: command,
-      if (args != null) ProtocolKey.args: args,
+      ProtocolKey.args: ?args,
     });
   }
 

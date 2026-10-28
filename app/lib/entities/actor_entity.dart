@@ -1,4 +1,3 @@
-import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/objectbox.g.dart';
 

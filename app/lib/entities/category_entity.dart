@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/objectbox.g.dart';
 
