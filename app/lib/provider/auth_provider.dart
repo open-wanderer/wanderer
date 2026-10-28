@@ -399,7 +399,9 @@ class Auth extends _$Auth {
 
     final userData = User.fromJson(userResponse.data);
 
-    final UserEntity userEntity = userData.toEntity();
+    final UserEntity userEntity = userData.toEntity(
+      serverUrl: ref.read(apiProvider.notifier).serverUrl,
+    );
 
     // `toEntity()` builds a fresh ActorEntity (obxId 0); putting that would
     // replace the existing row under a new ObjectBox id and orphan every

@@ -159,8 +159,19 @@ class Api extends _$Api {
   /// rather than being silently swallowed into an unusable client.
   void updateBaseUrl(String baseUrl) {
     final normalized = normalizeServerUrl(baseUrl) ?? baseUrl;
-    state.options.baseUrl = "$normalized/api/v1";
+    state.options.baseUrl = "$normalized$_apiPath";
   }
+
+  /// The instance address the client currently talks to, as normalised by
+  /// [updateBaseUrl]: scheme, host, port and any subpath prefix.
+  String get serverUrl {
+    final baseUrl = state.options.baseUrl;
+    return baseUrl.endsWith(_apiPath)
+        ? baseUrl.substring(0, baseUrl.length - _apiPath.length)
+        : baseUrl;
+  }
+
+  static const _apiPath = '/api/v1';
 
   /// Whether a real server URL has been applied yet. Until it has, no request
   /// this client makes can report anything meaningful about connectivity.

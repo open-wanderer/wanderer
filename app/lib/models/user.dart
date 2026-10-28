@@ -7,7 +7,6 @@ import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/models/record.dart';
 import 'package:wanderer/models/settings.dart';
-import 'package:wanderer/util/server_url.dart';
 
 part 'user.freezed.dart';
 part 'user.g.dart';
@@ -39,19 +38,16 @@ abstract class User with _$User, RecordFunctions implements IRecord {
     return User.fromJson(map['record'] as Map<String, dynamic>);
   }
 
-  UserEntity toEntity() {
+  /// [serverUrl] is the instance the user signed in through. It is not
+  /// derived from the actor IRI: the backend mints that from `ORIGIN` when the
+  /// account is created and never updates it, so an instance that moved to a
+  /// new address keeps handing out the old one, and the session restored
+  /// against it on the next cold start finds no cookie (#1411).
+  UserEntity toEntity({required String serverUrl}) {
     if (expand?.actor == null) {
       throw Exception(
         "Cannot convert User to UserEntity without expanded actor",
       );
-    }
-
-    // Port and subpath prefix included: an instance on a non-default port or
-    // under a path prefix is unreachable without them (see serverUrlFromActorIri).
-    final iri = expand!.actor!.iri;
-    final rootUrl = serverUrlFromActorIri(iri);
-    if (rootUrl == null) {
-      throw Exception("Actor IRI is not an absolute http(s) URL: $iri");
     }
 
     final entity = UserEntity(
@@ -66,7 +62,7 @@ abstract class User with _$User, RecordFunctions implements IRecord {
       updated: updated,
       avatar: avatar,
       iri: expand!.actor!.iri,
-      serverUrl: rootUrl,
+      serverUrl: serverUrl,
     );
 
     if (expand?.settings != null) {
