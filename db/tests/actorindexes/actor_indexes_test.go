@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	userIndexMigration       = "1776767721_updated_activitypub_actors.go"
-	inboxIndexMigration      = "1778583029_updated_activitypub_actors.go"
-	userLookupIndexMigration = "1791713195_activitypub_actors_user_lookup_index.go"
+	userIndexMigration         = "1776767721_updated_activitypub_actors.go"
+	inboxIndexMigration        = "1778583029_updated_activitypub_actors.go"
+	userLookupIndexMigration   = "1791713195_activitypub_actors_user_lookup_index.go"
+	handleLookupIndexMigration = "1791713196_activitypub_actors_handle_lookup_index.go"
 )
 
 // Migrations an instance on dev has not applied yet. Some carry timestamps
@@ -32,6 +33,7 @@ var upgradeMigrations = []string{
 	"1791200002_restore_actor_handle_index.go",
 	"1791200200_correlate_trail_bounds_view.go",
 	userLookupIndexMigration,
+	handleLookupIndexMigration,
 }
 
 // The delete-recipient queries join activitypub_actors on inbox; without that
@@ -77,6 +79,7 @@ func TestActorIndexesSurviveEitherMigrationOrder(t *testing.T) {
 			}
 
 			assertActorUserLookupUsesIndex(t, app)
+			assertActorHandleLookupUsesIndex(t, app)
 		})
 	}
 }
@@ -97,6 +100,30 @@ func assertActorUserLookupUsesIndex(t *testing.T, app core.App) {
 		}
 		if err := app.DB().NewQuery("EXPLAIN QUERY PLAN " + query).
 			Bind(map[string]any{"user": "abc"}).All(&plan); err != nil {
+			t.Fatal(err)
+		}
+		if len(plan) == 0 || !strings.Contains(plan[0].Detail, "USING INDEX") {
+			t.Errorf("plan for %q = %+v, want an index search", query, plan)
+		}
+	}
+}
+
+// The ActivityPub endpoints look a local actor up by handle with
+// `preferred_username:lower`; this is the SQL PocketBase builds for it.
+func assertActorHandleLookupUsesIndex(t *testing.T, app core.App) {
+	t.Helper()
+	for _, query := range []string{
+		"SELECT `activitypub_actors`.* FROM `activitypub_actors` WHERE (LOWER([[activitypub_actors.preferred_username]]) = {:name} AND [[activitypub_actors.is_local]] = 1) LIMIT 1",
+		"SELECT `activitypub_actors`.* FROM `activitypub_actors` WHERE (LOWER([[activitypub_actors.preferred_username]]) = {:name} AND [[activitypub_actors.is_local]] = {:local}) LIMIT 1",
+	} {
+		var plan []struct {
+			ID     int    `db:"id"`
+			Parent int    `db:"parent"`
+			Unused int    `db:"notused"`
+			Detail string `db:"detail"`
+		}
+		if err := app.DB().NewQuery("EXPLAIN QUERY PLAN " + query).
+			Bind(map[string]any{"name": "demo", "local": 1}).All(&plan); err != nil {
 			t.Fatal(err)
 		}
 		if len(plan) == 0 || !strings.Contains(plan[0].Detail, "USING INDEX") {
