@@ -26,6 +26,7 @@ import 'package:wanderer/provider/route_anchor_provider.dart';
 import 'package:wanderer/routes/route_planner_screen.dart';
 import 'package:wanderer/util/geo/polyline.dart';
 import 'package:wanderer/util/route/segment.dart';
+import 'package:wanderer/provider/foreground_position_stream_provider.dart';
 
 import '../components/map/map_test_harness.dart';
 
@@ -249,6 +250,9 @@ class _Planner {
         apiProvider.overrideWith(() => _FakeApi()),
         mapStyleJsonProvider.overrideWith((ref) => '{}'),
         unitProvider.overrideWithValue('metric'),
+        // The location button and marker layer would otherwise start the
+        // real geolocator plugin, which has no implementation in tests.
+        liveLocationProvider.overrideWith((ref) => const Stream.empty()),
       ],
     );
     addTearDown(container.dispose);

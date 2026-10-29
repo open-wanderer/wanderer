@@ -11,6 +11,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/trail/map_cluster_search_provider.dart';
 import 'package:wanderer/provider/trail/map_trail_search_provider.dart';
 import 'package:wanderer/provider/trail/trail_deletion_provider.dart';
+import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 
 // ---------------------------------------------------------------------------
 // A trail deleted from the detail screen must leave the map's results
@@ -168,9 +169,22 @@ ProviderContainer _makeContainer() {
   return container;
 }
 
-/// Both providers debounce `searchInBounds` by 400ms before firing.
-Future<void> _settleSearch() =>
-    Future<void>.delayed(const Duration(milliseconds: 600));
+/// Loads the filter before a test starts its search. Both providers re-run
+/// the search when the filter finishes loading after one was started, which
+/// restarts the 400ms debounce and makes the landing time depend on how fast
+/// the filter happened to load.
+Future<void> _loadFilter(ProviderContainer container) =>
+    container.read(trailFilterProvider('map').future);
+
+/// Waits until [landed] holds. Polls rather than sleeping a fixed time: under
+/// a loaded full-suite run the 400ms debounce plus the stubbed request can
+/// take well over 600ms. Gives up after 10s and lets the assertion report.
+Future<void> _until(bool Function() landed) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (!landed() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+}
 
 final _bounds = LngLatBounds(
   longitudeWest: 10.0,
@@ -182,6 +196,7 @@ final _bounds = LngLatBounds(
 void main() {
   test('deleted trail leaves the map result list, others stay', () async {
     final container = _makeContainer();
+    await _loadFilter(container);
 
     await container.read(
       mapTrailSearchProvider(authorId: null, filterId: 'map').future,
@@ -189,7 +204,14 @@ void main() {
     container
         .read(mapTrailSearchProvider(authorId: null, filterId: 'map').notifier)
         .searchInBounds(_bounds);
-    await _settleSearch();
+    await _until(
+      () =>
+          container
+              .read(mapTrailSearchProvider(authorId: null, filterId: 'map'))
+              .value
+              ?.isNotEmpty ??
+          false,
+    );
 
     expect(
       container
@@ -215,6 +237,7 @@ void main() {
     "deleted trail's marker leaves the cluster feature collection",
     () async {
       final container = _makeContainer();
+      await _loadFilter(container);
 
       await container.read(
         mapClusterSearchProvider(authorId: null, filterId: 'map').future,
@@ -224,7 +247,20 @@ void main() {
             mapClusterSearchProvider(authorId: null, filterId: 'map').notifier,
           )
           .searchInBounds(_bounds, 12);
-      await _settleSearch();
+      await _until(
+        () =>
+            (container
+                        .read(
+                          mapClusterSearchProvider(
+                            authorId: null,
+                            filterId: 'map',
+                          ),
+                        )
+                        .value?['features']
+                    as List?)
+                ?.isNotEmpty ??
+            false,
+      );
 
       expect(
         (container
@@ -261,6 +297,7 @@ void main() {
 
   test('an unrelated deletion leaves both providers alone', () async {
     final container = _makeContainer();
+    await _loadFilter(container);
 
     await container.read(
       mapTrailSearchProvider(authorId: null, filterId: 'map').future,
@@ -268,7 +305,14 @@ void main() {
     container
         .read(mapTrailSearchProvider(authorId: null, filterId: 'map').notifier)
         .searchInBounds(_bounds);
-    await _settleSearch();
+    await _until(
+      () =>
+          container
+              .read(mapTrailSearchProvider(authorId: null, filterId: 'map'))
+              .value
+              ?.isNotEmpty ??
+          false,
+    );
 
     container.read(trailDeletionsProvider.notifier).announce('some_other_id');
 

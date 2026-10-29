@@ -100,6 +100,9 @@ class MapClusterSearch extends _$MapClusterSearch {
     final TrailFilter filter =
         passedFilter ?? await ref.read(trailFilterProvider(filterId).future);
     final user = await ref.read(authProvider.future);
+    // The debounce timer is cancelled on dispose, but a search already past
+    // it can still be awaiting the filter or the user when that happens.
+    if (!ref.mounted) return;
     final api = ref.read(apiProvider);
 
     state = const AsyncLoading();
