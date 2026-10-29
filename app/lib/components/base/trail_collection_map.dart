@@ -20,8 +20,7 @@ import 'package:wanderer/provider/map_style_json_provider.dart';
 /// `_ListMap`, and `map_screen.dart` — screens that render N trails
 /// (or none) rather than a single trail's track.
 class TrailCollectionMap extends ConsumerStatefulWidget {
-  /// Set when this map is mounted inside a scrolling parent, or sits under
-  /// scrolling Flutter content (map_screen's draggable trail sheet).
+  /// Set when this map is mounted inside a scrolling parent.
   ///
   /// Selects the Android platform-view composition mode — see the build site.
   /// Init-only: it is read once, when the native view is created, so flipping
@@ -133,11 +132,7 @@ class _TrailCollectionMapState extends ConsumerState<TrailCollectionMap>
             : const ml.MapGestures.all(),
         androidForegroundLoadColor: Theme.of(context).colorScheme.surface,
         // See TrailMap for why an interactive map takes SurfaceView + `hc`
-        // and an embedded one takes TextureView + `tlhc_hc`. map_screen opts
-        // into the latter despite being full-screen: under `hc` its sheet
-        // missed 58% of frames while scrolling (raster merged onto the
-        // platform thread, two surfaces per frame), against 33% here — at
-        // the price of ~40% more CPU while panning.
+        // and an embedded one takes TextureView + `tlhc_hc`.
         androidTextureMode: widget.embedded,
         androidMode: widget.embedded
             ? ml.AndroidPlatformViewMode.tlhc_hc

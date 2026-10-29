@@ -1,4 +1,5 @@
 import 'package:wanderer/components/map/map_ui_controls.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -100,16 +101,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
   late final ValueNotifier<double> _sheetSize;
 
   /// True while the sheet is fully expanded and hides the map completely.
-  /// The map is then kept mounted but [Offstage], so the hidden map texture
-  /// is not composited under every scrolled frame of the sheet.
+  /// The map is then kept mounted but [Offstage], which takes the `hc`
+  /// platform view out of the frame: no overlay surfaces and no raster/
+  /// platform-thread merge while the sheet's list scrolls.
   final ValueNotifier<bool> _mapCovered = ValueNotifier<bool>(false);
 
-  /// Native trail-marker data from the latest [build], and the parts of it
-  /// already on the current style — see [_syncTrailMarkers].
-  ({String geojson, Map<String, Widget> images})? _markerData;
-  String? _pushedMarkerJson;
-  final Set<String> _markerImageIds = {};
-  bool _markerLayerReady = false;
   late final AnimationController _mapButtonController;
   late final Animation<double> _mapButtonScale;
   late final AnimationController _searchAreaController;
@@ -247,32 +243,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
     }
   }
 
-  /// Pushes [_markerData] to the native trail-marker layer: rasterizes any
-  /// pin images the style doesn't have yet, then swaps the source data.
-  /// No-op until [addTrailMarkerLayer] has run on the current style.
-  Future<void> _syncTrailMarkers() async {
-    final style = _controller?.style;
-    final data = _markerData;
-    if (!_markerLayerReady || style == null || data == null) return;
-    if (data.geojson == _pushedMarkerJson) return;
-    _pushedMarkerJson = data.geojson;
-
-    final missing = {
-      for (final e in data.images.entries)
-        if (!_markerImageIds.contains(e.key)) e.key: e.value,
-    };
-    _markerImageIds.addAll(missing.keys);
-    try {
-      await addTrailMarkerImages(style, missing);
-      // A newer build superseded this one while the images rendered; its
-      // own sync pushes the newer data.
-      if (_pushedMarkerJson != data.geojson) return;
-      await updateTrailMarkerSource(style, data.geojson);
-    } catch (e) {
-      debugPrint('map_screen: failed to update trail markers — $e');
-    }
-  }
-
   /// Cancels the one-shot seed subscription and releases the GPS receiver
   /// acquired alongside it. Idempotent, because both the first fix and
   /// [dispose] race to end the seed.
@@ -369,9 +339,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           Text(
             AppLocalizations.of(context)!.no_trails_found,
             style: Theme.of(context).textTheme.labelLarge!.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              color: Theme.of(context).colorScheme.onSurface
+                  .withValues(alpha: 0.5),
             ),
           ),
         ],
@@ -509,8 +478,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final allSubcategories = ref.watch(subcategoryProvider);
 
     // mapClusterSearchProvider drives the native cluster circle/count layers
-    // (cluster_layer.dart) AND the native unclustered category-icon markers
-    // (trail_markers.dart).
+    // (cluster_layer.dart) AND the unclustered category-icon WidgetLayer
+    // markers below.
     final clusterAsync = ref.watch(
       mapClusterSearchProvider(authorId: null, filterId: 'map'),
     );
@@ -518,19 +487,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final features =
         (featureCollection?['features'] as List<dynamic>?) ?? const [];
 
-    final markerData = buildUnclusteredTrailMarkerData(
+    final unclusteredMarkers = buildUnclusteredTrailMarkers(
       features: features,
       trails: trails,
       categories: allCategories,
       subcategories: allSubcategories,
-      color: Theme.of(context).primaryColor,
+      context: context,
+      onTrailTap: _selectTrail,
     );
-    _markerData = markerData;
-    // Post-frame: rasterizing the pin images builds its own widget tree,
-    // which must not happen in the middle of this build.
-    if (markerData.geojson != _pushedMarkerJson) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _syncTrailMarkers());
-    }
 
     return Stack(
       children: [
@@ -545,17 +509,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           )
         else
-          // Offstage, not removed: the native map, its camera and its last
-          // rendered frame stay alive, so shrinking the sheet (including the
-          // Map button's instant collapse) shows the map on the very first
-          // frame instead of waiting for a remount and style load. This only
-          // skips compositing because the map is a texture layer (`embedded`).
+          // Offstage, not removed: the native map and its camera stay alive,
+          // so shrinking the sheet (including the Map button's instant
+          // collapse) shows it again without a remount and style load.
           ValueListenableBuilder<bool>(
             valueListenable: _mapCovered,
             builder: (context, covered, child) =>
                 Offstage(offstage: covered, child: child),
             child: TrailCollectionMap(
-              embedded: true,
               initCenter:
                   widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
               initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
@@ -580,20 +541,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   await addClusterLayers(style, jsonEncode(data));
                 } catch (e) {
                   debugPrint('map_screen: failed to add cluster layers — $e');
-                }
-
-                // After the clusters, so the pins draw over the circles. A
-                // style swap drops the layer and its images, so both are
-                // re-sent from scratch.
-                _markerLayerReady = false;
-                _markerImageIds.clear();
-                _pushedMarkerJson = null;
-                try {
-                  await addTrailMarkerLayer(style);
-                  _markerLayerReady = true;
-                  await _syncTrailMarkers();
-                } catch (e) {
-                  debugPrint('map_screen: failed to add trail markers — $e');
                 }
 
                 // Initial-load search trigger — fires once per widget lifetime,
@@ -634,18 +581,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                   final controller = _controller;
                   if (controller == null) return;
 
-                  final markerHit = controller
-                      .featuresAtPoint(
-                        event.screenPoint,
-                        layerIds: const [kTrailMarkerLayerId],
-                      )
-                      .firstOrNull
-                      ?.properties['id'];
-                  if (markerHit is String) {
-                    _selectTrail(markerHit);
-                    return;
-                  }
-
+                  // Only the native `clusters` circle layer needs
+                  // featuresAtPoint — unclustered points are WidgetLayer markers
+                  // that handle their own onTap directly.
                   final clusterHits = controller.featuresAtPoint(
                     event.screenPoint,
                     layerIds: const ['clusters'],
@@ -682,7 +620,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     return;
                   }
 
-                  // Background tap (not on a cluster or a trail marker). With
+                  // Background tap (not on a cluster or a marker widget). With
                   // a trail selected it only deselects, so dismissing the trail
                   // panel doesn't immediately open the location panel in its
                   // place; otherwise it drops (or moves) the location marker.
@@ -721,6 +659,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
                     ])
                   : null,
               children: [
+                if (unclusteredMarkers.isNotEmpty)
+                  ml.WidgetLayer(
+                    allowInteraction: true,
+                    markers: unclusteredMarkers,
+                  ),
                 if (_selectedLocation != null)
                   ml.WidgetLayer(
                     markers: [
@@ -953,9 +896,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                                     top: 4,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.outline,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outline,
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                           10,
@@ -976,9 +919,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                                               .clamp(0, 1),
                                                     child: Text(
                                                       "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                                      style: Theme.of(
-                                                        context,
-                                                      ).textTheme.labelLarge,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelLarge,
                                                     ),
                                                   ),
                                                 ),
@@ -1066,9 +1009,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                               side: BorderSide(color: Colors.transparent),
                             ),
                             label: Text(AppLocalizations.of(context)!.filter),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.surface,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surface,
                             elevation: 4,
                           ),
                           if (activeFilterCount > 0)

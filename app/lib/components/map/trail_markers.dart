@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:maplibre/maplibre.dart' as ml;
@@ -19,29 +16,24 @@ import 'package:wanderer/models/subcategory.dart';
 /// re-clusters. Approved trade-off (2026-08-08).
 const _kMaxUnclusteredMarkers = 60;
 
-/// GeoJSON source / symbol layer id for [addTrailMarkerLayer].
-const String kTrailMarkerLayerId = 'trail-markers';
-
-/// Logical size of a rendered marker image: the 36px pin plus room for its
-/// drop shadow, which a tight 36px image would clip.
-const double _kMarkerImageExtent = 48;
-
-/// One unclustered (`point_count == 1`) cluster-endpoint feature joined with
-/// its search result and resolved category.
-typedef _UnclusteredTrail = ({
-  String trailId,
-  ml.Geographic point,
-  Category? category,
-  Subcategory? subcategory,
-});
-
-Iterable<_UnclusteredTrail> _unclusteredTrails({
+/// Builds the category-icon markers for every unclustered (`point_count ==
+/// 1`) feature in a cluster-endpoint `FeatureCollection`, capped at
+/// [_kMaxUnclusteredMarkers].
+///
+/// Shared by `map_screen.dart` and `profile_trail_map_screen.dart` so the two
+/// screens' marker rendering cannot silently drift apart.
+List<ml.Marker> buildUnclusteredTrailMarkers({
   required List<dynamic> features,
   required List<TrailSearchResult> trails,
   required List<Category> categories,
   required List<Subcategory> subcategories,
-}) sync* {
+  required BuildContext context,
+  required void Function(String trailId) onTrailTap,
+}) {
+  final markers = <ml.Marker>[];
+
   for (final feature in features) {
+    if (markers.length >= _kMaxUnclusteredMarkers) break;
     if (feature is! Map) continue;
     final properties = feature['properties'];
     if (properties is! Map) continue;
@@ -66,183 +58,46 @@ Iterable<_UnclusteredTrail> _unclusteredTrails({
     final lon = (coordinates[0] as num).toDouble();
     final lat = (coordinates[1] as num).toDouble();
 
-    yield (
-      trailId: trailId,
-      point: ml.Geographic(lat: lat, lon: lon),
-      category: trail.categoryId != null
-          ? categories.firstWhereOrNull((c) => c.id == trail.categoryId)
-          : null,
-      subcategory: trail.subcategoryId != null
-          ? subcategories.firstWhereOrNull((s) => s.id == trail.subcategoryId)
-          : null,
-    );
-  }
-}
+    final Category? category = trail.categoryId != null
+        ? categories.firstWhereOrNull((c) => c.id == trail.categoryId)
+        : null;
+    final subcategory = trail.subcategoryId != null
+        ? subcategories.firstWhereOrNull((s) => s.id == trail.subcategoryId)
+        : null;
 
-/// The category-icon pin both marker paths draw: as a widget in
-/// [buildUnclusteredTrailMarkers], and rasterized into a style image for
-/// [addTrailMarkerLayer].
-Widget _trailMarkerPin(
-  Category? category,
-  Subcategory? subcategory,
-  Color color,
-) {
-  return Container(
-    width: 36,
-    height: 36,
-    decoration: BoxDecoration(
-      color: color,
-      shape: BoxShape.circle,
-      border: Border.all(color: Colors.white, width: 2),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 4,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Center(
-      child: trailCategoryIcon(
-        category,
-        subcategory: subcategory,
-        color: Colors.white,
-      ),
-    ),
-  );
-}
-
-/// Builds the category-icon markers for every unclustered (`point_count ==
-/// 1`) feature in a cluster-endpoint `FeatureCollection`, capped at
-/// [_kMaxUnclusteredMarkers].
-///
-/// Shared by `map_screen.dart` and `profile_trail_map_screen.dart` so the two
-/// screens' marker rendering cannot silently drift apart.
-List<ml.Marker> buildUnclusteredTrailMarkers({
-  required List<dynamic> features,
-  required List<TrailSearchResult> trails,
-  required List<Category> categories,
-  required List<Subcategory> subcategories,
-  required BuildContext context,
-  required void Function(String trailId) onTrailTap,
-}) {
-  final color = Theme.of(context).primaryColor;
-  return [
-    for (final t in _unclusteredTrails(
-      features: features,
-      trails: trails,
-      categories: categories,
-      subcategories: subcategories,
-    ).take(_kMaxUnclusteredMarkers))
+    markers.add(
       ml.Marker(
-        point: t.point,
+        point: ml.Geographic(lat: lat, lon: lon),
         size: const Size(36, 36),
         // MapMarkerGestures, not GestureDetector: the marker must stay
         // tappable without stealing the map's pan/pinch.
         child: MapMarkerGestures(
-          onTap: () => onTrailTap(t.trailId),
-          child: _trailMarkerPin(t.category, t.subcategory, color),
+          onTap: () => onTrailTap(trailId),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: trailCategoryIcon(
+                category,
+                subcategory: subcategory,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ),
       ),
-  ];
-}
-
-/// Native counterpart of [buildUnclusteredTrailMarkers]: the GeoJSON for
-/// [addTrailMarkerLayer]'s source, plus the pin widget behind every style
-/// image id it references (one per category/subcategory/color combination).
-///
-/// Widget markers are positioned by Flutter from camera updates that arrive
-/// separately from a texture-composited map's frames, so they visibly trail
-/// it while panning. A symbol layer moves in the same native frame as the
-/// map — and has no per-marker projection cost, hence no cap here.
-({String geojson, Map<String, Widget> images}) buildUnclusteredTrailMarkerData({
-  required List<dynamic> features,
-  required List<TrailSearchResult> trails,
-  required List<Category> categories,
-  required List<Subcategory> subcategories,
-  required Color color,
-}) {
-  final images = <String, Widget>{};
-  final markers = <Map<String, Object?>>[];
-  for (final t in _unclusteredTrails(
-    features: features,
-    trails: trails,
-    categories: categories,
-    subcategories: subcategories,
-  )) {
-    final imageId =
-        'trail-marker-${color.toARGB32()}-${t.category?.id}-${t.subcategory?.id}';
-    images.putIfAbsent(
-      imageId,
-      () => _trailMarkerPin(t.category, t.subcategory, color),
-    );
-    markers.add(<String, Object?>{
-      'type': 'Feature',
-      'properties': <String, Object?>{'id': t.trailId, 'icon': imageId},
-      'geometry': <String, Object?>{
-        'type': 'Point',
-        'coordinates': <double>[t.point.lon, t.point.lat],
-      },
-    });
-  }
-  return (
-    geojson: jsonEncode(<String, Object?>{
-      'type': 'FeatureCollection',
-      'features': markers,
-    }),
-    images: images,
-  );
-}
-
-/// Adds the trail-marker source and symbol layer, empty. Call from
-/// `onStyleLoaded` after [addClusterLayers] so the pins draw over the
-/// cluster circles, then feed it via [addTrailMarkerImages] and
-/// [updateTrailMarkerSource].
-Future<void> addTrailMarkerLayer(ml.StyleController style) async {
-  await style.addSource(
-    const ml.GeoJsonSource(
-      id: kTrailMarkerLayerId,
-      data: '{"type":"FeatureCollection","features":[]}',
-    ),
-  );
-  await style.addLayer(
-    ml.SymbolStyleLayer(
-      id: kTrailMarkerLayerId,
-      sourceId: kTrailMarkerLayerId,
-      layout: <String, Object>{
-        'icon-image': <Object>['get', 'icon'],
-        // Images are rendered at device resolution, and both platforms
-        // register them as 1x (Android upscales by the device density, iOS
-        // takes pixels as points) — scale back to the logical size.
-        'icon-size':
-            1 / PlatformDispatcher.instance.views.first.devicePixelRatio,
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
-      },
-    ),
-  );
-}
-
-/// Rasterizes and registers [images] (id → pin widget) as style images.
-Future<void> addTrailMarkerImages(
-  ml.StyleController style,
-  Map<String, Widget> images,
-) async {
-  final ratio = PlatformDispatcher.instance.views.first.devicePixelRatio;
-  const logical = Size.square(_kMarkerImageExtent);
-  for (final MapEntry(key: id, value: pin) in images.entries) {
-    await style.addImageFromWidget(
-      id: id,
-      widget: Center(child: pin),
-      logicalSize: logical,
-      imageSize: logical * ratio,
     );
   }
-}
 
-/// Swaps the trail-marker source's data in place, like
-/// [updateClusterSource].
-Future<void> updateTrailMarkerSource(
-  ml.StyleController style,
-  String geojson,
-) => style.updateGeoJsonSource(id: kTrailMarkerLayerId, data: geojson);
+  return markers;
+}

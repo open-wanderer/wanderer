@@ -9,9 +9,8 @@ const String kClusterSourceId = 'cluster-trails';
 /// — do not restyle.
 ///
 /// Deliberately does NOT port `cluster-layer.ts`'s `point_count == 1` circle
-/// layer: individual trail markers stay category-icon pins (trail_markers.dart:
-/// a symbol layer on `map_screen`, `WidgetLayer` markers on
-/// `profile_trail_map_screen`), not a plain circle — porting that native
+/// layer: individual trail markers stay category-icon `WidgetLayer` markers
+/// rendered by `map_screen`, not a native circle — porting that native
 /// single-point circle would flatten today's category glyph to a plain dot.
 ///
 /// `[geojson]` is a JSON-encoded `FeatureCollection` string (`GeoJsonSource.data`
@@ -25,7 +24,7 @@ Future<void> addClusterLayers(ml.StyleController style, String geojson) async {
   // features always carry point_count:1 (server-set), so the `point_count >
   // 1` clause already excludes them from these two layers regardless. Kept
   // for parity with web's filter shape. Unclustered category-icon markers
-  // (trail_markers.dart) intentionally do NOT filter on is_large
+  // (map_screen.dart) intentionally do NOT filter on is_large
   // — see that file's comment for why.
   await style.addLayer(
     const ml.CircleStyleLayer(
