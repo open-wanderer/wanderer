@@ -49,7 +49,7 @@ abstract interface class PagedState {
 /// [_inFlight] is what `state.isLoading` was believed to be. `state.isLoading`
 /// is still checked as well, because `search()` on some notifiers *does*
 /// publish an `AsyncLoading` and a next-page fetch must not race it.
-mixin PagedLoadMore<S extends PagedState> on $AsyncNotifier<S> {
+mixin PagedLoadMore<S extends PagedState> on AnyNotifier<AsyncValue<S>, S> {
   bool _inFlight = false;
 
   /// Bumped by [resetPaging]; a page fetched under an older generation

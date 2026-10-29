@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -707,8 +708,7 @@ class AppLocalizationsCa extends AppLocalizations {
       locale: localeName,
       other:
           'Tens $count senders que encara no s\'han pujat. Tancar la sessió no els eliminarà — seran aquí quan tornis a iniciar sessió —, però no es pujaran fins llavors.',
-      one:
-          'Tens 1 sender que encara no s\'ha pujat. Tancar la sessió no l\'eliminarà — serà aquí quan tornis a iniciar sessió —, però no es pujarà fins llavors.',
+      one: 'Tens 1 sender que encara no s\'ha pujat. Tancar la sessió no l\'eliminarà — serà aquí quan tornis a iniciar sessió —, però no es pujarà fins llavors.',
     );
     return '$_temp0';
   }

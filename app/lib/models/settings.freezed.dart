@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'settings.dart';
@@ -9,6 +9,7 @@ part of 'settings.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $SettingsLocationCopyWith<SettingsLocation> get copyWith => _$SettingsLocationCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsLocation&&(identical(other.name, name) || other.name == name)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon));
+  final _this = this as SettingsLocation;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsLocation&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lon, _this.lon) || other.lon == _this.lon));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,lat,lon);
+int get hashCode {
+  final _this = this as SettingsLocation;
+  return Object.hash(runtimeType,_this.name,_this.lat,_this.lon);
+}
 
 @override
 String toString() {
-  return 'SettingsLocation(name: $name, lat: $lat, lon: $lon)';
+  final _this = this as SettingsLocation;
+  return 'SettingsLocation(name: ${_this.name}, lat: ${_this.lat}, lon: ${_this.lon})';
 }
 
 
@@ -66,7 +72,7 @@ class _$SettingsLocationCopyWithImpl<$Res>
 /// Create a copy of SettingsLocation
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? lat = null,Object? lon = null,}) {
-  return _then(_self.copyWith(
+  return _then(SettingsLocation(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
@@ -231,16 +237,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsLocation&&(identical(other.name, name) || other.name == name)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsLocation&&(identical(other.name, name) || other.name == name)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,lat,lon);
+int get hashCode {
+    return Object.hash(runtimeType,name,lat,lon);
+}
 
 @override
 String toString() {
-  return 'SettingsLocation(name: $name, lat: $lat, lon: $lon)';
+    return 'SettingsLocation(name: $name, lat: $lat, lon: $lon)';
 }
 
 
@@ -297,16 +305,21 @@ $SettingsPrivacyCopyWith<SettingsPrivacy> get copyWith => _$SettingsPrivacyCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsPrivacy&&(identical(other.account, account) || other.account == account)&&(identical(other.trails, trails) || other.trails == trails)&&(identical(other.lists, lists) || other.lists == lists));
+  final _this = this as SettingsPrivacy;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsPrivacy&&(identical(other.account, _this.account) || other.account == _this.account)&&(identical(other.trails, _this.trails) || other.trails == _this.trails)&&(identical(other.lists, _this.lists) || other.lists == _this.lists));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,account,trails,lists);
+int get hashCode {
+  final _this = this as SettingsPrivacy;
+  return Object.hash(runtimeType,_this.account,_this.trails,_this.lists);
+}
 
 @override
 String toString() {
-  return 'SettingsPrivacy(account: $account, trails: $trails, lists: $lists)';
+  final _this = this as SettingsPrivacy;
+  return 'SettingsPrivacy(account: ${_this.account}, trails: ${_this.trails}, lists: ${_this.lists})';
 }
 
 
@@ -335,7 +348,7 @@ class _$SettingsPrivacyCopyWithImpl<$Res>
 /// Create a copy of SettingsPrivacy
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? account = null,Object? trails = null,Object? lists = null,}) {
-  return _then(_self.copyWith(
+  return _then(SettingsPrivacy(
 account: null == account ? _self.account : account // ignore: cast_nullable_to_non_nullable
 as String,trails: null == trails ? _self.trails : trails // ignore: cast_nullable_to_non_nullable
 as String,lists: null == lists ? _self.lists : lists // ignore: cast_nullable_to_non_nullable
@@ -500,16 +513,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsPrivacy&&(identical(other.account, account) || other.account == account)&&(identical(other.trails, trails) || other.trails == trails)&&(identical(other.lists, lists) || other.lists == lists));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsPrivacy&&(identical(other.account, account) || other.account == account)&&(identical(other.trails, trails) || other.trails == trails)&&(identical(other.lists, lists) || other.lists == lists));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,account,trails,lists);
+int get hashCode {
+    return Object.hash(runtimeType,account,trails,lists);
+}
 
 @override
 String toString() {
-  return 'SettingsPrivacy(account: $account, trails: $trails, lists: $lists)';
+    return 'SettingsPrivacy(account: $account, trails: $trails, lists: $lists)';
 }
 
 
@@ -566,16 +581,21 @@ $NotificationPreferenceCopyWith<NotificationPreference> get copyWith => _$Notifi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NotificationPreference&&(identical(other.web, web) || other.web == web)&&(identical(other.email, email) || other.email == email));
+  final _this = this as NotificationPreference;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NotificationPreference&&(identical(other.web, _this.web) || other.web == _this.web)&&(identical(other.email, _this.email) || other.email == _this.email));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,web,email);
+int get hashCode {
+  final _this = this as NotificationPreference;
+  return Object.hash(runtimeType,_this.web,_this.email);
+}
 
 @override
 String toString() {
-  return 'NotificationPreference(web: $web, email: $email)';
+  final _this = this as NotificationPreference;
+  return 'NotificationPreference(web: ${_this.web}, email: ${_this.email})';
 }
 
 
@@ -604,7 +624,7 @@ class _$NotificationPreferenceCopyWithImpl<$Res>
 /// Create a copy of NotificationPreference
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? web = null,Object? email = null,}) {
-  return _then(_self.copyWith(
+  return _then(NotificationPreference(
 web: null == web ? _self.web : web // ignore: cast_nullable_to_non_nullable
 as bool,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
 as bool,
@@ -767,16 +787,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NotificationPreference&&(identical(other.web, web) || other.web == web)&&(identical(other.email, email) || other.email == email));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NotificationPreference&&(identical(other.web, web) || other.web == web)&&(identical(other.email, email) || other.email == email));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,web,email);
+int get hashCode {
+    return Object.hash(runtimeType,web,email);
+}
 
 @override
 String toString() {
-  return 'NotificationPreference(web: $web, email: $email)';
+    return 'NotificationPreference(web: $web, email: $email)';
 }
 
 
@@ -832,16 +854,21 @@ $BehaviorCopyWith<Behavior> get copyWith => _$BehaviorCopyWithImpl<Behavior>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Behavior&&(identical(other.allowAutoGeolocate, allowAutoGeolocate) || other.allowAutoGeolocate == allowAutoGeolocate)&&(identical(other.mapClusteringMaxZoom, mapClusteringMaxZoom) || other.mapClusteringMaxZoom == mapClusteringMaxZoom)&&(identical(other.showTrailStartMarker, showTrailStartMarker) || other.showTrailStartMarker == showTrailStartMarker));
+  final _this = this as Behavior;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Behavior&&(identical(other.allowAutoGeolocate, _this.allowAutoGeolocate) || other.allowAutoGeolocate == _this.allowAutoGeolocate)&&(identical(other.mapClusteringMaxZoom, _this.mapClusteringMaxZoom) || other.mapClusteringMaxZoom == _this.mapClusteringMaxZoom)&&(identical(other.showTrailStartMarker, _this.showTrailStartMarker) || other.showTrailStartMarker == _this.showTrailStartMarker));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,allowAutoGeolocate,mapClusteringMaxZoom,showTrailStartMarker);
+int get hashCode {
+  final _this = this as Behavior;
+  return Object.hash(runtimeType,_this.allowAutoGeolocate,_this.mapClusteringMaxZoom,_this.showTrailStartMarker);
+}
 
 @override
 String toString() {
-  return 'Behavior(allowAutoGeolocate: $allowAutoGeolocate, mapClusteringMaxZoom: $mapClusteringMaxZoom, showTrailStartMarker: $showTrailStartMarker)';
+  final _this = this as Behavior;
+  return 'Behavior(allowAutoGeolocate: ${_this.allowAutoGeolocate}, mapClusteringMaxZoom: ${_this.mapClusteringMaxZoom}, showTrailStartMarker: ${_this.showTrailStartMarker})';
 }
 
 
@@ -870,7 +897,7 @@ class _$BehaviorCopyWithImpl<$Res>
 /// Create a copy of Behavior
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? allowAutoGeolocate = freezed,Object? mapClusteringMaxZoom = freezed,Object? showTrailStartMarker = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Behavior(
 allowAutoGeolocate: freezed == allowAutoGeolocate ? _self.allowAutoGeolocate : allowAutoGeolocate // ignore: cast_nullable_to_non_nullable
 as bool?,mapClusteringMaxZoom: freezed == mapClusteringMaxZoom ? _self.mapClusteringMaxZoom : mapClusteringMaxZoom // ignore: cast_nullable_to_non_nullable
 as int?,showTrailStartMarker: freezed == showTrailStartMarker ? _self.showTrailStartMarker : showTrailStartMarker // ignore: cast_nullable_to_non_nullable
@@ -1035,16 +1062,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Behavior&&(identical(other.allowAutoGeolocate, allowAutoGeolocate) || other.allowAutoGeolocate == allowAutoGeolocate)&&(identical(other.mapClusteringMaxZoom, mapClusteringMaxZoom) || other.mapClusteringMaxZoom == mapClusteringMaxZoom)&&(identical(other.showTrailStartMarker, showTrailStartMarker) || other.showTrailStartMarker == showTrailStartMarker));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Behavior&&(identical(other.allowAutoGeolocate, allowAutoGeolocate) || other.allowAutoGeolocate == allowAutoGeolocate)&&(identical(other.mapClusteringMaxZoom, mapClusteringMaxZoom) || other.mapClusteringMaxZoom == mapClusteringMaxZoom)&&(identical(other.showTrailStartMarker, showTrailStartMarker) || other.showTrailStartMarker == showTrailStartMarker));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,allowAutoGeolocate,mapClusteringMaxZoom,showTrailStartMarker);
+int get hashCode {
+    return Object.hash(runtimeType,allowAutoGeolocate,mapClusteringMaxZoom,showTrailStartMarker);
+}
 
 @override
 String toString() {
-  return 'Behavior(allowAutoGeolocate: $allowAutoGeolocate, mapClusteringMaxZoom: $mapClusteringMaxZoom, showTrailStartMarker: $showTrailStartMarker)';
+    return 'Behavior(allowAutoGeolocate: $allowAutoGeolocate, mapClusteringMaxZoom: $mapClusteringMaxZoom, showTrailStartMarker: $showTrailStartMarker)';
 }
 
 
@@ -1101,16 +1130,21 @@ $SettingsCopyWith<Settings> get copyWith => _$SettingsCopyWithImpl<Settings>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.notifications, notifications)&&(identical(other.behavior, behavior) || other.behavior == behavior));
+  final _this = this as Settings;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Settings&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.unit, _this.unit) || other.unit == _this.unit)&&(identical(other.language, _this.language) || other.language == _this.language)&&(identical(other.bio, _this.bio) || other.bio == _this.bio)&&(identical(other.location, _this.location) || other.location == _this.location)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.privacy, _this.privacy) || other.privacy == _this.privacy)&&const DeepCollectionEquality().equals(other.notifications, _this.notifications)&&(identical(other.behavior, _this.behavior) || other.behavior == _this.behavior));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(notifications),behavior);
+int get hashCode {
+  final _this = this as Settings;
+  return Object.hash(runtimeType,_this.id,_this.unit,_this.language,_this.bio,_this.location,_this.user,_this.privacy,const DeepCollectionEquality().hash(_this.notifications),_this.behavior);
+}
 
 @override
 String toString() {
-  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications, behavior: $behavior)';
+  final _this = this as Settings;
+  return 'Settings(id: ${_this.id}, unit: ${_this.unit}, language: ${_this.language}, bio: ${_this.bio}, location: ${_this.location}, user: ${_this.user}, privacy: ${_this.privacy}, notifications: ${_this.notifications}, behavior: ${_this.behavior})';
 }
 
 
@@ -1139,7 +1173,7 @@ class _$SettingsCopyWithImpl<$Res>
 /// Create a copy of Settings
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? unit = freezed,Object? language = freezed,Object? bio = freezed,Object? location = freezed,Object? user = freezed,Object? privacy = freezed,Object? notifications = freezed,Object? behavior = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Settings(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,unit: freezed == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
 as String?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
@@ -1326,7 +1360,7 @@ return $default(_that.id,_that.unit,_that.language,_that.bio,_that.location,_tha
 @JsonSerializable()
 
 class _Settings implements Settings {
-  const _Settings({this.id, this.unit, this.language, this.bio, this.location, this.user, this.privacy, final  Map<String, NotificationPreference>? notifications, this.behavior}): _notifications = notifications;
+  const _Settings({this.id, this.unit, this.language, this.bio, this.location, this.user, this.privacy,  Map<String, NotificationPreference>? notifications, this.behavior}): _notifications = notifications;
   factory _Settings.fromJson(Map<String, dynamic> json) => _$SettingsFromJson(json);
 
 @override final  String? id;
@@ -1360,16 +1394,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other._notifications, _notifications)&&(identical(other.behavior, behavior) || other.behavior == behavior));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Settings&&(identical(other.id, id) || other.id == id)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.language, language) || other.language == language)&&(identical(other.bio, bio) || other.bio == bio)&&(identical(other.location, location) || other.location == location)&&(identical(other.user, user) || other.user == user)&&(identical(other.privacy, privacy) || other.privacy == privacy)&&const DeepCollectionEquality().equals(other.notifications, _notifications)&&(identical(other.behavior, behavior) || other.behavior == behavior));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(_notifications),behavior);
+int get hashCode {
+    return Object.hash(runtimeType,id,unit,language,bio,location,user,privacy,const DeepCollectionEquality().hash(_notifications),behavior);
+}
 
 @override
 String toString() {
-  return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications, behavior: $behavior)';
+    return 'Settings(id: $id, unit: $unit, language: $language, bio: $bio, location: $location, user: $user, privacy: $privacy, notifications: $notifications, behavior: $behavior)';
 }
 
 

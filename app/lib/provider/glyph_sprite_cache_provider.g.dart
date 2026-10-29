@@ -73,7 +73,7 @@ abstract class _$GlyphSpriteCache
   FutureOr<GlyphSpriteCachePaths> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<AsyncValue<GlyphSpriteCachePaths>, GlyphSpriteCachePaths>;
@@ -88,6 +88,6 @@ abstract class _$GlyphSpriteCache
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

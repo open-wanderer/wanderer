@@ -91,7 +91,7 @@ abstract class _$SplashReveal extends $Notifier<bool> {
   bool build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<bool, bool>;
     final element =
         ref.element
@@ -101,7 +101,7 @@ abstract class _$SplashReveal extends $Notifier<bool> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 
@@ -177,13 +177,13 @@ final class RouterProvider extends $NotifierProvider<Router, GoRouter> {
   }
 }
 
-String _$routerHash() => r'd1a6292a98f76dc83db7e401fba1e8b656f821b7';
+String _$routerHash() => r'bb4e5dc042b42b28298d91c62a17d25897d1d9bc';
 
 abstract class _$Router extends $Notifier<GoRouter> {
   GoRouter build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<GoRouter, GoRouter>;
     final element =
         ref.element
@@ -193,6 +193,6 @@ abstract class _$Router extends $Notifier<GoRouter> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

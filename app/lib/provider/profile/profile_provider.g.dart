@@ -105,7 +105,7 @@ abstract class _$ProfileNotifier extends $AsyncNotifier<Actor> {
   FutureOr<Actor> build(String handle);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<Actor>, Actor>;
     final element =
         ref.element
@@ -115,7 +115,7 @@ abstract class _$ProfileNotifier extends $AsyncNotifier<Actor> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }
 
@@ -199,7 +199,7 @@ abstract class _$OwnProfile extends $AsyncNotifier<Actor> {
   FutureOr<Actor> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<Actor>, Actor>;
     final element =
         ref.element
@@ -209,6 +209,6 @@ abstract class _$OwnProfile extends $AsyncNotifier<Actor> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -167,7 +167,7 @@ abstract class _$NavigationStatsNotifier extends $Notifier<NavigationStats> {
   });
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<NavigationStats, NavigationStats>;
     final element =
         ref.element
@@ -177,6 +177,9 @@ abstract class _$NavigationStatsNotifier extends $Notifier<NavigationStats> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args.$1, resume: _$args.resume));
+    return element.handleCreate(
+      ref,
+      () => build(_$args.$1, resume: _$args.resume),
+    );
   }
 }

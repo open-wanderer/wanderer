@@ -96,7 +96,7 @@ abstract class _$TrailDeletions extends $Notifier<TrailDeletion?> {
   TrailDeletion? build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<TrailDeletion?, TrailDeletion?>;
     final element =
         ref.element
@@ -106,6 +106,6 @@ abstract class _$TrailDeletions extends $Notifier<TrailDeletion?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

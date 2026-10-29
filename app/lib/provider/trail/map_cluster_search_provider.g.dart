@@ -124,7 +124,7 @@ abstract class _$MapClusterSearch extends $AsyncNotifier<Map<String, dynamic>> {
   });
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<AsyncValue<Map<String, dynamic>>, Map<String, dynamic>>;
@@ -139,7 +139,7 @@ abstract class _$MapClusterSearch extends $AsyncNotifier<Map<String, dynamic>> {
               Object?,
               Object?
             >;
-    element.handleCreate(
+    return element.handleCreate(
       ref,
       () => build(authorId: _$args.authorId, filterId: _$args.filterId),
     );

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'api_error.dart';
@@ -9,6 +9,7 @@ part of 'api_error.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $ApiErrorCopyWith<ApiError> get copyWith => _$ApiErrorCopyWithImpl<ApiError>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ApiError&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other.detail, detail));
+  final _this = this as ApiError;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ApiError&&(identical(other.message, _this.message) || other.message == _this.message)&&const DeepCollectionEquality().equals(other.detail, _this.detail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,message,const DeepCollectionEquality().hash(detail));
+int get hashCode {
+  final _this = this as ApiError;
+  return Object.hash(runtimeType,_this.message,const DeepCollectionEquality().hash(_this.detail));
+}
 
 @override
 String toString() {
-  return 'ApiError(message: $message, detail: $detail)';
+  final _this = this as ApiError;
+  return 'ApiError(message: ${_this.message}, detail: ${_this.detail})';
 }
 
 
@@ -66,7 +72,7 @@ class _$ApiErrorCopyWithImpl<$Res>
 /// Create a copy of ApiError
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? message = null,Object? detail = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(ApiError(
 message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,detail: freezed == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
 as dynamic,
@@ -229,16 +235,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ApiError&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other.detail, detail));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ApiError&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other.detail, detail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,message,const DeepCollectionEquality().hash(detail));
+int get hashCode {
+    return Object.hash(runtimeType,message,const DeepCollectionEquality().hash(detail));
+}
 
 @override
 String toString() {
-  return 'ApiError(message: $message, detail: $detail)';
+    return 'ApiError(message: $message, detail: $detail)';
 }
 
 

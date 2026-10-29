@@ -40,7 +40,7 @@ abstract class _$TrailSearchNotifier extends $AsyncNotifier<TrailSearchState> {
   FutureOr<TrailSearchState> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<TrailSearchState>, TrailSearchState>;
     final element =
@@ -51,6 +51,6 @@ abstract class _$TrailSearchNotifier extends $AsyncNotifier<TrailSearchState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -85,7 +85,7 @@ abstract class _$ProfileFeedNotifier extends $AsyncNotifier<ProfileFeedState> {
   FutureOr<ProfileFeedState> build(String handle);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<ProfileFeedState>, ProfileFeedState>;
     final element =
@@ -96,6 +96,6 @@ abstract class _$ProfileFeedNotifier extends $AsyncNotifier<ProfileFeedState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

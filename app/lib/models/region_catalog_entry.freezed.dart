@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'region_catalog_entry.dart';
@@ -9,6 +9,7 @@ part of 'region_catalog_entry.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -34,16 +35,21 @@ $RegionCatalogEntryCopyWith<RegionCatalogEntry> get copyWith => _$RegionCatalogE
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.path, path) || other.path == path)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.bbox, bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
+  final _this = this as RegionCatalogEntry;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionCatalogEntry&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.path, _this.path) || other.path == _this.path)&&(identical(other.name, _this.name) || other.name == _this.name)&&const DeepCollectionEquality().equals(other.bbox, _this.bbox)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.version, _this.version) || other.version == _this.version)&&(identical(other.vectorUrl, _this.vectorUrl) || other.vectorUrl == _this.vectorUrl)&&(identical(other.vectorSize, _this.vectorSize) || other.vectorSize == _this.vectorSize)&&(identical(other.demStatus, _this.demStatus) || other.demStatus == _this.demStatus)&&(identical(other.demUrl, _this.demUrl) || other.demUrl == _this.demUrl)&&(identical(other.demSize, _this.demSize) || other.demSize == _this.demSize)&&(identical(other.error, _this.error) || other.error == _this.error));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,path,name,const DeepCollectionEquality().hash(bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
+int get hashCode {
+  final _this = this as RegionCatalogEntry;
+  return Object.hash(runtimeType,_this.id,_this.path,_this.name,const DeepCollectionEquality().hash(_this.bbox),_this.status,_this.version,_this.vectorUrl,_this.vectorSize,_this.demStatus,_this.demUrl,_this.demSize,_this.error);
+}
 
 @override
 String toString() {
-  return 'RegionCatalogEntry(id: $id, path: $path, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
+  final _this = this as RegionCatalogEntry;
+  return 'RegionCatalogEntry(id: ${_this.id}, path: ${_this.path}, name: ${_this.name}, bbox: ${_this.bbox}, status: ${_this.status}, version: ${_this.version}, vectorUrl: ${_this.vectorUrl}, vectorSize: ${_this.vectorSize}, demStatus: ${_this.demStatus}, demUrl: ${_this.demUrl}, demSize: ${_this.demSize}, error: ${_this.error})';
 }
 
 
@@ -72,7 +78,7 @@ class _$RegionCatalogEntryCopyWithImpl<$Res>
 /// Create a copy of RegionCatalogEntry
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? path = null,Object? name = null,Object? bbox = null,Object? status = null,Object? version = freezed,Object? vectorUrl = freezed,Object? vectorSize = freezed,Object? demStatus = freezed,Object? demUrl = freezed,Object? demSize = freezed,Object? error = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(RegionCatalogEntry(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -226,7 +232,7 @@ return $default(_that.id,_that.path,_that.name,_that.bbox,_that.status,_that.ver
 @JsonSerializable()
 
 class _RegionCatalogEntry implements RegionCatalogEntry {
-  const _RegionCatalogEntry({required this.id, required this.path, required this.name, required final  List<double> bbox, required this.status, this.version, @JsonKey(name: 'vector_url') this.vectorUrl, @JsonKey(name: 'vector_size') this.vectorSize, @JsonKey(name: 'dem_status') this.demStatus, @JsonKey(name: 'dem_url') this.demUrl, @JsonKey(name: 'dem_size') this.demSize, this.error}): _bbox = bbox;
+  const _RegionCatalogEntry({required this.id, required this.path, required this.name, required  List<double> bbox, required this.status, this.version, @JsonKey(name: 'vector_url') this.vectorUrl, @JsonKey(name: 'vector_size') this.vectorSize, @JsonKey(name: 'dem_status') this.demStatus, @JsonKey(name: 'dem_url') this.demUrl, @JsonKey(name: 'dem_size') this.demSize, this.error}): _bbox = bbox;
   factory _RegionCatalogEntry.fromJson(Map<String, dynamic> json) => _$RegionCatalogEntryFromJson(json);
 
 @override final  String id;
@@ -269,16 +275,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.path, path) || other.path == path)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other._bbox, _bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionCatalogEntry&&(identical(other.id, id) || other.id == id)&&(identical(other.path, path) || other.path == path)&&(identical(other.name, name) || other.name == name)&&const DeepCollectionEquality().equals(other.bbox, _bbox)&&(identical(other.status, status) || other.status == status)&&(identical(other.version, version) || other.version == version)&&(identical(other.vectorUrl, vectorUrl) || other.vectorUrl == vectorUrl)&&(identical(other.vectorSize, vectorSize) || other.vectorSize == vectorSize)&&(identical(other.demStatus, demStatus) || other.demStatus == demStatus)&&(identical(other.demUrl, demUrl) || other.demUrl == demUrl)&&(identical(other.demSize, demSize) || other.demSize == demSize)&&(identical(other.error, error) || other.error == error));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,path,name,const DeepCollectionEquality().hash(_bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
+int get hashCode {
+    return Object.hash(runtimeType,id,path,name,const DeepCollectionEquality().hash(_bbox),status,version,vectorUrl,vectorSize,demStatus,demUrl,demSize,error);
+}
 
 @override
 String toString() {
-  return 'RegionCatalogEntry(id: $id, path: $path, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
+    return 'RegionCatalogEntry(id: $id, path: $path, name: $name, bbox: $bbox, status: $status, version: $version, vectorUrl: $vectorUrl, vectorSize: $vectorSize, demStatus: $demStatus, demUrl: $demUrl, demSize: $demSize, error: $error)';
 }
 
 

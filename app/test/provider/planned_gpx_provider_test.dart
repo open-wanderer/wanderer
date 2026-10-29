@@ -21,12 +21,11 @@ const _anchorIdB = 'anchor-b';
 const _anchorIdC = 'anchor-c';
 
 class _SeededRouteAnchors extends RouteAnchors {
-  _SeededRouteAnchors(this._anchors, this._segments, {String travelProfile = _profile})
-    : _travelProfile = travelProfile;
+  _SeededRouteAnchors(this._anchors, this._segments);
 
   final List<RouteAnchor> _anchors;
   final List<RouteSegment> _segments;
-  final String _travelProfile;
+  final String _travelProfile = _profile;
 
   @override
   RouteAnchorsState build() {

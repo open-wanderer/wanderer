@@ -7,6 +7,7 @@
 /// silently replace one another. A minted local id gives every unsynced row
 /// a stable, collision-free identity that survives until the drain assigns
 /// it a real server id.
+library;
 
 /// Prefix for every minted local id.
 ///

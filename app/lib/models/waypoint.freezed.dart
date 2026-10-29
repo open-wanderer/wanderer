@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'waypoint.dart';
@@ -9,14 +9,14 @@ part of 'waypoint.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$Waypoint {
 
- String get id; String get collectionId; String get collectionName; String? get name; String? get description; double get lat; double get lon;@JsonKey(name: 'distance_from_start') double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail; DateTime get created; DateTime get updated;// Non-serializable local fields
-@JsonKey(includeFromJson: false, includeToJson: false) dynamic get marker;@JsonKey(includeFromJson: false, includeToJson: false) List<String> get localPhotos;/// Carries list identity for a waypoint that has no server id yet
+ String get id; String get collectionId; String get collectionName; String? get name; String? get description; double get lat; double get lon;@JsonKey(name: 'distance_from_start') double? get distanceFromStart;@FaIconDataConverter() FaIconData get icon; List<String> get photos; String get author; String? get trail; DateTime get created; DateTime get updated;@JsonKey(includeFromJson: false, includeToJson: false) dynamic get marker;@JsonKey(includeFromJson: false, includeToJson: false) List<String> get localPhotos;/// Carries list identity for a waypoint that has no server id yet
 /// yet. Device-local only, never serialized.
 @JsonKey(includeFromJson: false, includeToJson: false) String? get localKey;
 /// Create a copy of Waypoint
@@ -31,16 +31,21 @@ $WaypointCopyWith<Waypoint> get copyWith => _$WaypointCopyWithImpl<Waypoint>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other.localPhotos, localPhotos)&&(identical(other.localKey, localKey) || other.localKey == localKey));
+  final _this = this as Waypoint;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Waypoint&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.collectionName, _this.collectionName) || other.collectionName == _this.collectionName)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lon, _this.lon) || other.lon == _this.lon)&&(identical(other.distanceFromStart, _this.distanceFromStart) || other.distanceFromStart == _this.distanceFromStart)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&const DeepCollectionEquality().equals(other.photos, _this.photos)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&const DeepCollectionEquality().equals(other.marker, _this.marker)&&const DeepCollectionEquality().equals(other.localPhotos, _this.localPhotos)&&(identical(other.localKey, _this.localKey) || other.localKey == _this.localKey));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(photos),author,trail,created,updated,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(localPhotos),localKey);
+int get hashCode {
+  final _this = this as Waypoint;
+  return Object.hash(runtimeType,_this.id,_this.collectionId,_this.collectionName,_this.name,_this.description,_this.lat,_this.lon,_this.distanceFromStart,_this.icon,const DeepCollectionEquality().hash(_this.photos),_this.author,_this.trail,_this.created,_this.updated,const DeepCollectionEquality().hash(_this.marker),const DeepCollectionEquality().hash(_this.localPhotos),_this.localKey);
+}
 
 @override
 String toString() {
-  return 'Waypoint(id: $id, collectionId: $collectionId, collectionName: $collectionName, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, created: $created, updated: $updated, marker: $marker, localPhotos: $localPhotos, localKey: $localKey)';
+  final _this = this as Waypoint;
+  return 'Waypoint(id: ${_this.id}, collectionId: ${_this.collectionId}, collectionName: ${_this.collectionName}, name: ${_this.name}, description: ${_this.description}, lat: ${_this.lat}, lon: ${_this.lon}, distanceFromStart: ${_this.distanceFromStart}, icon: ${_this.icon}, photos: ${_this.photos}, author: ${_this.author}, trail: ${_this.trail}, created: ${_this.created}, updated: ${_this.updated}, marker: ${_this.marker}, localPhotos: ${_this.localPhotos}, localKey: ${_this.localKey})';
 }
 
 
@@ -69,7 +74,7 @@ class _$WaypointCopyWithImpl<$Res>
 /// Create a copy of Waypoint
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? name = freezed,Object? description = freezed,Object? lat = null,Object? lon = null,Object? distanceFromStart = freezed,Object? icon = null,Object? photos = null,Object? author = null,Object? trail = freezed,Object? created = null,Object? updated = null,Object? marker = freezed,Object? localPhotos = null,Object? localKey = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Waypoint(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
@@ -228,7 +233,7 @@ return $default(_that.id,_that.collectionId,_that.collectionName,_that.name,_tha
 @JsonSerializable()
 
 class _Waypoint extends Waypoint {
-  const _Waypoint({required this.id, this.collectionId = 'waypoints', this.collectionName = 'waypoints', this.name = "", this.description = "", required this.lat, required this.lon, @JsonKey(name: 'distance_from_start') this.distanceFromStart, @FaIconDataConverter() this.icon = FontAwesomeIcons.circle, final  List<String> photos = const [], this.author = "000000000000000", this.trail, required this.created, required this.updated, @JsonKey(includeFromJson: false, includeToJson: false) this.marker, @JsonKey(includeFromJson: false, includeToJson: false) final  List<String> localPhotos = const [], @JsonKey(includeFromJson: false, includeToJson: false) this.localKey}): _photos = photos,_localPhotos = localPhotos,super._();
+  const _Waypoint({required this.id, this.collectionId = 'waypoints', this.collectionName = 'waypoints', this.name = "", this.description = "", required this.lat, required this.lon, @JsonKey(name: 'distance_from_start') this.distanceFromStart, @FaIconDataConverter() this.icon = FontAwesomeIcons.circle,  List<String> photos = const [], this.author = "000000000000000", this.trail, required this.created, required this.updated, @JsonKey(includeFromJson: false, includeToJson: false) this.marker, @JsonKey(includeFromJson: false, includeToJson: false)  List<String> localPhotos = const [], @JsonKey(includeFromJson: false, includeToJson: false) this.localKey}): _photos = photos,_localPhotos = localPhotos,super._();
   factory _Waypoint.fromJson(Map<String, dynamic> json) => _$WaypointFromJson(json);
 
 @override final  String id;
@@ -251,7 +256,6 @@ class _Waypoint extends Waypoint {
 @override final  String? trail;
 @override final  DateTime created;
 @override final  DateTime updated;
-// Non-serializable local fields
 @override@JsonKey(includeFromJson: false, includeToJson: false) final  dynamic marker;
  final  List<String> _localPhotos;
 @override@JsonKey(includeFromJson: false, includeToJson: false) List<String> get localPhotos {
@@ -277,16 +281,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other._localPhotos, _localPhotos)&&(identical(other.localKey, localKey) || other.localKey == localKey));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Waypoint&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.distanceFromStart, distanceFromStart) || other.distanceFromStart == distanceFromStart)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.photos, _photos)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&const DeepCollectionEquality().equals(other.marker, marker)&&const DeepCollectionEquality().equals(other.localPhotos, _localPhotos)&&(identical(other.localKey, localKey) || other.localKey == localKey));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(_photos),author,trail,created,updated,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(_localPhotos),localKey);
+int get hashCode {
+    return Object.hash(runtimeType,id,collectionId,collectionName,name,description,lat,lon,distanceFromStart,icon,const DeepCollectionEquality().hash(_photos),author,trail,created,updated,const DeepCollectionEquality().hash(marker),const DeepCollectionEquality().hash(_localPhotos),localKey);
+}
 
 @override
 String toString() {
-  return 'Waypoint(id: $id, collectionId: $collectionId, collectionName: $collectionName, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, created: $created, updated: $updated, marker: $marker, localPhotos: $localPhotos, localKey: $localKey)';
+    return 'Waypoint(id: $id, collectionId: $collectionId, collectionName: $collectionName, name: $name, description: $description, lat: $lat, lon: $lon, distanceFromStart: $distanceFromStart, icon: $icon, photos: $photos, author: $author, trail: $trail, created: $created, updated: $updated, marker: $marker, localPhotos: $localPhotos, localKey: $localKey)';
 }
 
 

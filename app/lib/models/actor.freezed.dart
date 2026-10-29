@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'actor.dart';
@@ -9,6 +9,7 @@ part of 'actor.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $ActorCopyWith<Actor> get copyWith => _$ActorCopyWithImpl<Actor>(this as Actor, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Actor&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.published, published) || other.published == published)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.inbox, inbox) || other.inbox == inbox)&&(identical(other.outbox, outbox) || other.outbox == outbox)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.followers, followers) || other.followers == followers)&&(identical(other.following, following) || other.following == following)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey)&&(identical(other.lastFetched, lastFetched) || other.lastFetched == lastFetched)&&(identical(other.user, user) || other.user == user));
+  final _this = this as Actor;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Actor&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.collectionName, _this.collectionName) || other.collectionName == _this.collectionName)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.preferredUsername, _this.preferredUsername) || other.preferredUsername == _this.preferredUsername)&&(identical(other.domain, _this.domain) || other.domain == _this.domain)&&(identical(other.summary, _this.summary) || other.summary == _this.summary)&&(identical(other.published, _this.published) || other.published == _this.published)&&(identical(other.followerCount, _this.followerCount) || other.followerCount == _this.followerCount)&&(identical(other.followingCount, _this.followingCount) || other.followingCount == _this.followingCount)&&(identical(other.iri, _this.iri) || other.iri == _this.iri)&&(identical(other.inbox, _this.inbox) || other.inbox == _this.inbox)&&(identical(other.outbox, _this.outbox) || other.outbox == _this.outbox)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.followers, _this.followers) || other.followers == _this.followers)&&(identical(other.following, _this.following) || other.following == _this.following)&&(identical(other.isLocal, _this.isLocal) || other.isLocal == _this.isLocal)&&(identical(other.publicKey, _this.publicKey) || other.publicKey == _this.publicKey)&&(identical(other.lastFetched, _this.lastFetched) || other.lastFetched == _this.lastFetched)&&(identical(other.user, _this.user) || other.user == _this.user));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,collectionId,collectionName,created,updated,username,preferredUsername,domain,summary,published,followerCount,followingCount,iri,inbox,outbox,icon,followers,following,isLocal,publicKey,lastFetched,user]);
+int get hashCode {
+  final _this = this as Actor;
+  return Object.hashAll([runtimeType,_this.id,_this.collectionId,_this.collectionName,_this.created,_this.updated,_this.username,_this.preferredUsername,_this.domain,_this.summary,_this.published,_this.followerCount,_this.followingCount,_this.iri,_this.inbox,_this.outbox,_this.icon,_this.followers,_this.following,_this.isLocal,_this.publicKey,_this.lastFetched,_this.user]);
+}
 
 @override
 String toString() {
-  return 'Actor(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, preferredUsername: $preferredUsername, domain: $domain, summary: $summary, published: $published, followerCount: $followerCount, followingCount: $followingCount, iri: $iri, inbox: $inbox, outbox: $outbox, icon: $icon, followers: $followers, following: $following, isLocal: $isLocal, publicKey: $publicKey, lastFetched: $lastFetched, user: $user)';
+  final _this = this as Actor;
+  return 'Actor(id: ${_this.id}, collectionId: ${_this.collectionId}, collectionName: ${_this.collectionName}, created: ${_this.created}, updated: ${_this.updated}, username: ${_this.username}, preferredUsername: ${_this.preferredUsername}, domain: ${_this.domain}, summary: ${_this.summary}, published: ${_this.published}, followerCount: ${_this.followerCount}, followingCount: ${_this.followingCount}, iri: ${_this.iri}, inbox: ${_this.inbox}, outbox: ${_this.outbox}, icon: ${_this.icon}, followers: ${_this.followers}, following: ${_this.following}, isLocal: ${_this.isLocal}, publicKey: ${_this.publicKey}, lastFetched: ${_this.lastFetched}, user: ${_this.user})';
 }
 
 
@@ -66,7 +72,7 @@ class _$ActorCopyWithImpl<$Res>
 /// Create a copy of Actor
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? created = null,Object? updated = null,Object? username = null,Object? preferredUsername = null,Object? domain = freezed,Object? summary = freezed,Object? published = freezed,Object? followerCount = freezed,Object? followingCount = freezed,Object? iri = null,Object? inbox = null,Object? outbox = freezed,Object? icon = freezed,Object? followers = freezed,Object? following = freezed,Object? isLocal = null,Object? publicKey = null,Object? lastFetched = null,Object? user = null,}) {
-  return _then(_self.copyWith(
+  return _then(Actor(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
@@ -269,16 +275,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Actor&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.published, published) || other.published == published)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.inbox, inbox) || other.inbox == inbox)&&(identical(other.outbox, outbox) || other.outbox == outbox)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.followers, followers) || other.followers == followers)&&(identical(other.following, following) || other.following == following)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey)&&(identical(other.lastFetched, lastFetched) || other.lastFetched == lastFetched)&&(identical(other.user, user) || other.user == user));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Actor&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.summary, summary) || other.summary == summary)&&(identical(other.published, published) || other.published == published)&&(identical(other.followerCount, followerCount) || other.followerCount == followerCount)&&(identical(other.followingCount, followingCount) || other.followingCount == followingCount)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.inbox, inbox) || other.inbox == inbox)&&(identical(other.outbox, outbox) || other.outbox == outbox)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.followers, followers) || other.followers == followers)&&(identical(other.following, following) || other.following == following)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.publicKey, publicKey) || other.publicKey == publicKey)&&(identical(other.lastFetched, lastFetched) || other.lastFetched == lastFetched)&&(identical(other.user, user) || other.user == user));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,collectionId,collectionName,created,updated,username,preferredUsername,domain,summary,published,followerCount,followingCount,iri,inbox,outbox,icon,followers,following,isLocal,publicKey,lastFetched,user]);
+int get hashCode {
+    return Object.hashAll([runtimeType,id,collectionId,collectionName,created,updated,username,preferredUsername,domain,summary,published,followerCount,followingCount,iri,inbox,outbox,icon,followers,following,isLocal,publicKey,lastFetched,user]);
+}
 
 @override
 String toString() {
-  return 'Actor(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, preferredUsername: $preferredUsername, domain: $domain, summary: $summary, published: $published, followerCount: $followerCount, followingCount: $followingCount, iri: $iri, inbox: $inbox, outbox: $outbox, icon: $icon, followers: $followers, following: $following, isLocal: $isLocal, publicKey: $publicKey, lastFetched: $lastFetched, user: $user)';
+    return 'Actor(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, preferredUsername: $preferredUsername, domain: $domain, summary: $summary, published: $published, followerCount: $followerCount, followingCount: $followingCount, iri: $iri, inbox: $inbox, outbox: $outbox, icon: $icon, followers: $followers, following: $following, isLocal: $isLocal, publicKey: $publicKey, lastFetched: $lastFetched, user: $user)';
 }
 
 

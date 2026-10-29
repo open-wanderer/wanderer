@@ -71,7 +71,7 @@ final class TrailSyncProvider
   }
 }
 
-String _$trailSyncHash() => r'2e7ac9bd1208e83add1c86d4e405f930644279b7';
+String _$trailSyncHash() => r'c30908e0b51e8117c8a104e04f052a363b2dcae9';
 
 /// The local ids of trails whose upload is currently draining, shared
 /// across every trigger (app foreground, connectivity regained, cold
@@ -88,7 +88,7 @@ abstract class _$TrailSync extends $Notifier<Set<String>> {
   Set<String> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<Set<String>, Set<String>>;
     final element =
         ref.element
@@ -98,6 +98,6 @@ abstract class _$TrailSync extends $Notifier<Set<String>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

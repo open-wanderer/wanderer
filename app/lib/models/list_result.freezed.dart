@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'list_result.dart';
@@ -9,6 +9,7 @@ part of 'list_result.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $ListResultCopyWith<T, ListResult<T>> get copyWith => _$ListResultCopyWithImpl<T
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListResult<T>&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems));
+  final _this = this as ListResult<T>;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListResult<T>&&const DeepCollectionEquality().equals(other.items, _this.items)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.perPage, _this.perPage) || other.perPage == _this.perPage)&&(identical(other.totalPages, _this.totalPages) || other.totalPages == _this.totalPages)&&(identical(other.totalItems, _this.totalItems) || other.totalItems == _this.totalItems));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,perPage,totalPages,totalItems);
+int get hashCode {
+  final _this = this as ListResult<T>;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.items),_this.page,_this.perPage,_this.totalPages,_this.totalItems);
+}
 
 @override
 String toString() {
-  return 'ListResult<$T>(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems)';
+  final _this = this as ListResult<T>;
+  return 'ListResult<$T>(items: ${_this.items}, page: ${_this.page}, perPage: ${_this.perPage}, totalPages: ${_this.totalPages}, totalItems: ${_this.totalItems})';
 }
 
 
@@ -66,7 +72,7 @@ class _$ListResultCopyWithImpl<T,$Res>
 /// Create a copy of ListResult
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? totalItems = null,}) {
-  return _then(_self.copyWith(
+  return _then(ListResult(
 items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<T>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
@@ -213,7 +219,7 @@ return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.tota
 @JsonSerializable(genericArgumentFactories: true)
 
 class _ListResult<T> implements ListResult<T> {
-  const _ListResult({required final  List<T> items, required this.page, required this.perPage, required this.totalPages, required this.totalItems}): _items = items;
+  const _ListResult({required  List<T> items, required this.page, required this.perPage, required this.totalPages, required this.totalItems}): _items = items;
   factory _ListResult.fromJson(Map<String, dynamic> json,T Function(Object?) fromJsonT) => _$ListResultFromJson(json,fromJsonT);
 
  final  List<T> _items;
@@ -241,16 +247,18 @@ Map<String, dynamic> toJson(Object? Function(T) toJsonT) {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListResult<T>&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListResult<T>&&const DeepCollectionEquality().equals(other.items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,perPage,totalPages,totalItems);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,perPage,totalPages,totalItems);
+}
 
 @override
 String toString() {
-  return 'ListResult<$T>(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems)';
+    return 'ListResult<$T>(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems)';
 }
 
 

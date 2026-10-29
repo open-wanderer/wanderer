@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -708,8 +709,7 @@ class AppLocalizationsCs extends AppLocalizations {
           'Máte $count dosud nenahraných tras. Odhlášením je nesmažete — po opětovném přihlášení zde zůstanou — ale do té doby se nenahrají.',
       few:
           'Máte $count dosud nenahrané trasy. Odhlášením je nesmažete — po opětovném přihlášení zde zůstanou — ale do té doby se nenahrají.',
-      one:
-          'Máte 1 dosud nenahranou trasu. Odhlášením ji nesmažete — po opětovném přihlášení zde zůstane — ale do té doby se nenahraje.',
+      one: 'Máte 1 dosud nenahranou trasu. Odhlášením ji nesmažete — po opětovném přihlášení zde zůstane — ale do té doby se nenahraje.',
     );
     return '$_temp0';
   }

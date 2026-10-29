@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'profile_feed_provider.dart';
@@ -9,6 +9,7 @@ part of 'profile_feed_provider.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -32,16 +33,21 @@ $ProfileFeedStateCopyWith<ProfileFeedState> get copyWith => _$ProfileFeedStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFeedState&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore));
+  final _this = this as ProfileFeedState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFeedState&&const DeepCollectionEquality().equals(other.items, _this.items)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.perPage, _this.perPage) || other.perPage == _this.perPage)&&(identical(other.totalPages, _this.totalPages) || other.totalPages == _this.totalPages)&&(identical(other.totalItems, _this.totalItems) || other.totalItems == _this.totalItems)&&(identical(other.isLoadingMore, _this.isLoadingMore) || other.isLoadingMore == _this.isLoadingMore));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,perPage,totalPages,totalItems,isLoadingMore);
+int get hashCode {
+  final _this = this as ProfileFeedState;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.items),_this.page,_this.perPage,_this.totalPages,_this.totalItems,_this.isLoadingMore);
+}
 
 @override
 String toString() {
-  return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems, isLoadingMore: $isLoadingMore)';
+  final _this = this as ProfileFeedState;
+  return 'ProfileFeedState(items: ${_this.items}, page: ${_this.page}, perPage: ${_this.perPage}, totalPages: ${_this.totalPages}, totalItems: ${_this.totalItems}, isLoadingMore: ${_this.isLoadingMore})';
 }
 
 
@@ -70,7 +76,7 @@ class _$ProfileFeedStateCopyWithImpl<$Res>
 /// Create a copy of ProfileFeedState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? totalItems = null,Object? isLoadingMore = null,}) {
-  return _then(_self.copyWith(
+  return _then(ProfileFeedState(
 items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<FeedItem>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
@@ -218,7 +224,7 @@ return $default(_that.items,_that.page,_that.perPage,_that.totalPages,_that.tota
 
 
 class _ProfileFeedState extends ProfileFeedState {
-  const _ProfileFeedState({required final  List<FeedItem> items, required this.page, required this.perPage, required this.totalPages, required this.totalItems, this.isLoadingMore = false}): _items = items,super._();
+  const _ProfileFeedState({required  List<FeedItem> items, required this.page, required this.perPage, required this.totalPages, required this.totalItems, this.isLoadingMore = false}): _items = items,super._();
   
 
  final  List<FeedItem> _items;
@@ -251,16 +257,18 @@ _$ProfileFeedStateCopyWith<_ProfileFeedState> get copyWith => __$ProfileFeedStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFeedState&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFeedState&&const DeepCollectionEquality().equals(other.items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.totalItems, totalItems) || other.totalItems == totalItems)&&(identical(other.isLoadingMore, isLoadingMore) || other.isLoadingMore == isLoadingMore));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,perPage,totalPages,totalItems,isLoadingMore);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,perPage,totalPages,totalItems,isLoadingMore);
+}
 
 @override
 String toString() {
-  return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems, isLoadingMore: $isLoadingMore)';
+    return 'ProfileFeedState(items: $items, page: $page, perPage: $perPage, totalPages: $totalPages, totalItems: $totalItems, isLoadingMore: $isLoadingMore)';
 }
 
 

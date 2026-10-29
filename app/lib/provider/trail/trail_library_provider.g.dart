@@ -210,7 +210,7 @@ abstract class _$TrailLibraryNotifier extends $Notifier<List<Trail>> {
   List<Trail> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<List<Trail>, List<Trail>>;
     final element =
         ref.element
@@ -220,6 +220,6 @@ abstract class _$TrailLibraryNotifier extends $Notifier<List<Trail>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

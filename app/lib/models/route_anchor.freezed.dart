@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'route_anchor.dart';
@@ -9,6 +9,7 @@ part of 'route_anchor.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -25,16 +26,21 @@ $RouteAnchorCopyWith<RouteAnchor> get copyWith => _$RouteAnchorCopyWithImpl<Rout
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.location, location) || other.location == location));
+  final _this = this as RouteAnchor;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteAnchor&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lon, _this.lon) || other.lon == _this.lon)&&(identical(other.location, _this.location) || other.location == _this.location));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,lat,lon,location);
+int get hashCode {
+  final _this = this as RouteAnchor;
+  return Object.hash(runtimeType,_this.id,_this.lat,_this.lon,_this.location);
+}
 
 @override
 String toString() {
-  return 'RouteAnchor(id: $id, lat: $lat, lon: $lon, location: $location)';
+  final _this = this as RouteAnchor;
+  return 'RouteAnchor(id: ${_this.id}, lat: ${_this.lat}, lon: ${_this.lon}, location: ${_this.location})';
 }
 
 
@@ -63,7 +69,7 @@ class _$RouteAnchorCopyWithImpl<$Res>
 /// Create a copy of RouteAnchor
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? lat = null,Object? lon = null,Object? location = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(RouteAnchor(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lon: null == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
@@ -227,16 +233,18 @@ _$RouteAnchorCopyWith<_RouteAnchor> get copyWith => __$RouteAnchorCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.location, location) || other.location == location));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteAnchor&&(identical(other.id, id) || other.id == id)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.location, location) || other.location == location));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,lat,lon,location);
+int get hashCode {
+    return Object.hash(runtimeType,id,lat,lon,location);
+}
 
 @override
 String toString() {
-  return 'RouteAnchor(id: $id, lat: $lat, lon: $lon, location: $location)';
+    return 'RouteAnchor(id: $id, lat: $lat, lon: $lon, location: $location)';
 }
 
 
@@ -299,16 +307,21 @@ $RouteSegmentCopyWith<RouteSegment> get copyWith => _$RouteSegmentCopyWithImpl<R
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other.polyline, polyline)&&(identical(other.state, state) || other.state == state)&&(identical(other.durationSeconds, durationSeconds) || other.durationSeconds == durationSeconds)&&const DeepCollectionEquality().equals(other.elevationProfile, elevationProfile)&&const DeepCollectionEquality().equals(other.elevations, elevations));
+  final _this = this as RouteSegment;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteSegment&&(identical(other.beforeAnchorId, _this.beforeAnchorId) || other.beforeAnchorId == _this.beforeAnchorId)&&(identical(other.afterAnchorId, _this.afterAnchorId) || other.afterAnchorId == _this.afterAnchorId)&&const DeepCollectionEquality().equals(other.polyline, _this.polyline)&&(identical(other.state, _this.state) || other.state == _this.state)&&(identical(other.durationSeconds, _this.durationSeconds) || other.durationSeconds == _this.durationSeconds)&&const DeepCollectionEquality().equals(other.elevationProfile, _this.elevationProfile)&&const DeepCollectionEquality().equals(other.elevations, _this.elevations));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(polyline),state,durationSeconds,const DeepCollectionEquality().hash(elevationProfile),const DeepCollectionEquality().hash(elevations));
+int get hashCode {
+  final _this = this as RouteSegment;
+  return Object.hash(runtimeType,_this.beforeAnchorId,_this.afterAnchorId,const DeepCollectionEquality().hash(_this.polyline),_this.state,_this.durationSeconds,const DeepCollectionEquality().hash(_this.elevationProfile),const DeepCollectionEquality().hash(_this.elevations));
+}
 
 @override
 String toString() {
-  return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state, durationSeconds: $durationSeconds, elevationProfile: $elevationProfile, elevations: $elevations)';
+  final _this = this as RouteSegment;
+  return 'RouteSegment(beforeAnchorId: ${_this.beforeAnchorId}, afterAnchorId: ${_this.afterAnchorId}, polyline: ${_this.polyline}, state: ${_this.state}, durationSeconds: ${_this.durationSeconds}, elevationProfile: ${_this.elevationProfile}, elevations: ${_this.elevations})';
 }
 
 
@@ -337,7 +350,7 @@ class _$RouteSegmentCopyWithImpl<$Res>
 /// Create a copy of RouteSegment
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? beforeAnchorId = null,Object? afterAnchorId = null,Object? polyline = null,Object? state = null,Object? durationSeconds = freezed,Object? elevationProfile = freezed,Object? elevations = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(RouteSegment(
 beforeAnchorId: null == beforeAnchorId ? _self.beforeAnchorId : beforeAnchorId // ignore: cast_nullable_to_non_nullable
 as String,afterAnchorId: null == afterAnchorId ? _self.afterAnchorId : afterAnchorId // ignore: cast_nullable_to_non_nullable
 as String,polyline: null == polyline ? _self.polyline : polyline // ignore: cast_nullable_to_non_nullable
@@ -486,7 +499,7 @@ return $default(_that.beforeAnchorId,_that.afterAnchorId,_that.polyline,_that.st
 
 
 class _RouteSegment extends RouteSegment {
-  const _RouteSegment({required this.beforeAnchorId, required this.afterAnchorId, required final  List<Geographic> polyline, required this.state, this.durationSeconds, final  List<Geographic>? elevationProfile, final  List<double>? elevations}): _polyline = polyline,_elevationProfile = elevationProfile,_elevations = elevations,super._();
+  const _RouteSegment({required this.beforeAnchorId, required this.afterAnchorId, required  List<Geographic> polyline, required this.state, this.durationSeconds,  List<Geographic>? elevationProfile,  List<double>? elevations}): _polyline = polyline,_elevationProfile = elevationProfile,_elevations = elevations,super._();
   
 
 @override final  String beforeAnchorId;
@@ -542,16 +555,18 @@ _$RouteSegmentCopyWith<_RouteSegment> get copyWith => __$RouteSegmentCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other._polyline, _polyline)&&(identical(other.state, state) || other.state == state)&&(identical(other.durationSeconds, durationSeconds) || other.durationSeconds == durationSeconds)&&const DeepCollectionEquality().equals(other._elevationProfile, _elevationProfile)&&const DeepCollectionEquality().equals(other._elevations, _elevations));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteSegment&&(identical(other.beforeAnchorId, beforeAnchorId) || other.beforeAnchorId == beforeAnchorId)&&(identical(other.afterAnchorId, afterAnchorId) || other.afterAnchorId == afterAnchorId)&&const DeepCollectionEquality().equals(other.polyline, _polyline)&&(identical(other.state, state) || other.state == state)&&(identical(other.durationSeconds, durationSeconds) || other.durationSeconds == durationSeconds)&&const DeepCollectionEquality().equals(other.elevationProfile, _elevationProfile)&&const DeepCollectionEquality().equals(other.elevations, _elevations));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(_polyline),state,durationSeconds,const DeepCollectionEquality().hash(_elevationProfile),const DeepCollectionEquality().hash(_elevations));
+int get hashCode {
+    return Object.hash(runtimeType,beforeAnchorId,afterAnchorId,const DeepCollectionEquality().hash(_polyline),state,durationSeconds,const DeepCollectionEquality().hash(_elevationProfile),const DeepCollectionEquality().hash(_elevations));
+}
 
 @override
 String toString() {
-  return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state, durationSeconds: $durationSeconds, elevationProfile: $elevationProfile, elevations: $elevations)';
+    return 'RouteSegment(beforeAnchorId: $beforeAnchorId, afterAnchorId: $afterAnchorId, polyline: $polyline, state: $state, durationSeconds: $durationSeconds, elevationProfile: $elevationProfile, elevations: $elevations)';
 }
 
 
@@ -609,16 +624,21 @@ $RouteAnchorsSnapshotCopyWith<RouteAnchorsSnapshot> get copyWith => _$RouteAncho
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteAnchorsSnapshot&&const DeepCollectionEquality().equals(other.anchors, anchors)&&const DeepCollectionEquality().equals(other.segments, segments));
+  final _this = this as RouteAnchorsSnapshot;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RouteAnchorsSnapshot&&const DeepCollectionEquality().equals(other.anchors, _this.anchors)&&const DeepCollectionEquality().equals(other.segments, _this.segments));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(anchors),const DeepCollectionEquality().hash(segments));
+int get hashCode {
+  final _this = this as RouteAnchorsSnapshot;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.anchors),const DeepCollectionEquality().hash(_this.segments));
+}
 
 @override
 String toString() {
-  return 'RouteAnchorsSnapshot(anchors: $anchors, segments: $segments)';
+  final _this = this as RouteAnchorsSnapshot;
+  return 'RouteAnchorsSnapshot(anchors: ${_this.anchors}, segments: ${_this.segments})';
 }
 
 
@@ -647,7 +667,7 @@ class _$RouteAnchorsSnapshotCopyWithImpl<$Res>
 /// Create a copy of RouteAnchorsSnapshot
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? anchors = null,Object? segments = null,}) {
-  return _then(_self.copyWith(
+  return _then(RouteAnchorsSnapshot(
 anchors: null == anchors ? _self.anchors : anchors // ignore: cast_nullable_to_non_nullable
 as List<RouteAnchor>,segments: null == segments ? _self.segments : segments // ignore: cast_nullable_to_non_nullable
 as List<RouteSegment>,
@@ -791,7 +811,7 @@ return $default(_that.anchors,_that.segments);case _:
 
 
 class _RouteAnchorsSnapshot implements RouteAnchorsSnapshot {
-  const _RouteAnchorsSnapshot({required final  List<RouteAnchor> anchors, required final  List<RouteSegment> segments}): _anchors = anchors,_segments = segments;
+  const _RouteAnchorsSnapshot({required  List<RouteAnchor> anchors, required  List<RouteSegment> segments}): _anchors = anchors,_segments = segments;
   
 
  final  List<RouteAnchor> _anchors;
@@ -819,16 +839,18 @@ _$RouteAnchorsSnapshotCopyWith<_RouteAnchorsSnapshot> get copyWith => __$RouteAn
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteAnchorsSnapshot&&const DeepCollectionEquality().equals(other._anchors, _anchors)&&const DeepCollectionEquality().equals(other._segments, _segments));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RouteAnchorsSnapshot&&const DeepCollectionEquality().equals(other.anchors, _anchors)&&const DeepCollectionEquality().equals(other.segments, _segments));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_anchors),const DeepCollectionEquality().hash(_segments));
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_anchors),const DeepCollectionEquality().hash(_segments));
+}
 
 @override
 String toString() {
-  return 'RouteAnchorsSnapshot(anchors: $anchors, segments: $segments)';
+    return 'RouteAnchorsSnapshot(anchors: $anchors, segments: $segments)';
 }
 
 

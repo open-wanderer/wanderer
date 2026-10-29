@@ -40,7 +40,7 @@ abstract class _$ServerSelectionNotifier extends $AsyncNotifier<ServerState> {
   FutureOr<ServerState> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<ServerState>, ServerState>;
     final element =
         ref.element
@@ -50,6 +50,6 @@ abstract class _$ServerSelectionNotifier extends $AsyncNotifier<ServerState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'trail_like.dart';
@@ -9,6 +9,7 @@ part of 'trail_like.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $TrailLikeExpandCopyWith<TrailLikeExpand> get copyWith => _$TrailLikeExpandCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailLikeExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail));
+  final _this = this as TrailLikeExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailLikeExpand&&(identical(other.actor, _this.actor) || other.actor == _this.actor)&&(identical(other.trail, _this.trail) || other.trail == _this.trail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor,trail);
+int get hashCode {
+  final _this = this as TrailLikeExpand;
+  return Object.hash(runtimeType,_this.actor,_this.trail);
+}
 
 @override
 String toString() {
-  return 'TrailLikeExpand(actor: $actor, trail: $trail)';
+  final _this = this as TrailLikeExpand;
+  return 'TrailLikeExpand(actor: ${_this.actor}, trail: ${_this.trail})';
 }
 
 
@@ -66,7 +72,7 @@ class _$TrailLikeExpandCopyWithImpl<$Res>
 /// Create a copy of TrailLikeExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? actor = null,Object? trail = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailLikeExpand(
 actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as Actor,trail: null == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
 as Trail,
@@ -247,16 +253,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailLikeExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailLikeExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor,trail);
+int get hashCode {
+    return Object.hash(runtimeType,actor,trail);
+}
 
 @override
 String toString() {
-  return 'TrailLikeExpand(actor: $actor, trail: $trail)';
+    return 'TrailLikeExpand(actor: $actor, trail: $trail)';
 }
 
 
@@ -330,16 +338,21 @@ $TrailLikeCopyWith<TrailLike> get copyWith => _$TrailLikeCopyWithImpl<TrailLike>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailLike&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.expand, expand) || other.expand == expand));
+  final _this = this as TrailLike;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailLike&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.actor, _this.actor) || other.actor == _this.actor)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.expand, _this.expand) || other.expand == _this.expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,trail,expand);
+int get hashCode {
+  final _this = this as TrailLike;
+  return Object.hash(runtimeType,_this.id,_this.actor,_this.trail,_this.expand);
+}
 
 @override
 String toString() {
-  return 'TrailLike(id: $id, actor: $actor, trail: $trail, expand: $expand)';
+  final _this = this as TrailLike;
+  return 'TrailLike(id: ${_this.id}, actor: ${_this.actor}, trail: ${_this.trail}, expand: ${_this.expand})';
 }
 
 
@@ -368,7 +381,7 @@ class _$TrailLikeCopyWithImpl<$Res>
 /// Create a copy of TrailLike
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? actor = null,Object? trail = null,Object? expand = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(TrailLike(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as String,trail: null == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
@@ -547,16 +560,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailLike&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.expand, expand) || other.expand == expand));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailLike&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,trail,expand);
+int get hashCode {
+    return Object.hash(runtimeType,id,actor,trail,expand);
+}
 
 @override
 String toString() {
-  return 'TrailLike(id: $id, actor: $actor, trail: $trail, expand: $expand)';
+    return 'TrailLike(id: $id, actor: $actor, trail: $trail, expand: $expand)';
 }
 
 

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'list_search_provider.dart';
@@ -9,6 +9,7 @@ part of 'list_search_provider.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -25,16 +26,21 @@ $ListSearchStateCopyWith<ListSearchState> get copyWith => _$ListSearchStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListSearchState&&const DeepCollectionEquality().equals(other.lists, lists)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+  final _this = this as ListSearchState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListSearchState&&const DeepCollectionEquality().equals(other.lists, _this.lists)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.perPage, _this.perPage) || other.perPage == _this.perPage)&&(identical(other.totalPages, _this.totalPages) || other.totalPages == _this.totalPages));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(lists),page,perPage,totalPages);
+int get hashCode {
+  final _this = this as ListSearchState;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.lists),_this.page,_this.perPage,_this.totalPages);
+}
 
 @override
 String toString() {
-  return 'ListSearchState(lists: $lists, page: $page, perPage: $perPage, totalPages: $totalPages)';
+  final _this = this as ListSearchState;
+  return 'ListSearchState(lists: ${_this.lists}, page: ${_this.page}, perPage: ${_this.perPage}, totalPages: ${_this.totalPages})';
 }
 
 
@@ -63,7 +69,7 @@ class _$ListSearchStateCopyWithImpl<$Res>
 /// Create a copy of ListSearchState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? lists = null,Object? page = null,Object? perPage = null,Object? totalPages = null,}) {
-  return _then(_self.copyWith(
+  return _then(ListSearchState(
 lists: null == lists ? _self.lists : lists // ignore: cast_nullable_to_non_nullable
 as List<ListSearchResult>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
@@ -209,7 +215,7 @@ return $default(_that.lists,_that.page,_that.perPage,_that.totalPages);case _:
 
 
 class _ListSearchState extends ListSearchState {
-  const _ListSearchState({required final  List<ListSearchResult> lists, required this.page, required this.perPage, required this.totalPages}): _lists = lists,super._();
+  const _ListSearchState({required  List<ListSearchResult> lists, required this.page, required this.perPage, required this.totalPages}): _lists = lists,super._();
   
 
  final  List<ListSearchResult> _lists;
@@ -233,16 +239,18 @@ _$ListSearchStateCopyWith<_ListSearchState> get copyWith => __$ListSearchStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListSearchState&&const DeepCollectionEquality().equals(other._lists, _lists)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListSearchState&&const DeepCollectionEquality().equals(other.lists, _lists)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_lists),page,perPage,totalPages);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_lists),page,perPage,totalPages);
+}
 
 @override
 String toString() {
-  return 'ListSearchState(lists: $lists, page: $page, perPage: $perPage, totalPages: $totalPages)';
+    return 'ListSearchState(lists: $lists, page: $page, perPage: $perPage, totalPages: $totalPages)';
 }
 
 

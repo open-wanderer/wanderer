@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'map_style_sources.dart';
@@ -9,6 +9,7 @@ part of 'map_style_sources.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $MapStyleSourcesCopyWith<MapStyleSources> get copyWith => _$MapStyleSourcesCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MapStyleSources&&(identical(other.tileUrl, tileUrl) || other.tileUrl == tileUrl)&&(identical(other.glyphUrl, glyphUrl) || other.glyphUrl == glyphUrl)&&(identical(other.spriteUrl, spriteUrl) || other.spriteUrl == spriteUrl));
+  final _this = this as MapStyleSources;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MapStyleSources&&(identical(other.tileUrl, _this.tileUrl) || other.tileUrl == _this.tileUrl)&&(identical(other.glyphUrl, _this.glyphUrl) || other.glyphUrl == _this.glyphUrl)&&(identical(other.spriteUrl, _this.spriteUrl) || other.spriteUrl == _this.spriteUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,tileUrl,glyphUrl,spriteUrl);
+int get hashCode {
+  final _this = this as MapStyleSources;
+  return Object.hash(runtimeType,_this.tileUrl,_this.glyphUrl,_this.spriteUrl);
+}
 
 @override
 String toString() {
-  return 'MapStyleSources(tileUrl: $tileUrl, glyphUrl: $glyphUrl, spriteUrl: $spriteUrl)';
+  final _this = this as MapStyleSources;
+  return 'MapStyleSources(tileUrl: ${_this.tileUrl}, glyphUrl: ${_this.glyphUrl}, spriteUrl: ${_this.spriteUrl})';
 }
 
 
@@ -66,7 +72,7 @@ class _$MapStyleSourcesCopyWithImpl<$Res>
 /// Create a copy of MapStyleSources
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? tileUrl = null,Object? glyphUrl = null,Object? spriteUrl = null,}) {
-  return _then(_self.copyWith(
+  return _then(MapStyleSources(
 tileUrl: null == tileUrl ? _self.tileUrl : tileUrl // ignore: cast_nullable_to_non_nullable
 as String,glyphUrl: null == glyphUrl ? _self.glyphUrl : glyphUrl // ignore: cast_nullable_to_non_nullable
 as String,spriteUrl: null == spriteUrl ? _self.spriteUrl : spriteUrl // ignore: cast_nullable_to_non_nullable
@@ -231,16 +237,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MapStyleSources&&(identical(other.tileUrl, tileUrl) || other.tileUrl == tileUrl)&&(identical(other.glyphUrl, glyphUrl) || other.glyphUrl == glyphUrl)&&(identical(other.spriteUrl, spriteUrl) || other.spriteUrl == spriteUrl));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _MapStyleSources&&(identical(other.tileUrl, tileUrl) || other.tileUrl == tileUrl)&&(identical(other.glyphUrl, glyphUrl) || other.glyphUrl == glyphUrl)&&(identical(other.spriteUrl, spriteUrl) || other.spriteUrl == spriteUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,tileUrl,glyphUrl,spriteUrl);
+int get hashCode {
+    return Object.hash(runtimeType,tileUrl,glyphUrl,spriteUrl);
+}
 
 @override
 String toString() {
-  return 'MapStyleSources(tileUrl: $tileUrl, glyphUrl: $glyphUrl, spriteUrl: $spriteUrl)';
+    return 'MapStyleSources(tileUrl: $tileUrl, glyphUrl: $glyphUrl, spriteUrl: $spriteUrl)';
 }
 
 

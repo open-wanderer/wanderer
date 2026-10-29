@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'profile_trails_provider.dart';
@@ -9,6 +9,7 @@ part of 'profile_trails_provider.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -30,16 +31,21 @@ $ProfileTrailsStateCopyWith<ProfileTrailsState> get copyWith => _$ProfileTrailsS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileTrailsState&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.offline, offline) || other.offline == offline)&&(identical(other.isOwnHandle, isOwnHandle) || other.isOwnHandle == isOwnHandle));
+  final _this = this as ProfileTrailsState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileTrailsState&&const DeepCollectionEquality().equals(other.trails, _this.trails)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.perPage, _this.perPage) || other.perPage == _this.perPage)&&(identical(other.totalPages, _this.totalPages) || other.totalPages == _this.totalPages)&&(identical(other.offline, _this.offline) || other.offline == _this.offline)&&(identical(other.isOwnHandle, _this.isOwnHandle) || other.isOwnHandle == _this.isOwnHandle));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(trails),page,perPage,totalPages,offline,isOwnHandle);
+int get hashCode {
+  final _this = this as ProfileTrailsState;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.trails),_this.page,_this.perPage,_this.totalPages,_this.offline,_this.isOwnHandle);
+}
 
 @override
 String toString() {
-  return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages, offline: $offline, isOwnHandle: $isOwnHandle)';
+  final _this = this as ProfileTrailsState;
+  return 'ProfileTrailsState(trails: ${_this.trails}, page: ${_this.page}, perPage: ${_this.perPage}, totalPages: ${_this.totalPages}, offline: ${_this.offline}, isOwnHandle: ${_this.isOwnHandle})';
 }
 
 
@@ -68,7 +74,7 @@ class _$ProfileTrailsStateCopyWithImpl<$Res>
 /// Create a copy of ProfileTrailsState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? trails = null,Object? page = null,Object? perPage = null,Object? totalPages = null,Object? offline = null,Object? isOwnHandle = null,}) {
-  return _then(_self.copyWith(
+  return _then(ProfileTrailsState(
 trails: null == trails ? _self.trails : trails // ignore: cast_nullable_to_non_nullable
 as List<TrailSummary>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
@@ -216,7 +222,7 @@ return $default(_that.trails,_that.page,_that.perPage,_that.totalPages,_that.off
 
 
 class _ProfileTrailsState extends ProfileTrailsState {
-  const _ProfileTrailsState({required final  List<TrailSummary> trails, required this.page, required this.perPage, required this.totalPages, this.offline = false, this.isOwnHandle = false}): _trails = trails,super._();
+  const _ProfileTrailsState({required  List<TrailSummary> trails, required this.page, required this.perPage, required this.totalPages, this.offline = false, this.isOwnHandle = false}): _trails = trails,super._();
   
 
  final  List<TrailSummary> _trails;
@@ -247,16 +253,18 @@ _$ProfileTrailsStateCopyWith<_ProfileTrailsState> get copyWith => __$ProfileTrai
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileTrailsState&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.offline, offline) || other.offline == offline)&&(identical(other.isOwnHandle, isOwnHandle) || other.isOwnHandle == isOwnHandle));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileTrailsState&&const DeepCollectionEquality().equals(other.trails, _trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.offline, offline) || other.offline == offline)&&(identical(other.isOwnHandle, isOwnHandle) || other.isOwnHandle == isOwnHandle));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),page,perPage,totalPages,offline,isOwnHandle);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),page,perPage,totalPages,offline,isOwnHandle);
+}
 
 @override
 String toString() {
-  return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages, offline: $offline, isOwnHandle: $isOwnHandle)';
+    return 'ProfileTrailsState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages, offline: $offline, isOwnHandle: $isOwnHandle)';
 }
 
 

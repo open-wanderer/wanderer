@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'subcategory_preference.dart';
@@ -9,6 +9,7 @@ part of 'subcategory_preference.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $SubcategoryPreferenceCopyWith<SubcategoryPreference> get copyWith => _$Subcateg
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SubcategoryPreference&&(identical(other.id, id) || other.id == id)&&(identical(other.user, user) || other.user == user)&&(identical(other.subcategory, subcategory) || other.subcategory == subcategory)&&(identical(other.visible, visible) || other.visible == visible)&&(identical(other.priority, priority) || other.priority == priority));
+  final _this = this as SubcategoryPreference;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SubcategoryPreference&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.subcategory, _this.subcategory) || other.subcategory == _this.subcategory)&&(identical(other.visible, _this.visible) || other.visible == _this.visible)&&(identical(other.priority, _this.priority) || other.priority == _this.priority));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,user,subcategory,visible,priority);
+int get hashCode {
+  final _this = this as SubcategoryPreference;
+  return Object.hash(runtimeType,_this.id,_this.user,_this.subcategory,_this.visible,_this.priority);
+}
 
 @override
 String toString() {
-  return 'SubcategoryPreference(id: $id, user: $user, subcategory: $subcategory, visible: $visible, priority: $priority)';
+  final _this = this as SubcategoryPreference;
+  return 'SubcategoryPreference(id: ${_this.id}, user: ${_this.user}, subcategory: ${_this.subcategory}, visible: ${_this.visible}, priority: ${_this.priority})';
 }
 
 
@@ -66,7 +72,7 @@ class _$SubcategoryPreferenceCopyWithImpl<$Res>
 /// Create a copy of SubcategoryPreference
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? user = null,Object? subcategory = null,Object? visible = freezed,Object? priority = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(SubcategoryPreference(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as String,subcategory: null == subcategory ? _self.subcategory : subcategory // ignore: cast_nullable_to_non_nullable
@@ -235,16 +241,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SubcategoryPreference&&(identical(other.id, id) || other.id == id)&&(identical(other.user, user) || other.user == user)&&(identical(other.subcategory, subcategory) || other.subcategory == subcategory)&&(identical(other.visible, visible) || other.visible == visible)&&(identical(other.priority, priority) || other.priority == priority));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SubcategoryPreference&&(identical(other.id, id) || other.id == id)&&(identical(other.user, user) || other.user == user)&&(identical(other.subcategory, subcategory) || other.subcategory == subcategory)&&(identical(other.visible, visible) || other.visible == visible)&&(identical(other.priority, priority) || other.priority == priority));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,user,subcategory,visible,priority);
+int get hashCode {
+    return Object.hash(runtimeType,id,user,subcategory,visible,priority);
+}
 
 @override
 String toString() {
-  return 'SubcategoryPreference(id: $id, user: $user, subcategory: $subcategory, visible: $visible, priority: $priority)';
+    return 'SubcategoryPreference(id: $id, user: $user, subcategory: $subcategory, visible: $visible, priority: $priority)';
 }
 
 

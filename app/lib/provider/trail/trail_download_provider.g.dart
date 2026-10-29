@@ -50,7 +50,7 @@ abstract class _$TrailDownloadServiceNotifier
   TrailDownloadService build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<TrailDownloadService, TrailDownloadService>;
     final element =
         ref.element
@@ -60,6 +60,6 @@ abstract class _$TrailDownloadServiceNotifier
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

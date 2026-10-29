@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'trail_share.dart';
@@ -9,6 +9,7 @@ part of 'trail_share.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $TrailShareExpandCopyWith<TrailShareExpand> get copyWith => _$TrailShareExpandCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailShareExpand&&(identical(other.actor, actor) || other.actor == actor));
+  final _this = this as TrailShareExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailShareExpand&&(identical(other.actor, _this.actor) || other.actor == _this.actor));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor);
+int get hashCode {
+  final _this = this as TrailShareExpand;
+  return Object.hash(runtimeType,_this.actor);
+}
 
 @override
 String toString() {
-  return 'TrailShareExpand(actor: $actor)';
+  final _this = this as TrailShareExpand;
+  return 'TrailShareExpand(actor: ${_this.actor})';
 }
 
 
@@ -66,7 +72,7 @@ class _$TrailShareExpandCopyWithImpl<$Res>
 /// Create a copy of TrailShareExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? actor = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailShareExpand(
 actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as Actor,
   ));
@@ -236,16 +242,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailShareExpand&&(identical(other.actor, actor) || other.actor == actor));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailShareExpand&&(identical(other.actor, actor) || other.actor == actor));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor);
+int get hashCode {
+    return Object.hash(runtimeType,actor);
+}
 
 @override
 String toString() {
-  return 'TrailShareExpand(actor: $actor)';
+    return 'TrailShareExpand(actor: $actor)';
 }
 
 
@@ -309,16 +317,21 @@ $TrailShareCopyWith<TrailShare> get copyWith => _$TrailShareCopyWithImpl<TrailSh
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailShare&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.permission, permission) || other.permission == permission)&&(identical(other.expand, expand) || other.expand == expand));
+  final _this = this as TrailShare;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailShare&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.actor, _this.actor) || other.actor == _this.actor)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.permission, _this.permission) || other.permission == _this.permission)&&(identical(other.expand, _this.expand) || other.expand == _this.expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,trail,permission,expand);
+int get hashCode {
+  final _this = this as TrailShare;
+  return Object.hash(runtimeType,_this.id,_this.actor,_this.trail,_this.permission,_this.expand);
+}
 
 @override
 String toString() {
-  return 'TrailShare(id: $id, actor: $actor, trail: $trail, permission: $permission, expand: $expand)';
+  final _this = this as TrailShare;
+  return 'TrailShare(id: ${_this.id}, actor: ${_this.actor}, trail: ${_this.trail}, permission: ${_this.permission}, expand: ${_this.expand})';
 }
 
 
@@ -347,7 +360,7 @@ class _$TrailShareCopyWithImpl<$Res>
 /// Create a copy of TrailShare
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = freezed,Object? actor = null,Object? trail = null,Object? permission = null,Object? expand = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(TrailShare(
 id: freezed == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String?,actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as String,trail: null == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
@@ -528,16 +541,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailShare&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.permission, permission) || other.permission == permission)&&(identical(other.expand, expand) || other.expand == expand));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailShare&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.permission, permission) || other.permission == permission)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,trail,permission,expand);
+int get hashCode {
+    return Object.hash(runtimeType,id,actor,trail,permission,expand);
+}
 
 @override
 String toString() {
-  return 'TrailShare(id: $id, actor: $actor, trail: $trail, permission: $permission, expand: $expand)';
+    return 'TrailShare(id: $id, actor: $actor, trail: $trail, permission: $permission, expand: $expand)';
 }
 
 

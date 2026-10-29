@@ -71,7 +71,7 @@ final class RouteAnchorsProvider
   }
 }
 
-String _$routeAnchorsHash() => r'12b62a66356f4c35c7b12f5dc1f65391b0cade29';
+String _$routeAnchorsHash() => r'eebf45c97eb768113c30ca7da9cc605d3e016308';
 
 /// Route-planner state provider: owns the ordered anchor list, the
 /// per-segment Valhalla routing engine (with a race-guard against
@@ -88,7 +88,7 @@ abstract class _$RouteAnchors extends $Notifier<RouteAnchorsState> {
   RouteAnchorsState build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<RouteAnchorsState, RouteAnchorsState>;
     final element =
         ref.element
@@ -98,6 +98,6 @@ abstract class _$RouteAnchors extends $Notifier<RouteAnchorsState> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

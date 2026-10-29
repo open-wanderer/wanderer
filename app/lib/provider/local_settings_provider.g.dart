@@ -48,7 +48,7 @@ abstract class _$LocalSettingsNotifier extends $Notifier<LocalSettingsEntity> {
   LocalSettingsEntity build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<LocalSettingsEntity, LocalSettingsEntity>;
     final element =
         ref.element
@@ -58,7 +58,7 @@ abstract class _$LocalSettingsNotifier extends $Notifier<LocalSettingsEntity> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

@@ -39,7 +39,7 @@ abstract class _$CategoryNotifier extends $AsyncNotifier<List<Category>> {
   FutureOr<List<Category>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Category>>, List<Category>>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$CategoryNotifier extends $AsyncNotifier<List<Category>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

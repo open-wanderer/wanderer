@@ -60,7 +60,7 @@ class _Hypothesis {
 /// instead of on the first fix.
 class RouteMapMatcher {
   RouteMapMatcher({
-    required List<Geographic> shape,
+    required this._shape,
     required List<double> shapeCumulativeMeters,
     double? initialAlongTrackMeters,
     this.accuracyFloorMeters = 8.0,
@@ -80,8 +80,7 @@ class RouteMapMatcher {
     this.recoveryLookAheadMeters = 400.0,
     this.recoveryTransitionSigmaMultiplier = 20.0,
     this.commitConfirmFixes = 3,
-  }) : _shape = shape,
-       _cumulative = shapeCumulativeMeters {
+  }) : _cumulative = shapeCumulativeMeters {
     if (initialAlongTrackMeters != null && _shape.length >= 2) {
       final seededIndex = _shapeIndexForAlongTrack(initialAlongTrackMeters);
       _hypotheses = [

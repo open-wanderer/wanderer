@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'global_search_models.dart';
@@ -9,6 +9,7 @@ part of 'global_search_models.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $GeoLocationCopyWith<GeoLocation> get copyWith => _$GeoLocationCopyWithImpl<GeoL
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is GeoLocation&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng));
+  final _this = this as GeoLocation;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is GeoLocation&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lng, _this.lng) || other.lng == _this.lng));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,lat,lng);
+int get hashCode {
+  final _this = this as GeoLocation;
+  return Object.hash(runtimeType,_this.lat,_this.lng);
+}
 
 @override
 String toString() {
-  return 'GeoLocation(lat: $lat, lng: $lng)';
+  final _this = this as GeoLocation;
+  return 'GeoLocation(lat: ${_this.lat}, lng: ${_this.lng})';
 }
 
 
@@ -66,7 +72,7 @@ class _$GeoLocationCopyWithImpl<$Res>
 /// Create a copy of GeoLocation
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? lat = null,Object? lng = null,}) {
-  return _then(_self.copyWith(
+  return _then(GeoLocation(
 lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double,lng: null == lng ? _self.lng : lng // ignore: cast_nullable_to_non_nullable
 as double,
@@ -229,16 +235,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _GeoLocation&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _GeoLocation&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lng, lng) || other.lng == lng));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,lat,lng);
+int get hashCode {
+    return Object.hash(runtimeType,lat,lng);
+}
 
 @override
 String toString() {
-  return 'GeoLocation(lat: $lat, lng: $lng)';
+    return 'GeoLocation(lat: $lat, lng: $lng)';
 }
 
 
@@ -281,8 +289,7 @@ as double,
 /// @nodoc
 mixin _$TrailSearchResult {
 
- String get id; String get collectionId; String get author;@JsonKey(name: 'author_name') String get authorName;@JsonKey(name: 'author_avatar') String get authorAvatar; String get name; String get description; String get location; double get distance;@JsonKey(name: 'elevation_gain') double get elevationGain;@JsonKey(name: 'elevation_loss') double get elevationLoss; double get duration; int get difficulty;// 0 | 1 | 2
-@JsonKey(name: 'category_id') String? get categoryId;@JsonKey(name: 'subcategory_id') String? get subcategoryId; bool get completed; int get date; int get created; bool get public; String get thumbnail; String? get polyline; List<String>? get likes;@JsonKey(name: 'like_count') int get likeCount; List<String>? get shares; List<String>? get tags; String? get domain; String? get iri; String get gpx;@JsonKey(name: '_geo') GeoLocation get geo;
+ String get id; String get collectionId; String get author;@JsonKey(name: 'author_name') String get authorName;@JsonKey(name: 'author_avatar') String get authorAvatar; String get name; String get description; String get location; double get distance;@JsonKey(name: 'elevation_gain') double get elevationGain;@JsonKey(name: 'elevation_loss') double get elevationLoss; double get duration; int get difficulty;@JsonKey(name: 'category_id') String? get categoryId;@JsonKey(name: 'subcategory_id') String? get subcategoryId; bool get completed; int get date; int get created; bool get public; String get thumbnail; String? get polyline; List<String>? get likes;@JsonKey(name: 'like_count') int get likeCount; List<String>? get shares; List<String>? get tags; String? get domain; String? get iri; String get gpx;@JsonKey(name: '_geo') GeoLocation get geo;
 /// Create a copy of TrailSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -295,16 +302,21 @@ $TrailSearchResultCopyWith<TrailSearchResult> get copyWith => _$TrailSearchResul
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorName, authorName) || other.authorName == authorName)&&(identical(other.authorAvatar, authorAvatar) || other.authorAvatar == authorAvatar)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.location, location) || other.location == location)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.date, date) || other.date == date)&&(identical(other.created, created) || other.created == created)&&(identical(other.public, public) || other.public == public)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&const DeepCollectionEquality().equals(other.likes, likes)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&const DeepCollectionEquality().equals(other.shares, shares)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.geo, geo) || other.geo == geo));
+  final _this = this as TrailSearchResult;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailSearchResult&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorName, _this.authorName) || other.authorName == _this.authorName)&&(identical(other.authorAvatar, _this.authorAvatar) || other.authorAvatar == _this.authorAvatar)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.location, _this.location) || other.location == _this.location)&&(identical(other.distance, _this.distance) || other.distance == _this.distance)&&(identical(other.elevationGain, _this.elevationGain) || other.elevationGain == _this.elevationGain)&&(identical(other.elevationLoss, _this.elevationLoss) || other.elevationLoss == _this.elevationLoss)&&(identical(other.duration, _this.duration) || other.duration == _this.duration)&&(identical(other.difficulty, _this.difficulty) || other.difficulty == _this.difficulty)&&(identical(other.categoryId, _this.categoryId) || other.categoryId == _this.categoryId)&&(identical(other.subcategoryId, _this.subcategoryId) || other.subcategoryId == _this.subcategoryId)&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.public, _this.public) || other.public == _this.public)&&(identical(other.thumbnail, _this.thumbnail) || other.thumbnail == _this.thumbnail)&&(identical(other.polyline, _this.polyline) || other.polyline == _this.polyline)&&const DeepCollectionEquality().equals(other.likes, _this.likes)&&(identical(other.likeCount, _this.likeCount) || other.likeCount == _this.likeCount)&&const DeepCollectionEquality().equals(other.shares, _this.shares)&&const DeepCollectionEquality().equals(other.tags, _this.tags)&&(identical(other.domain, _this.domain) || other.domain == _this.domain)&&(identical(other.iri, _this.iri) || other.iri == _this.iri)&&(identical(other.gpx, _this.gpx) || other.gpx == _this.gpx)&&(identical(other.geo, _this.geo) || other.geo == _this.geo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,collectionId,author,authorName,authorAvatar,name,description,location,distance,elevationGain,elevationLoss,duration,difficulty,categoryId,subcategoryId,completed,date,created,public,thumbnail,polyline,const DeepCollectionEquality().hash(likes),likeCount,const DeepCollectionEquality().hash(shares),const DeepCollectionEquality().hash(tags),domain,iri,gpx,geo]);
+int get hashCode {
+  final _this = this as TrailSearchResult;
+  return Object.hashAll([runtimeType,_this.id,_this.collectionId,_this.author,_this.authorName,_this.authorAvatar,_this.name,_this.description,_this.location,_this.distance,_this.elevationGain,_this.elevationLoss,_this.duration,_this.difficulty,_this.categoryId,_this.subcategoryId,_this.completed,_this.date,_this.created,_this.public,_this.thumbnail,_this.polyline,const DeepCollectionEquality().hash(_this.likes),_this.likeCount,const DeepCollectionEquality().hash(_this.shares),const DeepCollectionEquality().hash(_this.tags),_this.domain,_this.iri,_this.gpx,_this.geo]);
+}
 
 @override
 String toString() {
-  return 'TrailSearchResult(id: $id, collectionId: $collectionId, author: $author, authorName: $authorName, authorAvatar: $authorAvatar, name: $name, description: $description, location: $location, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, categoryId: $categoryId, subcategoryId: $subcategoryId, completed: $completed, date: $date, created: $created, public: $public, thumbnail: $thumbnail, polyline: $polyline, likes: $likes, likeCount: $likeCount, shares: $shares, tags: $tags, domain: $domain, iri: $iri, gpx: $gpx, geo: $geo)';
+  final _this = this as TrailSearchResult;
+  return 'TrailSearchResult(id: ${_this.id}, collectionId: ${_this.collectionId}, author: ${_this.author}, authorName: ${_this.authorName}, authorAvatar: ${_this.authorAvatar}, name: ${_this.name}, description: ${_this.description}, location: ${_this.location}, distance: ${_this.distance}, elevationGain: ${_this.elevationGain}, elevationLoss: ${_this.elevationLoss}, duration: ${_this.duration}, difficulty: ${_this.difficulty}, categoryId: ${_this.categoryId}, subcategoryId: ${_this.subcategoryId}, completed: ${_this.completed}, date: ${_this.date}, created: ${_this.created}, public: ${_this.public}, thumbnail: ${_this.thumbnail}, polyline: ${_this.polyline}, likes: ${_this.likes}, likeCount: ${_this.likeCount}, shares: ${_this.shares}, tags: ${_this.tags}, domain: ${_this.domain}, iri: ${_this.iri}, gpx: ${_this.gpx}, geo: ${_this.geo})';
 }
 
 
@@ -333,7 +345,7 @@ class _$TrailSearchResultCopyWithImpl<$Res>
 /// Create a copy of TrailSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? author = null,Object? authorName = null,Object? authorAvatar = null,Object? name = null,Object? description = null,Object? location = null,Object? distance = null,Object? elevationGain = null,Object? elevationLoss = null,Object? duration = null,Object? difficulty = null,Object? categoryId = freezed,Object? subcategoryId = freezed,Object? completed = null,Object? date = null,Object? created = null,Object? public = null,Object? thumbnail = null,Object? polyline = freezed,Object? likes = freezed,Object? likeCount = null,Object? shares = freezed,Object? tags = freezed,Object? domain = freezed,Object? iri = freezed,Object? gpx = null,Object? geo = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailSearchResult(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
@@ -513,7 +525,7 @@ return $default(_that.id,_that.collectionId,_that.author,_that.authorName,_that.
 @JsonSerializable()
 
 class _TrailSearchResult extends TrailSearchResult {
-  const _TrailSearchResult({required this.id, this.collectionId = 'trails', required this.author, @JsonKey(name: 'author_name') required this.authorName, @JsonKey(name: 'author_avatar') required this.authorAvatar, required this.name, required this.description, required this.location, required this.distance, @JsonKey(name: 'elevation_gain') required this.elevationGain, @JsonKey(name: 'elevation_loss') required this.elevationLoss, required this.duration, required this.difficulty, @JsonKey(name: 'category_id') this.categoryId, @JsonKey(name: 'subcategory_id') this.subcategoryId, required this.completed, required this.date, required this.created, required this.public, required this.thumbnail, this.polyline, final  List<String>? likes, @JsonKey(name: 'like_count') required this.likeCount, final  List<String>? shares, final  List<String>? tags, this.domain, this.iri, required this.gpx, @JsonKey(name: '_geo') required this.geo}): _likes = likes,_shares = shares,_tags = tags,super._();
+  const _TrailSearchResult({required this.id, this.collectionId = 'trails', required this.author, @JsonKey(name: 'author_name') required this.authorName, @JsonKey(name: 'author_avatar') required this.authorAvatar, required this.name, required this.description, required this.location, required this.distance, @JsonKey(name: 'elevation_gain') required this.elevationGain, @JsonKey(name: 'elevation_loss') required this.elevationLoss, required this.duration, required this.difficulty, @JsonKey(name: 'category_id') this.categoryId, @JsonKey(name: 'subcategory_id') this.subcategoryId, required this.completed, required this.date, required this.created, required this.public, required this.thumbnail, this.polyline,  List<String>? likes, @JsonKey(name: 'like_count') required this.likeCount,  List<String>? shares,  List<String>? tags, this.domain, this.iri, required this.gpx, @JsonKey(name: '_geo') required this.geo}): _likes = likes,_shares = shares,_tags = tags,super._();
   factory _TrailSearchResult.fromJson(Map<String, dynamic> json) => _$TrailSearchResultFromJson(json);
 
 @override final  String id;
@@ -529,7 +541,6 @@ class _TrailSearchResult extends TrailSearchResult {
 @override@JsonKey(name: 'elevation_loss') final  double elevationLoss;
 @override final  double duration;
 @override final  int difficulty;
-// 0 | 1 | 2
 @override@JsonKey(name: 'category_id') final  String? categoryId;
 @override@JsonKey(name: 'subcategory_id') final  String? subcategoryId;
 @override final  bool completed;
@@ -584,16 +595,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorName, authorName) || other.authorName == authorName)&&(identical(other.authorAvatar, authorAvatar) || other.authorAvatar == authorAvatar)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.location, location) || other.location == location)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.date, date) || other.date == date)&&(identical(other.created, created) || other.created == created)&&(identical(other.public, public) || other.public == public)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&const DeepCollectionEquality().equals(other._likes, _likes)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&const DeepCollectionEquality().equals(other._shares, _shares)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.geo, geo) || other.geo == geo));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorName, authorName) || other.authorName == authorName)&&(identical(other.authorAvatar, authorAvatar) || other.authorAvatar == authorAvatar)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.location, location) || other.location == location)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.date, date) || other.date == date)&&(identical(other.created, created) || other.created == created)&&(identical(other.public, public) || other.public == public)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&const DeepCollectionEquality().equals(other.likes, _likes)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&const DeepCollectionEquality().equals(other.shares, _shares)&&const DeepCollectionEquality().equals(other.tags, _tags)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.geo, geo) || other.geo == geo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,collectionId,author,authorName,authorAvatar,name,description,location,distance,elevationGain,elevationLoss,duration,difficulty,categoryId,subcategoryId,completed,date,created,public,thumbnail,polyline,const DeepCollectionEquality().hash(_likes),likeCount,const DeepCollectionEquality().hash(_shares),const DeepCollectionEquality().hash(_tags),domain,iri,gpx,geo]);
+int get hashCode {
+    return Object.hashAll([runtimeType,id,collectionId,author,authorName,authorAvatar,name,description,location,distance,elevationGain,elevationLoss,duration,difficulty,categoryId,subcategoryId,completed,date,created,public,thumbnail,polyline,const DeepCollectionEquality().hash(_likes),likeCount,const DeepCollectionEquality().hash(_shares),const DeepCollectionEquality().hash(_tags),domain,iri,gpx,geo]);
+}
 
 @override
 String toString() {
-  return 'TrailSearchResult(id: $id, collectionId: $collectionId, author: $author, authorName: $authorName, authorAvatar: $authorAvatar, name: $name, description: $description, location: $location, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, categoryId: $categoryId, subcategoryId: $subcategoryId, completed: $completed, date: $date, created: $created, public: $public, thumbnail: $thumbnail, polyline: $polyline, likes: $likes, likeCount: $likeCount, shares: $shares, tags: $tags, domain: $domain, iri: $iri, gpx: $gpx, geo: $geo)';
+    return 'TrailSearchResult(id: $id, collectionId: $collectionId, author: $author, authorName: $authorName, authorAvatar: $authorAvatar, name: $name, description: $description, location: $location, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, difficulty: $difficulty, categoryId: $categoryId, subcategoryId: $subcategoryId, completed: $completed, date: $date, created: $created, public: $public, thumbnail: $thumbnail, polyline: $polyline, likes: $likes, likeCount: $likeCount, shares: $shares, tags: $tags, domain: $domain, iri: $iri, gpx: $gpx, geo: $geo)';
 }
 
 
@@ -685,16 +698,21 @@ $ListSearchResultCopyWith<ListSearchResult> get copyWith => _$ListSearchResultCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorName, authorName) || other.authorName == authorName)&&(identical(other.authorAvatar, authorAvatar) || other.authorAvatar == authorAvatar)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.public, public) || other.public == public)&&(identical(other.trails, trails) || other.trails == trails)&&const DeepCollectionEquality().equals(other.shares, shares)&&(identical(other.iri, iri) || other.iri == iri));
+  final _this = this as ListSearchResult;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListSearchResult&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.authorName, _this.authorName) || other.authorName == _this.authorName)&&(identical(other.authorAvatar, _this.authorAvatar) || other.authorAvatar == _this.authorAvatar)&&(identical(other.avatar, _this.avatar) || other.avatar == _this.avatar)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.elevationGain, _this.elevationGain) || other.elevationGain == _this.elevationGain)&&(identical(other.elevationLoss, _this.elevationLoss) || other.elevationLoss == _this.elevationLoss)&&(identical(other.distance, _this.distance) || other.distance == _this.distance)&&(identical(other.duration, _this.duration) || other.duration == _this.duration)&&(identical(other.domain, _this.domain) || other.domain == _this.domain)&&(identical(other.public, _this.public) || other.public == _this.public)&&(identical(other.trails, _this.trails) || other.trails == _this.trails)&&const DeepCollectionEquality().equals(other.shares, _this.shares)&&(identical(other.iri, _this.iri) || other.iri == _this.iri));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,author,authorName,authorAvatar,avatar,name,description,elevationGain,elevationLoss,distance,duration,domain,public,trails,const DeepCollectionEquality().hash(shares),iri);
+int get hashCode {
+  final _this = this as ListSearchResult;
+  return Object.hash(runtimeType,_this.id,_this.collectionId,_this.author,_this.authorName,_this.authorAvatar,_this.avatar,_this.name,_this.description,_this.elevationGain,_this.elevationLoss,_this.distance,_this.duration,_this.domain,_this.public,_this.trails,const DeepCollectionEquality().hash(_this.shares),_this.iri);
+}
 
 @override
 String toString() {
-  return 'ListSearchResult(id: $id, collectionId: $collectionId, author: $author, authorName: $authorName, authorAvatar: $authorAvatar, avatar: $avatar, name: $name, description: $description, elevationGain: $elevationGain, elevationLoss: $elevationLoss, distance: $distance, duration: $duration, domain: $domain, public: $public, trails: $trails, shares: $shares, iri: $iri)';
+  final _this = this as ListSearchResult;
+  return 'ListSearchResult(id: ${_this.id}, collectionId: ${_this.collectionId}, author: ${_this.author}, authorName: ${_this.authorName}, authorAvatar: ${_this.authorAvatar}, avatar: ${_this.avatar}, name: ${_this.name}, description: ${_this.description}, elevationGain: ${_this.elevationGain}, elevationLoss: ${_this.elevationLoss}, distance: ${_this.distance}, duration: ${_this.duration}, domain: ${_this.domain}, public: ${_this.public}, trails: ${_this.trails}, shares: ${_this.shares}, iri: ${_this.iri})';
 }
 
 
@@ -723,7 +741,7 @@ class _$ListSearchResultCopyWithImpl<$Res>
 /// Create a copy of ListSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? author = null,Object? authorName = null,Object? authorAvatar = null,Object? avatar = freezed,Object? name = null,Object? description = null,Object? elevationGain = null,Object? elevationLoss = null,Object? distance = null,Object? duration = null,Object? domain = freezed,Object? public = null,Object? trails = null,Object? shares = freezed,Object? iri = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(ListSearchResult(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
@@ -882,7 +900,7 @@ return $default(_that.id,_that.collectionId,_that.author,_that.authorName,_that.
 @JsonSerializable()
 
 class _ListSearchResult extends ListSearchResult {
-  const _ListSearchResult({required this.id, this.collectionId = 'lists', required this.author, @JsonKey(name: 'author_name') required this.authorName, @JsonKey(name: 'author_avatar') required this.authorAvatar, this.avatar, required this.name, required this.description, @JsonKey(name: 'elevation_gain') required this.elevationGain, @JsonKey(name: 'elevation_loss') required this.elevationLoss, required this.distance, required this.duration, this.domain, required this.public, required this.trails, final  List<String>? shares, this.iri}): _shares = shares,super._();
+  const _ListSearchResult({required this.id, this.collectionId = 'lists', required this.author, @JsonKey(name: 'author_name') required this.authorName, @JsonKey(name: 'author_avatar') required this.authorAvatar, this.avatar, required this.name, required this.description, @JsonKey(name: 'elevation_gain') required this.elevationGain, @JsonKey(name: 'elevation_loss') required this.elevationLoss, required this.distance, required this.duration, this.domain, required this.public, required this.trails,  List<String>? shares, this.iri}): _shares = shares,super._();
   factory _ListSearchResult.fromJson(Map<String, dynamic> json) => _$ListSearchResultFromJson(json);
 
 @override final  String id;
@@ -924,16 +942,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorName, authorName) || other.authorName == authorName)&&(identical(other.authorAvatar, authorAvatar) || other.authorAvatar == authorAvatar)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.public, public) || other.public == public)&&(identical(other.trails, trails) || other.trails == trails)&&const DeepCollectionEquality().equals(other._shares, _shares)&&(identical(other.iri, iri) || other.iri == iri));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.author, author) || other.author == author)&&(identical(other.authorName, authorName) || other.authorName == authorName)&&(identical(other.authorAvatar, authorAvatar) || other.authorAvatar == authorAvatar)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.public, public) || other.public == public)&&(identical(other.trails, trails) || other.trails == trails)&&const DeepCollectionEquality().equals(other.shares, _shares)&&(identical(other.iri, iri) || other.iri == iri));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,author,authorName,authorAvatar,avatar,name,description,elevationGain,elevationLoss,distance,duration,domain,public,trails,const DeepCollectionEquality().hash(_shares),iri);
+int get hashCode {
+    return Object.hash(runtimeType,id,collectionId,author,authorName,authorAvatar,avatar,name,description,elevationGain,elevationLoss,distance,duration,domain,public,trails,const DeepCollectionEquality().hash(_shares),iri);
+}
 
 @override
 String toString() {
-  return 'ListSearchResult(id: $id, collectionId: $collectionId, author: $author, authorName: $authorName, authorAvatar: $authorAvatar, avatar: $avatar, name: $name, description: $description, elevationGain: $elevationGain, elevationLoss: $elevationLoss, distance: $distance, duration: $duration, domain: $domain, public: $public, trails: $trails, shares: $shares, iri: $iri)';
+    return 'ListSearchResult(id: $id, collectionId: $collectionId, author: $author, authorName: $authorName, authorAvatar: $authorAvatar, avatar: $avatar, name: $name, description: $description, elevationGain: $elevationGain, elevationLoss: $elevationLoss, distance: $distance, duration: $duration, domain: $domain, public: $public, trails: $trails, shares: $shares, iri: $iri)';
 }
 
 
@@ -1004,16 +1024,21 @@ $LocationSearchResultCopyWith<LocationSearchResult> get copyWith => _$LocationSe
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LocationSearchResult&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.category, category) || other.category == category)&&(identical(other.type, type) || other.type == type));
+  final _this = this as LocationSearchResult;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LocationSearchResult&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lon, _this.lon) || other.lon == _this.lon)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.type, _this.type) || other.type == _this.type));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,description,lat,lon,category,type);
+int get hashCode {
+  final _this = this as LocationSearchResult;
+  return Object.hash(runtimeType,_this.name,_this.description,_this.lat,_this.lon,_this.category,_this.type);
+}
 
 @override
 String toString() {
-  return 'LocationSearchResult(name: $name, description: $description, lat: $lat, lon: $lon, category: $category, type: $type)';
+  final _this = this as LocationSearchResult;
+  return 'LocationSearchResult(name: ${_this.name}, description: ${_this.description}, lat: ${_this.lat}, lon: ${_this.lon}, category: ${_this.category}, type: ${_this.type})';
 }
 
 
@@ -1042,7 +1067,7 @@ class _$LocationSearchResultCopyWithImpl<$Res>
 /// Create a copy of LocationSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? name = null,Object? description = null,Object? lat = null,Object? lon = null,Object? category = null,Object? type = null,}) {
-  return _then(_self.copyWith(
+  return _then(LocationSearchResult(
 name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,lat: null == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
@@ -1213,16 +1238,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LocationSearchResult&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.category, category) || other.category == category)&&(identical(other.type, type) || other.type == type));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _LocationSearchResult&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.category, category) || other.category == category)&&(identical(other.type, type) || other.type == type));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,description,lat,lon,category,type);
+int get hashCode {
+    return Object.hash(runtimeType,name,description,lat,lon,category,type);
+}
 
 @override
 String toString() {
-  return 'LocationSearchResult(name: $name, description: $description, lat: $lat, lon: $lon, category: $category, type: $type)';
+    return 'LocationSearchResult(name: $name, description: $description, lat: $lat, lon: $lon, category: $category, type: $type)';
 }
 
 
@@ -1282,16 +1309,21 @@ $ActorSearchResultCopyWith<ActorSearchResult> get copyWith => _$ActorSearchResul
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActorSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
+  final _this = this as ActorSearchResult;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ActorSearchResult&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.preferredUsername, _this.preferredUsername) || other.preferredUsername == _this.preferredUsername)&&(identical(other.isLocal, _this.isLocal) || other.isLocal == _this.isLocal)&&(identical(other.domain, _this.domain) || other.domain == _this.domain)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.iri, _this.iri) || other.iri == _this.iri));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,username,preferredUsername,isLocal,domain,icon,iri);
+int get hashCode {
+  final _this = this as ActorSearchResult;
+  return Object.hash(runtimeType,_this.id,_this.username,_this.preferredUsername,_this.isLocal,_this.domain,_this.icon,_this.iri);
+}
 
 @override
 String toString() {
-  return 'ActorSearchResult(id: $id, username: $username, preferredUsername: $preferredUsername, isLocal: $isLocal, domain: $domain, icon: $icon, iri: $iri)';
+  final _this = this as ActorSearchResult;
+  return 'ActorSearchResult(id: ${_this.id}, username: ${_this.username}, preferredUsername: ${_this.preferredUsername}, isLocal: ${_this.isLocal}, domain: ${_this.domain}, icon: ${_this.icon}, iri: ${_this.iri})';
 }
 
 
@@ -1320,7 +1352,7 @@ class _$ActorSearchResultCopyWithImpl<$Res>
 /// Create a copy of ActorSearchResult
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? username = null,Object? preferredUsername = null,Object? isLocal = null,Object? domain = null,Object? icon = freezed,Object? iri = null,}) {
-  return _then(_self.copyWith(
+  return _then(ActorSearchResult(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,username: null == username ? _self.username : username // ignore: cast_nullable_to_non_nullable
 as String,preferredUsername: null == preferredUsername ? _self.preferredUsername : preferredUsername // ignore: cast_nullable_to_non_nullable
@@ -1493,16 +1525,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActorSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ActorSearchResult&&(identical(other.id, id) || other.id == id)&&(identical(other.username, username) || other.username == username)&&(identical(other.preferredUsername, preferredUsername) || other.preferredUsername == preferredUsername)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.iri, iri) || other.iri == iri));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,username,preferredUsername,isLocal,domain,icon,iri);
+int get hashCode {
+    return Object.hash(runtimeType,id,username,preferredUsername,isLocal,domain,icon,iri);
+}
 
 @override
 String toString() {
-  return 'ActorSearchResult(id: $id, username: $username, preferredUsername: $preferredUsername, isLocal: $isLocal, domain: $domain, icon: $icon, iri: $iri)';
+    return 'ActorSearchResult(id: $id, username: $username, preferredUsername: $preferredUsername, isLocal: $isLocal, domain: $domain, icon: $icon, iri: $iri)';
 }
 
 

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'trail_search_provider.dart';
@@ -9,6 +9,7 @@ part of 'trail_search_provider.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -25,16 +26,21 @@ $TrailSearchStateCopyWith<TrailSearchState> get copyWith => _$TrailSearchStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailSearchState&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+  final _this = this as TrailSearchState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailSearchState&&const DeepCollectionEquality().equals(other.trails, _this.trails)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.perPage, _this.perPage) || other.perPage == _this.perPage)&&(identical(other.totalPages, _this.totalPages) || other.totalPages == _this.totalPages));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(trails),page,perPage,totalPages);
+int get hashCode {
+  final _this = this as TrailSearchState;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.trails),_this.page,_this.perPage,_this.totalPages);
+}
 
 @override
 String toString() {
-  return 'TrailSearchState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages)';
+  final _this = this as TrailSearchState;
+  return 'TrailSearchState(trails: ${_this.trails}, page: ${_this.page}, perPage: ${_this.perPage}, totalPages: ${_this.totalPages})';
 }
 
 
@@ -63,7 +69,7 @@ class _$TrailSearchStateCopyWithImpl<$Res>
 /// Create a copy of TrailSearchState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? trails = null,Object? page = null,Object? perPage = null,Object? totalPages = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailSearchState(
 trails: null == trails ? _self.trails : trails // ignore: cast_nullable_to_non_nullable
 as List<TrailSearchResult>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,perPage: null == perPage ? _self.perPage : perPage // ignore: cast_nullable_to_non_nullable
@@ -209,7 +215,7 @@ return $default(_that.trails,_that.page,_that.perPage,_that.totalPages);case _:
 
 
 class _TrailSearchState extends TrailSearchState {
-  const _TrailSearchState({required final  List<TrailSearchResult> trails, required this.page, required this.perPage, required this.totalPages}): _trails = trails,super._();
+  const _TrailSearchState({required  List<TrailSearchResult> trails, required this.page, required this.perPage, required this.totalPages}): _trails = trails,super._();
   
 
  final  List<TrailSearchResult> _trails;
@@ -233,16 +239,18 @@ _$TrailSearchStateCopyWith<_TrailSearchState> get copyWith => __$TrailSearchStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailSearchState&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailSearchState&&const DeepCollectionEquality().equals(other.trails, _trails)&&(identical(other.page, page) || other.page == page)&&(identical(other.perPage, perPage) || other.perPage == perPage)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),page,perPage,totalPages);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),page,perPage,totalPages);
+}
 
 @override
 String toString() {
-  return 'TrailSearchState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages)';
+    return 'TrailSearchState(trails: $trails, page: $page, perPage: $perPage, totalPages: $totalPages)';
 }
 
 

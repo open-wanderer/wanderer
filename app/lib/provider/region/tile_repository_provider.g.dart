@@ -146,7 +146,7 @@ abstract class _$TileRepositoryStatus
   Map<String, RegionDownloadState> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<
@@ -164,6 +164,6 @@ abstract class _$TileRepositoryStatus
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

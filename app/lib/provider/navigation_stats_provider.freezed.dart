@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'navigation_stats_provider.dart';
@@ -9,6 +9,7 @@ part of 'navigation_stats_provider.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -38,16 +39,21 @@ $NavigationStatsCopyWith<NavigationStats> get copyWith => _$NavigationStatsCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused)&&(identical(other.isStationary, isStationary) || other.isStationary == isStationary));
+  final _this = this as NavigationStats;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStats&&(identical(other.elapsed, _this.elapsed) || other.elapsed == _this.elapsed)&&(identical(other.distanceMeters, _this.distanceMeters) || other.distanceMeters == _this.distanceMeters)&&(identical(other.elevationGainMeters, _this.elevationGainMeters) || other.elevationGainMeters == _this.elevationGainMeters)&&(identical(other.elevationLossMeters, _this.elevationLossMeters) || other.elevationLossMeters == _this.elevationLossMeters)&&(identical(other.currentSpeedKmh, _this.currentSpeedKmh) || other.currentSpeedKmh == _this.currentSpeedKmh)&&(identical(other.averageSpeedKmh, _this.averageSpeedKmh) || other.averageSpeedKmh == _this.averageSpeedKmh)&&(identical(other.isPaused, _this.isPaused) || other.isPaused == _this.isPaused)&&(identical(other.isStationary, _this.isStationary) || other.isStationary == _this.isStationary));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused,isStationary);
+int get hashCode {
+  final _this = this as NavigationStats;
+  return Object.hash(runtimeType,_this.elapsed,_this.distanceMeters,_this.elevationGainMeters,_this.elevationLossMeters,_this.currentSpeedKmh,_this.averageSpeedKmh,_this.isPaused,_this.isStationary);
+}
 
 @override
 String toString() {
-  return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused, isStationary: $isStationary)';
+  final _this = this as NavigationStats;
+  return 'NavigationStats(elapsed: ${_this.elapsed}, distanceMeters: ${_this.distanceMeters}, elevationGainMeters: ${_this.elevationGainMeters}, elevationLossMeters: ${_this.elevationLossMeters}, currentSpeedKmh: ${_this.currentSpeedKmh}, averageSpeedKmh: ${_this.averageSpeedKmh}, isPaused: ${_this.isPaused}, isStationary: ${_this.isStationary})';
 }
 
 
@@ -76,7 +82,7 @@ class _$NavigationStatsCopyWithImpl<$Res>
 /// Create a copy of NavigationStats
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? elapsed = null,Object? distanceMeters = null,Object? elevationGainMeters = null,Object? elevationLossMeters = null,Object? currentSpeedKmh = null,Object? averageSpeedKmh = null,Object? isPaused = null,Object? isStationary = null,}) {
-  return _then(_self.copyWith(
+  return _then(NavigationStats(
 elapsed: null == elapsed ? _self.elapsed : elapsed // ignore: cast_nullable_to_non_nullable
 as Duration,distanceMeters: null == distanceMeters ? _self.distanceMeters : distanceMeters // ignore: cast_nullable_to_non_nullable
 as double,elevationGainMeters: null == elevationGainMeters ? _self.elevationGainMeters : elevationGainMeters // ignore: cast_nullable_to_non_nullable
@@ -261,16 +267,18 @@ _$NavigationStatsCopyWith<_NavigationStats> get copyWith => __$NavigationStatsCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused)&&(identical(other.isStationary, isStationary) || other.isStationary == isStationary));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigationStats&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.currentSpeedKmh, currentSpeedKmh) || other.currentSpeedKmh == currentSpeedKmh)&&(identical(other.averageSpeedKmh, averageSpeedKmh) || other.averageSpeedKmh == averageSpeedKmh)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused)&&(identical(other.isStationary, isStationary) || other.isStationary == isStationary));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused,isStationary);
+int get hashCode {
+    return Object.hash(runtimeType,elapsed,distanceMeters,elevationGainMeters,elevationLossMeters,currentSpeedKmh,averageSpeedKmh,isPaused,isStationary);
+}
 
 @override
 String toString() {
-  return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused, isStationary: $isStationary)';
+    return 'NavigationStats(elapsed: $elapsed, distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, currentSpeedKmh: $currentSpeedKmh, averageSpeedKmh: $averageSpeedKmh, isPaused: $isPaused, isStationary: $isStationary)';
 }
 
 
@@ -329,16 +337,21 @@ $NavigationStatsSeedCopyWith<NavigationStatsSeed> get copyWith => _$NavigationSt
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStatsSeed&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.pausedAccum, pausedAccum) || other.pausedAccum == pausedAccum)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused));
+  final _this = this as NavigationStatsSeed;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStatsSeed&&(identical(other.distanceMeters, _this.distanceMeters) || other.distanceMeters == _this.distanceMeters)&&(identical(other.elevationGainMeters, _this.elevationGainMeters) || other.elevationGainMeters == _this.elevationGainMeters)&&(identical(other.elevationLossMeters, _this.elevationLossMeters) || other.elevationLossMeters == _this.elevationLossMeters)&&(identical(other.elapsed, _this.elapsed) || other.elapsed == _this.elapsed)&&(identical(other.pausedAccum, _this.pausedAccum) || other.pausedAccum == _this.pausedAccum)&&(identical(other.isPaused, _this.isPaused) || other.isPaused == _this.isPaused));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,distanceMeters,elevationGainMeters,elevationLossMeters,elapsed,pausedAccum,isPaused);
+int get hashCode {
+  final _this = this as NavigationStatsSeed;
+  return Object.hash(runtimeType,_this.distanceMeters,_this.elevationGainMeters,_this.elevationLossMeters,_this.elapsed,_this.pausedAccum,_this.isPaused);
+}
 
 @override
 String toString() {
-  return 'NavigationStatsSeed(distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, elapsed: $elapsed, pausedAccum: $pausedAccum, isPaused: $isPaused)';
+  final _this = this as NavigationStatsSeed;
+  return 'NavigationStatsSeed(distanceMeters: ${_this.distanceMeters}, elevationGainMeters: ${_this.elevationGainMeters}, elevationLossMeters: ${_this.elevationLossMeters}, elapsed: ${_this.elapsed}, pausedAccum: ${_this.pausedAccum}, isPaused: ${_this.isPaused})';
 }
 
 
@@ -367,7 +380,7 @@ class _$NavigationStatsSeedCopyWithImpl<$Res>
 /// Create a copy of NavigationStatsSeed
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? distanceMeters = null,Object? elevationGainMeters = null,Object? elevationLossMeters = null,Object? elapsed = null,Object? pausedAccum = null,Object? isPaused = null,}) {
-  return _then(_self.copyWith(
+  return _then(NavigationStatsSeed(
 distanceMeters: null == distanceMeters ? _self.distanceMeters : distanceMeters // ignore: cast_nullable_to_non_nullable
 as double,elevationGainMeters: null == elevationGainMeters ? _self.elevationGainMeters : elevationGainMeters // ignore: cast_nullable_to_non_nullable
 as double,elevationLossMeters: null == elevationLossMeters ? _self.elevationLossMeters : elevationLossMeters // ignore: cast_nullable_to_non_nullable
@@ -535,16 +548,18 @@ _$NavigationStatsSeedCopyWith<_NavigationStatsSeed> get copyWith => __$Navigatio
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigationStatsSeed&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.pausedAccum, pausedAccum) || other.pausedAccum == pausedAccum)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigationStatsSeed&&(identical(other.distanceMeters, distanceMeters) || other.distanceMeters == distanceMeters)&&(identical(other.elevationGainMeters, elevationGainMeters) || other.elevationGainMeters == elevationGainMeters)&&(identical(other.elevationLossMeters, elevationLossMeters) || other.elevationLossMeters == elevationLossMeters)&&(identical(other.elapsed, elapsed) || other.elapsed == elapsed)&&(identical(other.pausedAccum, pausedAccum) || other.pausedAccum == pausedAccum)&&(identical(other.isPaused, isPaused) || other.isPaused == isPaused));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,distanceMeters,elevationGainMeters,elevationLossMeters,elapsed,pausedAccum,isPaused);
+int get hashCode {
+    return Object.hash(runtimeType,distanceMeters,elevationGainMeters,elevationLossMeters,elapsed,pausedAccum,isPaused);
+}
 
 @override
 String toString() {
-  return 'NavigationStatsSeed(distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, elapsed: $elapsed, pausedAccum: $pausedAccum, isPaused: $isPaused)';
+    return 'NavigationStatsSeed(distanceMeters: $distanceMeters, elevationGainMeters: $elevationGainMeters, elevationLossMeters: $elevationLossMeters, elapsed: $elapsed, pausedAccum: $pausedAccum, isPaused: $isPaused)';
 }
 
 

@@ -51,7 +51,7 @@ final class ProfileTrailsNotifierProvider
 }
 
 String _$profileTrailsNotifierHash() =>
-    r'9ef301e06e67f0c23d52c7e7207bc595d1c00384';
+    r'f1913d3a9ea5cab915a8dbb9841335c38a296f2e';
 
 final class ProfileTrailsNotifierFamily extends $Family
     with
@@ -86,7 +86,7 @@ abstract class _$ProfileTrailsNotifier
   FutureOr<ProfileTrailsState> build(String handle);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<ProfileTrailsState>, ProfileTrailsState>;
     final element =
@@ -97,6 +97,6 @@ abstract class _$ProfileTrailsNotifier
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

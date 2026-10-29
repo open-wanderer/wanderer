@@ -48,7 +48,7 @@ abstract class _$SubcategoryNotifier extends $Notifier<List<Subcategory>> {
   List<Subcategory> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<List<Subcategory>, List<Subcategory>>;
     final element =
         ref.element
@@ -58,6 +58,6 @@ abstract class _$SubcategoryNotifier extends $Notifier<List<Subcategory>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

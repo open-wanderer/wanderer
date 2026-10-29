@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'server_instance.dart';
@@ -9,6 +9,7 @@ part of 'server_instance.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $ServerInstanceCopyWith<ServerInstance> get copyWith => _$ServerInstanceCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ServerInstance&&(identical(other.name, name) || other.name == name)&&(identical(other.url, url) || other.url == url)&&(identical(other.description, description) || other.description == description)&&(identical(other.image, image) || other.image == image)&&const DeepCollectionEquality().equals(other.region, region)&&const DeepCollectionEquality().equals(other.language, language)&&const DeepCollectionEquality().equals(other.category, category));
+  final _this = this as ServerInstance;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ServerInstance&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.url, _this.url) || other.url == _this.url)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.image, _this.image) || other.image == _this.image)&&const DeepCollectionEquality().equals(other.region, _this.region)&&const DeepCollectionEquality().equals(other.language, _this.language)&&const DeepCollectionEquality().equals(other.category, _this.category));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,url,description,image,const DeepCollectionEquality().hash(region),const DeepCollectionEquality().hash(language),const DeepCollectionEquality().hash(category));
+int get hashCode {
+  final _this = this as ServerInstance;
+  return Object.hash(runtimeType,_this.name,_this.url,_this.description,_this.image,const DeepCollectionEquality().hash(_this.region),const DeepCollectionEquality().hash(_this.language),const DeepCollectionEquality().hash(_this.category));
+}
 
 @override
 String toString() {
-  return 'ServerInstance(name: $name, url: $url, description: $description, image: $image, region: $region, language: $language, category: $category)';
+  final _this = this as ServerInstance;
+  return 'ServerInstance(name: ${_this.name}, url: ${_this.url}, description: ${_this.description}, image: ${_this.image}, region: ${_this.region}, language: ${_this.language}, category: ${_this.category})';
 }
 
 
@@ -66,7 +72,7 @@ class _$ServerInstanceCopyWithImpl<$Res>
 /// Create a copy of ServerInstance
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? name = freezed,Object? url = null,Object? description = freezed,Object? image = freezed,Object? region = null,Object? language = null,Object? category = null,}) {
-  return _then(_self.copyWith(
+  return _then(ServerInstance(
 name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String?,url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
@@ -215,7 +221,7 @@ return $default(_that.name,_that.url,_that.description,_that.image,_that.region,
 @JsonSerializable()
 
 class _ServerInstance implements ServerInstance {
-  const _ServerInstance({this.name, required this.url, this.description, this.image, final  List<String> region = const [], final  List<String> language = const [], final  List<String> category = const []}): _region = region,_language = language,_category = category;
+  const _ServerInstance({this.name, required this.url, this.description, this.image,  List<String> region = const [],  List<String> language = const [],  List<String> category = const []}): _region = region,_language = language,_category = category;
   factory _ServerInstance.fromJson(Map<String, dynamic> json) => _$ServerInstanceFromJson(json);
 
 @override final  String? name;
@@ -257,16 +263,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ServerInstance&&(identical(other.name, name) || other.name == name)&&(identical(other.url, url) || other.url == url)&&(identical(other.description, description) || other.description == description)&&(identical(other.image, image) || other.image == image)&&const DeepCollectionEquality().equals(other._region, _region)&&const DeepCollectionEquality().equals(other._language, _language)&&const DeepCollectionEquality().equals(other._category, _category));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ServerInstance&&(identical(other.name, name) || other.name == name)&&(identical(other.url, url) || other.url == url)&&(identical(other.description, description) || other.description == description)&&(identical(other.image, image) || other.image == image)&&const DeepCollectionEquality().equals(other.region, _region)&&const DeepCollectionEquality().equals(other.language, _language)&&const DeepCollectionEquality().equals(other.category, _category));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,url,description,image,const DeepCollectionEquality().hash(_region),const DeepCollectionEquality().hash(_language),const DeepCollectionEquality().hash(_category));
+int get hashCode {
+    return Object.hash(runtimeType,name,url,description,image,const DeepCollectionEquality().hash(_region),const DeepCollectionEquality().hash(_language),const DeepCollectionEquality().hash(_category));
+}
 
 @override
 String toString() {
-  return 'ServerInstance(name: $name, url: $url, description: $description, image: $image, region: $region, language: $language, category: $category)';
+    return 'ServerInstance(name: $name, url: $url, description: $description, image: $image, region: $region, language: $language, category: $category)';
 }
 
 

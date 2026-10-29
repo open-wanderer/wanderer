@@ -1,5 +1,8 @@
 import 'package:wanderer/models/actor.dart';
-import 'package:wanderer/objectbox.g.dart';
+import 'package:objectbox/objectbox.dart';
+// Query properties only; annotations come from package:objectbox so they
+// still resolve while the generator replaces this file.
+import 'package:wanderer/objectbox.g.dart' show ActorEntity_;
 
 @Entity()
 class ActorEntity {

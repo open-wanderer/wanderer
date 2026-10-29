@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'summit_log.dart';
@@ -9,6 +9,7 @@ part of 'summit_log.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $SummitLogCopyWith<SummitLog> get copyWith => _$SummitLogCopyWithImpl<SummitLog>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SummitLog&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.text, text) || other.text == text)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.expand, expand) || other.expand == expand));
+  final _this = this as SummitLog;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SummitLog&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.collectionName, _this.collectionName) || other.collectionName == _this.collectionName)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.gpx, _this.gpx) || other.gpx == _this.gpx)&&const DeepCollectionEquality().equals(other.photos, _this.photos)&&(identical(other.distance, _this.distance) || other.distance == _this.distance)&&(identical(other.elevationGain, _this.elevationGain) || other.elevationGain == _this.elevationGain)&&(identical(other.elevationLoss, _this.elevationLoss) || other.elevationLoss == _this.elevationLoss)&&(identical(other.duration, _this.duration) || other.duration == _this.duration)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.iri, _this.iri) || other.iri == _this.iri)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&(identical(other.expand, _this.expand) || other.expand == _this.expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,date,collectionId,collectionName,text,gpx,const DeepCollectionEquality().hash(photos),distance,elevationGain,elevationLoss,duration,author,trail,iri,created,updated,expand);
+int get hashCode {
+  final _this = this as SummitLog;
+  return Object.hash(runtimeType,_this.id,_this.date,_this.collectionId,_this.collectionName,_this.text,_this.gpx,const DeepCollectionEquality().hash(_this.photos),_this.distance,_this.elevationGain,_this.elevationLoss,_this.duration,_this.author,_this.trail,_this.iri,_this.created,_this.updated,_this.expand);
+}
 
 @override
 String toString() {
-  return 'SummitLog(id: $id, date: $date, collectionId: $collectionId, collectionName: $collectionName, text: $text, gpx: $gpx, photos: $photos, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, author: $author, trail: $trail, iri: $iri, created: $created, updated: $updated, expand: $expand)';
+  final _this = this as SummitLog;
+  return 'SummitLog(id: ${_this.id}, date: ${_this.date}, collectionId: ${_this.collectionId}, collectionName: ${_this.collectionName}, text: ${_this.text}, gpx: ${_this.gpx}, photos: ${_this.photos}, distance: ${_this.distance}, elevationGain: ${_this.elevationGain}, elevationLoss: ${_this.elevationLoss}, duration: ${_this.duration}, author: ${_this.author}, trail: ${_this.trail}, iri: ${_this.iri}, created: ${_this.created}, updated: ${_this.updated}, expand: ${_this.expand})';
 }
 
 
@@ -66,7 +72,7 @@ class _$SummitLogCopyWithImpl<$Res>
 /// Create a copy of SummitLog
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? date = null,Object? collectionId = null,Object? collectionName = null,Object? text = null,Object? gpx = freezed,Object? photos = null,Object? distance = freezed,Object? elevationGain = freezed,Object? elevationLoss = freezed,Object? duration = freezed,Object? author = null,Object? trail = freezed,Object? iri = freezed,Object? created = null,Object? updated = null,Object? expand = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(SummitLog(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
@@ -237,7 +243,7 @@ return $default(_that.id,_that.date,_that.collectionId,_that.collectionName,_tha
 @JsonSerializable()
 
 class _SummitLog extends SummitLog {
-  const _SummitLog({required this.id, required this.date, required this.collectionId, required this.collectionName, this.text = "", this.gpx, final  List<String> photos = const [], this.distance, @JsonKey(name: 'elevation_gain') this.elevationGain, @JsonKey(name: 'elevation_loss') this.elevationLoss, this.duration, this.author = "000000000000000", this.trail, this.iri, required this.created, required this.updated, this.expand}): _photos = photos,super._();
+  const _SummitLog({required this.id, required this.date, required this.collectionId, required this.collectionName, this.text = "", this.gpx,  List<String> photos = const [], this.distance, @JsonKey(name: 'elevation_gain') this.elevationGain, @JsonKey(name: 'elevation_loss') this.elevationLoss, this.duration, this.author = "000000000000000", this.trail, this.iri, required this.created, required this.updated, this.expand}): _photos = photos,super._();
   factory _SummitLog.fromJson(Map<String, dynamic> json) => _$SummitLogFromJson(json);
 
 @override final  String id;
@@ -277,16 +283,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SummitLog&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.text, text) || other.text == text)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.expand, expand) || other.expand == expand));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SummitLog&&(identical(other.id, id) || other.id == id)&&(identical(other.date, date) || other.date == date)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.text, text) || other.text == text)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other.photos, _photos)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,date,collectionId,collectionName,text,gpx,const DeepCollectionEquality().hash(_photos),distance,elevationGain,elevationLoss,duration,author,trail,iri,created,updated,expand);
+int get hashCode {
+    return Object.hash(runtimeType,id,date,collectionId,collectionName,text,gpx,const DeepCollectionEquality().hash(_photos),distance,elevationGain,elevationLoss,duration,author,trail,iri,created,updated,expand);
+}
 
 @override
 String toString() {
-  return 'SummitLog(id: $id, date: $date, collectionId: $collectionId, collectionName: $collectionName, text: $text, gpx: $gpx, photos: $photos, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, author: $author, trail: $trail, iri: $iri, created: $created, updated: $updated, expand: $expand)';
+    return 'SummitLog(id: $id, date: $date, collectionId: $collectionId, collectionName: $collectionName, text: $text, gpx: $gpx, photos: $photos, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, author: $author, trail: $trail, iri: $iri, created: $created, updated: $updated, expand: $expand)';
 }
 
 
@@ -369,16 +377,21 @@ $SummitLogExpandCopyWith<SummitLogExpand> get copyWith => _$SummitLogExpandCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SummitLogExpand&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.author, author) || other.author == author));
+  final _this = this as SummitLogExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SummitLogExpand&&(identical(other.gpxData, _this.gpxData) || other.gpxData == _this.gpxData)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.author, _this.author) || other.author == _this.author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,gpxData,trail,author);
+int get hashCode {
+  final _this = this as SummitLogExpand;
+  return Object.hash(runtimeType,_this.gpxData,_this.trail,_this.author);
+}
 
 @override
 String toString() {
-  return 'SummitLogExpand(gpxData: $gpxData, trail: $trail, author: $author)';
+  final _this = this as SummitLogExpand;
+  return 'SummitLogExpand(gpxData: ${_this.gpxData}, trail: ${_this.trail}, author: ${_this.author})';
 }
 
 
@@ -407,7 +420,7 @@ class _$SummitLogExpandCopyWithImpl<$Res>
 /// Create a copy of SummitLogExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? gpxData = freezed,Object? trail = freezed,Object? author = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(SummitLogExpand(
 gpxData: freezed == gpxData ? _self.gpxData : gpxData // ignore: cast_nullable_to_non_nullable
 as String?,trail: freezed == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
 as Trail?,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
@@ -596,16 +609,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SummitLogExpand&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.author, author) || other.author == author));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SummitLogExpand&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,gpxData,trail,author);
+int get hashCode {
+    return Object.hash(runtimeType,gpxData,trail,author);
+}
 
 @override
 String toString() {
-  return 'SummitLogExpand(gpxData: $gpxData, trail: $trail, author: $author)';
+    return 'SummitLogExpand(gpxData: $gpxData, trail: $trail, author: $author)';
 }
 
 

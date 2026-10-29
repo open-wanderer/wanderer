@@ -38,7 +38,7 @@ abstract class _$Auth extends $AsyncNotifier<UserEntity?> {
   FutureOr<UserEntity?> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<UserEntity?>, UserEntity?>;
     final element =
         ref.element
@@ -48,6 +48,6 @@ abstract class _$Auth extends $AsyncNotifier<UserEntity?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'profile_follows_provider.dart';
@@ -9,6 +9,7 @@ part of 'profile_follows_provider.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -27,16 +28,21 @@ $ProfileFollowsStateCopyWith<ProfileFollowsState> get copyWith => _$ProfileFollo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFollowsState&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.next, next) || other.next == next)&&(identical(other.cursorPaging, cursorPaging) || other.cursorPaging == cursorPaging));
+  final _this = this as ProfileFollowsState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProfileFollowsState&&const DeepCollectionEquality().equals(other.items, _this.items)&&(identical(other.page, _this.page) || other.page == _this.page)&&(identical(other.totalPages, _this.totalPages) || other.totalPages == _this.totalPages)&&(identical(other.next, _this.next) || other.next == _this.next)&&(identical(other.cursorPaging, _this.cursorPaging) || other.cursorPaging == _this.cursorPaging));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(items),page,totalPages,next,cursorPaging);
+int get hashCode {
+  final _this = this as ProfileFollowsState;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.items),_this.page,_this.totalPages,_this.next,_this.cursorPaging);
+}
 
 @override
 String toString() {
-  return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages, next: $next, cursorPaging: $cursorPaging)';
+  final _this = this as ProfileFollowsState;
+  return 'ProfileFollowsState(items: ${_this.items}, page: ${_this.page}, totalPages: ${_this.totalPages}, next: ${_this.next}, cursorPaging: ${_this.cursorPaging})';
 }
 
 
@@ -65,7 +71,7 @@ class _$ProfileFollowsStateCopyWithImpl<$Res>
 /// Create a copy of ProfileFollowsState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? items = null,Object? page = null,Object? totalPages = null,Object? next = freezed,Object? cursorPaging = null,}) {
-  return _then(_self.copyWith(
+  return _then(ProfileFollowsState(
 items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<Actor>,page: null == page ? _self.page : page // ignore: cast_nullable_to_non_nullable
 as int,totalPages: null == totalPages ? _self.totalPages : totalPages // ignore: cast_nullable_to_non_nullable
@@ -212,7 +218,7 @@ return $default(_that.items,_that.page,_that.totalPages,_that.next,_that.cursorP
 
 
 class _ProfileFollowsState extends ProfileFollowsState {
-  const _ProfileFollowsState({required final  List<Actor> items, required this.page, required this.totalPages, this.next, this.cursorPaging = false}): _items = items,super._();
+  const _ProfileFollowsState({required  List<Actor> items, required this.page, required this.totalPages, this.next, this.cursorPaging = false}): _items = items,super._();
   
 
  final  List<Actor> _items;
@@ -239,16 +245,18 @@ _$ProfileFollowsStateCopyWith<_ProfileFollowsState> get copyWith => __$ProfileFo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFollowsState&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.next, next) || other.next == next)&&(identical(other.cursorPaging, cursorPaging) || other.cursorPaging == cursorPaging));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProfileFollowsState&&const DeepCollectionEquality().equals(other.items, _items)&&(identical(other.page, page) || other.page == page)&&(identical(other.totalPages, totalPages) || other.totalPages == totalPages)&&(identical(other.next, next) || other.next == next)&&(identical(other.cursorPaging, cursorPaging) || other.cursorPaging == cursorPaging));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,totalPages,next,cursorPaging);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_items),page,totalPages,next,cursorPaging);
+}
 
 @override
 String toString() {
-  return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages, next: $next, cursorPaging: $cursorPaging)';
+    return 'ProfileFollowsState(items: $items, page: $page, totalPages: $totalPages, next: $next, cursorPaging: $cursorPaging)';
 }
 
 

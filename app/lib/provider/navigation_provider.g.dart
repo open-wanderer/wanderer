@@ -123,7 +123,7 @@ abstract class _$Navigation extends $Notifier<NavigationState> {
   });
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<NavigationState, NavigationState>;
     final element =
         ref.element
@@ -133,7 +133,7 @@ abstract class _$Navigation extends $Notifier<NavigationState> {
               Object?,
               Object?
             >;
-    element.handleCreate(
+    return element.handleCreate(
       ref,
       () => build(
         _$args.$1,

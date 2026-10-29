@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -709,8 +710,7 @@ class AppLocalizationsDe extends AppLocalizations {
       locale: localeName,
       other:
           'Du hast $count Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.',
-      one:
-          'Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.',
+      one: 'Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.',
     );
     return '$_temp0';
   }

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'region_geometry.dart';
@@ -9,6 +9,7 @@ part of 'region_geometry.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -35,16 +36,21 @@ $RegionGeometryCopyWith<RegionGeometry> get copyWith => _$RegionGeometryCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionGeometry&&(identical(other.path, path) || other.path == path)&&const DeepCollectionEquality().equals(other.polygon, polygon)&&const DeepCollectionEquality().equals(other.bbox, bbox));
+  final _this = this as RegionGeometry;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionGeometry&&(identical(other.path, _this.path) || other.path == _this.path)&&const DeepCollectionEquality().equals(other.polygon, _this.polygon)&&const DeepCollectionEquality().equals(other.bbox, _this.bbox));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,path,const DeepCollectionEquality().hash(polygon),const DeepCollectionEquality().hash(bbox));
+int get hashCode {
+  final _this = this as RegionGeometry;
+  return Object.hash(runtimeType,_this.path,const DeepCollectionEquality().hash(_this.polygon),const DeepCollectionEquality().hash(_this.bbox));
+}
 
 @override
 String toString() {
-  return 'RegionGeometry(path: $path, polygon: $polygon, bbox: $bbox)';
+  final _this = this as RegionGeometry;
+  return 'RegionGeometry(path: ${_this.path}, polygon: ${_this.polygon}, bbox: ${_this.bbox})';
 }
 
 
@@ -73,7 +79,7 @@ class _$RegionGeometryCopyWithImpl<$Res>
 /// Create a copy of RegionGeometry
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? path = null,Object? polygon = null,Object? bbox = null,}) {
-  return _then(_self.copyWith(
+  return _then(RegionGeometry(
 path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
 as String,polygon: null == polygon ? _self.polygon : polygon // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>,bbox: null == bbox ? _self.bbox : bbox // ignore: cast_nullable_to_non_nullable
@@ -218,7 +224,7 @@ return $default(_that.path,_that.polygon,_that.bbox);case _:
 @JsonSerializable()
 
 class _RegionGeometry implements RegionGeometry {
-  const _RegionGeometry({required this.path, required final  Map<String, dynamic> polygon, required final  List<double> bbox}): _polygon = polygon,_bbox = bbox;
+  const _RegionGeometry({required this.path, required  Map<String, dynamic> polygon, required  List<double> bbox}): _polygon = polygon,_bbox = bbox;
   factory _RegionGeometry.fromJson(Map<String, dynamic> json) => _$RegionGeometryFromJson(json);
 
 @override final  String path;
@@ -264,16 +270,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionGeometry&&(identical(other.path, path) || other.path == path)&&const DeepCollectionEquality().equals(other._polygon, _polygon)&&const DeepCollectionEquality().equals(other._bbox, _bbox));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionGeometry&&(identical(other.path, path) || other.path == path)&&const DeepCollectionEquality().equals(other.polygon, _polygon)&&const DeepCollectionEquality().equals(other.bbox, _bbox));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,path,const DeepCollectionEquality().hash(_polygon),const DeepCollectionEquality().hash(_bbox));
+int get hashCode {
+    return Object.hash(runtimeType,path,const DeepCollectionEquality().hash(_polygon),const DeepCollectionEquality().hash(_bbox));
+}
 
 @override
 String toString() {
-  return 'RegionGeometry(path: $path, polygon: $polygon, bbox: $bbox)';
+    return 'RegionGeometry(path: $path, polygon: $polygon, bbox: $bbox)';
 }
 
 

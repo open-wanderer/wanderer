@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'feed_item.dart';
@@ -9,6 +9,7 @@ part of 'feed_item.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -25,16 +26,21 @@ $FeedItemCopyWith<FeedItem> get copyWith => _$FeedItemCopyWithImpl<FeedItem>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedItem&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.type, type) || other.type == type)&&(identical(other.created, created) || other.created == created));
+  final _this = this as FeedItem;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedItem&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.actor, _this.actor) || other.actor == _this.actor)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.created, _this.created) || other.created == _this.created));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,type,created);
+int get hashCode {
+  final _this = this as FeedItem;
+  return Object.hash(runtimeType,_this.id,_this.actor,_this.type,_this.created);
+}
 
 @override
 String toString() {
-  return 'FeedItem(id: $id, actor: $actor, type: $type, created: $created)';
+  final _this = this as FeedItem;
+  return 'FeedItem(id: ${_this.id}, actor: ${_this.actor}, type: ${_this.type}, created: ${_this.created})';
 }
 
 
@@ -228,16 +234,18 @@ $FeedItemTrailCopyWith<FeedItemTrail> get copyWith => _$FeedItemTrailCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedItemTrail&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.type, type) || other.type == type)&&(identical(other.created, created) || other.created == created)&&(identical(other.trail, trail) || other.trail == trail));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedItemTrail&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.type, type) || other.type == type)&&(identical(other.created, created) || other.created == created)&&(identical(other.trail, trail) || other.trail == trail));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,type,created,trail);
+int get hashCode {
+    return Object.hash(runtimeType,id,actor,type,created,trail);
+}
 
 @override
 String toString() {
-  return 'FeedItem.trail(id: $id, actor: $actor, type: $type, created: $created, trail: $trail)';
+    return 'FeedItem.trail(id: $id, actor: $actor, type: $type, created: $created, trail: $trail)';
 }
 
 
@@ -311,16 +319,18 @@ $FeedItemListCopyWith<FeedItemList> get copyWith => _$FeedItemListCopyWithImpl<F
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedItemList&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.type, type) || other.type == type)&&(identical(other.created, created) || other.created == created)&&(identical(other.list, list) || other.list == list));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is FeedItemList&&(identical(other.id, id) || other.id == id)&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.type, type) || other.type == type)&&(identical(other.created, created) || other.created == created)&&(identical(other.list, list) || other.list == list));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,actor,type,created,list);
+int get hashCode {
+    return Object.hash(runtimeType,id,actor,type,created,list);
+}
 
 @override
 String toString() {
-  return 'FeedItem.list(id: $id, actor: $actor, type: $type, created: $created, list: $list)';
+    return 'FeedItem.list(id: $id, actor: $actor, type: $type, created: $created, list: $list)';
 }
 
 

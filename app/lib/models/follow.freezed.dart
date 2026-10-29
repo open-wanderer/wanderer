@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'follow.dart';
@@ -9,6 +9,7 @@ part of 'follow.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -25,16 +26,21 @@ $FollowStateCopyWith<FollowState> get copyWith => _$FollowStateCopyWithImpl<Foll
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FollowState&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.followRecordId, followRecordId) || other.followRecordId == followRecordId)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading));
+  final _this = this as FollowState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FollowState&&(identical(other.isFollowing, _this.isFollowing) || other.isFollowing == _this.isFollowing)&&(identical(other.followRecordId, _this.followRecordId) || other.followRecordId == _this.followRecordId)&&(identical(other.isLoading, _this.isLoading) || other.isLoading == _this.isLoading));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isFollowing,followRecordId,isLoading);
+int get hashCode {
+  final _this = this as FollowState;
+  return Object.hash(runtimeType,_this.isFollowing,_this.followRecordId,_this.isLoading);
+}
 
 @override
 String toString() {
-  return 'FollowState(isFollowing: $isFollowing, followRecordId: $followRecordId, isLoading: $isLoading)';
+  final _this = this as FollowState;
+  return 'FollowState(isFollowing: ${_this.isFollowing}, followRecordId: ${_this.followRecordId}, isLoading: ${_this.isLoading})';
 }
 
 
@@ -63,7 +69,7 @@ class _$FollowStateCopyWithImpl<$Res>
 /// Create a copy of FollowState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? isFollowing = null,Object? followRecordId = freezed,Object? isLoading = null,}) {
-  return _then(_self.copyWith(
+  return _then(FollowState(
 isFollowing: null == isFollowing ? _self.isFollowing : isFollowing // ignore: cast_nullable_to_non_nullable
 as bool,followRecordId: freezed == followRecordId ? _self.followRecordId : followRecordId // ignore: cast_nullable_to_non_nullable
 as String?,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
@@ -225,16 +231,18 @@ _$FollowStateCopyWith<_FollowState> get copyWith => __$FollowStateCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _FollowState&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.followRecordId, followRecordId) || other.followRecordId == followRecordId)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _FollowState&&(identical(other.isFollowing, isFollowing) || other.isFollowing == isFollowing)&&(identical(other.followRecordId, followRecordId) || other.followRecordId == followRecordId)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isFollowing,followRecordId,isLoading);
+int get hashCode {
+    return Object.hash(runtimeType,isFollowing,followRecordId,isLoading);
+}
 
 @override
 String toString() {
-  return 'FollowState(isFollowing: $isFollowing, followRecordId: $followRecordId, isLoading: $isLoading)';
+    return 'FollowState(isFollowing: $isFollowing, followRecordId: $followRecordId, isLoading: $isLoading)';
 }
 
 

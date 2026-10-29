@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'category.dart';
@@ -9,6 +9,7 @@ part of 'category.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $CategoryTranslationCopyWith<CategoryTranslation> get copyWith => _$CategoryTran
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CategoryTranslation&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName));
+  final _this = this as CategoryTranslation;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CategoryTranslation&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.shortName, _this.shortName) || other.shortName == _this.shortName));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,shortName);
+int get hashCode {
+  final _this = this as CategoryTranslation;
+  return Object.hash(runtimeType,_this.name,_this.shortName);
+}
 
 @override
 String toString() {
-  return 'CategoryTranslation(name: $name, shortName: $shortName)';
+  final _this = this as CategoryTranslation;
+  return 'CategoryTranslation(name: ${_this.name}, shortName: ${_this.shortName})';
 }
 
 
@@ -66,7 +72,7 @@ class _$CategoryTranslationCopyWithImpl<$Res>
 /// Create a copy of CategoryTranslation
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? name = freezed,Object? shortName = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(CategoryTranslation(
 name: freezed == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String?,shortName: freezed == shortName ? _self.shortName : shortName // ignore: cast_nullable_to_non_nullable
 as String?,
@@ -229,16 +235,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CategoryTranslation&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CategoryTranslation&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,name,shortName);
+int get hashCode {
+    return Object.hash(runtimeType,name,shortName);
+}
 
 @override
 String toString() {
-  return 'CategoryTranslation(name: $name, shortName: $shortName)';
+    return 'CategoryTranslation(name: $name, shortName: $shortName)';
 }
 
 
@@ -294,16 +302,21 @@ $CategoryCopyWith<Category> get copyWith => _$CategoryCopyWithImpl<Category>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.translations, translations)&&const DeepCollectionEquality().equals(other.settings, settings));
+  final _this = this as Category;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Category&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.shortName, _this.shortName) || other.shortName == _this.shortName)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&const DeepCollectionEquality().equals(other.translations, _this.translations)&&const DeepCollectionEquality().equals(other.settings, _this.settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(translations),const DeepCollectionEquality().hash(settings));
+int get hashCode {
+  final _this = this as Category;
+  return Object.hash(runtimeType,_this.id,_this.name,_this.shortName,_this.icon,const DeepCollectionEquality().hash(_this.translations),const DeepCollectionEquality().hash(_this.settings));
+}
 
 @override
 String toString() {
-  return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations, settings: $settings)';
+  final _this = this as Category;
+  return 'Category(id: ${_this.id}, name: ${_this.name}, shortName: ${_this.shortName}, icon: ${_this.icon}, translations: ${_this.translations}, settings: ${_this.settings})';
 }
 
 
@@ -332,7 +345,7 @@ class _$CategoryCopyWithImpl<$Res>
 /// Create a copy of Category
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? translations = freezed,Object? settings = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Category(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,shortName: freezed == shortName ? _self.shortName : shortName // ignore: cast_nullable_to_non_nullable
@@ -480,7 +493,7 @@ return $default(_that.id,_that.name,_that.shortName,_that.icon,_that.translation
 
 @JsonSerializable(explicitToJson: true)
 class _Category implements Category {
-  const _Category({required this.id, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, final  Map<String, CategoryTranslation>? translations, final  Map<String, dynamic>? settings}): _translations = translations,_settings = settings;
+  const _Category({required this.id, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings}): _translations = translations,_settings = settings;
   factory _Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
 
 @override final  String id;
@@ -519,16 +532,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other._translations, _translations)&&const DeepCollectionEquality().equals(other._settings, _settings));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Category&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&const DeepCollectionEquality().equals(other.translations, _translations)&&const DeepCollectionEquality().equals(other.settings, _settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(_translations),const DeepCollectionEquality().hash(_settings));
+int get hashCode {
+    return Object.hash(runtimeType,id,name,shortName,icon,const DeepCollectionEquality().hash(_translations),const DeepCollectionEquality().hash(_settings));
+}
 
 @override
 String toString() {
-  return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations, settings: $settings)';
+    return 'Category(id: $id, name: $name, shortName: $shortName, icon: $icon, translations: $translations, settings: $settings)';
 }
 
 

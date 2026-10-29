@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'list.dart';
@@ -9,6 +9,7 @@ part of 'list.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $ListExpandCopyWith<ListExpand> get copyWith => _$ListExpandCopyWithImpl<ListExp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListExpand&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.author, author) || other.author == author));
+  final _this = this as ListExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListExpand&&const DeepCollectionEquality().equals(other.trails, _this.trails)&&(identical(other.author, _this.author) || other.author == _this.author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(trails),author);
+int get hashCode {
+  final _this = this as ListExpand;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.trails),_this.author);
+}
 
 @override
 String toString() {
-  return 'ListExpand(trails: $trails, author: $author)';
+  final _this = this as ListExpand;
+  return 'ListExpand(trails: ${_this.trails}, author: ${_this.author})';
 }
 
 
@@ -66,7 +72,7 @@ class _$ListExpandCopyWithImpl<$Res>
 /// Create a copy of ListExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? trails = freezed,Object? author = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(ListExpand(
 trails: freezed == trails ? _self.trails : trails // ignore: cast_nullable_to_non_nullable
 as List<Trail>?,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as Actor?,
@@ -222,7 +228,7 @@ return $default(_that.trails,_that.author);case _:
 @JsonSerializable()
 
 class _ListExpand implements ListExpand {
-  const _ListExpand({final  List<Trail>? trails, this.author}): _trails = trails;
+  const _ListExpand({ List<Trail>? trails, this.author}): _trails = trails;
   factory _ListExpand.fromJson(Map<String, dynamic> json) => _$ListExpandFromJson(json);
 
  final  List<Trail>? _trails;
@@ -249,16 +255,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListExpand&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.author, author) || other.author == author));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListExpand&&const DeepCollectionEquality().equals(other.trails, _trails)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),author);
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_trails),author);
+}
 
 @override
 String toString() {
-  return 'ListExpand(trails: $trails, author: $author)';
+    return 'ListExpand(trails: $trails, author: $author)';
 }
 
 
@@ -326,16 +334,21 @@ $WandererListCopyWith<WandererList> get copyWith => _$WandererListCopyWithImpl<W
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other.trails, trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
+  final _this = this as WandererList;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is WandererList&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.public, _this.public) || other.public == _this.public)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.avatar, _this.avatar) || other.avatar == _this.avatar)&&const DeepCollectionEquality().equals(other.trails, _this.trails)&&(identical(other.iri, _this.iri) || other.iri == _this.iri)&&(identical(other.expand, _this.expand) || other.expand == _this.expand)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&(identical(other.author, _this.author) || other.author == _this.author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,name,public,description,avatar,const DeepCollectionEquality().hash(trails),iri,expand,created,updated,author);
+int get hashCode {
+  final _this = this as WandererList;
+  return Object.hash(runtimeType,_this.id,_this.collectionId,_this.name,_this.public,_this.description,_this.avatar,const DeepCollectionEquality().hash(_this.trails),_this.iri,_this.expand,_this.created,_this.updated,_this.author);
+}
 
 @override
 String toString() {
-  return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
+  final _this = this as WandererList;
+  return 'WandererList(id: ${_this.id}, collectionId: ${_this.collectionId}, name: ${_this.name}, public: ${_this.public}, description: ${_this.description}, avatar: ${_this.avatar}, trails: ${_this.trails}, iri: ${_this.iri}, expand: ${_this.expand}, created: ${_this.created}, updated: ${_this.updated}, author: ${_this.author})';
 }
 
 
@@ -364,7 +377,7 @@ class _$WandererListCopyWithImpl<$Res>
 /// Create a copy of WandererList
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? name = null,Object? public = null,Object? description = freezed,Object? avatar = freezed,Object? trails = null,Object? iri = freezed,Object? expand = freezed,Object? created = freezed,Object? updated = freezed,Object? author = null,}) {
-  return _then(_self.copyWith(
+  return _then(WandererList(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -530,7 +543,7 @@ return $default(_that.id,_that.collectionId,_that.name,_that.public,_that.descri
 @JsonSerializable()
 
 class _WandererList extends WandererList {
-  const _WandererList({required this.id, this.collectionId = 'lists', required this.name, this.public = false, this.description, this.avatar, final  List<String> trails = const [], this.iri, this.expand, this.created, this.updated, this.author = '000000000000000'}): _trails = trails,super._();
+  const _WandererList({required this.id, this.collectionId = 'lists', required this.name, this.public = false, this.description, this.avatar,  List<String> trails = const [], this.iri, this.expand, this.created, this.updated, this.author = '000000000000000'}): _trails = trails,super._();
   factory _WandererList.fromJson(Map<String, dynamic> json) => _$WandererListFromJson(json);
 
 @override final  String id;
@@ -565,16 +578,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other._trails, _trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _WandererList&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.public, public) || other.public == public)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&const DeepCollectionEquality().equals(other.trails, _trails)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,name,public,description,avatar,const DeepCollectionEquality().hash(_trails),iri,expand,created,updated,author);
+int get hashCode {
+    return Object.hash(runtimeType,id,collectionId,name,public,description,avatar,const DeepCollectionEquality().hash(_trails),iri,expand,created,updated,author);
+}
 
 @override
 String toString() {
-  return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
+    return 'WandererList(id: $id, collectionId: $collectionId, name: $name, public: $public, description: $description, avatar: $avatar, trails: $trails, iri: $iri, expand: $expand, created: $created, updated: $updated, author: $author)';
 }
 
 
@@ -649,16 +664,21 @@ $ListFilterCopyWith<ListFilter> get copyWith => _$ListFilterCopyWithImpl<ListFil
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
+  final _this = this as ListFilter;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListFilter&&(identical(other.q, _this.q) || other.q == _this.q)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.public, _this.public) || other.public == _this.public)&&(identical(other.shared, _this.shared) || other.shared == _this.shared)&&(identical(other.sort, _this.sort) || other.sort == _this.sort)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,q,author,public,shared,sort,sortOrder);
+int get hashCode {
+  final _this = this as ListFilter;
+  return Object.hash(runtimeType,_this.q,_this.author,_this.public,_this.shared,_this.sort,_this.sortOrder);
+}
 
 @override
 String toString() {
-  return 'ListFilter(q: $q, author: $author, public: $public, shared: $shared, sort: $sort, sortOrder: $sortOrder)';
+  final _this = this as ListFilter;
+  return 'ListFilter(q: ${_this.q}, author: ${_this.author}, public: ${_this.public}, shared: ${_this.shared}, sort: ${_this.sort}, sortOrder: ${_this.sortOrder})';
 }
 
 
@@ -687,7 +707,7 @@ class _$ListFilterCopyWithImpl<$Res>
 /// Create a copy of ListFilter
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? q = null,Object? author = freezed,Object? public = freezed,Object? shared = freezed,Object? sort = null,Object? sortOrder = null,}) {
-  return _then(_self.copyWith(
+  return _then(ListFilter(
 q: null == q ? _self.q : q // ignore: cast_nullable_to_non_nullable
 as String,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as String?,public: freezed == public ? _self.public : public // ignore: cast_nullable_to_non_nullable
@@ -855,16 +875,18 @@ _$ListFilterCopyWith<_ListFilter> get copyWith => __$ListFilterCopyWithImpl<_Lis
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListFilter&&(identical(other.q, q) || other.q == q)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,q,author,public,shared,sort,sortOrder);
+int get hashCode {
+    return Object.hash(runtimeType,q,author,public,shared,sort,sortOrder);
+}
 
 @override
 String toString() {
-  return 'ListFilter(q: $q, author: $author, public: $public, shared: $shared, sort: $sort, sortOrder: $sortOrder)';
+    return 'ListFilter(q: $q, author: $author, public: $public, shared: $shared, sort: $sort, sortOrder: $sortOrder)';
 }
 
 

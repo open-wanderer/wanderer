@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'region_download_state.dart';
@@ -9,6 +9,7 @@ part of 'region_download_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
@@ -25,16 +26,21 @@ $RegionDownloadStateCopyWith<RegionDownloadState> get copyWith => _$RegionDownlo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionDownloadState&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
+  final _this = this as RegionDownloadState;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RegionDownloadState&&(identical(other.vectorProgress, _this.vectorProgress) || other.vectorProgress == _this.vectorProgress)&&(identical(other.demProgress, _this.demProgress) || other.demProgress == _this.demProgress));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,vectorProgress,demProgress);
+int get hashCode {
+  final _this = this as RegionDownloadState;
+  return Object.hash(runtimeType,_this.vectorProgress,_this.demProgress);
+}
 
 @override
 String toString() {
-  return 'RegionDownloadState(vectorProgress: $vectorProgress, demProgress: $demProgress)';
+  final _this = this as RegionDownloadState;
+  return 'RegionDownloadState(vectorProgress: ${_this.vectorProgress}, demProgress: ${_this.demProgress})';
 }
 
 
@@ -63,7 +69,7 @@ class _$RegionDownloadStateCopyWithImpl<$Res>
 /// Create a copy of RegionDownloadState
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? vectorProgress = freezed,Object? demProgress = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(RegionDownloadState(
 vectorProgress: freezed == vectorProgress ? _self.vectorProgress : vectorProgress // ignore: cast_nullable_to_non_nullable
 as double?,demProgress: freezed == demProgress ? _self.demProgress : demProgress // ignore: cast_nullable_to_non_nullable
 as double?,
@@ -223,16 +229,18 @@ _$RegionDownloadStateCopyWith<_RegionDownloadState> get copyWith => __$RegionDow
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionDownloadState&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RegionDownloadState&&(identical(other.vectorProgress, vectorProgress) || other.vectorProgress == vectorProgress)&&(identical(other.demProgress, demProgress) || other.demProgress == demProgress));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,vectorProgress,demProgress);
+int get hashCode {
+    return Object.hash(runtimeType,vectorProgress,demProgress);
+}
 
 @override
 String toString() {
-  return 'RegionDownloadState(vectorProgress: $vectorProgress, demProgress: $demProgress)';
+    return 'RegionDownloadState(vectorProgress: $vectorProgress, demProgress: $demProgress)';
 }
 
 

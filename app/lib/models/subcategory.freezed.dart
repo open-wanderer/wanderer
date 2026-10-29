@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'subcategory.dart';
@@ -9,6 +9,7 @@ part of 'subcategory.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $SubcategoryCopyWith<Subcategory> get copyWith => _$SubcategoryCopyWithImpl<Subc
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other.translations, translations)&&const DeepCollectionEquality().equals(other.settings, settings));
+  final _this = this as Subcategory;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Subcategory&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.shortName, _this.shortName) || other.shortName == _this.shortName)&&(identical(other.icon, _this.icon) || other.icon == _this.icon)&&(identical(other.badgeIcon, _this.badgeIcon) || other.badgeIcon == _this.badgeIcon)&&const DeepCollectionEquality().equals(other.translations, _this.translations)&&const DeepCollectionEquality().equals(other.settings, _this.settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(translations),const DeepCollectionEquality().hash(settings));
+int get hashCode {
+  final _this = this as Subcategory;
+  return Object.hash(runtimeType,_this.id,_this.category,_this.name,_this.shortName,_this.icon,_this.badgeIcon,const DeepCollectionEquality().hash(_this.translations),const DeepCollectionEquality().hash(_this.settings));
+}
 
 @override
 String toString() {
-  return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations, settings: $settings)';
+  final _this = this as Subcategory;
+  return 'Subcategory(id: ${_this.id}, category: ${_this.category}, name: ${_this.name}, shortName: ${_this.shortName}, icon: ${_this.icon}, badgeIcon: ${_this.badgeIcon}, translations: ${_this.translations}, settings: ${_this.settings})';
 }
 
 
@@ -66,7 +72,7 @@ class _$SubcategoryCopyWithImpl<$Res>
 /// Create a copy of Subcategory
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? category = null,Object? name = null,Object? shortName = freezed,Object? icon = freezed,Object? badgeIcon = freezed,Object? translations = freezed,Object? settings = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Subcategory(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -216,7 +222,7 @@ return $default(_that.id,_that.category,_that.name,_that.shortName,_that.icon,_t
 
 @JsonSerializable(explicitToJson: true)
 class _Subcategory implements Subcategory {
-  const _Subcategory({required this.id, required this.category, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, @JsonKey(name: 'badge_icon') this.badgeIcon, final  Map<String, CategoryTranslation>? translations, final  Map<String, dynamic>? settings}): _translations = translations,_settings = settings;
+  const _Subcategory({required this.id, required this.category, required this.name, @JsonKey(name: 'short_name') this.shortName, this.icon, @JsonKey(name: 'badge_icon') this.badgeIcon,  Map<String, CategoryTranslation>? translations,  Map<String, dynamic>? settings}): _translations = translations,_settings = settings;
   factory _Subcategory.fromJson(Map<String, dynamic> json) => _$SubcategoryFromJson(json);
 
 @override final  String id;
@@ -257,16 +263,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other._translations, _translations)&&const DeepCollectionEquality().equals(other._settings, _settings));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Subcategory&&(identical(other.id, id) || other.id == id)&&(identical(other.category, category) || other.category == category)&&(identical(other.name, name) || other.name == name)&&(identical(other.shortName, shortName) || other.shortName == shortName)&&(identical(other.icon, icon) || other.icon == icon)&&(identical(other.badgeIcon, badgeIcon) || other.badgeIcon == badgeIcon)&&const DeepCollectionEquality().equals(other.translations, _translations)&&const DeepCollectionEquality().equals(other.settings, _settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(_translations),const DeepCollectionEquality().hash(_settings));
+int get hashCode {
+    return Object.hash(runtimeType,id,category,name,shortName,icon,badgeIcon,const DeepCollectionEquality().hash(_translations),const DeepCollectionEquality().hash(_settings));
+}
 
 @override
 String toString() {
-  return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations, settings: $settings)';
+    return 'Subcategory(id: $id, category: $category, name: $name, shortName: $shortName, icon: $icon, badgeIcon: $badgeIcon, translations: $translations, settings: $settings)';
 }
 
 

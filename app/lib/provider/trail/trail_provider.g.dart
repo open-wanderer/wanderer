@@ -84,7 +84,7 @@ abstract class _$TrailNotifier extends $AsyncNotifier<Trail> {
   FutureOr<Trail> build(String id);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<Trail>, Trail>;
     final element =
         ref.element
@@ -94,6 +94,6 @@ abstract class _$TrailNotifier extends $AsyncNotifier<Trail> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

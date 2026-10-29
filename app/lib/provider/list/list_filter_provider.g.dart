@@ -85,7 +85,7 @@ abstract class _$ListFilterNotifier extends $AsyncNotifier<ListFilter> {
   FutureOr<ListFilter> build(String filterId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<ListFilter>, ListFilter>;
     final element =
         ref.element
@@ -95,6 +95,6 @@ abstract class _$ListFilterNotifier extends $AsyncNotifier<ListFilter> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

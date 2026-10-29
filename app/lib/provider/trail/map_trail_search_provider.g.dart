@@ -92,7 +92,7 @@ abstract class _$MapTrailSearch
   });
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<
@@ -110,7 +110,7 @@ abstract class _$MapTrailSearch
               Object?,
               Object?
             >;
-    element.handleCreate(
+    return element.handleCreate(
       ref,
       () => build(authorId: _$args.authorId, filterId: _$args.filterId),
     );

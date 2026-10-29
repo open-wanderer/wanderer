@@ -157,11 +157,10 @@ class _RecordingToast extends Toast {
 class _Rig {
   _Rig({
     Set<String> inFlight = const {},
-    bool online = true,
+    this._online = true,
     bool discardResult = true,
   }) : sync = _StubTrailSync(inFlight, discardResult: discardResult),
-       toast = _RecordingToast(),
-       _online = online;
+       toast = _RecordingToast();
 
   final _StubTrailSync sync;
   final _RecordingToast toast;

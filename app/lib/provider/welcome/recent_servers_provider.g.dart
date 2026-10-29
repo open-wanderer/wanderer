@@ -57,7 +57,7 @@ final class RecentServersNotifierProvider
 }
 
 String _$recentServersNotifierHash() =>
-    r'1c775f96c8487bf5130d3991488922ed457670db';
+    r'285971634486aeb2d2fb96ce3d463a543f6dc989';
 
 /// The persisted "Last used" instance list shown in the server picker.
 ///
@@ -69,7 +69,7 @@ abstract class _$RecentServersNotifier extends $Notifier<List<ServerInstance>> {
   List<ServerInstance> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<List<ServerInstance>, List<ServerInstance>>;
     final element =
         ref.element
@@ -79,6 +79,6 @@ abstract class _$RecentServersNotifier extends $Notifier<List<ServerInstance>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

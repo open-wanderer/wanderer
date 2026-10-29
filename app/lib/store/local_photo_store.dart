@@ -27,6 +27,8 @@
 /// Every path below is built with `p.join` -- never string interpolation.
 /// `trail_download_service.dart`'s `'${appDir.path}/library/$trailId'`
 /// interpolation style is deliberately NOT reused.
+library;
+
 import 'dart:io';
 
 import 'package:path/path.dart' as p;

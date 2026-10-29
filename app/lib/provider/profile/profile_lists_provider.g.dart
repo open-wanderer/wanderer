@@ -51,7 +51,7 @@ final class ProfileListsNotifierProvider
 }
 
 String _$profileListsNotifierHash() =>
-    r'03fe598b5348afd261548eee6402d3f71a527df6';
+    r'3a6539270fec12462a002614357ee0859cbf6baa';
 
 final class ProfileListsNotifierFamily extends $Family
     with
@@ -86,7 +86,7 @@ abstract class _$ProfileListsNotifier
   FutureOr<ProfileListsState> build(String handle);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<ProfileListsState>, ProfileListsState>;
     final element =
@@ -97,6 +97,6 @@ abstract class _$ProfileListsNotifier
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

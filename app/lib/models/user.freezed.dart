@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'user.dart';
@@ -9,6 +9,7 @@ part of 'user.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $UserCopyWith<User> get copyWith => _$UserCopyWithImpl<User>(this as User, _$ide
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
+  final _this = this as User;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is User&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.collectionName, _this.collectionName) || other.collectionName == _this.collectionName)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&(identical(other.username, _this.username) || other.username == _this.username)&&(identical(other.email, _this.email) || other.email == _this.email)&&(identical(other.emailVisibility, _this.emailVisibility) || other.emailVisibility == _this.emailVisibility)&&(identical(other.verified, _this.verified) || other.verified == _this.verified)&&(identical(other.avatar, _this.avatar) || other.avatar == _this.avatar)&&(identical(other.expand, _this.expand) || other.expand == _this.expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,created,updated,username,email,emailVisibility,verified,avatar,expand);
+int get hashCode {
+  final _this = this as User;
+  return Object.hash(runtimeType,_this.id,_this.collectionId,_this.collectionName,_this.created,_this.updated,_this.username,_this.email,_this.emailVisibility,_this.verified,_this.avatar,_this.expand);
+}
 
 @override
 String toString() {
-  return 'User(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, avatar: $avatar, expand: $expand)';
+  final _this = this as User;
+  return 'User(id: ${_this.id}, collectionId: ${_this.collectionId}, collectionName: ${_this.collectionName}, created: ${_this.created}, updated: ${_this.updated}, username: ${_this.username}, email: ${_this.email}, emailVisibility: ${_this.emailVisibility}, verified: ${_this.verified}, avatar: ${_this.avatar}, expand: ${_this.expand})';
 }
 
 
@@ -66,7 +72,7 @@ class _$UserCopyWithImpl<$Res>
 /// Create a copy of User
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? collectionName = null,Object? created = null,Object? updated = null,Object? username = null,Object? email = null,Object? emailVisibility = null,Object? verified = null,Object? avatar = freezed,Object? expand = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(User(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,collectionName: null == collectionName ? _self.collectionName : collectionName // ignore: cast_nullable_to_non_nullable
@@ -259,16 +265,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _User&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.collectionName, collectionName) || other.collectionName == collectionName)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.username, username) || other.username == username)&&(identical(other.email, email) || other.email == email)&&(identical(other.emailVisibility, emailVisibility) || other.emailVisibility == emailVisibility)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.avatar, avatar) || other.avatar == avatar)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,collectionId,collectionName,created,updated,username,email,emailVisibility,verified,avatar,expand);
+int get hashCode {
+    return Object.hash(runtimeType,id,collectionId,collectionName,created,updated,username,email,emailVisibility,verified,avatar,expand);
+}
 
 @override
 String toString() {
-  return 'User(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, avatar: $avatar, expand: $expand)';
+    return 'User(id: $id, collectionId: $collectionId, collectionName: $collectionName, created: $created, updated: $updated, username: $username, email: $email, emailVisibility: $emailVisibility, verified: $verified, avatar: $avatar, expand: $expand)';
 }
 
 
@@ -345,16 +353,21 @@ $UserExpandCopyWith<UserExpand> get copyWith => _$UserExpandCopyWithImpl<UserExp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.settings, settings) || other.settings == settings));
+  final _this = this as UserExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserExpand&&(identical(other.actor, _this.actor) || other.actor == _this.actor)&&(identical(other.settings, _this.settings) || other.settings == _this.settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor,settings);
+int get hashCode {
+  final _this = this as UserExpand;
+  return Object.hash(runtimeType,_this.actor,_this.settings);
+}
 
 @override
 String toString() {
-  return 'UserExpand(actor: $actor, settings: $settings)';
+  final _this = this as UserExpand;
+  return 'UserExpand(actor: ${_this.actor}, settings: ${_this.settings})';
 }
 
 
@@ -383,7 +396,7 @@ class _$UserExpandCopyWithImpl<$Res>
 /// Create a copy of UserExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? actor = freezed,Object? settings = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(UserExpand(
 actor: freezed == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as Actor?,settings: freezed == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
 as Settings?,
@@ -570,16 +583,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.settings, settings) || other.settings == settings));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserExpand&&(identical(other.actor, actor) || other.actor == actor)&&(identical(other.settings, settings) || other.settings == settings));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,actor,settings);
+int get hashCode {
+    return Object.hash(runtimeType,actor,settings);
+}
 
 @override
 String toString() {
-  return 'UserExpand(actor: $actor, settings: $settings)';
+    return 'UserExpand(actor: $actor, settings: $settings)';
 }
 
 

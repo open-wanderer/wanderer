@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'comment.dart';
@@ -9,6 +9,7 @@ part of 'comment.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $CommentExpandCopyWith<CommentExpand> get copyWith => _$CommentExpandCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommentExpand&&(identical(other.author, author) || other.author == author));
+  final _this = this as CommentExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CommentExpand&&(identical(other.author, _this.author) || other.author == _this.author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,author);
+int get hashCode {
+  final _this = this as CommentExpand;
+  return Object.hash(runtimeType,_this.author);
+}
 
 @override
 String toString() {
-  return 'CommentExpand(author: $author)';
+  final _this = this as CommentExpand;
+  return 'CommentExpand(author: ${_this.author})';
 }
 
 
@@ -66,7 +72,7 @@ class _$CommentExpandCopyWithImpl<$Res>
 /// Create a copy of CommentExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? author = null,}) {
-  return _then(_self.copyWith(
+  return _then(CommentExpand(
 author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as Actor,
   ));
@@ -236,16 +242,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CommentExpand&&(identical(other.author, author) || other.author == author));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CommentExpand&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,author);
+int get hashCode {
+    return Object.hash(runtimeType,author);
+}
 
 @override
 String toString() {
-  return 'CommentExpand(author: $author)';
+    return 'CommentExpand(author: $author)';
 }
 
 
@@ -309,16 +317,21 @@ $CommentCopyWith<Comment> get copyWith => _$CommentCopyWithImpl<Comment>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Comment&&(identical(other.id, id) || other.id == id)&&(identical(other.text, text) || other.text == text)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand));
+  final _this = this as Comment;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Comment&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&(identical(other.iri, _this.iri) || other.iri == _this.iri)&&(identical(other.expand, _this.expand) || other.expand == _this.expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,text,author,trail,created,updated,iri,expand);
+int get hashCode {
+  final _this = this as Comment;
+  return Object.hash(runtimeType,_this.id,_this.text,_this.author,_this.trail,_this.created,_this.updated,_this.iri,_this.expand);
+}
 
 @override
 String toString() {
-  return 'Comment(id: $id, text: $text, author: $author, trail: $trail, created: $created, updated: $updated, iri: $iri, expand: $expand)';
+  final _this = this as Comment;
+  return 'Comment(id: ${_this.id}, text: ${_this.text}, author: ${_this.author}, trail: ${_this.trail}, created: ${_this.created}, updated: ${_this.updated}, iri: ${_this.iri}, expand: ${_this.expand})';
 }
 
 
@@ -347,7 +360,7 @@ class _$CommentCopyWithImpl<$Res>
 /// Create a copy of Comment
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? text = null,Object? author = null,Object? trail = null,Object? created = null,Object? updated = null,Object? iri = freezed,Object? expand = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(Comment(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,author: null == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
@@ -534,16 +547,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Comment&&(identical(other.id, id) || other.id == id)&&(identical(other.text, text) || other.text == text)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Comment&&(identical(other.id, id) || other.id == id)&&(identical(other.text, text) || other.text == text)&&(identical(other.author, author) || other.author == author)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.expand, expand) || other.expand == expand));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,text,author,trail,created,updated,iri,expand);
+int get hashCode {
+    return Object.hash(runtimeType,id,text,author,trail,created,updated,iri,expand);
+}
 
 @override
 String toString() {
-  return 'Comment(id: $id, text: $text, author: $author, trail: $trail, created: $created, updated: $updated, iri: $iri, expand: $expand)';
+    return 'Comment(id: $id, text: $text, author: $author, trail: $trail, created: $created, updated: $updated, iri: $iri, expand: $expand)';
 }
 
 

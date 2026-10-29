@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'navigate_response.dart';
@@ -9,6 +9,7 @@ part of 'navigate_response.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $NavigateManeuverCopyWith<NavigateManeuver> get copyWith => _$NavigateManeuverCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing)&&(identical(other.type, type) || other.type == type));
+  final _this = this as NavigateManeuver;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigateManeuver&&(identical(other.instruction, _this.instruction) || other.instruction == _this.instruction)&&(identical(other.length, _this.length) || other.length == _this.length)&&(identical(other.beginShapeIndex, _this.beginShapeIndex) || other.beginShapeIndex == _this.beginShapeIndex)&&(identical(other.bearing, _this.bearing) || other.bearing == _this.bearing)&&(identical(other.type, _this.type) || other.type == _this.type));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing,type);
+int get hashCode {
+  final _this = this as NavigateManeuver;
+  return Object.hash(runtimeType,_this.instruction,_this.length,_this.beginShapeIndex,_this.bearing,_this.type);
+}
 
 @override
 String toString() {
-  return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing, type: $type)';
+  final _this = this as NavigateManeuver;
+  return 'NavigateManeuver(instruction: ${_this.instruction}, length: ${_this.length}, beginShapeIndex: ${_this.beginShapeIndex}, bearing: ${_this.bearing}, type: ${_this.type})';
 }
 
 
@@ -66,7 +72,7 @@ class _$NavigateManeuverCopyWithImpl<$Res>
 /// Create a copy of NavigateManeuver
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? instruction = null,Object? length = null,Object? beginShapeIndex = null,Object? bearing = null,Object? type = null,}) {
-  return _then(_self.copyWith(
+  return _then(NavigateManeuver(
 instruction: null == instruction ? _self.instruction : instruction // ignore: cast_nullable_to_non_nullable
 as String,length: null == length ? _self.length : length // ignore: cast_nullable_to_non_nullable
 as double,beginShapeIndex: null == beginShapeIndex ? _self.beginShapeIndex : beginShapeIndex // ignore: cast_nullable_to_non_nullable
@@ -235,16 +241,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing)&&(identical(other.type, type) || other.type == type));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigateManeuver&&(identical(other.instruction, instruction) || other.instruction == instruction)&&(identical(other.length, length) || other.length == length)&&(identical(other.beginShapeIndex, beginShapeIndex) || other.beginShapeIndex == beginShapeIndex)&&(identical(other.bearing, bearing) || other.bearing == bearing)&&(identical(other.type, type) || other.type == type));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing,type);
+int get hashCode {
+    return Object.hash(runtimeType,instruction,length,beginShapeIndex,bearing,type);
+}
 
 @override
 String toString() {
-  return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing, type: $type)';
+    return 'NavigateManeuver(instruction: $instruction, length: $length, beginShapeIndex: $beginShapeIndex, bearing: $bearing, type: $type)';
 }
 
 
@@ -303,16 +311,21 @@ $NavigateResponseCopyWith<NavigateResponse> get copyWith => _$NavigateResponseCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigateResponse&&const DeepCollectionEquality().equals(other.maneuvers, maneuvers)&&const DeepCollectionEquality().equals(other.shape, shape));
+  final _this = this as NavigateResponse;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigateResponse&&const DeepCollectionEquality().equals(other.maneuvers, _this.maneuvers)&&const DeepCollectionEquality().equals(other.shape, _this.shape));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(maneuvers),const DeepCollectionEquality().hash(shape));
+int get hashCode {
+  final _this = this as NavigateResponse;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.maneuvers),const DeepCollectionEquality().hash(_this.shape));
+}
 
 @override
 String toString() {
-  return 'NavigateResponse(maneuvers: $maneuvers, shape: $shape)';
+  final _this = this as NavigateResponse;
+  return 'NavigateResponse(maneuvers: ${_this.maneuvers}, shape: ${_this.shape})';
 }
 
 
@@ -341,7 +354,7 @@ class _$NavigateResponseCopyWithImpl<$Res>
 /// Create a copy of NavigateResponse
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? maneuvers = null,Object? shape = null,}) {
-  return _then(_self.copyWith(
+  return _then(NavigateResponse(
 maneuvers: null == maneuvers ? _self.maneuvers : maneuvers // ignore: cast_nullable_to_non_nullable
 as List<NavigateManeuver>,shape: null == shape ? _self.shape : shape // ignore: cast_nullable_to_non_nullable
 as List<List<double>>,
@@ -485,7 +498,7 @@ return $default(_that.maneuvers,_that.shape);case _:
 
 @JsonSerializable(explicitToJson: true)
 class _NavigateResponse implements NavigateResponse {
-  const _NavigateResponse({required final  List<NavigateManeuver> maneuvers, required final  List<List<double>> shape}): _maneuvers = maneuvers,_shape = shape;
+  const _NavigateResponse({required  List<NavigateManeuver> maneuvers, required  List<List<double>> shape}): _maneuvers = maneuvers,_shape = shape;
   factory _NavigateResponse.fromJson(Map<String, dynamic> json) => _$NavigateResponseFromJson(json);
 
  final  List<NavigateManeuver> _maneuvers;
@@ -516,16 +529,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigateResponse&&const DeepCollectionEquality().equals(other._maneuvers, _maneuvers)&&const DeepCollectionEquality().equals(other._shape, _shape));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _NavigateResponse&&const DeepCollectionEquality().equals(other.maneuvers, _maneuvers)&&const DeepCollectionEquality().equals(other.shape, _shape));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_maneuvers),const DeepCollectionEquality().hash(_shape));
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_maneuvers),const DeepCollectionEquality().hash(_shape));
+}
 
 @override
 String toString() {
-  return 'NavigateResponse(maneuvers: $maneuvers, shape: $shape)';
+    return 'NavigateResponse(maneuvers: $maneuvers, shape: $shape)';
 }
 
 

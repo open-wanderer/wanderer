@@ -85,7 +85,7 @@ abstract class _$SummitLogListNotifier extends $AsyncNotifier<List<SummitLog>> {
   FutureOr<List<SummitLog>> build(String trailId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<SummitLog>>, List<SummitLog>>;
     final element =
         ref.element
@@ -95,6 +95,6 @@ abstract class _$SummitLogListNotifier extends $AsyncNotifier<List<SummitLog>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

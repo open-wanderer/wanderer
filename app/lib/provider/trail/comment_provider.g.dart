@@ -84,7 +84,7 @@ abstract class _$CommentNotifier extends $AsyncNotifier<List<Comment>> {
   FutureOr<List<Comment>> build(String trailId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Comment>>, List<Comment>>;
     final element =
         ref.element
@@ -94,6 +94,6 @@ abstract class _$CommentNotifier extends $AsyncNotifier<List<Comment>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

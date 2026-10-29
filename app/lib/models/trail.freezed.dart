@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'trail.dart';
@@ -9,6 +9,7 @@ part of 'trail.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $TrailExpandCopyWith<TrailExpand> get copyWith => _$TrailExpandCopyWithImpl<Trai
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailExpand&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, summitLogsViaTrail)&&(identical(other.author, author) || other.author == author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, commentsViaTrail)&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, trailLikeViaTrail));
+  final _this = this as TrailExpand;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailExpand&&const DeepCollectionEquality().equals(other.tags, _this.tags)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, _this.waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, _this.summitLogsViaTrail)&&(identical(other.author, _this.author) || other.author == _this.author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, _this.commentsViaTrail)&&(identical(other.gpxData, _this.gpxData) || other.gpxData == _this.gpxData)&&(identical(other.gpx, _this.gpx) || other.gpx == _this.gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, _this.trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, _this.trailLikeViaTrail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(tags),category,const DeepCollectionEquality().hash(waypointsViaTrail),const DeepCollectionEquality().hash(summitLogsViaTrail),author,const DeepCollectionEquality().hash(commentsViaTrail),gpxData,gpx,const DeepCollectionEquality().hash(trailShareViaTrail),const DeepCollectionEquality().hash(trailLikeViaTrail));
+int get hashCode {
+  final _this = this as TrailExpand;
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.tags),_this.category,const DeepCollectionEquality().hash(_this.waypointsViaTrail),const DeepCollectionEquality().hash(_this.summitLogsViaTrail),_this.author,const DeepCollectionEquality().hash(_this.commentsViaTrail),_this.gpxData,_this.gpx,const DeepCollectionEquality().hash(_this.trailShareViaTrail),const DeepCollectionEquality().hash(_this.trailLikeViaTrail));
+}
 
 @override
 String toString() {
-  return 'TrailExpand(tags: $tags, category: $category, waypointsViaTrail: $waypointsViaTrail, summitLogsViaTrail: $summitLogsViaTrail, author: $author, commentsViaTrail: $commentsViaTrail, gpxData: $gpxData, gpx: $gpx, trailShareViaTrail: $trailShareViaTrail, trailLikeViaTrail: $trailLikeViaTrail)';
+  final _this = this as TrailExpand;
+  return 'TrailExpand(tags: ${_this.tags}, category: ${_this.category}, waypointsViaTrail: ${_this.waypointsViaTrail}, summitLogsViaTrail: ${_this.summitLogsViaTrail}, author: ${_this.author}, commentsViaTrail: ${_this.commentsViaTrail}, gpxData: ${_this.gpxData}, gpx: ${_this.gpx}, trailShareViaTrail: ${_this.trailShareViaTrail}, trailLikeViaTrail: ${_this.trailLikeViaTrail})';
 }
 
 
@@ -66,7 +72,7 @@ class _$TrailExpandCopyWithImpl<$Res>
 /// Create a copy of TrailExpand
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? tags = freezed,Object? category = freezed,Object? waypointsViaTrail = freezed,Object? summitLogsViaTrail = freezed,Object? author = freezed,Object? commentsViaTrail = freezed,Object? gpxData = freezed,Object? gpx = freezed,Object? trailShareViaTrail = freezed,Object? trailLikeViaTrail = freezed,}) {
-  return _then(_self.copyWith(
+  return _then(TrailExpand(
 tags: freezed == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
 as List<Tag>?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as Category?,waypointsViaTrail: freezed == waypointsViaTrail ? _self.waypointsViaTrail : waypointsViaTrail // ignore: cast_nullable_to_non_nullable
@@ -242,7 +248,7 @@ return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLo
 @JsonSerializable()
 
 class _TrailExpand implements TrailExpand {
-  const _TrailExpand({final  List<Tag>? tags, this.category, @JsonKey(name: 'waypoints_via_trail') final  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail') final  List<SummitLog>? summitLogsViaTrail, this.author, @JsonKey(name: 'comments_via_trail') final  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data') this.gpxData, @JsonKey(includeFromJson: false, includeToJson: false) this.gpx, @JsonKey(name: 'trail_share_via_trail') final  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail') final  List<TrailLike>? trailLikeViaTrail}): _tags = tags,_waypointsViaTrail = waypointsViaTrail,_summitLogsViaTrail = summitLogsViaTrail,_commentsViaTrail = commentsViaTrail,_trailShareViaTrail = trailShareViaTrail,_trailLikeViaTrail = trailLikeViaTrail;
+  const _TrailExpand({ List<Tag>? tags, this.category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail, this.author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data') this.gpxData, @JsonKey(includeFromJson: false, includeToJson: false) this.gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail}): _tags = tags,_waypointsViaTrail = waypointsViaTrail,_summitLogsViaTrail = summitLogsViaTrail,_commentsViaTrail = commentsViaTrail,_trailShareViaTrail = trailShareViaTrail,_trailLikeViaTrail = trailLikeViaTrail;
   factory _TrailExpand.fromJson(Map<String, dynamic> json) => _$TrailExpandFromJson(json);
 
  final  List<Tag>? _tags;
@@ -317,16 +323,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailExpand&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other._waypointsViaTrail, _waypointsViaTrail)&&const DeepCollectionEquality().equals(other._summitLogsViaTrail, _summitLogsViaTrail)&&(identical(other.author, author) || other.author == author)&&const DeepCollectionEquality().equals(other._commentsViaTrail, _commentsViaTrail)&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other._trailShareViaTrail, _trailShareViaTrail)&&const DeepCollectionEquality().equals(other._trailLikeViaTrail, _trailLikeViaTrail));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailExpand&&const DeepCollectionEquality().equals(other.tags, _tags)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, _waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, _summitLogsViaTrail)&&(identical(other.author, author) || other.author == author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, _commentsViaTrail)&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, _trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, _trailLikeViaTrail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_tags),category,const DeepCollectionEquality().hash(_waypointsViaTrail),const DeepCollectionEquality().hash(_summitLogsViaTrail),author,const DeepCollectionEquality().hash(_commentsViaTrail),gpxData,gpx,const DeepCollectionEquality().hash(_trailShareViaTrail),const DeepCollectionEquality().hash(_trailLikeViaTrail));
+int get hashCode {
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_tags),category,const DeepCollectionEquality().hash(_waypointsViaTrail),const DeepCollectionEquality().hash(_summitLogsViaTrail),author,const DeepCollectionEquality().hash(_commentsViaTrail),gpxData,gpx,const DeepCollectionEquality().hash(_trailShareViaTrail),const DeepCollectionEquality().hash(_trailLikeViaTrail));
+}
 
 @override
 String toString() {
-  return 'TrailExpand(tags: $tags, category: $category, waypointsViaTrail: $waypointsViaTrail, summitLogsViaTrail: $summitLogsViaTrail, author: $author, commentsViaTrail: $commentsViaTrail, gpxData: $gpxData, gpx: $gpx, trailShareViaTrail: $trailShareViaTrail, trailLikeViaTrail: $trailLikeViaTrail)';
+    return 'TrailExpand(tags: $tags, category: $category, waypointsViaTrail: $waypointsViaTrail, summitLogsViaTrail: $summitLogsViaTrail, author: $author, commentsViaTrail: $commentsViaTrail, gpxData: $gpxData, gpx: $gpx, trailShareViaTrail: $trailShareViaTrail, trailLikeViaTrail: $trailLikeViaTrail)';
 }
 
 
@@ -401,12 +409,7 @@ $ActorCopyWith<$Res>? get author {
 /// @nodoc
 mixin _$Trail {
 
- String get id; String get collectionId; String get name; String? get location;@_NullableDateTimeConverter() DateTime? get date; bool get public; bool get completed; double get distance;@JsonKey(name: 'elevation_gain') double get elevationGain;@JsonKey(name: 'elevation_loss') double get elevationLoss; double get duration;// Moving time in seconds for trails recorded in the Wanderer app. No
-// @Default: absence is the meaningful "no moving time known" state
-// -- `duration` always means GPX-derived elapsed time.
-@JsonKey(name: 'moving_duration') double? get movingDuration;// Null means "unknown": PocketBase returns an unset select as "", which
-// importers write on purpose when the provider has no matching grade.
-@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) TrailDifficulty? get difficulty; double? get lat; double? get lon;@JsonKey(name: 'max_lat') double get maxLat;@JsonKey(name: 'max_lon') double get maxLon;@JsonKey(name: 'min_lat') double get minLat;@JsonKey(name: 'min_lon') double get minLon; int get thumbnail; List<String> get photos; String? get gpx; DateTime get created; DateTime get updated; String? get category; String? get subcategory; List<String> get tags; String? get polyline; String? get domain; String? get iri;@JsonKey(name: 'like_count') int get likeCount; TrailExpand? get expand; String get description; String get author;/// This `Trail` instance was read from local storage — it is set only by
+ String get id; String get collectionId; String get name; String? get location;@_NullableDateTimeConverter() DateTime? get date; bool get public; bool get completed; double get distance;@JsonKey(name: 'elevation_gain') double get elevationGain;@JsonKey(name: 'elevation_loss') double get elevationLoss; double get duration;@JsonKey(name: 'moving_duration') double? get movingDuration;@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) TrailDifficulty? get difficulty; double? get lat; double? get lon;@JsonKey(name: 'max_lat') double get maxLat;@JsonKey(name: 'max_lon') double get maxLon;@JsonKey(name: 'min_lat') double get minLat;@JsonKey(name: 'min_lon') double get minLon; int get thumbnail; List<String> get photos; String? get gpx; DateTime get created; DateTime get updated; String? get category; String? get subcategory; List<String> get tags; String? get polyline; String? get domain; String? get iri;@JsonKey(name: 'like_count') int get likeCount; TrailExpand? get expand; String get description; String get author;/// This `Trail` instance was read from local storage — it is set only by
 /// [TrailEntity.toModel], where it is hardcoded `true`.
 ///
 /// **Provenance, not connectivity.** It answers "did this come off the
@@ -460,16 +463,21 @@ $TrailCopyWith<Trail> get copyWith => _$TrailCopyWithImpl<Trail>(this as Trail, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.movingDuration, movingDuration) || other.movingDuration == movingDuration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other.photos, photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&(identical(other.subcategory, subcategory) || other.subcategory == subcategory)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&const DeepCollectionEquality().equals(other.localPhotos, localPhotos)&&(identical(other.localId, localId) || other.localId == localId)&&(identical(other.syncState, syncState) || other.syncState == syncState)&&(identical(other.originalGpxData, originalGpxData) || other.originalGpxData == originalGpxData)&&(identical(other.trackFollowsRoads, trackFollowsRoads) || other.trackFollowsRoads == trackFollowsRoads)&&(identical(other.trackHeightsRecalculated, trackHeightsRecalculated) || other.trackHeightsRecalculated == trackHeightsRecalculated));
+  final _this = this as Trail;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Trail&&(identical(other.id, _this.id) || other.id == _this.id)&&(identical(other.collectionId, _this.collectionId) || other.collectionId == _this.collectionId)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.location, _this.location) || other.location == _this.location)&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.public, _this.public) || other.public == _this.public)&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.distance, _this.distance) || other.distance == _this.distance)&&(identical(other.elevationGain, _this.elevationGain) || other.elevationGain == _this.elevationGain)&&(identical(other.elevationLoss, _this.elevationLoss) || other.elevationLoss == _this.elevationLoss)&&(identical(other.duration, _this.duration) || other.duration == _this.duration)&&(identical(other.movingDuration, _this.movingDuration) || other.movingDuration == _this.movingDuration)&&(identical(other.difficulty, _this.difficulty) || other.difficulty == _this.difficulty)&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lon, _this.lon) || other.lon == _this.lon)&&(identical(other.maxLat, _this.maxLat) || other.maxLat == _this.maxLat)&&(identical(other.maxLon, _this.maxLon) || other.maxLon == _this.maxLon)&&(identical(other.minLat, _this.minLat) || other.minLat == _this.minLat)&&(identical(other.minLon, _this.minLon) || other.minLon == _this.minLon)&&(identical(other.thumbnail, _this.thumbnail) || other.thumbnail == _this.thumbnail)&&const DeepCollectionEquality().equals(other.photos, _this.photos)&&(identical(other.gpx, _this.gpx) || other.gpx == _this.gpx)&&(identical(other.created, _this.created) || other.created == _this.created)&&(identical(other.updated, _this.updated) || other.updated == _this.updated)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.subcategory, _this.subcategory) || other.subcategory == _this.subcategory)&&const DeepCollectionEquality().equals(other.tags, _this.tags)&&(identical(other.polyline, _this.polyline) || other.polyline == _this.polyline)&&(identical(other.domain, _this.domain) || other.domain == _this.domain)&&(identical(other.iri, _this.iri) || other.iri == _this.iri)&&(identical(other.likeCount, _this.likeCount) || other.likeCount == _this.likeCount)&&(identical(other.expand, _this.expand) || other.expand == _this.expand)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.isLocal, _this.isLocal) || other.isLocal == _this.isLocal)&&const DeepCollectionEquality().equals(other.localPhotos, _this.localPhotos)&&(identical(other.localId, _this.localId) || other.localId == _this.localId)&&(identical(other.syncState, _this.syncState) || other.syncState == _this.syncState)&&(identical(other.originalGpxData, _this.originalGpxData) || other.originalGpxData == _this.originalGpxData)&&(identical(other.trackFollowsRoads, _this.trackFollowsRoads) || other.trackFollowsRoads == _this.trackFollowsRoads)&&(identical(other.trackHeightsRecalculated, _this.trackHeightsRecalculated) || other.trackHeightsRecalculated == _this.trackHeightsRecalculated));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,collectionId,name,location,date,public,completed,distance,elevationGain,elevationLoss,duration,movingDuration,difficulty,lat,lon,maxLat,maxLon,minLat,minLon,thumbnail,const DeepCollectionEquality().hash(photos),gpx,created,updated,category,subcategory,const DeepCollectionEquality().hash(tags),polyline,domain,iri,likeCount,expand,description,author,isLocal,const DeepCollectionEquality().hash(localPhotos),localId,syncState,originalGpxData,trackFollowsRoads,trackHeightsRecalculated]);
+int get hashCode {
+  final _this = this as Trail;
+  return Object.hashAll([runtimeType,_this.id,_this.collectionId,_this.name,_this.location,_this.date,_this.public,_this.completed,_this.distance,_this.elevationGain,_this.elevationLoss,_this.duration,_this.movingDuration,_this.difficulty,_this.lat,_this.lon,_this.maxLat,_this.maxLon,_this.minLat,_this.minLon,_this.thumbnail,const DeepCollectionEquality().hash(_this.photos),_this.gpx,_this.created,_this.updated,_this.category,_this.subcategory,const DeepCollectionEquality().hash(_this.tags),_this.polyline,_this.domain,_this.iri,_this.likeCount,_this.expand,_this.description,_this.author,_this.isLocal,const DeepCollectionEquality().hash(_this.localPhotos),_this.localId,_this.syncState,_this.originalGpxData,_this.trackFollowsRoads,_this.trackHeightsRecalculated]);
+}
 
 @override
 String toString() {
-  return 'Trail(id: $id, collectionId: $collectionId, name: $name, location: $location, date: $date, public: $public, completed: $completed, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, movingDuration: $movingDuration, difficulty: $difficulty, lat: $lat, lon: $lon, maxLat: $maxLat, maxLon: $maxLon, minLat: $minLat, minLon: $minLon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, subcategory: $subcategory, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author, isLocal: $isLocal, localPhotos: $localPhotos, localId: $localId, syncState: $syncState, originalGpxData: $originalGpxData, trackFollowsRoads: $trackFollowsRoads, trackHeightsRecalculated: $trackHeightsRecalculated)';
+  final _this = this as Trail;
+  return 'Trail(id: ${_this.id}, collectionId: ${_this.collectionId}, name: ${_this.name}, location: ${_this.location}, date: ${_this.date}, public: ${_this.public}, completed: ${_this.completed}, distance: ${_this.distance}, elevationGain: ${_this.elevationGain}, elevationLoss: ${_this.elevationLoss}, duration: ${_this.duration}, movingDuration: ${_this.movingDuration}, difficulty: ${_this.difficulty}, lat: ${_this.lat}, lon: ${_this.lon}, maxLat: ${_this.maxLat}, maxLon: ${_this.maxLon}, minLat: ${_this.minLat}, minLon: ${_this.minLon}, thumbnail: ${_this.thumbnail}, photos: ${_this.photos}, gpx: ${_this.gpx}, created: ${_this.created}, updated: ${_this.updated}, category: ${_this.category}, subcategory: ${_this.subcategory}, tags: ${_this.tags}, polyline: ${_this.polyline}, domain: ${_this.domain}, iri: ${_this.iri}, likeCount: ${_this.likeCount}, expand: ${_this.expand}, description: ${_this.description}, author: ${_this.author}, isLocal: ${_this.isLocal}, localPhotos: ${_this.localPhotos}, localId: ${_this.localId}, syncState: ${_this.syncState}, originalGpxData: ${_this.originalGpxData}, trackFollowsRoads: ${_this.trackFollowsRoads}, trackHeightsRecalculated: ${_this.trackHeightsRecalculated})';
 }
 
 
@@ -498,7 +506,7 @@ class _$TrailCopyWithImpl<$Res>
 /// Create a copy of Trail
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? collectionId = null,Object? name = null,Object? location = freezed,Object? date = freezed,Object? public = null,Object? completed = null,Object? distance = null,Object? elevationGain = null,Object? elevationLoss = null,Object? duration = null,Object? movingDuration = freezed,Object? difficulty = freezed,Object? lat = freezed,Object? lon = freezed,Object? maxLat = null,Object? maxLon = null,Object? minLat = null,Object? minLon = null,Object? thumbnail = null,Object? photos = null,Object? gpx = freezed,Object? created = null,Object? updated = null,Object? category = freezed,Object? subcategory = freezed,Object? tags = null,Object? polyline = freezed,Object? domain = freezed,Object? iri = freezed,Object? likeCount = null,Object? expand = freezed,Object? description = null,Object? author = null,Object? isLocal = null,Object? localPhotos = null,Object? localId = freezed,Object? syncState = null,Object? originalGpxData = freezed,Object? trackFollowsRoads = null,Object? trackHeightsRecalculated = null,}) {
-  return _then(_self.copyWith(
+  return _then(Trail(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,collectionId: null == collectionId ? _self.collectionId : collectionId // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -693,7 +701,7 @@ return $default(_that.id,_that.collectionId,_that.name,_that.location,_that.date
 @JsonSerializable()
 
 class _Trail extends Trail {
-  const _Trail({required this.id, this.collectionId = 'trails', required this.name, this.location, @_NullableDateTimeConverter() this.date, this.public = false, this.completed = false, this.distance = 0, @JsonKey(name: 'elevation_gain') this.elevationGain = 0, @JsonKey(name: 'elevation_loss') this.elevationLoss = 0, this.duration = 0, @JsonKey(name: 'moving_duration') this.movingDuration, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.difficulty, this.lat, this.lon, @JsonKey(name: 'max_lat') this.maxLat = 0, @JsonKey(name: 'max_lon') this.maxLon = 0, @JsonKey(name: 'min_lat') this.minLat = 0, @JsonKey(name: 'min_lon') this.minLon = 0, this.thumbnail = 0, final  List<String> photos = const [], this.gpx, required this.created, required this.updated, this.category, this.subcategory, final  List<String> tags = const [], this.polyline, this.domain, this.iri, @JsonKey(name: 'like_count') this.likeCount = 0, this.expand, this.description = "", this.author = "000000000000000", this.isLocal = false, final  List<String> localPhotos = const [], @JsonKey(includeFromJson: false, includeToJson: false) this.localId, @JsonKey(includeFromJson: false, includeToJson: false) this.syncState = TrailSyncState.synced, @JsonKey(includeFromJson: false, includeToJson: false) this.originalGpxData, @JsonKey(includeFromJson: false, includeToJson: false) this.trackFollowsRoads = false, @JsonKey(includeFromJson: false, includeToJson: false) this.trackHeightsRecalculated = false}): _photos = photos,_tags = tags,_localPhotos = localPhotos,super._();
+  const _Trail({required this.id, this.collectionId = 'trails', required this.name, this.location, @_NullableDateTimeConverter() this.date, this.public = false, this.completed = false, this.distance = 0, @JsonKey(name: 'elevation_gain') this.elevationGain = 0, @JsonKey(name: 'elevation_loss') this.elevationLoss = 0, this.duration = 0, @JsonKey(name: 'moving_duration') this.movingDuration, @JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) this.difficulty, this.lat, this.lon, @JsonKey(name: 'max_lat') this.maxLat = 0, @JsonKey(name: 'max_lon') this.maxLon = 0, @JsonKey(name: 'min_lat') this.minLat = 0, @JsonKey(name: 'min_lon') this.minLon = 0, this.thumbnail = 0,  List<String> photos = const [], this.gpx, required this.created, required this.updated, this.category, this.subcategory,  List<String> tags = const [], this.polyline, this.domain, this.iri, @JsonKey(name: 'like_count') this.likeCount = 0, this.expand, this.description = "", this.author = "000000000000000", this.isLocal = false,  List<String> localPhotos = const [], @JsonKey(includeFromJson: false, includeToJson: false) this.localId, @JsonKey(includeFromJson: false, includeToJson: false) this.syncState = TrailSyncState.synced, @JsonKey(includeFromJson: false, includeToJson: false) this.originalGpxData, @JsonKey(includeFromJson: false, includeToJson: false) this.trackFollowsRoads = false, @JsonKey(includeFromJson: false, includeToJson: false) this.trackHeightsRecalculated = false}): _photos = photos,_tags = tags,_localPhotos = localPhotos,super._();
   factory _Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
 
 @override final  String id;
@@ -707,12 +715,7 @@ class _Trail extends Trail {
 @override@JsonKey(name: 'elevation_gain') final  double elevationGain;
 @override@JsonKey(name: 'elevation_loss') final  double elevationLoss;
 @override@JsonKey() final  double duration;
-// Moving time in seconds for trails recorded in the Wanderer app. No
-// @Default: absence is the meaningful "no moving time known" state
-// -- `duration` always means GPX-derived elapsed time.
 @override@JsonKey(name: 'moving_duration') final  double? movingDuration;
-// Null means "unknown": PocketBase returns an unset select as "", which
-// importers write on purpose when the provider has no matching grade.
 @override@JsonKey(unknownEnumValue: JsonKey.nullForUndefinedEnumValue) final  TrailDifficulty? difficulty;
 @override final  double? lat;
 @override final  double? lon;
@@ -815,16 +818,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.movingDuration, movingDuration) || other.movingDuration == movingDuration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other._photos, _photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&(identical(other.subcategory, subcategory) || other.subcategory == subcategory)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&const DeepCollectionEquality().equals(other._localPhotos, _localPhotos)&&(identical(other.localId, localId) || other.localId == localId)&&(identical(other.syncState, syncState) || other.syncState == syncState)&&(identical(other.originalGpxData, originalGpxData) || other.originalGpxData == originalGpxData)&&(identical(other.trackFollowsRoads, trackFollowsRoads) || other.trackFollowsRoads == trackFollowsRoads)&&(identical(other.trackHeightsRecalculated, trackHeightsRecalculated) || other.trackHeightsRecalculated == trackHeightsRecalculated));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Trail&&(identical(other.id, id) || other.id == id)&&(identical(other.collectionId, collectionId) || other.collectionId == collectionId)&&(identical(other.name, name) || other.name == name)&&(identical(other.location, location) || other.location == location)&&(identical(other.date, date) || other.date == date)&&(identical(other.public, public) || other.public == public)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.distance, distance) || other.distance == distance)&&(identical(other.elevationGain, elevationGain) || other.elevationGain == elevationGain)&&(identical(other.elevationLoss, elevationLoss) || other.elevationLoss == elevationLoss)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.movingDuration, movingDuration) || other.movingDuration == movingDuration)&&(identical(other.difficulty, difficulty) || other.difficulty == difficulty)&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.thumbnail, thumbnail) || other.thumbnail == thumbnail)&&const DeepCollectionEquality().equals(other.photos, _photos)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&(identical(other.created, created) || other.created == created)&&(identical(other.updated, updated) || other.updated == updated)&&(identical(other.category, category) || other.category == category)&&(identical(other.subcategory, subcategory) || other.subcategory == subcategory)&&const DeepCollectionEquality().equals(other.tags, _tags)&&(identical(other.polyline, polyline) || other.polyline == polyline)&&(identical(other.domain, domain) || other.domain == domain)&&(identical(other.iri, iri) || other.iri == iri)&&(identical(other.likeCount, likeCount) || other.likeCount == likeCount)&&(identical(other.expand, expand) || other.expand == expand)&&(identical(other.description, description) || other.description == description)&&(identical(other.author, author) || other.author == author)&&(identical(other.isLocal, isLocal) || other.isLocal == isLocal)&&const DeepCollectionEquality().equals(other.localPhotos, _localPhotos)&&(identical(other.localId, localId) || other.localId == localId)&&(identical(other.syncState, syncState) || other.syncState == syncState)&&(identical(other.originalGpxData, originalGpxData) || other.originalGpxData == originalGpxData)&&(identical(other.trackFollowsRoads, trackFollowsRoads) || other.trackFollowsRoads == trackFollowsRoads)&&(identical(other.trackHeightsRecalculated, trackHeightsRecalculated) || other.trackHeightsRecalculated == trackHeightsRecalculated));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,collectionId,name,location,date,public,completed,distance,elevationGain,elevationLoss,duration,movingDuration,difficulty,lat,lon,maxLat,maxLon,minLat,minLon,thumbnail,const DeepCollectionEquality().hash(_photos),gpx,created,updated,category,subcategory,const DeepCollectionEquality().hash(_tags),polyline,domain,iri,likeCount,expand,description,author,isLocal,const DeepCollectionEquality().hash(_localPhotos),localId,syncState,originalGpxData,trackFollowsRoads,trackHeightsRecalculated]);
+int get hashCode {
+    return Object.hashAll([runtimeType,id,collectionId,name,location,date,public,completed,distance,elevationGain,elevationLoss,duration,movingDuration,difficulty,lat,lon,maxLat,maxLon,minLat,minLon,thumbnail,const DeepCollectionEquality().hash(_photos),gpx,created,updated,category,subcategory,const DeepCollectionEquality().hash(_tags),polyline,domain,iri,likeCount,expand,description,author,isLocal,const DeepCollectionEquality().hash(_localPhotos),localId,syncState,originalGpxData,trackFollowsRoads,trackHeightsRecalculated]);
+}
 
 @override
 String toString() {
-  return 'Trail(id: $id, collectionId: $collectionId, name: $name, location: $location, date: $date, public: $public, completed: $completed, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, movingDuration: $movingDuration, difficulty: $difficulty, lat: $lat, lon: $lon, maxLat: $maxLat, maxLon: $maxLon, minLat: $minLat, minLon: $minLon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, subcategory: $subcategory, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author, isLocal: $isLocal, localPhotos: $localPhotos, localId: $localId, syncState: $syncState, originalGpxData: $originalGpxData, trackFollowsRoads: $trackFollowsRoads, trackHeightsRecalculated: $trackHeightsRecalculated)';
+    return 'Trail(id: $id, collectionId: $collectionId, name: $name, location: $location, date: $date, public: $public, completed: $completed, distance: $distance, elevationGain: $elevationGain, elevationLoss: $elevationLoss, duration: $duration, movingDuration: $movingDuration, difficulty: $difficulty, lat: $lat, lon: $lon, maxLat: $maxLat, maxLon: $maxLon, minLat: $minLat, minLon: $minLon, thumbnail: $thumbnail, photos: $photos, gpx: $gpx, created: $created, updated: $updated, category: $category, subcategory: $subcategory, tags: $tags, polyline: $polyline, domain: $domain, iri: $iri, likeCount: $likeCount, expand: $expand, description: $description, author: $author, isLocal: $isLocal, localPhotos: $localPhotos, localId: $localId, syncState: $syncState, originalGpxData: $originalGpxData, trackFollowsRoads: $trackFollowsRoads, trackHeightsRecalculated: $trackHeightsRecalculated)';
 }
 
 
@@ -928,16 +933,21 @@ $TrailNearCopyWith<TrailNear> get copyWith => _$TrailNearCopyWithImpl<TrailNear>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailNear&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.radius, radius) || other.radius == radius));
+  final _this = this as TrailNear;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailNear&&(identical(other.lat, _this.lat) || other.lat == _this.lat)&&(identical(other.lon, _this.lon) || other.lon == _this.lon)&&(identical(other.radius, _this.radius) || other.radius == _this.radius));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,lat,lon,radius);
+int get hashCode {
+  final _this = this as TrailNear;
+  return Object.hash(runtimeType,_this.lat,_this.lon,_this.radius);
+}
 
 @override
 String toString() {
-  return 'TrailNear(lat: $lat, lon: $lon, radius: $radius)';
+  final _this = this as TrailNear;
+  return 'TrailNear(lat: ${_this.lat}, lon: ${_this.lon}, radius: ${_this.radius})';
 }
 
 
@@ -966,7 +976,7 @@ class _$TrailNearCopyWithImpl<$Res>
 /// Create a copy of TrailNear
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? lat = freezed,Object? lon = freezed,Object? radius = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailNear(
 lat: freezed == lat ? _self.lat : lat // ignore: cast_nullable_to_non_nullable
 as double?,lon: freezed == lon ? _self.lon : lon // ignore: cast_nullable_to_non_nullable
 as double?,radius: null == radius ? _self.radius : radius // ignore: cast_nullable_to_non_nullable
@@ -1128,16 +1138,18 @@ _$TrailNearCopyWith<_TrailNear> get copyWith => __$TrailNearCopyWithImpl<_TrailN
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailNear&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.radius, radius) || other.radius == radius));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailNear&&(identical(other.lat, lat) || other.lat == lat)&&(identical(other.lon, lon) || other.lon == lon)&&(identical(other.radius, radius) || other.radius == radius));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,lat,lon,radius);
+int get hashCode {
+    return Object.hash(runtimeType,lat,lon,radius);
+}
 
 @override
 String toString() {
-  return 'TrailNear(lat: $lat, lon: $lon, radius: $radius)';
+    return 'TrailNear(lat: $lat, lon: $lon, radius: $radius)';
 }
 
 
@@ -1180,13 +1192,7 @@ as double,
 /// @nodoc
 mixin _$TrailFilter {
 
- String get q; List<Category> get category; List<Subcategory> get subcategory; List<Tag> get tags; List<int> get difficulty;// 0, 1, 2
- ActorSearchResult? get author; bool? get public; bool? get shared; bool? get private; TrailNear get near; double get distanceMin; double get distanceMax; double get distanceLimit; double get elevationGainMin; double get elevationGainMax; double get elevationGainLimit; double get elevationLossMin; double get elevationLossMax; double get elevationLossLimit; DateTime? get startDate; DateTime? get endDate; bool? get completed; bool? get liked;// Emitted server-side as an `id IN [...]` whitelist, but only when the
-// caller supplies the ids -- see `toFilterText`'s [offlineTrailIds].
-// `applyTrailFilter` carries a second, non-redundant half for unsynced
-// local captures, which have no server id to whitelist.
- bool get offlineOnly; TrailFilterSort get sort;// "name" | "distance" | "elevation_gain" | "created"
- SortOrder get sortOrder;
+ String get q; List<Category> get category; List<Subcategory> get subcategory; List<Tag> get tags; List<int> get difficulty; ActorSearchResult? get author; bool? get public; bool? get shared; bool? get private; TrailNear get near; double get distanceMin; double get distanceMax; double get distanceLimit; double get elevationGainMin; double get elevationGainMax; double get elevationGainLimit; double get elevationLossMin; double get elevationLossMax; double get elevationLossLimit; DateTime? get startDate; DateTime? get endDate; bool? get completed; bool? get liked; bool get offlineOnly; TrailFilterSort get sort; SortOrder get sortOrder;
 /// Create a copy of TrailFilter
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1197,16 +1203,21 @@ $TrailFilterCopyWith<TrailFilter> get copyWith => _$TrailFilterCopyWithImpl<Trai
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailFilter&&(identical(other.q, q) || other.q == q)&&const DeepCollectionEquality().equals(other.category, category)&&const DeepCollectionEquality().equals(other.subcategory, subcategory)&&const DeepCollectionEquality().equals(other.tags, tags)&&const DeepCollectionEquality().equals(other.difficulty, difficulty)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.private, private) || other.private == private)&&(identical(other.near, near) || other.near == near)&&(identical(other.distanceMin, distanceMin) || other.distanceMin == distanceMin)&&(identical(other.distanceMax, distanceMax) || other.distanceMax == distanceMax)&&(identical(other.distanceLimit, distanceLimit) || other.distanceLimit == distanceLimit)&&(identical(other.elevationGainMin, elevationGainMin) || other.elevationGainMin == elevationGainMin)&&(identical(other.elevationGainMax, elevationGainMax) || other.elevationGainMax == elevationGainMax)&&(identical(other.elevationGainLimit, elevationGainLimit) || other.elevationGainLimit == elevationGainLimit)&&(identical(other.elevationLossMin, elevationLossMin) || other.elevationLossMin == elevationLossMin)&&(identical(other.elevationLossMax, elevationLossMax) || other.elevationLossMax == elevationLossMax)&&(identical(other.elevationLossLimit, elevationLossLimit) || other.elevationLossLimit == elevationLossLimit)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.liked, liked) || other.liked == liked)&&(identical(other.offlineOnly, offlineOnly) || other.offlineOnly == offlineOnly)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
+  final _this = this as TrailFilter;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailFilter&&(identical(other.q, _this.q) || other.q == _this.q)&&const DeepCollectionEquality().equals(other.category, _this.category)&&const DeepCollectionEquality().equals(other.subcategory, _this.subcategory)&&const DeepCollectionEquality().equals(other.tags, _this.tags)&&const DeepCollectionEquality().equals(other.difficulty, _this.difficulty)&&(identical(other.author, _this.author) || other.author == _this.author)&&(identical(other.public, _this.public) || other.public == _this.public)&&(identical(other.shared, _this.shared) || other.shared == _this.shared)&&(identical(other.private, _this.private) || other.private == _this.private)&&(identical(other.near, _this.near) || other.near == _this.near)&&(identical(other.distanceMin, _this.distanceMin) || other.distanceMin == _this.distanceMin)&&(identical(other.distanceMax, _this.distanceMax) || other.distanceMax == _this.distanceMax)&&(identical(other.distanceLimit, _this.distanceLimit) || other.distanceLimit == _this.distanceLimit)&&(identical(other.elevationGainMin, _this.elevationGainMin) || other.elevationGainMin == _this.elevationGainMin)&&(identical(other.elevationGainMax, _this.elevationGainMax) || other.elevationGainMax == _this.elevationGainMax)&&(identical(other.elevationGainLimit, _this.elevationGainLimit) || other.elevationGainLimit == _this.elevationGainLimit)&&(identical(other.elevationLossMin, _this.elevationLossMin) || other.elevationLossMin == _this.elevationLossMin)&&(identical(other.elevationLossMax, _this.elevationLossMax) || other.elevationLossMax == _this.elevationLossMax)&&(identical(other.elevationLossLimit, _this.elevationLossLimit) || other.elevationLossLimit == _this.elevationLossLimit)&&(identical(other.startDate, _this.startDate) || other.startDate == _this.startDate)&&(identical(other.endDate, _this.endDate) || other.endDate == _this.endDate)&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.liked, _this.liked) || other.liked == _this.liked)&&(identical(other.offlineOnly, _this.offlineOnly) || other.offlineOnly == _this.offlineOnly)&&(identical(other.sort, _this.sort) || other.sort == _this.sort)&&(identical(other.sortOrder, _this.sortOrder) || other.sortOrder == _this.sortOrder));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,q,const DeepCollectionEquality().hash(category),const DeepCollectionEquality().hash(subcategory),const DeepCollectionEquality().hash(tags),const DeepCollectionEquality().hash(difficulty),author,public,shared,private,near,distanceMin,distanceMax,distanceLimit,elevationGainMin,elevationGainMax,elevationGainLimit,elevationLossMin,elevationLossMax,elevationLossLimit,startDate,endDate,completed,liked,offlineOnly,sort,sortOrder]);
+int get hashCode {
+  final _this = this as TrailFilter;
+  return Object.hashAll([runtimeType,_this.q,const DeepCollectionEquality().hash(_this.category),const DeepCollectionEquality().hash(_this.subcategory),const DeepCollectionEquality().hash(_this.tags),const DeepCollectionEquality().hash(_this.difficulty),_this.author,_this.public,_this.shared,_this.private,_this.near,_this.distanceMin,_this.distanceMax,_this.distanceLimit,_this.elevationGainMin,_this.elevationGainMax,_this.elevationGainLimit,_this.elevationLossMin,_this.elevationLossMax,_this.elevationLossLimit,_this.startDate,_this.endDate,_this.completed,_this.liked,_this.offlineOnly,_this.sort,_this.sortOrder]);
+}
 
 @override
 String toString() {
-  return 'TrailFilter(q: $q, category: $category, subcategory: $subcategory, tags: $tags, difficulty: $difficulty, author: $author, public: $public, shared: $shared, private: $private, near: $near, distanceMin: $distanceMin, distanceMax: $distanceMax, distanceLimit: $distanceLimit, elevationGainMin: $elevationGainMin, elevationGainMax: $elevationGainMax, elevationGainLimit: $elevationGainLimit, elevationLossMin: $elevationLossMin, elevationLossMax: $elevationLossMax, elevationLossLimit: $elevationLossLimit, startDate: $startDate, endDate: $endDate, completed: $completed, liked: $liked, offlineOnly: $offlineOnly, sort: $sort, sortOrder: $sortOrder)';
+  final _this = this as TrailFilter;
+  return 'TrailFilter(q: ${_this.q}, category: ${_this.category}, subcategory: ${_this.subcategory}, tags: ${_this.tags}, difficulty: ${_this.difficulty}, author: ${_this.author}, public: ${_this.public}, shared: ${_this.shared}, private: ${_this.private}, near: ${_this.near}, distanceMin: ${_this.distanceMin}, distanceMax: ${_this.distanceMax}, distanceLimit: ${_this.distanceLimit}, elevationGainMin: ${_this.elevationGainMin}, elevationGainMax: ${_this.elevationGainMax}, elevationGainLimit: ${_this.elevationGainLimit}, elevationLossMin: ${_this.elevationLossMin}, elevationLossMax: ${_this.elevationLossMax}, elevationLossLimit: ${_this.elevationLossLimit}, startDate: ${_this.startDate}, endDate: ${_this.endDate}, completed: ${_this.completed}, liked: ${_this.liked}, offlineOnly: ${_this.offlineOnly}, sort: ${_this.sort}, sortOrder: ${_this.sortOrder})';
 }
 
 
@@ -1235,7 +1246,7 @@ class _$TrailFilterCopyWithImpl<$Res>
 /// Create a copy of TrailFilter
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? q = null,Object? category = null,Object? subcategory = null,Object? tags = null,Object? difficulty = null,Object? author = freezed,Object? public = freezed,Object? shared = freezed,Object? private = freezed,Object? near = null,Object? distanceMin = null,Object? distanceMax = null,Object? distanceLimit = null,Object? elevationGainMin = null,Object? elevationGainMax = null,Object? elevationGainLimit = null,Object? elevationLossMin = null,Object? elevationLossMax = null,Object? elevationLossLimit = null,Object? startDate = freezed,Object? endDate = freezed,Object? completed = freezed,Object? liked = freezed,Object? offlineOnly = null,Object? sort = null,Object? sortOrder = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailFilter(
 q: null == q ? _self.q : q // ignore: cast_nullable_to_non_nullable
 as String,category: null == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as List<Category>,subcategory: null == subcategory ? _self.subcategory : subcategory // ignore: cast_nullable_to_non_nullable
@@ -1424,7 +1435,7 @@ return $default(_that.q,_that.category,_that.subcategory,_that.tags,_that.diffic
 
 
 class _TrailFilter extends TrailFilter {
-  const _TrailFilter({required this.q, required final  List<Category> category, final  List<Subcategory> subcategory = const <Subcategory>[], required final  List<Tag> tags, required final  List<int> difficulty, this.author, this.public, this.shared, this.private, required this.near, required this.distanceMin, required this.distanceMax, required this.distanceLimit, required this.elevationGainMin, required this.elevationGainMax, required this.elevationGainLimit, required this.elevationLossMin, required this.elevationLossMax, required this.elevationLossLimit, this.startDate, this.endDate, this.completed, this.liked, this.offlineOnly = false, required this.sort, required this.sortOrder}): _category = category,_subcategory = subcategory,_tags = tags,_difficulty = difficulty,super._();
+  const _TrailFilter({required this.q, required  List<Category> category,  List<Subcategory> subcategory = const <Subcategory>[], required  List<Tag> tags, required  List<int> difficulty, this.author, this.public, this.shared, this.private, required this.near, required this.distanceMin, required this.distanceMax, required this.distanceLimit, required this.elevationGainMin, required this.elevationGainMax, required this.elevationGainLimit, required this.elevationLossMin, required this.elevationLossMax, required this.elevationLossLimit, this.startDate, this.endDate, this.completed, this.liked, this.offlineOnly = false, required this.sort, required this.sortOrder}): _category = category,_subcategory = subcategory,_tags = tags,_difficulty = difficulty,super._();
   
 
 @override final  String q;
@@ -1456,7 +1467,6 @@ class _TrailFilter extends TrailFilter {
   return EqualUnmodifiableListView(_difficulty);
 }
 
-// 0, 1, 2
 @override final  ActorSearchResult? author;
 @override final  bool? public;
 @override final  bool? shared;
@@ -1475,13 +1485,8 @@ class _TrailFilter extends TrailFilter {
 @override final  DateTime? endDate;
 @override final  bool? completed;
 @override final  bool? liked;
-// Emitted server-side as an `id IN [...]` whitelist, but only when the
-// caller supplies the ids -- see `toFilterText`'s [offlineTrailIds].
-// `applyTrailFilter` carries a second, non-redundant half for unsynced
-// local captures, which have no server id to whitelist.
 @override@JsonKey() final  bool offlineOnly;
 @override final  TrailFilterSort sort;
-// "name" | "distance" | "elevation_gain" | "created"
 @override final  SortOrder sortOrder;
 
 /// Create a copy of TrailFilter
@@ -1494,16 +1499,18 @@ _$TrailFilterCopyWith<_TrailFilter> get copyWith => __$TrailFilterCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailFilter&&(identical(other.q, q) || other.q == q)&&const DeepCollectionEquality().equals(other._category, _category)&&const DeepCollectionEquality().equals(other._subcategory, _subcategory)&&const DeepCollectionEquality().equals(other._tags, _tags)&&const DeepCollectionEquality().equals(other._difficulty, _difficulty)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.private, private) || other.private == private)&&(identical(other.near, near) || other.near == near)&&(identical(other.distanceMin, distanceMin) || other.distanceMin == distanceMin)&&(identical(other.distanceMax, distanceMax) || other.distanceMax == distanceMax)&&(identical(other.distanceLimit, distanceLimit) || other.distanceLimit == distanceLimit)&&(identical(other.elevationGainMin, elevationGainMin) || other.elevationGainMin == elevationGainMin)&&(identical(other.elevationGainMax, elevationGainMax) || other.elevationGainMax == elevationGainMax)&&(identical(other.elevationGainLimit, elevationGainLimit) || other.elevationGainLimit == elevationGainLimit)&&(identical(other.elevationLossMin, elevationLossMin) || other.elevationLossMin == elevationLossMin)&&(identical(other.elevationLossMax, elevationLossMax) || other.elevationLossMax == elevationLossMax)&&(identical(other.elevationLossLimit, elevationLossLimit) || other.elevationLossLimit == elevationLossLimit)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.liked, liked) || other.liked == liked)&&(identical(other.offlineOnly, offlineOnly) || other.offlineOnly == offlineOnly)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailFilter&&(identical(other.q, q) || other.q == q)&&const DeepCollectionEquality().equals(other.category, _category)&&const DeepCollectionEquality().equals(other.subcategory, _subcategory)&&const DeepCollectionEquality().equals(other.tags, _tags)&&const DeepCollectionEquality().equals(other.difficulty, _difficulty)&&(identical(other.author, author) || other.author == author)&&(identical(other.public, public) || other.public == public)&&(identical(other.shared, shared) || other.shared == shared)&&(identical(other.private, private) || other.private == private)&&(identical(other.near, near) || other.near == near)&&(identical(other.distanceMin, distanceMin) || other.distanceMin == distanceMin)&&(identical(other.distanceMax, distanceMax) || other.distanceMax == distanceMax)&&(identical(other.distanceLimit, distanceLimit) || other.distanceLimit == distanceLimit)&&(identical(other.elevationGainMin, elevationGainMin) || other.elevationGainMin == elevationGainMin)&&(identical(other.elevationGainMax, elevationGainMax) || other.elevationGainMax == elevationGainMax)&&(identical(other.elevationGainLimit, elevationGainLimit) || other.elevationGainLimit == elevationGainLimit)&&(identical(other.elevationLossMin, elevationLossMin) || other.elevationLossMin == elevationLossMin)&&(identical(other.elevationLossMax, elevationLossMax) || other.elevationLossMax == elevationLossMax)&&(identical(other.elevationLossLimit, elevationLossLimit) || other.elevationLossLimit == elevationLossLimit)&&(identical(other.startDate, startDate) || other.startDate == startDate)&&(identical(other.endDate, endDate) || other.endDate == endDate)&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.liked, liked) || other.liked == liked)&&(identical(other.offlineOnly, offlineOnly) || other.offlineOnly == offlineOnly)&&(identical(other.sort, sort) || other.sort == sort)&&(identical(other.sortOrder, sortOrder) || other.sortOrder == sortOrder));
 }
 
 
 @override
-int get hashCode => Object.hashAll([runtimeType,q,const DeepCollectionEquality().hash(_category),const DeepCollectionEquality().hash(_subcategory),const DeepCollectionEquality().hash(_tags),const DeepCollectionEquality().hash(_difficulty),author,public,shared,private,near,distanceMin,distanceMax,distanceLimit,elevationGainMin,elevationGainMax,elevationGainLimit,elevationLossMin,elevationLossMax,elevationLossLimit,startDate,endDate,completed,liked,offlineOnly,sort,sortOrder]);
+int get hashCode {
+    return Object.hashAll([runtimeType,q,const DeepCollectionEquality().hash(_category),const DeepCollectionEquality().hash(_subcategory),const DeepCollectionEquality().hash(_tags),const DeepCollectionEquality().hash(_difficulty),author,public,shared,private,near,distanceMin,distanceMax,distanceLimit,elevationGainMin,elevationGainMax,elevationGainLimit,elevationLossMin,elevationLossMax,elevationLossLimit,startDate,endDate,completed,liked,offlineOnly,sort,sortOrder]);
+}
 
 @override
 String toString() {
-  return 'TrailFilter(q: $q, category: $category, subcategory: $subcategory, tags: $tags, difficulty: $difficulty, author: $author, public: $public, shared: $shared, private: $private, near: $near, distanceMin: $distanceMin, distanceMax: $distanceMax, distanceLimit: $distanceLimit, elevationGainMin: $elevationGainMin, elevationGainMax: $elevationGainMax, elevationGainLimit: $elevationGainLimit, elevationLossMin: $elevationLossMin, elevationLossMax: $elevationLossMax, elevationLossLimit: $elevationLossLimit, startDate: $startDate, endDate: $endDate, completed: $completed, liked: $liked, offlineOnly: $offlineOnly, sort: $sort, sortOrder: $sortOrder)';
+    return 'TrailFilter(q: $q, category: $category, subcategory: $subcategory, tags: $tags, difficulty: $difficulty, author: $author, public: $public, shared: $shared, private: $private, near: $near, distanceMin: $distanceMin, distanceMax: $distanceMax, distanceLimit: $distanceLimit, elevationGainMin: $elevationGainMin, elevationGainMax: $elevationGainMax, elevationGainLimit: $elevationGainLimit, elevationLossMin: $elevationLossMin, elevationLossMax: $elevationLossMax, elevationLossLimit: $elevationLossLimit, startDate: $startDate, endDate: $endDate, completed: $completed, liked: $liked, offlineOnly: $offlineOnly, sort: $sort, sortOrder: $sortOrder)';
 }
 
 
@@ -1604,16 +1611,21 @@ $TrailFilterValuesCopyWith<TrailFilterValues> get copyWith => _$TrailFilterValue
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailFilterValues&&(identical(other.minDistance, minDistance) || other.minDistance == minDistance)&&(identical(other.maxDistance, maxDistance) || other.maxDistance == maxDistance)&&(identical(other.minElevationGain, minElevationGain) || other.minElevationGain == minElevationGain)&&(identical(other.maxElevationGain, maxElevationGain) || other.maxElevationGain == maxElevationGain)&&(identical(other.minElevationLoss, minElevationLoss) || other.minElevationLoss == minElevationLoss)&&(identical(other.maxElevationLoss, maxElevationLoss) || other.maxElevationLoss == maxElevationLoss)&&(identical(other.minDuration, minDuration) || other.minDuration == minDuration)&&(identical(other.maxDuration, maxDuration) || other.maxDuration == maxDuration));
+  final _this = this as TrailFilterValues;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailFilterValues&&(identical(other.minDistance, _this.minDistance) || other.minDistance == _this.minDistance)&&(identical(other.maxDistance, _this.maxDistance) || other.maxDistance == _this.maxDistance)&&(identical(other.minElevationGain, _this.minElevationGain) || other.minElevationGain == _this.minElevationGain)&&(identical(other.maxElevationGain, _this.maxElevationGain) || other.maxElevationGain == _this.maxElevationGain)&&(identical(other.minElevationLoss, _this.minElevationLoss) || other.minElevationLoss == _this.minElevationLoss)&&(identical(other.maxElevationLoss, _this.maxElevationLoss) || other.maxElevationLoss == _this.maxElevationLoss)&&(identical(other.minDuration, _this.minDuration) || other.minDuration == _this.minDuration)&&(identical(other.maxDuration, _this.maxDuration) || other.maxDuration == _this.maxDuration));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,minDistance,maxDistance,minElevationGain,maxElevationGain,minElevationLoss,maxElevationLoss,minDuration,maxDuration);
+int get hashCode {
+  final _this = this as TrailFilterValues;
+  return Object.hash(runtimeType,_this.minDistance,_this.maxDistance,_this.minElevationGain,_this.maxElevationGain,_this.minElevationLoss,_this.maxElevationLoss,_this.minDuration,_this.maxDuration);
+}
 
 @override
 String toString() {
-  return 'TrailFilterValues(minDistance: $minDistance, maxDistance: $maxDistance, minElevationGain: $minElevationGain, maxElevationGain: $maxElevationGain, minElevationLoss: $minElevationLoss, maxElevationLoss: $maxElevationLoss, minDuration: $minDuration, maxDuration: $maxDuration)';
+  final _this = this as TrailFilterValues;
+  return 'TrailFilterValues(minDistance: ${_this.minDistance}, maxDistance: ${_this.maxDistance}, minElevationGain: ${_this.minElevationGain}, maxElevationGain: ${_this.maxElevationGain}, minElevationLoss: ${_this.minElevationLoss}, maxElevationLoss: ${_this.maxElevationLoss}, minDuration: ${_this.minDuration}, maxDuration: ${_this.maxDuration})';
 }
 
 
@@ -1642,7 +1654,7 @@ class _$TrailFilterValuesCopyWithImpl<$Res>
 /// Create a copy of TrailFilterValues
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? minDistance = null,Object? maxDistance = null,Object? minElevationGain = null,Object? maxElevationGain = null,Object? minElevationLoss = null,Object? maxElevationLoss = null,Object? minDuration = null,Object? maxDuration = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailFilterValues(
 minDistance: null == minDistance ? _self.minDistance : minDistance // ignore: cast_nullable_to_non_nullable
 as double,maxDistance: null == maxDistance ? _self.maxDistance : maxDistance // ignore: cast_nullable_to_non_nullable
 as double,minElevationGain: null == minElevationGain ? _self.minElevationGain : minElevationGain // ignore: cast_nullable_to_non_nullable
@@ -1817,16 +1829,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailFilterValues&&(identical(other.minDistance, minDistance) || other.minDistance == minDistance)&&(identical(other.maxDistance, maxDistance) || other.maxDistance == maxDistance)&&(identical(other.minElevationGain, minElevationGain) || other.minElevationGain == minElevationGain)&&(identical(other.maxElevationGain, maxElevationGain) || other.maxElevationGain == maxElevationGain)&&(identical(other.minElevationLoss, minElevationLoss) || other.minElevationLoss == minElevationLoss)&&(identical(other.maxElevationLoss, maxElevationLoss) || other.maxElevationLoss == maxElevationLoss)&&(identical(other.minDuration, minDuration) || other.minDuration == minDuration)&&(identical(other.maxDuration, maxDuration) || other.maxDuration == maxDuration));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailFilterValues&&(identical(other.minDistance, minDistance) || other.minDistance == minDistance)&&(identical(other.maxDistance, maxDistance) || other.maxDistance == maxDistance)&&(identical(other.minElevationGain, minElevationGain) || other.minElevationGain == minElevationGain)&&(identical(other.maxElevationGain, maxElevationGain) || other.maxElevationGain == maxElevationGain)&&(identical(other.minElevationLoss, minElevationLoss) || other.minElevationLoss == minElevationLoss)&&(identical(other.maxElevationLoss, maxElevationLoss) || other.maxElevationLoss == maxElevationLoss)&&(identical(other.minDuration, minDuration) || other.minDuration == minDuration)&&(identical(other.maxDuration, maxDuration) || other.maxDuration == maxDuration));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,minDistance,maxDistance,minElevationGain,maxElevationGain,minElevationLoss,maxElevationLoss,minDuration,maxDuration);
+int get hashCode {
+    return Object.hash(runtimeType,minDistance,maxDistance,minElevationGain,maxElevationGain,minElevationLoss,maxElevationLoss,minDuration,maxDuration);
+}
 
 @override
 String toString() {
-  return 'TrailFilterValues(minDistance: $minDistance, maxDistance: $maxDistance, minElevationGain: $minElevationGain, maxElevationGain: $maxElevationGain, minElevationLoss: $minElevationLoss, maxElevationLoss: $maxElevationLoss, minDuration: $minDuration, maxDuration: $maxDuration)';
+    return 'TrailFilterValues(minDistance: $minDistance, maxDistance: $maxDistance, minElevationGain: $minElevationGain, maxElevationGain: $maxElevationGain, minElevationLoss: $minElevationLoss, maxElevationLoss: $maxElevationLoss, minDuration: $minDuration, maxDuration: $maxDuration)';
 }
 
 
@@ -1888,16 +1902,21 @@ $TrailBoundingBoxCopyWith<TrailBoundingBox> get copyWith => _$TrailBoundingBoxCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.hasTrails, hasTrails) || other.hasTrails == hasTrails));
+  final _this = this as TrailBoundingBox;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailBoundingBox&&(identical(other.maxLat, _this.maxLat) || other.maxLat == _this.maxLat)&&(identical(other.minLat, _this.minLat) || other.minLat == _this.minLat)&&(identical(other.maxLon, _this.maxLon) || other.maxLon == _this.maxLon)&&(identical(other.minLon, _this.minLon) || other.minLon == _this.minLon)&&(identical(other.hasTrails, _this.hasTrails) || other.hasTrails == _this.hasTrails));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,maxLat,minLat,maxLon,minLon,hasTrails);
+int get hashCode {
+  final _this = this as TrailBoundingBox;
+  return Object.hash(runtimeType,_this.maxLat,_this.minLat,_this.maxLon,_this.minLon,_this.hasTrails);
+}
 
 @override
 String toString() {
-  return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon, hasTrails: $hasTrails)';
+  final _this = this as TrailBoundingBox;
+  return 'TrailBoundingBox(maxLat: ${_this.maxLat}, minLat: ${_this.minLat}, maxLon: ${_this.maxLon}, minLon: ${_this.minLon}, hasTrails: ${_this.hasTrails})';
 }
 
 
@@ -1926,7 +1945,7 @@ class _$TrailBoundingBoxCopyWithImpl<$Res>
 /// Create a copy of TrailBoundingBox
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? maxLat = null,Object? minLat = null,Object? maxLon = null,Object? minLon = null,Object? hasTrails = null,}) {
-  return _then(_self.copyWith(
+  return _then(TrailBoundingBox(
 maxLat: null == maxLat ? _self.maxLat : maxLat // ignore: cast_nullable_to_non_nullable
 as double,minLat: null == minLat ? _self.minLat : minLat // ignore: cast_nullable_to_non_nullable
 as double,maxLon: null == maxLon ? _self.maxLon : maxLon // ignore: cast_nullable_to_non_nullable
@@ -2095,16 +2114,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.hasTrails, hasTrails) || other.hasTrails == hasTrails));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailBoundingBox&&(identical(other.maxLat, maxLat) || other.maxLat == maxLat)&&(identical(other.minLat, minLat) || other.minLat == minLat)&&(identical(other.maxLon, maxLon) || other.maxLon == maxLon)&&(identical(other.minLon, minLon) || other.minLon == minLon)&&(identical(other.hasTrails, hasTrails) || other.hasTrails == hasTrails));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,maxLat,minLat,maxLon,minLon,hasTrails);
+int get hashCode {
+    return Object.hash(runtimeType,maxLat,minLat,maxLon,minLon,hasTrails);
+}
 
 @override
 String toString() {
-  return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon, hasTrails: $hasTrails)';
+    return 'TrailBoundingBox(maxLat: $maxLat, minLat: $minLat, maxLon: $maxLon, minLon: $minLon, hasTrails: $hasTrails)';
 }
 
 

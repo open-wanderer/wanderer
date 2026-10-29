@@ -46,7 +46,7 @@ abstract class _$ObjectBox extends $Notifier<Store> {
   Store build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<Store, Store>;
     final element =
         ref.element
@@ -56,6 +56,6 @@ abstract class _$ObjectBox extends $Notifier<Store> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

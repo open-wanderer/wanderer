@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'auth_response.dart';
@@ -9,6 +9,7 @@ part of 'auth_response.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -28,16 +29,21 @@ $AuthResponseCopyWith<AuthResponse> get copyWith => _$AuthResponseCopyWithImpl<A
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthResponse&&(identical(other.record, record) || other.record == record)&&(identical(other.token, token) || other.token == token));
+  final _this = this as AuthResponse;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AuthResponse&&(identical(other.record, _this.record) || other.record == _this.record)&&(identical(other.token, _this.token) || other.token == _this.token));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,record,token);
+int get hashCode {
+  final _this = this as AuthResponse;
+  return Object.hash(runtimeType,_this.record,_this.token);
+}
 
 @override
 String toString() {
-  return 'AuthResponse(record: $record, token: $token)';
+  final _this = this as AuthResponse;
+  return 'AuthResponse(record: ${_this.record}, token: ${_this.token})';
 }
 
 
@@ -66,7 +72,7 @@ class _$AuthResponseCopyWithImpl<$Res>
 /// Create a copy of AuthResponse
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? record = null,Object? token = null,}) {
-  return _then(_self.copyWith(
+  return _then(AuthResponse(
 record: null == record ? _self.record : record // ignore: cast_nullable_to_non_nullable
 as User,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
 as String,
@@ -238,16 +244,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AuthResponse&&(identical(other.record, record) || other.record == record)&&(identical(other.token, token) || other.token == token));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _AuthResponse&&(identical(other.record, record) || other.record == record)&&(identical(other.token, token) || other.token == token));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,record,token);
+int get hashCode {
+    return Object.hash(runtimeType,record,token);
+}
 
 @override
 String toString() {
-  return 'AuthResponse(record: $record, token: $token)';
+    return 'AuthResponse(record: $record, token: $token)';
 }
 
 
