@@ -4,20 +4,11 @@ PODS:
     - Flutter
   - flutter_rotation_sensor (0.0.1):
     - Flutter
-  - ObjectBox (5.3.0-beta.4)
-  - objectbox_flutter_libs (0.0.1):
-    - Flutter
-    - ObjectBox (= 5.3.0-beta.4)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_rotation_sensor (from `.symlinks/plugins/flutter_rotation_sensor/ios`)
-  - objectbox_flutter_libs (from `.symlinks/plugins/objectbox_flutter_libs/ios`)
-
-SPEC REPOS:
-  trunk:
-    - ObjectBox
 
 EXTERNAL SOURCES:
   Flutter:
@@ -26,15 +17,11 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_rotation_sensor:
     :path: ".symlinks/plugins/flutter_rotation_sensor/ios"
-  objectbox_flutter_libs:
-    :path: ".symlinks/plugins/objectbox_flutter_libs/ios"
 
 SPEC CHECKSUMS:
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_local_notifications: df98d66e515e1ca797af436137b4459b160ad8c9
   flutter_rotation_sensor: f37d8d24050572029bdd2d55a93e0f334e2eeac6
-  ObjectBox: eccb95ea2054c39d81dfa2d4ccc5f1e31187228a
-  objectbox_flutter_libs: 893a4322e8ec87438912bae6dfa745929adc6bf5
 
 PODFILE CHECKSUM: 4142bb0354a11e55506272561ccae2ff78e924f4
 
