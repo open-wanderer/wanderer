@@ -1,4 +1,6 @@
+import 'package:wanderer/actions/confirm_discard_trail.dart';
 import 'package:wanderer/components/map/map_ui_controls.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -255,9 +257,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
             ToastMessage(
               type: created.isEmpty ? ToastType.error : ToastType.warning,
               icon: FontAwesomeIcons.circleExclamation,
-              text: AppLocalizations.of(
-                context,
-              )!.photos_skipped_no_gps(skipped),
+              text: AppLocalizations.of(context)!
+                  .photos_skipped_no_gps(skipped),
             ),
           );
     }
@@ -1150,29 +1151,6 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
   bool get _hasUnsavedChanges =>
       trail != _originalTrail || _formKey.currentState?.isDirty == true;
 
-  Future<void> _confirmDiscard(BuildContext context) async {
-    final l10n = AppLocalizations.of(context)!;
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(l10n.discard_trail_confirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.discard),
-          ),
-        ],
-      ),
-    );
-    if (discard == true && context.mounted) {
-      context.canPop() ? context.pop() : context.pushReplacement('/map');
-    }
-  }
-
   double _getDynamicPadding(double currentSize) {
     const double minPadding = 0.0;
     const double maxPadding = 96.0;
@@ -1224,7 +1202,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     return PopScope(
       canPop: !_hasUnsavedChanges,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmDiscard(context);
+        if (!didPop) confirmDiscardTrail(context);
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
@@ -1232,7 +1210,7 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           leading: IconButton(
             icon: const BackButtonIcon(),
             onPressed: () => _hasUnsavedChanges
-                ? _confirmDiscard(context)
+                ? confirmDiscardTrail(context)
                 : (context.canPop()
                       ? context.pop()
                       : context.pushReplacement('/map')),
@@ -1266,9 +1244,9 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                         : null,
                     style: IconButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.surface,
-                      disabledBackgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.surface,
+                      disabledBackgroundColor: Theme.of(context)
+                          .colorScheme
+                          .surface,
                     ),
                   );
                 },

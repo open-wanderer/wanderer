@@ -1,3 +1,4 @@
+import 'package:wanderer/actions/confirm_discard_trail.dart';
 import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,6 +119,52 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   bool get _editMode =>
       widget.seedAnchors != null && widget.seedAnchors!.isNotEmpty;
 
+  /// The route as seeded in edit mode, the baseline [_hasUnsavedRoute]
+  /// compares against.
+  RouteAnchorsState? _seedState;
+
+  /// Whether leaving would lose work. A new route counts as soon as it has an
+  /// anchor; an edited one only once its geometry differs from the seed, so
+  /// opening an existing trail and backing out (or undoing back to the
+  /// original) never asks.
+  bool _hasUnsavedRoute(RouteAnchorsState state) {
+    if (!_editMode) return state.anchors.isNotEmpty;
+    final seed = _seedState;
+    return seed != null && !_sameGeometry(state, seed);
+  }
+
+  /// Compares anchor positions and segment lines. Not `==`: a reverse-geocoded
+  /// label filling in later is not an edit.
+  static bool _sameGeometry(RouteAnchorsState a, RouteAnchorsState b) {
+    if (identical(a.anchors, b.anchors) && identical(a.segments, b.segments)) {
+      return true;
+    }
+    if (a.anchors.length != b.anchors.length ||
+        a.segments.length != b.segments.length) {
+      return false;
+    }
+    for (var i = 0; i < a.anchors.length; i++) {
+      if (a.anchors[i].lat != b.anchors[i].lat ||
+          a.anchors[i].lon != b.anchors[i].lon) {
+        return false;
+      }
+    }
+    final seeded = {for (final s in b.segments) s.beforeAnchorId: s.polyline};
+    for (final segment in a.segments) {
+      final other = seeded[segment.beforeAnchorId];
+      if (other == null || other.length != segment.polyline.length) {
+        return false;
+      }
+      for (var i = 0; i < other.length; i++) {
+        if (other[i].lat != segment.polyline[i].lat ||
+            other[i].lon != segment.polyline[i].lon) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -132,6 +179,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               widget.initialCostingOptions,
               segmentPolylines: widget.seedSegmentPolylines,
             );
+        _seedState = ref.read(routeAnchorsProvider);
       } else {
         ref
             .read(routeAnchorsProvider.notifier)
@@ -193,58 +241,71 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     final styleJson = ref.watch(mapStyleJsonProvider).value;
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const BackButtonIcon(),
-          onPressed: () => context.canPop()
-              ? context.pop()
-              : context.pushReplacement('/map'),
-          style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-          ),
-        ),
-        titleSpacing: 8,
-        title: _buildSearchBar(context),
-        actions: [_buildFinishAction(state, l10n)],
-        backgroundColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: _buildMap(context, state, styleJson)),
-          // Rides above RouteAnchorSheet's 164px docked peek, like the map
-          // screen's button above its result sheet; the sheet covers it when
-          // dragged open.
-          Positioned(
-            bottom: state.anchors.isNotEmpty
-                ? 164 + 12
-                : MediaQuery.paddingOf(context).bottom + 16,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (state.anchors.length >= 2) ...[
-                  _buildFitRouteButton(state),
-                  const SizedBox(height: 12),
-                ],
-                CenterOnLocationButton(
-                  onPressed: (center) => _mapController?.animateCamera(
-                    center: center,
-                    zoom: 14,
-                    nativeDuration: const Duration(milliseconds: 750),
-                  ),
-                ),
-              ],
+    final hasUnsavedRoute = _hasUnsavedRoute(state);
+
+    // Finishing leaves via `context.pop(result)` / `pushReplacement`, neither
+    // of which consults this scope, so only the back gesture and the back
+    // button below ever reach the dialog.
+    return PopScope(
+      canPop: !hasUnsavedRoute,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) confirmDiscardTrail(context);
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const BackButtonIcon(),
+            onPressed: () => hasUnsavedRoute
+                ? confirmDiscardTrail(context)
+                : (context.canPop()
+                      ? context.pop()
+                      : context.pushReplacement('/map')),
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.surface,
             ),
           ),
-          // The tabbed sheet mounts only once the route has >=1 anchor, and
-          // unmounts entirely when it returns to empty — no empty state.
-          if (state.anchors.isNotEmpty) RouteAnchorSheet(),
-        ],
+          titleSpacing: 8,
+          title: _buildSearchBar(context),
+          actions: [_buildFinishAction(state, l10n)],
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+        ),
+        body: Stack(
+          children: [
+            Positioned.fill(child: _buildMap(context, state, styleJson)),
+            // Rides above RouteAnchorSheet's 164px docked peek, like the map
+            // screen's button above its result sheet; the sheet covers it when
+            // dragged open.
+            Positioned(
+              bottom: state.anchors.isNotEmpty
+                  ? 164 + 12
+                  : MediaQuery.paddingOf(context).bottom + 16,
+              right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (state.anchors.length >= 2) ...[
+                    _buildFitRouteButton(state),
+                    const SizedBox(height: 12),
+                  ],
+                  CenterOnLocationButton(
+                    onPressed: (center) => _mapController?.animateCamera(
+                      center: center,
+                      zoom: 14,
+                      nativeDuration: const Duration(milliseconds: 750),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // The tabbed sheet mounts only once the route has >=1 anchor, and
+            // unmounts entirely when it returns to empty — no empty state.
+            if (state.anchors.isNotEmpty) RouteAnchorSheet(),
+          ],
+        ),
       ),
     );
   }
