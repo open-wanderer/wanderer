@@ -53,7 +53,13 @@ class AppTheme {
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: ElevatedButton.styleFrom(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isDark
+              ? AppColors.contentDark
+              : AppColors.contentLight,
+          side: BorderSide(
+            color: isDark ? AppColors.contentDark : AppColors.primaryLight,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
       ),
