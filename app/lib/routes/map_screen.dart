@@ -883,52 +883,49 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
                                   return Column(
                                     children: [
-                                      if (opacity > 0.0)
-                                        Opacity(
-                                          opacity: opacity,
-                                          child: Column(
-                                            children: [
-                                              Center(
-                                                child: Container(
-                                                  width: 30,
-                                                  height: 5,
-                                                  margin: const EdgeInsets.only(
-                                                    top: 4,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .outline,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          10,
-                                                        ),
-                                                  ),
+                                      Opacity(
+                                        opacity: opacity,
+                                        child: Column(
+                                          children: [
+                                            Center(
+                                              child: Container(
+                                                width: 30,
+                                                height: 5,
+                                                margin: const EdgeInsets.only(
+                                                  top: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .outline,
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
                                                 ),
                                               ),
+                                            ),
 
-                                              Padding(
-                                                padding: const EdgeInsets.all(
-                                                  8.0,
-                                                ),
-                                                child: Center(
-                                                  child: Opacity(
-                                                    opacity: trails.isNotEmpty
-                                                        ? 1
-                                                        : (1 - size / sheetMediumsize)
-                                                              .clamp(0, 1),
-                                                    child: Text(
-                                                      "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .labelLarge,
-                                                    ),
+                                            Padding(
+                                              padding: const EdgeInsets.all(
+                                                8.0,
+                                              ),
+                                              child: Center(
+                                                child: Opacity(
+                                                  opacity: trails.isNotEmpty
+                                                      ? 1
+                                                      : (1 - size / sheetMediumsize)
+                                                            .clamp(0, 1),
+                                                  child: Text(
+                                                    "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .labelLarge,
                                                   ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
+                                      ),
                                       SizedBox(
                                         height: dynamicSheetPadding(
                                           size,

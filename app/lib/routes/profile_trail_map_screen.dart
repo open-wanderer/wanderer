@@ -1,4 +1,5 @@
 import 'package:wanderer/components/map/map_ui_controls.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -105,6 +106,12 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
   late final ValueNotifier<double> _sheetSize;
+
+  /// True while the sheet is fully expanded and hides the map completely.
+  /// The map is then kept mounted but [Offstage], which takes the `hc`
+  /// platform view out of the frame: no overlay surfaces and no raster/
+  /// platform-thread merge while the sheet's list scrolls.
+  final ValueNotifier<bool> _mapCovered = ValueNotifier<bool>(false);
   late final AnimationController _mapButtonController;
   late final Animation<double> _mapButtonScale;
   late final AnimationController _searchAreaController;
@@ -154,6 +161,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
 
   void _onSheetSizeChanged() {
     _sheetSize.value = _sheetController.size;
+    _mapCovered.value = _sheetController.size >= sheetMaxSize;
     if (_sheetController.size >= sheetMaxSize) {
       if (!_mapButtonController.isAnimating &&
           !_mapButtonController.isCompleted) {
@@ -171,6 +179,7 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _sheetSize.dispose();
+    _mapCovered.dispose();
     _mapButtonController.dispose();
     _searchAreaController.dispose();
     // So keepAlive family instances do not accumulate one pair per visited
@@ -335,9 +344,8 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
           Text(
             AppLocalizations.of(context)!.no_trails_found,
             style: Theme.of(context).textTheme.labelLarge!.copyWith(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              color: Theme.of(context).colorScheme.onSurface
+                  .withValues(alpha: 0.5),
             ),
           ),
         ],
@@ -547,150 +555,147 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
               ),
             )
           else
-            TrailCollectionMap(
-              initCenter: initCenter,
-              initZoom: initZoom,
-              onMapCreated: (controller) => _controller = controller,
-              onStyleLoaded: (style) async {
-                try {
-                  final data =
-                      ref
-                          .read(
-                            mapClusterSearchProvider(
-                              authorId: widget.authorId,
-                              filterId: _filterId,
-                            ),
-                          )
-                          .value ??
-                      const {
-                        'type': 'FeatureCollection',
-                        'features': <Object>[],
-                      };
-                  await addClusterLayers(style, jsonEncode(data));
-                } catch (e) {
-                  debugPrint(
-                    'profile_trail_map_screen: failed to add cluster layers — $e',
-                  );
-                }
+            // Offstage, not removed: the native map and its camera stay alive,
+            // so shrinking the sheet (including the Map button's instant
+            // collapse) shows it again without a remount and style load.
+            ValueListenableBuilder<bool>(
+              valueListenable: _mapCovered,
+              builder: (context, covered, child) =>
+                  Offstage(offstage: covered, child: child),
+              child: TrailCollectionMap(
+                initCenter: initCenter,
+                initZoom: initZoom,
+                onMapCreated: (controller) => _controller = controller,
+                onStyleLoaded: (style) async {
+                  try {
+                    final data =
+                        ref
+                            .read(
+                              mapClusterSearchProvider(
+                                authorId: widget.authorId,
+                                filterId: _filterId,
+                              ),
+                            )
+                            .value ??
+                        const {
+                          'type': 'FeatureCollection',
+                          'features': <Object>[],
+                        };
+                    await addClusterLayers(style, jsonEncode(data));
+                  } catch (e) {
+                    debugPrint(
+                      'profile_trail_map_screen: failed to add cluster layers — $e',
+                    );
+                  }
 
-                _styleLoaded = true;
-                _maybeFitAndSearch();
-              },
-              onMapEvent: (event) {
-                if (event is ml.MapEventStartMoveCamera &&
-                    event.reason == ml.CameraChangeReason.apiGesture) {
-                  _searchAreaController.forward();
-                  return;
-                }
-
-                if (event is ml.MapEventClick) {
-                  final controller = _controller;
-                  if (controller == null) return;
-
-                  final clusterHits = controller.featuresAtPoint(
-                    event.screenPoint,
-                    layerIds: const ['clusters'],
-                  );
-                  if (clusterHits.isNotEmpty) {
-                    final currentZoom = controller.getCamera().zoom;
-                    controller
-                        .animateCamera(
-                          center: event.point,
-                          zoom: currentZoom + 2,
-                          nativeDuration: const Duration(milliseconds: 400),
-                        )
-                        .then((_) {
-                          if (!mounted) return;
-                          final bounds = controller.getVisibleRegion();
-                          final zoom = controller.getCamera().zoom;
-                          ref
-                              .read(
-                                mapClusterSearchProvider(
-                                  authorId: widget.authorId,
-                                  filterId: _filterId,
-                                ).notifier,
-                              )
-                              .searchInBounds(bounds, zoom);
-                          ref
-                              .read(
-                                mapTrailSearchProvider(
-                                  authorId: widget.authorId,
-                                  filterId: _filterId,
-                                ).notifier,
-                              )
-                              .searchInBounds(bounds);
-                        });
+                  _styleLoaded = true;
+                  _maybeFitAndSearch();
+                },
+                onMapEvent: (event) {
+                  if (event is ml.MapEventStartMoveCamera &&
+                      event.reason == ml.CameraChangeReason.apiGesture) {
+                    _searchAreaController.forward();
                     return;
                   }
 
-                  // Background tap — deselect and collapse the sheet.
-                  if (_sheetController.isAttached) {
-                    _sheetController.animateTo(
-                      sheetMediumsize,
-                      curve: Curves.easeOut,
-                      duration: const Duration(milliseconds: 300),
+                  if (event is ml.MapEventClick) {
+                    final controller = _controller;
+                    if (controller == null) return;
+
+                    final clusterHits = controller.featuresAtPoint(
+                      event.screenPoint,
+                      layerIds: const ['clusters'],
                     );
+                    if (clusterHits.isNotEmpty) {
+                      final currentZoom = controller.getCamera().zoom;
+                      controller
+                          .animateCamera(
+                            center: event.point,
+                            zoom: currentZoom + 2,
+                            nativeDuration: const Duration(milliseconds: 400),
+                          )
+                          .then((_) {
+                            if (!mounted) return;
+                            final bounds = controller.getVisibleRegion();
+                            final zoom = controller.getCamera().zoom;
+                            ref
+                                .read(
+                                  mapClusterSearchProvider(
+                                    authorId: widget.authorId,
+                                    filterId: _filterId,
+                                  ).notifier,
+                                )
+                                .searchInBounds(bounds, zoom);
+                            ref
+                                .read(
+                                  mapTrailSearchProvider(
+                                    authorId: widget.authorId,
+                                    filterId: _filterId,
+                                  ).notifier,
+                                )
+                                .searchInBounds(bounds);
+                          });
+                      return;
+                    }
+
+                    // Background tap — deselect and collapse the sheet.
+                    if (_sheetController.isAttached) {
+                      _sheetController.animateTo(
+                        sheetMediumsize,
+                        curve: Curves.easeOut,
+                        duration: const Duration(milliseconds: 300),
+                      );
+                    }
+                    setState(() {
+                      _selectedTrail = null;
+                      _selectedPolyline = null;
+                    });
+                    return;
                   }
-                  setState(() {
-                    _selectedTrail = null;
-                    _selectedPolyline = null;
-                  });
-                  return;
-                }
 
-                // Deliberately no MapEventCameraIdle branch here —
-                // this screen never reads or writes `mapCameraProvider`.
-              },
-              layers: _selectedPolyline != null
-                  ? trailPolylineLayers([
-                      ml.Feature<ml.LineString>(
-                        geometry: ml.LineString.from(_selectedPolyline!),
-                      ),
-                    ])
-                  : null,
-              children: [
-                if (unclusteredMarkers.isNotEmpty)
-                  ml.WidgetLayer(
-                    allowInteraction: true,
-                    markers: unclusteredMarkers,
+                  // Deliberately no MapEventCameraIdle branch here —
+                  // this screen never reads or writes `mapCameraProvider`.
+                },
+                layers: _selectedPolyline != null
+                    ? trailPolylineLayers([
+                        ml.Feature<ml.LineString>(
+                          geometry: ml.LineString.from(_selectedPolyline!),
+                        ),
+                      ])
+                    : null,
+                children: [
+                  if (unclusteredMarkers.isNotEmpty)
+                    ml.WidgetLayer(
+                      allowInteraction: true,
+                      markers: unclusteredMarkers,
+                    ),
+                  const LocationMarkerLayer(),
+                  Positioned(
+                    top: topOverlayClearance + 16,
+                    right: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: const [
+                        WandererMapCompass(hideIfRotatedNorth: true),
+                      ],
+                    ),
                   ),
-                const LocationMarkerLayer(),
-                Positioned(
-                  top: topOverlayClearance + 16,
-                  right: 8,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: const [
-                      WandererMapCompass(hideIfRotatedNorth: true),
-                    ],
+                  WandererMapScalebar(
+                    alignment: Alignment.topLeft,
+                    padding: EdgeInsets.only(
+                      left: 24,
+                      top: kToolbarHeight + 24,
+                    ),
                   ),
-                ),
-                WandererMapScalebar(
-                  alignment: Alignment.topLeft,
-                  padding: EdgeInsets.only(left: 24, top: kToolbarHeight + 24),
-                ),
-                WandererAttribution(
-                  alignment: Alignment.bottomLeft,
-                  padding: EdgeInsets.only(
-                    left: 10,
-                    bottom: MediaQuery.paddingOf(context).bottom + 72,
+                  WandererAttribution(
+                    alignment: Alignment.bottomLeft,
+                    padding: EdgeInsets.only(
+                      left: 10,
+                      bottom: MediaQuery.paddingOf(context).bottom + 72,
+                    ),
                   ),
-                ),
-              ],
-            ),
-
-          // Filter bar, docked directly beneath the transparent AppBar.
-          if (isOnline)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + kToolbarHeight,
-              left: 0,
-              right: 0,
-              // The offline chip works here because the clause is an
-              // `id IN [...]` whitelist evaluated server-side, so clusters are
-              // aggregated over the already-filtered set. A client-side
-              // intersection could not have done this -- a cluster is a count,
-              // not a trail -- and would have made filtering depend on zoom.
-              child: TrailQuickFilterBar(filterId: _filterId),
+                ],
+              ),
             ),
 
           if (_selectedTrail == null && isOnline)
@@ -865,52 +870,50 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
 
                                     return Column(
                                       children: [
-                                        if (opacity > 0.0)
-                                          Opacity(
-                                            opacity: opacity,
-                                            child: Column(
-                                              children: [
-                                                Center(
-                                                  child: Container(
-                                                    width: 30,
-                                                    height: 5,
-                                                    margin:
-                                                        const EdgeInsets.only(
-                                                          top: 4,
+                                        Opacity(
+                                          opacity: opacity,
+                                          child: Column(
+                                            children: [
+                                              Center(
+                                                child: Container(
+                                                  width: 30,
+                                                  height: 5,
+                                                  margin: const EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outline,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
                                                         ),
-                                                    decoration: BoxDecoration(
-                                                      color: Theme.of(
-                                                        context,
-                                                      ).colorScheme.outline,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            10,
-                                                          ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.all(
+                                                  8.0,
+                                                ),
+                                                child: Center(
+                                                  child: Opacity(
+                                                    opacity: trails.isNotEmpty
+                                                        ? 1
+                                                        : (1 - size / sheetMediumsize)
+                                                              .clamp(0, 1),
+                                                    child: Text(
+                                                      "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelLarge,
                                                     ),
                                                   ),
                                                 ),
-                                                Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    8.0,
-                                                  ),
-                                                  child: Center(
-                                                    child: Opacity(
-                                                      opacity: trails.isNotEmpty
-                                                          ? 1
-                                                          : (1 - size / sheetMediumsize)
-                                                                .clamp(0, 1),
-                                                      child: Text(
-                                                        "${trails.length}${trails.length == 100 ? '+' : ''} ${AppLocalizations.of(context)!.trail(trails.length)}",
-                                                        style: Theme.of(
-                                                          context,
-                                                        ).textTheme.labelLarge,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                              ),
+                                            ],
                                           ),
+                                        ),
                                         SizedBox(
                                           height: dynamicSheetPadding(
                                             size,
@@ -929,6 +932,22 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                   );
                 },
               ),
+            ),
+
+          // Filter bar, docked directly beneath the transparent AppBar. After the
+          // sheet, so a fully expanded sheet scrolls underneath it instead of
+          // covering it.
+          if (isOnline)
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + kToolbarHeight,
+              left: 0,
+              right: 0,
+              // The offline chip works here because the clause is an
+              // `id IN [...]` whitelist evaluated server-side, so clusters are
+              // aggregated over the already-filtered set. A client-side
+              // intersection could not have done this -- a cluster is a count,
+              // not a trail -- and would have made filtering depend on zoom.
+              child: TrailQuickFilterBar(filterId: _filterId),
             ),
 
           if (isOnline)

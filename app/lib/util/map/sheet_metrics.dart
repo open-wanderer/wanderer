@@ -29,7 +29,10 @@ double dynamicSheetPadding(
   required double sheetMaxSize,
 }) {
   const double minPadding = 0.0;
-  const double maxTopPadding = 156.0;
+  // 156 minus the drag handle + trail count header (4 + 5 + 2 * 8 + 20),
+  // which now stays in the layout (transparent) at full size instead of
+  // dropping out and making the list jump.
+  const double maxTopPadding = 111.0;
   const double maxBottomPadding = 64.0;
 
   final double startThreshold = sheetMediumsize;
