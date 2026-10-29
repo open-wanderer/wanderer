@@ -17,7 +17,8 @@ import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/center_on_location_button.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
-import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
+import 'package:wanderer/components/map/trail_layer.dart'
+    show trailPolylineLayers;
 import 'package:wanderer/components/map/trail_markers.dart';
 import 'package:wanderer/components/route_planner/travel_profile_sheet.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
@@ -97,6 +98,18 @@ class _MapScreenState extends ConsumerState<MapScreen>
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
   late final ValueNotifier<double> _sheetSize;
+
+  /// True while the sheet is fully expanded and hides the map completely.
+  /// The map is then kept mounted but [Offstage], so the hidden map texture
+  /// is not composited under every scrolled frame of the sheet.
+  final ValueNotifier<bool> _mapCovered = ValueNotifier<bool>(false);
+
+  /// Native trail-marker data from the latest [build], and the parts of it
+  /// already on the current style — see [_syncTrailMarkers].
+  ({String geojson, Map<String, Widget> images})? _markerData;
+  String? _pushedMarkerJson;
+  final Set<String> _markerImageIds = {};
+  bool _markerLayerReady = false;
   late final AnimationController _mapButtonController;
   late final Animation<double> _mapButtonScale;
   late final AnimationController _searchAreaController;
@@ -221,6 +234,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
   void _onSheetSizeChanged() {
     _sheetSize.value = _sheetController.size;
+    _mapCovered.value = _sheetController.size >= sheetMaxSize;
     if (_sheetController.size >= sheetMaxSize) {
       if (!_mapButtonController.isAnimating &&
           !_mapButtonController.isCompleted) {
@@ -230,6 +244,32 @@ class _MapScreenState extends ConsumerState<MapScreen>
       if (_mapButtonController.value > 0) {
         _mapButtonController.reverse();
       }
+    }
+  }
+
+  /// Pushes [_markerData] to the native trail-marker layer: rasterizes any
+  /// pin images the style doesn't have yet, then swaps the source data.
+  /// No-op until [addTrailMarkerLayer] has run on the current style.
+  Future<void> _syncTrailMarkers() async {
+    final style = _controller?.style;
+    final data = _markerData;
+    if (!_markerLayerReady || style == null || data == null) return;
+    if (data.geojson == _pushedMarkerJson) return;
+    _pushedMarkerJson = data.geojson;
+
+    final missing = {
+      for (final e in data.images.entries)
+        if (!_markerImageIds.contains(e.key)) e.key: e.value,
+    };
+    _markerImageIds.addAll(missing.keys);
+    try {
+      await addTrailMarkerImages(style, missing);
+      // A newer build superseded this one while the images rendered; its
+      // own sync pushes the newer data.
+      if (_pushedMarkerJson != data.geojson) return;
+      await updateTrailMarkerSource(style, data.geojson);
+    } catch (e) {
+      debugPrint('map_screen: failed to update trail markers — $e');
     }
   }
 
@@ -250,6 +290,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     _sheetSize.dispose();
+    _mapCovered.dispose();
     _mapButtonController.dispose();
     _searchAreaController.dispose();
     super.dispose();
@@ -468,8 +509,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final allSubcategories = ref.watch(subcategoryProvider);
 
     // mapClusterSearchProvider drives the native cluster circle/count layers
-    // (cluster_layer.dart) AND the unclustered category-icon WidgetLayer
-    // markers below.
+    // (cluster_layer.dart) AND the native unclustered category-icon markers
+    // (trail_markers.dart).
     final clusterAsync = ref.watch(
       mapClusterSearchProvider(authorId: null, filterId: 'map'),
     );
@@ -477,14 +518,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
     final features =
         (featureCollection?['features'] as List<dynamic>?) ?? const [];
 
-    final unclusteredMarkers = buildUnclusteredTrailMarkers(
+    final markerData = buildUnclusteredTrailMarkerData(
       features: features,
       trails: trails,
       categories: allCategories,
       subcategories: allSubcategories,
-      context: context,
-      onTrailTap: _selectTrail,
+      color: Theme.of(context).primaryColor,
     );
+    _markerData = markerData;
+    // Post-frame: rasterizing the pin images builds its own widget tree,
+    // which must not happen in the middle of this build.
+    if (markerData.geojson != _pushedMarkerJson) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncTrailMarkers());
+    }
 
     return Stack(
       children: [
@@ -499,197 +545,226 @@ class _MapScreenState extends ConsumerState<MapScreen>
             ),
           )
         else
-          TrailCollectionMap(
-            initCenter:
-                widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
-            initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
-            onMapCreated: (controller) => _controller = controller,
-            onStyleLoaded: (style) async {
-              // Fail soft on a malformed/oversized cluster response — never
-              // crash the map.
-              try {
-                final data =
+          // Offstage, not removed: the native map, its camera and its last
+          // rendered frame stay alive, so shrinking the sheet (including the
+          // Map button's instant collapse) shows the map on the very first
+          // frame instead of waiting for a remount and style load. This only
+          // skips compositing because the map is a texture layer (`embedded`).
+          ValueListenableBuilder<bool>(
+            valueListenable: _mapCovered,
+            builder: (context, covered, child) =>
+                Offstage(offstage: covered, child: child),
+            child: TrailCollectionMap(
+              embedded: true,
+              initCenter:
+                  widget.initialCenter ?? savedCamera?.center ?? fallbackCenter,
+              initZoom: widget.initialZoom ?? savedCamera?.zoom ?? fallbackZoom,
+              onMapCreated: (controller) => _controller = controller,
+              onStyleLoaded: (style) async {
+                // Fail soft on a malformed/oversized cluster response — never
+                // crash the map.
+                try {
+                  final data =
+                      ref
+                          .read(
+                            mapClusterSearchProvider(
+                              authorId: null,
+                              filterId: 'map',
+                            ),
+                          )
+                          .value ??
+                      const {
+                        'type': 'FeatureCollection',
+                        'features': <Object>[],
+                      };
+                  await addClusterLayers(style, jsonEncode(data));
+                } catch (e) {
+                  debugPrint('map_screen: failed to add cluster layers — $e');
+                }
+
+                // After the clusters, so the pins draw over the circles. A
+                // style swap drops the layer and its images, so both are
+                // re-sent from scratch.
+                _markerLayerReady = false;
+                _markerImageIds.clear();
+                _pushedMarkerJson = null;
+                try {
+                  await addTrailMarkerLayer(style);
+                  _markerLayerReady = true;
+                  await _syncTrailMarkers();
+                } catch (e) {
+                  debugPrint('map_screen: failed to add trail markers — $e');
+                }
+
+                // Initial-load search trigger — fires once per widget lifetime,
+                // not on every theme-swap style reload.
+                if (!_initialSearchDone) {
+                  _initialSearchDone = true;
+                  final controller = _controller;
+                  if (controller != null) {
+                    final bounds = controller.getVisibleRegion();
+                    final zoom = controller.getCamera().zoom;
                     ref
                         .read(
                           mapClusterSearchProvider(
                             authorId: null,
                             filterId: 'map',
-                          ),
+                          ).notifier,
                         )
-                        .value ??
-                    const {'type': 'FeatureCollection', 'features': <Object>[]};
-                await addClusterLayers(style, jsonEncode(data));
-              } catch (e) {
-                debugPrint('map_screen: failed to add cluster layers — $e');
-              }
-
-              // Initial-load search trigger — fires once per widget lifetime,
-              // not on every theme-swap style reload.
-              if (!_initialSearchDone) {
-                _initialSearchDone = true;
-                final controller = _controller;
-                if (controller != null) {
-                  final bounds = controller.getVisibleRegion();
-                  final zoom = controller.getCamera().zoom;
-                  ref
-                      .read(
-                        mapClusterSearchProvider(
-                          authorId: null,
-                          filterId: 'map',
-                        ).notifier,
-                      )
-                      .searchInBounds(bounds, zoom);
-                  ref
-                      .read(
-                        mapTrailSearchProvider(
-                          authorId: null,
-                          filterId: 'map',
-                        ).notifier,
-                      )
-                      .searchInBounds(bounds);
-                }
-              }
-            },
-            onMapEvent: (event) {
-              if (event is ml.MapEventStartMoveCamera &&
-                  event.reason == ml.CameraChangeReason.apiGesture) {
-                _searchAreaController.forward();
-                return;
-              }
-
-              if (event is ml.MapEventClick) {
-                final controller = _controller;
-                if (controller == null) return;
-
-                // Only the native `clusters` circle layer needs
-                // featuresAtPoint — unclustered points are WidgetLayer markers
-                // that handle their own onTap directly.
-                final clusterHits = controller.featuresAtPoint(
-                  event.screenPoint,
-                  layerIds: const ['clusters'],
-                );
-                if (clusterHits.isNotEmpty) {
-                  final currentZoom = controller.getCamera().zoom;
-                  controller
-                      .animateCamera(
-                        center: event.point,
-                        zoom: currentZoom + 2,
-                        nativeDuration: const Duration(milliseconds: 400),
-                      )
-                      .then((_) {
-                        if (!mounted) return;
-                        final bounds = controller.getVisibleRegion();
-                        final zoom = controller.getCamera().zoom;
-                        ref
-                            .read(
-                              mapClusterSearchProvider(
-                                authorId: null,
-                                filterId: 'map',
-                              ).notifier,
-                            )
-                            .searchInBounds(bounds, zoom);
-                        ref
-                            .read(
-                              mapTrailSearchProvider(
-                                authorId: null,
-                                filterId: 'map',
-                              ).notifier,
-                            )
-                            .searchInBounds(bounds);
-                      });
-                  return;
-                }
-
-                // Background tap (not on a cluster or a marker widget). With
-                // a trail selected it only deselects, so dismissing the trail
-                // panel doesn't immediately open the location panel in its
-                // place; otherwise it drops (or moves) the location marker.
-                if (_selectedTrail != null) {
-                  if (_sheetController.isAttached) {
-                    _sheetController.animateTo(
-                      sheetMediumsize,
-                      curve: Curves.easeOut,
-                      duration: const Duration(milliseconds: 300),
-                    );
+                        .searchInBounds(bounds, zoom);
+                    ref
+                        .read(
+                          mapTrailSearchProvider(
+                            authorId: null,
+                            filterId: 'map',
+                          ).notifier,
+                        )
+                        .searchInBounds(bounds);
                   }
-                  setState(() {
-                    _selectedTrail = null;
-                    _selectedPolyline = null;
-                  });
+                }
+              },
+              onMapEvent: (event) {
+                if (event is ml.MapEventStartMoveCamera &&
+                    event.reason == ml.CameraChangeReason.apiGesture) {
+                  _searchAreaController.forward();
                   return;
                 }
-                setState(() => _selectedLocation = event.point);
-                return;
-              }
 
-              if (event is ml.MapEventCameraIdle) {
-                final camera = _controller?.getCamera();
-                if (camera != null) {
-                  ref
-                      .read(mapCameraProvider.notifier)
-                      .save(camera.center, camera.zoom);
+                if (event is ml.MapEventClick) {
+                  final controller = _controller;
+                  if (controller == null) return;
+
+                  final markerHit = controller
+                      .featuresAtPoint(
+                        event.screenPoint,
+                        layerIds: const [kTrailMarkerLayerId],
+                      )
+                      .firstOrNull
+                      ?.properties['id'];
+                  if (markerHit is String) {
+                    _selectTrail(markerHit);
+                    return;
+                  }
+
+                  final clusterHits = controller.featuresAtPoint(
+                    event.screenPoint,
+                    layerIds: const ['clusters'],
+                  );
+                  if (clusterHits.isNotEmpty) {
+                    final currentZoom = controller.getCamera().zoom;
+                    controller
+                        .animateCamera(
+                          center: event.point,
+                          zoom: currentZoom + 2,
+                          nativeDuration: const Duration(milliseconds: 400),
+                        )
+                        .then((_) {
+                          if (!mounted) return;
+                          final bounds = controller.getVisibleRegion();
+                          final zoom = controller.getCamera().zoom;
+                          ref
+                              .read(
+                                mapClusterSearchProvider(
+                                  authorId: null,
+                                  filterId: 'map',
+                                ).notifier,
+                              )
+                              .searchInBounds(bounds, zoom);
+                          ref
+                              .read(
+                                mapTrailSearchProvider(
+                                  authorId: null,
+                                  filterId: 'map',
+                                ).notifier,
+                              )
+                              .searchInBounds(bounds);
+                        });
+                    return;
+                  }
+
+                  // Background tap (not on a cluster or a trail marker). With
+                  // a trail selected it only deselects, so dismissing the trail
+                  // panel doesn't immediately open the location panel in its
+                  // place; otherwise it drops (or moves) the location marker.
+                  if (_selectedTrail != null) {
+                    if (_sheetController.isAttached) {
+                      _sheetController.animateTo(
+                        sheetMediumsize,
+                        curve: Curves.easeOut,
+                        duration: const Duration(milliseconds: 300),
+                      );
+                    }
+                    setState(() {
+                      _selectedTrail = null;
+                      _selectedPolyline = null;
+                    });
+                    return;
+                  }
+                  setState(() => _selectedLocation = event.point);
+                  return;
                 }
-              }
-            },
-            layers: _selectedPolyline != null
-                ? [
-                    ml.PolylineLayer(
-                      polylines: [
-                        ml.Feature<ml.LineString>(
-                          geometry: ml.LineString.from(_selectedPolyline!),
-                        ),
-                      ],
-                      color: kTrailRouteColor,
-                      width: 5,
-                    ),
-                  ]
-                : null,
-            children: [
-              if (unclusteredMarkers.isNotEmpty)
-                ml.WidgetLayer(
-                  allowInteraction: true,
-                  markers: unclusteredMarkers,
-                ),
-              if (_selectedLocation != null)
-                ml.WidgetLayer(
-                  markers: [
-                    ml.Marker(
-                      point: _selectedLocation!,
-                      size: const Size(32, 40),
-                      // Pin tip, not its center, sits on the tapped point.
-                      alignment: Alignment.bottomCenter,
-                      child: FaIcon(
-                        FontAwesomeIcons.locationDot,
-                        size: 36,
-                        color: Theme.of(context).primaryColor,
+
+                if (event is ml.MapEventCameraIdle) {
+                  final camera = _controller?.getCamera();
+                  if (camera != null) {
+                    ref
+                        .read(mapCameraProvider.notifier)
+                        .save(camera.center, camera.zoom);
+                  }
+                }
+              },
+              layers: _selectedPolyline != null
+                  ? trailPolylineLayers([
+                      ml.Feature<ml.LineString>(
+                        geometry: ml.LineString.from(_selectedPolyline!),
                       ),
-                    ),
-                  ],
+                    ])
+                  : null,
+              children: [
+                if (_selectedLocation != null)
+                  ml.WidgetLayer(
+                    markers: [
+                      ml.Marker(
+                        point: _selectedLocation!,
+                        size: const Size(32, 40),
+                        // Pin tip, not its center, sits on the tapped point.
+                        alignment: Alignment.bottomCenter,
+                        child: FaIcon(
+                          FontAwesomeIcons.locationDot,
+                          size: 36,
+                          color:
+                              Theme.of(context).brightness == Brightness.light
+                              ? Theme.of(context).primaryColor
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                const LocationMarkerLayer(),
+                // Clears the search bar below the status bar.
+                Positioned(
+                  top: MediaQuery.paddingOf(context).top + 76,
+                  right: 8,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: const [
+                      WandererMapCompass(hideIfRotatedNorth: true),
+                    ],
+                  ),
                 ),
-              const LocationMarkerLayer(),
-              // Clears the search bar below the status bar.
-              Positioned(
-                top: MediaQuery.paddingOf(context).top + 76,
-                right: 8,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: const [
-                    WandererMapCompass(hideIfRotatedNorth: true),
-                  ],
+                const WandererMapScalebar(
+                  alignment: Alignment.topLeft,
+                  padding: EdgeInsets.only(left: 24, top: 112),
                 ),
-              ),
-              const WandererMapScalebar(
-                alignment: Alignment.topLeft,
-                padding: EdgeInsets.only(left: 24, top: 112),
-              ),
-              WandererAttribution(
-                alignment: Alignment.bottomLeft,
-                padding: EdgeInsets.only(
-                  left: 10,
-                  bottom: kBottomNavigationBarHeight + 45,
+                WandererAttribution(
+                  alignment: Alignment.bottomLeft,
+                  padding: EdgeInsets.only(
+                    left: 10,
+                    bottom: kBottomNavigationBarHeight + 45,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
         // Rides up with the sheet as it drags from min to medium size, then
