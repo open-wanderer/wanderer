@@ -13,7 +13,7 @@ import 'package:wanderer/components/base/trail_collection_map.dart';
 import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/map/trail_layer.dart'
-    show TrailLayer, kTrailRouteColor;
+    show TrailLayer, trailPolylineLayers;
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -469,15 +469,7 @@ class _ListMapState extends ConsumerState<_ListMap> {
           context.push('/list/${widget.list.id}/map');
         }
       },
-      layers: polylines.isNotEmpty
-          ? [
-              ml.PolylineLayer(
-                polylines: polylines,
-                color: kTrailRouteColor,
-                width: 5,
-              ),
-            ]
-          : null,
+      layers: polylines.isNotEmpty ? trailPolylineLayers(polylines) : null,
       children: [
         if (markers.isNotEmpty) ml.WidgetLayer(markers: markers),
         const WandererMapScalebar(alignment: Alignment.topLeft),

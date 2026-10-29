@@ -246,6 +246,20 @@ class TrailLayer {
   }
 }
 
+/// Declarative counterpart of [TrailLayer.add]'s casing + route pair for
+/// screens that draw their lines via [ml.MapLibreMap.layers]. Layers are added
+/// in list order, so the 9px white casing lands under the 5px route and shows
+/// as the same 2px outline as the trail detail map.
+List<ml.Layer> trailPolylineLayers(
+  List<ml.Feature<ml.LineString>> polylines, {
+  Color routeColor = kTrailRouteColor,
+}) {
+  return [
+    ml.PolylineLayer(polylines: polylines, color: Colors.white, width: 9),
+    ml.PolylineLayer(polylines: polylines, color: routeColor, width: 5),
+  ];
+}
+
 /// Serializes a [Color] to a `#rrggbb` Style-Spec color string.
 String _colorToHex(Color color) {
   int channel(double v) => (v * 255).round().clamp(0, 255);

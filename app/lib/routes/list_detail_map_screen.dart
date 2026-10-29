@@ -9,7 +9,7 @@ import 'package:wanderer/components/base/wanderer_attribution.dart';
 import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/map/map_marker_gestures.dart';
 import 'package:wanderer/components/map/trail_layer.dart'
-    show TrailLayer, kTrailRouteColor;
+    show TrailLayer, trailPolylineLayers;
 import 'package:wanderer/components/trail/trail_list_item.dart';
 import 'package:wanderer/models/category.dart';
 import 'package:wanderer/models/trail.dart';
@@ -181,13 +181,7 @@ class _ListDetailMapScreenState extends ConsumerState<ListDetailMapScreen> {
                   if (event is ml.MapEventClick) _deselect();
                 },
                 layers: polylines.isNotEmpty
-                    ? [
-                        ml.PolylineLayer(
-                          polylines: polylines,
-                          color: kTrailRouteColor,
-                          width: 5,
-                        ),
-                      ]
+                    ? trailPolylineLayers(polylines)
                     : null,
                 children: [
                   if (markers.isNotEmpty)

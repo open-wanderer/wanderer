@@ -16,7 +16,8 @@ import 'package:wanderer/components/base/wanderer_error.dart';
 import 'package:wanderer/components/base/wanderer_offline_state.dart';
 import 'package:wanderer/components/map/cluster_layer.dart';
 import 'package:wanderer/components/map/location_marker_layer.dart';
-import 'package:wanderer/components/map/trail_layer.dart' show kTrailRouteColor;
+import 'package:wanderer/components/map/trail_layer.dart'
+    show trailPolylineLayers;
 import 'package:wanderer/components/map/trail_markers.dart';
 import 'package:wanderer/components/trail/trail_card.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -641,17 +642,11 @@ class _ProfileTrailMapViewState extends ConsumerState<_ProfileTrailMapView>
                 // this screen never reads or writes `mapCameraProvider`.
               },
               layers: _selectedPolyline != null
-                  ? [
-                      ml.PolylineLayer(
-                        polylines: [
-                          ml.Feature<ml.LineString>(
-                            geometry: ml.LineString.from(_selectedPolyline!),
-                          ),
-                        ],
-                        color: kTrailRouteColor,
-                        width: 5,
+                  ? trailPolylineLayers([
+                      ml.Feature<ml.LineString>(
+                        geometry: ml.LineString.from(_selectedPolyline!),
                       ),
-                    ]
+                    ])
                   : null,
               children: [
                 if (unclusteredMarkers.isNotEmpty)
