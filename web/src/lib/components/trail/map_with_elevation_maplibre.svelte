@@ -41,6 +41,7 @@
         displayWaypoints?: boolean;
         showElevation?: boolean;
         showInfoPopup?: boolean;
+        showClusterPopups?: boolean;
         showGrid?: boolean;
         showStyleSwitcher?: boolean;
         showFullscreen?: boolean;
@@ -87,6 +88,7 @@
         displayWaypoints = true,
         showElevation = true,
         showInfoPopup = false,
+        showClusterPopups = true,
         showGrid = false,
         showStyleSwitcher = true,
         showFullscreen = false,
@@ -142,6 +144,18 @@
     ];
 
     let clusterPopup: M.Popup | null = null;
+    let clusterHighlight: M.Marker | undefined;
+
+    $effect(() => {
+        const popups = showClusterPopups;
+        untrack(() => {
+            clusterHighlight?.remove();
+            if (!popups) {
+                clusterPopup?.remove();
+                map?.off("mousemove", unHighlightClusterDistanceNotifier);
+            }
+        });
+    });
 
     let mapData = $derived(getData(trails, serverClusters));
     let gpxDataMap = $derived(mapData[0]);
@@ -490,6 +504,10 @@
                         if (!hasTrailDetails(trail)) return;
                         highlightCluster(trail, e.lngLat);
                     },
+                    onLeave: () => {
+                        if (map) map.getCanvas().style.cursor = "";
+                        if (!showClusterPopups) unHighlightCluster();
+                    },
                 },
             }),
         );
@@ -514,6 +532,10 @@
                             );
                             if (!hasTrailDetails(trail)) return;
                             highlightCluster(trail, e.lngLat);
+                        },
+                        onLeave: () => {
+                            if (map) map.getCanvas().style.cursor = "";
+                            if (!showClusterPopups) unHighlightCluster();
                         },
                     },
                 },
@@ -627,8 +649,18 @@
             return;
         }
         clusterPopup?.remove();
+        clusterHighlight?.remove();
+        if (!lnglat && (!Number.isFinite(trail.lon) || !Number.isFinite(trail.lat))) return;
+        const position = lnglat ?? [trail.lon!, trail.lat!] as M.LngLatLike;
+        if (!showClusterPopups) {
+            const element = document.createElement("div");
+            element.className = "trail-hover-marker";
+            element.style.cssText = "width:20px;height:20px;border:3px solid white;border-radius:50%;box-shadow:0 0 0 3px #3549bb;pointer-events:none";
+            clusterHighlight = new M.Marker({ element }).setLngLat(position).addTo(map);
+            return;
+        }
         clusterPopup = createPopupFromTrail(trail);
-        clusterPopup.setLngLat(lnglat ?? [trail.lon!, trail.lat!]).addTo(map);
+        clusterPopup.setLngLat(position).addTo(map);
         clusterPopup.on("close", () => {
             unHighlightCluster(false);
         });
@@ -653,6 +685,7 @@
             return;
         }
         layerManager.removeLayer("cluster-highlight");
+        clusterHighlight?.remove();
         if (closePopup) {
             clusterPopup?.remove();
         }
@@ -1066,6 +1099,7 @@
     }
 
     onDestroy(() => {
+        clusterHighlight?.remove();
         map?.remove();
     });
 

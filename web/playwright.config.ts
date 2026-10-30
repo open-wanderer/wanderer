@@ -35,7 +35,13 @@ export default defineConfig({
     {
       name: 'components',
       testMatch: /components\/.*\.spec\.ts/,
+      testIgnore: /map-(?:window|layout|lifecycle|adapter|gestures|resize|regression)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'map-window', testMatch: /components\/map-(?:window|layout|lifecycle|adapter|gestures|resize|regression)\.spec\.ts/,
+      use: { browserName: 'chromium', channel: 'chromium', viewport: null,
+        launchOptions: { args: ['--window-size=1280,800', '--screen-info={1600x1000}'] } },
     },
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {

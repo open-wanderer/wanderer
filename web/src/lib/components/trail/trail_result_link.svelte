@@ -10,19 +10,20 @@
         selected: boolean;
         onclick: (event: MouseEvent) => void;
         onselect: () => void;
+        onhover?: (hovered: boolean) => void;
         children: Snippet<[boolean]>;
     }
 
     let { trail, href, list = false, selected,
-        onclick, onselect, children }: Props = $props();
+        onclick, onselect, onhover, children }: Props = $props();
     let hovered = $state(false);
     let focused = $state(false);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions (The container tracks focus and hover for its link and sibling checkbox.) -->
 <div class="trail-result relative max-w-full flex-1" class:basis-full={list}
-    onmouseenter={() => { hovered = true; }}
-    onmouseleave={() => { hovered = false; }}
+    onmouseenter={() => { hovered = true; onhover?.(true); }}
+    onmouseleave={() => { hovered = false; onhover?.(false); }}
     onfocusin={() => focused = true}
     onfocusout={event => {
         if (document.hasFocus() && !(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) focused = false;

@@ -38,6 +38,7 @@ export async function buildTrailResultControlsFixture(dev: boolean) {
                         import { onMount } from 'svelte';
                         import TrailList from '#lib/components/trail/trail_list.svelte';
                         import { mergeStore, processMergeQueue } from '#lib/stores/trail_merge_store.svelte.ts';
+                        const viewActionsEnabled = localStorage.getItem('fixtureViewActions') === 'true';
                         const incremental = localStorage.getItem('fixtureIncremental') === 'true';
                         let filter = $state({ q: localStorage.getItem('fixtureQuery') ?? '', sort: localStorage.getItem('fixtureSort') ?? 'name', sortOrder: '+' });
                         let trails = $state([]);
@@ -80,11 +81,13 @@ export async function buildTrailResultControlsFixture(dev: boolean) {
                         onMount(() => { if (incremental) load(1, 48); });
                     </script>
                     <main><TrailList bind:filter bind:trails bind:pagination bind:display {loading} compactControls
+                        resultViewActions={viewActionsEnabled ? viewActions : undefined}
                         managed={incremental} {incremental} moreResults={incremental ? moreResults : undefined}
                         fullWidth={wide} onwidthtoggle={widthChanged} onupdate={update} onresultsupdate={() => record('results-refresh')} onpagination={paginate} ondisplaychange={displayChanged}
                         {searchPosition} {searchExpansion}
                         onsearchposition={searchLayout ? value => searchPosition = value : undefined}
                         onsearchexpansion={searchLayout && searchPosition === 'top' ? value => searchExpansion = value : undefined} /></main>
+                    {#snippet viewActions({ close })}<button data-testid="start-handoff" onclick={() => window.resultCloseView = close}>Start handoff</button>{/snippet}
                     {#snippet moreResults()}{#if pagination.page < pagination.totalPages}<button onclick={() => load(pagination.page + 1, 48)}>Load more</button>{/if}{/snippet}
                     <button type="button" data-testid="outside">Outside</button>
                 `;
@@ -115,7 +118,7 @@ export async function buildTrailResultControlsFixture(dev: boolean) {
 }
 
 export async function mountTrailResultControlsFixture(page: Page, bundle: string, options: {
-    display?: string; items?: number; sort?: string; order?: '+' | '-'; widths?: Record<string, boolean>; incremental?: boolean; query?: string; searchLayout?: boolean;
+    display?: string; items?: number; sort?: string; order?: '+' | '-'; widths?: Record<string, boolean>; incremental?: boolean; query?: string; searchLayout?: boolean; viewActions?: boolean;
 } = {}) {
     const requests: { page: number; items: number; sort: string; order: string }[] = [];
     await page.route('http://trail-results.test/**', async route => {
@@ -134,13 +137,14 @@ export async function mountTrailResultControlsFixture(page: Page, bundle: string
         </style></head><body></body></html>` });
     });
     await page.goto('http://trail-results.test/');
-    await page.evaluate(({ display, items, sort, order, widths, incremental, query, searchLayout }) => {
+    await page.evaluate(({ display, items, sort, order, widths, incremental, query, searchLayout, viewActions }) => {
         localStorage.clear();
         localStorage.setItem('displayOption', display ?? 'cards');
         localStorage.setItem('paginationItems', String(items ?? 12));
         localStorage.setItem('sort', sort ?? 'name');
         localStorage.setItem('sort_order', order ?? '+');
         localStorage.setItem('trailWidthPreferences', JSON.stringify(widths ?? {}));
+        localStorage.setItem('fixtureViewActions', String(viewActions ?? false));
         localStorage.setItem('fixtureSearchLayout', String(searchLayout ?? false));
         localStorage.setItem('fixtureQuery', query ?? '');
         localStorage.setItem('fixtureSort', sort ?? 'name');
