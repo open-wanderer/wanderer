@@ -1,4 +1,5 @@
 import type { NotificationType } from "./notification";
+import type { TrailSearchFilterSections } from "./trail_search_settings";
 
 export enum Language {
   cs = "cs",
@@ -56,6 +57,7 @@ export type Behavior = {
     allowAutoGeolocate: boolean;
     mapClusteringMaxZoom?: number;
     showTrailStartMarker?: boolean;
+    searchFilterSections?: TrailSearchFilterSections;
 }
 
 

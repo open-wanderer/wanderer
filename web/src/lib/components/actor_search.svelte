@@ -11,6 +11,7 @@
         value?: string;
         includeSelf?: boolean;
         clearAfterSelect?: boolean;
+        dismissOnEscape?: boolean;
         onclear?: () => void;
         onclick?: (item: SearchItem) => void;
     }
@@ -21,6 +22,7 @@
         value = $bindable(""),
         includeSelf = true,
         clearAfterSelect = true,
+        dismissOnEscape = false,
         onclear,
         onclick,
     }: Props = $props();
@@ -65,6 +67,7 @@
     placeholder={placeholder ?? `${$_("username")}...`}
     items={searchItems}
     {clearAfterSelect}
+    {dismissOnEscape}
     {label}
     bind:value
 >
