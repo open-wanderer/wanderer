@@ -39,9 +39,11 @@
         layout?: "overlay" | "push" | "sidebar";
         filterPanelTarget?: HTMLDivElement;
         filterSections?: TrailSearchFilterSections;
-        onapply: (filter: TrailFilter) => void;
+        onplaceselect?: (location: LocationSearchResult) => void | Promise<void>;
+        trailSuggestions?: boolean;
+        onapply: (filter: TrailFilter, resetBounds?: boolean) => void;
     }
-    let { categories, subcategories, filter = $bindable(), defaults, onapply, inlineControls = false, layout = "overlay", filterPanelTarget, filterSections }: Props = $props();
+    let { categories, subcategories, filter = $bindable(), defaults, onapply, inlineControls = false, layout = "overlay", filterPanelTarget, filterSections, onplaceselect, trailSuggestions = false }: Props = $props();
     const id = $props.id();
     let sections = $derived(normalizeTrailSearchFilterSections(filterSections));
     let availableEditors = $derived(trailSearchFilters.filter(editor => !("requiresUser" in editor) || Boolean($currentUser)));
@@ -69,6 +71,7 @@
     let updateTimer: ReturnType<typeof setTimeout> | undefined;
     let composing = $state(false);
     let suggestionsDismissed = $state(false);
+    let resetBounds = $state(false);
     let pinned = $derived(layout === "sidebar");
     let resetEnabled = $derived(Boolean((expanded ? draft : filter).q || summary(expanded ? draft : filter).length));
     let categoryItems = $derived(sortedCategoriesByPreference(categories, $categoryPreferences, $locale)
@@ -120,8 +123,9 @@
     $effect(() => {
         if (!expanded || composing) return;
         const current = toDraft(draft);
-        if (untrack(() => deepEqual(current, toDraft(filter)))) return;
-        const timer = setTimeout(() => publishFilter(current), 350);
+        const clearBounds = resetBounds;
+        if (untrack(() => deepEqual(current, toDraft(filter))) && !clearBounds) return;
+        const timer = setTimeout(() => publishFilter(current, clearBounds), 350);
         updateTimer = timer;
         return () => clearTimeout(timer);
     });
@@ -190,6 +194,7 @@
         if (expanded) return;
         draft = toDraft(filter);
         queryCaret = querySelectionEnd = draft.q.length;
+        resetBounds = false;
         activeCategoryId = filter.category[0] ?? null;
         expanded = true;
         updatePanelHeight();
@@ -197,6 +202,7 @@
     export function restoreFilter(next: TrailFilter) {
         clearTimeout(updateTimer);
         draft = toDraft(next);
+        resetBounds = false;
         queryCaret = querySelectionEnd = draft.q.length;
         activeCategoryId = next.category[0] ?? null;
     }
@@ -205,12 +211,13 @@
         searchInput.focus();
         restoringFocus = false;
     }
-    function publishFilter(next = toDraft(draft)) {
+    function publishFilter(next = toDraft(draft), clearBounds = resetBounds) {
         clearTimeout(updateTimer);
         const applied = fromDraft(next, filter);
-        if (deepEqual(applied, filter)) return;
+        if (deepEqual(applied, filter) && !clearBounds) return;
         filter = applied;
-        onapply(fromDraft(next, applied));
+        resetBounds = false;
+        onapply(fromDraft(next, applied), clearBounds);
     }
     function dismiss(restoreFocus = false) {
         if (!expanded) return;
@@ -218,10 +225,17 @@
         if (!pinned) expanded = false;
         if (restoreFocus) focusInput();
     }
-    function selectSuggestedLocation(location: LocationSearchResult, keyboard: boolean) {
+    async function selectSuggestedLocation(location: LocationSearchResult, keyboard: boolean) {
         draft.q = "";
+        if (onplaceselect) {
+            draft.near = { radius: defaults.near.radius };
+            await onplaceselect(location);
+            dismiss(keyboard);
+            return;
+        }
         // On list pages, a suggested place remains an explicit radius filter.
         draft.near = { ...draft.near, lat: location.lat, lon: location.lon, name: location.name };
+        resetBounds = true;
         dismiss(keyboard);
     }
     function containsSearch(node: Node) {
@@ -307,7 +321,7 @@
             draft = toDraft(filter);
             draft.q = "";
             queryCaret = querySelectionEnd = 0;
-            publishFilter(draft);
+            publishFilter(draft, false);
             return;
         }
         if (event.key === "ArrowDown" && event.target === searchInput && suggestionsDismissed) {
@@ -397,6 +411,7 @@
         }
     }
     function resetDraft() {
+        resetBounds = true;
         draft = { ...toDraft(defaults), q: "", category: [], subcategory: [], author: "", near: { radius: defaults.near.radius } };
         activeCategoryId = null;
     }
@@ -584,6 +599,7 @@
         onselect={captureShortcut} onremove={removeShortcut} onfocusinput={focusInput} />
     <TrailSearchSuggestions bind:this={suggestions} id={`${id}-suggestions`} query={draft.q}
         caret={queryCaret} selectionEnd={querySelectionEnd} preserveInputFocus={pinned}
+        showTrails={trailSuggestions} filter={fromDraft(draft, filter)}
         onlocationselect={selectSuggestedLocation} />
     </div>
 {/snippet}

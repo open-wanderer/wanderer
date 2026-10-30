@@ -153,5 +153,85 @@ for (const dev of [true, false]) {
             await page.evaluate(() => (window as any).fixture.display('list'));
             expect(await page.evaluate(() => localStorage.getItem('displayOption'))).toBe('list');
         });
+
+        test('passes the current filter and matching extent to the map through page state', async ({ page }) => {
+            await mountTrailsPageFixture(page, bundle);
+            await initial(page);
+            await page.evaluate(() => (window as any).fixture.apply({ q: 'ridge', category: ['hiking'] }));
+            await resolve(page, 1, result('filtered'));
+            await page.getByRole('button', { name: 'show-on-map', exact: true }).click();
+            expect((await requests(page))[2]).toMatchObject({ channel: 'extent', filter: { q: 'ridge', category: ['hiking'] } });
+            const bounds = { northEast: { lat: 48, lng: 9 }, southWest: { lat: 46, lng: 7 } };
+            await resolve(page, 2, bounds);
+            await expect.poll(() => page.evaluate(() => (window as any).fixture.navigation.length)).toBe(1);
+            const navigation = await page.evaluate(() => (window as any).fixture.navigation[0]);
+            expect(navigation.url).toBe('/map?tl_lat=48&tl_lon=9&br_lat=46&br_lon=7');
+            expect(navigation.state.mapSearchFilter).toMatchObject({ q: 'ridge', category: ['hiking'] });
+        });
+
+        test('disables map transfer for no results and reports extent failure without navigating', async ({ page }) => {
+            await mountTrailsPageFixture(page, bundle);
+            await resolve(page, 0, { ...result('empty', 1, 0), totalPages: 0 });
+            await expect(page.locator('.result-content')).toHaveAttribute('aria-busy', 'false');
+            await expect(page.getByRole('button', { name: 'show-on-map', exact: true })).toBeDisabled();
+            await page.evaluate(() => (window as any).fixture.apply({ q: 'valid' }));
+            await resolve(page, 1, result('valid'));
+            await page.getByRole('button', { name: 'show-on-map', exact: true }).click();
+            await page.evaluate(() => (window as any).fixture.requests[2].reject(new Error('Unavailable')));
+            await expect(page.getByRole('alert')).toContainText('trail-map-open-error');
+            expect(await page.evaluate(() => (window as any).fixture.navigation)).toEqual([]);
+        });
+
+        test('opens an unlocated result without bounds and preserves the author-link visibility choice', async ({ page }) => {
+            await mountTrailsPageFixture(page, bundle, { query: 'author=linked-author' });
+            await initial(page);
+            await page.getByRole('button', { name: 'show-on-map', exact: true }).click();
+            await resolve(page, 1, null);
+            await expect.poll(() => page.evaluate(() => (window as any).fixture.navigation.length)).toBe(1);
+            expect(await page.evaluate(() => {
+                const destination = (window as any).fixture.navigation[0];
+                return { url: destination.url, sharedUndefined: destination.state.mapSearchFilter.shared === undefined, hasShared: 'shared' in destination.state.mapSearchFilter };
+            })).toEqual({ url: '/map', sharedUndefined: true, hasShared: true });
+        });
+
+        test('keeps an extent handoff running while more results are loaded and offers an explicit retry', async ({ page }) => {
+            await mountTrailsPageFixture(page, bundle);
+            await initial(page);
+            await page.getByRole('button', { name: 'show-on-map', exact: true }).click();
+            await page.getByRole('button', { name: 'trail-results-load-more', exact: true }).click();
+            expect((await requests(page))[1].aborted).toBe(false);
+            await page.evaluate(() => (window as any).fixture.requests[1].reject(new Error('Unavailable')));
+            await expect(page.getByRole('alert')).toContainText('trail-map-open-error');
+            const retry = page.getByRole('button', { name: 'trail-search-retry', exact: true });
+            await retry.focus();
+            await retry.press('Enter');
+            await expect(retry).toBeFocused();
+            await expect(retry).toHaveAttribute('aria-disabled', 'true');
+            await expect(retry).toHaveAttribute('aria-busy', 'true');
+            await expect(retry.locator('.fa-spinner')).toHaveCount(1);
+            expect((await requests(page)).at(-1).channel).toBe('extent');
+            const announcement = await page.getByRole('alert').elementHandle();
+            await page.evaluate(() => (window as any).fixture.requests.at(-1).reject(new Error('Still unavailable')));
+            await expect.poll(() => announcement!.evaluate(element => element.isConnected)).toBe(false);
+            await expect(page.getByRole('alert')).toContainText('trail-map-open-error');
+            await expect(retry).toBeFocused();
+            await expect(retry).toHaveAttribute('aria-disabled', 'false');
+        });
+
+        test('ignores an old extent reply after a new filter or unmount', async ({ page }) => {
+            await mountTrailsPageFixture(page, bundle);
+            await initial(page);
+            await page.getByRole('button', { name: 'show-on-map', exact: true }).click();
+            await page.evaluate(() => (window as any).fixture.apply({ q: 'new' }));
+            expect((await requests(page))[1].aborted).toBe(true);
+            await resolve(page, 1, { northEast: { lat: 48, lng: 9 }, southWest: { lat: 46, lng: 7 } });
+            expect(await page.evaluate(() => (window as any).fixture.navigation)).toEqual([]);
+            await resolve(page, 2, result('new'));
+            await page.getByRole('button', { name: 'show-on-map', exact: true }).click();
+            await page.evaluate(() => (window as any).fixture.destroy());
+            expect((await requests(page))[3].aborted).toBe(true);
+            await resolve(page, 3, { northEast: { lat: 48, lng: 9 }, southWest: { lat: 46, lng: 7 } });
+            expect(await page.evaluate(() => (window as any).fixture.navigation)).toEqual([]);
+        });
     });
 }

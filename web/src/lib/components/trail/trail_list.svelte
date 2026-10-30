@@ -40,6 +40,8 @@
         managed?: boolean;
         incremental?: boolean;
         searchBar?: Snippet;
+        resultActions?: Snippet;
+        resultViewActions?: Snippet<[{ close: () => void }]>;
         moreResults?: Snippet;
         filterPanelTarget?: HTMLDivElement;
         searchPosition?: SearchPosition;
@@ -72,6 +74,8 @@
         managed = false,
         incremental = false,
         searchBar,
+        resultActions,
+        resultViewActions,
         moreResults,
         filterPanelTarget = $bindable(),
         searchPosition = "top",
@@ -365,6 +369,7 @@
             <div class:search-field={Boolean(searchBar)}>
                 {#if searchBar}{@render searchBar()}{/if}
                 <TrailResultControls
+                    actions={resultActions} viewActions={resultViewActions}
                     buttonsOnly={inlineControls}
                     sort={effectiveSort}
                     order={filter?.sortOrder}

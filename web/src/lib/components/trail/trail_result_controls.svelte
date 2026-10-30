@@ -19,13 +19,15 @@
         onwidthtoggle?: () => void;
         selectionActions?: Snippet;
         buttonsOnly?: boolean;
+        actions?: Snippet;
+        viewActions?: Snippet<[{ close: () => void }]>;
         searchPosition?: SearchPosition;
         searchExpansion?: SearchExpansion;
         onsearchposition?: (position: SearchPosition) => void;
         onsearchexpansion?: (expansion: SearchExpansion) => void;
     }
     let { sort, order = "+", sortOptions, display = "cards", displayOptions = [],
-        pageSize = 25, pageSizes = [], wide = false, onsort, ondisplay, onpagesize, onwidthtoggle, selectionActions, buttonsOnly = false, searchPosition = "top", searchExpansion = "overlay", onsearchposition, onsearchexpansion }: Props = $props();
+        pageSize = 25, pageSizes = [], wide = false, onsort, ondisplay, onpagesize, onwidthtoggle, selectionActions, buttonsOnly = false, actions, viewActions, searchPosition = "top", searchExpansion = "overlay", onsearchposition, onsearchexpansion }: Props = $props();
     const id = $props.id();
     let root: HTMLDivElement;
     let sortButton = $state<HTMLButtonElement>();
@@ -33,6 +35,34 @@
     let open = $state<"sort" | "view" | null>(null);
     let above = $state(false);
     let maxHeight = $state(500);
+
+    function measureInlineControls(node: HTMLDivElement, enabled: boolean) {
+        let parent: HTMLElement | undefined;
+        let previous = "";
+        const restore = () => parent?.style.setProperty("--trail-controls-width", previous);
+        const measure = () => {
+            if (!enabled || !node.offsetWidth) return;
+            if (!parent) {
+                parent = node.parentElement?.parentElement ?? undefined;
+                if (!parent) return;
+                previous = parent.style.getPropertyValue("--trail-controls-width");
+            }
+            parent.style.setProperty("--trail-controls-width", `${Math.ceil(node.getBoundingClientRect().width)}px`);
+        };
+        const observer = new ResizeObserver(measure);
+        observer.observe(node);
+        return {
+            update(value: boolean) {
+                if (enabled && !value) restore();
+                enabled = value;
+                measure();
+            },
+            destroy() {
+                observer.disconnect();
+                restore();
+            },
+        };
+    }
 
     const displayIcons: Record<string, string> = { cards: "fa-grip", list: "fa-list-ul", table: "fa-table" };
     const directionKeys: Record<string, [string, string]> = {
@@ -102,7 +132,8 @@
     <div class="result-summary">
         {#if selectionActions}{@render selectionActions()}{/if}
     </div>
-    <div class="result-buttons">
+    <div class="result-buttons" use:measureInlineControls={buttonsOnly}>
+        {#if actions}{@render actions()}{/if}
         {#if onsort && sort}
         <div class="menu-anchor">
             <button type="button" class="btn-icon control-button" bind:this={sortButton} aria-label={`${$_("sort")}: ${sortLabel()}`} title={`${$_("sort")}: ${sortLabel()}`} aria-expanded={open === "sort"} aria-controls={`${id}-sort`} onclick={() => toggle("sort")}>
@@ -171,6 +202,7 @@
                 {#if onwidthtoggle}
                     <div class="width-section"><button type="button" class="width-option" role="switch" aria-checked={wide} onclick={onwidthtoggle}><i class="fa fa-expand" aria-hidden="true"></i><span>{$_("trail-results-wide")}</span><span class="switch" class:active={wide} aria-hidden="true"></span></button></div>
                 {/if}
+                {#if viewActions}<div class="view-actions">{@render viewActions({ close: () => { if (open === "view") close(true); } })}</div>{/if}
                 {#if onpagesize && pageSizes.length}<fieldset class="size-section"><legend>{$_("trail-results-per-page")}</legend>
                     <div class="size-options">{#each pageSizes as option}<button type="button" class:chosen={pageSize === option.value} aria-pressed={pageSize === option.value} onclick={() => { onpagesize?.(option.value); close(true); }}>{option.text}</button>{/each}</div>
                 </fieldset>{/if}

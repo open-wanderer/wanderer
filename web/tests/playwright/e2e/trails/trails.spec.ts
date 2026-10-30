@@ -3,14 +3,22 @@ import { mockEmptyGeocoding } from '../search_helpers';
 import { expectActiveNavigation } from '../navigation_helpers';
 
 const isSearch = (url: string) => new URL(url).pathname === '/api/v1/search/trails';
+const input = (page: Page) => page.locator('[data-search-root] input[type="search"]').first();
 const view = (page: Page) => page.locator('.search-toolbar .control-button[aria-controls$="-view"]');
 
 // Keep the real loaders, controls, stores and routing. Search responses are
-// deterministic so link parameters remain observable.
+// deterministic so link parameters and the list-to-map handoff are observable.
 test.beforeEach(async ({ context }) => {
     await mockEmptyGeocoding(context);
+    await context.route('**/styles/ofm.json', route => route.fulfill({ json: {
+        version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#dae5df' } }],
+    } }));
+    await context.route('**/api/v1/search/trails/cluster', route => route.fulfill({ json: { type: 'FeatureCollection', features: [], totalHits: 0 } }));
     await context.route('**/api/v1/search/trails', route => {
         const { options } = route.request().postDataJSON();
+        if (options.limit === 0) return route.fulfill({ json: { facetStats: {
+            min_lat: { min: 46.9 }, max_lat: { max: 47.1 }, min_lon: { min: 7.3 }, max_lon: { max: 7.6 },
+        } } });
         return route.fulfill({ json: {
             hits: [{ id: 'list-fixture', name: 'Ridge loop', author: 'fixtureauthor00', author_name: 'Fixture',
                 author_avatar: '/favicon.png', public: true, completed: false, tags: [],
@@ -85,4 +93,90 @@ test('shows effective creation sorting and reverses it on the first table-header
     await header.click();
     await changed;
     await expect(header.locator('.fa-arrow-up')).toHaveClass(/rotated/);
+});
+
+test('opens matching trails on the map and retains the handed-over filter after reload', async ({ page }) => {
+    await openTrails(page);
+    const searched = page.waitForResponse(response => isSearch(response.url()) && response.request().postDataJSON().q === 'ridge');
+    await input(page).fill('ridge');
+    await searched;
+    await input(page).press('Escape');
+    const firstMapRequest = page.waitForRequest(request => isSearch(request.url()) && request.postDataJSON().options.filter.includes('max_lat >='));
+    await page.getByRole('button', { name: 'Show on map', exact: true }).click();
+    await expect(page).toHaveURL(url => url.pathname === '/map' && url.searchParams.has('tl_lat'));
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+    await expect(input(page)).toHaveValue('ridge');
+    await expect(page.locator('.trail-list')).toContainText('Ridge loop');
+    const mapQuery = (await firstMapRequest).postDataJSON();
+    expect(mapQuery.q).toBe('ridge');
+    expect(mapQuery.options.filter).toContain('min_lat <=');
+    expect(mapQuery.options.filter).toContain('max_lon >=');
+    expect(mapQuery.options.filter).toContain('min_lon <=');
+    const url = new URL(page.url());
+    expect(Number(url.searchParams.get('tl_lat'))).toBeGreaterThan(47.1);
+    expect(Number(url.searchParams.get('br_lat'))).toBeLessThan(46.9);
+    expect(Number(url.searchParams.get('tl_lat'))).toBeLessThan(47.5);
+    expect(Number(url.searchParams.get('br_lat'))).toBeGreaterThan(46.5);
+    expect(Number(url.searchParams.get('tl_lon'))).toBeGreaterThan(7.6);
+    expect(Number(url.searchParams.get('tl_lon'))).toBeLessThan(8);
+    expect(Number(url.searchParams.get('br_lon'))).toBeLessThan(7.3);
+    expect(Number(url.searchParams.get('br_lon'))).toBeGreaterThan(6.9);
+    await page.reload();
+    await expect(input(page)).toHaveValue('ridge');
+    await expect(page.locator('.trail-list')).toContainText('Ridge loop');
+});
+
+test('offers the map handoff in the mobile view menu without a third input button', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openTrails(page);
+    await expect(page.locator('.show-on-map')).toBeHidden();
+    await expect(page.locator('.search-toolbar .control-button')).toHaveCount(2);
+    await view(page).click();
+    await expect(page.locator('.view-menu .show-on-map-mobile')).toBeVisible();
+    await page.getByRole('button', { name: 'Show on map', exact: true }).click();
+    await expect(page).toHaveURL(url => url.pathname === '/map');
+});
+
+test.describe('failed mobile map handoff', () => {
+    // This regression deliberately returns 503. Keep its expected network
+    // diagnostic scoped to this test and endpoint; all other errors still fail.
+    test.use({ browserErrorAllowlist: [{
+        source: 'console.error',
+        message: /^Failed to load resource: the server responded with a status of 503 \(Service Unavailable\)$/,
+        url: /\/api\/v1\/search\/trails$/,
+        issue: 'https://github.com/open-wanderer/wanderer/pull/1404',
+    }] });
+    test('keeps mobile handoff visibly busy and closes its menu on failure', async ({ page, context }) => {
+        await page.setViewportSize({ width: 390, height: 800 });
+        let release!: () => void;
+        let gate = new Promise<void>(resolve => release = resolve);
+        await context.route('**/api/v1/search/trails', async route => {
+            if (route.request().postDataJSON().options.limit !== 0) return route.fallback();
+            await gate;
+            await route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+        });
+        await openTrails(page);
+        await view(page).click();
+        const action = page.locator('.show-on-map-mobile');
+        await action.click();
+        await expect(action).toBeDisabled();
+        await expect(action).toHaveCSS('opacity', '0.45');
+        release();
+        await expect(page.locator('.view-menu')).toBeHidden();
+        await expect(page.getByRole('alert').filter({ hasText: 'Could not open these trails' })).toBeVisible();
+        const retry = page.getByRole('button', { name: 'Try again', exact: true });
+        await expect(retry).toBeVisible();
+        const announcement = await page.getByRole('alert').filter({ hasText: 'Could not open these trails' }).elementHandle();
+        gate = new Promise<void>(resolve => release = resolve);
+        const retried = page.waitForRequest(request => request.url().endsWith('/api/v1/search/trails') && request.postDataJSON().options.limit === 0);
+        await retry.click();
+        await retried;
+        await expect(retry).toHaveAttribute('aria-busy', 'true');
+        await expect(retry.locator('.fa-spinner')).toBeVisible();
+        await expect(retry).toHaveCSS('opacity', '0.45');
+        release();
+        await expect.poll(() => announcement!.evaluate(element => element.isConnected)).toBe(false);
+        await expect(page.getByRole('alert').filter({ hasText: 'Could not open these trails' })).toBeVisible();
+        await expect(retry).toBeFocused();
+    });
 });
