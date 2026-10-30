@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { afterNavigate, goto } from "$app/navigation";
+    import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import LogoText from "#lib/components/logo/logo_text.svelte";
     import { theme, toggleTheme } from "#lib/stores/theme_store.ts";
@@ -62,40 +62,29 @@
 
     let urlImportModal: UrlImportModal;
 
-    afterNavigate((e) => {
-        const routeId = e.to?.route.id;
-        const navBarLinks = document.getElementById("nav-bar-links");
-        let childPosition = -1;
-        switch (routeId) {
-            case "/":
-                childPosition = 1;
-                break;
-            case "/trails":
-                childPosition = 2;
-                break;
-            case "/map":
-                childPosition = 3;
-                break;
-            case "/lists/[[handle]]/[[id]]":
-                childPosition = 4;
-                break;
-            default:
-                break;
-        }
+    let navBarLinks = $state<HTMLElement>();
+    const activePath = $derived(page.route.id === "/lists/[[handle]]/[[id]]" ? "/lists" : page.url.pathname);
 
-        if (childPosition !== -1) {
-            const childElement = navBarLinks?.children[
-                childPosition
-            ] as HTMLElement;
-            const newWidth = childElement?.getBoundingClientRect().width ?? 0;
-            const newPosition = childElement.offsetLeft;
-            const padding = 16;
-            indicatorScale.set(1);
-            indicatorWidth.set(newWidth + padding);
-            indicatorPosition.set(newPosition - padding / 2);
-        } else {
+    function updateIndicator() {
+        const index = navBarItems.findIndex(item => item.value === activePath);
+        const element = navBarLinks?.children[index + 1] as HTMLElement | undefined;
+        if (index < 0 || !element) {
             indicatorScale.set(0);
+            return;
         }
+        indicatorScale.set(1);
+        indicatorWidth.set(element.getBoundingClientRect().width + 16);
+        indicatorPosition.set(element.offsetLeft - 8);
+    }
+
+    $effect(() => {
+        activePath;
+        navBarLinks;
+        updateIndicator();
+        if (!navBarLinks) return;
+        const observer = new ResizeObserver(updateIndicator);
+        for (const link of navBarLinks.querySelectorAll("a")) observer.observe(link);
+        return () => observer.disconnect();
     });
 
     function handleLogout() {
@@ -118,6 +107,8 @@
 
 
 </script>
+
+<svelte:window onresize={updateIndicator} />
 
 <Drawer bind:open={drawerOpen}>
     <div class="flex gap-4 items-center m-4">
@@ -197,7 +188,7 @@
             <LogoTextLight></LogoTextLight>
         {/if}
     </a>
-    <menu id="nav-bar-links" class="hidden lg:flex gap-8 relative py-1 px-2">
+    <menu bind:this={navBarLinks} id="nav-bar-links" class="hidden lg:flex gap-8 relative py-1 px-2">
         <div
             class="absolute h-full w-16 bg-menu-item-background-hover rounded-xl top-0 z-0"
             style="width: {indicatorWidth.current}px; left: {indicatorPosition.current}px; scale: {indicatorScale.current}"

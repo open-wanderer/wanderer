@@ -22,6 +22,8 @@
         trails: Trail[];
         pagination?: { page: number; totalPages: number; items: number };
         loading?: boolean;
+        busy?: boolean;
+        onresultsupdate?: () => void;
         fullWidthCards?: boolean;
         onupdate?: (
             filter: TrailFilter | null,
@@ -55,6 +57,8 @@
             items: 25,
         }),
         loading = false,
+        busy = false,
+        onresultsupdate,
         fullWidthCards = false,
         onupdate,
         onpagination,
@@ -75,6 +79,8 @@
         onsearchposition,
         onsearchexpansion,
     }: Props = $props();
+
+    const effectiveSort = $derived(filter?.sort === "relevance" && !filter.q.trim() ? "created" : filter?.sort);
 
     const displayOptions: SelectItem[] = $derived([
         { text: $_("card", { values: { n: 2 } }), value: "cards" },
@@ -203,7 +209,7 @@
         if (!filter) {
             return;
         }
-        if (sort === filter.sort) {
+        if (sort === effectiveSort) {
             setSortOrder();
         } else {
             filter.sort = sort;
@@ -268,7 +274,8 @@
             selection = new Set<Trail>();
         }
         await tick();
-        onupdate?.(filter, selection);
+        if (onresultsupdate) onresultsupdate();
+        else onupdate?.(filter, selection);
     }
 
     async function handleTrailsEditDone(
@@ -308,7 +315,8 @@
             selection = new Set<Trail>();
         }
         await tick();
-        onupdate?.(filter, selection);
+        if (onresultsupdate) onresultsupdate();
+        else onupdate?.(filter, selection);
     }
 
     function handleTrailClick(e: Event, trail: Trail) {
@@ -358,7 +366,7 @@
                 {#if searchBar}{@render searchBar()}{/if}
                 <TrailResultControls
                     buttonsOnly={inlineControls}
-                    sort={filter?.sort === "relevance" && !filter.q.trim() ? "created" : filter?.sort}
+                    sort={effectiveSort}
                     order={filter?.sortOrder}
                     {sortOptions}
                     display={display}
@@ -442,7 +450,7 @@
     {/if}
 
     <div class="filter-sidebar" bind:this={filterPanelTarget} hidden={searchPosition === "top" || !searchBar}></div>
-    <div class="result-content">
+    <div class="result-content" aria-busy={busy}>
     <div id="trails" class="flex items-start flex-wrap gap-8 py-8 max-w-full" class:compact-results={compactControls} class:inline-results={inlineControls} class:card-results={managed && display === "cards"} class:list-results={managed && display === "list"}>
         {#if loading}
             {#if display === "table"}
@@ -476,7 +484,7 @@
                     tableHeader={sortOptions.filter(
                         (option) => option.value !== "elevation_loss" && option.value !== "relevance",
                     )}
-                    {filter}
+                    filter={filter ? { ...filter, sort: effectiveSort! } : filter}
                     items={pagination.items}
                     onsort={handleSortUpdate}
                     onTrailSelect={(t) => handleSelectionUpdate(t)}
@@ -536,6 +544,7 @@
 
 <style>
     .result-content { min-width: 0; }
+    .result-content[aria-busy="true"] { opacity: .55; }
     .search-side { display: grid; grid-template-columns: clamp(18rem, 26vw, 23rem) minmax(0, 1fr); align-items: start; gap: 1rem; }
     .search-side .search-toolbar { grid-column: 1 / -1; grid-row: 1; margin: 0; }
     .filter-sidebar { min-width: 0; }

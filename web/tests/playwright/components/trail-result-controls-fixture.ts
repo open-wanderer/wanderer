@@ -81,7 +81,7 @@ export async function buildTrailResultControlsFixture(dev: boolean) {
                     </script>
                     <main><TrailList bind:filter bind:trails bind:pagination bind:display {loading} compactControls
                         managed={incremental} {incremental} moreResults={incremental ? moreResults : undefined}
-                        fullWidth={wide} onwidthtoggle={widthChanged} onupdate={update} onpagination={paginate} ondisplaychange={displayChanged}
+                        fullWidth={wide} onwidthtoggle={widthChanged} onupdate={update} onresultsupdate={() => record('results-refresh')} onpagination={paginate} ondisplaychange={displayChanged}
                         {searchPosition} {searchExpansion}
                         onsearchposition={searchLayout ? value => searchPosition = value : undefined}
                         onsearchexpansion={searchLayout && searchPosition === 'top' ? value => searchExpansion = value : undefined} /></main>
@@ -95,12 +95,12 @@ export async function buildTrailResultControlsFixture(dev: boolean) {
                         source = `<script>let { trail, hovered } = $props();</script><h4>{trail.name}</h4><span>Trail details</span><span data-testid="trail-id" data-hovered={hovered} data-view="${basename(id) === 'trail_card.svelte' ? 'cards' : 'list'}">{trail.id}</span>`;
                         break;
                     case 'trail_table.svelte':
-                        source = '<script>let { trails } = $props();</script><div data-testid="table-view">{#each trails ?? [] as trail}<span data-testid="trail-id">{trail.id}</span>{/each}</div>';
+                        source = '<script>let { trails, filter, onsort } = $props();</script><output data-testid="table-filter">{JSON.stringify(filter)}</output><button data-testid="created-sort" onclick={() => onsort?.("created")}>Created</button><div data-testid="table-view">{#each trails ?? [] as trail}<span data-testid="trail-id">{trail.id}</span>{/each}</div>';
                         break;
                     case 'skeleton_card.svelte':
                     case 'skeleton_list_item.svelte': source = '<span data-testid="loading"></span>'; break;
                     case 'empty_state_search.svelte': source = '<span data-testid="empty"></span>'; break;
-                    case 'trail_dropdown.svelte': source = '<script>let { onMerge, trails, showMergeDialog } = $props(); $effect(() => { window.resultSelectedIds = [...trails].map(trail => trail.id); window.resultShowMergeDialog = showMergeDialog; window.resultBulkMerge = onMerge; });</script><span data-testid="selection-actions"></span>'; break;
+                    case 'trail_dropdown.svelte': source = '<script>let { mode, onDelete, onMerge, trails, showMergeDialog } = $props(); $effect(() => { if (mode === "multi-select") { window.resultSelectedIds = [...trails].map(trail => trail.id); window.resultShowMergeDialog = showMergeDialog; window.resultBulkDelete = onDelete; window.resultBulkMerge = onMerge; } });</script><span data-testid="selection-actions"></span>'; break;
                     default: source = await readFile(id, 'utf8');
                 }
                 return compile(source, { filename: id, generate: 'client', dev, css: 'injected' }).js.code;

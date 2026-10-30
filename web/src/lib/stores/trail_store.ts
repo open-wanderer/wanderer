@@ -116,6 +116,14 @@ export async function trails_search_filter(
     return { ...result, items: await searchResultToTrailList(result.hits) };
 }
 
+/** Refresh the loaded prefix after a bulk action without losing its page position. */
+export async function trails_search_filter_pages(filter: TrailFilter, pages: number, perPage = 48, f: typeof fetch = fetch) {
+    const result = await trails_search_filter(filter, 1, Math.min(TRAIL_SEARCH_LIMIT, Math.max(1, pages) * perPage), f);
+    return { ...result, hitsPerPage: perPage,
+        page: Math.max(1, Math.ceil(result.items.length / perPage)),
+        totalPages: Math.ceil(Math.min(result.totalHits, TRAIL_SEARCH_LIMIT) / perPage) };
+}
+
 const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);
 
 let trails: Trail[] = []
