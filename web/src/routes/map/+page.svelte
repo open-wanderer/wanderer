@@ -1,18 +1,22 @@
 <script lang="ts">
+    import { browser } from "$app/env";
     import { replaceState } from "$app/navigation";
     import { page } from "$app/state";
+    import LogoText from "#lib/components/logo/logo_text.svelte";
+    import LogoTextLight from "#lib/components/logo/logo_text_light.svelte";
     import TrailSearchBar from "#lib/components/trail/trail_search_bar.svelte";
     import TrailResultControls from "#lib/components/trail/trail_result_controls.svelte";
     import TrailMapResults, { type MapCamera } from "#lib/components/trail/trail_map_results.svelte";
     import type { Trail, TrailFilter } from "#lib/models/trail.ts";
     import { loadSearchLayout, searchLayout, updateSearchLayout } from "#lib/stores/search_layout_store.ts";
     import { trails_search_filter, trails_search_map_data } from "#lib/stores/trail_store.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
     import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
     import { isTrailSearchBounds, trailSearchBoundsFromUrl, type TrailSearchBounds } from "#lib/util/trail_search_util.ts";
     import type { Snapshot } from "@sveltejs/kit";
     import type { FeatureCollection } from "geojson";
     import { LngLat } from "maplibre-gl";
-    import { onMount, tick, untrack } from "svelte";
+    import { onDestroy, onMount, tick, untrack } from "svelte";
     import { _ } from "svelte-i18n";
 
     const PAGE_SIZE = 48;
@@ -32,7 +36,11 @@
     });
     let mapResults: TrailMapResults | undefined = $state();
     let searchBar: TrailSearchBar | undefined = $state();
+    let fullscreen = $state(false);
+    let fullscreenSearchVisible = $state(false);
+    let mapPage: HTMLElement;
     let resultDisplay = $state<"cards" | "list" | "table">("cards");
+    let toolbar: HTMLDivElement;
     let trails: Trail[] = $state([]);
     let mapTrails: Trail[] = $state([]);
     let clusters = $state<FeatureCollection>();
@@ -92,21 +100,99 @@
             }
         },
     };
+
+    const fullscreenDisplay = browser ? window.matchMedia("(display-mode: fullscreen)") : undefined;
+    function updateFullscreenLayout(event?: Event) {
+        const value = fullscreenDisplay?.matches ?? false;
+        if (value !== fullscreen) void mapResults?.setFullscreen(value, Boolean(event), Boolean(event));
+    }
+    // Register before child components mount and install their resize listeners.
+    if (fullscreenDisplay) {
+        fullscreenDisplay.addEventListener("change", updateFullscreenLayout);
+        window.addEventListener("resize", updateFullscreenLayout);
+        onDestroy(() => {
+            fullscreenDisplay.removeEventListener("change", updateFullscreenLayout);
+            window.removeEventListener("resize", updateFullscreenLayout);
+        });
+    }
+
     onMount(() => {
         mounted = true;
+        window.addEventListener("keydown", guardFullscreenShortcut);
+        updateFullscreenLayout();
         loadSearchLayout();
         try {
             const stored = localStorage.getItem("mapResultsDisplay");
             if (stored === "cards" || stored === "list" || stored === "table") resultDisplay = stored;
         } catch { /* Keep the default view when storage is unavailable. */ }
+        const toolbarSize = new ResizeObserver(() => {
+            if (toolbar.offsetHeight) mapPage.style.setProperty("--map-toolbar-height", `${Math.ceil(toolbar.getBoundingClientRect().height)}px`);
+        });
+        toolbarSize.observe(toolbar);
         const frame = requestAnimationFrame(() => { routerReady = true; syncUrl(); });
         return () => {
             mounted = false;
             cancelAnimationFrame(frame);
+            toolbarSize.disconnect();
+            window.removeEventListener("keydown", guardFullscreenShortcut);
             cancelScheduled();
             abortRequests();
         };
     });
+
+    $effect(() => {
+        fullscreenSearchVisible = false;
+        if (!fullscreen) return;
+        untrack(() => searchBar?.dismiss());
+        const overflow = document.body.style.overflow;
+        const background = new Map<HTMLElement, boolean>();
+        const remember = (element: HTMLElement) => {
+            if (!background.has(element)) background.set(element, element.inert);
+        };
+        const overlays = 'dialog, [aria-live], [role="status"], [role="alert"], [data-fullscreen-overlay]';
+        const protect = (element: HTMLElement) => {
+            remember(element);
+            // Closed dialogs must remain ready for showModal's synchronous
+            // initial focus. Exempt only visible overlays, never their siblings.
+            const overlay = element.tagName === 'DIALOG' || (element.matches(overlays)
+                && getComputedStyle(element).visibility === 'visible' && element.getClientRects().length > 0);
+            if (overlay) { element.inert = background.get(element)!; return; }
+            if (element.querySelector(overlays)) {
+                element.inert = background.get(element)!;
+                for (const child of element.children) if (child instanceof HTMLElement) protect(child);
+            } else element.inert = true;
+        };
+        const updateBackground = () => {
+            for (let layer: HTMLElement | null = mapPage; layer && layer !== document.body && layer.parentElement; layer = layer.parentElement) {
+                for (const sibling of layer.parentElement.children) {
+                    if (sibling !== layer && sibling instanceof HTMLElement && sibling.tagName !== 'SCRIPT' && sibling.tagName !== 'STYLE') protect(sibling);
+                }
+            }
+        };
+        updateBackground();
+        const observer = new MutationObserver(updateBackground);
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["open", "class", "style"] });
+        document.body.style.overflow = "hidden";
+        return () => {
+            observer.disconnect();
+            document.body.style.overflow = overflow;
+            for (const [element, inert] of background) element.inert = inert;
+        };
+    });
+
+    function guardFullscreenShortcut(event: KeyboardEvent) {
+        if (event.isComposing || event.defaultPrevented) return;
+        if (event.key === "F11" && document.querySelector("dialog:modal")) {
+            event.preventDefault();
+        }
+    }
+    async function toggleFullscreenSearch() {
+        if (fullscreenSearchVisible) searchBar?.dismiss();
+        fullscreenSearchVisible = !fullscreenSearchVisible;
+        await tick();
+        if (fullscreenSearchVisible) toolbar.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
+        else mapPage.querySelector<HTMLButtonElement>(".fullscreen-search-toggle")?.focus();
+    }
 
     function placeKey(value: TrailFilter) {
         return Number.isFinite(value.near.lat) && Number.isFinite(value.near.lon)
@@ -335,17 +421,17 @@
 
 <svelte:head><title>{$_("map")} | wanderer</title></svelte:head>
 
-<main class="map-page">
-    <div class="map-search-header">
-        <div class="map-search-toolbar">
+<main class="map-page" class:fullscreen class:fullscreen-search-open={fullscreen && fullscreenSearchVisible} bind:this={mapPage}>
+    <div class="map-search-header" hidden={fullscreen && !fullscreenSearchVisible}>
+        <div id="map-search-toolbar" class="map-search-toolbar" bind:this={toolbar}>
             <TrailSearchBar bind:this={searchBar} categories={page.data.categories} subcategories={page.data.subcategories}
                 bind:filter defaults={page.data.filter} onapply={applySearch} inlineControls
                 onplaceselect={location => mapResults?.focusLocation(location)} trailSuggestions
-                layout={$searchLayout.expansion} filterSections={page.data.settings?.behavior?.searchFilterSections} />
+                layout={fullscreen ? "overlay" : $searchLayout.expansion} filterSections={page.data.settings?.behavior?.searchFilterSections} />
             <TrailResultControls buttonsOnly sort={filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort}
                 order={filter.sortOrder} {sortOptions} onsort={(sort, sortOrder) => applySearch({ ...filter, sort: sort as TrailFilter["sort"], sortOrder })}
                 display={resultDisplay} {displayOptions} ondisplay={selectResultDisplay}
-                searchExpansion={$searchLayout.expansion} onsearchexpansion={expansion => updateSearchLayout({ expansion })} />
+                searchExpansion={$searchLayout.expansion} onsearchexpansion={!fullscreen ? expansion => updateSearchLayout({ expansion }) : undefined} />
         </div>
     </div>
     {#if resultError || markerError}
@@ -353,7 +439,9 @@
     {/if}
     <div class="map-content">
         <div class="map-results-container" aria-busy={loading || refreshing}>
-            <TrailMapResults bind:this={mapResults}
+            <TrailMapResults bind:this={mapResults} bind:fullscreen
+                {fullscreenSearchVisible} onfullscreensearchtoggle={toggleFullscreenSearch}
+                onsearchfocus={() => searchBar?.focusInput()}
                 {trails} {mapTrails} {clusters} {loading} {mapLoading}
                 initialBounds={viewport} initialCamera={restoredCamera} {initialCenter} boundingBox={page.data.boundingBox}
                 settings={page.data.settings} display={resultDisplay} near={filter.near} onviewport={onViewport}
@@ -372,6 +460,13 @@
             </TrailMapResults>
         </div>
     </div>
+    {#if fullscreen}
+        <a class="fullscreen-logo" href="/" aria-label="wanderer">
+            <span aria-hidden="true">
+                {#if $theme === "light"}<LogoText />{:else}<LogoTextLight />{/if}
+            </span>
+        </a>
+    {/if}
 </main>
 
 <style>
@@ -381,6 +476,16 @@
     .map-content { align-items: start; display: grid; gap: 1rem; min-width: 0; }
     .map-results-container { min-width: 0; }
     .map-results-container[aria-busy="true"] :global(.trail-results) { opacity: .55; }
+    .map-page.fullscreen { --map-fullscreen-tool-size: 3.125rem; --map-overlay-top: calc(var(--map-fullscreen-tool-size) + 2rem); --map-overlay-bottom: 6rem; --map-controls-top: 0px; background: rgba(var(--background)); display: block; height: 100%; inset: 0; margin: 0; position: fixed; width: 100%; z-index: 40; }
+    .fullscreen.fullscreen-search-open { --map-overlay-top: max(calc(var(--map-fullscreen-tool-size) + 2rem), calc(var(--map-toolbar-height, 50px) + 2rem)); --map-controls-top: calc(var(--map-toolbar-height, 50px) + 2rem); }
+    .fullscreen .map-search-header { left: calc(var(--map-fullscreen-tool-size) + 2rem); position: absolute; right: 1rem; top: 1rem; z-index: 3; }
+    .fullscreen .map-search-header[hidden] { display: none; }
+    .fullscreen .map-search-toolbar { box-shadow: 0 3px 16px rgb(0 0 0 / .2); }
+    .fullscreen-logo { border-radius: 50%; bottom: 1rem; display: block; filter: drop-shadow(0 2px 4px rgb(0 0 0 / .25)); height: 64px; left: 1rem; overflow: hidden; position: absolute; width: 64px; z-index: 3; }
+    .fullscreen-logo span { display: block; height: 100%; }
+    .fullscreen-logo :global(svg) { display: block; height: 100%; max-width: none; width: auto; }
+    .fullscreen-logo:focus-visible { outline: 2px solid rgba(var(--input-border-focus)); outline-offset: 3px; }
+    .fullscreen .map-error { background: rgba(var(--menu-background)); border-radius: .5rem; bottom: 1rem; left: 50%; padding: .5rem; position: absolute; transform: translateX(-50%); z-index: 3; }
     .load-more { display: grid; justify-content: center; padding: .5rem 0; }
     .load-more button { border: 1px solid rgba(var(--input-border)); border-radius: .5rem; cursor: pointer; padding: .7rem 1.3rem; }
     .load-more button:disabled { cursor: wait; opacity: .6; }

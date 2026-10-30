@@ -7,16 +7,18 @@ import { build } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { expect, type Page } from '@playwright/test';
 import { mapResultStubs } from './trail-map-results-fixture';
+import { installBrowserFullscreen, setBrowserFullscreen } from '../browser_fullscreen';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 
 
 // Exercise the actual page orchestration. Rendering children and transport are
 // controlled so replies can arrive out of order, even after their signal aborts.
-export async function buildMapPageFixture(dev: boolean, realMapResults = false, realEngine = false, includeNav = false, realSearch = false) {
+export async function buildMapPageFixture(dev: boolean, realMapResults = false, realEngine = false, includeNav = false, realSearch = false, resultStubOverrides?: Record<string, string>) {
     // The high-concurrency stress run prebuilds these same bundles from its
     // immutable checkout. Normal component runs always compile fresh fixtures.
-    const cache = process.env.PLAYWRIGHT_MAP_FIXTURE_CACHE;
+    const cache = resultStubOverrides ? undefined : process.env.PLAYWRIGHT_MAP_FIXTURE_CACHE;
+    const resultStubs: Record<string, string> = { ...mapResultStubs, ...resultStubOverrides };
     const cacheFile = cache && resolve(cache, [dev, realMapResults, realEngine, includeNav, realSearch].map(Number).join('-') + '.js');
     if (cacheFile && existsSync(cacheFile)) return readFile(cacheFile, 'utf8');
     const source = resolve(root, 'src/routes/map/+page.svelte');
@@ -52,10 +54,18 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                 if (realEngine && id === '\0fixture:maplibre') return `const M = window.RealMapLibre; export default M; export const { ${engineExports.join(', ')} } = M;`;
                 if ((realSearch || includeNav) && id === resolve(root, 'src/lib/stores/toast_store.svelte.ts')) return 'export const toastStore = {toasts: []}; export function show_toast() {} export function closeToast() {} export function pauseToast() {} export function resumeToast() {}';
                 if (id === resolve(root, 'src/lib/stores/notification_store.ts')) return 'export async function notifications_index() { return {items: [], page: 1, totalPages: 1}; } export async function notifications_mark_as_seen() {}';
+                if (id === '\0fixture:late-field.svelte') return compile(`<svelte:window onkeydown={event => {
+                    const input = document.querySelector('[data-testid="fixture-search"]');
+                    if (window.fixture.lateWindowField && event.key === 'Escape' && document.activeElement === input && !event.defaultPrevented) {
+                        input.value = 'field handled Escape';
+                        event.preventDefault();
+                    }
+                }} />`, {filename:'fixture-late-field.svelte',generate:'client',dev}).js.code;
                 if (id === '\0fixture:entry') return `
                     import { mount, unmount } from 'svelte';
                     import Page from ${JSON.stringify(source)};
-                    ${includeNav ? `import NavBar from ${JSON.stringify(resolve(root, 'src/lib/components/nav_bar.svelte'))};
+                    ${includeNav ? `import LateField from 'fixture:late-field.svelte';
+                    import NavBar from ${JSON.stringify(resolve(root, 'src/lib/components/nav_bar.svelte'))};
                     import Toast from ${JSON.stringify(resolve(root, 'src/lib/components/base/toast.svelte'))};
                     import UploadDialog from ${JSON.stringify(resolve(root, 'src/lib/components/settings/upload_dialog.svelte'))};
                     import { uploadStore } from ${JSON.stringify(resolve(root, 'src/lib/stores/upload_store.svelte.ts'))};` : ''}
@@ -77,6 +87,7 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                     }); };
                     ${includeNav ? `document.documentElement.classList.add('light'); document.body.style.width = '100%'; mount(NavBar, { target: document.body, props: { user: { id: 'tester', username: 'tester', avatar: '' } } }); mount(Toast, { target: document.body }); mount(UploadDialog, { target: document.body }); window.fixture.addUpload = () => uploadStore.enqueuedUploads.push({ file: new File(['fixture'], 'fixture.gpx'), status: 'enqueued', progress: 0 }); window.fixture.completeUpload = () => uploadStore.completedUploads.push({ ...uploadStore.enqueuedUploads.shift(), status: 'success' });` : ''}
                     let component = mount(Page, { target: document.body });
+                    ${includeNav ? 'mount(LateField, {target:document.body});' : ''}
                     window.fixture.remount = async (value, mode = 'sync') => {
                         await unmount(component);
                         if (mode === 'popstate') window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
@@ -142,8 +153,8 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                 `;
                 let component: string;
 
-                if (realMapResults && id in mapResultStubs && !(realEngine && id === mapComponent)) {
-                    component = mapResultStubs[id as keyof typeof mapResultStubs];
+                if (realMapResults && id in resultStubs && !(realEngine && id === mapComponent)) {
+                    component = resultStubs[id];
                     return compile(component, { filename: id, generate: 'client', dev, css: 'injected' }).js.code;
                 }
                 if (realMapResults && id.endsWith('/trail_merge_dialog.svelte')) return compile('<div></div>', { filename: id, generate: 'client', dev }).js.code;
@@ -155,7 +166,14 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                             window.fixture.apply = (change, resetBounds = false) => { filter = { ...filter, ...change }; onapply(filter, resetBounds); };
                         });
                         export function restoreFilter() {}
+                        export function dismiss() {}
+                        export function focusInput() { document.querySelector('[data-testid="fixture-search"]')?.focus(); }
                     </script>
+                    <svelte:window onkeydown={event => {
+                        if (event.key === 'Escape' && window.fixture.menuOpen) {
+                            event.preventDefault(); window.fixture.menuOpen = false;
+                        }
+                    }} />
                     <div data-search-root><input type="search" data-testid="fixture-search" aria-label="Fixture search" />
                     <button data-testid="fixture-trigger">Full screen trigger</button>
                     <output data-testid="search-filter">{JSON.stringify({ filter, layout })}</output></div>
@@ -173,11 +191,11 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                 else if (!realMapResults && id === resolve(root, 'src/lib/components/trail/trail_map_results.svelte')) component = `
                     <script>
                         import { onMount } from 'svelte';
-                        let { trails, mapTrails, clusters, loading, mapLoading, initialBounds, initialCenter, onviewport, onzoom, moreResults, display, onupdate } = $props();
+                        let { trails, mapTrails, clusters, loading, mapLoading, initialBounds, initialCenter, onviewport, onzoom, moreResults, display, onupdate, fullscreen = $bindable(false), fullscreenSearchVisible, onfullscreensearchtoggle } = $props();
                         $effect(() => { window.fixture.updateTrails = onupdate; window.fixture.viewport = onviewport; window.fixture.zoom = onzoom; });
                         onMount(() => onviewport(initialBounds ?? { northEast: { lat: 48, lng: 9 }, southWest: { lat: 46, lng: 7 } }, 11, true));
                         export function focusBounds(bounds) { window.fixture.focusedBounds.push(bounds); onviewport(bounds, 11, true); return true; }
-
+                        export function setFullscreen(value) { fullscreen = value; }
                         export function refreshLayout() {}
                         export function captureView() { return undefined; }
                         export function focusCamera() {}
@@ -190,6 +208,9 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                             onviewport({ northEast: { lat: place.lat + .1, lng: place.lon + .1 }, southWest: { lat: place.lat - .1, lng: place.lon - .1 } }, 14);
                         }
                     </script>
+                    {#if fullscreen}
+                        <button class="fullscreen-search-toggle" aria-expanded={fullscreenSearchVisible} onclick={onfullscreensearchtoggle}>Search</button>
+                    {/if}
                     <output data-testid="results">{JSON.stringify({ trails, loading, display })}</output>
                     <output data-testid="map">{JSON.stringify({ mapTrails, clusters, mapLoading })}</output>
                     {@render moreResults()}
@@ -217,17 +238,17 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
     return bundle;
 }
 
-export async function mountMapPageFixture(page: Page, bundle: string, options: { query?: string; storage?: Record<string, unknown>; state?: Record<string, unknown> } = {}) {
+export async function mountMapPageFixture(page: Page, bundle: string, options: { query?: string; storage?: Record<string, unknown>; state?: Record<string, unknown>; fullscreen?: boolean; backgroundNav?: boolean } = {}) {
     page.on('pageerror', error => { throw error; });
-
+    await installBrowserFullscreen(page);
     await page.route('http://search-page.test/**', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body></body></html>' }));
     await page.goto(`http://search-page.test/map?${options.query ?? ''}`);
-
+    if (options.backgroundNav) await page.evaluate(() => { const nav = document.createElement('nav'); nav.id = 'background-nav'; document.body.append(nav); });
     await page.evaluate(storage => {
         for (const [key, value] of Object.entries(storage)) localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
     }, options.storage ?? {});
     if (options.state) await page.evaluate(state => history.replaceState(state, ''), options.state);
-
+    if (options.fullscreen) await setBrowserFullscreen(page, true);
     await page.addScriptTag({ content: bundle });
     await expect.poll(() => page.evaluate(() => (window as any).fixture.requests.length)).toBe(2);
 }

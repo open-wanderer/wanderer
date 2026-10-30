@@ -2,8 +2,9 @@ import { expect, devices, type Page } from '@playwright/test';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { windowTest as test, mount, counts, camera, bounds, settle, quietCounts, swipe } from './map-window-fixture';
+import { windowTest as test, mount, counts, camera, bounds, settle, quietCounts, windowState, swipe } from './map-window-fixture';
 import { buildMapPageFixture } from './map-page-fixture';
+import { installBrowserFullscreen, setBrowserFullscreen } from '../browser_fullscreen';
 
 async function size(page: Page, width: number, height = 800) {
     const session = await page.context().newCDPSession(page);
@@ -48,14 +49,18 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
         nav = await buildMapPageFixture(dev, true, true, true);
         search = await buildMapPageFixture(dev, true, true, false, true);
     });
-    test('canvas follows single changes and twenty drag steps', async ({ page }) => {
-
+    test('canvas follows single changes, twenty drag steps and Firefox F11 series', async ({ page }) => {
+        await installBrowserFullscreen(page);
         await mount(page, bundle);
         await sampleCanvas(page);
         for (const [width, height] of [[1500, 950], [1100, 760]]) { await size(page, width, height); await settle(page); }
         for (let step = 1; step <= 20; step++) await size(page, 1100 + step * 20, 760 + step * 8);
         await settle(page);
-
+        await setBrowserFullscreen(page, true);
+        for (let step = 1; step <= 44; step++) {
+            await size(page, 1500 + Math.round(step * 2), 920 + Math.round(step * 1.5));
+            await page.waitForTimeout(16);
+        }
         await quietCounts(page);
         await canvasMatches(page);
         // A real compositor screenshot also detects an unpainted drawing buffer.
@@ -67,6 +72,22 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
             return [...context.getImageData(image.width - 12, image.height - 12, 1, 1).data].slice(0, 3);
         }, screenshot.toString('base64'));
         expect(pixel).toEqual([218, 229, 223]);
+    });
+    test('held pointer does not defer F11 canvas or swallow the next pan', async ({ page }) => {
+        await mount(page, bundle);
+        const r = (await page.locator('.maplibregl-canvas').boundingBox())!;
+        await page.mouse.move(r.x + 100, r.y + 100);
+        await page.mouse.down();
+        await sampleCanvas(page);
+        await windowState(page, true);
+        await page.mouse.up();
+        await canvasMatches(page);
+        for (const fullscreen of [true, false]) {
+            if (!fullscreen) await windowState(page, false);
+            const before = await counts(page);
+            await page.evaluate(() => (window as any).realMap.panBy([90, 20], { duration: 0 }));
+            await changed(page, before);
+        }
     });
     test('split handles and overview grip paint throughout camera motion', async ({ page }) => {
         await mount(page, bundle);
@@ -160,7 +181,7 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
             expect((await camera(page)).zoom).toBeCloseTo(before + 1, 6);
         } finally { await context.close(); }
     });
-    test('tracking survives window, header and phone rotation', async ({ page, context }) => {
+    test('tracking survives window, header, fullscreen and phone rotation', async ({ page, context }) => {
         await context.grantPermissions(['geolocation']);
         await context.setGeolocation({ latitude: 47.3, longitude: 8.5 });
         await mount(page, bundle);
@@ -171,6 +192,8 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
         await size(page, 1100);
         await page.locator('[data-search-root]').evaluate(node => (node as HTMLElement).style.height = '120px');
         await settle(page);
+        await windowState(page, true);
+        await windowState(page, false);
         const cdp = await context.newCDPSession(page);
         for (const [width, height] of [[412, 915], [915, 412]]) {
             await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
@@ -222,13 +245,17 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
         await page.locator('.maplibregl-canvas').focus();
         await page.keyboard.press('ArrowRight');
         await changed(page, keyboard);
+        const f11 = await counts(page);
+        await windowState(page, true);
+        expect(await quietCounts(page)).toMatchObject({ results: f11.results, publications: f11.publications, map: f11.map + 1, url: f11.url });
+        await windowState(page, false);
         const r = (await page.locator('.reset-map-view').boundingBox())!;
         await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'right', buttons: 2, clickCount: 1, x: r.x + 10, y: r.y + 10 });
         await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', button: 'none', buttons: 0, x: r.x - 30, y: r.y + 40 });
         let before = await counts(page);
         await size(page, 1100);
         await changed(page, before);
-        for (const removal of ['blur', 'narrow', 'expand', 'overlay-close']) {
+        for (const removal of ['blur', 'fullscreen', 'narrow', 'expand', 'overlay-close']) {
             await size(page, 1280);
             if (removal === 'overlay-close') { await page.locator('.expand-results').click(); await settle(page); }
             const h = (await page.locator(removal === 'overlay-close' ? '.overlay-move' : '.list-resize').boundingBox())!;
@@ -238,7 +265,7 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
                 await page.evaluate(() => dispatchEvent(new Event('blur')));
                 await expect(page.locator('.map-results')).toHaveAttribute('data-layout-ready', 'true');
             }
-
+            else if (removal === 'fullscreen') await windowState(page, true);
             else if (removal === 'narrow') await size(page, 700);
             else if (removal === 'overlay-close') {
                 await page.locator('.overlay-close').press('Enter');
@@ -246,7 +273,7 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
                 await page.locator('.overlay-reopen').press('Enter');
             } else await page.locator('.expand-results').press('Enter');
             await page.mouse.up();
-
+            if (removal === 'fullscreen') await windowState(page, false);
             await size(page, 1280);
             await settle(page);
             before = await counts(page);
@@ -256,12 +283,99 @@ for (const dev of [true, false]) test.describe(`map lifecycle (${dev ? 'developm
         }
         await session.detach();
     });
+    for (const privacy of ['brave', 'rfp']) test(`${privacy} screen dimensions never override fullscreen`, async ({ page }) => {
+        await page.addInitScript(privacy => {
+            const buckets = [[800, 600], [1280, 720], [1366, 768], [1536, 864], [1920, 1080], [2560, 1440], [3840, 2160]];
+            const metric = (axis: number) => privacy === 'rfp' ? [innerWidth, innerHeight][axis]
+                : (buckets.find(([w, h]) => w >= outerWidth && h >= outerHeight) ?? buckets.at(-1)!)[axis];
+            Object.defineProperties(screen, { width: { get: () => metric(0) }, height: { get: () => metric(1) } });
+            if (privacy === 'rfp') Object.defineProperties(window, { outerWidth: { get: () => innerWidth }, outerHeight: { get: () => innerHeight } });
+        }, privacy);
+        await mount(page, bundle);
+        for (const enabled of [true, false]) {
+            const before = await counts(page);
+            await windowState(page, enabled);
+            expect(await quietCounts(page)).toMatchObject({ results: before.results, publications: before.publications, map: before.map + 1, url: before.url });
+        }
+    });
+    for (const menu of ['Open user menu', 'Toggle notification dropdown']) test(`${menu} yields Escape to a later window field handler`, async ({page}) => {
+        await mount(page, nav);
+        const trigger = page.getByRole('button', {name:menu,exact:true});
+        await trigger.click();
+        const opened = page.locator('nav .dropdown ul');
+        await expect(opened).toBeVisible();
+        const input = page.getByTestId('fixture-search');
+        await input.focus();
+        // Svelte's window handler is registered after both menu handlers.
+        await page.evaluate(() => { (window as any).fixture.lateWindowField = true; });
+        await page.keyboard.press('Escape');
+        await expect(input).toBeFocused();
+        await expect(input).toHaveValue('field handled Escape');
+        await expect(opened).toBeVisible();
+        await trigger.focus();
+        await trigger.press('Escape');
+        await expect(opened).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+    });
     test('normal inner-only resize still publishes exactly once', async ({ page }) => {
         await mount(page, bundle);
         const before = await counts(page), session = await page.context().newCDPSession(page);
         await session.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 650, deviceScaleFactor: 1, mobile: false });
         await changed(page, before);
         await session.detach();
+    });
+    test('each fullscreen transition owns its delayed first resize', async ({ page }) => {
+        await installBrowserFullscreen(page);
+        await mount(page, bundle);
+        const before = await counts(page);
+        await page.evaluate(() => {
+            (window as any).setTestBrowserFullscreen(true, true, false);
+            setTimeout(() => {
+                (window as any).setTestBrowserFullscreen(false, true, false);
+                setTimeout(() => dispatchEvent(new Event('resize')), 200);
+            }, 50);
+        });
+        expect(await quietCounts(page)).toMatchObject({ results: before.results, publications: before.publications, url: before.url });
+    });
+    test('each fullscreen session owns its trigger and quick user focus wins closing menus', async ({ page }) => {
+        await mount(page, nav);
+        await page.locator('.trail-result a').first().focus();
+        await windowState(page, true); await windowState(page, false);
+        await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); document.querySelector('.trail-results')!.scrollTop = 0; });
+        await windowState(page, true); await windowState(page, false);
+        await expect(page.locator('[data-testid="fixture-search"]')).toBeFocused();
+        expect(await page.locator('.trail-results').evaluate(node => node.scrollTop)).toBe(0);
+        for (const menu of ['Open user menu', 'Toggle notification dropdown']) {
+            await page.getByRole('button', { name: menu, exact: true }).click();
+            await windowState(page, true);
+            await page.keyboard.press('Escape');
+            await expect(page.locator('nav [data-fullscreen-overlay]')).toHaveCount(0);
+            await windowState(page, false);
+            await page.getByRole('button', { name: menu, exact: true }).click();
+            await windowState(page, true);
+            await page.locator('.maplibregl-canvas').click({ position: { x: 300, y: 300 }, delay: 0 });
+            await page.evaluate(() => new Promise(requestAnimationFrame));
+            await expect(page.locator('.maplibregl-canvas')).toBeFocused();
+            const before = await counts(page);
+            await page.keyboard.press('ArrowRight');
+            await changed(page, before);
+            await windowState(page, false);
+        }
+    });
+    test('a touch choice on the map wins the pending menu handoff', async ({ browser }) => {
+        const context = await browser.newContext({ viewport: null, hasTouch: true });
+        const page = await context.newPage();
+        try {
+            await mount(page, nav);
+            await page.getByRole('button', { name: 'Open user menu', exact: true }).tap();
+            await windowState(page, true);
+            await page.locator('.maplibregl-canvas').tap({ position: { x: 300, y: 300 } });
+            await page.evaluate(() => new Promise(requestAnimationFrame));
+            await expect(page.locator('.maplibregl-canvas')).toBeFocused();
+            const before = await counts(page);
+            await page.keyboard.press('ArrowRight');
+            await changed(page, before);
+        } finally { await context.close(); }
     });
     test('motion hidden by rotation or list selection restores only published bounds', async ({ browser }) => {
         for (const action of ['rotation', 'list']) {

@@ -49,10 +49,10 @@ export async function settle(page: Page) {
 export async function windowState(page: Page, fullscreen: boolean) {
     const session = await page.context().newCDPSession(page);
     const { windowId } = await session.send('Browser.getWindowForTarget');
-    const previous = await page.evaluate(() => [innerWidth, innerHeight]);
     await session.send('Browser.setWindowBounds', { windowId, bounds: { windowState: fullscreen ? 'fullscreen' : 'normal' } });
-    await expect.poll(() => page.evaluate(() => [innerWidth, innerHeight])).not.toEqual(previous);
-    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+    await expect.poll(() => page.evaluate(() => matchMedia('(display-mode: fullscreen)').matches)).toBe(fullscreen);
+    if (fullscreen) await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    else await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
     await settle(page);
     await session.detach();
 }
@@ -86,26 +86,6 @@ export async function mount(page: Page, bundle: string, delayed = false, push = 
     }
 }
 
-
-export async function recordInertiaTarget(page: Page) {
-    await page.evaluate(() => {
-        const w = window as any, map = w.realMap, ease = map.easeTo.bind(map);
-        map.easeTo = (options: any, data: any) => {
-            // Compute this exact gesture's uninterrupted endpoint in a second
-            // real engine. A separately timed swipe has a different velocity.
-            const container = document.createElement('div');
-            container.style.cssText = `position:fixed;left:-10000px;width:${map.getContainer().clientWidth}px;height:${map.getContainer().clientHeight}px`;
-            document.body.append(container);
-            const control = new w.RealMapLibre.Map({container,interactive:false,
-                center:map.getCenter(),zoom:map.getZoom(),bearing:map.getBearing(),pitch:map.getPitch(),
-                style:{version:8,sources:{},layers:[]}});
-            control.easeTo({...options,duration:0});
-            w.inertiaTarget = {center:control.getCenter().toArray(),zoom:control.getZoom()};
-            control.remove();container.remove();map.easeTo=ease;
-            return ease(options,data);
-        };
-    });
-}
 
 export async function clockedSwipe(page: Page) {
     await page.evaluate(() => {
@@ -149,6 +129,30 @@ export async function swipe(page: Page, deceleration = 100, afterRelease = false
         await new Promise(requestAnimationFrame);
         if (afterRelease) (window as any).fixture.afterFling?.();
     }, { deceleration, afterRelease });
+}
+
+export async function holdFullscreenTimers(page: Page) {
+    await page.evaluate(() => {
+        const timeout = window.setTimeout.bind(window), clear = window.clearTimeout.bind(window);
+        const held = new Map<number, () => void>();
+        let next = 1_000_000_000;
+        // Native input must land before the fallback handoff, even when the
+        // Playwright process is delayed by the separate CPU stress workload.
+        window.setTimeout = ((handler: TimerHandler, delay?: number, ...args: any[]) => {
+            if (typeof handler === 'function' && (delay === 250 || delay === 1000)) {
+                const id = ++next;
+                held.set(id, () => handler(...args));
+                return id;
+            }
+            return timeout(handler, delay, ...args);
+        }) as typeof window.setTimeout;
+        window.clearTimeout = id => { held.delete(Number(id)); clear(id); };
+        (window as any).flushFullscreenTimers = () => {
+            window.setTimeout = timeout;
+            window.clearTimeout = clear;
+            for (const callback of held.values()) callback();
+        };
+    });
 }
 
 // Exact counts are observed after the entire publication/render debounce chain,

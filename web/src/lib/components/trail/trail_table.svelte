@@ -18,6 +18,7 @@
         items: number;
         onsort?: (value: any) => void;
         onTrailSelect?: (value: any) => void;
+        selectable?: boolean;
         trailHref?: (trail: Trail) => string;
         onhover?: (trail?: Trail) => void;
     }
@@ -30,6 +31,7 @@
         items,
         onsort,
         onTrailSelect: onselect,
+        selectable = true,
         trailHref,
         onhover,
     }: Props = $props();
@@ -114,21 +116,23 @@
     <table class="w-full">
         <thead>
             <tr class="bg-secondary-hover">
-                <th
-                    class="p-4 text-left text-sm font-medium {getColumnWidth(
-                        'select',
-                    )}"
-                >
-                    <div class="flex items-center">
-                        <input
-                            aria-label={$_("trail-results-select-loaded")}
-                            type="checkbox"
-                            class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
-                            onclick={setSelectedAllTrails}
-                            checked={allSelected()}
-                        />
-                    </div>
-                </th>
+                {#if selectable}
+                    <th
+                        class="p-4 text-left text-sm font-medium {getColumnWidth(
+                            'select',
+                        )}"
+                    >
+                        <div class="flex items-center">
+                            <input
+                                aria-label={$_("trail-results-select-loaded")}
+                                type="checkbox"
+                                class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
+                                onclick={setSelectedAllTrails}
+                                checked={allSelected()}
+                            />
+                        </div>
+                    </th>
+                {/if}
                 {#each tableHeader as column}
                     <th
                         class="p-4 text-left text-sm font-medium {getColumnWidth(
@@ -171,18 +175,20 @@
                         onmouseenter={() => onhover?.(trail)}
                         onmouseleave={() => onhover?.()}
                     >
-                        <td class="p-4 text-sm">
-                            <div class="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    aria-label={$_("trail-results-select-trail", { values: { name: trail.name } })}
-                                    class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
-                                    checked={isSelected(trail)}
-                                    onclick={(e: Event) =>
-                                        setSelectedTrail(e, trail)}
-                                />
-                            </div>
-                        </td>
+                        {#if selectable}
+                            <td class="p-4 text-sm">
+                                <div class="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        aria-label={$_("trail-results-select-trail", { values: { name: trail.name } })}
+                                        class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
+                                        checked={isSelected(trail)}
+                                        onclick={(e: Event) =>
+                                            setSelectedTrail(e, trail)}
+                                    />
+                                </div>
+                            </td>
+                        {/if}
                         <td
                             class="flex justify-between items-center text-sm relative"
                         >
