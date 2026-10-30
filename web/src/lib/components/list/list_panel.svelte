@@ -23,13 +23,14 @@
 
     interface Props {
         list: List;
+        onback?: () => void;
         onclick?: (data: { trail: Trail; index: number }) => void;
         onmouseenter?: (data: { trail: Trail; index: number }) => void;
         onmouseleave?: (data: { trail: Trail; index: number }) => void;
         onchange?: (item: DropdownItem) => void;
     }
 
-    let { list, onclick, onmouseenter, onmouseleave, onchange }: Props =
+    let { list, onback, onclick, onmouseenter, onmouseleave, onchange }: Props =
         $props();
 
     let cumulativeDistance = $derived(
@@ -98,9 +99,19 @@
 </script>
 
 <div class="relative">
+    {#if onback}
+        <button
+            type="button"
+            aria-label="Back"
+            class="bg-black/40 text-white text-lg rounded-full w-10 h-10 hover:bg-black/50 transition-colors focus:ring-4 focus:ring-primary/70 top-6 left-6 absolute"
+            onclick={onback}
+        >
+            <i class="fa fa-arrow-left"></i>
+        </button>
+    {/if}
     {#if (list.public || listIsShared) && $currentUser}
         <div
-            class="flex absolute top-4 left-6 {list.public && listIsShared
+            class="flex absolute top-4 right-6 {list.public && listIsShared
                 ? 'w-16'
                 : 'w-8'} h-8 rounded-full items-center justify-center bg-white text-primary"
         >
