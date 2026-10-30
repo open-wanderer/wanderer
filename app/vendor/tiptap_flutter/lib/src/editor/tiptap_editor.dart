@@ -185,6 +185,13 @@ class _TiptapEditorState extends State<TiptapEditor> {
   /// Whether the Copy/Cut/Paste/Select All context toolbar is showing.
   bool _toolbarVisible = false;
 
+  /// The caret position the toolbar was opened at for a collapsed
+  /// selection (Paste/Select All only), or null when the toolbar belongs to
+  /// a range selection. A collapsed engine selection normally hides the
+  /// toolbar; one at this position is the caret toolbar's own commit and
+  /// keeps it up.
+  int? _caretToolbarPos;
+
   /// Which handle is being dragged: true for the start handle, false for
   /// the end handle, null when no handle drag is in progress.
   bool? _draggingStartHandle;
@@ -298,9 +305,12 @@ class _TiptapEditorState extends State<TiptapEditor> {
 
           /// Hide the context toolbar and drop the cached chrome geometry
           /// when the selection collapses — typing, cut, paste, and tapping
-          /// elsewhere all collapse it.
-          if (state.selection == null || state.selection!.empty) {
+          /// elsewhere all collapse it. The caret toolbar survives the
+          /// collapsed selection it was opened at.
+          final sel = state.selection;
+          if (sel == null || (sel.empty && sel.from != _caretToolbarPos)) {
             _toolbarVisible = false;
+            _caretToolbarPos = null;
             _chromeGeometry = null;
           }
         });
@@ -610,6 +620,9 @@ class _TiptapEditorState extends State<TiptapEditor> {
   void _onTapUp(TapUpDetails details) {
     if (_engineState != EngineState.ready) return;
 
+    final hadFocus = _hasFocus;
+    final hadToolbar = _toolbarVisible;
+
     _gainFocus();
 
     /// A tap dismisses any active selection chrome: the context toolbar
@@ -619,6 +632,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
       setState(() {
         _previewSelection = null;
         _toolbarVisible = false;
+        _caretToolbarPos = null;
         _chromeGeometry = null;
       });
     }
@@ -656,6 +670,18 @@ class _TiptapEditorState extends State<TiptapEditor> {
           positionToSend = tappedBlock.first.pos;
         }
 
+        /// Tapping the caret of an already-focused editor opens the caret
+        /// toolbar (Paste/Select All), as native text fields do. A second
+        /// tap while it is showing closes it again.
+        final current = widget.controller.selection;
+        if (hadFocus &&
+            !hadToolbar &&
+            current != null &&
+            current.empty &&
+            current.from == positionToSend) {
+          _showCaretToolbar(positionToSend);
+        }
+
         /// Mark that the next stateChanged event should trigger a sync
         /// of the platform's editing state. This tells the platform what
         /// text surrounds the new cursor position so it can handle
@@ -677,9 +703,15 @@ class _TiptapEditorState extends State<TiptapEditor> {
 
     _gainFocus();
 
-    final word = _positionRegistry.wordRangeAtGlobalOffset(
+    /// Outside any block (the blank area below the last line) there is no
+    /// word; fall back to the caret position the tap path would pick so the
+    /// gesture still ends with the caret toolbar.
+    final pos = _positionRegistry.positionFromGlobalOffset(
       details.globalPosition,
     );
+    final word =
+        _positionRegistry.wordRangeAtGlobalOffset(details.globalPosition) ??
+        (pos == null ? null : WordRange(from: pos, to: pos));
     if (word == null) return;
 
     setState(() {
@@ -688,6 +720,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
       _previewSelection = _buildPreviewSelection(word.from, word.to);
       _magnifierFocalPoint = _globalToOverlayLocal(details.globalPosition);
       _toolbarVisible = false;
+      _caretToolbarPos = null;
     });
   }
 
@@ -722,9 +755,10 @@ class _TiptapEditorState extends State<TiptapEditor> {
   }
 
   /// End the long-press gesture: hide the magnifier, commit the previewed
-  /// selection to the engine, and show the context toolbar for a non-empty
-  /// result. A collapsed result (long-press on an empty block) commits a
-  /// collapsed cursor with no toolbar.
+  /// selection to the engine, and show the context toolbar. A collapsed
+  /// result (long-press on an empty block or below the text) commits a
+  /// collapsed cursor with the caret toolbar, so Paste is reachable in an
+  /// empty editor.
   void _onLongPressEnd(LongPressEndDetails details) {
     if (!_longPressActive) return;
 
@@ -734,7 +768,8 @@ class _TiptapEditorState extends State<TiptapEditor> {
       _longPressActive = false;
       _longPressAnchorWord = null;
       _magnifierFocalPoint = null;
-      _toolbarVisible = sel != null && !sel.empty;
+      _toolbarVisible = sel != null;
+      _caretToolbarPos = sel != null && sel.empty ? sel.from : null;
     });
 
     if (sel != null) {
@@ -758,6 +793,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
       _dragFixedPos = isStartHandle ? sel.to : sel.from;
       _dragMovingPos = isStartHandle ? sel.from : sel.to;
       _toolbarVisible = false;
+      _caretToolbarPos = null;
       _magnifierFocalPoint = _globalToOverlayLocal(globalPosition);
     });
   }
@@ -836,6 +872,23 @@ class _TiptapEditorState extends State<TiptapEditor> {
     }
   }
 
+  /// Show the caret toolbar (Paste/Select All) at a collapsed selection.
+  void _showCaretToolbar(int pos) {
+    setState(() {
+      _toolbarVisible = true;
+      _caretToolbarPos = pos;
+    });
+  }
+
+  /// Hide the context toolbar, whichever kind is showing.
+  void _hideToolbar() {
+    if (!mounted) return;
+    setState(() {
+      _toolbarVisible = false;
+      _caretToolbarPos = null;
+    });
+  }
+
   /// Convert a global pixel offset into the overlay Stack's local space.
   /// Falls back to the global offset if the Stack has not been laid out.
   Offset _globalToOverlayLocal(Offset global) {
@@ -880,11 +933,12 @@ class _TiptapEditorState extends State<TiptapEditor> {
 
   /// Compute the current selection's chrome geometry from the registry.
   /// Only safe to call after the frame's layout pass (post-frame callback
-  /// or gesture handler). Returns null when there is no range selection or
-  /// the endpoints cannot be resolved to laid-out blocks.
+  /// or gesture handler). Returns null when there is no range selection
+  /// (or caret toolbar to anchor) or the endpoints cannot be resolved to
+  /// laid-out blocks.
   SelectionChromeGeometry? _computeChromeGeometry() {
     final sel = _effectiveSelection;
-    if (sel == null || sel.empty) return null;
+    if (sel == null || (sel.empty && !_toolbarVisible)) return null;
 
     final startTopGlobal = _positionRegistry.globalOffsetFromPosition(sel.from);
     final endTopGlobal = _positionRegistry.globalOffsetFromPosition(sel.to);
@@ -920,11 +974,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
 
     /// Copy keeps the selection but dismisses the toolbar, matching
     /// platform behavior.
-    if (mounted) {
-      setState(() {
-        _toolbarVisible = false;
-      });
-    }
+    _hideToolbar();
   }
 
   /// Cut: copy the selected text, then delete the range with a single
@@ -937,11 +987,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
     final text = extractTextInRange(doc, sel.from, sel.to);
     await Clipboard.setData(ClipboardData(text: text));
 
-    if (mounted) {
-      setState(() {
-        _toolbarVisible = false;
-      });
-    }
+    _hideToolbar();
 
     _syncNeeded = true;
     await widget.controller.deleteRange(
@@ -958,17 +1004,14 @@ class _TiptapEditorState extends State<TiptapEditor> {
   /// newlines — after clearing any selected range, so paste exercises only
   /// command semantics the engine already defines.
   Future<void> _pasteClipboard() async {
+    final sel = _effectiveSelection;
+
+    /// Hide first: an empty clipboard must still dismiss the toolbar.
+    _hideToolbar();
+
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     if (text == null || text.isEmpty) return;
-
-    final sel = _effectiveSelection;
-
-    if (mounted) {
-      setState(() {
-        _toolbarVisible = false;
-      });
-    }
 
     _syncNeeded = true;
 
@@ -1012,6 +1055,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
     if (mounted) {
       setState(() {
         _toolbarVisible = true;
+        _caretToolbarPos = null;
       });
     }
   }
@@ -1067,11 +1111,13 @@ class _TiptapEditorState extends State<TiptapEditor> {
     final effectiveSelection = _effectiveSelection;
     final hasRangeSelection =
         effectiveSelection != null && !effectiveSelection.empty;
+    final hasChrome =
+        hasRangeSelection || (_toolbarVisible && effectiveSelection != null);
 
     /// Keep the cached chrome geometry in sync with the selection. The
     /// computation itself happens post-frame (after layout); rendering
     /// below uses only the cached value, never live registry queries.
-    if (hasRangeSelection) {
+    if (hasChrome) {
       _scheduleChromeGeometryUpdate();
     }
 
@@ -1086,7 +1132,7 @@ class _TiptapEditorState extends State<TiptapEditor> {
         /// document scrolls under it: schedule a post-frame geometry
         /// recomputation, which setStates only if positions actually moved.
         onNotification: (_) {
-          if (hasRangeSelection) {
+          if (hasChrome) {
             _scheduleChromeGeometryUpdate();
           }
           return false;
@@ -1128,10 +1174,11 @@ class _TiptapEditorState extends State<TiptapEditor> {
                 onDragEnd: _onHandleDragEnd,
               ),
 
-            /// The Copy/Cut/Paste/Select All context toolbar, anchored to
-            /// the post-frame cached geometry.
-            if (_toolbarVisible && hasRangeSelection && _chromeGeometry != null)
-              _buildContextToolbar(_chromeGeometry!),
+            /// The context toolbar, anchored to the post-frame cached
+            /// geometry: Cut/Copy/Paste/Select All for a range, Paste/Select
+            /// All at a collapsed caret.
+            if (_toolbarVisible && hasChrome && _chromeGeometry != null)
+              _buildContextToolbar(_chromeGeometry!, hasRangeSelection),
 
             /// The drag magnifier, shown during long-press and handle drags.
             if (_magnifierFocalPoint != null)
@@ -1150,7 +1197,10 @@ class _TiptapEditorState extends State<TiptapEditor> {
   /// first caret (primary) and the bottom of its last caret (secondary), in
   /// the overlay Stack's local space — the toolbar positions itself above
   /// the selection when there is room, below otherwise.
-  Widget _buildContextToolbar(SelectionChromeGeometry geometry) {
+  Widget _buildContextToolbar(
+    SelectionChromeGeometry geometry,
+    bool hasRangeSelection,
+  ) {
     final endBottom = geometry.endEndpoint;
     final midX = (geometry.startTop.dx + endBottom.dx) / 2;
 
@@ -1163,18 +1213,20 @@ class _TiptapEditorState extends State<TiptapEditor> {
       child: AdaptiveTextSelectionToolbar.buttonItems(
         anchors: anchors,
         buttonItems: [
-          ContextMenuButtonItem(
-            type: ContextMenuButtonType.cut,
-            onPressed: () {
-              _cutSelection();
-            },
-          ),
-          ContextMenuButtonItem(
-            type: ContextMenuButtonType.copy,
-            onPressed: () {
-              _copySelection();
-            },
-          ),
+          if (hasRangeSelection) ...[
+            ContextMenuButtonItem(
+              type: ContextMenuButtonType.cut,
+              onPressed: () {
+                _cutSelection();
+              },
+            ),
+            ContextMenuButtonItem(
+              type: ContextMenuButtonType.copy,
+              onPressed: () {
+                _copySelection();
+              },
+            ),
+          ],
           ContextMenuButtonItem(
             type: ContextMenuButtonType.paste,
             onPressed: () {
