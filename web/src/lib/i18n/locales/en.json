@@ -774,5 +774,6 @@
   "settings-search": "Search",
   "settings-search-help": "Enable a switch to show that filter under “More filters”; otherwise it appears directly in general search.",
   "settings-search-placement": "Search filter placement",
-  "settings-search-error": "Could not save the filter placement. Please try again."
+  "settings-search-error": "Could not save the filter placement. Please try again.",
+  "list-search-placeholder": "Search your lists"
 }
