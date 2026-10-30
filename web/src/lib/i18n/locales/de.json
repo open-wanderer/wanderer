@@ -770,5 +770,9 @@
   "trail-map-reset-view": "Kartenübersicht wiederherstellen",
   "trail-map-move-overlay": "Übersichtskarte verschieben",
   "trail-results-select-trail": "{name} auswählen",
-  "trail-map-open-error": "Die Routen konnten nicht auf der Karte geöffnet werden. Bitte versuche es erneut."
+  "trail-map-open-error": "Die Routen konnten nicht auf der Karte geöffnet werden. Bitte versuche es erneut.",
+  "settings-search": "Suche",
+  "settings-search-help": "Mit aktiviertem Schalter erscheint der Filter unter „Weitere Filter“, sonst direkt in der allgemeinen Suche.",
+  "settings-search-placement": "Zuordnung der Suchfilter",
+  "settings-search-error": "Die Zuordnung konnte nicht gespeichert werden. Bitte versuche es erneut."
 }
