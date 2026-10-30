@@ -115,6 +115,25 @@ for (const dev of [true, false]) {
             await expect(page.getByRole('region', { name: 'sort', exact: true })).toBeHidden();
         });
 
+        test('passes effective creation sorting to the table and reverses the first header click', async ({ page }) => {
+            const requests = await mountTrailResultControlsFixture(page, bundle, { display: 'table', items: 10, sort: 'relevance', query: '' });
+            await expect(page.getByTestId('table-filter')).toContainText('"sort":"created"');
+            await page.getByTestId('created-sort').click();
+            await expect.poll(() => requests.at(-1)?.order).toBe('-');
+        });
+
+        test('uses the result refresh callback for a bulk delete instead of publishing a new search', async ({ page }) => {
+            const requests = await mountTrailResultControlsFixture(page, bundle, { incremental: true });
+            const before = requests.length;
+            await page.locator('#trails .trail-result > a').first().focus();
+            await page.getByRole('checkbox', { name: 'Select Trail 1', exact: true }).check();
+            await expect.poll(() => page.evaluate(() => typeof (window as any).resultBulkDelete)).toBe('function');
+            await page.evaluate(() => (window as any).resultBulkDelete());
+            await expect.poll(() => page.evaluate(() => (window as any).resultEvents.filter((event: any) => event.type === 'results-refresh').length)).toBe(1);
+            expect(await page.evaluate(() => (window as any).resultEvents.filter((event: any) => event.type === 'sort'))).toEqual([]);
+            expect(requests).toHaveLength(before);
+        });
+
         test('retains the real merge results and retry after clearing deleted source selection', async ({ page }) => {
             await mountTrailResultControlsFixture(page, bundle, { incremental: true });
             await page.locator('#trails .trail-result > a').first().focus();
@@ -128,6 +147,7 @@ for (const dev of [true, false]) {
             await expect(page.getByRole('button', { name: 'trail-merge-retry', exact: true })).toBeVisible();
             await expect(page.getByText('Source unavailable', { exact: true })).toBeVisible();
             await expect(page.getByText('trail-merge-result-summary', { exact: true })).toBeVisible();
+            expect(await page.evaluate(() => (window as any).resultEvents.filter((event: any) => event.type === 'results-refresh').length)).toBe(1);
         });
 
         for (const display of ['cards', 'list']) {

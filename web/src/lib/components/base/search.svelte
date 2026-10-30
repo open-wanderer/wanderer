@@ -23,6 +23,7 @@
         extraClasses?: string;
         label?: string;
         clearAfterSelect?: boolean;
+        dismissOnEscape?: boolean;
         prepend?: Snippet<[any]>;
         onupdate?: (q: string) => void;
         onclick?: (item: SearchItem) => void;
@@ -38,12 +39,21 @@
         extraClasses = "",
         label = "",
         clearAfterSelect = true,
+        dismissOnEscape = false,
         prepend,
         onupdate,
         onclick,
     }: Props = $props();
 
     let lastSearch: string = "";
+    let wrapper: HTMLDivElement;
+    function dismissOutside(event: Event) {
+        if (dismissOnEscape && dropDownOpen && event.target instanceof Node && !wrapper.contains(event.target)) searching = false;
+    }
+    function leaveInput(event: FocusEvent) {
+        if (!dismissOnEscape || !(event.relatedTarget instanceof Element) || !wrapper.querySelector('ul')?.contains(event.relatedTarget)) searching = false;
+    }
+
     let searching: boolean = $state(false);
     let typingTimer!: any;
 
@@ -52,6 +62,7 @@
     );
 
     function onSearchType() {
+        if (dismissOnEscape) searching = true;
         clearTimeout(typingTimer);
         if (Math.abs(value.length - lastSearch.length) > maxSearchLength) {
             update(value);
@@ -77,13 +88,30 @@
     }
 
     function clear() {
+        searching = false;
         value = "";
         items = [];
         update(value);
     }
+
+    function handleKeydown(event: KeyboardEvent) {
+        if (dismissOnEscape && event.key === "ArrowDown" && event.target instanceof HTMLInputElement) {
+            searching = true;
+        }
+        if (!dismissOnEscape || !dropDownOpen || event.key !== "Escape" || event.isComposing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        (event.currentTarget as HTMLElement).querySelector<HTMLInputElement>('input')?.focus();
+        searching = false;
+    }
 </script>
 
-<div class="relative {extraClasses}">
+<svelte:document onfocusin={dismissOutside} onpointerdown={dismissOutside} />
+
+<div bind:this={wrapper} class="relative {extraClasses}" onkeydowncapture={handleKeydown} role="presentation"
+    onfocusout={event => {
+        if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) searching = false;
+    }} onclick={event => { if (dismissOnEscape && event.target instanceof HTMLInputElement) searching = true; }}>
     <span
         class="absolute {large
             ? 'bottom-[31px]'
@@ -117,7 +145,7 @@
         bind:value
         oninput={onSearchType}
         onfocusin={() => (searching = true)}
-        onfocusout={() => (searching = false)}
+        onfocusout={leaveInput}
     ></TextField>
 
     {#if dropDownOpen}
