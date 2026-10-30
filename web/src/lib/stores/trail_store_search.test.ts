@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TrailFilter } from "#lib/models/trail.ts";
 import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
-import { trails_search_filter, trails_search_filter_pages } from "./trail_store";
+import { trails_search_bounds, trails_search_filter, trails_search_filter_pages, trails_search_map_data } from "./trail_store";
+import { LngLat } from "maplibre-gl";
 
 const filter: TrailFilter = {
     q: "Bern", category: ["hiking"], subcategory: [], tags: ["alpine"], difficulty: [1],
@@ -90,7 +91,59 @@ describe("native trail search", () => {
         expect(result).toMatchObject({ page: Math.ceil((count - 1) / 48), totalPages: 21, hitsPerPage: 48 });
     });
 
+    it("refreshes markers independently using the same literal text and explicit radius", async () => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => Response.json({ type: "FeatureCollection", features: [], totalHits: 7 }));
+        const result = await trails_search_map_data(new LngLat(11, 49), new LngLat(5, 45), filter, 8, request);
+        expect(request).toHaveBeenCalledOnce();
+        expect(request.mock.calls[0][0]).toBe("/api/v1/search/trails/cluster");
+        const body = JSON.parse(String(request.mock.calls[0][1]?.body));
+        expect(body.q).toBe("Bern");
+        expect(body.filterText).toContain("_geoRadius(46, 7, 25000)");
+        expect(body).not.toHaveProperty("queryContext");
+        expect(result).toMatchObject({ mapTrails: [] });
+        expect(result).not.toHaveProperty("trails");
+    });
+
     it("persists explicit place labels when restoring filters", () => {
         expect(sanitizeTrailFilter(filter, filter).near.name).toBe("Fixed place");
+    });
+});
+
+describe("filtered map extent", () => {
+    it("uses the list query and filters with one zero-hit facet request and reads the returned extent", async () => {
+        const requests: { q: string; options: Record<string, any> }[] = [];
+        const request: typeof fetch = async (_url, options) => {
+            requests.push(JSON.parse(String(options?.body)));
+            return Response.json({ hits: [], totalHits: 1500, totalPages: 32, facetStats: {
+                min_lat: { min: 45, max: 48 }, max_lat: { min: 46, max: 49 },
+                min_lon: { min: 5, max: 9 }, max_lon: { min: 6, max: 11 },
+            } });
+        };
+        await trails_search_filter(filter, 1, 48, request);
+        const bounds = await trails_search_bounds(filter, request);
+        expect(requests[1]).toEqual({ q: filter.q, options: {
+            filter: expect.stringContaining(requests[0].options.filter), limit: 0,
+            facets: ["min_lat", "max_lat", "min_lon", "max_lon"],
+        } });
+        expect(requests[1].options.filter).toContain("NOT (min_lat = 0 AND max_lat = 0 AND min_lon = 0 AND max_lon = 0)");
+        expect(requests).toHaveLength(2);
+        expect(bounds?.northEast.lat).toBeCloseTo(49.4);
+        expect(bounds?.southWest.lat).toBeCloseTo(44.6);
+        expect(bounds?.northEast.lng).toBeCloseTo(11.6);
+        expect(bounds?.southWest.lng).toBeCloseTo(4.4);
+    });
+
+    it("leaves room around a point without a track", async () => {
+        const request: typeof fetch = async () => Response.json({ facetStats: {
+            min_lat: { min: 46 }, max_lat: { max: 46 }, min_lon: { min: 7 }, max_lon: { max: 7 },
+        } });
+        const bounds = await trails_search_bounds(filter, request);
+        expect(bounds!.northEast.lat - bounds!.southWest.lat).toBeCloseTo(.01);
+        expect(bounds!.northEast.lng - bounds!.southWest.lng).toBeCloseTo(.01);
+    });
+
+    it("returns no extent for an empty result and propagates request failures", async () => {
+        expect(await trails_search_bounds(filter, async () => Response.json({ hits: [], facetStats: {} }))).toBeUndefined();
+        await expect(trails_search_bounds(filter, async () => Response.json({ message: 'Unavailable' }, { status: 503 }))).rejects.toThrow('Unavailable');
     });
 });

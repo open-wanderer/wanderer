@@ -10,11 +10,13 @@
     function acquireScrollLock(dialog: HTMLDialogElement) {
         if (scrollLocks.size === 0) {
             const body = document.body;
+            const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+            const paddingRight = getComputedStyle(body).paddingRight;
             scrollState = {
                 body,
                 x: window.scrollX,
                 y: window.scrollY,
-                styles: ["position", "top", "width"].map((property) => ({
+                styles: ["position", "top", "width", "padding-right"].map((property) => ({
                     property,
                     value: body.style.getPropertyValue(property),
                     priority: body.style.getPropertyPriority(property),
@@ -23,6 +25,7 @@
             body.style.top = `-${scrollState.y}px`;
             body.style.position = "fixed";
             body.style.width = "100%";
+            if (scrollbarWidth) body.style.paddingRight = `calc(${paddingRight} + ${scrollbarWidth}px)`;
         }
         scrollLocks.add(dialog);
     }
@@ -94,11 +97,10 @@
 </script>
 
 {@render children?.({ openModal })}
-<dialog
+<dialog aria-hidden="true"
     {id}
     bind:this={dialog}
     tabindex="-1"
-    aria-hidden="true"
     onclose={handleClose}
     class="{size} max-h-full rounded-xl text-content"
 >

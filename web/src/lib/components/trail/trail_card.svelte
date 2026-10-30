@@ -17,7 +17,6 @@
         displayTrailCategoryIcon,
     } from "#lib/util/category_util.ts";
     import { _, locale } from "svelte-i18n";
-    import type { MouseEventHandler } from "svelte/elements";
     import Chip from "../base/chip.svelte";
 
     interface Props {
@@ -25,8 +24,6 @@
         fullWidth?: boolean;
         selected: boolean;
         hovered: boolean;
-        onmouseenter?: MouseEventHandler<HTMLDivElement>;
-        onmouseleave?: MouseEventHandler<HTMLDivElement>;
     }
 
     let {
@@ -34,8 +31,6 @@
         fullWidth = false,
         selected = false,
         hovered = false,
-        onmouseenter,
-        onmouseleave,
     }: Props = $props();
 
     let thumbnail = $derived(
@@ -71,8 +66,6 @@
         : 'lg:w-72'} cursor-pointer flex flex-col"
     class:hovered
     class:bg-secondary-hover={selected}
-    {onmouseenter}
-    {onmouseleave}
     role="listitem"
 >
     <div

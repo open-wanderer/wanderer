@@ -2,6 +2,7 @@
     import type { SearchPosition, SearchExpansion } from "#lib/models/search_layout.ts";
     import { tick, type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
+    import { MediaQuery } from "svelte/reactivity";
     import type { SelectItem } from "../base/select.svelte";
 
     interface Props {
@@ -19,20 +20,54 @@
         onwidthtoggle?: () => void;
         selectionActions?: Snippet;
         buttonsOnly?: boolean;
+        actions?: Snippet;
+        afterView?: Snippet;
+        showResultOptions?: boolean;
+        viewActions?: Snippet<[{ close: () => void }]>;
         searchPosition?: SearchPosition;
         searchExpansion?: SearchExpansion;
         onsearchposition?: (position: SearchPosition) => void;
         onsearchexpansion?: (expansion: SearchExpansion) => void;
     }
     let { sort, order = "+", sortOptions, display = "cards", displayOptions = [],
-        pageSize = 25, pageSizes = [], wide = false, onsort, ondisplay, onpagesize, onwidthtoggle, selectionActions, buttonsOnly = false, searchPosition = "top", searchExpansion = "overlay", onsearchposition, onsearchexpansion }: Props = $props();
+        pageSize = 25, pageSizes = [], wide = false, onsort, ondisplay, onpagesize, onwidthtoggle, selectionActions, buttonsOnly = false, actions, afterView, showResultOptions = true, viewActions, searchPosition = "top", searchExpansion = "overlay", onsearchposition, onsearchexpansion }: Props = $props();
     const id = $props.id();
     let root: HTMLDivElement;
     let sortButton = $state<HTMLButtonElement>();
     let viewButton = $state<HTMLButtonElement>();
     let open = $state<"sort" | "view" | null>(null);
+    const mobile = new MediaQuery("(width < 768px)", false);
+    $effect(() => { if (!showResultOptions && mobile.current) open = null; });
     let above = $state(false);
     let maxHeight = $state(500);
+
+    function measureInlineControls(node: HTMLDivElement, enabled: boolean) {
+        let parent: HTMLElement | undefined;
+        let previous = "";
+        const restore = () => parent?.style.setProperty("--trail-controls-width", previous);
+        const measure = () => {
+            if (!enabled || !node.offsetWidth) return;
+            if (!parent) {
+                parent = node.parentElement?.parentElement ?? undefined;
+                if (!parent) return;
+                previous = parent.style.getPropertyValue("--trail-controls-width");
+            }
+            parent.style.setProperty("--trail-controls-width", `${Math.ceil(node.getBoundingClientRect().width)}px`);
+        };
+        const observer = new ResizeObserver(measure);
+        observer.observe(node);
+        return {
+            update(value: boolean) {
+                if (enabled && !value) restore();
+                enabled = value;
+                measure();
+            },
+            destroy() {
+                observer.disconnect();
+                restore();
+            },
+        };
+    }
 
     const displayIcons: Record<string, string> = { cards: "fa-grip", list: "fa-list-ul", table: "fa-table" };
     const directionKeys: Record<string, [string, string]> = {
@@ -98,11 +133,12 @@
 
 <svelte:window onpointerdown={outside} onkeydown={keydown} onresize={positionMenu} onscroll={positionMenu} />
 
-<div class="result-controls" class:buttons-only={buttonsOnly} bind:this={root} onfocusout={focusOut}>
+<div class="result-controls" class:buttons-only={buttonsOnly} class:hide-mobile-options={!showResultOptions} bind:this={root} onfocusout={focusOut}>
     <div class="result-summary">
         {#if selectionActions}{@render selectionActions()}{/if}
     </div>
-    <div class="result-buttons">
+    <div class="result-buttons" use:measureInlineControls={buttonsOnly}>
+        {#if actions}{@render actions()}{/if}
         {#if onsort && sort}
         <div class="menu-anchor">
             <button type="button" class="btn-icon control-button" bind:this={sortButton} aria-label={`${$_("sort")}: ${sortLabel()}`} title={`${$_("sort")}: ${sortLabel()}`} aria-expanded={open === "sort"} aria-controls={`${id}-sort`} onclick={() => toggle("sort")}>
@@ -171,12 +207,14 @@
                 {#if onwidthtoggle}
                     <div class="width-section"><button type="button" class="width-option" role="switch" aria-checked={wide} onclick={onwidthtoggle}><i class="fa fa-expand" aria-hidden="true"></i><span>{$_("trail-results-wide")}</span><span class="switch" class:active={wide} aria-hidden="true"></span></button></div>
                 {/if}
+                {#if viewActions}<div class="view-actions">{@render viewActions({ close: () => { if (open === "view") close(true); } })}</div>{/if}
                 {#if onpagesize && pageSizes.length}<fieldset class="size-section"><legend>{$_("trail-results-per-page")}</legend>
                     <div class="size-options">{#each pageSizes as option}<button type="button" class:chosen={pageSize === option.value} aria-pressed={pageSize === option.value} onclick={() => { onpagesize?.(option.value); close(true); }}>{option.text}</button>{/each}</div>
                 </fieldset>{/if}
             </div>
             {/if}
         </div>{/if}
+        {#if afterView}{@render afterView()}{/if}
     </div>
 </div>
 
@@ -188,12 +226,12 @@
     .buttons-only { display: contents; }
     .buttons-only .result-buttons { gap: .5rem; position: absolute; right: var(--trail-controls-inset, .6rem); top: var(--trail-controls-top, .65rem); z-index: 31; }
     .buttons-only .control-copy, .buttons-only .chevron { display: none; }
-    .buttons-only .control-button { border-radius: 50%; justify-content: center; padding: .5rem; width: 2.5rem; }
+    .buttons-only :global(.control-button) { border-radius: 50%; justify-content: center; padding: .5rem; width: 2.5rem; }
     .buttons-only .result-menu:not(.view-menu) { right: var(--result-sort-menu-offset, -3rem); }
     .menu-anchor { position: relative; }
     button { cursor: pointer; font: inherit; }
-    .control-button { align-items: center; aspect-ratio: auto; border-radius: .5rem; display: inline-flex; height: auto; font-size: .8rem; gap: .55rem; min-height: 2.5rem; padding: .5rem .7rem; }
-    .control-button > i:first-child { opacity: .65; }
+    .result-controls :global(:where(.control-button)) { align-items: center; aspect-ratio: auto; border-radius: .5rem; display: inline-flex; height: auto; font-size: .8rem; gap: .55rem; min-height: 2.5rem; padding: .5rem .7rem; }
+    .result-controls :global(.control-button > i:first-child) { opacity: .65; }
     .chevron { font-size: .55rem; opacity: .5; }
     .result-menu { background: rgba(var(--menu-background)); border: 1px solid rgba(var(--input-border)); border-radius: .5rem; box-shadow: 0 8px 24px rgb(0 0 0 / .12); max-width: calc(100vw - 3rem); overflow-y: auto; padding: .55rem; position: absolute; right: 0; top: calc(100% + .45rem); width: 18rem; z-index: 25; }
     .result-menu.above { bottom: calc(100% + .45rem); top: auto; }
@@ -209,7 +247,7 @@
     .menu-option > span { flex: 1; }
     .menu-option > i:first-of-type:not(.check) { opacity: .6; text-align: center; width: 1rem; }
     .menu-option:hover, .width-option:hover, .size-options button:hover, .sort-direction-button:hover { background: rgba(var(--secondary-hover)); }
-    .menu-option:has(input:focus-visible), button:focus-visible { outline: 2px solid rgba(var(--input-border-focus)); outline-offset: 1px; }
+    .menu-option:has(input:focus-visible), button:focus-visible, .result-controls :global(.control-button:focus-visible) { outline: 2px solid rgba(var(--input-border-focus)); outline-offset: 1px; }
     .chosen { background: rgba(var(--input-border-focus), .08); }
     .check { font-size: .65rem; visibility: hidden; }
     .chosen .check { visibility: visible; }
@@ -223,9 +261,12 @@
     .switch::after { background: rgba(var(--menu-background)); border-radius: 50%; content: ""; display: block; height: .75rem; width: .75rem; }
     .switch.active { background: rgba(var(--content)); }
     .switch.active::after { transform: translateX(.8rem); }
+    @media (width < 768px) {
+        .hide-mobile-options .menu-anchor { display: none; }
+    }
     @media (max-width: 639px) {
         .control-copy, .chevron { display: none; }
-        .control-button { border-radius: 50%; justify-content: center; padding: .5rem; width: 2.5rem; }
+        .result-controls :global(:where(.control-button)) { border-radius: 50%; justify-content: center; padding: .5rem; width: 2.5rem; }
         .result-controls { gap: .5rem; }
         .result-buttons { gap: .15rem; }
         .result-menu:not(.view-menu) { right: var(--result-sort-menu-offset, -2.65rem); }

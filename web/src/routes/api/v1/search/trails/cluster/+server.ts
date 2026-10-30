@@ -34,7 +34,7 @@ export async function POST(event: RequestEvent) {
                 event,
                 baseFilters,
             ),
-            attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal"],
+            attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal", "category_icon", "subcategory_id"],
             limit: 10000,
         };
         const response = await event.locals.ms.multiSearch({
@@ -56,7 +56,9 @@ export async function POST(event: RequestEvent) {
             type: "Feature",
             properties: {
                 id: h.id, 
-                bounding_box_diagonal: h.bounding_box_diagonal ?? 0
+                bounding_box_diagonal: h.bounding_box_diagonal ?? 0,
+                category_icon: h.category_icon ?? "",
+                subcategory_id: h.subcategory_id ?? "",
             },
             geometry: {
                 type: "Point",
@@ -107,7 +109,9 @@ export async function POST(event: RequestEvent) {
                 is_large: true,
                 point_count: 1,
                 point_count_abbreviated: "1",
-                bounding_box_diagonal: h.bounding_box_diagonal ?? 0
+                bounding_box_diagonal: h.bounding_box_diagonal ?? 0,
+                category_icon: h.category_icon ?? "",
+                subcategory_id: h.subcategory_id ?? "",
             },
             geometry: {
                 type: "Point",

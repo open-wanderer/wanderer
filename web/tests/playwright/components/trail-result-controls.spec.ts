@@ -184,6 +184,18 @@ for (const dev of [true, false]) {
             });
         }
 
+        test('does not close or steal focus from another menu after a delayed handoff fails', async ({ page }) => {
+            await mountTrailResultControlsFixture(page, bundle, { incremental: true, viewActions: true });
+            await viewButton(page).click();
+            await page.getByTestId('start-handoff').click();
+            await page.getByTestId('outside').click();
+            await page.evaluate(() => (window as any).resultCloseView());
+            await expect(page.getByTestId('outside')).toBeFocused();
+            await sortButton(page).click();
+            await page.evaluate(() => (window as any).resultCloseView());
+            await expect(page.getByRole('region', { name: 'sort', exact: true })).toBeVisible();
+        });
+
         test('retains a keyboard checkbox across document focus loss', async ({ page }) => {
             await mountTrailResultControlsFixture(page, bundle, { incremental: true });
             const link = page.locator('#trails .trail-result > a').first();

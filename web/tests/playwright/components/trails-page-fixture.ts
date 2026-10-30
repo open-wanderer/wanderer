@@ -31,7 +31,7 @@ export async function buildTrailsPageFixture(dev: boolean) {
                 if (id === '\0fixture:entry') return `
                     import { mount, unmount } from 'svelte';
                     import Page from ${JSON.stringify(resolve(root, 'src/routes/trails/+page.svelte'))};
-                    window.fixture = { requests: [] };
+                    window.fixture = { requests: [], navigation: [] };
                     window.fetch = (url, options) => new Promise((resolve, reject) => {
                         window.fixture.requests.push({ channel: url, body: JSON.parse(options.body), signal: options.signal,
                             resolve: data => resolve(Response.json(data)), reject });
@@ -57,6 +57,7 @@ export async function buildTrailsPageFixture(dev: boolean) {
                 `, { filename: 'fixture-state.svelte.js', generate: 'client', dev }).js.code;
                 if (id === '\0fixture:navigation') return `
                     export function beforeNavigate(callback) { window.fixture.beforeNavigate = callback; }
+                    export async function goto(url, options) { window.fixture.navigation.push({ url, ...options }); }
                 `;
                 if (id === '\0fixture:i18n') return `import { writable } from 'svelte/store'; export const _ = writable(key => key);`;
                 if (id === resolve(root, 'src/lib/stores/trail_store.ts')) return `
@@ -72,12 +73,13 @@ export async function buildTrailsPageFixture(dev: boolean) {
                         const result = await query('results', { filter, page: 1, perPage: Math.min(pages * perPage, 1000) }, fetcher);
                         return { ...result, page: Math.max(1, Math.ceil(result.items.length / perPage)), totalPages: Math.ceil(Math.min(result.totalHits, 1000) / perPage) };
                     }
+                    export function trails_search_bounds(filter, fetcher) { return query('extent', { filter }, fetcher); }
                 `;
                 let component: string;
                 if (id === resolve(root, 'src/lib/components/trail/trail_list.svelte')) component = `
                     <script>
                         let { filter = $bindable(), trails, pagination, display = $bindable(), loading,
-                            onupdate, onresultsupdate, ondisplaychange, searchBar, moreResults, busy } = $props();
+                            onupdate, onresultsupdate, ondisplaychange, searchBar, moreResults, resultActions, busy } = $props();
                         $effect(() => {
                             window.fixture.refreshResults = onresultsupdate;
                             window.fixture.display = mode => { display = mode; ondisplaychange(mode); };
@@ -85,6 +87,7 @@ export async function buildTrailsPageFixture(dev: boolean) {
                         });
                     </script>
                     {@render searchBar()}
+                    {@render resultActions?.()}
                     <div class="result-content" aria-busy={busy ?? loading}>
                         <output data-testid="results">{JSON.stringify({ trails, pagination, filter, loading, display })}</output>
                         {#each trails as trail}<div style="height: 20px">{trail.id}</div>{/each}

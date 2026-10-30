@@ -753,5 +753,16 @@
   "trail-search-place": "Ort",
   "trail-results-load-more": "Mehr laden",
   "trail-results-loading-more": "Weitere Routen werden geladen…",
-  "trail-results-select-trail": "{name} auswählen"
+  "trail-map-show-results": "Zu den Ergebnissen wechseln",
+  "trail-map-show-map": "Zur Karte wechseln",
+  "trail-map-resize-results": "Breite der Trefferliste ändern",
+  "trail-map-reset-location": "Zum gespeicherten Ort zurückkehren",
+  "trail-map-restore-results": "Trefferliste ausklappen",
+  "trail-results-select-loaded": "Alle geladenen Routen auswählen",
+  "trail-results-selection-actions": "Aktionen für ausgewählte Routen",
+  "trail-results-clear-selection": "Auswahl aufheben",
+  "trail-map-hide-results": "Trefferliste einklappen",
+  "trail-map-reset-view": "Kartenübersicht wiederherstellen",
+  "trail-results-select-trail": "{name} auswählen",
+  "trail-map-open-error": "Die Routen konnten nicht auf der Karte geöffnet werden. Bitte versuche es erneut."
 }

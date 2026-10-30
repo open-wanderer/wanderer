@@ -753,5 +753,16 @@
   "trail-search-place": "Place",
   "trail-results-load-more": "Load more",
   "trail-results-loading-more": "Loading more trails…",
-  "trail-results-select-trail": "Select {name}"
+  "trail-map-show-results": "Switch to results",
+  "trail-map-show-map": "Switch to map",
+  "trail-map-resize-results": "Resize results pane",
+  "trail-map-reset-location": "Return to saved location",
+  "trail-map-restore-results": "Show results pane",
+  "trail-results-select-loaded": "Select all loaded trails",
+  "trail-results-selection-actions": "Actions for selected trails",
+  "trail-results-clear-selection": "Clear selection",
+  "trail-map-hide-results": "Hide results pane",
+  "trail-map-reset-view": "Restore map overview",
+  "trail-results-select-trail": "Select {name}",
+  "trail-map-open-error": "Could not open these trails on the map. Please try again."
 }
