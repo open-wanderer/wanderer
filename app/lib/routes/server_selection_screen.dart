@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -9,6 +8,7 @@ import 'package:wanderer/models/server_instance.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/welcome/recent_servers_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
+import 'package:wanderer/util/image_cache.dart';
 import 'package:wanderer/util/server_url.dart';
 
 class ServerSelectionScreen extends ConsumerStatefulWidget {
@@ -123,7 +123,7 @@ class _ServerSelectionScreenState extends ConsumerState<ServerSelectionScreen> {
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image(
-                image: CachedNetworkImageProvider(
+                image: wandererImageProvider(
                   "https://wanderer.to/${server.image}",
                 ),
                 width: 48,

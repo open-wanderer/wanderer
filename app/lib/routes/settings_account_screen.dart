@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +17,7 @@ import 'package:wanderer/provider/profile/profile_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/actions/guard_online.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 class SettingsAccountScreen extends ConsumerStatefulWidget {
   const SettingsAccountScreen({super.key});
@@ -179,7 +179,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
                 children: [
                   CircleAvatar(
                     radius: 64,
-                    backgroundImage: CachedNetworkImageProvider(
+                    backgroundImage: wandererImageProvider(
                       avatarUrl ?? fallbackUrl,
                     ),
                     onBackgroundImageError: (e, _) {},

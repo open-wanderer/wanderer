@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -14,6 +13,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
 import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 class SummitLogCard extends ConsumerWidget {
   final SummitLog summitLog;
@@ -85,7 +85,7 @@ class SummitLogCard extends ConsumerWidget {
                           width: 80,
                           height: 80,
                           child: Image(
-                            image: CachedNetworkImageProvider(
+                            image: wandererImageProvider(
                               summitLog.photos.isNotEmpty
                                   ? summitLog.getFileUrl(
                                           user.serverUrl,

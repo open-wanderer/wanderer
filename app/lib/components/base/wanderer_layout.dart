@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/store/avatar_cache.dart';
+import 'package:wanderer/util/image_cache.dart';
 import '/i18n/app_localizations.dart';
 
 class WandererLayout extends ConsumerWidget {
@@ -267,7 +267,7 @@ class _NavAvatarState extends State<_NavAvatar> {
           return CircleAvatar(
             radius: 12,
             backgroundColor: backgroundColor,
-            backgroundImage: CachedNetworkImageProvider(
+            backgroundImage: wandererImageProvider(
               user?.getFileUrl(user.serverUrl, user.avatar) ??
                   "https://api.dicebear.com/7.x/initials/png?seed=${user?.preferredUsername}&backgroundType=gradientLinear",
             ),

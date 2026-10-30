@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 /// A reusable photo picker for attaching images to a record.
 ///
@@ -124,7 +124,7 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
             for (var i = 0; i < _webPhotos.length; i++)
               _Thumbnail(
                 image: Image(
-                  image: CachedNetworkImageProvider(
+                  image: wandererImageProvider(
                     widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ??
                         _webPhotos[i],
                   ),

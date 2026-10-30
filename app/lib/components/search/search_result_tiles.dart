@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +13,7 @@ import 'package:wanderer/provider/trail/category_provider.dart';
 import 'package:wanderer/provider/trail/subcategory_provider.dart';
 import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/geo/polyline.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 // One tile per search result type. Shared by the search screens' live
 // results and their search history, so a remembered result looks exactly
@@ -77,7 +77,7 @@ class SearchTrailTile extends ConsumerWidget {
           ? CircleAvatar(
               radius: 14,
               backgroundColor: Colors.grey.shade300,
-              backgroundImage: CachedNetworkImageProvider(
+              backgroundImage: wandererImageProvider(
                 trail.authorAvatar.isNotEmpty
                     ? trail.authorAvatar
                     : 'https://api.dicebear.com/7.x/initials/png?seed=${trail.authorName}',
@@ -176,8 +176,8 @@ class SearchActorTile extends StatelessWidget {
         radius: 20,
         backgroundColor: Colors.grey.shade300,
         backgroundImage: actor.icon != null && actor.icon!.isNotEmpty
-            ? CachedNetworkImageProvider(actor.icon!)
-            : CachedNetworkImageProvider(
+            ? wandererImageProvider(actor.icon!)
+            : wandererImageProvider(
                 'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
               ),
       ),

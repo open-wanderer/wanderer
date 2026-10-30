@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/provider/router_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 class ServerSelector extends ConsumerWidget {
   final FaIconData? icon;
@@ -45,7 +45,7 @@ class ServerSelector extends ConsumerWidget {
     if (hasServer && serverSelection.value?.selectedServer!.image != null) {
       serverIcon = ClipOval(
         child: Image(
-          image: CachedNetworkImageProvider(
+          image: wandererImageProvider(
             "https://wanderer.to/${serverSelection.value?.selectedServer!.image!}",
           ),
           width: 48,

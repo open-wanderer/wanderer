@@ -9,6 +9,7 @@ import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/store/avatar_cache.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 // ---------------------------------------------------------------------------
 // Actor avatar — the single avatar widget for every surface that shows who
@@ -38,7 +39,7 @@ ImageProvider Function(String url)? debugAvatarImageProviderFactory;
 
 ImageProvider _avatarImage(String url) =>
     debugAvatarImageProviderFactory?.call(url) ??
-    CachedNetworkImageProvider(url);
+    wandererImageProvider(url);
 
 /// Dispatches to the disk-cached avatar chain when the author is the
 /// signed-in user (so the avatar survives offline), and to the plain network

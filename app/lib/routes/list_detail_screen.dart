@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:wanderer/components/map/map_ui_controls.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +22,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/provider/trail/list_provider.dart';
 import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/image_cache.dart';
 import 'package:wanderer/util/map/reliable_fit_bounds.dart';
 import 'package:collection/collection.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
@@ -151,7 +151,7 @@ class _ListHeader extends ConsumerWidget {
           AspectRatio(
             aspectRatio: 16 / 9,
             child: Image(
-              image: CachedNetworkImageProvider(avatarUrl),
+              image: wandererImageProvider(avatarUrl),
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),

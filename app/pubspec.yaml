@@ -61,6 +61,7 @@ dependencies:
   url_launcher: ^6.3.2
   xml: ^6.3.0
   cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
 
 dependency_overrides:
   meta: ^1.18.0
@@ -71,6 +72,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   freezed: ^4.0.3
+  http: ^1.6.0
   json_serializable: ^6.13.0
   json_to_arb: ^0.1.14
   objectbox_generator: 6.0.0-preview.5

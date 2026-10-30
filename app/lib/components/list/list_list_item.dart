@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:duration/duration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,7 @@ import 'package:wanderer/models/list_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 class ListListItem extends ConsumerWidget {
   final ListSummary list;
@@ -29,7 +29,7 @@ class ListListItem extends ConsumerWidget {
     );
 
     final ImageProvider? imageProvider = avatarUrl != null
-        ? CachedNetworkImageProvider(avatarUrl)
+        ? wandererImageProvider(avatarUrl)
         : null;
 
     return Container(

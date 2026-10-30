@@ -1,7 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
+import 'package:wanderer/util/image_cache.dart';
 import 'dart:io';
 
 class PhotoCollage extends StatelessWidget {
@@ -195,7 +195,7 @@ class PhotoSource {
   Widget buildImage({required BoxFit fit}) {
     if (url != null) {
       return Image(
-        image: CachedNetworkImageProvider(url!),
+        image: wandererImageProvider(url!),
         fit: fit,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;

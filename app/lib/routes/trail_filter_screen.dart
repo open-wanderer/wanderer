@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +24,7 @@ import 'package:wanderer/provider/trail/tag_provider.dart';
 import 'package:wanderer/provider/trail/trail_filter_provider.dart';
 import 'package:wanderer/components/category/category_icon.dart';
 import 'package:wanderer/util/format.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 class TrailFilterScreen extends ConsumerStatefulWidget {
   final String filterId;
@@ -539,8 +539,8 @@ class _AuthorChip extends StatelessWidget {
         '@${actor.preferredUsername}${actor.isLocal ? "" : "@${actor.domain}"}';
     final ImageProvider avatarImage =
         actor.icon != null && actor.icon!.isNotEmpty
-        ? CachedNetworkImageProvider(actor.icon!)
-        : CachedNetworkImageProvider(
+        ? wandererImageProvider(actor.icon!)
+        : wandererImageProvider(
             'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
           );
 

@@ -24,6 +24,7 @@ import 'package:wanderer/provider/region/tile_proxy_provider.dart';
 import 'package:wanderer/provider/trail/trail_sync_provider.dart';
 import 'package:wanderer/services/tile_proxy_server.dart';
 import 'package:wanderer/services/user_ca_trust.dart';
+import 'package:wanderer/util/image_cache.dart';
 import 'package:wanderer/provider/account_scope_invalidation.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
@@ -65,6 +66,7 @@ void main() async {
     storage: FileStorage(cookiePath),
     ignoreExpires: false,
   );
+  WandererImageCacheManager.cookieJar = jar;
 
   // Fire-and-forget: the setting persists in MapLibre's own database, and a
   // map surfacing before it lands only misses caching for the first tiles.

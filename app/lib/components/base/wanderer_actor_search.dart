@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 class WandererActorSearch extends ConsumerStatefulWidget {
   final String? hintText;
@@ -222,8 +222,8 @@ class _DropdownPanel extends StatelessWidget {
                     backgroundColor: Colors.grey.shade300,
                     backgroundImage:
                         actor.icon != null && actor.icon!.isNotEmpty
-                        ? CachedNetworkImageProvider(actor.icon!)
-                        : CachedNetworkImageProvider(
+                        ? wandererImageProvider(actor.icon!)
+                        : wandererImageProvider(
                             'https://api.dicebear.com/7.x/initials/png?seed=$displayName',
                           ),
                   ),
