@@ -477,6 +477,7 @@ func initCategories(app core.App) error {
 func searchIndexSettings() map[string]meilisearch.Settings {
 	return map[string]meilisearch.Settings{
 		"trails": {
+			Pagination:           &meilisearch.Pagination{MaxTotalHits: 1_000},
 			SearchableAttributes: []string{"author_name", "name", "description", "location", "tags"},
 			FilterableAttributes: []string{
 				"id", "_geo", "author", "category_id", "subcategory_id",
