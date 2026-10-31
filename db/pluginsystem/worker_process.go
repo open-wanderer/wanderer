@@ -109,14 +109,33 @@ func (w *pluginWorkerProcess) handleCallExport(msg workerMessage) error {
 	if w.fatalErr != nil {
 		return w.errCtx(call.Export, w.fatalErr)
 	}
+	// Extism also returns a Go error when pdk.SetError accompanies a nonzero
+	// export code. A structured guest rejection belongs on call_result and
+	// must not be mistaken for a fatal WASM trap.
+	if pluginErr := pluginErrorForResult(call.Export, code, w.instance.GetErrorWithContext(w.ctx), err); pluginErr != nil {
+		return w.sendCallResult(workerCallResult{PluginError: pluginErr})
+	}
 	if err != nil {
 		return w.errCtx(call.Export, fmt.Errorf("call %s: %w", call.Export, err))
 	}
-	if code != 0 {
-		pluginErr := pluginErrorForCode(call.Export, code, w.instance.GetErrorWithContext(w.ctx))
-		return w.sendCallResult(workerCallResult{PluginError: &pluginErr})
-	}
 	return w.sendCallResult(workerCallResult{OutputBase64: encodeWorkerBytes(output)})
+}
+
+// pluginErrorForResult distinguishes a business rejection from a runtime trap.
+// A Go call error is compatible with guest rejection only when the guest set a
+// bounded structured error; malformed trap text stays on the fatal channel.
+func pluginErrorForResult(export string, code uint32, rawErr string, callErr error) *PluginError {
+	if code == 0 {
+		return nil
+	}
+	if callErr != nil {
+		var guest PluginError
+		if len(rawErr) > 64*1024 || json.Unmarshal([]byte(rawErr), &guest) != nil || guest.Code == "" {
+			return nil
+		}
+	}
+	normalized := pluginErrorForCode(export, code, rawErr)
+	return &normalized
 }
 
 // pluginErrorForCode maps a non-zero export return code into the PluginError
