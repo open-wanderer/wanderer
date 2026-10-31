@@ -15,6 +15,9 @@ const (
 	SummitLogFeed FeedType = "summit_log"
 )
 
+// InsertIntoFeed adds an item to an actor's feed and returns the feed row. An
+// item appears at most once per actor.
+//
 // Nontransactional callers serialize a missing item through its insertion.
 // A transaction already holds the database writer and must not wait here.
 var feedEntryCreation sync.Mutex
@@ -54,7 +57,16 @@ func InsertIntoFeed(app core.App, actorId string, authorId string, itemId string
 	record.Set("item", itemId)
 	record.Set("type", string(feedType))
 
-	return record, app.Save(record)
+	if saveErr := app.Save(record); saveErr != nil {
+		// A concurrent insert of the same item won, e.g. inside a transaction
+		// or in another process; the unique (actor, item) index refused ours.
+		if winner := lookup(); winner != nil {
+			return winner, nil
+		}
+		return record, saveErr
+	}
+
+	return record, nil
 }
 
 func DeleteFromFeed(app core.App, itemId string) error {

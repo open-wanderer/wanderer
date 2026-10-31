@@ -84,6 +84,9 @@ type searchIndexSource struct {
 	// repairFields limits the nightly comparison to these fields; nil
 	// compares the whole document.
 	repairFields []string
+	// skip leaves out records that are never searchable, without logging
+	// them as failures.
+	skip func(*core.Record) bool
 }
 
 func searchIndexSources(app core.App) []searchIndexSource {
@@ -111,6 +114,8 @@ func searchIndexSources(app core.App) []searchIndexSource {
 			index: "actors", collection: "activitypub_actors", pageLabel: "actor", pageSize: 1000,
 			documents:    util.ActorSearchDocuments,
 			repairFields: []string{"preferred_username"},
+			// The instance actor federates the instance, it is not a profile.
+			skip: util.IsInstanceActor,
 		},
 	}
 }
@@ -321,6 +326,9 @@ func searchDocuments(app core.App, source searchIndexSource, records []*core.Rec
 	built, errs := source.documents(records)
 	documents := make([]map[string]any, 0, len(records))
 	for i, r := range records {
+		if source.skip != nil && source.skip(r) {
+			continue
+		}
 		if errs[i] != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to index %s %s: %v", source.pageLabel, r.Id, errs[i]))
 			continue

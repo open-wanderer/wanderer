@@ -93,6 +93,13 @@ func TestFetchTrailAttributesToTrailAuthor(t *testing.T) {
 	}
 	remote.AttributedTo = pub.IRI(owner.GetString("iri"))
 
+	// Nor serve another object under the requested IRI.
+	remote.ID = pub.IRI("https://remote.example/api/v1/trail/other")
+	if _, err := fetchTrail(app, logger, trailIRI); err == nil {
+		t.Fatal("accepted a trail served under another id")
+	}
+	remote.ID = pub.IRI(trailIRI)
+
 	trail, err := fetchTrail(app, logger, trailIRI)
 	if err != nil {
 		t.Fatal(err)

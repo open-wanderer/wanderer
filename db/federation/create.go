@@ -98,6 +98,13 @@ func CreateTrailActivity(app core.App, ctx context.Context, trail *core.Record, 
 	}
 	recipients := append(mentions, inboxes...)
 
+	// Also deliver to peer instances.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	return PostActivity(app, trailAuthor, activity, recipients)
 }
 
@@ -117,6 +124,7 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
+	// No fanout for comments on private trails.
 	if !commentTrail.GetBool("public") {
 		return nil
 	}
@@ -144,7 +152,17 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 
 		recipients = append(recipients, m.GetString("inbox"))
 	}
-	recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
+	// Only a remote trail author needs HTTP delivery.
+	if !commentTrailAuthor.GetBool("is_local") {
+		recipients = append(recipients, commentTrailAuthor.GetString("inbox"))
+	}
+
+	// Deliver to the comment author's followers.
+	followerInboxList, err := followerInboxes(app, commentAuthor.Id)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, followerInboxList...)
 
 	cc := pub.ItemCollection{}
 	for _, r := range recipients {
@@ -187,6 +205,13 @@ func CreateCommentActivity(app core.App, ctx context.Context, comment *core.Reco
 	if err != nil {
 		return err
 	}
+
+	// Also deliver to peer instances.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
 
 	return PostActivity(app, commentAuthor, activity, recipients)
 
@@ -334,21 +359,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	logObject.CC = activity.CC
 	activity.Published = time.Now()
 
-	inboxes, err := followerInboxes(app, summitLogAuthor.Id)
-	if err != nil {
-		return err
-	}
-	recipients := append(mentions, inboxes...)
-
-	if summitLogAuthor.Id != summitLogTrailAuthor.Id {
-		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
-	}
-
-	err = PostActivity(app, summitLogAuthor, activity, recipients)
-	if err != nil {
-		return err
-	}
-
+	// Save the activity record before delivery.
 	record := core.NewRecord(collection)
 	record.Set("id", recordId)
 	record.Set("iri", id)
@@ -359,7 +370,28 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	record.Set("actor", summitLogAuthor.GetString("iri"))
 	record.Set("published", time.Now())
 
-	return app.Save(record)
+	if err := app.Save(record); err != nil {
+		return err
+	}
+
+	inboxes, err := followerInboxes(app, summitLogAuthor.Id)
+	if err != nil {
+		return err
+	}
+	recipients := append(mentions, inboxes...)
+
+	if summitLogAuthor.Id != summitLogTrailAuthor.Id {
+		recipients = append(recipients, summitLogTrailAuthor.GetString("inbox"))
+	}
+
+	// Also deliver to peer instances.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
+	return PostActivity(app, summitLogAuthor, activity, recipients)
 }
 
 func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabularyType) error {
@@ -405,16 +437,7 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 		return err
 	}
 
-	recipients, err := followerInboxes(app, listAuthor.Id)
-	if err != nil {
-		return err
-	}
-
-	err = PostActivity(app, listAuthor, activity, recipients)
-	if err != nil {
-		return err
-	}
-
+	// Save the activity record before delivery.
 	record := core.NewRecord(collection)
 	record.Set("id", activityRecordId)
 	record.Set("iri", id)
@@ -425,7 +448,23 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 	record.Set("actor", author)
 	record.Set("published", time.Now())
 
-	return app.Save(record)
+	if err := app.Save(record); err != nil {
+		return err
+	}
+
+	recipients, err := followerInboxes(app, listAuthor.Id)
+	if err != nil {
+		return err
+	}
+
+	// Also deliver to peer instances.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
+	return PostActivity(app, listAuthor, activity, recipients)
 }
 
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
@@ -458,9 +497,10 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 		return err
 	}
 
-	_, err = util.InsertIntoFeed(app, recipient.Id, actor.Id, trail.Id, util.TrailFeed)
-	if err != nil {
-		return err
+	if recipient != nil && !isLocalInstanceRecipient(recipient) {
+		if _, err := util.InsertIntoFeed(app, recipient.Id, actor.Id, trail.Id, util.TrailFeed); err != nil {
+			return err
+		}
 	}
 
 	// Among parallel deliveries of the same activity, only the delivery
@@ -478,7 +518,7 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 		if t.GetType() == pub.MentionType {
 			mention := t.(*pub.Mention)
 			mentionedActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", mention.Href.GetID().String())
-			if err != nil || (actor.GetBool("is_local") && mentionedActor.GetString("inbox") != recipient.GetString("inbox")) {
+			if err != nil || (actor.GetBool("is_local") && (recipient == nil || mentionedActor.GetString("inbox") != recipient.GetString("inbox"))) {
 				continue
 			}
 			notification := util.Notification{
@@ -562,7 +602,7 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return err
 	}
 
-	record, _, err := remoteObjectRecord(app, "comments", commentObject.ID.String(), actor, trail.Id)
+	record, newComment, err := remoteObjectRecord(app, "comments", commentObject.ID.String(), actor, trail.Id)
 	if err != nil {
 		return err
 	}
@@ -576,6 +616,12 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 	err = app.Save(record)
 	if err != nil {
 		return err
+	}
+
+	// A peer's comment can reach a user inbox and the instance inbox; only
+	// the delivery that stored it notifies.
+	if !newComment && activity.Type == pub.CreateType {
+		return nil
 	}
 
 	// send notifications to all mentioned actors
@@ -669,15 +715,19 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			continue
 		}
 		content := tagObj.Content.First().Value.String()
+		if len(content) == 0 {
+			continue
+		}
+		numeric := content[:len(content)-1] // strip the unit suffix
 		switch tagObj.Name.First().Value.String() {
 		case "elevation_gain":
-			elevation_gain, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			elevation_gain, err = strconv.ParseFloat(numeric, 64)
 		case "elevation_loss":
-			elevation_loss, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			elevation_loss, err = strconv.ParseFloat(numeric, 64)
 		case "duration":
-			duration, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			duration, err = strconv.ParseFloat(numeric, 64)
 		case "distance":
-			distance, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			distance, err = strconv.ParseFloat(numeric, 64)
 		}
 		if err != nil {
 			continue
@@ -759,6 +809,12 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
+	// A peer's summit log can reach a user inbox and the instance inbox; only
+	// the delivery that stored it notifies.
+	if !newSummitLog && activity.Type == pub.CreateType {
+		return nil
+	}
+
 	// send notifications to all mentioned actors
 	for _, t := range logObject.Tag {
 		if t.GetType() == pub.MentionType {
@@ -805,12 +861,13 @@ func processCreateOrUpdateListActivity(activity pub.Activity, app core.App, acto
 		return err
 	}
 
-	_, err = util.InsertIntoFeed(app, recipient.Id, actor.Id, list.Id, util.ListFeed)
-	if err != nil {
-		return err
+	if recipient != nil && !isLocalInstanceRecipient(recipient) {
+		if _, err := util.InsertIntoFeed(app, recipient.Id, actor.Id, list.Id, util.ListFeed); err != nil {
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 // fetchTrailObject is util.TrailObjectFromIRI, replaceable in tests.
@@ -826,20 +883,9 @@ var fetchTrailObject = util.TrailObjectFromIRI
 // Wanderer trail is always its author's, and a host naming an actor
 // elsewhere would otherwise file content under a stranger's name.
 func fetchTrail(app core.App, sender *core.Record, iri string) (*core.Record, error) {
-	trailObject, err := fetchTrailObject(iri)
+	trailObject, authorIRI, err := fetchAttributedTrail(iri)
 	if err != nil {
 		return nil, err
-	}
-
-	var authorIRI string
-	if trailObject.AttributedTo != nil {
-		authorIRI = trailObject.AttributedTo.GetLink().String()
-	}
-	if authorIRI == "" {
-		return nil, fmt.Errorf("trail %s is attributed to nobody", iri)
-	}
-	if !sameHost(authorIRI, iri) {
-		return nil, fmt.Errorf("trail %s is attributed to %s on another host", iri, authorIRI)
 	}
 
 	author := sender
@@ -858,6 +904,31 @@ func fetchTrail(app core.App, sender *core.Record, iri string) (*core.Record, er
 
 	activity := pub.ActivityNew(pub.IRI("new"), pub.CreateType, trailObject)
 	return util.TrailFromActivity(*activity, app, author)
+}
+
+// fetchAttributedTrail fetches the trail at iri from its host and returns it
+// with its author's IRI. The host must serve it under iri and attribute it to
+// an actor on that same host.
+func fetchAttributedTrail(iri string) (*pub.Object, string, error) {
+	trailObject, err := fetchTrailObject(iri)
+	if err != nil {
+		return nil, "", err
+	}
+	if trailObject.ID.String() != iri {
+		return nil, "", fmt.Errorf("origin returned %q instead of %q", trailObject.ID.String(), iri)
+	}
+
+	var authorIRI string
+	if trailObject.AttributedTo != nil {
+		authorIRI = trailObject.AttributedTo.GetLink().String()
+	}
+	if authorIRI == "" {
+		return nil, "", fmt.Errorf("trail %s is attributed to nobody", iri)
+	}
+	if !sameHost(authorIRI, iri) {
+		return nil, "", fmt.Errorf("trail %s is attributed to %s on another host", iri, authorIRI)
+	}
+	return trailObject, authorIRI, nil
 }
 
 // remoteObjectRecord returns the record a remote actor's Create or Update
@@ -881,6 +952,12 @@ func remoteObjectRecord(app core.App, collection, iri string, actor *core.Record
 		return nil, false, err
 	}
 	return core.NewRecord(col), true, nil
+}
+
+// isLocalInstanceRecipient reports whether r is this instance's own instance
+// actor. It receives federated content but has no personal feed.
+func isLocalInstanceRecipient(r *core.Record) bool {
+	return r != nil && r.GetString("actor_type") == "instance" && r.GetBool("is_local")
 }
 
 func sameHost(a, b string) bool {

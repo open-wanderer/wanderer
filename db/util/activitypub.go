@@ -70,6 +70,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	}
 	domain := strings.TrimPrefix(url.Hostname(), "www.")
 
+	record.Set("actor_type", "person")
 	record.Set("username", u.GetString("username"))
 	record.Set("preferred_username", strings.ToLower(u.GetString("username")))
 	record.Set("domain", domain)
@@ -99,6 +100,11 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 }
 
 func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	return GenerateRSAKeyPair()
+}
+
+// GenerateRSAKeyPair generates a 2048-bit RSA key pair.
+func GenerateRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
@@ -684,15 +690,14 @@ func listFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		if record.GetString("author") != actor.Id || RecordHasLocalIdentity(app, record) {
 			return nil, fmt.Errorf("inbound list author does not own the stored object")
 		}
-		if activity.Type != pub.AnnounceType && !record.GetBool("public") {
+		if activity.Type != pub.AnnounceType {
 			record.Set("public", true)
-			if err := app.Save(record); err != nil {
-				return nil, err
-			}
 		}
 		// ensure that it is fully synced to catch trail updates
-
 		record.Set("needs_full_sync", true)
+		if err := app.Save(record); err != nil {
+			return nil, err
+		}
 
 		return record, nil
 	}

@@ -2,7 +2,6 @@ package routes
 
 import (
 	"context"
-	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -140,6 +139,8 @@ func reloadKnownInboxActor(app core.App, ctx context.Context, actor *core.Record
 	}
 }
 
+// ActivitypubActivityProcess handles signed deliveries to a local user's inbox.
+// Unlike the instance inbox it accepts signed content from any host.
 func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	received := time.Now()
 	origin := os.Getenv("ORIGIN")
@@ -153,11 +154,10 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	// X-Forwarded-Path header (which only the frontend can set correctly), any
 	// caller that cannot present the secret must be rejected before that header is
 	// used. Fail closed if the secret is not configured.
-	secret := os.Getenv("POCKETBASE_PROXY_SECRET")
-	if secret == "" {
-		return e.UnauthorizedError("POCKETBASE_PROXY_SECRET not configured", nil)
-	}
-	if subtle.ConstantTimeCompare([]byte(e.Request.Header.Get("X-Internal-Secret")), []byte(secret)) != 1 {
+	if err := util.RequireInternalProxy(e.Request); err != nil {
+		if errors.Is(err, util.ErrProxySecretNotConfigured) {
+			return e.UnauthorizedError("POCKETBASE_PROXY_SECRET not configured", nil)
+		}
 		return e.UnauthorizedError("Invalid internal secret", nil)
 	}
 
@@ -173,6 +173,9 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 	activity, err := federation.UnmarshalInboxActivity(body)
 	if err != nil {
 		return err
+	}
+	if activity.Actor == nil || activity.Actor.GetID().String() == "" {
+		return e.BadRequestError("Missing actor", nil)
 	}
 
 	inbox := fmt.Sprintf("%s%s", origin, forwardedPath)

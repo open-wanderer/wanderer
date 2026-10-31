@@ -126,8 +126,9 @@ func WithRateLimitBucket(ctx context.Context, bucket string) context.Context {
 	return context.WithValue(ctx, rateLimitBucketKey{}, bucket)
 }
 
-// CheckDialRateLimit applies the dial budget selected by ctx.
-func CheckDialRateLimit(ctx context.Context, host string) error {
+// RateLimitBucket returns the dial budget selected by ctx: the
+// WithRateLimitBucket override, else the "actor" value, else "system".
+func RateLimitBucket(ctx context.Context) string {
 	identifier, _ := ctx.Value(rateLimitBucketKey{}).(string)
 	if identifier == "" {
 		identifier, _ = ctx.Value("actor").(string)
@@ -135,7 +136,12 @@ func CheckDialRateLimit(ctx context.Context, host string) error {
 	if identifier == "" {
 		identifier = "system"
 	}
-	return ActivityPubRateLimiter.CheckRateLimit(identifier, host)
+	return identifier
+}
+
+// CheckDialRateLimit applies the dial budget selected by ctx.
+func CheckDialRateLimit(ctx context.Context, host string) error {
+	return ActivityPubRateLimiter.CheckRateLimit(RateLimitBucket(ctx), host)
 }
 
 type safeTransport struct {

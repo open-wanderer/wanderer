@@ -256,6 +256,10 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
+	if dbActor.GetBool("is_local") && dbActor.GetString("actor_type") == "instance" {
+		// The instance actor has no user record.
+		return dbActor, nil
+	}
 	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {
@@ -361,6 +365,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		// A key confirmed at the origin ends the pre-upgrade key for good.
 		dbActor.Set("legacy_public_key", "")
 		dbActor.Set("last_fetched", time.Now())
+		if pubActor.Type == pub.ApplicationType {
+			dbActor.Set("actor_type", "instance")
+		} else {
+			dbActor.Set("actor_type", "person")
+		}
 
 		// A refreshed document starts a new count window. Keep an older total
 		// if its collection cannot be read. Only reads not yet attempted remain

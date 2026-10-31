@@ -17,6 +17,10 @@ func CreateActorHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
+		if util.IsInstanceActor(e.Record) {
+			return nil
+		}
+
 		return util.IndexActors([]*core.Record{e.Record}, client)
 	}
 }
@@ -26,6 +30,10 @@ func UpdateActorHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		err := e.Next()
 		if err != nil {
 			return err
+		}
+
+		if util.IsInstanceActor(e.Record) {
+			return nil
 		}
 
 		return util.UpdateActor(e.Record, client)

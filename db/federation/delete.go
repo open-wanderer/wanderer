@@ -220,7 +220,12 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 		return err
 	}
 
-	recipients = remoteInboxes(recipients)
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = remoteInboxes(append(recipients, instanceInboxes...))
 	if len(recipients) == 0 {
 		return nil
 	}
@@ -346,6 +351,13 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	activity.To = pub.ItemCollection{pub.IRI(to)}
 	activity.CC = cc
 	activity.Published = time.Now()
+
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
 
 	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
@@ -524,6 +536,9 @@ func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.A
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -549,6 +564,9 @@ func processDeleteCommentActivity(app core.App, actor *core.Record, activity pub
 
 	comment, err := app.FindFirstRecordByData("comments", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -568,6 +586,9 @@ func processDeleteSummitLogActivity(app core.App, actor *core.Record, activity p
 
 	summitLog, err := app.FindFirstRecordByData("summit_logs", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -583,6 +604,9 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 	object := activity.Object.GetID().String()
 	list, err := app.FindFirstRecordByData("lists", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
