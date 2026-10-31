@@ -312,10 +312,12 @@ func lifecycleSeedFollowActivity(t *testing.T, app core.App, iri, actorIRI, obje
 	time.Sleep(5 * time.Millisecond)
 }
 
-// lifecycleLatestActivity returns the newest activity of the given type.
+// lifecycleLatestActivity returns the newest activity of the given type: newest
+// by created, and because created has millisecond resolution, a same-millisecond
+// tie goes to the row inserted last (highest rowid).
 func lifecycleLatestActivity(t *testing.T, app core.App, typ pub.ActivityVocabularyType) *core.Record {
 	t.Helper()
-	recs, err := app.FindRecordsByFilter("activitypub_activities", "type={:type}", "-created", 1, 0, dbx.Params{"type": string(typ)})
+	recs, err := app.FindRecordsByFilter("activitypub_activities", "type={:type}", "-created,-@rowid", 1, 0, dbx.Params{"type": string(typ)})
 	if err != nil {
 		t.Fatalf("find %s activity: %v", typ, err)
 	}
@@ -386,10 +388,44 @@ func TestLifecycleUnfollowUsesStoredFollowIRI(t *testing.T) {
 
 	// empty activity_iri: newest Follow is used
 	row.Set("activity_iri", "")
+	// created has millisecond resolution; keep the second Undo strictly newer
+	time.Sleep(5 * time.Millisecond)
 	if err := CreateUnfollowActivity(app, row); err != nil {
 		t.Fatalf("CreateUnfollowActivity fallback: %v", err)
 	}
-	time.Sleep(5 * time.Millisecond)
+	lifecycleAssertWraps(t, lifecycleLatestActivity(t, app, pub.UndoType), lifecycleF2, lifecycleF1)
+}
+
+// TestLifecycleLatestActivityBreaksCreatedTies forces the two Undo rows of the
+// unfollow flow onto one created value and requires lifecycleLatestActivity to
+// still return the Undo inserted last. Without a tie break the result depends
+// on SQLite's row order for equal keys and returns the earlier insert.
+func TestLifecycleLatestActivityBreaksCreatedTies(t *testing.T) {
+	app := newLifecycleTestApp(t)
+	local, remote := lifecycleInboundFixture(t, app)
+	lifecycleSeedFollowActivity(t, app, lifecycleF1, local.GetString("iri"), remote.GetString("iri"))
+	lifecycleSeedFollowActivity(t, app, lifecycleF2, local.GetString("iri"), remote.GetString("iri"))
+
+	row := lifecycleSeedFollowRow(t, app, local.Id, remote.Id, "pending", lifecycleF1)
+	if err := CreateUnfollowActivity(app, row); err != nil {
+		t.Fatalf("CreateUnfollowActivity: %v", err)
+	}
+	row.Set("activity_iri", "")
+	if err := CreateUnfollowActivity(app, row); err != nil {
+		t.Fatalf("CreateUnfollowActivity fallback: %v", err)
+	}
+
+	res, err := app.DB().
+		NewQuery("UPDATE activitypub_activities SET created = {:created} WHERE type = {:type}").
+		Bind(dbx.Params{"created": "2026-01-01 00:00:00.000Z", "type": string(pub.UndoType)}).
+		Execute()
+	if err != nil {
+		t.Fatalf("force created tie: %v", err)
+	}
+	if n, err := res.RowsAffected(); err != nil || n != 2 {
+		t.Fatalf("tie must cover exactly the 2 Undo rows, affected %d (err %v)", n, err)
+	}
+
 	lifecycleAssertWraps(t, lifecycleLatestActivity(t, app, pub.UndoType), lifecycleF2, lifecycleF1)
 }
 
@@ -564,5 +600,29 @@ func TestLifecycleUndoBeforeFollowIgnoresForeignFollowIDs(t *testing.T) {
 	}
 	if row := lifecycleRow(t, app, other.Id, local.Id); row == nil || row.GetString("status") != "pending" {
 		t.Fatalf("another host's Undo blocked its Follow, got %v", row)
+	}
+}
+
+// TestFindFollowActivityRecordPrefersLastOfSameMillisecond covers a follow row
+// without activity_iri: of two stored Follows saved in the same millisecond,
+// the one saved last is the current one.
+func TestFindFollowActivityRecordPrefersLastOfSameMillisecond(t *testing.T) {
+	app := newLifecycleTestApp(t)
+	local, remote := lifecycleInboundFixture(t, app)
+	actorIRI, objectIRI := remote.GetString("iri"), local.GetString("iri")
+
+	lifecycleSeedFollowActivity(t, app, actorIRI+"/follows/1", actorIRI, objectIRI)
+	lifecycleSeedFollowActivity(t, app, actorIRI+"/follows/2", actorIRI, objectIRI)
+	if _, err := app.DB().NewQuery("UPDATE activitypub_activities SET created = '2026-01-01 00:00:00.000Z'").Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	follow := lifecycleSeedFollowRow(t, app, remote.Id, local.Id, "pending", "")
+	rec, err := findFollowActivityRecord(app, follow, actorIRI, objectIRI)
+	if err != nil {
+		t.Fatalf("findFollowActivityRecord: %v", err)
+	}
+	if got := rec.GetString("iri"); got != actorIRI+"/follows/2" {
+		t.Fatalf("found %s, want the Follow saved last", got)
 	}
 }

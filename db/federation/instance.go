@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"context"
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
@@ -15,13 +16,71 @@ import (
 	"time"
 
 	pub "github.com/go-ap/activitypub"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
 
-// InitInstanceActor creates the Application-type instance actor if it does not
-// exist yet. It must run at startup before requests are served. An existing
-// actor and its key pair are left unchanged.
+// InstanceActorUsername is the preferred_username of the local instance actor.
+//
+// The users username pattern requires a word character first, so no account can
+// ever hold a name starting with "-" and the (preferred_username, domain) unique
+// index cannot collide with a user. util.SplitHandle splits only on @ and keeps
+// the name whole, and a mention tokenizer either takes the whole token or none
+// of it.
+// WebFinger in Wanderer resolves user IRIs only, and person lookups exclude
+// instance actors by type anyway.
+const InstanceActorUsername = "-instance"
+
+// FindLocalInstanceActor returns the local instance actor: the activitypub_actors
+// row with actor_type instance and is_local true. It is the single definition of
+// that row. Never find it by IRI or username: the IRI follows ORIGIN, and an
+// existing actor may still carry an earlier username until InitInstanceActor
+// runs. It returns sql.ErrNoRows when there is none.
+//
+// When more than one row matches, the oldest wins and an Error line names both
+// ids, so every consumer uses the same row. Oldest is ascending @rowid, which is
+// insertion order: a millisecond created value cannot order two rows created in
+// the same millisecond, and with @rowid the Go and web lookups agree.
+func FindLocalInstanceActor(app core.App) (*core.Record, error) {
+	records, err := app.FindRecordsByFilter(
+		"activitypub_actors",
+		"actor_type = {:t} && is_local = true",
+		"@rowid", 2, 0,
+		dbx.Params{"t": "instance"},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
+		return nil, sql.ErrNoRows
+	}
+	if len(records) > 1 {
+		app.Logger().Error("more than one local instance actor, using the oldest",
+			"id", records[0].Id, "other", records[1].Id)
+	}
+	return records[0], nil
+}
+
+// InitInstanceActor makes sure the one local Application-type instance actor
+// exists and matches the current ORIGIN. It must run at startup before requests
+// are served.
+//
+// The actor is found by type and locality (FindLocalInstanceActor). When ORIGIN
+// changed, the existing row follows it in place: preferred_username, username,
+// domain, iri, inbox and outbox are updated and the key pair is kept, so the
+// record id, the follows pointing at it and the signing key survive. An actor
+// still named "instance" is renamed to InstanceActorUsername on the same path. With no instance actor a new one is created.
+//
+// It only saves the row and sends nothing (no Update, no Move, no alias):
+// connected peers are not notified after an ORIGIN change and the admin
+// reconnects them from /federation/. Other stored IRIs (follows, activities, user
+// actors, content) are not rewritten.
+//
+// If the save fails because a second local instance actor already owns the new
+// IRI, the error names both record ids and nothing is deleted or merged. The
+// database then holds a second local instance actor from a development build:
+// delete the newer one in the PocketBase admin and restart.
 func InitInstanceActor(app core.App) error {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
@@ -33,22 +92,21 @@ func InitInstanceActor(app core.App) error {
 		return fmt.Errorf("POCKETBASE_ENCRYPTION_KEY not set")
 	}
 
-	iri := origin + "/api/v1/activitypub/instance"
-
-	// Never regenerate the key pair of an existing actor.
-	existing, err := app.FindFirstRecordByData("activitypub_actors", "iri", iri)
-	if err == nil && existing != nil {
-		return nil
-	}
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("checking instance actor existence: %w", err)
-	}
+	iri := origin + instanceActorPath
 
 	parsedOrigin, err := url.Parse(origin)
 	if err != nil {
 		return fmt.Errorf("parsing ORIGIN: %w", err)
 	}
 	domain := strings.TrimPrefix(parsedOrigin.Hostname(), "www.")
+
+	existing, err := FindLocalInstanceActor(app)
+	if err == nil {
+		return updateInstanceActorIdentity(app, existing, iri, domain)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("finding the local instance actor: %w", err)
+	}
 
 	priv, pubKey, err := util.GenerateRSAKeyPair()
 	if err != nil {
@@ -74,7 +132,7 @@ func InitInstanceActor(app core.App) error {
 
 	record := core.NewRecord(collection)
 	record.Set("actor_type", "instance")
-	record.Set("preferred_username", "instance")
+	record.Set("preferred_username", InstanceActorUsername)
 	record.Set("username", fmt.Sprintf("Wanderer at %s", domain))
 	record.Set("domain", domain)
 	record.Set("iri", iri)
@@ -86,6 +144,43 @@ func InitInstanceActor(app core.App) error {
 	record.Set("last_fetched", time.Now())
 
 	return app.Save(record)
+}
+
+// updateInstanceActorIdentity brings the six identity fields of the existing
+// local instance actor in line with ORIGIN. The key pair and last_fetched are
+// never touched, and nothing is saved when nothing differs.
+func updateInstanceActorIdentity(app core.App, actor *core.Record, iri, domain string) error {
+	want := map[string]string{
+		"preferred_username": InstanceActorUsername,
+		"username":           fmt.Sprintf("Wanderer at %s", domain),
+		"domain":             domain,
+		"iri":                iri,
+		"inbox":              iri + "/inbox",
+		"outbox":             iri + "/outbox",
+	}
+	changed := false
+	for field, value := range want {
+		if actor.GetString(field) != value {
+			actor.Set(field, value)
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+
+	if err := app.Save(actor); err != nil {
+		// A second local instance actor that already owns the target IRI makes
+		// the unique index refuse the move. Report both ids; never delete,
+		// merge or rename the other row.
+		owner, findErr := app.FindFirstRecordByData("activitypub_actors", "iri", iri)
+		if findErr == nil && owner != nil && owner.Id != actor.Id {
+			app.Logger().Error("cannot move the local instance actor to the current ORIGIN: another actor owns its IRI",
+				"actor", actor.Id, "owner", owner.Id, "iri", iri, "error", err)
+		}
+		return fmt.Errorf("updating the local instance actor %s: %w", actor.Id, err)
+	}
+	return nil
 }
 
 // instanceInboxPath is the only forwarded path the instance inbox accepts.
@@ -171,7 +266,12 @@ func precheckSignature(req *http.Request, body []byte, actorIRI string) error {
 	return nil
 }
 
-// InstanceInboxHandler is the PocketBase route handler for
+// InboxSenderResolver returns the stored, origin-confirmed sender of a signed
+// delivery, fetching it with the context fetchContext prepares when needed.
+// handled reports that the resolver has already answered the request.
+type InboxSenderResolver func(e *core.RequestEvent, body []byte, activity pub.Activity, fetchContext func() (context.Context, error)) (actor *core.Record, handled bool, err error)
+
+// NewInstanceInboxHandler returns the PocketBase route handler for
 // POST /activitypub/instance/inbox. It dispatches Follow/Accept/Reject/Undo for
 // the follow lifecycle and Create/Update/Delete/Like for content.
 //
@@ -180,7 +280,18 @@ func precheckSignature(req *http.Request, body []byte, actorIRI string) error {
 // HTTP signature is verified, content is accepted only from accepted peer hosts;
 // lifecycle activities concerning the instance actor are accepted from anyone.
 // User inboxes are not subject to this peer gate.
-func InstanceInboxHandler(e *core.RequestEvent) error {
+//
+// resolveSender is the user inboxes' sender resolution, so that both kinds of
+// inbox reload retained keys, refetch unconfirmed cached identities and
+// reconcile deleted accounts the same way.
+func NewInstanceInboxHandler(resolveSender InboxSenderResolver) func(*core.RequestEvent) error {
+	return func(e *core.RequestEvent) error {
+		return handleInstanceInbox(e, resolveSender)
+	}
+}
+
+func handleInstanceInbox(e *core.RequestEvent, resolveSender InboxSenderResolver) error {
+	received := time.Now()
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
@@ -211,12 +322,12 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 	}
 	actorIRI := activity.Actor.GetID().String()
 
-	// The recipient is always the instance actor, never derived from a header.
-	instanceIRI := origin + "/api/v1/activitypub/instance"
-	recipient, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", instanceIRI)
+	// The recipient is always the local instance actor, never derived from a header.
+	recipient, err := FindLocalInstanceActor(e.App)
 	if err != nil {
 		return err
 	}
+	instanceIRI := recipient.GetString("iri")
 
 	// Refuse content from hosts that are not accepted peers before fetching the
 	// actor.
@@ -230,43 +341,47 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 		}
 	}
 
-	// Look up the sender actor locally; fetch remotely on cache miss.
-	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", actorIRI)
+	// Every wanderer has the same instance inbox path, so a delivery must be
+	// bound to this instance and this inbox, not only to its body and time.
+	signature, err := util.CheckRequestSignature(e.Request, body, time.Now())
+	if err == nil && (!signature.Covers("(request-target)") || !signature.Covers("host")) {
+		err = fmt.Errorf("signature must cover (request-target) and host")
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Unknown actor: it has to be fetched before the signature can be verified.
-			// First run the checks that need no key. Content fetches are keyed per actor
-			// IRI, lifecycle fetches per host, except for the canonical instance actor IRI,
-			// which has its own budget. The fetch is still signed with the instance actor's
-			// key.
-			if precheckErr := precheckSignature(e.Request, body, actorIRI); precheckErr != nil {
-				e.App.Logger().Warn("instance inbox: request refused before actor fetch",
-					"actor", actorIRI, "err", precheckErr)
-				return e.UnauthorizedError("Invalid http signature", precheckErr)
-			}
-			ctx, ctxErr := util.GetSafeActorContext(e.Request, recipient)
-			if ctxErr != nil {
-				return ctxErr
-			}
-			if isLifecycleActivity(activity) {
-				if normalized, ok := isInstanceActorIRI(actorIRI); ok {
-					ctx = util.WithRateLimitBucket(ctx, "inbox-instance-actor:"+normalized)
-				} else {
-					ctx = util.WithRateLimitBucket(ctx, "inbox-lifecycle:"+recipient.Id)
-				}
-			} else {
-				if u, perr := url.Parse(actorIRI); perr == nil {
-					noteContentPrefetch(e.App, u.Host)
-				}
-				ctx = util.WithRateLimitBucket(ctx, "inbox-actor:"+actorIRI)
-			}
-			actor, err = GetActorByIRI(e.App, ctx, actorIRI, false)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
+		e.App.Logger().Warn("instance inbox: request refused before actor lookup",
+			"actor", actorIRI, "err", err)
+		return e.UnauthorizedError("Invalid http signature", err)
+	}
+
+	// The sender may have to be fetched before the signature can be verified.
+	// First run the checks that need no key. Content fetches are keyed per actor
+	// IRI, lifecycle fetches per host, except for the canonical instance actor IRI,
+	// which has its own budget. The fetch is still signed with the instance actor's
+	// key.
+	fetchContext := func() (context.Context, error) {
+		if precheckErr := precheckSignature(e.Request, body, actorIRI); precheckErr != nil {
+			e.App.Logger().Warn("instance inbox: request refused before actor fetch",
+				"actor", actorIRI, "err", precheckErr)
+			return nil, e.UnauthorizedError("Invalid http signature", precheckErr)
 		}
+		ctx, err := util.GetSafeActorContext(e.Request, recipient)
+		if err != nil {
+			return nil, err
+		}
+		if isLifecycleActivity(activity) {
+			if normalized, ok := isInstanceActorIRI(actorIRI); ok {
+				return util.WithRateLimitBucket(ctx, "inbox-instance-actor:"+normalized), nil
+			}
+			return util.WithRateLimitBucket(ctx, "inbox-lifecycle:"+recipient.Id), nil
+		}
+		if u, perr := url.Parse(actorIRI); perr == nil {
+			noteContentPrefetch(e.App, u.Host)
+		}
+		return util.WithRateLimitBucket(ctx, "inbox-actor:"+actorIRI), nil
+	}
+	actor, handled, err := resolveSender(e, body, activity, fetchContext)
+	if err != nil || handled {
+		return err
 	}
 
 	// Verify HTTP signature against the sender actor's stored public key.
@@ -292,39 +407,22 @@ func InstanceInboxHandler(e *core.RequestEvent) error {
 
 	// Processing errors and unknown activity types are returned as 400.
 	switch activity.Type {
-	case pub.FollowType:
-		if err := ProcessFollowActivity(e.App, actor, activity); err != nil {
-			return e.BadRequestError("Failed to process Follow activity", err)
-		}
-	case pub.AcceptType:
-		if err := ProcessAcceptActivity(e.App, actor, activity); err != nil {
-			return e.BadRequestError("Failed to process Accept activity", err)
-		}
 	case pub.RejectType:
 		if err := ProcessRejectActivity(e.App, actor, activity); err != nil {
 			return e.BadRequestError("Failed to process Reject activity", err)
 		}
-	case pub.UndoType:
-		// A peer forwards every unlike; the receiver may not hold the trail
-		// or the like, or the twin delivery to a user inbox removed it first.
-		if err := ProcessUndoActivity(e.App, actor, activity); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return e.BadRequestError("Failed to process Undo activity", err)
+	case pub.FollowType, pub.AcceptType, pub.UndoType, pub.CreateType, pub.UpdateType, pub.DeleteType, pub.LikeType:
+		// Ordered with the deliveries to user inboxes: a Delete or Undo that
+		// arrives before its Create or Like still retracts it.
+		err := ProcessReceivedInboxActivity(e.App, actor, recipient, activity, received)
+		// A peer forwards every like and unlike; the receiver may not hold
+		// the trail or the like, or the twin delivery to a user inbox removed
+		// it first. A like carries no content to attach anywhere else.
+		if errors.Is(err, sql.ErrNoRows) && (activity.Type == pub.LikeType || activity.Type == pub.UndoType) {
+			err = nil
 		}
-	case pub.CreateType:
-		fallthrough
-	case pub.UpdateType:
-		if err := ProcessCreateOrUpdateActivity(e.App, actor, recipient, activity); err != nil {
-			return e.BadRequestError("Failed to process Create/Update activity", err)
-		}
-	case pub.DeleteType:
-		if err := ProcessDeleteActivity(e.App, actor, activity); err != nil {
-			return e.BadRequestError("Failed to process Delete activity", err)
-		}
-	case pub.LikeType:
-		// A peer forwards every like; a like carries no content, so one for a
-		// trail this instance does not hold has nothing to attach to.
-		if err := ProcessLikeActivity(e.App, actor, activity); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return e.BadRequestError("Failed to process Like activity", err)
+		if err != nil {
+			return e.BadRequestError(fmt.Sprintf("Failed to process %s activity", activity.Type), err)
 		}
 	default:
 		return e.BadRequestError("Unsupported activity type", nil)

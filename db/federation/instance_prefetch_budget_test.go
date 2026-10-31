@@ -140,7 +140,7 @@ func TestInstanceInboxPrefetchBudgetNotExhaustedByStrangers(t *testing.T) {
 	flood := func(t *testing.T, f *prefetchBudgetFixture, bodyFor func(i int) []byte) {
 		t.Helper()
 		for i := 1; i <= 30; i++ {
-			_ = InstanceInboxHandler(f.unsignedEvent(bodyFor(i)))
+			_ = testInstanceInboxHandler(f.unsignedEvent(bodyFor(i)))
 		}
 	}
 
@@ -150,7 +150,7 @@ func TestInstanceInboxPrefetchBudgetNotExhaustedByStrangers(t *testing.T) {
 		trailIRI := f.srv.URL + "/api/v1/trail/bob1"
 		body := marshalActivity(t, signedGateCreateTrail(bobIRI, trailIRI))
 		e := newSignedInstanceInboxEvent(t, f.app, f.bob, bobIRI+"#main-key", body)
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 200)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
 		if _, err := f.app.FindFirstRecordByData("trails", "iri", trailIRI); err != nil {
 			t.Fatalf("trail from the uncached peer user must be stored: %v", err)
 		}

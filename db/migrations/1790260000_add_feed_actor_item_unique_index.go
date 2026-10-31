@@ -19,18 +19,14 @@ func init() {
 			return nil
 		}
 
-		// Delete every row that has an earlier row (smaller created, or same created and
-		// smaller id) for the same actor and item.
+		// Keep the earliest row of each (actor, item) pair (smallest created, then
+		// smallest id) and delete the others in one window pass. Before the unique
+		// index exists a per-row correlated lookup is quadratic in the table size.
 		if _, err := app.DB().NewQuery(`
-			DELETE FROM feed
-			WHERE EXISTS (
-				SELECT 1 FROM feed AS other
-				WHERE other.actor = feed.actor
-				  AND other.item = feed.item
-				  AND (
-					other.created < feed.created
-					OR (other.created = feed.created AND other.id < feed.id)
-				  )
+			DELETE FROM feed WHERE id IN (
+				SELECT id FROM (
+					SELECT id, ROW_NUMBER() OVER (PARTITION BY actor, item ORDER BY created, id) AS rn FROM feed
+				) WHERE rn > 1
 			)
 		`).Execute(); err != nil {
 			return err

@@ -29,7 +29,7 @@ export async function GET(event: RequestEvent) {
 
         const actor = await event.locals.pb
             .collection("activitypub_actors")
-            .getFirstListItem(`preferred_username='instance'&&actor_type='instance'&&is_local=true`);
+            .getFirstListItem(`actor_type='instance'&&is_local=true`, { sort: "@rowid" });
 
         const r = {
             "@context": [
@@ -40,8 +40,12 @@ export async function GET(event: RequestEvent) {
             type: "Application",
             preferredUsername: actor.preferred_username,
             name: actor.username,
-            inbox: actor.inbox,
-            outbox: actor.outbox,
+            // Derived from the same ORIGIN-based id as the rest of the document, not
+            // read from the row, so the document stays self-consistent even if the
+            // stored row was not moved after an ORIGIN change. The Go inbox route
+            // (/activitypub/instance/inbox) does not depend on the stored IRI.
+            inbox: `${iri}/inbox`,
+            outbox: `${iri}/outbox`,
             manuallyApprovesFollowers: true,
             publicKey: {
                 id: iri + '#main-key',

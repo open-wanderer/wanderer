@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	pub "github.com/go-ap/activitypub"
 	"github.com/go-fed/httpsig"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -18,6 +19,14 @@ import (
 // signedInstanceInboxEventAt signs body at the given time and sends sentBody, so
 // the same helper builds fresh, stale and tampered deliveries.
 func signedInstanceInboxEventAt(t *testing.T, app core.App, priv *rsa.PrivateKey, keyID string, signedBody, sentBody []byte, date time.Time) *core.RequestEvent {
+	t.Helper()
+	return signedInstanceInboxEventCovering(t, app, priv, keyID, signedBody, sentBody, date,
+		[]string{"(request-target)", "Date", "Digest", "Content-Type", "Host"})
+}
+
+// signedInstanceInboxEventCovering is signedInstanceInboxEventAt with the
+// signed headers chosen by the caller.
+func signedInstanceInboxEventCovering(t *testing.T, app core.App, priv *rsa.PrivateKey, keyID string, signedBody, sentBody []byte, date time.Time, headers []string) *core.RequestEvent {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodPost, "https://trails.example.com"+instanceInboxPath, bytes.NewReader(sentBody))
 	if err != nil {
@@ -30,7 +39,7 @@ func signedInstanceInboxEventAt(t *testing.T, app core.App, priv *rsa.PrivateKey
 	signer, _, err := httpsig.NewSigner(
 		[]httpsig.Algorithm{httpsig.RSA_SHA256},
 		httpsig.DigestSha256,
-		[]string{"(request-target)", "Date", "Digest", "Content-Type", "Host"},
+		headers,
 		httpsig.Signature, 60)
 	if err != nil {
 		t.Fatalf("new signer: %v", err)
@@ -79,6 +88,7 @@ func TestInstanceInboxRefusesTamperedOrStaleSignature(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal public key: %v", err)
 		}
+		peerUser.Set("domain", mustURLHost(t, peerUserIRI))
 		peerUser.Set("public_key", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der})))
 		if err := app.Save(peerUser); err != nil {
 			t.Fatalf("save peer user key: %v", err)
@@ -110,7 +120,7 @@ func TestInstanceInboxRefusesTamperedOrStaleSignature(t *testing.T) {
 		signed := marshalActivity(t, signedGateCreateTrail(peerUserIRI, signedIRI))
 		swapped := marshalActivity(t, signedGateCreateTrail(peerUserIRI, swappedIRI))
 		e := signedInstanceInboxEventAt(t, app, priv, peerUserIRI+"#main-key", signed, swapped, time.Now())
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 		if trailExists(app, swappedIRI) || trailExists(app, signedIRI) {
 			t.Fatal("a tampered delivery must not store anything")
 		}
@@ -121,9 +131,49 @@ func TestInstanceInboxRefusesTamperedOrStaleSignature(t *testing.T) {
 		const trailIRI = "https://peer.example.com/api/v1/trail/stale"
 		body := marshalActivity(t, signedGateCreateTrail(peerUserIRI, trailIRI))
 		e := signedInstanceInboxEventAt(t, app, priv, peerUserIRI+"#main-key", body, body, time.Now().Add(-2*time.Hour))
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 		if trailExists(app, trailIRI) {
 			t.Fatal("a stale delivery must not store anything")
+		}
+	})
+
+	// Every wanderer serves the instance inbox at the same path; a signature
+	// over the body and time alone could be replayed to another instance.
+	for _, tc := range []struct {
+		name    string
+		headers []string
+	}{
+		{"signature without host", []string{"(request-target)", "Date", "Digest", "Content-Type"}},
+		{"signature without request target", []string{"Date", "Digest", "Content-Type", "Host"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, priv := setup(t)
+			const trailIRI = "https://peer.example.com/api/v1/trail/unbound"
+			body := marshalActivity(t, signedGateCreateTrail(peerUserIRI, trailIRI))
+			e := signedInstanceInboxEventCovering(t, app, priv, peerUserIRI+"#main-key", body, body, time.Now(), tc.headers)
+			assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
+			if trailExists(app, trailIRI) {
+				t.Fatal("a delivery not bound to this instance and inbox must not store anything")
+			}
+		})
+	}
+
+	// Deliveries to the instance inbox are ordered like those to user inboxes:
+	// a Delete that overtakes its Create keeps the trail from being stored.
+	t.Run("delete before create", func(t *testing.T) {
+		app, priv := setup(t)
+		const trailIRI = "https://peer.example.com/api/v1/trail/overtaken"
+		del := pub.DeleteNew(pub.IRI(trailIRI+"/delete"), pub.IRI(trailIRI))
+		del.Actor = pub.IRI(peerUserIRI)
+		deleteBody := marshalActivity(t, del)
+		e := signedInstanceInboxEventAt(t, app, priv, peerUserIRI+"#main-key", deleteBody, deleteBody, time.Now())
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
+
+		createBody := marshalActivity(t, signedGateCreateTrail(peerUserIRI, trailIRI))
+		e = signedInstanceInboxEventAt(t, app, priv, peerUserIRI+"#main-key", createBody, createBody, time.Now())
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
+		if trailExists(app, trailIRI) {
+			t.Fatal("a Create that arrives after its Delete must not store the trail")
 		}
 	})
 
@@ -132,7 +182,7 @@ func TestInstanceInboxRefusesTamperedOrStaleSignature(t *testing.T) {
 		const trailIRI = "https://peer.example.com/api/v1/trail/fresh"
 		body := marshalActivity(t, signedGateCreateTrail(peerUserIRI, trailIRI))
 		e := signedInstanceInboxEventAt(t, app, priv, peerUserIRI+"#main-key", body, body, time.Now())
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 200)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
 		if !trailExists(app, trailIRI) {
 			t.Fatal("a fresh, untampered delivery must be stored")
 		}

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -100,6 +101,7 @@ func TestDisconnectedPeerContentRefusedAtInstanceInbox(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal public key: %v", err)
 	}
+	bob.Set("domain", mustURLHost(t, bobIRI))
 	bob.Set("public_key", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der})))
 	if err := app.Save(bob); err != nil {
 		t.Fatalf("save bob key: %v", err)
@@ -108,7 +110,7 @@ func TestDisconnectedPeerContentRefusedAtInstanceInbox(t *testing.T) {
 	body := disconnectGateCreateBody(t, bobIRI, inbox.server.URL)
 	send := func() error {
 		e := disconnectGateSignedEvent(t, app, priv, bobIRI+"#main-key", body)
-		return federation.InstanceInboxHandler(e)
+		return instanceInboxHandler(e)
 	}
 
 	// Wait for the Undo and Reject deliveries before the app is torn down.
@@ -156,4 +158,15 @@ func TestDisconnectedPeerContentRefusedAtInstanceInbox(t *testing.T) {
 			t.Fatalf("message = %q, want it to contain \"Not an accepted peer\"", apiErr.Message)
 		}
 	})
+}
+
+// mustURLHost returns the host of iri, the domain a fetched actor is cached
+// under.
+func mustURLHost(t *testing.T, iri string) string {
+	t.Helper()
+	u, err := url.Parse(iri)
+	if err != nil {
+		t.Fatalf("parse %s: %v", iri, err)
+	}
+	return u.Host
 }

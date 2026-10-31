@@ -52,6 +52,7 @@ func setActorPublicKey(t *testing.T, app core.App, actor *core.Record, pubKey *r
 	if err != nil {
 		t.Fatalf("marshal public key: %v", err)
 	}
+	actor.Set("domain", mustURLHost(t, actor.GetString("iri")))
 	actor.Set("public_key", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der})))
 	if err := app.Save(actor); err != nil {
 		t.Fatalf("save public key: %v", err)
@@ -208,7 +209,7 @@ func newLikeReceiver(t *testing.T, bobPub *rsa.PublicKey) *likeReceiver {
 func (r *likeReceiver) deliver(t *testing.T, signer *rsa.PrivateKey, keyID string, body []byte, wantStatus int) {
 	t.Helper()
 	e := signedInstanceInboxEventAt(t, r.app, signer, keyID, body, body, time.Now())
-	assertInstanceInboxStatus(t, InstanceInboxHandler(e), wantStatus)
+	assertInstanceInboxStatus(t, testInstanceInboxHandler(e), wantStatus)
 }
 
 func TestLikeReachesPeerInstanceRoundTrip(t *testing.T) {

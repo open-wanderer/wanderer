@@ -183,26 +183,40 @@ func prepareRemoteListReferences(app core.App, ctx context.Context, list *core.R
 				if fetchCtx.Err() != nil || canonicalRemoteBodyBudgetExhausted(fetchCtx) {
 					return
 				}
-				remoteURL, _ := url.Parse(jobs[index].iri)
-				host := strings.ToLower(remoteURL.Host)
-				lock.Lock()
-				if silent[host] {
-					results[index] = &remoteListReferenceResult{answer: remoteListReferenceUnavailable}
+				// stop ends the worker, as a budget cut off does.
+				stop := func() (stop bool) {
+					defer recoverBackgroundSyncJob(app, "trails", jobs[index].iri, func() {
+						// Refused, like any answer that is not a trail document.
+						lock.Lock()
+						results[index] = &remoteListReferenceResult{answer: remoteListReferenceRefused}
+						lock.Unlock()
+						rememberRemoteListReferenceFailure(app, jobs[index].iri)
+					})
+					remoteURL, _ := url.Parse(jobs[index].iri)
+					host := strings.ToLower(remoteURL.Host)
+					lock.Lock()
+					if silent[host] {
+						results[index] = &remoteListReferenceResult{answer: remoteListReferenceUnavailable}
+						lock.Unlock()
+						return false
+					}
 					lock.Unlock()
-					continue
-				}
-				lock.Unlock()
-				result := fetchRemoteListReference(app, fetchCtx, &client, jobs[index].iri)
-				// A request this sync's own budget cut off is left for later.
-				if result.answer == remoteListReferenceUnavailable && fetchCtx.Err() != nil {
+					result := fetchRemoteListReference(app, fetchCtx, &client, jobs[index].iri)
+					// A request this sync's own budget cut off is left for later.
+					if result.answer == remoteListReferenceUnavailable && fetchCtx.Err() != nil {
+						return true
+					}
+					lock.Lock()
+					results[index] = &result
+					if result.silent {
+						silent[host] = true
+					}
+					lock.Unlock()
+					return false
+				}()
+				if stop {
 					return
 				}
-				lock.Lock()
-				results[index] = &result
-				if result.silent {
-					silent[host] = true
-				}
-				lock.Unlock()
 			}
 		}()
 	}
@@ -264,7 +278,9 @@ func fetchRemoteListReference(app core.App, ctx context.Context, client *http.Cl
 			return remoteListReferenceResult{answer: remoteListReferenceUnavailable}
 		}
 	}
-	flight := &remoteListReferenceFlight{done: make(chan struct{})}
+	// A leader that panics never sets the result; followers must read that
+	// as "no answer", not as an empty loaded reference.
+	flight := &remoteListReferenceFlight{done: make(chan struct{}), result: remoteListReferenceResult{answer: remoteListReferenceUnavailable}}
 	remoteListReferences.flights[key] = flight
 	remoteListReferences.Unlock()
 	defer func() {

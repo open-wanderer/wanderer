@@ -53,6 +53,17 @@ func newDisconnectDeliveryTestApp(t *testing.T) (core.App, *core.Record) {
 		t.Fatalf("create activitypub_activities collection: %v", err)
 	}
 
+	// The production follows collection has activity_iri (migration 1790250000).
+	// Without it the Accept falls back to the newest Follow for the pair.
+	follows, err := app.FindCollectionByNameOrId("follows")
+	if err != nil {
+		t.Fatalf("find follows: %v", err)
+	}
+	follows.Fields.Add(&core.TextField{Name: "activity_iri"})
+	if err := app.Save(follows); err != nil {
+		t.Fatalf("add follows.activity_iri: %v", err)
+	}
+
 	app.OnRecordAfterUpdateSuccess("follows").BindFunc(hooks.InstanceFollowUpdateHandler())
 	app.OnRecordAfterDeleteSuccess("follows").BindFunc(hooks.InstanceFollowDeleteHandler())
 
@@ -67,11 +78,12 @@ func newDisconnectDeliveryTestApp(t *testing.T) (core.App, *core.Record) {
 }
 
 // recordingInbox is an httptest peer inbox that records the "type" of every
-// POSTed activity.
+// POSTed activity and the id of the activity it wraps.
 type recordingInbox struct {
-	server *httptest.Server
-	mu     sync.Mutex
-	types  []string
+	server  *httptest.Server
+	mu      sync.Mutex
+	types   []string
+	wrapped []string
 }
 
 func newRecordingInbox(t *testing.T) *recordingInbox {
@@ -81,11 +93,13 @@ func newRecordingInbox(t *testing.T) *recordingInbox {
 		if req.Method == http.MethodPost {
 			body, _ := io.ReadAll(req.Body)
 			var doc struct {
-				Type string `json:"type"`
+				Type   string          `json:"type"`
+				Object json.RawMessage `json:"object"`
 			}
 			_ = json.Unmarshal(body, &doc)
 			r.mu.Lock()
 			r.types = append(r.types, doc.Type)
+			r.wrapped = append(r.wrapped, wrappedObjectID(doc.Object))
 			r.mu.Unlock()
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -94,6 +108,30 @@ func newRecordingInbox(t *testing.T) *recordingInbox {
 	// The peer runs on loopback, which the public-address delivery client refuses.
 	t.Cleanup(federation.SetDeliveryClientForTesting(r.server.Client()))
 	return r
+}
+
+// wrappedObjectID returns the id of an activity's object: the id member of an
+// embedded object or the IRI itself.
+func wrappedObjectID(raw json.RawMessage) string {
+	var iri string
+	if json.Unmarshal(raw, &iri) == nil {
+		return iri
+	}
+	var obj struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(raw, &obj) == nil {
+		return obj.ID
+	}
+	return ""
+}
+
+// wrappedIDs returns the ids of the activities wrapped by the deliveries so
+// far, in arrival order.
+func (r *recordingInbox) wrappedIDs() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.wrapped)
 }
 
 // waitForDeliveries polls until at least want activities arrived or the

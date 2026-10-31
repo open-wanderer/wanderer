@@ -185,46 +185,11 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 		return err
 	}
 
-	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", activity.Actor.GetID().String())
-	if err != nil && err != sql.ErrNoRows {
+	actor, handled, err := ResolveInboxSender(e, body, activity, func() (context.Context, error) {
+		return util.GetSafeActorContext(e.Request, recipient)
+	})
+	if err != nil || handled {
 		return err
-	}
-	knownKeyReload := actorNeedsKnownKeyReload(actor)
-	if err == sql.ErrNoRows || knownKeyReload || (actor != nil && !actor.GetBool("is_local") && !federation.CachedActorIdentityMatchesOrigin(actor)) {
-		ctx, err := util.GetSafeActorContext(e.Request, recipient)
-		if err != nil {
-			return err
-		}
-		storedActor := actor
-		if knownKeyReload {
-			// A known actor's first key refresh has its own budget; the
-			// recipient's other lookups cannot prevent this delivery.
-			bucket := "known-actor:" + e.App.DataDir() + ":" + storedActor.Id
-			ctx = util.WithRateLimitBucket(ctx, bucket)
-			actor, err = reloadKnownInboxActor(e.App, ctx, storedActor)
-		} else {
-			actor, err = getInboxActorByIRI(e.App, ctx, activity.Actor.GetID().String(), false)
-		}
-		var reloadPanic *knownInboxActorReloadPanicError
-		if errors.As(err, &reloadPanic) {
-			return e.InternalServerError("Unable to refresh actor", nil)
-		}
-		if err != nil {
-			if inboxActorGoneCheckAllowed(e.App, ctx, e.Request, body, storedActor, activity, err, knownKeyReload) {
-				legacySigned := func(stored *core.Record) bool { return legacySelfDeletionSigned(e.App, e.Request, body, stored) }
-				if gone, deletionError := reconcileGoneInboxActor(e.App, ctx, storedActor, activity, legacySigned); gone {
-					if deletionError != nil {
-						e.App.Logger().Warn("remote account cleanup failed", "error", deletionError)
-					}
-					return e.JSON(http.StatusOK, deletionError)
-				}
-			}
-			return e.UnauthorizedError("Unable to verify actor identity", err)
-		}
-	}
-
-	if actor == nil || (!actor.GetBool("is_local") && !federation.CachedActorIdentityMatchesOrigin(actor)) {
-		return e.UnauthorizedError("Invalid actor identity", nil)
 	}
 	verified, err := util.VerifySignature(e.App, e.Request, actor.GetString("public_key"), body, activity.Actor.GetID().String())
 	if err != nil || !verified {
@@ -241,6 +206,57 @@ func ActivitypubActivityProcess(e *core.RequestEvent) error {
 		e.App.Logger().Warn(message, "type", activity.Type, "actor", actor.Id, "recipient", recipient.Id, "error", err)
 	}
 	return e.JSON(http.StatusOK, err)
+}
+
+// ResolveInboxSender returns the stored sender of a signed delivery to a user
+// inbox or, through federation.NewInstanceInboxHandler, the instance inbox. An
+// unknown actor is fetched, a key retained by the cache refresh is reloaded
+// and a cached identity that no longer matches its origin is looked up again,
+// each with the context fetchContext prepares. A confirmed self-deletion of a
+// gone account is applied and answered here, reported as handled.
+func ResolveInboxSender(e *core.RequestEvent, body []byte, activity pub.Activity, fetchContext func() (context.Context, error)) (*core.Record, bool, error) {
+	actor, err := e.App.FindFirstRecordByData("activitypub_actors", "iri", activity.Actor.GetID().String())
+	if err != nil && err != sql.ErrNoRows {
+		return nil, false, err
+	}
+	knownKeyReload := actorNeedsKnownKeyReload(actor)
+	if err == sql.ErrNoRows || knownKeyReload || (actor != nil && !actor.GetBool("is_local") && !federation.CachedActorIdentityMatchesOrigin(actor)) {
+		ctx, err := fetchContext()
+		if err != nil {
+			return nil, false, err
+		}
+		storedActor := actor
+		if knownKeyReload {
+			// A known actor's first key refresh has its own budget; the
+			// recipient's other lookups cannot prevent this delivery.
+			bucket := "known-actor:" + e.App.DataDir() + ":" + storedActor.Id
+			ctx = util.WithRateLimitBucket(ctx, bucket)
+			actor, err = reloadKnownInboxActor(e.App, ctx, storedActor)
+		} else {
+			actor, err = getInboxActorByIRI(e.App, ctx, activity.Actor.GetID().String(), false)
+		}
+		var reloadPanic *knownInboxActorReloadPanicError
+		if errors.As(err, &reloadPanic) {
+			return nil, false, e.InternalServerError("Unable to refresh actor", nil)
+		}
+		if err != nil {
+			if inboxActorGoneCheckAllowed(e.App, ctx, e.Request, body, storedActor, activity, err, knownKeyReload) {
+				legacySigned := func(stored *core.Record) bool { return legacySelfDeletionSigned(e.App, e.Request, body, stored) }
+				if gone, deletionError := reconcileGoneInboxActor(e.App, ctx, storedActor, activity, legacySigned); gone {
+					if deletionError != nil {
+						e.App.Logger().Warn("remote account cleanup failed", "error", deletionError)
+					}
+					return nil, true, e.JSON(http.StatusOK, deletionError)
+				}
+			}
+			return nil, false, e.UnauthorizedError("Unable to verify actor identity", err)
+		}
+	}
+
+	if actor == nil || (!actor.GetBool("is_local") && !federation.CachedActorIdentityMatchesOrigin(actor)) {
+		return nil, false, e.UnauthorizedError("Invalid actor identity", nil)
+	}
+	return actor, false, nil
 }
 
 // actorNeedsKnownKeyReload identifies a remote key retained by the cache

@@ -468,6 +468,9 @@ func CreateListActivity(app core.App, list *core.Record, typ pub.ActivityVocabul
 }
 
 func ProcessCreateOrUpdateActivity(app core.App, actor *core.Record, recipient *core.Record, activity pub.Activity) error {
+	if pub.IsNil(activity.Object) {
+		return fmt.Errorf("activity has no object")
+	}
 
 	var err error
 	switch util.ObjectKindFromIRI(activity.Object.GetID().String()) {
@@ -504,8 +507,11 @@ func processCreateOrUpdateTrailActivity(activity pub.Activity, app core.App, act
 	}
 
 	// Among parallel deliveries of the same activity, only the delivery
-	// that stored the trail notifies the mentioned accounts.
-	if storedElsewhere {
+	// that stored the trail notifies the mentioned accounts, and of later
+	// deliveries of it to another inbox, none does. A local author's
+	// activity is delivered to each mentioned account's inbox in turn and
+	// notifies only that account.
+	if storedElsewhere || (!actor.GetBool("is_local") && !claimMentionNotifications(app, activity)) {
 		return nil
 	}
 
@@ -619,8 +625,8 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 	}
 
 	// A peer's comment can reach a user inbox and the instance inbox; only
-	// the delivery that stored it notifies.
-	if !newComment && activity.Type == pub.CreateType {
+	// the first delivery of a Create or Update notifies.
+	if (!newComment && activity.Type == pub.CreateType) || !claimMentionNotifications(app, activity) {
 		return nil
 	}
 
@@ -810,8 +816,8 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	}
 
 	// A peer's summit log can reach a user inbox and the instance inbox; only
-	// the delivery that stored it notifies.
-	if !newSummitLog && activity.Type == pub.CreateType {
+	// the first delivery of a Create or Update notifies.
+	if (!newSummitLog && activity.Type == pub.CreateType) || !claimMentionNotifications(app, activity) {
 		return nil
 	}
 

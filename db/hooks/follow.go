@@ -3,8 +3,8 @@ package hooks
 import (
 	"context"
 	"fmt"
-	"os"
 	"pocketbase/federation"
+	"pocketbase/util"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -72,26 +72,26 @@ func DeleteFollowHandler() func(e *core.RecordRequestEvent) error {
 }
 
 // isOutboundInstanceFollow reports whether the local instance actor is the
-// follower in the follows record.
+// follower in the follows record. The actor is recognised by type and locality
+// on the loaded record, not by an IRI built from ORIGIN, which stops matching
+// the stored row after an ORIGIN change.
 func isOutboundInstanceFollow(app core.App, follow *core.Record) bool {
-	instanceIRI := os.Getenv("ORIGIN") + "/api/v1/activitypub/instance"
 	followerActor, err := app.FindRecordById("activitypub_actors", follow.GetString("follower"))
 	if err != nil {
 		return false
 	}
-	return followerActor.GetString("iri") == instanceIRI
+	return util.IsLocalInstanceActor(followerActor)
 }
 
 // isInstanceFollow reports whether the follower or followee of the follows
-// record is the local instance actor, compared by IRI.
+// record is the local instance actor, compared by type and locality, not by IRI.
 func isInstanceFollow(app core.App, follow *core.Record) bool {
-	instanceIRI := os.Getenv("ORIGIN") + "/api/v1/activitypub/instance"
 	for _, field := range []string{"follower", "followee"} {
 		actor, err := app.FindRecordById("activitypub_actors", follow.GetString(field))
 		if err != nil {
 			continue
 		}
-		if actor.GetString("iri") == instanceIRI {
+		if util.IsLocalInstanceActor(actor) {
 			return true
 		}
 	}

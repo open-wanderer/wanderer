@@ -190,3 +190,46 @@ func TestRememberedHandleFailureUsesActorStoredLater(t *testing.T) {
 		})
 	}
 }
+
+// TestRememberedHandleFailureIgnoresInstanceActor checks that the cached-failure
+// fallback finds person actors only: a remote instance actor stored later under
+// the same name does not turn a remembered failure into a success.
+func TestRememberedHandleFailureIgnoresInstanceActor(t *testing.T) {
+	for _, collection := range []string{"trails", "lists"} {
+		t.Run(collection, func(t *testing.T) {
+			f := setupHandleLookupTest(t, "https://local.example", http.StatusOK)
+			original := remoteHandleGetActor
+			t.Cleanup(func() { remoteHandleGetActor = original })
+			calls := 0
+			remoteHandleGetActor = func(core.App, context.Context, string, bool) (*core.Record, error) {
+				calls++
+				return nil, errors.New("origin unavailable")
+			}
+			if code, _ := f.get(t, collection, "remote000000001", "@instance@remote.example"); code != http.StatusServiceUnavailable {
+				t.Fatalf("unavailable handle answered %d", code)
+			}
+
+			// The fixture's actors collection has no actor_type field. A field
+			// added later leaves stale collection pointers, so fetch it again.
+			actors, err := f.app.FindCollectionByNameOrId("activitypub_actors")
+			if err != nil {
+				t.Fatal(err)
+			}
+			actors.Fields.Add(&core.TextField{Name: "actor_type"})
+			if err := f.app.Save(actors); err != nil {
+				t.Fatal(err)
+			}
+			instance := f.record(t, "activitypub_actors", map[string]any{"preferred_username": "instance", "domain": "remote.example",
+				"is_local": false, "actor_type": "instance", "iri": "https://remote.example/api/v1/activitypub/instance",
+				"public_key": "test-key", "last_fetched": time.Now()})
+			f.object(t, collection, instance.Id, "https://remote.example", "remote000000001", false, false)
+
+			if code, _ := f.get(t, collection, "remote000000001", "@instance@remote.example"); code != http.StatusServiceUnavailable {
+				t.Fatalf("remembered failure answered %d after a remote instance actor was stored, want 503", code)
+			}
+			if calls != 1 {
+				t.Fatalf("lookup ran %d times, want 1 (the failure stays remembered)", calls)
+			}
+		})
+	}
+}

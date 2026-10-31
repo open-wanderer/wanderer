@@ -261,3 +261,66 @@ func TestLocalTrailMentionMatchesInboxWithAnEarlierRecipientRecord(t *testing.T)
 	}
 	f.assertMention(t, author, mentioned, trail.GetString("iri"))
 }
+
+// TestRemoteTrailMentionNotifiesOncePerActivity covers deliveries one after the
+// other: a peer sends one Create or Update to every user inbox it addresses
+// and to the instance inbox. Each activity notifies the mentioned account
+// once; an edit is a new activity and notifies again.
+func TestRemoteTrailMentionNotifiesOncePerActivity(t *testing.T) {
+	f := newTrailMentionInboxFixture(t)
+	author := f.actor(t, "remoteauthor", false)
+	mentioned := f.actor(t, "mentioned", true)
+	follower := f.actor(t, "follower", true)
+	follows, err := f.app.FindCollectionByNameOrId("follows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, recipient := range []*core.Record{mentioned, follower} {
+		follow := core.NewRecord(follows)
+		follow.Set("follower", recipient.Id)
+		follow.Set("followee", author.Id)
+		follow.Set("status", "accepted")
+		if err := f.app.Save(follow); err != nil {
+			t.Fatal(err)
+		}
+	}
+	iri := "https://remote.example/api/v1/trail/sequential"
+	create := f.body(t, author, mentioned, iri)
+	var update map[string]any
+	if err := json.Unmarshal(create, &update); err != nil {
+		t.Fatal(err)
+	}
+	update["type"], update["id"] = "Update", author.GetString("iri")+"/update/1"
+	updateBody, err := json.Marshal(update)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	countMentions := func() int {
+		t.Helper()
+		count, err := f.app.CountRecords("notifications")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return int(count)
+	}
+	deliver := func(body []byte) {
+		t.Helper()
+		for _, recipient := range []*core.Record{mentioned, follower} {
+			if result := f.process(author, recipient, body); result.err != nil || result.status != http.StatusOK {
+				t.Fatalf("signed inbox was not acknowledged: status=%d err=%v", result.status, result.err)
+			}
+		}
+	}
+
+	deliver(create)
+	f.assertMention(t, author, mentioned, iri)
+	deliver(updateBody)
+	if got := countMentions(); got != 2 {
+		t.Fatalf("mention notifications after the edit=%d, want 2: one for the Create, one for the Update", got)
+	}
+	deliver(updateBody)
+	if got := countMentions(); got != 2 {
+		t.Fatalf("mention notifications after a repeated Update=%d, want 2", got)
+	}
+}

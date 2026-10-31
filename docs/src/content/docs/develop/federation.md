@@ -135,6 +135,41 @@ Paginated collection of actors being followed by an actor.
 }
 ```
 
+## Instance federation
+
+Each <span class="-tracking-[0.075em]">wanderer</span> instance has one instance actor, an ActivityPub `Application` served at `<ORIGIN>/api/v1/activitypub/instance`. Instance federation uses it to connect your instance to another one. The administrator manages these connections on the `/federation/` page in the PocketBase admin.
+
+```json
+{
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://w3id.org/security/v1"
+    ],
+    "id": "https://trails.example.com/api/v1/activitypub/instance",
+    "type": "Application",
+    "preferredUsername": "-instance",
+    "name": "Wanderer at trails.example.com",
+    "inbox": "https://trails.example.com/api/v1/activitypub/instance/inbox",
+    "outbox": "https://trails.example.com/api/v1/activitypub/instance/outbox",
+    "manuallyApprovesFollowers": true,
+    "publicKey": {
+        "id": "https://trails.example.com/api/v1/activitypub/instance#main-key",
+        "owner": "https://trails.example.com/api/v1/activitypub/instance",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n"
+    }
+}
+```
+
+The username of the instance actor is `-instance`. No account can register that name, so a user named `instance` signs up and federates like any other user. No handle, WebFinger or mention lookup ever resolves to the instance actor, and `/api/v1/activitypub/user/-instance` answers 404.
+
+### Changing ORIGIN
+
+When you change `ORIGIN`, the instance actor follows the new value on the next start. Its address, inbox, outbox, domain and display name move to the new origin, and it keeps its key pair. Connected peers are not notified: no `Update` or `Move` activity is sent, so they keep the old address. After a domain change, including a change from http to https, disconnect each peer on `/federation/` and connect it again. The administrator of the other instance approves the new request. Other federated content keeps the addresses it was published under.
+
+### Two instance actors
+
+If the startup log reports that the instance actor cannot move to the current `ORIGIN` because another local instance actor already owns that address, the database holds two instance actors, which an older development build can cause. Open the PocketBase admin, go to the `activitypub_actors` collection, filter for type `instance` and local, delete the newer row and restart. With two local instance actors and no such conflict, the oldest one is used and an error is logged.
+
 ## Objects
 
 ### Trail

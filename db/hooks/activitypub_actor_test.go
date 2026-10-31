@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -72,6 +73,16 @@ func (c *inboxCounter) waitForHits(want int32, deadline time.Duration) int32 {
 func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 	t.Helper()
 
+	return newActorDeleteHooksTestApp(t, true)
+}
+
+// newActorDeleteHooksTestApp builds the account-deletion fixture. withActorType
+// decides whether the actors collection carries actor_type, which the peer
+// lookup joins on; leaving it out is how a failing peer lookup is injected
+// against a local instance actor that does exist.
+func newActorDeleteHooksTestApp(t *testing.T, withActorType bool) *pbtests.TestApp {
+	t.Helper()
+
 	t.Setenv("ORIGIN", "https://local.example")
 	t.Setenv("POCKETBASE_ENCRYPTION_KEY", testEncryptionKey)
 
@@ -87,6 +98,8 @@ func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 		t.Fatal(err)
 	}
 
+	// actor_type goes in with the collection: a field added after records exist
+	// leaves stale collection pointers behind.
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(
 		&core.TextField{Name: "iri"},
@@ -95,6 +108,9 @@ func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 		&core.BoolField{Name: "is_local"},
 		&core.RelationField{Name: "owner", CollectionId: owners.Id, MaxSelect: 1, CascadeDelete: true},
 	)
+	if withActorType {
+		actors.Fields.Add(&core.TextField{Name: "actor_type"})
+	}
 	if err := app.Save(actors); err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +139,8 @@ func setupActorDeleteHooksTestApp(t *testing.T) *pbtests.TestApp {
 	}
 	lists := core.NewBaseCollection("lists")
 	lists.Fields.Add(
+		&core.TextField{Name: "iri"},
+		&core.BoolField{Name: "public"},
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1, CascadeDelete: true},
 	)
 	if err := app.Save(lists); err != nil {
@@ -253,6 +271,75 @@ func newDepartingActor(t *testing.T, app *pbtests.TestApp, inbox *inboxCounter) 
 	return owner, actor
 }
 
+// localInstanceActor returns the local instance actor, creating it on first
+// use. actor_type is only set when the fixture has the column.
+func localInstanceActor(t *testing.T, app *pbtests.TestApp) *core.Record {
+	t.Helper()
+
+	iri := "https://local.example/api/v1/activitypub/instance"
+	if existing, err := app.FindFirstRecordByData("activitypub_actors", "iri", iri); err == nil {
+		return existing
+	}
+
+	collection, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := core.NewRecord(collection)
+	actor.Set("iri", iri)
+	actor.Set("inbox", iri+"/inbox")
+	actor.Set("is_local", true)
+	if collection.Fields.GetByName("actor_type") != nil {
+		actor.Set("actor_type", "instance")
+	}
+	if err := app.Save(actor); err != nil {
+		t.Fatal(err)
+	}
+	return actor
+}
+
+// seedAcceptedPeer connects a remote instance actor delivering to peerInbox to
+// the local instance actor: an accepted follow from the peer, and when mutual
+// also one back, which is how an administrator-initiated connection ends up.
+func seedAcceptedPeer(t *testing.T, app *pbtests.TestApp, peerInbox string, mutual bool) *core.Record {
+	t.Helper()
+
+	instance := localInstanceActor(t, app)
+
+	collection, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer := core.NewRecord(collection)
+	peer.Set("iri", "https://peer.example/api/v1/activitypub/instance")
+	peer.Set("inbox", peerInbox)
+	peer.Set("is_local", false)
+	peer.Set("actor_type", "instance")
+	if err := app.Save(peer); err != nil {
+		t.Fatal(err)
+	}
+
+	followsCollection, err := app.FindCollectionByNameOrId("follows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs := [][2]string{{peer.Id, instance.Id}}
+	if mutual {
+		pairs = append(pairs, [2]string{instance.Id, peer.Id})
+	}
+	for _, pair := range pairs {
+		follow := core.NewRecord(followsCollection)
+		follow.Set("follower", pair[0])
+		follow.Set("followee", pair[1])
+		follow.Set("status", "accepted")
+		if err := app.Save(follow); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	return peer
+}
+
 // recordActivity stores an outgoing activity of actorIRI the way create.go
 // does, cc'd to the given inboxes.
 func recordActivity(t *testing.T, app *pbtests.TestApp, actorIRI, typ string, cc ...string) *core.Record {
@@ -281,6 +368,20 @@ func countActivitiesOf(t *testing.T, app *pbtests.TestApp, actorIRI string) int 
 		t.Fatal(err)
 	}
 	return len(records)
+}
+
+// dropListShare removes a collection that only the follower lookup reads on
+// the deleting path, which makes that lookup fail and nothing else.
+func dropListShare(t *testing.T, app *pbtests.TestApp) {
+	t.Helper()
+
+	c, err := app.FindCollectionByNameOrId("list_share")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Delete(c); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
@@ -392,6 +493,171 @@ func TestActorDeleteAnnouncementWaitsForCommit(t *testing.T) {
 		}
 		if got := followerInbox.waitForHits(1, 5*time.Second); got != 1 {
 			t.Fatalf("expected exactly one delivery to the follower, got %d", got)
+		}
+	})
+
+	// Peers receive every public record of every local user through instance
+	// federation without following anyone, and the cascade skips the per-object
+	// Deletes, so Delete(Actor) is the only notice they can get. This account
+	// has no content and no recorded activity: the peer is told regardless.
+	t.Run("CommittedDeletionReachesAcceptedPeer", func(t *testing.T) {
+		app := setupActorDeleteHooksTestApp(t)
+		followerInbox := newInboxCounter(t)
+		peerInbox := newInboxCounter(t)
+
+		owner, actor := newDepartingActor(t, app, followerInbox)
+		iri := actor.GetString("iri")
+		seedAcceptedPeer(t, app, peerInbox.url(), false)
+
+		if err := app.Delete(owner); err != nil {
+			t.Fatalf("expected the delete to succeed, got %v", err)
+		}
+
+		if got := peerInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the accepted peer, got %d", got)
+		}
+		if got := peerInbox.waitForHits(2, 500*time.Millisecond); got != 1 {
+			t.Fatalf("expected the peer to be told once, got %d deliveries", got)
+		}
+		if got := followerInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the follower, got %d", got)
+		}
+
+		// Peers are delivery recipients only: nobody learns the peer set from
+		// the addressing.
+		announcement, err := app.FindFirstRecordByFilter("activitypub_activities", "object = {:iri}", dbx.Params{"iri": iri})
+		if err != nil {
+			t.Fatalf("expected a persisted announcement naming the deleted actor: %v", err)
+		}
+		cc := announcement.GetString("cc")
+		if !strings.Contains(cc, iri+"/followers") {
+			t.Fatalf("cc = %s, want it to carry the actor's followers collection", cc)
+		}
+		if strings.Contains(cc, "peer.example") {
+			t.Fatalf("cc = %s, must not name the peer", cc)
+		}
+	})
+
+	// A failing peer lookup must cost the followers nothing: the instance actor
+	// exists but the actors table has no actor_type, so the join fails.
+	t.Run("PeerLookupFailureStillReachesFollower", func(t *testing.T) {
+		app := newActorDeleteHooksTestApp(t, false)
+		followerInbox := newInboxCounter(t)
+
+		owner, _ := newDepartingActor(t, app, followerInbox)
+		localInstanceActor(t, app)
+
+		if err := app.Delete(owner); err != nil {
+			t.Fatalf("expected the delete to succeed, got %v", err)
+		}
+
+		if got := followerInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the follower, got %d", got)
+		}
+	})
+
+	// The reverse: the follower lookup is a UNION over every table the account
+	// touched. With list_share gone it fails, and the accepted peer, whose
+	// lookup reads other tables, is still told that the account is gone. The
+	// collection is deleted rather than the table dropped, so the cascade of the
+	// owner's delete does not trip over it.
+	t.Run("FollowerLookupFailureStillReachesPeer", func(t *testing.T) {
+		app := setupActorDeleteHooksTestApp(t)
+		followerInbox := newInboxCounter(t)
+		peerInbox := newInboxCounter(t)
+
+		owner, _ := newDepartingActor(t, app, followerInbox)
+		seedAcceptedPeer(t, app, peerInbox.url(), false)
+		dropListShare(t, app)
+
+		if err := app.Delete(owner); err != nil {
+			t.Fatalf("expected the delete to succeed, got %v", err)
+		}
+
+		if got := peerInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the accepted peer, got %d", got)
+		}
+		if got := followerInbox.waitForHits(1, 500*time.Millisecond); got != 0 {
+			t.Fatalf("the follower lookup failed, so the follower cannot have been told, got %d", got)
+		}
+	})
+
+	// With both lookups failing there is nobody to tell, and the deletion
+	// itself still goes through.
+	t.Run("BothLookupsFailingStillDeletesAndTellsNoOne", func(t *testing.T) {
+		app := newActorDeleteHooksTestApp(t, false)
+		followerInbox := newInboxCounter(t)
+
+		owner, actor := newDepartingActor(t, app, followerInbox)
+		localInstanceActor(t, app)
+		dropListShare(t, app)
+
+		if err := app.Delete(owner); err != nil {
+			t.Fatalf("expected the delete to succeed, got %v", err)
+		}
+		if _, err := app.FindRecordById("activitypub_actors", actor.Id); err == nil {
+			t.Fatal("expected the actor to be deleted")
+		}
+
+		if got := followerInbox.waitForHits(1, 500*time.Millisecond); got != 0 {
+			t.Fatalf("no lookup succeeded, so nobody can have been told, got %d", got)
+		}
+	})
+
+	// A peer connected in both directions is one inbox, told once.
+	t.Run("MutualPeerToldOnce", func(t *testing.T) {
+		app := setupActorDeleteHooksTestApp(t)
+		followerInbox := newInboxCounter(t)
+		peerInbox := newInboxCounter(t)
+
+		owner, _ := newDepartingActor(t, app, followerInbox)
+		seedAcceptedPeer(t, app, peerInbox.url(), true)
+
+		if err := app.Delete(owner); err != nil {
+			t.Fatalf("expected the delete to succeed, got %v", err)
+		}
+
+		if got := peerInbox.waitForHits(1, 5*time.Second); got != 1 {
+			t.Fatalf("expected exactly one delivery to the mutual peer, got %d", got)
+		}
+		if got := peerInbox.waitForHits(2, 500*time.Millisecond); got != 1 {
+			t.Fatalf("expected the mutual peer to be told once, got %d deliveries", got)
+		}
+	})
+
+	// The audience is collected inside the deleting transaction and announced
+	// only after the commit, so a blocked sibling tells neither the follower
+	// nor the peer.
+	t.Run("RolledBackDeletionReachesNoPeer", func(t *testing.T) {
+		app := setupActorDeleteHooksTestApp(t)
+		followerInbox := newInboxCounter(t)
+		peerInbox := newInboxCounter(t)
+
+		owner, actor := newDepartingActor(t, app, followerInbox)
+		seedAcceptedPeer(t, app, peerInbox.url(), false)
+
+		blockers, err := app.FindCollectionByNameOrId("blockers")
+		if err != nil {
+			t.Fatal(err)
+		}
+		blocker := core.NewRecord(blockers)
+		blocker.Set("owner", owner.Id)
+		if err := app.Save(blocker); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := app.Delete(owner); err == nil {
+			t.Fatal("expected the delete to be blocked by the sibling's required reference, got nil")
+		}
+		if _, err := app.FindRecordById("activitypub_actors", actor.Id); err != nil {
+			t.Fatalf("expected the actor to survive the rolled-back delete: %v", err)
+		}
+
+		if got := peerInbox.waitForHits(1, 500*time.Millisecond); got != 0 {
+			t.Fatalf("a rolled-back deletion must reach no peer, but it received %d delivery(ies)", got)
+		}
+		if got := followerInbox.waitForHits(1, 500*time.Millisecond); got != 0 {
+			t.Fatalf("a rolled-back deletion must reach no follower, but it received %d delivery(ies)", got)
 		}
 	})
 }

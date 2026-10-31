@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"pocketbase/util"
 	"strings"
 	"testing"
@@ -62,43 +63,43 @@ func TestInstanceInboxRejectsUntrustedHop(t *testing.T) {
 	t.Run("secret not configured", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "")
 		e := newInstanceInboxEvent("anything", instanceInboxPath, "{}")
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 	})
 
 	t.Run("missing secret header", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "s3cret")
 		e := newInstanceInboxEvent("", instanceInboxPath, "{}")
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 	})
 
 	t.Run("wrong secret header", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "s3cret")
 		e := newInstanceInboxEvent("nope", instanceInboxPath, "{}")
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 	})
 
 	t.Run("user inbox path with valid secret", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "s3cret")
 		e := newInstanceInboxEvent("s3cret", "/api/v1/activitypub/user/alice/inbox", "{}")
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 	})
 
 	t.Run("trailing slash path with valid secret", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "s3cret")
 		e := newInstanceInboxEvent("s3cret", instanceInboxPath+"/", "{}")
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 	})
 
 	t.Run("missing forwarded path with valid secret", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "s3cret")
 		e := newInstanceInboxEvent("s3cret", "", "{}")
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 	})
 
 	t.Run("activity without actor", func(t *testing.T) {
 		t.Setenv("POCKETBASE_PROXY_SECRET", "s3cret")
 		e := newInstanceInboxEvent("s3cret", instanceInboxPath, `{"type":"Create"}`)
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 400)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 400)
 	})
 }
 
@@ -215,6 +216,7 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("marshal public key: %v", err)
 			}
+			r.Set("domain", mustURLHost(t, r.GetString("iri")))
 			r.Set("public_key", string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der})))
 			if err := app.Save(r); err != nil {
 				t.Fatalf("save actor key: %v", err)
@@ -257,7 +259,7 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 		const trailIRI = "https://stranger.example.com/api/v1/trail/t1"
 		body := marshalActivity(t, signedGateCreateTrail(strangerIRI, trailIRI))
 		e := newSignedInstanceInboxEvent(t, f.app, f.keys[strangerIRI], strangerIRI+"#main-key", body)
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 403)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 403)
 		if trailExists(f, trailIRI) {
 			t.Fatal("trail from a non-peer must not be stored")
 		}
@@ -268,7 +270,7 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 		const trailIRI = "https://peer.example.com/api/v1/trail/t1"
 		body := marshalActivity(t, signedGateCreateTrail(peerUserIRI, trailIRI))
 		e := newSignedInstanceInboxEvent(t, f.app, f.keys[peerUserIRI], peerUserIRI+"#main-key", body)
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 200)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
 		if !trailExists(f, trailIRI) {
 			t.Fatal("trail from a peer-host user must be stored")
 		}
@@ -279,7 +281,7 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 		follow := pub.FollowNew(pub.IRI(strangerInstIRI+"/activity/f1"), pub.IRI(localInstanceIRI))
 		follow.Actor = pub.IRI(strangerInstIRI)
 		e := newSignedInstanceInboxEvent(t, f.app, f.keys[strangerInstIRI], strangerInstIRI+"#main-key", marshalActivity(t, follow))
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 200)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
 		rows, err := f.app.FindRecordsByFilter("follows",
 			"follower={:a} && followee={:b}", "", 10, 0,
 			map[string]any{"a": f.strangerI.Id, "b": f.localInst.Id})
@@ -296,7 +298,7 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 		follow := pub.FollowNew(pub.IRI(strangerIRI+"/activity/f3"), pub.IRI(localInstanceIRI))
 		follow.Actor = pub.IRI(strangerIRI)
 		e := newSignedInstanceInboxEvent(t, f.app, f.keys[strangerIRI], strangerIRI+"#main-key", marshalActivity(t, follow))
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 400)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 400)
 		if n := followCount(t, f, f.stranger.Id, f.localInst.Id); n != 0 {
 			t.Fatalf("expected no follows row, got %d", n)
 		}
@@ -307,7 +309,7 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 		follow := pub.FollowNew(pub.IRI(strangerIRI+"/activity/f2"), pub.IRI(localUserIRI))
 		follow.Actor = pub.IRI(strangerIRI)
 		e := newSignedInstanceInboxEvent(t, f.app, f.keys[strangerIRI], strangerIRI+"#main-key", marshalActivity(t, follow))
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 403)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 403)
 		if n := followCount(t, f, f.stranger.Id, f.localUser.Id); n != 0 {
 			t.Fatalf("expected no follows row, got %d", n)
 		}
@@ -319,9 +321,20 @@ func TestInstanceInboxSignedGate(t *testing.T) {
 		body := marshalActivity(t, signedGateCreateTrail(peerUserIRI, trailIRI))
 		// Sign with the stranger's key while claiming to be the peer user.
 		e := newSignedInstanceInboxEvent(t, f.app, f.keys[strangerIRI], peerUserIRI+"#main-key", body)
-		assertInstanceInboxStatus(t, InstanceInboxHandler(e), 401)
+		assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 401)
 		if trailExists(f, trailIRI) {
 			t.Fatal("trail with a bad signature must not be stored")
 		}
 	})
+}
+
+// mustURLHost returns the host of iri, the domain a fetched actor is cached
+// under.
+func mustURLHost(t *testing.T, iri string) string {
+	t.Helper()
+	u, err := url.Parse(iri)
+	if err != nil {
+		t.Fatalf("parse %s: %v", iri, err)
+	}
+	return u.Host
 }

@@ -125,13 +125,11 @@ func fetchNodeInfo21URL(client util.HTTPDoer, rawURL string) (string, error) {
 // Local instance actor lookup
 // ---------------------------------------------------------------------------
 
-// findLocalInstanceActor returns the local instance actor.
+// findLocalInstanceActor returns the local instance actor. It is the shared
+// lookup (oldest by type and locality), so the admin routes act on the same row
+// as InitInstanceActor, the instance inbox and the peer lookup.
 func findLocalInstanceActor(app core.App) (*core.Record, error) {
-	return app.FindFirstRecordByFilter(
-		"activitypub_actors",
-		"actor_type={:t} && is_local={:l}",
-		dbx.Params{"t": "instance", "l": true},
-	)
+	return federation.FindLocalInstanceActor(app)
 }
 
 // ---------------------------------------------------------------------------
@@ -270,8 +268,10 @@ func findFollowBetween(app core.App, followerID, followeeID string) (*core.Recor
 //   - An accepted record ends every accepted relationship with that peer: the
 //     accepted outbound row is deleted and the accepted inbound row is rejected.
 //
-// Inbound rows are never deleted. Steps that are already done are skipped, and
-// received content is kept.
+// Inbound rows are never deleted and are rejected through setFollowStatus, so
+// the Reject answers the Follow the row currently stands for. Steps that are
+// already done are skipped, including an inbound request the peer withdrew in
+// the meantime, and received content is kept.
 func disconnectPeer(app core.App, localID string, follow *core.Record) error {
 	if follow.GetString("follower") != localID && follow.GetString("followee") != localID {
 		return errNotInstanceFollow
@@ -294,8 +294,8 @@ func disconnectPeer(app core.App, localID string, follow *core.Record) error {
 		if status == "rejected" {
 			return nil
 		}
-		follow.Set("status", "rejected")
-		if err := app.Save(follow); err != nil {
+		// A request the peer already withdrew needs no reject.
+		if err := setFollowStatus(app, follow, "rejected", localID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("save follow rejected: %w", err)
 		}
 		return nil
@@ -316,8 +316,7 @@ func disconnectPeer(app core.App, localID string, follow *core.Record) error {
 		}
 	}
 	if inRec != nil && inRec.GetString("status") == "accepted" {
-		inRec.Set("status", "rejected")
-		if err := app.Save(inRec); err != nil {
+		if err := setFollowStatus(app, inRec, "rejected", localID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("save inbound follow rejected: %w", err)
 		}
 	}
@@ -526,16 +525,50 @@ func FederationPeers(e *core.RequestEvent) error {
 // FederationApprove + FederationReject handlers and shared DB helper
 // ---------------------------------------------------------------------------
 
+// errNotInboundFollow is returned by setFollowStatus when the follows record is
+// not an inbound follow of the local instance actor.
+var errNotInboundFollow = errors.New("not an inbound follow")
+
 // setFollowStatus sets the status of an inbound follows record (the local
-// instance is the followee). The follows hooks deliver the Accept or Reject.
+// instance is the followee). The follows hooks deliver the Accept or Reject
+// after the transaction commits, from the row saved inside it.
+//
+// follow only carries the id. The row is read again inside the transaction: a
+// retried Follow may have replaced activity_iri since the request loaded it,
+// and saving the stale copy would write the old value back and answer the old
+// Follow. The error of a vanished row (sql.ErrNoRows) is returned unchanged.
 func setFollowStatus(app core.App, follow *core.Record, status, localID string) error {
 	// Approve and reject only apply to inbound follows.
 	if follow.GetString("followee") != localID {
-		return fmt.Errorf("not an inbound follow")
+		return errNotInboundFollow
 	}
 
-	follow.Set("status", status)
-	return app.Save(follow)
+	return app.RunInTransaction(func(txApp core.App) error {
+		current, err := txApp.FindRecordById("follows", follow.Id)
+		if err != nil {
+			return err
+		}
+		if current.GetString("followee") != localID {
+			return errNotInboundFollow
+		}
+
+		current.Set("status", status)
+		return txApp.Save(current)
+	})
+}
+
+// followStatusError maps a setFollowStatus failure to the response: an outbound
+// row is 400, a row withdrawn since the request loaded it (the peer's Undo) is
+// 404, anything else is a save error.
+func followStatusError(e *core.RequestEvent, err error) error {
+	switch {
+	case errors.Is(err, errNotInboundFollow):
+		return e.BadRequestError("not an inbound follow", nil)
+	case errors.Is(err, sql.ErrNoRows):
+		return e.NotFoundError("follow not found", err)
+	default:
+		return fmt.Errorf("save follow status: %w", err)
+	}
 }
 
 // FederationApprove handles POST /federation/approve/:id and accepts an inbound
@@ -562,12 +595,9 @@ func FederationApprove(e *core.RequestEvent) error {
 	}
 
 	// 5. Apply direction guard and status update via the testable helper.
-	// Direction errors are 400, save errors 500.
+	// Direction errors are 400, a withdrawn row 404, save errors 500.
 	if err := setFollowStatus(e.App, follow, "accepted", localActor.Id); err != nil {
-		if err.Error() == "not an inbound follow" {
-			return e.BadRequestError("not an inbound follow", nil)
-		}
-		return fmt.Errorf("save follow status: %w", err)
+		return followStatusError(e, err)
 	}
 
 	return e.JSON(http.StatusOK, map[string]any{
@@ -600,12 +630,9 @@ func FederationReject(e *core.RequestEvent) error {
 	}
 
 	// 5. Apply direction guard and status update via the testable helper.
-	// Direction errors are 400, save errors 500.
+	// Direction errors are 400, a withdrawn row 404, save errors 500.
 	if err := setFollowStatus(e.App, follow, "rejected", localActor.Id); err != nil {
-		if err.Error() == "not an inbound follow" {
-			return e.BadRequestError("not an inbound follow", nil)
-		}
-		return fmt.Errorf("save follow status: %w", err)
+		return followStatusError(e, err)
 	}
 
 	return e.JSON(http.StatusOK, map[string]any{

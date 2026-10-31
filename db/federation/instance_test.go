@@ -1,6 +1,8 @@
 package federation
 
 import (
+	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 
@@ -95,8 +97,8 @@ func TestInitInstanceActorCreatesApplicationActor(t *testing.T) {
 		t.Errorf("actor_type = %q, want instance", got)
 	}
 
-	if got := record.GetString("preferred_username"); got != "instance" {
-		t.Errorf("preferred_username = %q, want instance", got)
+	if got := record.GetString("preferred_username"); got != InstanceActorUsername {
+		t.Errorf("preferred_username = %q, want %q", got, InstanceActorUsername)
 	}
 
 	if got := record.GetBool("is_local"); !got {
@@ -180,6 +182,39 @@ func TestInitInstanceActorNameFromOrigin(t *testing.T) {
 	if got := record.GetString("username"); got != "Wanderer at trails.example.com" {
 		t.Errorf("username = %q, want %q", got, "Wanderer at trails.example.com")
 	}
+}
+
+func TestFindLocalInstanceActor(t *testing.T) {
+	t.Run("no rows", func(t *testing.T) {
+		app := newTestApp(t)
+		if _, err := FindLocalInstanceActor(app); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("err = %v, want sql.ErrNoRows", err)
+		}
+	})
+
+	t.Run("remote instance actor and local person only", func(t *testing.T) {
+		app := newTestApp(t)
+		createTestActor(t, app, "https://peer.example/api/v1/activitypub/instance", "instance", false)
+		createTestActor(t, app, "https://trails.example.com/api/v1/activitypub/user/alice", "person", true)
+		if _, err := FindLocalInstanceActor(app); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("err = %v, want sql.ErrNoRows", err)
+		}
+	})
+
+	t.Run("two local instance actors return the first inserted", func(t *testing.T) {
+		app := newTestApp(t)
+		first := createTestActor(t, app, "http://localhost:3000/api/v1/activitypub/instance", "instance", true)
+		createTestActor(t, app, "http://127.0.0.1:8090/api/v1/activitypub/instance", "instance", true)
+		for i := 0; i < 2; i++ {
+			got, err := FindLocalInstanceActor(app)
+			if err != nil {
+				t.Fatalf("call %d: %v", i, err)
+			}
+			if got.Id != first.Id {
+				t.Fatalf("call %d: got %s, want the first inserted %s", i, got.Id, first.Id)
+			}
+		}
+	})
 }
 
 // minLen returns the smaller of a and b (used for truncated error messages).

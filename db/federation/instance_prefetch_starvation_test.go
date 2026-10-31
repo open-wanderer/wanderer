@@ -94,7 +94,7 @@ func (f *prefetchBudgetFixture) assertBobDelivered(t *testing.T) {
 	trailIRI := f.srv.URL + "/api/v1/trail/bob-starvation"
 	body := marshalActivity(t, signedGateCreateTrail(bobIRI, trailIRI))
 	e := newSignedInstanceInboxEvent(t, f.app, f.bob, bobIRI+"#main-key", body)
-	assertInstanceInboxStatus(t, InstanceInboxHandler(e), 200)
+	assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
 	if _, err := f.app.FindFirstRecordByData("trails", "iri", trailIRI); err != nil {
 		t.Fatalf("trail from the uncached peer user must be stored: %v", err)
 	}
@@ -104,7 +104,7 @@ func (f *prefetchBudgetFixture) assertNewPeerCanFollow(t *testing.T, np *newPeer
 	t.Helper()
 	body := starvationFollow(t, np.iri+"/activity/follow-1", np.iri)
 	e := newSignedInstanceInboxEvent(t, f.app, np.key, np.iri+"#main-key", body)
-	assertInstanceInboxStatus(t, InstanceInboxHandler(e), 200)
+	assertInstanceInboxStatus(t, testInstanceInboxHandler(e), 200)
 
 	actor, err := f.app.FindFirstRecordByData("activitypub_actors", "iri", np.iri)
 	if err != nil {
@@ -127,7 +127,7 @@ func TestInstanceInboxUnsignedFloodCausesNoFetch(t *testing.T) {
 	for i := 1; i <= starvationContentFlood; i++ {
 		actor := fmt.Sprintf("%s/u%d", f.srv.URL, i)
 		body := marshalActivity(t, signedGateCreateTrail(actor, fmt.Sprintf("%s/api/v1/trail/u%d", f.srv.URL, i)))
-		if err := InstanceInboxHandler(f.unsignedEvent(body)); err == nil {
+		if err := testInstanceInboxHandler(f.unsignedEvent(body)); err == nil {
 			t.Fatalf("request %d: unsigned activity must be refused", i)
 		}
 	}
@@ -148,7 +148,7 @@ func TestInstanceInboxForgedFloodDoesNotStarvePeerUser(t *testing.T) {
 		actor := fmt.Sprintf("%s/forged/%d", f.srv.URL, i)
 		body := marshalActivity(t, signedGateCreateTrail(actor, fmt.Sprintf("%s/api/v1/trail/forged%d", f.srv.URL, i)))
 		e := newSignedInstanceInboxEvent(t, f.app, attacker, actor+"#main-key", body)
-		if err := InstanceInboxHandler(e); err == nil {
+		if err := testInstanceInboxHandler(e); err == nil {
 			t.Fatalf("request %d: forged activity must be refused", i)
 		}
 	}
@@ -168,7 +168,7 @@ func TestInstanceInboxForgedFollowFloodDoesNotBlockNewPeer(t *testing.T) {
 		actor := fmt.Sprintf("http://newpeer.example/x%d", i)
 		body := starvationFollow(t, actor+"/activity/f", actor)
 		e := newSignedInstanceInboxEvent(t, f.app, attacker, actor+"#main-key", body)
-		if err := InstanceInboxHandler(e); err == nil {
+		if err := testInstanceInboxHandler(e); err == nil {
 			t.Fatalf("request %d: forged Follow must be refused", i)
 		}
 	}
@@ -203,7 +203,7 @@ func TestInstanceInboxInstanceActorVariantFloodSharesLifecycleBudget(t *testing.
 		}
 		body := starvationFollow(t, fmt.Sprintf("http://newpeer.example/activity/v%d", i), iri)
 		e := newSignedInstanceInboxEvent(t, f.app, attacker, keyIRI+"#main-key", body)
-		if err := InstanceInboxHandler(e); err == nil {
+		if err := testInstanceInboxHandler(e); err == nil {
 			t.Fatalf("variant %q: forged Follow must be refused", iri)
 		}
 	}
@@ -243,7 +243,7 @@ func TestInstanceInboxPrecheckRefusesBeforeFetch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newPrefetchBudgetFixture(t)
 			body := bodyFor(f)
-			assertInstanceInboxStatus(t, InstanceInboxHandler(tc.build(f, body)), 401)
+			assertInstanceInboxStatus(t, testInstanceInboxHandler(tc.build(f, body)), 401)
 			if got := f.fetch.Load(); got != 0 {
 				t.Fatalf("refused request caused %d fetches, want 0", got)
 			}

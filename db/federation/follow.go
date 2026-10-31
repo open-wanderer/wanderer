@@ -101,7 +101,8 @@ func findFollowActivityRecord(app core.App, follow *core.Record, actorIRI, objec
 	records, err := app.FindRecordsByFilter(
 		"activitypub_activities",
 		"actor={:actor}&&object={:object}&&type={:type}",
-		"-created", 1, 0,
+		// created has millisecond resolution; @rowid orders rows saved in the same millisecond.
+		"-created,-@rowid", 1, 0,
 		dbx.Params{"actor": actorIRI, "object": objectIRI, "type": string(pub.FollowType)},
 	)
 	if err != nil {

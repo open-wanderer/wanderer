@@ -28,14 +28,16 @@ type peerActor struct {
 
 // acceptedPeerActors returns every remote instance actor with an accepted
 // follow to or from the local instance actor. It defines "connected peer" for
-// both outgoing fan-out and the inbound gate. Returns (nil, nil) when the local
-// instance actor has not been seeded.
+// both outgoing fan-out and the inbound gate. The local instance actor comes from
+// FindLocalInstanceActor, so the lookup keeps working while its stored IRI still
+// differs from the current ORIGIN. Returns (nil, nil) when the local instance
+// actor has not been seeded.
 func acceptedPeerActors(app core.App) ([]peerActor, error) {
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return nil, fmt.Errorf("ORIGIN not set")
 	}
-	instanceActor, err := app.FindFirstRecordByData("activitypub_actors", "iri", origin+"/api/v1/activitypub/instance")
+	instanceActor, err := FindLocalInstanceActor(app)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

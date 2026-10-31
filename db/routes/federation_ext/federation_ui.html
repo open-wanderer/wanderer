@@ -6,802 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Federation · Wanderer</title>
   <link rel="icon" href="/_/images/favicon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css">
 
   <!-- Sync: theme + accent color before first paint to avoid flash -->
-  <script>
-    (function () {
-      var s = localStorage.getItem('pbColorScheme');
-      if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      }
-      try {
-        var pb = JSON.parse(localStorage.getItem('pbSettings') || '{}');
-        var accent = (pb.meta && pb.meta.accentColor) || '#1055c9';
-        document.documentElement.style.setProperty('--accent', accent);
-        var r = parseInt(accent.slice(1, 3), 16), g = parseInt(accent.slice(3, 5), 16), b = parseInt(accent.slice(5, 7), 16);
-        document.documentElement.style.setProperty('--accent-fade', 'rgba(' + r + ',' + g + ',' + b + ',0.1)');
-      } catch (_) { }
-    })();
-  </script>
-
-  <style>
-    :root {
-      --accent: #1055c9;
-      --accent-fade: rgba(16, 85, 201, 0.1);
-      --bg: #ffffff;
-      --surface: #f8f9fa;
-      --surface2: #e4e8ec;
-      --border: #e2e2e4;
-      --text: #16181a;
-      --text2: #9a9a9a;
-      --danger: #e1473d;
-    }
-
-    html.dark {
-      --bg: #1f1f1f;
-      --surface: #232323;
-      --surface2: #2f2f2f;
-      --border: #353849;
-      --text: #e4e5ea;
-      --text2: #6e7491;
-    }
-
-    [x-cloak] { display: none !important; }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'IBM Plex Sans', system-ui, sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* SVG logo: inner fills must match the header bg so the cutout effect works */
-    .app-header .logo-accent-fill {
-      fill: var(--accent);
-    }
-
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    /* ── Header ──────────────────────────────────────────── */
-    .app-header {
-      height: 38px;
-      background: var(--accent);
-      display: flex;
-      align-items: center;
-      padding: 0 20px;
-      gap: 12px;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-
-    .header-sep {
-      width: 1px;
-      height: 20px;
-      background: rgba(255, 255, 255, 0.22);
-      flex-shrink: 0;
-    }
-
-    .header-label {
-      color: rgba(255, 255, 255, 1);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .header-email {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 13px;
-    }
-
-    .header-link {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 13px;
-      text-decoration: none;
-      transition: color 0.12s;
-    }
-
-    .header-link:hover {
-      color: #fff;
-    }
-
-    .header-spacer {
-      flex: 1;
-    }
-
-    /* ── Page wrap ───────────────────────────────────────── */
-    .page-wrap {
-      flex: 1;
-      max-width: 980px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 28px 24px 48px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    /* ── Page title bar ──────────────────────────────────── */
-    .page-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .page-title h1 {
-      font-size: 19px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .page-title h1 i {
-      color: var(--accent);
-      font-size: 22px;
-    }
-
-    .count-badge {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text2);
-      background: var(--border);
-      padding: 1px 7px;
-      border-radius: 20px;
-    }
-
-    /* ── Card ────────────────────────────────────────────── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .card-body {
-      padding: 20px 22px;
-    }
-
-    .card-section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 14px;
-    }
-
-    /* ── Inputs ──────────────────────────────────────────── */
-    .input-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .input {
-      flex: 1;
-      height: 36px;
-      padding: 0 12px;
-      font-family: inherit;
-      font-size: 14px;
-      color: var(--text);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-
-    .input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-fade);
-    }
-
-    .input::placeholder {
-      color: var(--text2);
-    }
-
-    /* ── Buttons ─────────────────────────────────────────── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      height: 36px;
-      padding: 0 14px;
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 500;
-      border-radius: 6px;
-      border: 1px solid transparent;
-      cursor: pointer;
-      text-decoration: none;
-      white-space: nowrap;
-      transition: opacity 0.12s, background 0.12s;
-    }
-
-    .btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .btn-sm {
-      height: 30px;
-      padding: 0 11px;
-      font-size: 12px;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    .btn-primary:not(:disabled):hover {
-      opacity: 0.87;
-    }
-
-    .btn-outline {
-      background: transparent;
-      color: var(--text);
-      border-color: var(--border);
-    }
-
-    .btn-outline:not(:disabled):hover {
-      background: var(--bg);
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      color: #fff;
-      border-color: var(--danger);
-    }
-
-    .btn-danger:not(:disabled):hover {
-      opacity: 0.87;
-    }
-
-    /* ── Spinners ────────────────────────────────────────── */
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.35);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.55s linear infinite;
-      flex-shrink: 0;
-    }
-
-    .spinner-accent {
-      border-color: var(--border);
-      border-top-color: var(--accent);
-    }
-
-    /* ── Preview card ────────────────────────────────────── */
-    .preview-card {
-      margin-top: 14px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .preview-domain {
-      font-weight: 600;
-    }
-
-    .preview-meta {
-      font-size: 12px;
-      color: var(--text2);
-      margin-top: 3px;
-    }
-
-    .preview-actions {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    /* ── Error text ──────────────────────────────────────── */
-    .error-msg {
-      margin-top: 8px;
-      font-size: 13px;
-      color: var(--danger);
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    /* ── Peers table ─────────────────────────────────────── */
-    .peers-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .peers-table thead th {
-      padding: 10px 16px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text2);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .peers-table thead th:last-child {
-      text-align: right;
-    }
-
-    .peers-table tbody tr {
-      border-bottom: 1px solid var(--border);
-      transition: background 0.1s;
-    }
-
-    .peers-table tbody tr:last-child {
-      border-bottom: none;
-    }
-
-    .peers-table tbody tr:hover {
-      background: var(--surface2);
-    }
-
-    .peers-table td {
-      padding: 12px 16px;
-      vertical-align: middle;
-    }
-
-    .peers-table td:last-child:not(.state-cell) {
-      text-align: right;
-    }
-
-    .domain-cell {
-      font-weight: 500;
-      font-size: 14px;
-    }
-
-    /* ── Badges ──────────────────────────────────────────── */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .badge-blue {
-      background: rgba(59, 130, 246, 0.12);
-      color: #2563eb;
-    }
-
-    .badge-purple {
-      background: rgba(139, 92, 246, 0.12);
-      color: #7c3aed;
-    }
-
-    .badge-teal {
-      background: rgba(20, 184, 166, 0.12);
-      color: #0d9488;
-    }
-
-    .badge-amber {
-      background: rgba(245, 158, 11, 0.12);
-      color: #b45309;
-    }
-
-    .badge-green {
-      background: rgba(34, 197, 94, 0.12);
-      color: #16a34a;
-    }
-
-    .badge-grey {
-      background: var(--surface2);
-      color: var(--text2);
-      border: 1px solid var(--border);
-    }
-
-    html.dark .badge-blue {
-      background: rgba(59, 130, 246, 0.18);
-      color: #93c5fd;
-    }
-
-    html.dark .badge-purple {
-      background: rgba(139, 92, 246, 0.18);
-      color: #c4b5fd;
-    }
-
-    html.dark .badge-teal {
-      background: rgba(20, 184, 166, 0.18);
-      color: #5eead4;
-    }
-
-    html.dark .badge-amber {
-      background: rgba(245, 158, 11, 0.18);
-      color: #fcd34d;
-    }
-
-    html.dark .badge-green {
-      background: rgba(34, 197, 94, 0.18);
-      color: #86efac;
-    }
-
-    /* ── Action cell ─────────────────────────────────────── */
-    .action-row {
-      display: flex;
-      gap: 6px;
-      justify-content: flex-end;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .pending-label {
-      font-size: 12px;
-      color: var(--text2);
-      font-style: italic;
-    }
-
-    .row-error {
-      margin-top: 6px;
-      font-size: 12px;
-      color: var(--danger);
-      text-align: right;
-    }
-
-    /* ── State rows (empty / loading) ───────────────────── */
-    .state-cell {
-      padding: 52px 16px !important;
-      text-align: center;
-      color: var(--text2);
-    }
-
-    .state-icon {
-      font-size: 34px;
-      margin-bottom: 10px;
-      display: block;
-      color: var(--text2);
-    }
-
-    .state-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    /* ── Table footer ────────────────────────────────────── */
-    .table-footer {
-      padding: 10px 16px;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text2);
-    }
-
-    /* ── Login prompt ────────────────────────────────────── */
-    .login-wrap {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 24px;
-    }
-
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 44px 36px;
-      max-width: 380px;
-      width: 100%;
-      text-align: center;
-    }
-
-    .login-icon {
-      font-size: 38px;
-      color: var(--accent);
-      margin-bottom: 16px;
-    }
-
-    .login-card h2 {
-      font-size: 17px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .login-card p {
-      color: var(--text2);
-      font-size: 13px;
-      line-height: 1.6;
-      margin-bottom: 24px;
-    }
-
-    .login-note {
-      margin-top: 14px;
-      font-size: 12px;
-      color: var(--text2);
-    }
-
-    /* ── Modal ───────────────────────────────────────────── */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-
-    .modal {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      width: 100%;
-      max-width: 420px;
-      padding: 28px 28px 24px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-    }
-
-    .modal-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(225, 71, 61, 0.12);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-    }
-
-    .modal-icon i {
-      font-size: 22px;
-      color: var(--danger);
-    }
-
-    .modal h2 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .modal p {
-      font-size: 13px;
-      color: var(--text2);
-      line-height: 1.6;
-      margin-bottom: 24px;
-    }
-
-    .modal p strong {
-      color: var(--text);
-      font-weight: 500;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-  </style>
-
-  <!-- Alpine app — MUST be defined before the defer'd Alpine CDN tag -->
-  <script>
-    function federationApp() {
-      return {
-        token: null,
-        authenticated: false,
-        email: '',
-        peers: [],
-        loading: false,
-        discoverUrl: '',
-        discoverLoading: false,
-        discoverError: '',
-        connectError: '',
-        preview: null,
-        rowErrors: {},
-        confirmModal: { open: false, peer: null },
-
-        init() {
-          var stored = localStorage.getItem('__pb_superusers__/_');
-          if (!stored) { return; }
-          try {
-            var parsed = JSON.parse(stored);
-            this.token = parsed.token;
-            try {
-              var payload = JSON.parse(atob(this.token.split('.')[1]));
-              this.email = payload.email || '';
-            } catch (_) { }
-          } catch (_) { return; }
-          if (!this.token) { return; }
-          if (this.isTokenExpired(this.token)) { return; }
-          this.authenticated = true;
-          this.loadPeers();
-        },
-
-        isTokenExpired(token) {
-          try {
-            var payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.exp && Date.now() / 1000 > payload.exp;
-          } catch (_) { return true; }
-        },
-
-        async apiFetch(path, opts) {
-          opts = opts || {};
-          var res = await fetch(path, Object.assign({}, opts, {
-            headers: Object.assign({ 'Authorization': this.token }, opts.headers || {})
-          }));
-          if (res.status === 401) { this.authenticated = false; return null; }
-          return res;
-        },
-
-        async loadPeers() {
-          this.loading = true;
-          this.rowErrors = {};
-          try {
-            var res = await this.apiFetch('/federation/peers');
-            if (res) this.peers = await res.json();
-          } finally {
-            this.loading = false;
-          }
-        },
-
-        async discover() {
-          this.discoverLoading = true;
-          this.discoverError = '';
-          this.preview = null;
-          try {
-            var res = await this.apiFetch('/federation/discover', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: this.discoverUrl })
-            });
-            if (!res) return;
-            var data = await res.json();
-            if (!res.ok) {
-              this.discoverError = this.mapDiscoverError(data.error || 'Discovery failed');
-            } else {
-              this.preview = {
-                actor_id: data.actor_id,
-                domain: data.domain,
-                version: data.version,
-                users: data.user_count,
-                trails: data.trail_count
-              };
-            }
-          } finally {
-            this.discoverLoading = false;
-          }
-        },
-
-        mapDiscoverError(raw) {
-          if (raw === 'unreachable') return 'Could not reach this URL. Check the address and try again.';
-          if (raw === 'not a wanderer instance') return 'This URL does not appear to be a Wanderer instance.';
-          if (raw === 'resolves to local instance') return 'This URL resolves to the local instance. You cannot connect to yourself.';
-          if (raw === 'already connected') return 'This instance is already connected.';
-          return raw;
-        },
-
-        async connect() {
-          this.loading = true;
-          this.connectError = '';
-          try {
-            var res = await this.apiFetch('/federation/follow', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ actor_id: this.preview.actor_id })
-            });
-            if (!res) return;
-            if (res.ok) {
-              this.discoverUrl = '';
-              this.preview = null;
-              await this.loadPeers();
-            } else {
-              var data = await res.json();
-              this.connectError = 'Connect failed: ' + (data.error || 'unknown error') + '. Try again.';
-            }
-          } finally {
-            this.loading = false;
-          }
-        },
-
-        cancelPreview() { this.preview = null; this.discoverUrl = ''; },
-
-        async approve(peer) {
-          this.loading = true;
-          try {
-            var res = await this.apiFetch('/federation/approve/' + peer.follow_id, { method: 'POST' });
-            if (!res) return;
-            if (res.ok) {
-              await this.loadPeers();
-            } else {
-              var data = await res.json();
-              this.rowErrors = Object.assign({}, this.rowErrors, { [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.' });
-            }
-          } finally { this.loading = false; }
-        },
-
-        async reject(peer) {
-          this.loading = true;
-          try {
-            var res = await this.apiFetch('/federation/reject/' + peer.follow_id, { method: 'POST' });
-            if (!res) return;
-            if (res.ok) {
-              await this.loadPeers();
-            } else {
-              var data = await res.json();
-              this.rowErrors = Object.assign({}, this.rowErrors, { [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.' });
-            }
-          } finally { this.loading = false; }
-        },
-
-        openDisconnect(peer) {
-          this.confirmModal = { open: true, peer };
-        },
-
-        closeDisconnect() {
-          this.confirmModal = { open: false, peer: null };
-        },
-
-        async disconnect() {
-          var peer = this.confirmModal.peer;
-          this.closeDisconnect();
-          this.loading = true;
-          try {
-            var res = await this.apiFetch('/federation/disconnect/' + peer.follow_id, { method: 'POST' });
-            if (!res) return;
-            if (res.ok) {
-              await this.loadPeers();
-            } else {
-              var data = await res.json();
-              this.rowErrors = Object.assign({}, this.rowErrors, { [peer.follow_id]: 'Action failed: ' + (data.error || 'unknown error') + '. Try again.' });
-            }
-          } finally { this.loading = false; }
-        }
-      };
-    }
-  </script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script src="/federation/assets/federation_theme.js"></script>
+  <link rel="stylesheet" href="/federation/assets/federation.css">
+
+  <!-- App script first: its alpine:init listener must exist before Alpine starts -->
+  <script defer src="/federation/assets/federation_app.js"></script>
+  <script defer src="/federation/assets/vendor/alpine-csp-3.17.4.min.js"></script>
 </head>
 
-<body x-data="federationApp()" x-init="init()">
+<body x-data="federationApp">
 
   <!-- ── Header ──────────────────────────────────────────── -->
   <header class="app-header">
@@ -864,7 +79,7 @@
     <span class="header-label">Federation</span>
     <div class="header-spacer"></div>
     <span class="header-email" x-text="email" x-show="email"></span>
-    <button onclick="window.close()" class="header-link" style="margin-left: 8px; background: none; border: none; cursor: pointer;">
+    <button @click="closeWindow()" class="header-link btn-header">
       <i class="ri-arrow-left-line"></i>
       Back to dashboard
     </button>
@@ -876,7 +91,7 @@
       <i class="ri-shield-keyhole-line login-icon"></i>
       <h2>Admin login required</h2>
       <p>You must be logged in as a Wanderer superuser to manage federation peers.</p>
-      <a href="/_/" class="btn btn-primary" style="width:100%; justify-content:center">
+      <a href="/_/" class="btn btn-primary btn-full">
         Log in at admin panel
       </a>
       <p class="login-note">After logging in, return to this page to manage federation peers.</p>
@@ -884,7 +99,7 @@
   </div>
 
   <!-- ── Main content ──────────────────────────────────── -->
-  <main x-show="authenticated" style="display:none">
+  <main x-show="authenticated" x-cloak>
     <div class="page-wrap">
 
       <!-- Page title -->
@@ -894,7 +109,7 @@
           Federation Peers
         </h1>
         <button class="btn btn-outline" @click="loadPeers()" :disabled="loading">
-          <i class="ri-refresh-line" :style="loading ? 'animation: spin 0.55s linear infinite' : ''"></i>
+          <i class="ri-refresh-line" :class="loading ? 'spin-on' : ''"></i>
           Refresh
         </button>
       </div>
@@ -907,7 +122,7 @@
             <label for="discoverUrl" class="sr-only">Remote instance URL</label>
             <input class="input" id="discoverUrl" type="url" x-model="discoverUrl"
               placeholder="https://other.example.com"
-              @keydown.enter="if (discoverUrl.trim() && !discoverLoading) discover()">
+              @keydown.enter="discoverOnEnter()">
             <button class="btn btn-primary" @click="discover()" :disabled="discoverLoading || !discoverUrl.trim()">
               <span x-show="discoverLoading" class="spinner" aria-hidden="true"></span>
               <i x-show="!discoverLoading" class="ri-search-line"></i>
@@ -935,7 +150,7 @@
             <div class="preview-actions">
               <button class="btn btn-outline btn-sm" @click="cancelPreview()">Cancel</button>
               <button class="btn btn-primary btn-sm" @click="connect()" :disabled="loading">
-                <span x-show="loading" class="spinner" style="width:12px;height:12px" aria-hidden="true"></span>
+                <span x-show="loading" class="spinner spinner-sm" aria-hidden="true"></span>
                 Connect
               </button>
             </div>
@@ -995,7 +210,7 @@
                     <template x-if="peer.status === 'pending' && peer.direction === 'inbound'">
                       <div class="action-row">
                         <button class="btn btn-primary btn-sm" @click="approve(peer)" :disabled="loading">
-                          <span x-show="loading" class="spinner" style="width:12px;height:12px"
+                          <span x-show="loading" class="spinner spinner-sm"
                             aria-hidden="true"></span>
                           Approve
                         </button>
@@ -1004,12 +219,12 @@
                     </template>
                     <template x-if="peer.status === 'accepted'">
                       <button class="btn btn-danger btn-sm" @click="openDisconnect(peer)" :disabled="loading">
-                        <span x-show="loading" class="spinner" style="width:12px;height:12px" aria-hidden="true"></span>
+                        <span x-show="loading" class="spinner spinner-sm" aria-hidden="true"></span>
                         Disconnect
                       </button>
                     </template>
                     <template x-if="peer.status === 'pending' && peer.direction === 'outbound'">
-                      <div style="display:flex;align-items:center;gap:10px">
+                      <div class="action-inline">
                         <button class="btn btn-outline btn-sm" @click="openDisconnect(peer)" :disabled="loading">
                           Cancel request
                         </button>
@@ -1028,7 +243,7 @@
           <tbody x-show="loading && peers.length === 0">
             <tr>
               <td colspan="4" class="state-cell">
-                <span class="spinner spinner-accent" style="width:22px;height:22px;border-width:3px"
+                <span class="spinner spinner-accent spinner-lg"
                   aria-label="Loading"></span>
               </td>
             </tr>
@@ -1060,22 +275,22 @@
        @click.self="closeDisconnect()">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-icon"><i class="ri-link-unlink-m"></i></div>
-      <template x-if="confirmModal.peer?.status === 'pending' && confirmModal.peer?.direction === 'outbound'">
+      <template x-if="modalIsWithdraw">
         <div>
           <h2 id="modal-title">Cancel follow request?</h2>
           <p>
             This will withdraw the pending follow request to
-            <strong x-text="confirmModal.peer?.domain"></strong> by sending an
+            <strong x-text="modalDomain"></strong> by sending an
             <strong>Undo·Follow</strong>. You can send a new request at any time.
           </p>
         </div>
       </template>
-      <template x-if="!(confirmModal.peer?.status === 'pending' && confirmModal.peer?.direction === 'outbound')">
+      <template x-if="modalIsDisconnect">
         <div>
           <h2 id="modal-title">Disconnect instance?</h2>
           <p>
             This will send an <strong>Undo·Follow</strong> or <strong>Reject·Follow</strong>
-            to <strong x-text="confirmModal.peer?.domain"></strong> and stop all content
+            to <strong x-text="modalDomain"></strong> and stop all content
             synchronization between the two instances.
           </p>
         </div>
@@ -1084,7 +299,7 @@
         <button class="btn btn-outline" @click="closeDisconnect()">Cancel</button>
         <button class="btn btn-danger" @click="disconnect()">
           <i class="ri-link-unlink-m"></i>
-          <span x-text="confirmModal.peer?.status === 'pending' && confirmModal.peer?.direction === 'outbound' ? 'Withdraw request' : 'Disconnect'"></span>
+          <span x-text="modalConfirmLabel"></span>
         </button>
       </div>
     </div>

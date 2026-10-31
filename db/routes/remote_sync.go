@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/apis"
@@ -42,6 +43,35 @@ func isGoneStatus(code int) bool {
 // visible in the logs.
 func backgroundSyncFailed(app core.App, collection, iri string, err error) {
 	app.Logger().Warn("background sync of a remote object failed", "collection", collection, "iri", iri, "error", err)
+}
+
+// recoverBackgroundSync is deferred by goroutines that sync a remote object
+// after the response was sent. Nothing above such a goroutine recovers, so a
+// panic caused by one malformed object or response would end the whole
+// process. It must itself be the deferred function: recover only works when
+// called directly by it.
+func recoverBackgroundSync(app core.App, collection, iri string) {
+	if recovered := recover(); recovered != nil {
+		logBackgroundSyncPanic(app, collection, iri, recovered)
+	}
+}
+
+// recoverBackgroundSyncJob is deferred around one job of a worker pool. A
+// panic ends that job and not its worker: a worker that returned would leave
+// its share of the queue unprocessed, and a host serving as many malformed
+// objects as the pool has workers would stall the whole sync. failed records
+// the job the way an ordinary error does, so the object is not asked for again
+// on every sync. It must itself be the deferred function, like
+// recoverBackgroundSync.
+func recoverBackgroundSyncJob(app core.App, collection, iri string, failed func()) {
+	if recovered := recover(); recovered != nil {
+		logBackgroundSyncPanic(app, collection, iri, recovered)
+		failed()
+	}
+}
+
+func logBackgroundSyncPanic(app core.App, collection, iri string, recovered any) {
+	app.Logger().Error("background sync of a remote object panicked", "collection", collection, "iri", iri, "panic", recovered, "stack", string(debug.Stack()))
 }
 
 // dropGoneRemoteRecord removes the local copy of a remote object whose origin

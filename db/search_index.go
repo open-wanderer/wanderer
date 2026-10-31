@@ -87,6 +87,9 @@ type searchIndexSource struct {
 	// skip leaves out records that are never searchable, without logging
 	// them as failures.
 	skip func(*core.Record) bool
+	// searchable selects, in SQL, the records skip keeps; the orphan scan
+	// uses it to remove documents of skipped records without loading them.
+	searchable dbx.Expression
 }
 
 func searchIndexSources(app core.App) []searchIndexSource {
@@ -115,7 +118,8 @@ func searchIndexSources(app core.App) []searchIndexSource {
 			documents:    util.ActorSearchDocuments,
 			repairFields: []string{"preferred_username"},
 			// The instance actor federates the instance, it is not a profile.
-			skip: util.IsInstanceActor,
+			skip:       util.IsInstanceActor,
+			searchable: dbx.NewExp("actor_type IS NOT 'instance'"),
 		},
 	}
 }
@@ -869,8 +873,8 @@ func normalizeSearchDocument(document map[string]any) (map[string]any, error) {
 }
 
 // removeOrphanSearchDocuments deletes the documents whose record no longer
-// exists. All ids are read before anything is deleted, so the deletes do not
-// shift the pages being read.
+// exists or is one the source skips, such as an instance actor. All ids are read before anything is deleted, so the deletes
+// do not shift the pages being read.
 func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager, source searchIndexSource) (int, error) {
 	var orphans []string
 	for offset := int64(0); ; offset += searchRepairIDPageSize {
@@ -901,8 +905,11 @@ func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager
 			ids[i] = document.ID
 		}
 		var existing []string
-		err = app.DB().Select("id").From(source.collection).Where(dbx.In("id", ids...)).Column(&existing)
-		if err != nil {
+		query := app.DB().Select("id").From(source.collection).Where(dbx.In("id", ids...))
+		if source.searchable != nil {
+			query = query.AndWhere(source.searchable)
+		}
+		if err := query.Column(&existing); err != nil {
 			return 0, err
 		}
 		exists := make(map[string]bool, len(existing))

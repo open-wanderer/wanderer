@@ -335,7 +335,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/.well-known/nodeinfo/2.1", routes.NodeInfo21)
 
 	se.Router.POST("/activitypub/activity/process", routes.ActivitypubActivityProcess)
-	se.Router.POST("/activitypub/instance/inbox", federation.InstanceInboxHandler)
+	se.Router.POST("/activitypub/instance/inbox", federation.NewInstanceInboxHandler(routes.ResolveInboxSender))
 	se.Router.GET("/activitypub/actor", routes.ActivitypubActor)
 	se.Router.GET("/activitypub/actor/{id}/{follow}", routes.ActivitypubActorFollow)
 	se.Router.GET("/activitypub/trail/{id}", routes.ActivitypubTrail)
@@ -356,6 +356,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/federation/disconnect/{id}", routes.FederationDisconnect)
 	se.Router.GET("/federation/peers", routes.FederationPeers)
 	se.Router.GET("/federation/", routes.FederationDashboard)
+	se.Router.GET("/federation/assets/{path...}", routes.FederationAssets())
 
 	// Adds a "Federation" link to the PocketBase admin header (experimental
 	// PocketBase API).

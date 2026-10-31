@@ -5,7 +5,10 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path"
+	"strings"
 
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -40,17 +43,53 @@ func FederationDashboard(e *core.RequestEvent) error {
 	e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	e.Response.Header().Set("X-Frame-Options", "DENY")
 	e.Response.Header().Set("X-Content-Type-Options", "nosniff")
-	// CSP locks down script sources to the two CDNs the page loads (Alpine + Tailwind).
-	// style-src 'unsafe-inline' is required by Tailwind Play CDN which injects inline styles.
+	// Every directive is same-origin only. Scripts and styles come from files
+	// served by the asset route, the page holds no inline code or style, and the
+	// Alpine build it runs needs no runtime code generation. The admin's browser
+	// therefore contacts no third-party host while this page holds their token.
 	e.Response.Header().Set("Content-Security-Policy",
 		"default-src 'none'; "+
-			"script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "+
-			"style-src 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "+
-			"font-src https://fonts.gstatic.com https://cdn.jsdelivr.net; "+
+			"script-src 'self'; "+
+			"style-src 'self'; "+
+			"font-src 'self'; "+
 			"connect-src 'self'; "+
 			"img-src 'self'; "+
-			"frame-ancestors 'none'")
+			"frame-ancestors 'none'; "+
+			"base-uri 'none'; "+
+			"form-action 'none'")
 	e.Response.WriteHeader(http.StatusOK)
 	_, err := e.Response.Write(federationUIHTML)
 	return err
+}
+
+// federationAssetExtensions lists the file types FederationAssets will serve.
+// The HTML page and the markdown notes live in the same embedded tree but are
+// not assets: the page is only safe behind the headers FederationDashboard sets.
+var federationAssetExtensions = map[string]bool{
+	".css":   true,
+	".js":    true,
+	".woff2": true,
+	".txt":   true,
+}
+
+// FederationAssets serves the first-party files of the federation page (CSS,
+// scripts, fonts, vendored libraries) from the embedded federation_ext tree.
+//
+// It is its own route so a changed file is revalidated on every load instead of
+// being kept for 14 days, as on PocketBase's extension path. Only the file types
+// in federationAssetExtensions are served, so federation_ui.html is reachable
+// solely through FederationDashboard with its CSP and X-Frame-Options headers.
+// apis.Static rejects path traversal and can only reach files embedded in the
+// binary.
+func FederationAssets() func(*core.RequestEvent) error {
+	static := apis.Static(FederationExtFS(), false)
+	return func(e *core.RequestEvent) error {
+		ext := strings.ToLower(path.Ext(e.Request.PathValue("path")))
+		if !federationAssetExtensions[ext] {
+			return e.NotFoundError("", nil)
+		}
+		e.Response.Header().Set("Cache-Control", "no-cache")
+		e.Response.Header().Set("X-Content-Type-Options", "nosniff")
+		return static(e)
+	}
 }

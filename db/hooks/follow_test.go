@@ -309,3 +309,47 @@ func TestIsOutboundInstanceFollowFalseWhenNeitherIsInstance(t *testing.T) {
 		t.Error("isOutboundInstanceFollow returned true — expected false when neither actor is the instance actor")
 	}
 }
+
+// TestInstanceFollowRecognisedAfterOriginChange verifies that the local instance
+// actor is recognised by type and locality, not by an IRI built from ORIGIN: after
+// ORIGIN changes the stored row still carries the old IRI, and a remote actor
+// whose IRI equals the new ORIGIN's instance IRI is not taken for ours.
+func TestInstanceFollowRecognisedAfterOriginChange(t *testing.T) {
+	t.Setenv("ORIGIN", "https://new.example")
+	t.Setenv("POCKETBASE_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")
+
+	app := newFollowTestApp(t)
+
+	local := createFollowTestActor(t, app,
+		"https://old.example/api/v1/activitypub/instance", "instance", true)
+	remote := createFollowTestActor(t, app,
+		"https://remote.example/api/v1/activitypub/instance", "instance", false)
+	lookalike := createFollowTestActor(t, app,
+		"https://new.example/api/v1/activitypub/instance", "instance", false)
+	person := createFollowTestActor(t, app,
+		"https://old.example/api/v1/activitypub/user/alice", "person", true)
+
+	inbound := createFollowRecord(t, app, remote.Id, local.Id, "pending")
+	if !isInstanceFollow(app, inbound) {
+		t.Error("isInstanceFollow = false for a remote instance actor following the local one")
+	}
+	if isOutboundInstanceFollow(app, inbound) {
+		t.Error("isOutboundInstanceFollow = true for an inbound follow")
+	}
+
+	outbound := createFollowRecord(t, app, local.Id, remote.Id, "pending")
+	if !isOutboundInstanceFollow(app, outbound) {
+		t.Error("isOutboundInstanceFollow = false for the local instance actor following a remote one")
+	}
+	if !isInstanceFollow(app, outbound) {
+		t.Error("isInstanceFollow = false for an outbound instance follow")
+	}
+
+	spoof := createFollowRecord(t, app, lookalike.Id, person.Id, "pending")
+	if isInstanceFollow(app, spoof) {
+		t.Error("isInstanceFollow = true for a remote actor carrying the new ORIGIN's instance IRI")
+	}
+	if isOutboundInstanceFollow(app, spoof) {
+		t.Error("isOutboundInstanceFollow = true for a remote actor carrying the new ORIGIN's instance IRI")
+	}
+}

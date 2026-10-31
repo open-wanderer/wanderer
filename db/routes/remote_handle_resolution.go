@@ -47,6 +47,10 @@ func resolveRemoteHandleActor(e *core.RequestEvent, ctx context.Context, handle 
 		} else if username, domain := util.SplitHandle(handle); domain != "" {
 			// A different request may have stored this actor and its copies.
 			actor, _ = e.App.FindFirstRecordByFilter("activitypub_actors", "preferred_username={:username}&&domain={:domain}&&is_local=false", dbx.Params{"username": username, "domain": domain})
+			// Handles name people: a stored instance actor is not the answer.
+			if util.IsInstanceActor(actor) {
+				actor = nil
+			}
 		}
 		return actor, failure.err
 	}
