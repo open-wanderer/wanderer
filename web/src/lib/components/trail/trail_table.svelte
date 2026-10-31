@@ -18,6 +18,8 @@
         items: number;
         onsort?: (value: any) => void;
         onTrailSelect?: (value: any) => void;
+        trailHref?: (trail: Trail) => string;
+        onhover?: (trail?: Trail) => void;
     }
 
     let {
@@ -28,6 +30,8 @@
         items,
         onsort,
         onTrailSelect: onselect,
+        trailHref,
+        onhover,
     }: Props = $props();
 
     function getColumnWidth(columnValue: string): string {
@@ -98,7 +102,7 @@
             onselect?.(trail);
         } else {
             goto(
-                `/trail/view/@${trail.author}${trail.domain ? `@${trail.domain}` : ""}/${trail.id}`,
+                trailHref?.(trail) ?? `/trail/view/@${trail.author}${trail.domain ? `@${trail.domain}` : ""}/${trail.id}`,
             );
         }
     }
@@ -117,7 +121,7 @@
                 >
                     <div class="flex items-center">
                         <input
-                            id="trail-selected"
+                            aria-label={$_("trail-results-select-loaded")}
                             type="checkbox"
                             class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                             onclick={setSelectedAllTrails}
@@ -164,11 +168,14 @@
                     <tr
                         class="border-t border-input-border cursor-pointer hover:bg-secondary-hover transition-colors"
                         onclick={() => handleTrailClick(trail)}
+                        onmouseenter={() => onhover?.(trail)}
+                        onmouseleave={() => onhover?.()}
                     >
                         <td class="p-4 text-sm">
                             <div class="flex items-center">
                                 <input
                                     type="checkbox"
+                                    aria-label={$_("trail-results-select-trail", { values: { name: trail.name } })}
                                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
                                     checked={isSelected(trail)}
                                     onclick={(e: Event) =>
@@ -276,6 +283,7 @@
 </div>
 
 <style>
+    .rotated { transform: rotate(180deg); }
     .table-container {
         container-type: inline-size;
     }

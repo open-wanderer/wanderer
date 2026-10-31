@@ -209,6 +209,20 @@ for (const dev of [true, false]) {
             }
         });
 
+        test('compensates classic scrollbar width and restores the previous padding', async ({ page }) => {
+            await mountTrailModalFixture(page, bundle);
+            await page.evaluate(() => {
+                document.body.style.setProperty('padding-right', '12px', 'important');
+                Object.defineProperty(document.documentElement, 'clientWidth', { configurable: true, get: () => window.innerWidth - 17 });
+            });
+            await page.getByTestId('beta-delete').click();
+            await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).paddingRight)).toBe('29px');
+            await page.getByTestId('beta').locator('dialog[open] .btn-secondary').click();
+            await expect.poll(() => page.evaluate(() => ({
+                padding: document.body.style.paddingRight, priority: document.body.style.getPropertyPriority('padding-right'),
+            }))).toEqual({ padding: '12px', priority: 'important' });
+        });
+
         test('keeps scrolling locked when a dialog reopens before its queued close event', async ({ page }) => {
             await mountTrailModalFixture(page, bundle);
             const dialog = await openSecond(page, 'delete');
