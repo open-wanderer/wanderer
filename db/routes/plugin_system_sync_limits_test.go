@@ -153,7 +153,17 @@ func TestSyncPluginAcceptsListAtItemLimit(t *testing.T) {
 		}
 		return output, nil
 	}}}
-	instance := core.NewRecord(core.NewBaseCollection("plugin_instances"))
+	// The sync checks between batches that the instance is still switched on.
+	instances := core.NewBaseCollection("plugin_instances")
+	instances.Fields.Add(&core.BoolField{Name: "enabled"})
+	if err := app.Save(instances); err != nil {
+		t.Fatal(err)
+	}
+	instance := core.NewRecord(instances)
+	instance.Set("enabled", true)
+	if err := app.Save(instance); err != nil {
+		t.Fatal(err)
+	}
 	result, err := syncPluginCapability(t.Context(), app, nil, session, pluginsystem.LocalPlugin{},
 		pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, instance, nil,
 		nil, nil, nil, false, false)

@@ -177,6 +177,15 @@ func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []
 
 	result := make(chan workerCallOutcome, 1)
 	go func() {
+		// A panic here would take the server down. The worker's stream is then
+		// in an unknown state, so the session is ended.
+		defer func() {
+			if recover() != nil {
+				s.markFatal("worker call panicked")
+				s.kill()
+				result <- workerCallOutcome{err: RuntimeSessionFatalError{Err: errors.New("worker call panicked")}}
+			}
+		}()
 		result <- s.call(callCtx, export, input)
 	}()
 

@@ -133,11 +133,22 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	}
 
 	util.SanitizeHTMLFieldsWithLimits(record)
-	if err := app.Save(record); err != nil {
+	// photoFiles drops the remaining photos once the sync is cancelled. Saving
+	// then would keep a trail that later syncs skip as already imported.
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-
-	if err := util.EnsureTrailExternalReference(app, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item)); err != nil {
+	// The trail and its external reference are saved together, so a trail never
+	// exists without the reference that stops later syncs from importing it
+	// again. The trail's after-create hooks run once this commits; if one of
+	// them fails, the error is returned but both records stay.
+	err = app.RunInTransaction(func(txApp core.App) error {
+		if err := txApp.Save(record); err != nil {
+			return err
+		}
+		return util.EnsureTrailExternalReference(txApp, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item))
+	})
+	if err != nil {
 		return nil, err
 	}
 

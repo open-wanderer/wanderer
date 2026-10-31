@@ -2,7 +2,9 @@ package routes
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -108,26 +110,46 @@ func PluginSystemSyncConfigured(ctx context.Context, app core.App, client meilis
 			return err
 		}
 		app.Logger().Info("plugin sync found enabled instances", "plugin", plugin.Manifest.ID, "count", len(instances))
-		for _, instance := range instances {
-			if err := ctx.Err(); err != nil {
+		if err := syncPluginInstancesOneByOne(ctx, app, client, plugin, instances); err != nil {
+			if ctx.Err() != nil {
 				return err
 			}
-			if shouldSkipPluginInstance(instance) {
-				app.Logger().Info("plugin sync skipping instance due to retry delay", "plugin", plugin.Manifest.ID, "instance", instance.Id, "retry_not_before", instance.GetString("retry_not_before"))
-				continue
-			}
-			app.Logger().Info("plugin instance sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id)
-			result, err := syncPluginInstance(ctx, app, client, plugin, instance)
-			if err != nil {
-				app.Logger().Warn("plugin instance sync failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "error", err)
-				syncErr = err
-				continue
-			}
-			app.Logger().Info("plugin instance sync completed", "plugin", result.PluginID, "instance", instance.Id, "imported", result.Imported, "skipped", result.Skipped)
+			syncErr = err
 		}
 	}
 	app.Logger().Info("plugin sync cron completed")
 	return syncErr
+}
+
+// syncPluginInstancesOneByOne is the cron's loop over one plugin's instances.
+// It returns the last sync error, or the context's error once it is cancelled.
+func syncPluginInstancesOneByOne(ctx context.Context, app core.App, client meilisearch.ServiceManager, plugin pluginsystem.LocalPlugin, instances []*core.Record) error {
+	var syncErr error
+	for _, instance := range instances {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		result, skipped, err := syncFreshPluginInstance(ctx, app, client, plugin, instance.Id)
+		if skipped || errors.Is(err, errPluginInstanceSwitchedOff) {
+			app.Logger().Info("plugin sync skipping instance that is switched off, deleted or waiting for its retry time", "plugin", plugin.Manifest.ID, "instance", instance.Id)
+			continue
+		}
+		if err != nil {
+			app.Logger().Warn("plugin instance sync failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "error", err)
+			syncErr = err
+			continue
+		}
+		app.Logger().Info("plugin instance sync completed", "plugin", result.PluginID, "instance", instance.Id, "imported", result.Imported, "skipped", result.Skipped)
+	}
+	return syncErr
+}
+
+// ResetInterruptedPluginSyncs clears the "syncing" status a restart left on
+// instances whose sync it cut off, so they do not show as syncing until their
+// next sync.
+func ResetInterruptedPluginSyncs(app core.App) error {
+	_, err := app.DB().NewQuery("UPDATE plugin_instances SET status = CASE WHEN enabled THEN 'configured' ELSE 'disabled' END WHERE status = 'syncing'").Execute()
+	return err
 }
 
 func pluginInstances(app core.App, pluginID string) ([]*core.Record, error) {
@@ -139,6 +161,45 @@ func pluginInstances(app core.App, pluginID string) ([]*core.Record, error) {
 		0,
 		dbx.Params{"plugin_id": pluginID},
 	)
+}
+
+// runPluginInstanceSync is syncPluginInstance. Tests replace it to check the
+// status handling around a sync without a plugin runtime.
+var runPluginInstanceSync = syncPluginInstance
+
+// pluginRuntimeFor picks the runtime for a plugin. Tests replace it to run
+// syncPluginInstance without a worker process.
+var pluginRuntimeFor = func(plugin pluginsystem.LocalPlugin) (pluginsystem.Runtime, error) {
+	return pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
+}
+
+// syncFreshPluginInstance re-reads the instance before syncing it, since the
+// caller's copy may predate a change the user or another sync made. skipped is
+// true when the instance is gone, switched off or waiting for its retry time.
+// A panic during the sync becomes an error on the instance instead of taking
+// the server down.
+func syncFreshPluginInstance(ctx context.Context, app core.App, client meilisearch.ServiceManager, plugin pluginsystem.LocalPlugin, instanceID string) (result *pluginSystemSyncResult, skipped bool, err error) {
+	instance, err := app.FindRecordById("plugin_instances", instanceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, true, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if !instance.GetBool("enabled") || shouldSkipPluginInstance(instance) {
+		return nil, true, nil
+	}
+	app.Logger().Info("plugin instance sync started", "plugin", plugin.Manifest.ID, "instance", instanceID)
+	defer func() {
+		// The panic value and stack can hold plugin data, so neither is logged.
+		if recover() != nil {
+			app.Logger().Error("plugin instance sync panicked", "plugin", plugin.Manifest.ID, "instance", instanceID)
+			setPluginInstanceStatus(app, instance, "error", "internal_error", "the sync stopped on an internal error")
+			result, skipped, err = nil, false, errors.New("plugin sync panicked")
+		}
+	}()
+	result, err = runPluginInstanceSync(ctx, app, client, plugin, instance)
+	return result, false, err
 }
 
 // syncPluginInstance prepares one plugin instance for import: it resolves the
@@ -166,7 +227,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	hostConfig := pluginHostConfig(config)
 	defaultPublic := userDefaultPublic(app, instance.GetString("user"))
 	createSummitLog := boolOption(hostConfig, "createSummitLogForCompleted", true)
-	runtime, err := pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
+	runtime, err := pluginRuntimeFor(plugin)
 	if err != nil {
 		setPluginInstanceStatusForError(app, instance, err)
 		return nil, err
@@ -184,8 +245,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		_ = sessions.close(context.Background())
 	}()
 
-	instance.Set("status", "syncing")
-	if err := app.Save(instance); err != nil {
+	if err := savePluginInstanceSyncState(app, instance, map[string]any{"status": "syncing"}); err != nil {
 		return nil, err
 	}
 
@@ -213,6 +273,10 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		}
 		app.Logger().Info("plugin capability sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "version", capability.Version, "export", capability.Export)
 		capResult, err := syncPluginCapability(ctx, app, client, sessions, plugin, capability, detailCapability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
+		if errors.Is(err, errPluginInstanceSwitchedOff) {
+			// The user's own change set the status; leave it as it is.
+			return nil, err
+		}
 		if err != nil {
 			setPluginInstanceStatusForError(app, instance, err)
 			return nil, err
@@ -222,12 +286,13 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		result.Skipped += capResult.Skipped
 	}
 
-	instance.Set("state", map[string]any{})
-	instance.Set("last_sync_at", time.Now())
-	instance.Set("last_error", map[string]any{})
-	instance.Set("retry_not_before", "")
-	instance.Set("status", "configured")
-	if err := app.Save(instance); err != nil {
+	if err := savePluginInstanceSyncState(app, instance, map[string]any{
+		"state":            map[string]any{},
+		"last_sync_at":     time.Now(),
+		"last_error":       map[string]any{},
+		"retry_not_before": "",
+		"status":           "configured",
+	}); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -303,6 +368,14 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			return nil, err
 		}
 		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes)
+		if err != nil && pluginsystem.IsRuntimeSessionFatalError(err) && ctx.Err() == nil {
+			// The worker ends a session after WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT,
+			// which a long sync can outlast. Reopen it once, as for detail calls.
+			if reopenErr := sessions.reopen(ctx); reopenErr != nil {
+				return nil, reopenErr
+			}
+			outputBytes, err = sessions.session.Call(ctx, capability.Export, inputBytes)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -315,6 +388,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		}
 		if len(output.Items) > limits.MaxItems {
 			return nil, pluginsystem.SyncItemLimitError{Returned: len(output.Items), MaxItems: limits.MaxItems}
+		}
+		if pluginInstanceSwitchedOff(app, instance.Id) {
+			return nil, errPluginInstanceSwitchedOff
 		}
 		app.Logger().Info("plugin capability batch returned items", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "batch", batch, "items", len(output.Items), "has_more", output.HasMore)
 
@@ -349,6 +425,10 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		for _, summary := range summaries {
 			if summary.Source.ExternalID == "" {
 				continue
+			}
+			// A batch can take minutes, so check again before each item's calls.
+			if pluginInstanceSwitchedOff(app, instance.Id) {
+				return nil, errPluginInstanceSwitchedOff
 			}
 			if existingIDsByProvider[summary.Source.Provider][summary.Source.ExternalID] {
 				result.Skipped++
@@ -510,31 +590,59 @@ func pluginHasAnySyncCapability(plugin pluginsystem.LocalPlugin) bool {
 	return false
 }
 
+var errPluginInstanceSwitchedOff = errors.New("plugin instance was switched off or deleted during the sync")
+
+// pluginInstanceSwitchedOff reports whether the user switched the instance off
+// or deleted it since the sync started. A failed lookup for any other reason
+// lets the sync go on.
+func pluginInstanceSwitchedOff(app core.App, instanceID string) bool {
+	fresh, err := app.FindRecordById("plugin_instances", instanceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return true
+	}
+	return err == nil && !fresh.GetBool("enabled")
+}
+
+// savePluginInstanceSyncState writes the fields a sync owns onto a fresh copy
+// of the instance. A sync can run for many minutes, and saving the copy it
+// started with would write back every other field too, undoing changes the
+// user made in the meantime, such as switching the plugin off or disconnecting
+// it. When the user has switched the plugin off, their status is kept.
+func savePluginInstanceSyncState(app core.App, instance *core.Record, fields map[string]any) error {
+	fresh, err := app.FindRecordById("plugin_instances", instance.Id)
+	if err != nil {
+		return err
+	}
+	for key, value := range fields {
+		if key == "status" && !fresh.GetBool("enabled") {
+			continue
+		}
+		fresh.Set(key, value)
+	}
+	return app.Save(fresh)
+}
+
 func setPluginInstanceStatus(app core.App, instance *core.Record, status string, code string, message string) {
-	instance.Set("status", status)
-	instance.Set("last_error", map[string]any{
-		"code":    code,
-		"message": message,
+	err := savePluginInstanceSyncState(app, instance, map[string]any{
+		"status":     status,
+		"last_error": map[string]any{"code": code, "message": message},
 	})
-	if err := app.Save(instance); err != nil {
+	if err != nil {
 		app.Logger().Warn("failed to update plugin instance status", "instance", instance.Id, "error", err)
 	}
 }
 
 func setPluginInstanceStatusForError(app core.App, instance *core.Record, err error) {
 	update := pluginsystem.InstanceStatusForError(err, time.Now())
-
-	instance.Set("status", update.Status)
-	instance.Set("last_error", map[string]any{
-		"code":    update.Code,
-		"message": update.Message,
-	})
-	if update.RetryNotBefore != nil {
-		instance.Set("retry_not_before", *update.RetryNotBefore)
-	} else {
-		instance.Set("retry_not_before", "")
+	fields := map[string]any{
+		"status":           update.Status,
+		"last_error":       map[string]any{"code": update.Code, "message": update.Message},
+		"retry_not_before": "",
 	}
-	if saveErr := app.Save(instance); saveErr != nil {
+	if update.RetryNotBefore != nil {
+		fields["retry_not_before"] = *update.RetryNotBefore
+	}
+	if saveErr := savePluginInstanceSyncState(app, instance, fields); saveErr != nil {
 		app.Logger().Warn("failed to update plugin instance status", "instance", instance.Id, "error", saveErr)
 	}
 }
