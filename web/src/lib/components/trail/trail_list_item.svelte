@@ -25,6 +25,7 @@
     interface Props {
         trail: Trail;
         showDescription?: boolean;
+        compact?: boolean;
         selected: boolean;
         hovered: boolean;
     }
@@ -32,6 +33,7 @@
     let {
         trail,
         showDescription = true,
+        compact = false,
         selected = false,
         hovered = false,
     }: Props = $props();
@@ -60,6 +62,7 @@
 
 <li
     class="flex gap-8 p-4 rounded-xl border border-input-border cursor-pointer hover:bg-secondary-hover transition-colors items-center"
+    class:compact
     class:hovered
     class:bg-secondary-hover={selected}
 >
@@ -67,14 +70,14 @@
         {#if isVideoURL(thumbnail)}
             <!-- svelte-ignore a11y_media_has_caption -->
             <video
-                class="h-28 w-28 object-cover rounded-xl"
+                class={`object-cover rounded-xl ${compact ? "h-16 w-16" : "h-28 w-28"}`}
                 autoplay
                 loop
                 src={thumbnail}
             ></video>
         {:else}
             <img
-                class="h-28 w-28 object-cover rounded-xl"
+                class={`object-cover rounded-xl ${compact ? "h-16 w-16" : "h-28 w-28"}`}
                 src={thumbnail}
                 alt=""
             />
@@ -232,4 +235,6 @@
     @media (hover: hover) {
         .hovered { background-color: rgba(var(--secondary-hover)); }
     }
+    .compact { gap: .75rem; overflow-wrap: anywhere; padding: .75rem; }
+    .compact :global(.tooltip)::before { right: 0; }
 </style>

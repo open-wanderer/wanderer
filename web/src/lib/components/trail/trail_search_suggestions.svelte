@@ -1,5 +1,8 @@
 <script lang="ts">
-    import { searchLists, searchLocations, type ListSearchResult, type LocationSearchResult } from "#lib/stores/search_store.ts";
+    import type { TrailFilter, TrailSearchResult } from "#lib/models/trail.ts";
+    import { searchLists, searchLocations, searchTrails, type ListSearchResult, type LocationSearchResult } from "#lib/stores/search_store.ts";
+    import { buildFilterText } from "#lib/stores/trail_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
     import { findTrailSearchShortcut } from "#lib/util/trail_search_shortcuts.ts";
     import { _ } from "svelte-i18n";
 
@@ -9,42 +12,58 @@
         caret: number;
         selectionEnd: number;
         preserveInputFocus?: boolean;
+        showTrails?: boolean;
+        filter: TrailFilter;
         onlocationselect: (location: LocationSearchResult, keyboard: boolean) => void;
     }
 
-    let { id, query, caret, selectionEnd, preserveInputFocus = false, onlocationselect }: Props = $props();
+    let { id, query, caret, selectionEnd, preserveInputFocus = false, showTrails = false, filter, onlocationselect }: Props = $props();
     let root = $state<HTMLDivElement>();
     let places = $state<LocationSearchResult[]>([]);
     let lists = $state<ListSearchResult[]>([]);
+    let trails = $state<TrailSearchResult[]>([]);
     const text = $derived(query.trim());
     const eligible = $derived(text.length >= 2
         && !findTrailSearchShortcut(query, caret, selectionEnd));
 
     $effect(() => {
         const current = text;
-        places = [];
-        lists = [];
-        if (!eligible) return;
+        if (!eligible) { places = []; lists = []; return; }
         const controller = new AbortController();
         const fetcher: typeof fetch = (url, options) => fetch(url, { ...options, signal: controller.signal });
         const timer = setTimeout(() => {
-            void Promise.allSettled([
-                searchLocations(current, 3, fetcher).then(results => {
-                    if (!controller.signal.aborted) places = results.slice(0, 3);
-                }),
-                searchLists(current, {
-                    limit: 3,
-                    attributesToSearchOn: ["name"],
-                    attributesToRetrieve: ["id", "name", "author_name", "domain"],
-                }, fetcher).then(results => {
-                    if (!controller.signal.aborted) lists = results.slice(0, 3);
-                }),
-            ]);
+            void searchLocations(current, 3, fetcher).then(results => {
+                if (!controller.signal.aborted) places = results.slice(0, 3);
+            }).catch(() => { if (!controller.signal.aborted) places = []; });
+            void searchLists(current, {
+                limit: 3,
+                attributesToSearchOn: ["name"],
+                attributesToRetrieve: ["id", "name", "author_name", "domain"],
+            }, fetcher).then(results => {
+                if (!controller.signal.aborted) lists = results.slice(0, 3);
+            }).catch(() => { if (!controller.signal.aborted) lists = []; });
         }, 350);
-        return () => {
-            clearTimeout(timer);
-            controller.abort();
-        };
+        return () => { clearTimeout(timer); controller.abort(); };
+    });
+
+    // Sorting, equivalent arrays and other draft replacements must not reload
+    // the suggestions. Only text and effective trail criteria form this key.
+    const trailFilter = $derived(showTrails && eligible ? buildFilterText($currentUser, filter, true) : undefined);
+    $effect(() => {
+        const current = text;
+        const criteria = trailFilter;
+        if (criteria === undefined) { trails = []; return; }
+        const controller = new AbortController();
+        const fetcher: typeof fetch = (url, options) => fetch(url, { ...options, signal: controller.signal });
+        const timer = setTimeout(() => {
+            void searchTrails(current, {
+                limit: 3, filter: criteria, attributesToSearchOn: ["name"],
+                attributesToRetrieve: ["id", "name", "author_name", "domain"],
+            }, fetcher).then(results => {
+                if (!controller.signal.aborted) trails = results.slice(0, 3);
+            }).catch(() => { if (!controller.signal.aborted) trails = []; });
+        }, 350);
+        return () => { clearTimeout(timer); controller.abort(); };
     });
 
     function preserveFocus(event: MouseEvent) {
@@ -76,8 +95,25 @@
 </script>
 
 <div {id} bind:this={root}>
-    {#if eligible && (places.length || lists.length)}
+    {#if eligible && (places.length || lists.length || trails.length)}
         <div class="direct-suggestions">
+            {#if trails.length}
+                <section class="suggestion-group" data-kind="trails" aria-labelledby={`${id}-trails`}>
+                    <h3 id={`${id}-trails`}>{$_("trail", { values: { n: 2 } })}</h3>
+                    <ul>
+                        {#each trails as trail (trail.id)}
+                            {@const handle = `@${trail.author_name}${trail.domain ? `@${trail.domain}` : ""}`}
+                            <li>
+                                <a class="direct-option" href={`/map/trail/${encodeURIComponent(handle).replaceAll("%40", "@")}/${encodeURIComponent(trail.id)}`}
+                                    title={`${trail.name} · ${handle}`}>
+                                    <i class="fa fa-route" aria-hidden="true"></i>
+                                    <span><strong>{trail.name}</strong><small>{handle}</small></span>
+                                </a>
+                            </li>
+                        {/each}
+                    </ul>
+                </section>
+            {/if}
             {#if places.length}
                 <section class="suggestion-group" data-kind="places" aria-labelledby={`${id}-places`}>
                     <h3 id={`${id}-places`}>{$_("trail-search-suggestions-places")}</h3>
@@ -99,7 +135,7 @@
                     <ul>
                         {#each lists as list (list.id)}
                             <li>
-                                <a class="direct-option" href={`/lists/${encodeURIComponent(listHandle(list))}/${encodeURIComponent(list.id)}`}
+                                <a class="direct-option" href={`/lists/${encodeURIComponent(listHandle(list)).replaceAll("%40", "@")}/${encodeURIComponent(list.id)}`}
                                     onmousedown={preserveFocus} title={`${list.name} · ${listHandle(list)}`}>
                                     <i class="fa fa-list-ul" aria-hidden="true"></i>
                                     <span><strong>{list.name}</strong><small>{listHandle(list)}</small></span>

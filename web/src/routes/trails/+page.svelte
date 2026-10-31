@@ -1,13 +1,13 @@
 <script lang="ts">
     import { browser } from "$app/env";
-    import { beforeNavigate } from "$app/navigation";
+    import { beforeNavigate, goto } from "$app/navigation";
     import { page } from "$app/state";
     import TrailSearchBar from "#lib/components/trail/trail_search_bar.svelte";
     import TrailList from "#lib/components/trail/trail_list.svelte";
     import type { Trail, TrailFilter } from "#lib/models/trail.ts";
     import { searchPositionForViewport } from "#lib/models/search_layout.ts";
     import { loadSearchLayout, searchLayout, updateSearchLayout } from "#lib/stores/search_layout_store.ts";
-    import { trails_search_filter, trails_search_filter_pages } from "#lib/stores/trail_store.ts";
+    import { trails_search_bounds, trails_search_filter, trails_search_filter_pages } from "#lib/stores/trail_store.ts";
     import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
     import type { Snapshot } from "@sveltejs/kit";
     import { onMount, tick } from "svelte";
@@ -51,6 +51,10 @@
     let loadedSearchKey = $state("");
     let hasMore = $derived(pagination.page < pagination.totalPages && loadedSearchKey === searchKey());
     let searchController: AbortController | undefined;
+    let openMapController: AbortController | undefined;
+    let openingMap = $state(false);
+    let mapError = $state(false);
+    let mapErrorAttempt = $state(0);
     let widthPreferences: Record<string, boolean> = $state({});
     let trailsFullWidth = $derived(widthPreferences[currentDisplayMode] ?? false);
 
@@ -83,6 +87,8 @@
             mounted = false;
             searchController?.abort();
             searchController = undefined;
+            openMapController?.abort();
+            openMapController = undefined;
             searchWidth.removeEventListener("change", updateSearchWidth);
         };
     });
@@ -112,6 +118,12 @@
         try { localStorage.setItem("trailWidthPreferences", JSON.stringify(widthPreferences)); } catch { /* Keep the current width. */ }
     }
     async function searchResults(reset = true, preservePages = false) {
+        if (reset && !preservePages) {
+            openMapController?.abort();
+            openMapController = undefined;
+            openingMap = false;
+            mapError = false;
+        }
         searchController?.abort();
         const controller = new AbortController();
         searchController = controller;
@@ -166,6 +178,35 @@
         filter = next;
         void searchResults();
     }
+    async function openOnMap(closeMenu?: () => void) {
+        if (openingMap || refreshing || loading || !trails.length || loadedSearchKey !== searchKey()) return;
+        const controller = new AbortController();
+        openMapController = controller;
+        openingMap = true;
+        const currentFilter = $state.snapshot(filter);
+        const key = searchKey();
+        try {
+            const bounds = await trails_search_bounds(currentFilter,
+                (url, options) => fetch(url, { ...options, signal: controller.signal }));
+            if (controller !== openMapController || key !== searchKey()) return;
+            const params = bounds ? new URLSearchParams({
+                tl_lat: String(bounds.northEast.lat), tl_lon: String(bounds.northEast.lng),
+                br_lat: String(bounds.southWest.lat), br_lon: String(bounds.southWest.lng),
+            }) : undefined;
+            await goto(params ? `/map?${params}` : "/map", { state: { mapSearchFilter: currentFilter } });
+        } catch {
+            if (controller === openMapController) {
+                closeMenu?.();
+                mapError = true;
+                mapErrorAttempt += 1;
+            }
+        } finally {
+            if (controller === openMapController) {
+                openMapController = undefined;
+                openingMap = false;
+            }
+        }
+    }
 </script>
 
 <svelte:head><title>{$_("trail", { values: { n: 2 } })} | wanderer</title></svelte:head>
@@ -174,7 +215,7 @@
     <TrailList bind:filter bind:trails bind:pagination bind:display={currentDisplayMode} {loading}
         onupdate={() => searchResults()} onresultsupdate={() => searchResults(true, true)} busy={loading || refreshing} ondisplaychange={selectDisplay}
         managed incremental compactControls inlineControls fullWidthCards
-        fullWidth={trailsFullWidth} onwidthtoggle={toggleWidth} {moreResults}
+        fullWidth={trailsFullWidth} onwidthtoggle={toggleWidth} {moreResults} {resultActions} {resultViewActions}
         bind:filterPanelTarget {searchPosition} searchExpansion={$searchLayout.expansion}
         onsearchposition={wideSearchLayout ? position => updateSearchLayout({ position }) : undefined}
         onsearchexpansion={searchPosition === "top" ? expansion => updateSearchLayout({ expansion }) : undefined}>
@@ -184,9 +225,35 @@
                 layout={searchPosition === "top" ? $searchLayout.expansion : "sidebar"}
                 filterSections={page.data.settings?.behavior?.searchFilterSections} />
             {#if searchError}<p role="alert" class="search-message">{$_("trail-search-error")} <button type="button" onclick={() => searchResults()}>{$_("trail-search-retry")}</button></p>{/if}
+            {#if mapError}
+                <div class="search-message">
+                    {#key mapErrorAttempt}<span role="alert">{$_("trail-map-open-error")}</span>{/key}
+                    <button type="button" aria-disabled={openingMap} aria-busy={openingMap} onclick={() => openOnMap()}>
+                        {#if openingMap}<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>{/if}
+                        {$_("trail-search-retry")}
+                    </button>
+                </div>
+            {/if}
         {/snippet}
     </TrailList>
 </main>
+
+{#snippet resultActions()}
+    <button type="button" class="btn-icon show-on-map" aria-label={$_("show-on-map")} title={$_("show-on-map")}
+        disabled={openingMap || loading || refreshing || !trails.length || loadedSearchKey !== searchKey()}
+        aria-busy={openingMap} onclick={() => openOnMap()}>
+        <i class={`fa ${openingMap ? "fa-spinner fa-spin" : "fa-map"}`} aria-hidden="true"></i>
+    </button>
+{/snippet}
+
+{#snippet resultViewActions({ close }: { close: () => void })}
+    <div class="map-view-actions">
+    <button type="button" class="show-on-map-mobile" disabled={openingMap || loading || refreshing || !trails.length || loadedSearchKey !== searchKey()}
+        aria-busy={openingMap} onclick={() => openOnMap(close)}>
+        <i class={`fa ${openingMap ? "fa-spinner fa-spin" : "fa-map"}`} aria-hidden="true"></i>{$_("show-on-map")}
+    </button>
+    </div>
+{/snippet}
 
 {#snippet moreResults()}
     {#if !loading && hasMore}
@@ -203,13 +270,22 @@
 <style>
     .trail-search-layout { --trail-controls-inset: .6rem; --trail-controls-top: .3125rem; margin-inline: auto; min-width: 0; position: relative; width: calc(100% - 3rem); }
     .trail-search-layout.full-width { max-width: none; }
+    .show-on-map { align-items: center; color: inherit; cursor: pointer; display: inline-flex; height: 2.5rem; justify-content: center; width: 2.5rem; }
+    .map-view-actions { display: none; }
+    .show-on-map:disabled { cursor: default; opacity: .45; }
     .load-more { align-items: center; display: flex; flex-direction: column; gap: .5rem; padding: 1rem 0 1.5rem; }
     .load-more-button { border: 1px solid rgba(var(--input-border)); border-radius: .5rem; cursor: pointer; display: inline-flex; font-size: .9rem; gap: .6rem; justify-content: center; min-width: 10rem; padding: .7rem 1.3rem; }
     .load-more-button:hover { background: rgba(var(--input-background)); }
     .load-more-button:disabled { cursor: wait; opacity: .6; }
     .search-message { font-size: .8rem; }
     .search-message button { text-decoration: underline; }
+    .search-message button[aria-disabled="true"] { cursor: wait; opacity: .45; }
     @media (max-width: 639px) {
-        .trail-search-layout { --trail-controls-inset: .4rem; width: calc(100% - 1.5rem); }
+        .show-on-map { display: none; }
+        .map-view-actions { border-top: 1px solid rgba(var(--separator)); display: block; margin-top: .5rem; padding-top: .5rem; }
+        .show-on-map-mobile { align-items: center; border-radius: .45rem; display: flex; font-size: .8rem; gap: .65rem; min-height: 2.5rem; padding: .4rem .55rem; width: 100%; }
+        .show-on-map-mobile:hover { background: rgba(var(--secondary-hover)); }
+        .show-on-map-mobile:disabled { cursor: default; opacity: .45; }
+        .trail-search-layout { --result-sort-menu-offset: -3rem; --trail-controls-inset: .4rem; width: calc(100% - 1.5rem); }
     }
 </style>

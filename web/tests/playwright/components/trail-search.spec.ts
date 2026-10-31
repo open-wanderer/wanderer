@@ -29,18 +29,61 @@ for (const dev of [true, false]) {
         });
         test.afterEach(() => { expect(errors).toEqual([]); });
 
-        for (const keyboard of [false, true]) {
-            test(`returns input focus only for keyboard place selection: keyboard=${keyboard}`, async ({ page }) => {
-                await mountTrailSearchFixture(page, bundle);
-                await input(page).fill('Bern');
-                const direct = page.locator('[data-kind="places"] .direct-option').first();
-                await expect(direct).toBeVisible();
-                if (keyboard) { await direct.focus(); await direct.press('Enter'); }
-                else await direct.click();
-                if (keyboard) await expect(input(page)).toBeFocused();
-                else await expect(input(page)).not.toBeFocused();
-                await expect(input(page)).toHaveValue('');
-            });
+        test('uses direct map places without radius filters and enables three trail links only on the map', async ({ page }) => {
+            const fixture = await mountTrailSearchFixture(page, bundle, { map: true });
+            await input(page).click();
+            await page.locator('.general-filters .filter-chip').filter({ hasText: /^Place/ }).click();
+            await page.locator('.place-input input').fill('Existing');
+            await page.locator('.place-option').first().click();
+            await expect(page.locator('.selected-place')).toBeVisible();
+            await input(page).fill('Ridge');
+            const trails = page.locator('[data-kind="trails"] .direct-option');
+            await expect(trails).toHaveCount(3);
+            expect(fixture.trailRequests[0]).toMatchObject({ q: 'Ridge', options: { limit: 3, attributesToSearchOn: ['name'], filter: 'fixture-visibility' } });
+            await expect(trails.first()).toHaveAttribute('href', '/map/trail/@alice/direct-0');
+            await trails.first().focus();
+            await trails.first().press('ArrowRight');
+            await expect(trails.nth(1)).toBeFocused();
+            await page.locator('[data-kind="places"] .direct-option').first().click();
+            await expect(input(page)).toHaveValue('');
+            expect(await appliedFilter(page)).toMatchObject({ near: { radius: 2000 } });
+            expect((await appliedFilter(page)).near).not.toHaveProperty('lat');
+            expect(await page.evaluate(() => (window as any).placeSelections)).toEqual([expect.objectContaining({ name: 'Ridge', lat: 47.37, lon: 8.54 })]);
+        });
+
+        test('keeps place and list suggestions stable while only trail criteria change', async ({ page }) => {
+            const fixture = await mountTrailSearchFixture(page, bundle, { map: true });
+            await input(page).fill('Ridge');
+            await expect(page.locator('[data-kind="trails"] .direct-option')).toHaveCount(3);
+            await expect(page.locator('[data-kind="places"] .direct-option')).toHaveCount(3);
+            const placeRequests = fixture.requests.length;
+            const listRequests = fixture.listRequests.length;
+            let release!: () => void;
+            fixture.trailGates.set(2, new Promise<void>(resolve => release = resolve));
+            await page.locator('.activity-grid').getByRole('button', { name: 'Hiking', exact: true }).click();
+            await expect.poll(() => fixture.trailRequests.length).toBe(2);
+            await expect(page.locator('[data-kind="trails"] .direct-option')).toHaveCount(3);
+            await expect(page.locator('[data-kind="places"] .direct-option')).toHaveCount(3);
+            expect(fixture.requests).toHaveLength(placeRequests);
+            expect(fixture.listRequests).toHaveLength(listRequests);
+            release();
+            await expect(page.locator('[data-kind="trails"] .direct-option').first()).toContainText('Refined trail');
+        });
+
+        for (const map of [false, true]) {
+            for (const keyboard of [false, true]) {
+                test(`returns input focus only for keyboard place selection: map=${map}, keyboard=${keyboard}`, async ({ page }) => {
+                    await mountTrailSearchFixture(page, bundle, { map });
+                    await input(page).fill('Bern');
+                    const direct = page.locator('[data-kind="places"] .direct-option').first();
+                    await expect(direct).toBeVisible();
+                    if (keyboard) { await direct.focus(); await direct.press('Enter'); }
+                    else await direct.click();
+                    if (keyboard) await expect(input(page)).toBeFocused();
+                    else await expect(input(page)).not.toBeFocused();
+                    await expect(input(page)).toHaveValue('');
+                });
+            }
         }
 
         test('retries an HTTP author lookup failure after the next search interaction', async ({ page }) => {
@@ -133,7 +176,7 @@ for (const dev of [true, false]) {
                     await expect(link).toBeVisible();
                     await expect(input(page)).toBeFocused();
                     await link.click();
-                    await expect(page).toHaveURL('http://trail-search.test/lists/%40anna/list-one');
+                    await expect(page).toHaveURL('http://trail-search.test/lists/@anna/list-one');
                 });
 
                 for (const kind of ['author', 'tag'] as const) {
@@ -665,14 +708,14 @@ for (const dev of [true, false]) {
             const links = page.locator('[data-kind="lists"] .direct-option');
             await expect(links).toHaveCount(3);
             await expect(page.locator('[data-kind="places"] .direct-option')).toHaveCount(3);
-            await expect(links.first()).toHaveAttribute('href', '/lists/%40anna/list-one');
-            await expect(links.nth(1)).toHaveAttribute('href', '/lists/%40anna%40example.org/list-two');
+            await expect(links.first()).toHaveAttribute('href', '/lists/@anna/list-one');
+            await expect(links.nth(1)).toHaveAttribute('href', '/lists/@anna@example.org/list-two');
             const rows = await links.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().y));
             expect(new Set(rows).size).toBe(1);
             await expect(panel(page)).toBeVisible();
             await expect(input(page)).toHaveValue('Bern');
             await links.first().click();
-            await expect(page).toHaveURL('http://trail-search.test/lists/%40anna/list-one');
+            await expect(page).toHaveURL('http://trail-search.test/lists/@anna/list-one');
         });
 
         test('list links remain usable while geocoding is pending and failed lists leave places usable', async ({ page }) => {
@@ -771,6 +814,7 @@ for (const dev of [true, false]) {
                     q: '', category: ['hiking'], sort: 'name', sortOrder: '-',
                     near: { name: 'St. Gallen', lat: 48.37, lon: 9.54, radius: 2000 },
                 });
+                expect((await applications(page)).at(-1).resetBounds).toBe(true);
                 if (layout === 'sidebar') await expect(panel(page)).toBeVisible();
                 else await expect(panel(page)).toBeHidden();
                 await expect(page.locator('[data-filter-key="location"]')).toBeVisible();

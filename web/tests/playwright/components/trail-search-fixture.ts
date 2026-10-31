@@ -31,6 +31,7 @@ export async function buildTrailSearchFixture(dev: boolean) {
                     import { mount } from 'svelte';
                     import Fixture from 'fixture:search.svelte';
                     window.searchApplications = [];
+                    window.placeSelections = [];
                     mount(Fixture, { target: document.body });
                     document.body.dataset.searchFixtureReady = 'true';
                 `;
@@ -44,6 +45,7 @@ export async function buildTrailSearchFixture(dev: boolean) {
                 if (id === resolve(root, 'src/lib/stores/category_preference_store.ts')) return `import { writable } from 'svelte/store'; export const categoryPreferences = writable([]);`;
                 if (id === resolve(root, 'src/lib/stores/subcategory_preference_store.ts')) return `import { writable } from 'svelte/store'; export const subcategoryPreferences = writable([]);`;
                 if (id === resolve(root, 'src/lib/stores/user_store.ts')) return `import { writable } from 'svelte/store'; export const currentUser = writable(window.searchFixtureAnonymous ? null : { id: 'tester', actor: 'tester' });`;
+                if (id === resolve(root, 'src/lib/stores/trail_store.ts')) return 'export function buildFilterText(_user, filter) { return "fixture-visibility" + (filter.category?.length ? " categories:" + filter.category.join(",") : ""); }';
                 if (id === resolve(root, 'src/lib/stores/tag_store.ts')) return `
                     export async function tags_index(q, fetcher = fetch) {
                         const response = await fetcher('/fixture/tags?q=' + encodeURIComponent(q));
@@ -57,6 +59,9 @@ export async function buildTrailSearchFixture(dev: boolean) {
                         const response = await fetcher('/fixture/geocode?q=' + encodeURIComponent(q) + '&limit=' + limit);
                         if (!response.ok) throw new Error('Geocoding failed');
                         return response.json();
+                    }
+                    export async function searchTrails(q, options, fetcher = fetch) {
+                        return (await fetcher('/api/v1/search/trails', { method: 'POST', body: JSON.stringify({ q, options }) })).json().then(result => result.hits);
                     }
                     export async function searchLists(q, options, fetcher = fetch) {
                         const response = await fetcher('/api/v1/search/lists', { method: 'POST', body: JSON.stringify({ q, options }) });
@@ -98,14 +103,15 @@ export async function buildTrailSearchFixture(dev: boolean) {
                             search.restoreFilter(filter);
                         };
                         $effect(() => { window.appliedSearchFilter = JSON.parse(JSON.stringify(filter)); });
-                        function applied(filter) {
-                            window.searchApplications.push(JSON.parse(JSON.stringify({ filter })));
+                        function applied(filter, resetBounds) {
+                            window.searchApplications.push(JSON.parse(JSON.stringify({ filter, resetBounds })));
                         }
                     </script>
                     <main><Search {filterPanelTarget} bind:this={search} {categories} {subcategories} {defaults} layout={layout} bind:filter onapply={applied}
                         filterSections={window.searchFixtureSections}
                         inlineControls={Boolean(window.searchFixtureInline)}
-                        />
+                        trailSuggestions={Boolean(window.searchFixtureMap)}
+                        onplaceselect={window.searchFixtureMap ? location => window.placeSelections.push(location) : undefined} />
                     <div class="fixture-columns" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:16px">
                         {#if layout === "sidebar"}<aside bind:this={filterPanelTarget} style={window.searchFixtureSide === "right" ? "grid-column:2" : "grid-column:1"}></aside>{/if}
                     </div></main>
@@ -129,10 +135,17 @@ export async function buildTrailSearchFixture(dev: boolean) {
     return `document.head.appendChild(Object.assign(document.createElement('style'), { textContent: ${JSON.stringify(css)} }));\n${chunk.code}`;
 }
 
-export async function mountTrailSearchFixture(page: Page, bundle: string, options: { inline?: boolean; sections?: TrailSearchFilterSections; author?: string; anonymous?: boolean; layout?: "overlay" | "push" | "sidebar"; side?: "left" | "right" } = {}) {
-    const state = { authorLookups: [] as string[], authorFailures: new Set<string>(), listRequests: [] as { q: string; options: Record<string, unknown> }[], listHits: new Map<string, { id: string; name: string; author_name: string; domain?: string }[]>(), listFailures: new Set<string>(), listCompleted: [] as string[], listGates: new Map<string, Promise<void>>(), requests: [] as string[], multiRequests: [] as string[], failures: new Set<string>(), empty: new Set<string>(), authorRequests: [] as string[], tagRequests: [] as string[], completed: [] as string[], gates: new Map<string, Promise<void>>() };
+export async function mountTrailSearchFixture(page: Page, bundle: string, options: { inline?: boolean; sections?: TrailSearchFilterSections; author?: string; anonymous?: boolean; layout?: "overlay" | "push" | "sidebar"; side?: "left" | "right"; map?: boolean } = {}) {
+    const state = { trailGates: new Map<number, Promise<void>>(), trailRequests: [] as { q: string; options: Record<string, unknown> }[], authorLookups: [] as string[], authorFailures: new Set<string>(), listRequests: [] as { q: string; options: Record<string, unknown> }[], listHits: new Map<string, { id: string; name: string; author_name: string; domain?: string }[]>(), listFailures: new Set<string>(), listCompleted: [] as string[], listGates: new Map<string, Promise<void>>(), requests: [] as string[], multiRequests: [] as string[], failures: new Set<string>(), empty: new Set<string>(), authorRequests: [] as string[], tagRequests: [] as string[], completed: [] as string[], gates: new Map<string, Promise<void>>() };
     await page.route('http://trail-search.test/**', async route => {
         const url = new URL(route.request().url());
+        if (url.pathname === '/api/v1/search/trails') {
+            const current = route.request().postDataJSON();
+            state.trailRequests.push(current);
+            await state.trailGates.get(state.trailRequests.length);
+            await route.fulfill({ json: { hits: Array.from({ length: 4 }, (_, index) => ({ id: 'direct-' + index, name: (current.options.filter.includes('categories:') ? 'Refined trail ' : 'Direct trail ') + index, author_name: 'alice', domain: index ? 'remote.example' : undefined })) } });
+            return;
+        }
         if (url.pathname === '/fixture/geocode') {
             const query = url.searchParams.get('q')!;
             state.requests.push(query);
@@ -193,6 +206,7 @@ export async function mountTrailSearchFixture(page: Page, bundle: string, option
         (window as any).searchFixtureLayout = layout;
         (window as any).searchFixtureSide = side;
     }, options);
+    await page.evaluate(map => { (window as any).searchFixtureMap = map; }, Boolean(options.map));
     await page.evaluate(anonymous => { (window as any).searchFixtureAnonymous = anonymous; }, Boolean(options.anonymous));
     await page.addScriptTag({ content: bundle });
     await expect(page.locator('body[data-search-fixture-ready="true"]')).toBeAttached();
