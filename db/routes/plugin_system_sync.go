@@ -376,6 +376,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				continue
 			}
 			applyHostPolicy(&item, hostConfig)
+			movePhotosToWaypoints(app, &item, categoryMapping(hostConfig))
 			imported, err := importer.ImportTrail(ctx, app, item, importer.Options{
 				UserID:                      instance.GetString("user"),
 				ActorID:                     actor.Id,
