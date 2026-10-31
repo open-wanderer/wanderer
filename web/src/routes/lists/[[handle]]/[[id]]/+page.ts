@@ -20,7 +20,7 @@ export const load: Load = async ({ params, fetch, url }) => {
         try {
             const list = await lists_show(params.id, params.handle, fetch)
 
-            lists = { items: [list], page: 1, totalPages: 1, hits: [] }
+            lists = { items: [list], page: 1, totalPages: 1, totalHits: 1, hits: [] }
         } catch (e) {
             if (e instanceof APIError) {
                 const { message, ...properties } = remoteContentError(e);
@@ -31,7 +31,7 @@ export const load: Load = async ({ params, fetch, url }) => {
     } else if (browser) {
         lists = await lists_search_filter(filter, 1, undefined, fetch);        
     } else {
-        lists = { items: [], page: 1, totalPages: 1, hits: [] }
+        lists = { items: [], page: 1, totalPages: 1, totalHits: 0, hits: [] }
     }
 
     return { lists, filter }
