@@ -25,7 +25,11 @@ const SettingsCreateSchema = z.object({
     behavior: z.object({
         allowAutoGeolocate: z.boolean(),
         mapClusteringMaxZoom: z.number().optional(),
-        showTrailStartMarker: z.boolean().optional()
+        showTrailStartMarker: z.boolean().optional(),
+        searchFilterSections: z.record(
+            z.string(),
+            z.enum(["general", "advanced"]),
+        ).optional(),
     }).optional().nullable(),
 }) satisfies ZodType<Settings>
 

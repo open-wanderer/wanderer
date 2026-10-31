@@ -770,5 +770,9 @@
   "trail-map-reset-view": "Restore map overview",
   "trail-map-move-overlay": "Move overview map",
   "trail-results-select-trail": "Select {name}",
-  "trail-map-open-error": "Could not open these trails on the map. Please try again."
+  "trail-map-open-error": "Could not open these trails on the map. Please try again.",
+  "settings-search": "Search",
+  "settings-search-help": "Enable a switch to show that filter under “More filters”; otherwise it appears directly in general search.",
+  "settings-search-placement": "Search filter placement",
+  "settings-search-error": "Could not save the filter placement. Please try again."
 }
