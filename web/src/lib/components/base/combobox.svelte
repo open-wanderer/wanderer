@@ -20,6 +20,7 @@
         items?: ComboboxItem[];
         multiple?: boolean;
         chips?: boolean;
+        dismissOnEscape?: boolean;
         placeholder?: string;
         extraClasses?: string;
         onchange?: ChangeEventHandler<HTMLInputElement>;
@@ -35,12 +36,21 @@
         value = $bindable(multiple ? [] : undefined),
         items = [],
         chips = false,
+        dismissOnEscape = false,
         placeholder = "",
         extraClasses = "",
         onchange,
         onupdate,
         normalizeNewItemText,
     }: Props = $props();
+
+    let wrapper: HTMLDivElement;
+    function dismissOutside(event: Event) {
+        if (dismissOnEscape && dropDownOpen && event.target instanceof Node && !wrapper.contains(event.target)) searching = false;
+    }
+    function leaveInput(event: FocusEvent) {
+        if (!dismissOnEscape || !(event.relatedTarget instanceof Element) || !wrapper.querySelector('ul')?.contains(event.relatedTarget)) searching = false;
+    }
 
     let searching: boolean = $state(false);
 
@@ -57,7 +67,19 @@
 
     let relevantValue = $derived(multiple ? inputValue : ((value as string) ?? ""));
 
+    function handleEscape(event: KeyboardEvent) {
+        if (dismissOnEscape && event.key === "ArrowDown" && event.target instanceof HTMLInputElement) {
+            searching = true;
+        }
+        if (!dismissOnEscape || !dropDownOpen || event.key !== "Escape" || event.isComposing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        (event.currentTarget as HTMLElement).querySelector<HTMLInputElement>('input')?.focus();
+        searching = false;
+    }
+
     async function onSearchType() {
+        if (dismissOnEscape) searching = true;
         const relevantValue = multiple ? inputValue : (value as string);
 
         update(relevantValue);
@@ -143,7 +165,12 @@
     }
 </script>
 
-<div class="relative {extraClasses}">
+<svelte:document onfocusin={dismissOutside} onpointerdown={dismissOutside} />
+
+<div bind:this={wrapper} class="relative {extraClasses}" onkeydowncapture={handleEscape} role="presentation"
+    onfocusout={event => {
+        if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) searching = false;
+    }} onclick={event => { if (dismissOnEscape && event.target instanceof HTMLInputElement) searching = true; }}>
     {#if label.length}
         <label for={name} class="text-sm font-medium pb-1">
             {label}
@@ -159,6 +186,11 @@
                         text={v.text}
                         closable
                         onclick={(e) => {
+                            if (dismissOnEscape) {
+                                searching = false;
+                                wrapper.querySelector('input')?.focus();
+                                searching = false;
+                            }
                             value = (value as ComboboxItem[]).filter(
                                 (_, idx) => i != idx,
                             );
@@ -182,7 +214,7 @@
             {onchange}
             placeholder={value.length ? undefined : placeholder}
             onfocusin={() => (searching = true)}
-            onfocusout={() => (searching = false)}
+            onfocusout={leaveInput}
             onkeydown={(e) => handleKeydown(e)}
             bind:value={getInputValue, setInputValue}
         />
@@ -200,8 +232,12 @@
                 <li
                     class="menu-item flex items-center px-4 py-3 cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
                     tabindex="0"
-                    onmousedown={(e) => handleItemClick(e, item)}
-                    onkeydown={(e) => handleItemClick(e, item)}
+                    onmousedown={(e) => { if (e.button === 0) handleItemClick(e, item); }}
+                    onkeydown={(e) => {
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        e.preventDefault();
+                        handleItemClick(e, item);
+                    }}
                 >
                     {#if item.icon}
                         <i class="fa fa-{item.icon} mr-6"></i>

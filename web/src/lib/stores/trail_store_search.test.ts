@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TrailFilter } from "#lib/models/trail.ts";
 import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
-import { trails_search_filter } from "./trail_store";
+import { trails_search_filter, trails_search_filter_pages } from "./trail_store";
 
 const filter: TrailFilter = {
     q: "Bern", category: ["hiking"], subcategory: [], tags: ["alpine"], difficulty: [1],
@@ -78,6 +78,16 @@ describe("native trail search", () => {
         expect(first.items[0].id).toBe("page-1");
         expect(second.items[0].id).toBe("page-2");
         expect(request).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([2, 30])("refreshes %i loaded pages with one bounded request and restores the page position", async pages => {
+        const count = Math.min(pages * 48, 1000);
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => response(
+            Array.from({ length: count - 1 }, (_, i) => ({ id: String(i), name: "Trail", _geo: { lat: 47, lng: 8 } })), 1, 1500, count));
+        const result = await trails_search_filter_pages(filter, pages, 48, request);
+        expect(request).toHaveBeenCalledOnce();
+        expect(JSON.parse(String(request.mock.calls[0][1]?.body)).options.hitsPerPage).toBe(count);
+        expect(result).toMatchObject({ page: Math.ceil((count - 1) / 48), totalPages: 21, hitsPerPage: 48 });
     });
 
     it("persists explicit place labels when restoring filters", () => {

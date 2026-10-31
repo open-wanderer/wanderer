@@ -1,4 +1,5 @@
 import { test as base, expect } from '../../fixtures';
+import { expectActiveNavigation } from '../navigation_helpers';
 import { ListsPage } from '../../pages/lists_page';
 
 // Serial CRUD and cleanup may each wait for asynchronous search indexing.
@@ -8,6 +9,7 @@ const test = base.extend<{ listsPage: ListsPage }>({
     listsPage: async ({ page }, use) => {
         const listsPage = new ListsPage(page);
         await listsPage.goto();
+        await expectActiveNavigation(page, "/lists");
         await use(listsPage);
         await listsPage.removeAll();
     },
@@ -50,6 +52,7 @@ base('renders one shared-list layout when previewing inline rich text', async ({
     const expectedPreview = Array.from(descriptionText).slice(0, 100).join('');
 
     await listsPage.goto();
+    await expectActiveNavigation(page, "/lists");
     await listsPage.createListButton.click();
     await listsPage.listFormName.fill(testListName);
     await listsPage.listFormDescription.fill(descriptionText);
@@ -101,6 +104,7 @@ base('renders one shared-list layout when previewing inline rich text', async ({
         // The map canvas appears after hydration and makes the interaction ready.
         await expect(page.locator('#trail-map canvas.maplibregl-canvas')).toBeVisible();
 
+        await expectActiveNavigation(page, '/lists');
         const heading = page.getByRole('heading', { name: testListName });
         await expect(heading).toHaveCount(1);
 

@@ -9,6 +9,7 @@
         label?: string;
         name?: string;
         placeholder?: string;
+        dismissOnEscape?: boolean;
         onchange?: (value: SelectItem[], changedItem?: SelectItem) => void;
     }
 
@@ -18,12 +19,22 @@
         label = "",
         name = "",
         placeholder = "",
+        dismissOnEscape = false,
         onchange,
     }: Props = $props();
 
     const id = $props.id();
     let showDropdown = $state(false);
+    let trigger: HTMLDivElement;
     let dropdownRef = $state();
+
+    function handleEscape(event: KeyboardEvent) {
+        if (!dismissOnEscape || !showDropdown || event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        showDropdown = false;
+        trigger.focus();
+    }
 
     function handleTriggerKeydown(event: KeyboardEvent) {
         if (event.target !== event.currentTarget) return;
@@ -52,13 +63,14 @@
     }
 </script>
 
-<div class="relative max-w-full">
+<div class="relative max-w-full" onkeydowncapture={handleEscape} role="presentation">
     {#if label.length}
         <label for={name} class="text-sm font-medium pb-1 block">
             {label}
         </label>
     {/if}
     <div
+        bind:this={trigger}
         role="button"
         tabindex="0"
         aria-label={label || placeholder}
