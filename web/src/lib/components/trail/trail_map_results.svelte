@@ -35,6 +35,10 @@
         filter?: TrailFilter;
         onsort?: (sort: string) => void;
         onupdate?: (updatedTrails?: Trail[]) => void;
+        fullscreen?: boolean;
+        fullscreenSearchVisible?: boolean;
+        onfullscreensearchtoggle?: () => void;
+        onsearchfocus?: () => void;
         active?: boolean;
         mapLoading?: boolean;
         initialBounds?: TrailSearchBounds;
@@ -49,7 +53,7 @@
         onwindowresize?: () => void;
         moreResults: Snippet;
     }
-    let { trails, mapTrails, clusters, loading, display = "cards", tableHeader = [], filter, onsort, onupdate, active = true, mapLoading = false, initialBounds, initialCenter,
+    let { trails, mapTrails, clusters, loading, display = "cards", tableHeader = [], filter, onsort, onupdate, fullscreen = $bindable(false), fullscreenSearchVisible = false, onfullscreensearchtoggle, onsearchfocus, active = true, mapLoading = false, initialBounds, initialCenter,
         boundingBox, settings, near, onviewport, onzoom, onwindowresize, moreResults, initialCamera }: Props = $props();
     const id = $props.id();
     let root: HTMLDivElement;
@@ -75,6 +79,7 @@
     });
 
     function toggleSelection(trail?: Trail) {
+        if (fullscreen) return;
         if (!trail) {
             selectedIds = allSelected ? new Set() : new Set(trails.flatMap(trail => trail.id ? [trail.id] : []));
             return;
@@ -91,7 +96,7 @@
         root.querySelector<HTMLElement>('.trail-results a, .trail-results input[type="checkbox"]')?.focus();
     }
     function handleTrailClick(event: MouseEvent, trail: Trail) {
-        if (!selection.size) return;
+        if (fullscreen || !selection.size) return;
         event.preventDefault();
         toggleSelection(trail);
     }
@@ -105,14 +110,20 @@
     }
     let lastViewport: TrailSearchBounds | undefined;
     let lastCamera: (MapCamera & { width: number; height: number }) | undefined;
-    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    let windowResize: { publish: boolean; preserveSearch: boolean; userMovement: boolean; waiting: boolean; transition: boolean;
+        measure?: (transition: boolean) => { preserveSearch: boolean; publish: boolean };
+        area?: TrailSearchBounds; timer?: ReturnType<typeof setTimeout>; fallback?: ReturnType<typeof setTimeout> } | undefined;
     let hiddenArea: TrailSearchBounds | undefined;
     let cameraPositioned = false;
+    let fullscreenTransitionUntil = 0;
     const gesturePointers = new Map<number, string>();
-    let deferredResize: { preserveSearch: boolean; settled?: boolean } | undefined;
+    let deferredResize: { preserveSearch: boolean } | undefined;
     let deferredSettle: { area?: TrailSearchBounds; preserveCamera: boolean; publish: boolean } | undefined;
     let resizingMap = false;
     let initializingViewport = false;
+    let pendingFullscreenFocus: boolean | undefined;
+    let fullscreenUserFocus: HTMLElement | undefined;
+    let fullscreenFocusReady = false;
     let defaultCamera: MapCamera | undefined;
     let resizing = $state(false);
     let canvasSize = { width: 0, height: 0 };
@@ -120,19 +131,30 @@
     let layoutRevision = 0;
     let locationRequest = 0;
     let pendingLocation: { lat: number; lon: number } | undefined;
-    let resetViewControl: ResetViewControl | undefined = $state.raw();
-    const resetViewAppearance = $derived(settings?.mapFocus === "location" && settings.location
-        ? { label: $_("trail-map-reset-location"), icon: "fa-location-dot" }
-        : { label: $_("trail-map-reset-view"), icon: "fa-arrows-to-circle" });
+    let fullscreenTrigger: HTMLElement | undefined;
     let savedListScroll: number | undefined;
+    let blurredListFocus: Element | null | undefined;
     function rememberListPosition() {
         const list = root?.querySelector<HTMLElement>('.trail-results');
         if (list?.getClientRects().length) savedListScroll = list.scrollTop;
+    }
+    function revealFocusedResult(event: FocusEvent) {
+        const returning = event.relatedTarget === null && event.target === blurredListFocus;
+        blurredListFocus = undefined;
+        // Returning to a window preserves its scroll position. Pointer focus
+        // must not move a card between pressing and releasing the pointer.
+        if (returning || !(event.target instanceof HTMLElement) || !event.target.matches(':focus-visible')) return;
+        // Firefox may reveal only the first text line during keyboard navigation.
+        event.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
     function restoreListPosition() {
         const list = root?.querySelector<HTMLElement>('.trail-results');
         if (savedListScroll !== undefined && list?.getClientRects().length) list.scrollTop = savedListScroll;
     }
+    let resetViewControl: ResetViewControl | undefined = $state.raw();
+    const resetViewAppearance = $derived(settings?.mapFocus === "location" && settings.location
+        ? { label: $_("trail-map-reset-location"), icon: "fa-location-dot" }
+        : { label: $_("trail-map-reset-view"), icon: "fa-arrows-to-circle" });
     let controlsSize: ResizeObserver | undefined;
     const layoutStorageKey = "mapResultsLayout";
     const paneGap = 16;
@@ -141,13 +163,14 @@
     let preferredWidth = $state(400);
     type LayoutMode = "split" | "map" | "results";
     let layoutMode = $state<LayoutMode>("split");
-    let resultsCollapsed = $derived(layoutMode === "map");
+    let fullscreenResultsVisible = $state(false);
+    let resultsCollapsed = $derived(fullscreen ? !fullscreenResultsVisible : layoutMode === "map");
     let resultsExpanded = $derived(layoutMode === "results");
     let wideViewport = $state(true);
-    let miniMap = $derived(resultsExpanded && wideViewport);
+    let miniMap = $derived(resultsExpanded && !fullscreen && wideViewport);
     let containerWidth = $state(0);
     let containerHeight = $state(0);
-    let maxListWidth = $derived(Math.max(minListWidth, containerWidth - (minMapWidth + paneGap)));
+    let maxListWidth = $derived(Math.max(fullscreen ? 0 : minListWidth, containerWidth - (fullscreen ? 76 : minMapWidth + paneGap)));
     let minimumListWidth = $derived(Math.min(minListWidth, maxListWidth));
     let listWidth = $derived(resultsCollapsed ? 0 : Math.max(minimumListWidth, Math.min(preferredWidth, maxListWidth)));
     let dragging = $state(false);
@@ -174,7 +197,7 @@
     let overlayMove = $state.raw<{ pointer: number; pointerType: string; x: number; y: number; position: OverlayPosition; preferred?: OverlayPosition; target: HTMLElement }>();
 
     $effect(() => {
-        const listHidden = miniMap || !wideViewport || resultsCollapsed;
+        const listHidden = miniMap || (!fullscreen && !wideViewport) || resultsCollapsed;
         const overlayGone = !miniMap || overlayHidden;
         untrack(() => {
             if (listHidden && drag) void finishResize();
@@ -191,6 +214,7 @@
         if (!active || !root?.clientWidth) return;
         containerWidth = root.clientWidth;
         wideViewport = window.matchMedia("(width >= 768px)").matches;
+        if (fullscreen) { root.style.removeProperty("height"); return; }
         const viewport = window.visualViewport;
         const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
         const lockedScroll = document.body.style.position === "fixed" ? -parseFloat(document.body.style.top || "0") : window.scrollY;
@@ -213,7 +237,7 @@
         } finally { resizingMap = previous; }
     }
 
-    function mapVisible() { return showMap || wideViewport; }
+    function mapVisible() { return showMap || fullscreen || wideViewport; }
     function gestureActive() { return Boolean(drag || overlayDrag || overlayMove) || Boolean(ready && map?.isMoving()); }
 
     function captureCamera() {
@@ -254,41 +278,121 @@
         };
     }
 
-    function resizeAutomatically(preserveSearch = false, forcePublish = false, settled = false) {
+    function resizeAutomatically(preserveSearch = false, forcePublish = false) {
         if (!active || !mapElement.clientWidth || !mapElement.clientHeight || !mapVisible()) return;
         if (!forcePublish && canvasSize.width === mapElement.clientWidth && canvasSize.height === mapElement.clientHeight) return;
         // Painting is independent of search publication. Public resize() stops
         // MapLibre's drag/wheel handlers and also unlocks GeolocateControl.
         resizeMap();
-        if (drag || overlayDrag || overlayMove || resizing) return;
+        if (drag || overlayDrag || overlayMove || windowResize || resizing) return;
         if (gestureActive()) {
-            deferredResize = { preserveSearch: preserveSearch && (deferredResize?.preserveSearch ?? true),
-                settled: settled || Boolean(deferredResize?.settled) };
+            deferredResize = { preserveSearch: preserveSearch && (deferredResize?.preserveSearch ?? true) };
             return;
         }
         if (!ready) return;
-        if (preserveSearch || document.querySelector("dialog:modal") || document.body.style.position === "fixed") renderViewport(settled);
-        else notifyViewport(false, settled);
+        if (preserveSearch || document.querySelector("dialog:modal") || document.body.style.position === "fixed") renderViewport();
+        else notifyViewport();
+    }
+
+    function cancelWindowResize() {
+        if (windowResize) { clearTimeout(windowResize.timer); clearTimeout(windowResize.fallback); }
+        windowResize = undefined;
+    }
+
+    function stopUserMovement() {
+        if (!ready || !map?.isMoving()) return false;
+        const previous = resizing;
+        resizing = true;
+        gesturePointers.clear();
+        map.stop();
+        resizing = previous;
+        return true;
+    }
+    function queueWindowResize(changed: boolean, preserveSearch: boolean, measure?: NonNullable<typeof windowResize>["measure"]) {
+        const previous = windowResize;
+        // Only the first event may finish motion that predates this window
+        // change. Later events must leave newly started gestures alone.
+        const userMovement = Boolean(previous?.userMovement) || (!previous && !preserveSearch && stopUserMovement());
+        cancelWindowResize();
+        const pending = { publish: changed || Boolean(previous?.publish),
+            preserveSearch,
+            userMovement, waiting: false, transition: Boolean(previous?.transition), measure: previous?.measure ?? measure, area: previous?.area,
+            timer: undefined as ReturnType<typeof setTimeout> | undefined };
+        windowResize = pending;
+        ++layoutRevision;
+        resizing = true;
+        flushSync(resizeLayout);
+        if (active && mapVisible()) onwindowresize?.();
+        if (mapVisible()) resizeMap();
+        else if (pending.userMovement) cameraPositioned = false;
+        pending.timer = setTimeout(() => {
+            pending.timer = undefined;
+            void settleLayout(undefined, true);
+        }, 200);
     }
     function renderViewport(settled = false) {
         if (ready && map && mapVisible()) onzoom?.(map.getZoom(), renderedBounds(), settled);
     }
+    function focusable(element: Element | null | undefined): element is HTMLElement {
+        return element instanceof HTMLElement && element !== document.body && !element.closest('[inert]')
+            && getComputedStyle(element).visibility === 'visible' && Boolean(element.getClientRects().length);
+    }
+    function restoreFullscreenFocus() {
+        const value = pendingFullscreenFocus;
+        if (value === undefined || !fullscreenFocusReady) return;
+        const overlays = [...document.querySelectorAll('dialog:modal, [data-fullscreen-overlay]')].filter(focusable);
+        const overlay = overlays.find(element => element.getAttribute('role') !== 'presentation' || element.contains(document.activeElement));
+        if (overlay) {
+            if (!focusable(document.activeElement)) {
+                const target = [...overlay.querySelectorAll('button, a[href], input, [tabindex]')].find(focusable);
+                if (target) target.focus();
+                else {
+                    if (!overlay.hasAttribute('tabindex')) overlay.tabIndex = -1;
+                    overlay.focus();
+                }
+            }
+            return;
+        }
+        if (document.activeElement === fullscreenUserFocus && focusable(fullscreenUserFocus)) {
+            pendingFullscreenFocus = undefined;
+            return;
+        }
+        const target = value ? root.querySelector('.fullscreen-search-toggle') : fullscreenTrigger;
+        const fallback = root.closest('main')?.querySelector<HTMLInputElement>('input[type="search"]');
+        const equivalent = !value && fullscreenTrigger
+            ? [...root.querySelectorAll<HTMLElement>('button')].find(element =>
+                ['collapse-results', 'expand-results', 'overlay-close', 'overlay-move', 'overlay-reopen'].some(name =>
+                    fullscreenTrigger?.classList.contains(name) && element.classList.contains(name)) && focusable(element)) : undefined;
+        const next = focusable(target) ? target : equivalent ?? fallback;
+        if (focusable(next)) {
+            pendingFullscreenFocus = undefined;
+            if (next === fallback && onsearchfocus) onsearchfocus();
+            else {
+                next.focus({ preventScroll: true });
+                // Returning from fullscreen keeps the overlay's list position,
+                // but keyboard focus must remain inside the visible pane.
+                if (!value && next.closest('.trail-results')) next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
+        }
+    }
     function finishDeferredResize() {
         if (gestureActive()) return;
-        if (deferredSettle) {
+        if (windowResize || deferredSettle) {
+            if (windowResize?.timer || windowResize?.waiting) return;
             const pending = deferredSettle;
             deferredSettle = undefined;
             void settleLayout(pending?.area, pending?.preserveCamera ?? true, pending?.publish);
-        } else if (deferredResize && !resizing && resizeTimer === undefined) {
+        } else if (deferredResize && !resizing) {
             const pending = deferredResize;
             deferredResize = undefined;
-            resizeAutomatically(pending.preserveSearch, true, pending.settled);
+            resizeAutomatically(pending.preserveSearch, true);
         }
     }
     function handleMoveEnd() {
         if (map && isMapCanvasResize(map)) return;
         if (resizingMap || initializingViewport || !ready) return;
         cameraPositioned = !hiddenArea;
+        if (windowResize) windowResize.userMovement = true;
         if (deferredResize) deferredResize.preserveSearch = false;
         if (deferredSettle || (resizing && (drag || overlayDrag || overlayMove))) {
             deferredSettle = { preserveCamera: true, publish: true };
@@ -297,7 +401,7 @@
         // published camera. Restore the list's bounds rather than snapshot it.
         if (!mapVisible()) cameraPositioned = false;
         if (!resizing) ++locationRequest;
-        if (!deferredResize && !deferredSettle && resizeTimer === undefined) notifyViewport();
+        if (!windowResize && !deferredResize && !deferredSettle) notifyViewport();
         requestAnimationFrame(finishDeferredResize);
     }
 
@@ -336,7 +440,7 @@
 
     $effect.pre(() => {
         // Capture before a visibility change; hidden lists report zero in Firefox.
-        active; resultsCollapsed; showMap; wideViewport;
+        active; resultsCollapsed; showMap; wideViewport; fullscreen;
         untrack(rememberListPosition);
         void tick().then(restoreListPosition);
     });
@@ -356,36 +460,60 @@
             }
             overlayHidden = stored?.overlay?.hidden === true;
         } catch { /* Use the default split when storage is unavailable. */ }
-        let lastWindowSize = { width: innerWidth, height: innerHeight };
-        const publishResize = () => {
-            resizeTimer = undefined;
-            if (drag || overlayDrag || overlayMove || resizing) {
-                resizeTimer = setTimeout(publishResize, 200);
-                return;
-            }
-            // A visualViewport resize can already have painted this size.
-            // The completed window series also owns any camera motion completed during it.
-            deferredResize = undefined;
-            // This series already waited 200 ms; the page must search immediately.
-            resizeAutomatically(false, true, true);
-        };
+        const metrics = () => ({ width: innerWidth, height: innerHeight, outerWidth, outerHeight,
+            ratio: devicePixelRatio, orientation: screen.orientation?.type });
+        let windowSize = metrics();
+        let settledSize = windowSize;
         const resize = () => {
-            const changed = lastWindowSize.width !== innerWidth || lastWindowSize.height !== innerHeight;
-            lastWindowSize = { width: innerWidth, height: innerHeight };
-            flushSync(resizeLayout);
-            if (mapVisible()) resizeMap();
-            else if (map?.isMoving()) cameraPositioned = false;
-            if (changed) {
-                if (active && mapVisible()) onwindowresize?.();
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(publishResize, 200);
-            }
+            const next = metrics();
+            const changed = windowSize.width !== next.width || windowSize.height !== next.height;
+            const displayChanged = windowSize.ratio !== next.ratio || windowSize.orientation !== next.orientation;
+            const innerOnly = windowSize.outerWidth === next.outerWidth && windowSize.outerHeight === next.outerHeight;
+            windowSize = next;
+            const transition = performance.now() < fullscreenTransitionUntil;
+            const baseline = settledSize;
+            queueWindowResize(changed || displayChanged, !displayChanged && (transition || (fullscreen && innerOnly)), changingFullscreen => {
+                // Chromium can dispatch resize before updating outerWidth or
+                // devicePixelRatio. Classify the completed size, not that frame.
+                const final = metrics();
+                const displayChanged = baseline.ratio !== final.ratio || baseline.orientation !== final.orientation;
+                const innerOnly = baseline.outerWidth === final.outerWidth && baseline.outerHeight === final.outerHeight;
+                settledSize = windowSize = final;
+                return { preserveSearch: !displayChanged && (changingFullscreen || ((fullscreen || transition) && innerOnly)),
+                    publish: displayChanged || baseline.width !== final.width || baseline.height !== final.height };
+            });
         };
+        let resolution: MediaQueryList;
+        const followPixelRatio = () => {
+            resolution?.removeEventListener('change', pixelRatioChanged);
+            resolution = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
+            resolution.addEventListener('change', pixelRatioChanged);
+        };
+        const pixelRatioChanged = () => { resize(); followPixelRatio(); };
+        followPixelRatio();
+        screen.orientation?.addEventListener('change', resize);
         const resizeHeader = () => {
             flushSync(resizeLayout);
             resizeAutomatically(true);
         };
         resizeLayout();
+        const keepUserFocus = (event: Event) => {
+            if (!event.isTrusted || (event instanceof KeyboardEvent && ['F11', 'Shift', 'Control', 'Alt', 'Meta'].includes(event.key))) return;
+            if (event instanceof PointerEvent && event.target instanceof Element) {
+                const target = event.target.closest('button, a[href], input, [tabindex]');
+                if (focusable(target) && !target.closest('dialog:modal, [data-fullscreen-overlay]')) {
+                    fullscreenUserFocus = target;
+                    pendingFullscreenFocus = undefined;
+                }
+            }
+            const before = document.activeElement;
+            requestAnimationFrame(() => {
+                const current = document.activeElement;
+                if (focusable(current) && (current !== before || (event instanceof PointerEvent && event.target instanceof Node && current.contains(event.target)))) {
+                    fullscreenUserFocus = current;
+                }
+            });
+        };
         const beginGesture = (event: PointerEvent) => {
             if (event.button === 0 && event.target instanceof HTMLCanvasElement) gesturePointers.set(event.pointerId, event.pointerType);
         };
@@ -415,10 +543,19 @@
             if (!mouseOnly || overlayMove?.pointerType === 'mouse') void finishOverlayMove();
             requestAnimationFrame(finishDeferredResize);
         };
-        const blur = () => releaseGesture();
+        const blur = () => {
+            blurredListFocus = document.activeElement;
+            releaseGesture();
+        };
         const contextMenu = (event: MouseEvent) => { if (!event.defaultPrevented) releaseGesture(true); };
         const mouseMove = (event: MouseEvent) => { if (event.buttons === 0) releaseGesture(true); };
         const visibility = () => { if (document.hidden) releaseGesture(); };
+        const userFocus = (event: FocusEvent) => {
+            if (event.isTrusted && focusable(event.target as Element) && !(event.target as Element).closest('dialog:modal, [data-fullscreen-overlay]')) {
+                fullscreenUserFocus = event.target as HTMLElement;
+                pendingFullscreenFocus = undefined;
+            }
+        };
         const endGesture = (event: PointerEvent) => {
             gesturePointers.delete(event.pointerId);
             releaseHandles(event);
@@ -430,8 +567,15 @@
         window.addEventListener('contextmenu', contextMenu);
         window.addEventListener('mousemove', mouseMove);
         window.addEventListener('blur', blur);
+        window.addEventListener('focusin', userFocus, true);
         window.addEventListener('pointerup', endGesture);
         window.addEventListener('pointercancel', endGesture);
+        window.addEventListener('pointerdown', keepUserFocus, true);
+        window.addEventListener('keydown', keepUserFocus, true);
+        window.addEventListener('pointerup', keepUserFocus, true);
+        window.addEventListener('keyup', keepUserFocus, true);
+        const overlayFocus = new MutationObserver(restoreFullscreenFocus);
+        overlayFocus.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['open', 'class', 'style', 'inert'] });
         window.addEventListener("resize", resize);
         window.visualViewport?.addEventListener("resize", resizeHeader);
         const observer = new ResizeObserver(() => resizeAutomatically());
@@ -446,20 +590,28 @@
             ++resumeRevision;
             ++layoutRevision;
             ++locationRequest;
-            clearTimeout(resizeTimer);
+            cancelWindowResize();
             observer.disconnect();
             rootSize.disconnect();
             searchSize.disconnect();
             controlsSize?.disconnect();
+            overlayFocus.disconnect();
             mapElement.removeEventListener('pointerdown', beginGesture, true);
             document.removeEventListener('lostpointercapture', releaseHandles);
             document.removeEventListener('visibilitychange', visibility);
             window.removeEventListener('contextmenu', contextMenu);
             window.removeEventListener('mousemove', mouseMove);
             window.removeEventListener('blur', blur);
+            window.removeEventListener('focusin', userFocus, true);
             window.removeEventListener('pointerup', endGesture);
             window.removeEventListener('pointercancel', endGesture);
+            window.removeEventListener('pointerdown', keepUserFocus, true);
+            window.removeEventListener('keydown', keepUserFocus, true);
+            window.removeEventListener('pointerup', keepUserFocus, true);
+            window.removeEventListener('keyup', keepUserFocus, true);
             window.removeEventListener("resize", resize);
+            resolution?.removeEventListener('change', pixelRatioChanged);
+            screen.orientation?.removeEventListener('change', resize);
             window.visualViewport?.removeEventListener("resize", resizeHeader);
         };
     });
@@ -655,7 +807,7 @@
     }
     function moveResize(event: PointerEvent) {
         if (!drag || event.pointerId !== drag.pointer) return;
-        layoutMode = "split";
+        if (!fullscreen) layoutMode = "split";
         preferredWidth = Math.max(minimumListWidth, Math.min(maxListWidth, drag.width + event.clientX - drag.startX));
     }
     async function finishResize(event?: PointerEvent, cancel = false) {
@@ -669,9 +821,15 @@
         if (current.target.hasPointerCapture(current.pointer)) current.target.releasePointerCapture(current.pointer);
         dragging = false;
         if (!cancel) persistLayout();
-        await settleLayout(undefined, true, true);
+        await settleLayout(undefined, true, !fullscreen && !windowResize);
     }
     async function toggleResults() {
+        if (fullscreen) {
+            fullscreenResultsVisible = !fullscreenResultsVisible;
+            await tick();
+            root.querySelector<HTMLButtonElement>(resultsCollapsed ? ".fullscreen-results-toggle" : ".result-header .collapse-results")?.focus();
+            return;
+        }
         await changeLayout(resultsCollapsed ? "split" : "map");
         root.querySelector<HTMLButtonElement>(".collapse-results")?.focus();
     }
@@ -812,7 +970,58 @@
         resizing = true;
         await settleLayout(lastViewport);
     }
+    export async function setFullscreen(value: boolean, expectResize = false, handoffFocus = true) {
+        if (fullscreen === value) return;
+        rememberListPosition();
+        if (value) fullscreenTrigger = handoffFocus && focusable(document.activeElement) ? document.activeElement : undefined;
+        if (value) {
+            void finishResize();
+            void finishOverlayResize();
+            void finishOverlayMove();
+        }
+        const previous = windowResize;
+        const stopped = !previous || previous.transition ? stopUserMovement() : false;
+        const userMovement = stopped || Boolean(previous?.userMovement);
+        // An ordinary resize can precede its display-mode event. A pending
+        // fullscreen transition, however, never owns the next transition's
+        // delayed resize.
+        const waiting = expectResize && (!previous || previous.transition);
+        cancelWindowResize();
+        fullscreenTransitionUntil = expectResize ? performance.now() + 1000 : 0;
+        const pending = { publish: previous?.publish ?? false, preserveSearch: true, userMovement, waiting, transition: expectResize,
+            area: previous?.area, measure: previous?.measure,
+            timer: undefined as ReturnType<typeof setTimeout> | undefined,
+            fallback: undefined as ReturnType<typeof setTimeout> | undefined };
+        windowResize = pending;
+        pendingFullscreenFocus = handoffFocus ? value : undefined;
+        fullscreenUserFocus = undefined;
+        fullscreenFocusReady = false;
+        resizing = true;
+        if (value) fullscreenResultsVisible = false;
+        // On exit, the window event owns cancellation after measuring the restored layout.
+        fullscreen = value;
+        if (value && active) onwindowresize?.();
+        if (waiting) {
+            // Finish focus/layout without treating a delayed first resize as a
+            // new search. The transition deadline also bounds unchanged sizes.
+            pending.fallback = setTimeout(() => {
+                if (windowResize !== pending) return;
+                if (!gestureActive()) { resizeLayout(); resizeMap(); }
+                resizing = Boolean(drag || overlayDrag || overlayMove);
+                fullscreenFocusReady = true;
+                restoreFullscreenFocus();
+            }, 250);
+            pending.timer = setTimeout(() => {
+                if (windowResize !== pending) return;
+                pending.timer = undefined;
+                pending.waiting = false;
+                void settleLayout(undefined, true);
+            }, 1000);
+        }
+        await settleLayout(undefined, true);
+    }
     async function settleLayout(area: TrailSearchBounds | undefined, preserveCamera = false, publish = false) {
+        if (area && windowResize) windowResize.area = area;
         if (gestureActive()) {
             deferredSettle = { area: map?.isMoving() ? undefined : area ?? deferredSettle?.area,
                 preserveCamera, publish: publish || Boolean(deferredSettle?.publish) };
@@ -825,15 +1034,20 @@
         if (mapVisible()) resizeMap();
         await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         if (revision !== layoutRevision || !root.isConnected) return false;
+        if (windowResize?.waiting) return true;
         if (gestureActive()) {
             deferredSettle = { area: undefined, preserveCamera, publish: publish || Boolean(deferredSettle?.publish) };
             return false;
         }
-        if (deferredSettle?.publish) deferredResize = { preserveSearch: false };
-        publish ||= deferredResize?.preserveSearch === false || resizeTimer !== undefined;
-        const requestedArea = publish ? undefined : area;
-        clearTimeout(resizeTimer);
-        resizeTimer = undefined;
+        const pending = windowResize;
+        if (pending?.measure) {
+            const measured = pending.measure(pending.transition);
+            pending.preserveSearch = measured.preserveSearch;
+            pending.publish ||= measured.publish;
+        }
+        cancelWindowResize();
+        const requestedArea = pending?.userMovement || deferredSettle?.publish ? undefined : pending?.area ?? area;
+        publish ||= Boolean(deferredSettle?.publish) || Boolean(pending && (pending.userMovement || (pending.publish && !pending.preserveSearch)));
         resizing = true;
         if (map && mapVisible()) {
             if (requestedArea) resizeToArea(requestedArea);
@@ -843,8 +1057,11 @@
         deferredSettle = undefined;
         resizing = Boolean(drag || overlayDrag || overlayMove);
         const locked = document.querySelector('dialog:modal') || document.body.style.position === 'fixed';
-        if (publish && !locked) notifyViewport();
-        else if (preserveCamera) renderViewport();
+        // A completed window/fullscreen series already owns its 200-ms debounce.
+        if (publish && !locked) notifyViewport(false, Boolean(pending));
+        else if (preserveCamera || pending) renderViewport(Boolean(pending));
+        fullscreenFocusReady = true;
+        restoreFullscreenFocus();
         return true;
     }
     async function resizeKey(event: KeyboardEvent) {
@@ -862,10 +1079,10 @@
         if (width === undefined) return;
         event.preventDefault();
         resizing = true;
-        layoutMode = "split";
+        if (!fullscreen) layoutMode = "split";
         preferredWidth = Math.max(minimumListWidth, Math.min(maxListWidth, width));
         persistLayout();
-        await settleLayout(undefined, true, true);
+        await settleLayout(undefined, true, !fullscreen && !windowResize);
     }
 
     async function toggleMap() {
@@ -873,7 +1090,7 @@
         resizing = true;
         showMap = !showMap;
         if (!showMap && map?.isMoving()) {
-            map.stop();
+            stopUserMovement();
             cameraPositioned = false;
         }
         await tick();
@@ -908,7 +1125,7 @@
     </button>
 {/snippet}
 
-<div bind:this={root} class="map-results" data-layout-ready={!resizing} class:show-map={showMap} class:results-collapsed={resultsCollapsed} class:results-expanded={miniMap} class:dragging class:resizing-overlay={overlayDragging} class:moving-overlay={Boolean(overlayMove)}
+<div bind:this={root} class="map-results" data-layout-ready={!resizing} class:fullscreen class:show-map={showMap} class:results-collapsed={resultsCollapsed} class:results-expanded={miniMap} class:dragging class:resizing-overlay={overlayDragging} class:moving-overlay={Boolean(overlayMove)}
     style:--results-width={`${listWidth}px`} style:--overlay-width={`${overlayWidth}px`} style:--overlay-height={`${overlayHeight}px`}
     style:--overlay-min-height={`${minOverlayHeight}px`} style:--overlay-right={`${overlayRight}px`} style:--overlay-bottom={`${overlayBottom}px`} style:--pane-gap={`${paneGap}px`}>
     <button type="button" class="map-view-toggle" onclick={toggleMap}
@@ -916,6 +1133,24 @@
         <i class={`fa ${showMap ? "fa-list-ul" : "fa-map"}`} aria-hidden="true"></i>
         {$_(showMap ? "trail-map-show-results" : "trail-map-show-map")}
     </button>
+    {#if fullscreen}
+        <div class="fullscreen-tools">
+            {#if onfullscreensearchtoggle}
+                <button type="button" class="btn-icon pane-button map-overlay-button fullscreen-search-toggle" aria-controls="map-search-toolbar"
+                    aria-expanded={fullscreenSearchVisible} aria-label={$_(fullscreenSearchVisible ? "trail-map-hide-search" : "trail-map-show-search")}
+                    title={$_(fullscreenSearchVisible ? "trail-map-hide-search" : "trail-map-show-search")} onclick={onfullscreensearchtoggle}>
+                    <i class="fa fa-magnifying-glass" aria-hidden="true"></i>
+                </button>
+            {/if}
+            {#if resultsCollapsed}
+                <button type="button" class="btn-icon pane-button map-overlay-button fullscreen-results-toggle" aria-controls={`${id}-trail-list`}
+                    aria-expanded={false} aria-label={$_("trail-map-restore-results")}
+                    title={$_("trail-map-restore-results")} onclick={toggleResults}>
+                    <i class="fa fa-list-ul" aria-hidden="true"></i>
+                </button>
+            {/if}
+        </div>
+    {/if}
     <div id={`${id}-trail-list`} class="trail-list">
         {#if !miniMap && !resultsCollapsed}
             <div class="result-header">
@@ -936,9 +1171,9 @@
                 </button>
             </div>
         {/if}
-        <div class="trail-results" onscroll={rememberListPosition}>
+        <div class="trail-results" onscroll={rememberListPosition} onfocusin={revealFocusedResult}>
             {#if display === "table"}
-                <TrailTable trails={loading ? null : trails} selection={!selection.size ? undefined : selection} onTrailSelect={toggleSelection}
+                <TrailTable trails={loading ? null : trails} selection={fullscreen || !selection.size ? undefined : selection} selectable={!fullscreen} onTrailSelect={toggleSelection}
                     {tableHeader} {filter} {onsort} items={4}
                     trailHref={trail => `/map/trail/@${trail.author}${trail.domain ? `@${trail.domain}` : ''}/${trail.id}`}
                     onhover={hoverTrail} />
@@ -953,16 +1188,16 @@
                     {:else}
                         {#if !trails.length}<EmptyStateSearch />{/if}
                         {#each trails as trail (trail.id)}
-                            <TrailResultLink {trail} list={display === "list"} selected={selection.has(trail)}
+                            <TrailResultLink {trail} list={display === "list"} selected={!fullscreen && selection.has(trail)} selectable={!fullscreen}
                                 href={`/map/trail/@${trail.author}${trail.domain ? `@${trail.domain}` : ''}/${trail.id}`}
                                 onclick={event => handleTrailClick(event, trail)} onselect={() => toggleSelection(trail)}
                                 onhover={hovered => hoverTrail(hovered ? trail : undefined)}>
                                 {#snippet children(hovered)}
                                 {#if display === "list"}
-                                    <TrailListItem {trail} {hovered} selected={selection.has(trail)}
+                                    <TrailListItem {trail} {hovered} selected={!fullscreen && selection.has(trail)}
                                         showDescription={false} compact />
                                 {:else}
-                                    <TrailCard {trail} fullWidth={true} {hovered} selected={selection.has(trail)} />
+                                    <TrailCard {trail} fullWidth={true} {hovered} selected={!fullscreen && selection.has(trail)} />
                                 {/if}
                                 {/snippet}
                             </TrailResultLink>
@@ -981,7 +1216,7 @@
                 onkeydown={resizeKey}></div>
         {/if}
     </div>
-    {#if resultsCollapsed}
+    {#if resultsCollapsed && !fullscreen}
         <div class="collapsed-actions">{@render toggleResultsButton()}</div>
     {/if}
     <div class="map-pane" class:overview-hidden={miniMap && overlayHidden}>
@@ -1070,6 +1305,8 @@
     .map-overlay-button { background-color: rgba(var(--menu-background)); }
     @media (hover: hover) { .map-overlay-button:hover { background-color: rgba(var(--secondary-hover)); } }
     .collapsed-actions { left: 1rem; position: absolute; top: 3rem; z-index: 3; }
+    .fullscreen-tools { display: flex; flex-direction: column; gap: .5rem; left: 1rem; position: absolute; top: 1rem; z-index: 4; }
+    .fullscreen-tools .pane-button { height: var(--map-fullscreen-tool-size, 3.125rem); width: var(--map-fullscreen-tool-size, 3.125rem); }
     .overview-actions { display: flex; gap: .25rem; position: absolute; right: .75rem; top: -1rem; z-index: 3; }
     .overview-actions .pane-button { height: 2rem; width: 2rem; }
     .overview-actions .pane-button i { font-size: 1.125rem; }
@@ -1099,10 +1336,26 @@
         .map-view-toggle { align-items: center; align-self: flex-start; background: rgba(var(--input-background)); border: 1px solid rgba(var(--input-border)); border-radius: .5rem; cursor: pointer; display: inline-flex; font-size: .8rem; gap: .5rem; padding: .5rem .8rem; }
         .trail-list, .map-pane { flex: 1; min-height: 0; }
         .map-results:not(.show-map) .map-pane { display: none; }
-        .map-results.show-map .trail-list,
-        .map-results.show-map .selection-toolbar { display: contents; }
-        .map-results.show-map .trail-results,
-        .map-results.show-map .list-resize,
-        .map-results.show-map .selection-toolbar > :global(:not(dialog)) { display: none; }
+        .map-results:not(.fullscreen).show-map .trail-list,
+        .map-results:not(.fullscreen).show-map .selection-toolbar { display: contents; }
+        .map-results:not(.fullscreen).show-map .trail-results,
+        .map-results:not(.fullscreen).show-map .list-resize,
+        .map-results:not(.fullscreen).show-map .selection-toolbar > :global(:not(dialog)) { display: none; }
     }
+    .map-results.fullscreen { --overlay-list-width: min(var(--results-width), calc(100% - 4.75rem)); display: block; height: auto !important; inset: 0; min-height: 0; position: absolute; }
+    .fullscreen .map-view-toggle, .fullscreen .expand-results { display: none; }
+    .map-results.fullscreen .map-pane { display: block; height: 100%; inset: 0; position: absolute; width: 100%; z-index: 0; }
+    .map-results.fullscreen #trail-map { border: 0; border-radius: 0; display: block; height: 100%; inset: 0; position: absolute; width: 100%; z-index: 0; }
+    .map-results.fullscreen .trail-list { background: rgba(var(--menu-background), .96); bottom: var(--map-overlay-bottom, 6rem); box-shadow: 0 3px 16px rgb(0 0 0 / .2); display: flex; left: 1rem; position: absolute; top: var(--map-overlay-top, calc(var(--map-fullscreen-tool-size, 3.125rem) + 2rem)); width: var(--overlay-list-width); z-index: 1; }
+    .map-results.fullscreen.results-collapsed .trail-list { display: contents; }
+    .fullscreen.results-collapsed .trail-results, .fullscreen.results-collapsed .list-resize { display: none; }
+    /* Keep open action dialogs mounted when browser fullscreen hides selection. */
+    .fullscreen .selection-toolbar { display: contents; }
+    .fullscreen .selection-toolbar > :global(:not(dialog)) { display: none; }
+    .fullscreen .result-header { display: flex; }
+    .fullscreen .trail-results { padding: .75rem; }
+    .fullscreen .list-resize { display: block; right: -4px; width: 8px; }
+    .fullscreen .list-resize::before { display: none; }
+    .fullscreen #trail-map :global(.maplibregl-ctrl-top-right) { top: var(--map-controls-top, 0px); }
+    .fullscreen #trail-map :global(.maplibregl-ctrl-top-left) { bottom: 1.5rem; left: auto; right: 0; top: auto; }
 </style>

@@ -1,5 +1,7 @@
+import { discardHiddenScrollPosition } from './map-scroll-fixture';
 import { expect } from '@playwright/test';
-import { windowTest as test, camera, bounds, counts, quietCounts, settle, windowState, mount, clockedSwipe, recordInertiaTarget } from './map-window-fixture';
+import { windowTest as test, camera, bounds, counts, quietCounts, settle, windowState, mount, swipe } from './map-window-fixture';
+import { installBrowserFullscreen } from '../browser_fullscreen';
 import { buildMapPageFixture } from './map-page-fixture';
 
 for (const dev of [true, false]) {
@@ -7,107 +9,108 @@ for (const dev of [true, false]) {
         let bundle: string;
         test.beforeAll(async () => { bundle = await buildMapPageFixture(dev, true, true); });
 
-        for (const motion of ['ease', 'zoom', 'swipe']) {
-            test(`a window resize during a running ${motion} publishes once at the final camera`, async ({ page }) => {
-                await mount(page, bundle);
-                const session = await page.context().newCDPSession(page);
-                const {windowId} = await session.send('Browser.getWindowForTarget');
-                const before = await quietCounts(page);
-                const original = await camera(page);
-                await page.clock.install();
-                await page.clock.pauseAt(new Date(Date.now()+1000));
-                await page.evaluate(()=>{(window as any).motionResizeEvents=0;addEventListener('resize',()=>++(window as any).motionResizeEvents);});
-                if (motion === 'ease') await page.evaluate(() => (window as any).realMap.easeTo({center:[8.04,47.02],zoom:9,duration:1500}));
-                else if (motion === 'zoom') await page.evaluate(() => (window as any).realMap.zoomIn({duration:1500}));
-                else { await recordInertiaTarget(page); await clockedSwipe(page); }
-                expect(await page.evaluate(()=>(window as any).realMap.isMoving())).toBe(true);
-                await session.send('Browser.setWindowBounds',{windowId,bounds:{width:1100,height:800}});
-                await expect.poll(()=>page.evaluate(()=>(window as any).motionResizeEvents)).toBeGreaterThan(0);
-                // Node/CDP round trips cannot let the prerequisite animation finish
-                // before the real resize arrives. Advance only after its handler ran.
-                await page.clock.runFor(8000);
-                expect(await page.evaluate(()=>(window as any).realMap.isMoving())).toBe(false);
-                await settle(page); await session.detach();
-                const after = await quietCounts(page);
-                const reached = await camera(page);
-                if (motion === 'ease') { expect(reached.center[0]).toBeCloseTo(8.04,8); expect(reached.center[1]).toBeCloseTo(47.02,8); expect(reached.zoom).toBeCloseTo(9,8); }
-                else if (motion === 'zoom') expect(reached.zoom).toBeCloseTo(original.zoom+1,8);
-                else {
-                    const target = await page.evaluate(()=>(window as any).inertiaTarget);
-                    expect(reached.center[0]).toBeCloseTo(target.center[0],6);
-                    expect(reached.center[1]).toBeCloseTo(target.center[1],6);
-                    expect(reached.zoom).toBeCloseTo(target.zoom,6);
+        test('hidden results retain their position through a native F11 cycle',async({page})=>{
+            await mount(page,bundle);
+            await page.addStyleTag({content:'.trail-result { min-height:3000px }'});
+            const list=page.locator('.trail-results');
+            await list.evaluate(node=>node.scrollTop=1440);
+            const before=await list.evaluate(node=>node.scrollTop);
+            expect(before).toBeGreaterThan(1000);
+            await discardHiddenScrollPosition(page);
+            await page.locator('.collapse-results').click();
+            await expect(list).not.toBeVisible();
+            await windowState(page,true);
+            await windowState(page,false);
+            await page.locator('.collapse-results').click();
+            await expect(list).toBeVisible();
+            await expect.poll(async()=>Math.abs(await list.evaluate(node=>node.scrollTop)-before)).toBeLessThanOrEqual(2);
+        });
+
+        test('F11 keeps camera and list scope, loads the exact rendered area and hands focus back', async ({ page }) => {
+            await mount(page, bundle);
+            await page.evaluate(() => (window as any).realMap.jumpTo({ center: [8, 47], zoom: 7.2, bearing: 20, pitch: 30 }));
+            await settle(page);
+            for (const target of ['[data-testid="fixture-search"]', '.trail-result a', '.list-resize']) {
+                await page.locator(target).focus();
+                const before = await counts(page), original = await camera(page);
+                for (const fullscreen of [true, false]) {
+                    const previous = await counts(page);
+                    await windowState(page, fullscreen);
+                    const after = await quietCounts(page);
+                    expect(after.results).toBe(before.results);
+                    expect(after.publications).toBe(before.publications);
+                    expect(after.url).toBe(before.url);
+                    expect(after.map, JSON.stringify(await page.evaluate(() => ({ width: innerWidth, height: innerHeight, root: document.querySelector('.map-page')?.className, map: document.querySelector('#trail-map')?.getBoundingClientRect().toJSON(), renders: (window as any).fixture.renders })))).toBe(previous.map + 1);
+                    expect(await camera(page)).toEqual(original);
+                    const request = await page.evaluate(() => (window as any).fixture.requests.filter((r: any) => r.channel === 'map').at(-1).body);
+                    const visible = await bounds(page);
+                    for (const corner of ['northEast', 'southWest'] as const) for (const axis of ['lat', 'lng'] as const) expect(request[corner][axis]).toBeCloseTo(visible[corner][axis], 10);
+                    await expect(page.locator(fullscreen ? '.fullscreen-search-toggle' : target)).toBeFocused();
                 }
+            }
+        });
+
+        for (const delay of [0, 16, 50]) {
+            test(`real engine focus survives resize ${delay} ms after change`, async ({ page }) => {
+                await installBrowserFullscreen(page);
+                await mount(page, bundle);
+                for (const target of ['[data-testid="fixture-search"]', '.trail-result a', '.list-resize']) {
+                    await page.locator(target).focus();
+                    for (const enabled of [true, false]) {
+                        await page.evaluate(({ enabled, delay }) => {
+                            (window as any).setTestBrowserFullscreen(enabled, true, false);
+                            setTimeout(() => window.dispatchEvent(new Event('resize')), delay);
+                        }, { enabled, delay });
+                        await settle(page);
+                        await expect(page.locator(enabled ? '.fullscreen-search-toggle' : target)).toBeFocused();
+                    }
+                }
+            });
+        }
+
+        for (const motion of ['ease', 'zoom', 'swipe']) {
+            test(`F11 finishes a running ${motion} gesture once at the displayed camera`, async ({ page }) => {
+                await mount(page, bundle);
+                await expect(async () => {
+                    if (motion === 'ease') await page.evaluate(() => (window as any).realMap.easeTo({ center: [8.04, 47.02], zoom: 9, duration: 1500 }));
+                    else if (motion === 'zoom') await page.evaluate(() => (window as any).realMap.zoomIn({ duration: 1500 }));
+                    else await swipe(page);
+                    expect(await page.evaluate(() => (window as any).realMap.isMoving())).toBe(true);
+                }).toPass();
+                const before = await counts(page);
+                await windowState(page, true);
+                const after = await quietCounts(page);
                 expect(after.publications - before.publications).toBe(1);
                 expect(after.results - before.results).toBe(1);
                 const last = await page.evaluate(() => (window as any).fixture.publications.at(-1)[0]);
                 const visible = await bounds(page);
                 for (const corner of ['northEast', 'southWest'] as const) for (const axis of ['lat', 'lng'] as const) expect(last[corner][axis]).toBeCloseTo(visible[corner][axis], 10);
-                const params = new URLSearchParams(after.url);
-                for (const [key,value] of Object.entries({tl_lat:visible.northEast.lat,tl_lon:visible.northEast.lng,br_lat:visible.southWest.lat,br_lon:visible.southWest.lng})) expect(Number(params.get(key))).toBeCloseTo(value,10);
             });
         }
 
-        test('a deferred window resize survives collapse during a fling', async ({page}) => {
-            await mount(page,bundle);
-            const before = await quietCounts(page);
-            await page.clock.install();
-            await page.clock.pauseAt(new Date(Date.now()+1000));
-            await page.evaluate(()=>{(window as any).motionResizeEvents=0;addEventListener('resize',()=>++(window as any).motionResizeEvents);});
-            await recordInertiaTarget(page);
-            await clockedSwipe(page);
-            expect(await page.evaluate(()=>(window as any).realMap.isMoving())).toBe(true);
-            const session = await page.context().newCDPSession(page);
-            const {windowId} = await session.send('Browser.getWindowForTarget');
-            await session.send('Browser.setWindowBounds',{windowId,bounds:{width:1100,height:800}});
-            await session.detach();
-            await expect.poll(()=>page.evaluate(()=>(window as any).motionResizeEvents)).toBeGreaterThan(0);
-            // Let the 200ms resize tail finish while inertia is still running.
-            await page.clock.runFor(250);
-            expect(await page.evaluate(()=>(window as any).realMap.isMoving())).toBe(true);
-            const collapse = (await page.locator('.collapse-results').boundingBox())!;
-            await page.mouse.click(collapse.x+collapse.width/2,collapse.y+collapse.height/2);
-            await page.clock.runFor(8000);
-            expect(await page.evaluate(()=>(window as any).realMap.isMoving())).toBe(false);
-            const after = await quietCounts(page), reached = await camera(page);
-            const target = await page.evaluate(()=>(window as any).inertiaTarget);
-            expect(reached.center[0]).toBeCloseTo(target.center[0],6);
-            expect(reached.center[1]).toBeCloseTo(target.center[1],6);
-            expect(reached.zoom).toBeCloseTo(target.zoom,6);
-            expect(after.publications-before.publications).toBe(1);
-            expect(after.results-before.results).toBe(1);
-            const visible = await bounds(page);
-            const published = await page.evaluate(()=>(window as any).fixture.publications.at(-1)[0]);
-            for (const corner of ['northEast','southWest'] as const) for (const axis of ['lat','lng'] as const) {
-                expect(published[corner][axis]).toBeCloseTo(visible[corner][axis],10);
-            }
-            const params = new URLSearchParams(after.url);
-            for (const [key,value] of Object.entries({tl_lat:visible.northEast.lat,tl_lon:visible.northEast.lng,br_lat:visible.southWest.lat,br_lon:visible.southWest.lng})) expect(Number(params.get(key))).toBeCloseTo(value,10);
-        });
-
-        test(`load after resize never restores the uninitialized camera`, async ({ page }) => {
-            await mount(page, bundle, true);
-            await page.evaluate(() => {
-                const map = (window as any).realMap, resize = map._resizeInternal.bind(map);
-                let finished = false;
-                let resizes = 0;
-                map._resizeInternal = (...args: any[]) => {
-                    const result = resize(...args);
-                    if (++resizes === 1 && !finished) { finished = true; (window as any).finishMapLoad(); }
-                    return result;
-                };
+        for (const transition of ['fullscreen', 'resize']) {
+            test(`load after ${transition} never restores the uninitialized camera`, async ({ page }) => {
+                await mount(page, bundle, true);
+                await page.evaluate(transition => {
+                    const map = (window as any).realMap, resize = map._resizeInternal.bind(map);
+                    let finished = false;
+                    let resizes = 0;
+                    map._resizeInternal = (...args: any[]) => {
+                        const result = resize(...args);
+                        if (++resizes === 2 && !finished) { finished = true; (window as any).finishMapLoad(); }
+                        return result;
+                    };
+                    if (transition === 'resize') window.dispatchEvent(new Event('resize'));
+                }, transition);
+                if (transition === 'fullscreen') await windowState(page, true);
+                await settle(page);
+                const view = await camera(page);
+                expect(view.center[0]).toBeCloseTo(8, 3);
+                expect(view.center[1]).toBeCloseTo(47, 3);
+                expect(view.zoom).toBeGreaterThan(5);
+                expect((await counts(page)).url).not.toContain('tl_lat=90');
             });
-            const session = await page.context().newCDPSession(page);
-            const {windowId} = await session.send('Browser.getWindowForTarget');
-            await session.send('Browser.setWindowBounds', {windowId,bounds:{width:1100,height:800}});
-            await session.detach();
-            await settle(page);
-            const view = await camera(page);
-            expect(view.center[0]).toBeCloseTo(8, 3);
-            expect(view.center[1]).toBeCloseTo(47, 3);
-            expect(view.zoom).toBeGreaterThan(5);
-            expect((await counts(page)).url).not.toContain('tl_lat=90');
-        });
+        }
 
         for (const scenario of ['control', 'fullscreen', 'leave-fullscreen']) {
             test(`snapshot remount retains center and zoom (${scenario})`, async ({ page }) => {

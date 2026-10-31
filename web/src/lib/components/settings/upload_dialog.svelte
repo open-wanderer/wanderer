@@ -69,7 +69,8 @@
 
 {#if visibleUploads.length}
     <div
-        class="fixed bottom-4 right-4 z-10 p-4 bg-background rounded-xl border border-input-border shadow-xl"
+        data-fullscreen-overlay
+        class="upload-dialog fixed bottom-4 right-4 z-10 p-4 bg-background rounded-xl border border-input-border shadow-xl"
         class:cursor-pointer={minimized}
         in:slide
         out:slide
@@ -193,3 +194,7 @@
         </div>
     </div>
 {/if}
+
+<style>
+    :global(body:has(.map-page.fullscreen)) .upload-dialog { z-index: 45; }
+</style>

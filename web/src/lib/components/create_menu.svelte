@@ -71,7 +71,7 @@
         <i class="fa fa-caret-down" aria-hidden="true"></i>
     </button>
     {#if open}
-        <nav id={`${id}-panel`} class="create-panel" aria-label={$_("create")} bind:this={panel}>
+        <nav data-fullscreen-overlay id={`${id}-panel`} class="create-panel" aria-label={$_("create")} bind:this={panel}>
             <a href="/trail/edit/new" data-sveltekit-reload onclick={selected}>
                 <i class="fa fa-route" aria-hidden="true"></i><span>{$_("new-trail")}</span>
             </a>

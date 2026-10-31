@@ -3,7 +3,7 @@ import { windowTest as test, mount, counts, quietCounts, bounds, settle } from '
 import { buildMapPageFixture } from './map-page-fixture';
 
 async function exactPublishedArea(page: import('@playwright/test').Page) {
- const visible=await bounds(page),published=await page.evaluate(()=>(window as any).fixture.publications.at(-1)[0]),params=new URLSearchParams((await counts(page)).url);
+ const visible=await bounds(page),published=await page.evaluate(()=>(window as any).fixture.publications.at(-1)[0]),params=new URLSearchParams(await page.evaluate(()=>location.search));
  for(const corner of ['northEast','southWest'] as const)for(const axis of ['lat','lng'] as const)expect(published[corner][axis]).toBeCloseTo(visible[corner][axis],10);
  for(const [key,value] of Object.entries({tl_lat:visible.northEast.lat,tl_lon:visible.northEast.lng,br_lat:visible.southWest.lat,br_lon:visible.southWest.lng}))expect(Number(params.get(key))).toBeCloseTo(value,10);
 }
@@ -49,7 +49,7 @@ for(const dev of [true,false])test.describe(`gesture releases (${dev?'developmen
    await cdp.detach();
   }finally{await context.close();}
  });
- test('a real drag continues beyond the resize series and publishes its exact final bounds',async({page})=>{
+ test('a window resize stops the preceding drag and keeps its final exact bounds',async({page})=>{
   await mount(page,bundle);
   await page.addStyleTag({content:"output { display:none }"});
   await settle(page);
@@ -77,7 +77,7 @@ for(const dev of [true,false])test.describe(`gesture releases (${dev?'developmen
    await page.mouse.move(x+104+i*3,y+34+i);
    await page.clock.runFor(16);
   }
-  expect(await bounds(page)).not.toEqual(beforeFinalDrag);
+  expect(await bounds(page)).toEqual(beforeFinalDrag);
   await page.mouse.up();await page.clock.runFor(1000);
   const after=await quietCounts(page);
   expect(after.publications).toBe(before.publications+1);
@@ -87,6 +87,7 @@ for(const dev of [true,false])test.describe(`gesture releases (${dev?'developmen
   expect(await bounds(page)).not.toEqual(original);
   await session.detach();
  });
+
  test('two window series during a drag publish only once after release in the second series',async({page})=>{
   await mount(page,bundle);await page.addStyleTag({content:'output { display:none }'});await settle(page);
   const before=await quietCounts(page),r=(await page.locator('.maplibregl-canvas').boundingBox())!,x=r.x+r.width/2,y=r.y+r.height/2;
@@ -97,7 +98,10 @@ for(const dev of [true,false])test.describe(`gesture releases (${dev?'developmen
   try{
    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+30,y+10);await page.clock.runFor(16);
    await session.send('Emulation.setDeviceMetricsOverride',{width:initial.width+30,height:initial.height+10,deviceScaleFactor:1,mobile:false});
-   await expect.poll(()=>page.evaluate(()=>(window as any).seriesEvents)).toBe(1);await page.clock.runFor(260);
+   await expect.poll(()=>page.evaluate(()=>(window as any).seriesEvents)).toBe(1);
+   // R13 stops motion preceding the resize; a newly started drag belongs to the user.
+   await page.mouse.up();await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+30,y+10);
+   await page.clock.runFor(260);
    expect((await counts(page)).publications).toBe(before.publications);
    await page.mouse.move(x+65,y+20);await page.clock.runFor(16);
    await session.send('Emulation.setDeviceMetricsOverride',{width:initial.width+60,height:initial.height+20,deviceScaleFactor:1,mobile:false});

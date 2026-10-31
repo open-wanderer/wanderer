@@ -8,13 +8,14 @@
         href: string;
         list?: boolean;
         selected: boolean;
+        selectable?: boolean;
         onclick: (event: MouseEvent) => void;
         onselect: () => void;
         onhover?: (hovered: boolean) => void;
         children: Snippet<[boolean]>;
     }
 
-    let { trail, href, list = false, selected,
+    let { trail, href, list = false, selected, selectable = true,
         onclick, onselect, onhover, children }: Props = $props();
     let hovered = $state(false);
     let focused = $state(false);
@@ -29,7 +30,7 @@
         if (document.hasFocus() && !(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) focused = false;
     }}>
     <a {href} {onclick}>{@render children(hovered)}</a>
-    {#if hovered || focused || selected}
+    {#if selectable && (hovered || focused || selected)}
         <label class="selection" class:list>
             <input type="checkbox" checked={selected}
                 aria-label={$_("trail-results-select-trail", { values: { name: trail.name } })}

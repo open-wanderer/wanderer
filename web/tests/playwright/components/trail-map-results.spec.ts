@@ -10,6 +10,7 @@ const fixtureSource = `
         let view = $state('map');
         let resultDisplay = $state('cards');
         let trails = $state(Array.from({ length: 6 }, (_, i) => ({ id: 'fixture-' + i, author: 'tester', name: 'Fixture trail ' + i })));
+        let fullscreen = $state(false);
         const initial = window.mapInitial ?? {};
         let initialBounds = $state(initial.bounds);
         let boundingBox = $state(initial.boundingBox ?? { min_lat: 0, max_lat: 0, min_lon: 0, max_lon: 0 });
@@ -46,13 +47,13 @@ const fixtureSource = `
         window.mapResultsFixture.display = mode => resultDisplay = mode;
         window.mapResultsFixture.setBounds = bounds => initialBounds = bounds;
         window.mapResultsFixture.focusPlace = place => results.focusPlace(place);
-
+        window.mapResultsFixture.fullscreen = (value = true) => results.setFullscreen(value);
         function viewport(bounds, zoom, entering) {
             initialBounds = bounds;
             window.mapResultsFixture.events.push(JSON.parse(JSON.stringify({ bounds, zoom, entering })));
         }
     </script>
-    <main>
+    <main class:fullscreen>
         <nav>
             {#each ['map', 'cards', 'list', 'table'] as option}
                 <button data-testid={'view-' + option} onclick={() => view = option}>{option}</button>
@@ -60,7 +61,8 @@ const fixtureSource = `
         </nav>
         <div data-search-root style:height={headerHeight + 'px'}></div>
         <div hidden={view !== 'map'}>
-            <TrailMapResults bind:this={results} {trails} onupdate={updated => window.mapResultsFixture.updates.push(updated ?? null)} mapTrails={[]} loading={false} display={resultDisplay}
+            <TrailMapResults bind:this={results} bind:fullscreen {trails} onupdate={updated => window.mapResultsFixture.updates.push(updated ?? null)} mapTrails={[]} loading={false} display={resultDisplay}
+                onfullscreensearchtoggle={() => {}}
                 active={view === 'map'} {initialBounds} {initialCenter}
                 {boundingBox} {settings} {near} onviewport={viewport} onzoom={(zoom, bounds) => { window.mapResultsFixture.zooms.push(zoom); window.mapResultsFixture.renders.push({ zoom, bounds }); }}>
                 {#snippet moreResults()}{/snippet}
@@ -71,8 +73,9 @@ const fixtureSource = `
         /* Match the app's Tailwind preflight without loading its entire CSS. */
         main :global(*) { box-sizing: border-box; }
         main :global(.sr-only) { border: 0; clip: rect(0, 0, 0, 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
-
-
+        main.fullscreen { position: fixed; inset: 0; }
+        .fullscreen nav { display: none; }
+        .fullscreen > div { height: 100%; }
     </style>
 `;
 
@@ -91,6 +94,13 @@ async function openLinkedMap(page: Page, bundle: string) {
     await expect.poll(() => camera(page)).toMatchObject({ center: [7, 46], zoom: 14 });
     await expect.poll(() => eventCount(page)).toBeGreaterThan(0);
     await expect(page.locator('#trail-map .reset-map-view')).toBeVisible();
+}
+
+async function toggleFullscreen(page: Page) {
+    const value = await page.locator('.map-results').evaluate(element => !element.classList.contains('fullscreen'));
+    await page.evaluate(value => (window as any).mapResultsFixture.fullscreen(value), value);
+    if (value) await expect(page.locator('.map-results')).toHaveClass(/fullscreen/);
+    else await expect(page.locator('.map-results')).not.toHaveClass(/fullscreen/);
 }
 
 async function returnToMap(page: Page) {
@@ -177,6 +187,21 @@ for (const dev of [true, false]) {
                 expect((await camera(page)).zoom).toBeCloseTo(10 + Math.log2(Math.min(small.width / original.width, small.height / original.height)), 1);
                 await toggleExpandedResults(page);
                 await expect.poll(() => camera(page).then(value => value.zoom)).toBeCloseTo(10, 5);
+            }
+        });
+
+        test('retains the camera and search area over repeated browser fullscreen layouts', async ({ page }) => {
+            await page.addInitScript(() => (window as any).mapInitial = { cameraGeometry: true });
+            await openLinkedMap(page, bundle);
+            const expected = { center: [8, 47], zoom: 10, bearing: 20, pitch: 30 };
+            await page.evaluate(change => (window as any).mapResultsFixture.setCamera(change), expected);
+            const before = await eventCount(page);
+            for (let i = 0; i < 2; i++) {
+                await toggleFullscreen(page);
+                await expect.poll(() => camera(page)).toEqual(expected);
+                await toggleFullscreen(page);
+                await expect.poll(() => camera(page)).toEqual(expected);
+                expect(await eventCount(page)).toBe(before);
             }
         });
 
@@ -445,14 +470,15 @@ for (const dev of [true, false]) {
             });
         }
 
-        test('restores the default view from the small overview', async ({ page }) => {
+        test('restores the default view from the small overview and fullscreen', async ({ page }) => {
             await openLinkedMap(page, bundle);
             await page.evaluate(() => (window as any).mapResultsFixture.configureDefault({
                 bounds: { has_trails: false, min_lon: 0, max_lon: 0, min_lat: 0, max_lat: 0 },
                 settings: { mapFocus: 'location', location: { lon: 11, lat: 48 } },
             }));
             await toggleExpandedResults(page);
-            for (const mode of ['overview']) {
+            for (const mode of ['overview', 'fullscreen']) {
+                if (mode === 'fullscreen') await toggleFullscreen(page);
                 await page.evaluate(() => (window as any).mapResultsFixture.pan());
                 await page.locator('#trail-map .reset-map-view').click();
                 await expect.poll(() => camera(page)).toEqual({ center: [11, 48], zoom: 12, bearing: 0, pitch: 0 });
@@ -526,14 +552,21 @@ for (const dev of [true, false]) {
             await expect(page.getByRole('checkbox', { name: 'Select Updated trail 0', exact: true })).not.toBeChecked();
         });
 
-        test('retains multi-select across layouts and forwards edits', async ({ page }) => {
+        test('hides multi-select in fullscreen, restores it on exit and forwards edits', async ({ page }) => {
             await openLinkedMap(page, bundle);
             await page.getByTestId('map-card').first().hover();
             await page.getByRole('checkbox', { name: 'Select Fixture trail 0', exact: true }).check();
             await toggleExpandedResults(page);
             await expect(page.getByRole('button', { name: 'trail-results-selection-actions' })).toBeVisible();
             expect(await page.evaluate(() => (window as any).mapResultsFixture.selected())).toEqual(['fixture-0']);
-
+            await toggleFullscreen(page);
+            await page.locator('.fullscreen-results-toggle').click();
+            await expect(page.locator('.selection-toolbar')).toBeHidden();
+            for (const display of ['cards', 'list', 'table']) {
+                await page.evaluate(display => (window as any).mapResultsFixture.display(display), display);
+                await expect(page.locator('.trail-results input[type="checkbox"]')).toHaveCount(0);
+            }
+            await toggleFullscreen(page);
             await expect(page.getByRole('button', { name: 'trail-results-selection-actions' })).toBeVisible();
             await expect(page.locator('.selection-count')).toHaveText('1 selected');
             const updated = [{ id: 'fixture-0', difficulty: 'difficult' }];
@@ -559,6 +592,58 @@ for (const dev of [true, false]) {
                 if (lock === 'modal') await expect(page.locator('dialog[open]')).toBeVisible();
             });
         }
+
+        test('a pane action superseding window settle releases resizing before the next pan', async ({ page }) => {
+            await openLinkedMap(page, bundle);
+            await page.evaluate(() => {
+                window.addEventListener('resize', () => {
+                    const start = performance.now();
+                    setTimeout(() => {
+                        const raf = window.requestAnimationFrame;
+                        window.requestAnimationFrame = callback => raf(time => {
+                            window.requestAnimationFrame = raf;
+                            (window as any).raceDelay = performance.now() - start;
+                            document.querySelector<HTMLButtonElement>('.expand-results')!.click();
+                            callback(time);
+                        });
+                    }, 95);
+                }, { once: true });
+            });
+            await page.setViewportSize({ width: 1400, height: 900 });
+            await expect.poll(() => page.evaluate(() => (window as any).raceDelay ?? 0)).toBeGreaterThanOrEqual(95);
+            await expect(page.locator('.map-results')).toHaveAttribute('data-layout-ready', 'true');
+            const before = await eventCount(page);
+            await page.evaluate(() => (window as any).mapResultsFixture.pan());
+            await expect.poll(() => eventCount(page)).toBe(before + 1);
+        });
+
+        test('keeps an open selection action dialog through browser fullscreen layouts', async ({ page }) => {
+            await page.addInitScript(() => (window as any).mapInitial = { cameraGeometry: true });
+            await openLinkedMap(page, bundle);
+            await page.getByTestId('map-card').first().hover();
+            await page.getByRole('checkbox', { name: 'Select Fixture trail 0', exact: true }).check();
+            await page.evaluate(() => (window as any).mapResultsFixture.openActionDialog());
+            const dialog = page.locator('dialog[open]');
+            await expect(dialog.getByRole('textbox')).toBeFocused();
+            const position = await dialog.boundingBox();
+            const before = await eventCount(page);
+            const initialCamera = await camera(page);
+            await toggleFullscreen(page);
+            await expect(dialog).toBeVisible();
+            expect(await dialog.boundingBox()).toEqual(position);
+            await expect(dialog.getByRole('textbox')).toBeFocused();
+            await expect(dialog.getByRole('textbox')).toHaveValue('Keep this value');
+            await expect(page.locator('.selection-toolbar > input')).toBeHidden();
+            await expect(page.getByRole('separator')).toBeHidden();
+            await toggleFullscreen(page);
+            await expect(dialog).toBeVisible();
+            expect(await dialog.boundingBox()).toEqual(position);
+            await expect.poll(() => camera(page).then(value => value.zoom)).toBeCloseTo(initialCamera.zoom, 5);
+            expect(await camera(page)).toMatchObject({ center: initialCamera.center, bearing: initialCamera.bearing, pitch: initialCamera.pitch });
+            expect(await eventCount(page)).toBe(before);
+            await dialog.evaluate(element => (element as HTMLDialogElement).close());
+            await expect(page.locator('.selection-count')).toHaveText('1 selected');
+        });
 
         test('keeps the selection dialog visible across mobile and collapsed results layouts', async ({ page }) => {
             await openLinkedMap(page, bundle);
@@ -624,6 +709,71 @@ for (const dev of [true, false]) {
             await expect(root).not.toHaveClass(/results-expanded/);
         });
 
+        test('overlays results on a fullscreen map without losing the expanded-results preference', async ({ page }) => {
+            await openLinkedMap(page, bundle);
+            await toggleExpandedResults(page);
+            const stored = await page.evaluate(() => localStorage.getItem('mapResultsLayout'));
+            const before = await eventCount(page);
+            await page.evaluate(() => (window as any).mapResultsFixture.emitResizeMoves = true);
+            await toggleFullscreen(page);
+            await expect(page.locator('.map-results')).toHaveClass(/fullscreen/);
+            const viewport = page.viewportSize()!;
+            const map = (await page.locator('#trail-map').boundingBox())!;
+            expect(map).toMatchObject({ x: 0, y: 0, width: viewport.width, height: viewport.height });
+            await expect(page.locator('.trail-list')).toBeHidden();
+            await expect(page.getByRole('separator')).toBeHidden();
+            await expect(page.locator('.fullscreen-results-toggle')).toHaveAttribute('aria-expanded', 'false');
+            const toggle = (await page.locator('.fullscreen-search-toggle').boundingBox())!;
+            await page.locator('.fullscreen-results-toggle').click();
+            await expect(page.locator('.trail-list')).toBeVisible();
+            await expect(page.locator('.fullscreen-results-toggle')).toHaveCount(0);
+            await expect(page.locator('.collapse-results')).toBeFocused();
+            expect((await page.locator('.trail-list').boundingBox())!.y).toBe(toggle.y + toggle.height + 16);
+            await expect(page.locator('.expand-results')).toBeHidden();
+            await expect(page.getByRole('separator')).toBeVisible();
+            expect(await page.getByRole('separator').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+            await page.locator('.collapse-results').click();
+            await expect(page.locator('.trail-list')).toBeHidden();
+            await expect(page.getByRole('separator')).toBeHidden();
+            await expect(page.locator('.fullscreen-results-toggle')).toBeFocused();
+            await toggleFullscreen(page);
+            await expect(page.locator('.map-results')).not.toHaveClass(/fullscreen/);
+            await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
+            expect(await page.evaluate(() => localStorage.getItem('mapResultsLayout'))).toBe(stored);
+            expect(await eventCount(page)).toBe(before);
+        });
+
+        test('updates the fullscreen map when entered from mobile results and restores the hidden map on exit', async ({ page }) => {
+            await page.setViewportSize({ width: 390, height: 844 });
+            await openLinkedMap(page, bundle);
+            await page.getByRole('button', { name: 'trail-map-show-results', exact: true }).click();
+            await expect(page.getByTestId('fake-map')).toBeHidden();
+            await page.evaluate(() => (window as any).mapResultsFixture.fullscreen());
+            await expect(page.getByTestId('fake-map')).toBeVisible();
+            await expect(page.locator('.fullscreen-search-toggle')).toBeFocused();
+            const before = await eventCount(page);
+            await page.evaluate(() => (window as any).mapResultsFixture.pan());
+            await expect.poll(() => eventCount(page)).toBeGreaterThan(before);
+            await toggleFullscreen(page);
+            await expect(page.getByTestId('fake-map')).toBeHidden();
+            await expect(page.getByRole('button', { name: 'trail-map-show-map', exact: true })).toBeVisible();
+        });
+
+        test('fills the viewport after fullscreen resize without a bottom gap', async ({ page }) => {
+            await openLinkedMap(page, bundle);
+            await toggleFullscreen(page);
+            await expect(page.locator('.fullscreen-search-toggle')).toBeFocused();
+            await page.locator('.fullscreen-results-toggle').click();
+            for (const size of [{ width: 1000, height: 600 }, { width: 1200, height: 850 }, { width: 390, height: 650 }]) {
+                await page.setViewportSize(size);
+                await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ x: 0, y: 0, ...size });
+                await expect.poll(() => page.getByTestId('fake-map').boundingBox()).toMatchObject({ x: 0, y: 0, ...size });
+                await expect(page.getByRole('separator')).toBeVisible();
+                expect(await page.getByRole('separator').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+                await expect(page.locator('.map-results')).toHaveClass(/fullscreen/);
+            }
+        });
+
         test('resizes the small map by dragging and keyboard, persists it and cancels a drag with Escape', async ({ page }) => {
             await openLinkedMap(page, bundle);
             await toggleExpandedResults(page);
@@ -671,7 +821,7 @@ for (const dev of [true, false]) {
             expect(bounds.height).toBeLessThanOrEqual(root.height - 112);
         });
 
-        test('closes and reopens the overview without losing the map, including after reload', async ({ page }) => {
+        test('closes and reopens the overview without losing the map, including after reload and fullscreen', async ({ page }) => {
             await openLinkedMap(page, bundle);
             await toggleExpandedResults(page);
             await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -701,7 +851,9 @@ for (const dev of [true, false]) {
             await page.addScriptTag({ content: bundle });
             await expect(page.locator('.overlay-reopen')).toBeVisible();
             await expect(page.getByTestId('fake-map')).toBeHidden();
-
+            await page.evaluate(() => (window as any).mapResultsFixture.fullscreen());
+            await expect(page.getByTestId('fake-map')).toBeVisible();
+            await toggleFullscreen(page);
             await expect(page.locator('.overlay-reopen')).toBeVisible();
             await page.locator('.overlay-reopen').click();
             await expect(page.getByTestId('fake-map')).toBeVisible();
@@ -777,7 +929,6 @@ for (const dev of [true, false]) {
                 }
                 requestAnimationFrame(frame);
             }));
-            await page.waitForTimeout(650);
             const root = (await page.locator('.map-results').boundingBox())!;
             expect(root.height).toBeGreaterThanOrEqual(minimum + 112);
             const before = await eventCount(page);
@@ -805,6 +956,39 @@ for (const dev of [true, false]) {
             await page.mouse.up();
             await expect(page.locator('.map-results')).toHaveAttribute('data-layout-ready', 'true');
             await expect.poll(() => page.locator('#trail-map').boundingBox().then(box => box!.height)).toBeGreaterThan(original.height);
+        });
+
+        test('resizes fullscreen results at their invisible edge without changing the map or search area', async ({ page }) => {
+            await openLinkedMap(page, bundle);
+            await toggleExpandedResults(page);
+            await toggleFullscreen(page);
+            await expect(page.locator('.fullscreen-search-toggle')).toBeFocused();
+            await page.locator('.fullscreen-results-toggle').click();
+            const divider = page.getByRole('separator');
+            await expect(divider).toBeVisible();
+            expect(await divider.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+            const map = await page.locator('#trail-map').boundingBox();
+            const originalCamera = await camera(page);
+            const before = await eventCount(page);
+            const edge = (await divider.boundingBox())!;
+            const start = Number(await divider.getAttribute('aria-valuenow'));
+            await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2);
+            await page.mouse.down();
+            await page.mouse.move(edge.x + edge.width / 2 + 120, edge.y + edge.height / 2, { steps: 4 });
+            await expect(divider).toHaveAttribute('aria-valuenow', String(start + 120));
+            await page.mouse.up();
+            await expect.poll(() => page.locator('.trail-list').boundingBox()).toMatchObject({ width: start + 120 });
+            await divider.press('Home');
+            await expect(divider).toHaveAttribute('aria-valuenow', '280');
+            await divider.press('ArrowRight');
+            await expect(divider).toHaveAttribute('aria-valuenow', '296');
+            await divider.press('End');
+            expect(await divider.getAttribute('aria-valuenow')).toBe(await divider.getAttribute('aria-valuemax'));
+            expect(await page.locator('#trail-map').boundingBox()).toEqual(map);
+            expect(await camera(page)).toEqual(originalCamera);
+            expect(await eventCount(page)).toBe(before);
+            await toggleFullscreen(page);
+            await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
         });
 
         test('drags the splitter within its limits and reports the viewport only after release', async ({ page }) => {

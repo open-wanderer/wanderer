@@ -12,11 +12,13 @@ export const mapResultStubs = {
     [componentPath('trail/trail_card')]: selectableItem('map-card'),
     [componentPath('trail/trail_list_item')]: selectableItem('map-list-item'),
     [componentPath('trail/trail_table')]: `
-        <script>let { trails, selection, onTrailSelect } = $props();</script>
+        <script>let { trails, selection, onTrailSelect, selectable = true } = $props();</script>
         <div data-testid="map-table">
+            {#if selectable}
                 {#each trails ?? [] as trail}
                     <input type="checkbox" aria-label={'Select ' + trail.name} checked={selection?.has(trail) ?? false} onclick={() => onTrailSelect(trail)} />
                 {/each}
+            {/if}
         </div>
     `,
     [componentPath('trail/trail_dropdown')]: `

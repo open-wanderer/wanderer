@@ -104,9 +104,19 @@
 
         isOpen = false;
     }
+    function handleEscape(event: KeyboardEvent) {
+        if (!isOpen || event.key !== "Escape" || event.isComposing || event.defaultPrevented) return;
+        const focused = document.activeElement;
+        if (focused !== document.body && !dropdownToggleElement.parentElement?.contains(focused)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        isOpen = false;
+        const trigger = dropdownToggleElement.querySelector<HTMLElement>("button, a[href]");
+        if (trigger && !trigger.closest("[inert]") && trigger.getClientRects().length) trigger.focus({ preventScroll: true });
+    }
 </script>
 
-<svelte:window onmouseup={handleWindowClick} />
+<svelte:window onmouseup={handleWindowClick} onkeydown={handleEscape} />
 
 <div class="dropdown relative">
     <div class="dropdown-toggle" bind:this={dropdownToggleElement}>
@@ -124,7 +134,7 @@
 
     {#if isOpen}
         <ul
-            class="menu absolute bg-menu-background border border-input-border shadow-md rounded-l-xl rounded-b-xl right-0 overflow-hidden"
+            data-fullscreen-overlay class="menu absolute bg-menu-background border border-input-border shadow-md rounded-l-xl rounded-b-xl right-0 overflow-hidden"
             class:none={isOpen}
             style="z-index: 1001"
             in:fly={{ y: -10, duration: 150 }}

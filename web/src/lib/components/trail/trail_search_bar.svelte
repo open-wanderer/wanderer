@@ -206,7 +206,7 @@
         queryCaret = querySelectionEnd = draft.q.length;
         activeCategoryId = next.category[0] ?? null;
     }
-    function focusInput() {
+    export function focusInput() {
         restoringFocus = true;
         searchInput.focus();
         restoringFocus = false;
@@ -219,7 +219,7 @@
         resetBounds = false;
         onapply(fromDraft(next, applied), clearBounds);
     }
-    function dismiss(restoreFocus = false) {
+    export function dismiss(restoreFocus = false) {
         if (!expanded) return;
         publishFilter();
         if (!pinned) expanded = false;

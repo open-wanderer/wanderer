@@ -25,6 +25,7 @@
 
     let loadingNextPage: boolean = $state(false);
     let isOpen = $state(false);
+    let dropdownToggleElement: HTMLDivElement;
 
     let unreadCount = $derived(
         notifications.reduce((value, n) => (value += n.seen ? 0 : 1), 0),
@@ -97,9 +98,19 @@
             goto(data.link);
         }
     }
+    function handleEscape(event: KeyboardEvent) {
+        if (!isOpen || event.key !== "Escape" || event.isComposing || event.defaultPrevented) return;
+        const focused = document.activeElement;
+        if (focused !== document.body && !dropdownToggleElement.parentElement?.contains(focused)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        isOpen = false;
+        const trigger = dropdownToggleElement.querySelector<HTMLElement>("button, a[href]");
+        if (trigger && !trigger.closest("[inert]") && trigger.getClientRects().length) trigger.focus({ preventScroll: true });
+    }
 </script>
 
-<svelte:window onmouseup={handleWindowClick} />
+<svelte:window onmouseup={handleWindowClick} onkeydown={handleEscape} />
 
 <div class="dropdown relative">
     {#if unreadCount > 0}
@@ -109,7 +120,7 @@
             {unreadCount}{unreadCount >= 10 ? "+" : ""}
         </div>
     {/if}
-    <div class="dropdown-toggle">
+    <div class="dropdown-toggle" bind:this={dropdownToggleElement}>
         <button
             aria-label="Toggle notification dropdown"
             onclick={toggleMenu}
@@ -121,7 +132,7 @@
 
     {#if isOpen}
         <ul
-            class="menu absolute bg-menu-background border border-input-border rounded-l-xl rounded-b-xl shadow-md right-0 overflow-scroll mt-4 max-h-96 w-72"
+            data-fullscreen-overlay class="menu absolute bg-menu-background border border-input-border rounded-l-xl rounded-b-xl shadow-md right-0 overflow-scroll mt-4 max-h-96 w-72"
             class:none={isOpen}
             onscroll={onListScroll}
             style="z-index: 1001"

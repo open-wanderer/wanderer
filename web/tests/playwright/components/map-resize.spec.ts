@@ -1,5 +1,5 @@
 import { expect, devices, type Page, type CDPSession } from '@playwright/test';
-import { windowTest as test, mount, counts, bounds, camera, settle, quietCounts, windowState, swipe } from './map-window-fixture';
+import { windowTest as test, mount, counts, bounds, settle, quietCounts, windowState } from './map-window-fixture';
 import { buildMapPageFixture } from './map-page-fixture';
 
 async function watchWindowLatency(page: Page) {
@@ -100,19 +100,6 @@ async function canvasMatches(page: Page) {
 for (const dev of [true, false]) test.describe(`normal window resize (${dev ? 'development' : 'production'})`, () => {
     let bundle: string;
     test.beforeAll(async () => { bundle = await buildMapPageFixture(dev, true, true); });
-    test('F11 is an ordinary window resize and publishes exactly once in each direction', async ({page}) => {
-        await mount(page, bundle);
-        const original = await camera(page);
-        for (const enabled of [true, false]) {
-            const before = await quietCounts(page);
-            await recordCanvas(page);
-            await windowState(page, enabled);
-            await once(page, before, 1);
-            expect(await camera(page)).toEqual(original);
-            await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
-            await canvasMatches(page);
-        }
-    });
     for (const plan of [{steps:20,gap:0,expected:1},{steps:4,gap:150,expected:1},{steps:2,gap:260,expected:2}]) {
         test(`${plan.steps} measured window events with ${plan.gap}ms gaps paint every frame and publish ${plan.expected} series`, async ({page}) => {
             await mount(page, bundle);
@@ -209,7 +196,7 @@ for (const dev of [true, false]) test.describe(`normal window resize (${dev ? 'd
                 await expect.poll(() => page.evaluate(() => matchMedia('(display-mode: fullscreen)').matches)).toBe(fullscreen);
                 await expect.poll(() => page.evaluate(() => (window as any).windowLatency.events.length)).toBeGreaterThan(0);
                 await page.clock.runFor(260);
-                await expectWindowLatency(page, before, 1);
+                await expectWindowLatency(page, before, 0);
             } finally { await session.detach(); }
             await page.clock.resume();
         }
@@ -230,6 +217,32 @@ for (const dev of [true, false]) test.describe(`normal window resize (${dev ? 'd
         try {
             await measuredResize(page, session, 620, 780);
             await page.clock.runFor(1000);
+            const after = await counts(page);
+            expect(after).toEqual({...before, results: before.results + 1, map: before.map + 1, publications: before.publications + 1, url: pannedUrl});
+            expect(await page.evaluate(() => (window as any).fixture.requests.filter((r: any) => r.channel === 'results').at(-1).body.bounds)).toEqual(area);
+        } finally { await session.detach(); }
+    });
+    test('leaving fullscreen for a hidden mobile map retains a pending pan search', async ({page}) => {
+        await page.setViewportSize({width: 600, height: 800});
+        await mount(page, bundle);
+        await page.locator('.map-view-toggle').click();
+        await windowState(page, true);
+        const before = await quietCounts(page);
+        await watchWindowLatency(page);
+        await page.evaluate(() => (window as any).realMap.panBy([80, 20], {duration: 0}));
+        const area = await page.evaluate(() => (window as any).fixture.publications.at(-1)[0]);
+        const pannedUrl = (await counts(page)).url;
+        await page.clock.runFor(80);
+        const session = await page.context().newCDPSession(page);
+        try {
+            const {windowId} = await session.send('Browser.getWindowForTarget');
+            await session.send('Browser.setWindowBounds', {windowId, bounds: {windowState: 'normal'}});
+            await expect.poll(() => page.evaluate(() => matchMedia('(display-mode: fullscreen)').matches)).toBe(false);
+            await page.clock.runFor(16);
+            await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+            expect((await counts(page)).results).toBe(before.results);
+            await page.clock.runFor(1400);
+            await expect(page.locator('.map-results')).not.toHaveClass(/fullscreen|show-map/);
             const after = await counts(page);
             expect(after).toEqual({...before, results: before.results + 1, map: before.map + 1, publications: before.publications + 1, url: pannedUrl});
             expect(await page.evaluate(() => (window as any).fixture.requests.filter((r: any) => r.channel === 'results').at(-1).body.bounds)).toEqual(area);

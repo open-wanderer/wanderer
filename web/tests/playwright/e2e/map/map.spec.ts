@@ -2,6 +2,7 @@ import { devices } from '@playwright/test';
 import { expectActiveNavigation } from '../navigation_helpers';
 import { expect, test, type Page } from '../../fixtures';
 import { mockEmptyGeocoding } from '../search_helpers';
+import { dispatchFullscreenKey, installBrowserFullscreen, setBrowserFullscreen } from '../../browser_fullscreen';
 
 const searchInput = (page: Page) => page.locator('[data-search-root] input[type="search"]').first();
 const viewButton = (page: Page) => page.locator('.map-search-toolbar .control-button[aria-controls$="-view"]');
@@ -11,7 +12,7 @@ const isTrailSearch = (url: string) => new URL(url).pathname === '/api/v1/search
 // A local empty basemap and empty search replies keep these tests independent of
 // external tile servers and the trails created by other suites.
 test.beforeEach(async ({ context }) => {
-
+    await installBrowserFullscreen(context);
     await mockEmptyGeocoding(context);
     await context.route('**/styles/ofm.json', route => route.fulfill({ json: {
         version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#dae5df' } }],
@@ -42,6 +43,13 @@ async function settledMapLayout(page: Page) {
     })).toBe(true);
 }
 
+async function toggleBrowserFullscreen(page: Page) {
+    const entering = await page.locator('.map-page').evaluate(element => !element.classList.contains('fullscreen'));
+    await setBrowserFullscreen(page, entering);
+    if (entering) await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    else await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+    await expect(page.locator('.map-results')).toHaveAttribute('data-layout-ready', 'true');
+}
 async function enterSearch(page: Page, query: string) {
     const searched = page.waitForRequest(request => isTrailSearch(request.url()) && request.postDataJSON()?.q === query);
     await searchInput(page).fill(query);
@@ -333,17 +341,20 @@ test('restores multi-select, loaded-result selection and bulk edits in every res
     await page.locator('.selection-toolbar .menu').getByText('Adjust', { exact: true }).click();
     const dialog = page.locator('dialog[open]');
     await expect(dialog).toBeVisible();
+    expect(await dispatchFullscreenKey(page)).toBe(true);
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
     const selected = await page.locator('.selection-count').textContent();
     const lockedArea = new URL(page.url()).search;
     const dialogPosition = await dialog.boundingBox();
     // Some browser/OS shortcuts cannot be cancelled. The dialog still owns
     // focus and its search area when the browser changes state underneath it.
-
+    await setBrowserFullscreen(page, true);
     await settledMapLayout(page);
     await expect(dialog).toBeVisible();
     expect(await dialog.boundingBox()).toEqual(dialogPosition);
     expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
-
+    await setBrowserFullscreen(page, false);
     await settledMapLayout(page);
     expect(await dialog.boundingBox()).toEqual(dialogPosition);
     await page.locator('.map-results-container').evaluate(element => element.style.width = 'calc(100% + 20px)');
@@ -367,7 +378,13 @@ test('restores multi-select, loaded-result selection and bulk edits in every res
     expect(searches).toBe(loaded);
     await cards.first().hover();
     await cards.first().locator('..').locator('..').getByRole('checkbox').check();
-
+    await toggleBrowserFullscreen(page);
+    await page.locator('.fullscreen-results-toggle').click();
+    await expect(page.locator('.selection-toolbar')).toBeHidden();
+    await expect(page.locator('.trail-results input[type="checkbox"]')).toHaveCount(0);
+    await expect(page.locator('.map-search-toolbar')).toBeHidden();
+    await toggleBrowserFullscreen(page);
+    await expect(page.getByRole('button', { name: 'Actions for selected trails' })).toBeVisible();
     await expect(page.locator('.selection-count')).toHaveText('1 selected');
     empty = true;
     await enterSearch(page, 'No matching trails');
@@ -387,8 +404,10 @@ test('keeps map search above the results despite a shared sidebar preference', a
     await viewButton(page).click();
     await expect(page.locator('.view-menu input[value="left"], .view-menu input[value="right"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
-
-
+    await toggleBrowserFullscreen(page);
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    await toggleBrowserFullscreen(page);
+    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
     await expect(searchInput(page)).toHaveValue('Keep filters');
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('searchLayout')!))).toMatchObject({ position: 'left' });
 });
@@ -468,6 +487,24 @@ test.describe('small-map rendering at fractional pixel density', () => {
         expect(size.pixels).toEqual([Math.floor(size.width * size.dpr), Math.floor(size.height * size.dpr)]);
         const expectedZoom = Math.log2(Math.min(size.width / widthAtZoomZero, size.height / heightAtZoomZero));
         await expect.poll(() => clusterZooms.at(-1)).toBeCloseTo(expectedZoom, 5);
+        await page.waitForTimeout(300); // Negative check spans the viewport debounce.
+        expect(searches).toBe(loaded);
+        expect(new URL(page.url()).search).toBe(area);
+        const clusterCount = clusterZooms.length;
+        await toggleBrowserFullscreen(page);
+        await settledMapLayout(page);
+        await page.waitForTimeout(300);
+        expect(clusterZooms).toHaveLength(clusterCount + 1);
+        expect(clusterZooms.at(-1)).toBeCloseTo(expectedZoom, 5);
+        await toggleBrowserFullscreen(page);
+        await expect.poll(() => clusterZooms.at(-1)).toBeCloseTo(expectedZoom, 5);
+        // Native controls may finish measuring while fullscreen is active.
+        // The backing canvas must match the resulting size at this density.
+        await expect.poll(() => canvas.evaluate(element => {
+            const canvas = element as HTMLCanvasElement;
+            return canvas.width === Math.floor(canvas.clientWidth * devicePixelRatio)
+                && canvas.height === Math.floor(canvas.clientHeight * devicePixelRatio);
+        })).toBe(true);
         await page.waitForTimeout(300); // Negative check spans the viewport debounce.
         expect(searches).toBe(loaded);
         expect(new URL(page.url()).search).toBe(area);
@@ -569,8 +606,9 @@ test('expands results into columns with an interactive small map and restores th
     await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
     await expect(page.locator('.maplibregl-canvas')).toBeVisible();
     await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ width: original.width + 116, height: original.height + 76 });
-
-
+    await toggleBrowserFullscreen(page);
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    await toggleBrowserFullscreen(page);
     await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
     await page.locator('.expand-results').click();
     await page.locator('.trail-list .trail-card').first().hover();
@@ -622,7 +660,11 @@ test('moves, hides and restores the overview without changing the search area', 
     await page.reload();
     await expect(page.locator('.overlay-reopen')).toBeVisible();
     await expect(page.locator('#trail-map')).toBeHidden();
-
+    await toggleBrowserFullscreen(page);
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    await expect(page.locator('#trail-map')).toBeVisible();
+    await toggleBrowserFullscreen(page);
+    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
     await expect(page.locator('.overlay-reopen')).toBeVisible();
     await page.locator('.overlay-reopen').click();
     await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ x: original.x - 120, y: original.y - 60 });
@@ -668,6 +710,160 @@ test('keeps all overview controls visible at the minimum size, with reset last',
     await expect.poll(controlsFit).toEqual({ inside: true, resetLast: true });
 });
 
+test('follows browser fullscreen and keeps the map filling resized viewports', async ({ page, context }) => {
+    await openMap(page);
+    await enterSearch(page, 'F11 map');
+    await toggleBrowserFullscreen(page);
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    await page.locator('.fullscreen-results-toggle').click();
+    await expect(page.getByRole('separator')).toBeVisible();
+    expect(await page.getByRole('separator').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    const divider = page.getByRole('separator');
+    const edge = (await divider.boundingBox())!;
+    const list = (await page.locator('.trail-list').boundingBox())!;
+    expect(Math.abs(edge.x + edge.width / 2 - list.x - list.width)).toBeLessThanOrEqual(2);
+    const width = Number(await divider.getAttribute('aria-valuenow'));
+    const area = new URL(page.url()).search;
+    await page.mouse.move(edge.x + edge.width / 2, edge.y + edge.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(edge.x + edge.width / 2 + 100, edge.y + edge.height / 2, { steps: 4 });
+    await page.mouse.up();
+    await expect.poll(() => page.locator('.trail-list').boundingBox()).toMatchObject({ width: width + 100 });
+    await divider.press('Home');
+    await expect.poll(() => page.locator('.trail-list').boundingBox()).toMatchObject({ width: 280 });
+    expect(new URL(page.url()).search).toBe(area);
+    for (const size of [{ width: 1000, height: 600 }, { width: 1200, height: 850 }, { width: 390, height: 650 }]) {
+        await page.setViewportSize(size);
+        await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ x: 0, y: 0, ...size });
+        await expect.poll(() => page.locator('.maplibregl-canvas').boundingBox()).toMatchObject({ x: 0, y: 0, ...size });
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        await expect(page.getByRole('separator')).toBeVisible();
+        expect(await page.getByRole('separator').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+    }
+    await toggleBrowserFullscreen(page);
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+    await expect(searchInput(page)).toHaveValue('F11 map');
+});
+
+for (const mobile of [false, true]) {
+    test(`overlays search and results on the fullscreen map in a ${mobile ? 'narrow' : 'wide'} window`, async ({ page, context }) => {
+        if (mobile) await page.setViewportSize({ width: 390, height: 844 });
+        await context.addInitScript(() => localStorage.setItem('searchLayout', JSON.stringify({ position: 'top', expansion: 'push' })));
+        let searches = 0;
+        page.on('request', request => { if (isTrailSearch(request.url())) ++searches; });
+        await openMap(page);
+        const loaded = searches;
+        const originalArea = new URL(page.url()).search;
+        await page.locator('.maplibregl-canvas').evaluate(element => (window as any).retainedMapCanvas = element);
+        await toggleBrowserFullscreen(page);
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        const screen = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+        expect(await page.locator('#trail-map').boundingBox()).toMatchObject({ x: 0, y: 0, width: screen.width, height: screen.height });
+        const searchToggle = page.locator('.fullscreen-search-toggle');
+        const resultsToggle = page.locator('.fullscreen-results-toggle');
+        await expect(page.locator('.map-search-toolbar')).toBeHidden();
+        await expect(page.locator('.trail-list')).toBeHidden();
+        await expect(page.getByRole('separator')).toBeHidden();
+        await expect(searchToggle).toHaveAttribute('aria-expanded', 'false');
+        await expect(resultsToggle).toHaveAttribute('aria-expanded', 'false');
+        const searchButton = (await searchToggle.boundingBox())!;
+        const resultsButton = (await resultsToggle.boundingBox())!;
+        const logo = (await page.locator('.fullscreen-logo').boundingBox())!;
+        expect(searchButton).toMatchObject({ x: 16, y: 16 });
+        expect(resultsButton.x).toBe(searchButton.x);
+        expect(resultsButton.y).toBeGreaterThan(searchButton.y + searchButton.height);
+        expect(logo).toMatchObject({ x: 16, y: screen.height - 80, width: 64, height: 64 });
+        await resultsToggle.click();
+        await expect(page.locator('.trail-list')).toBeVisible();
+        await expect(resultsToggle).toHaveCount(0);
+        await expect(page.locator('.result-header .collapse-results')).toBeFocused();
+        await expect(page.locator('.map-search-toolbar')).toBeHidden();
+        const results = (await page.locator('.trail-list').boundingBox())!;
+        expect(results.x).toBe(16);
+        expect(results.y).toBe(searchButton.y + searchButton.height + 16);
+        expect(results.y + results.height).toBeLessThanOrEqual(logo.y - 16);
+        expect(results.width).toBeLessThan(screen.width);
+        await searchToggle.click();
+        await expect(page.locator('.map-search-toolbar')).toBeVisible();
+        await expect(searchInput(page)).toBeFocused();
+        await expect(page.locator('.trail-list')).toBeVisible();
+        const toolbar = (await page.locator('.map-search-toolbar').boundingBox())!;
+        expect(searchButton.height).toBe(toolbar.height);
+        await expect.poll(() => page.locator('.trail-list').boundingBox()).toEqual(results);
+        await expect.poll(async () => {
+            const results = (await page.locator('.trail-list').boundingBox())!;
+            const toolbar = (await page.locator('.map-search-toolbar').boundingBox())!;
+            return results.y >= toolbar.y + toolbar.height + 16;
+        }).toBe(true);
+        expect(toolbar.y).toBe(16);
+        expect(toolbar.x).toBeGreaterThanOrEqual(searchButton.x + searchButton.width + 16);
+        expect(toolbar.x + toolbar.width).toBeLessThanOrEqual(screen.width - 16);
+        await searchToggle.click();
+        await expect(page.locator('.map-search-toolbar')).toBeHidden();
+        await expect(searchToggle).toBeFocused();
+        await expect(page.locator('.trail-list')).toBeVisible();
+        expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+        expect(await page.locator('#nav-bar-links').evaluate(element => Boolean(element.closest('[inert]')))).toBe(true);
+        await settledMapLayout(page);
+        await page.waitForTimeout(300); // Negative check spans the viewport debounce.
+        expect(searches).toBe(loaded);
+        expect(new URL(page.url()).search).toBe(originalArea);
+        expect(await page.locator('.maplibregl-canvas').evaluate(element => element === (window as any).retainedMapCanvas)).toBe(true);
+        await page.locator('#trail-map .maplibregl-ctrl-zoom-in').click();
+        await expect.poll(() => searches).toBeGreaterThan(loaded);
+        await page.locator('.collapse-results').click();
+        await expect(page.locator('.trail-list')).toBeHidden();
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        await resultsToggle.click();
+        await expect(page.locator('.trail-list')).toBeVisible();
+        await searchToggle.click();
+        await enterSearch(page, 'Fullscreen criteria');
+        await expect(page.locator('[data-search-root] .search-panel')).toHaveCount(0);
+        const cleared = page.waitForRequest(request => isTrailSearch(request.url()) && request.postDataJSON()?.q === '');
+        await searchInput(page).press('Escape');
+        await cleared;
+        await expect(searchInput(page)).toHaveValue('');
+        await expect(page.locator('[data-search-root] .search-panel')).toHaveCount(0);
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        await searchInput(page).press('Escape');
+        await expect(page.locator('[data-search-root] .search-panel')).toHaveCount(0);
+        await toggleBrowserFullscreen(page);
+        await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+        await expect(page.locator('.fullscreen-logo')).toHaveCount(0);
+        expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+        await expect(searchInput(page)).toHaveValue('');
+        expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+        expect(await page.locator('#nav-bar-links').evaluate(element => Boolean(element.closest('[inert]')))).toBe(false);
+        if (mobile) await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+        await toggleBrowserFullscreen(page);
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        await expect(page.locator('.map-search-toolbar')).toBeHidden();
+        await expect(page.locator('.trail-list')).toBeHidden();
+        await searchToggle.click();
+        await viewButton(page).click();
+        await expect(page.locator('.view-menu')).toBeVisible();
+        await expect(page.locator('.view-menu input[value="push"]')).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.view-menu')).toHaveCount(0);
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        await toggleBrowserFullscreen(page);
+        await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+        await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+        // A browser-state change restores the normal layout independently of keys.
+        await toggleBrowserFullscreen(page);
+        await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+        await setBrowserFullscreen(page, false);
+        await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+        await expect(searchInput(page)).toHaveValue('');
+        expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+        await viewButton(page).click();
+        await expect(page.locator('.view-menu input[value="push"]')).toBeChecked();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    });
+}
+
+
 for (const granted of [true, false]) {
     test(`uses ${granted ? 'browser location' : 'the default camera after location denial'} without a saved location`, async ({ page, context }) => {
         const auth = (await context.cookies()).find(cookie => cookie.name === 'pb_auth')!;
@@ -698,6 +894,19 @@ for (const granted of [true, false]) {
         }
     });
 }
+
+test('leaves F11 and idle Escape to the browser without document fullscreen requests', async ({ page }) => {
+    await openMap(page);
+    expect(await dispatchFullscreenKey(page)).toBe(false);
+    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+    await setBrowserFullscreen(page, true);
+    expect(await dispatchFullscreenKey(page)).toBe(false);
+    expect(await dispatchFullscreenKey(page, 'Escape')).toBe(false);
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await setBrowserFullscreen(page, false);
+    await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+});
 
 test('offers trails outside the viewport and centers a suggested place without a radius filter', async ({ page, context }) => {
     const requests: any[] = [];
@@ -818,8 +1027,10 @@ for (const theme of ['light', 'dark']) {
                 };
             })).toEqual({ opaque: true, contrast: true, focus: true, shadow: true });
         };
-
-
+        await toggleBrowserFullscreen(page);
+        await check('.fullscreen-search-toggle');
+        await check('.fullscreen-results-toggle');
+        await toggleBrowserFullscreen(page);
         await page.locator('.result-header .collapse-results').click();
         await check('.collapsed-actions .collapse-results');
         await page.locator('.collapsed-actions .collapse-results').click();
@@ -850,12 +1061,13 @@ test.describe('touch map tools', () => {
             await page.locator('.result-header .expand-results').tap();
             await settledMapLayout(page);
             await opaque('.overlay-move');
-
+            await toggleBrowserFullscreen(page);
+            await opaque('.fullscreen-search-toggle');
         });
     }
 });
 
-test('keeps the camera after opening a trail, Back and reload', async ({ page, context }) => {
+test('keeps the fullscreen camera after opening a trail, Back and reload', async ({ page, context }) => {
     const trail = { id: 'snapshot-trail', name: 'Snapshot trail', author: 'fixtureauthor00', public: true,
         completed: false, tags: [], photos: [], difficulty: 0, expand: {}, distance: 2400, duration: 3600,
         elevation_gain: 100, elevation_loss: 100, created: 1710000000, date: 1710000000,
@@ -875,20 +1087,22 @@ test('keeps the camera after opening a trail, Back and reload', async ({ page, c
         return (current as any[])?.find(value => value?.camera)?.camera;
     });
     await openMap(page);
-
+    await toggleBrowserFullscreen(page);
     await settledMapLayout(page);
     const original = await readCamera();
     expect(original).toBeTruthy();
+    await page.locator('.fullscreen-results-toggle').click();
     await page.locator('.trail-result a').first().click();
     await expect(page).toHaveURL(/\/map\/trail\//);
     await page.goBack();
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
     await settledMapLayout(page);
     await expect.poll(readCamera).toMatchObject({ zoom: expect.closeTo(original.zoom, 8), center: original.center });
     await page.reload();
+    await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
     await settledMapLayout(page);
     await expect.poll(readCamera).toMatchObject({ zoom: expect.closeTo(original.zoom, 8), center: original.center });
 });
-
 
 test('phone map switches between results and a painted map without horizontal scrolling', async ({page}) => {
     await page.setViewportSize({width:390,height:844});

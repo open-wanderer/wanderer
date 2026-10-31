@@ -1,6 +1,7 @@
 import { expect, devices, type Page } from '@playwright/test';
-import { windowTest as test, camera, bounds, counts, settle, mount, swipe, quietCounts } from './map-window-fixture';
+import { windowTest as test, camera, bounds, counts, settle, windowState, mount, swipe, holdFullscreenTimers, quietCounts } from './map-window-fixture';
 import { buildMapPageFixture } from './map-page-fixture';
+import { installBrowserFullscreen } from '../browser_fullscreen';
 
 async function size(page: Page, width: number, height = 800) {
     const cdp = await page.context().newCDPSession(page);
@@ -30,10 +31,11 @@ for (const dev of [true, false]) {
     test.describe(`map layout regressions (${dev ? 'development' : 'production'})`, () => {
         let bundle: string;
         let searchBundle: string;
+        let navBundle: string;
         test.beforeAll(async () => {
             bundle = await buildMapPageFixture(dev, true, true);
             searchBundle = await buildMapPageFixture(dev, true, true, false, true);
-
+            navBundle = await buildMapPageFixture(dev, true, true, true);
         });
 
         for (const width of [390, 600]) for (const timing of ['popstate', 'hydrate']) {
@@ -69,6 +71,22 @@ for (const dev of [true, false]) {
             await page.locator('.map-view-toggle').click();
             expect(await page.evaluate(() => (window as any).fixture.capture().camera)).toEqual(original);
         });
+        test('fullscreen reveals a never-positioned hidden map without changing list scope', async ({ page }) => {
+            await size(page, 390);
+            await mount(page, bundle, true);
+            await page.locator('.map-view-toggle').click();
+            await resolveRequests(page);
+            await page.evaluate(() => (window as any).finishMapLoad());
+            expect(await quietCounts(page)).toMatchObject({ results: 1, publications: 1 });
+            const before = await counts(page);
+            await windowState(page, true);
+            const after = await counts(page);
+            expect(after.results).toBe(before.results);
+            expect(after.publications).toBe(before.publications);
+            expect(after.url).toBe(before.url);
+            expect((await camera(page)).center[0]).toBeCloseTo(8, 3);
+            expect((await camera(page)).zoom).toBeGreaterThan(8);
+        });
 
         for (const delayed of [false, true]) {
             test(`mobile list becomes a live visible map on widening (delayed load=${delayed})`, async ({ page }) => {
@@ -91,6 +109,141 @@ for (const dev of [true, false]) {
                 }
             });
         }
+
+        for (const control of ['.list-resize', '.overlay-move']) {
+            test(`a ${control} click superseding resize releases the entire transaction`, async ({ page }) => {
+                await mount(page, bundle);
+                if (control === '.overlay-move') {
+                    await page.locator('.result-header .expand-results').click(); await settle(page);
+                    await page.locator('.overlay-resize').press('End'); await settle(page);
+                }
+                await page.evaluate(control => {
+                    const raf = requestAnimationFrame;
+                    const after = performance.now() + 100;
+                    let armed = true;
+                    window.requestAnimationFrame = callback => raf(time => {
+                        if (armed && performance.now() >= after) {
+                            armed = false;
+                            const target = document.querySelector(control) as HTMLElement;
+                            target.setPointerCapture = () => {};
+                            target.hasPointerCapture = () => false;
+                            target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 14, button: 0 }));
+                            target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 14, button: 0 }));
+                            (window as any).interruptedSettle = true;
+                            window.requestAnimationFrame = raf;
+                        }
+                        callback(time);
+                    });
+                    dispatchEvent(new Event('resize'));
+                }, control);
+                await expect.poll(() => page.evaluate(() => (window as any).interruptedSettle)).toBe(true);
+                await expect(page.locator('.map-results')).toHaveAttribute('data-layout-ready', 'true');
+                const before = await counts(page);
+                await page.locator('[data-search-root]').evaluate(node => (node as HTMLElement).style.height = '320px');
+                expect(await quietCounts(page)).toMatchObject({ map: before.map + 1, results: before.results });
+                await pan(page);
+                expect(await quietCounts(page)).toMatchObject({ results: before.results + 1 });
+                await settle(page);
+                const panned = await counts(page);
+                await windowState(page, true);
+                expect((await counts(page)).results).toBe(panned.results);
+                expect((await counts(page)).url).toBe(panned.url);
+                await windowState(page, false);
+                const exited = await counts(page);
+                await size(page, 800);
+                await changedOnce(page, exited);
+            });
+        }
+
+        for (const delay of [300, 400, 700]) {
+            test(`fullscreen change still owns a first resize delayed ${delay} ms`, async ({ page }) => {
+                await installBrowserFullscreen(page);
+                await mount(page, bundle);
+                await page.getByTestId('fixture-search').focus();
+                for (const enabled of [true, false]) {
+                    if (!enabled) { await pan(page); await settle(page); }
+                    const before = await counts(page);
+                    await page.evaluate(({ enabled, delay }) => {
+                        (window as any).setTestBrowserFullscreen(enabled, true, false);
+                    }, { enabled, delay });
+                    if (enabled) await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+                    else await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+                    await page.waitForTimeout(delay);
+                    await size(page, enabled ? 1600 : 1280, enabled ? 1000 : 800);
+                    await settle(page);
+                    await page.waitForTimeout(200); // Negative: no delayed second search/map request.
+                    const after = await counts(page);
+                    expect(after.results).toBe(before.results);
+                    expect(after.url).toBe(before.url);
+                    expect(after.map).toBe(before.map + 1);
+                }
+                await page.waitForTimeout(1100); // Outside the bounded transition interval.
+                const before = await counts(page);
+                await size(page, 1100);
+                await changedOnce(page, before);
+            });
+        }
+        test('retains an area requested during the fullscreen resize wait', async ({ page }) => {
+            await installBrowserFullscreen(page);
+            await mount(page, bundle);
+            await page.evaluate(() => (window as any).realMap.jumpTo({ center: [8, 47], zoom: 10 }));
+            await settle(page);
+            await page.evaluate(() => (window as any).setTestBrowserFullscreen(true));
+            await settle(page);
+            const area = await page.evaluate(() => (window as any).fixture.capture().viewport);
+            const beforeExit = await counts(page);
+            await page.evaluate(() => (window as any).setTestBrowserFullscreen(false, true, false));
+            await expect(page.locator('.map-page')).not.toHaveClass(/fullscreen/);
+            const previousSize = await page.locator('#trail-map').boundingBox();
+            await page.locator('.result-header .expand-results').click();
+            await settle(page);
+            const nextSize = await page.locator('#trail-map').boundingBox();
+            expect([nextSize!.width,nextSize!.height]).not.toEqual([previousSize!.width,previousSize!.height]);
+            const expected = await page.evaluate(area => (window as any).realMap.cameraForBounds([
+                [area.southWest.lng, area.southWest.lat], [area.northEast.lng, area.northEast.lat],
+            ]).zoom, area);
+            expect((await camera(page)).zoom).toBeCloseTo(expected, 6);
+            expect(await quietCounts(page)).toMatchObject({ results: beforeExit.results, publications: beforeExit.publications, url: beforeExit.url });
+        });
+        test('a late display-mode event does not stop motion started after the first resize', async ({ page }) => {
+            await installBrowserFullscreen(page);
+            await mount(page, bundle);
+            const before = await counts(page);
+            await page.evaluate(() => {
+                addEventListener('resize', () => {
+                    (window as any).realMap.easeTo({ center: [8.1, 47.02], zoom: 11, duration: 500 });
+                    setTimeout(() => (window as any).setTestBrowserFullscreen(true, true, false), 50);
+                }, { once: true });
+            });
+            await size(page, 1500, 1000);
+            await expect(page.locator('.map-page')).toHaveClass(/fullscreen/);
+            await expect.poll(() => page.evaluate(() => (window as any).realMap.isMoving())).toBe(false);
+            expect((await camera(page)).zoom).toBeCloseTo(11, 6);
+            expect((await camera(page)).center[0]).toBeCloseTo(8.1, 6);
+            expect(await quietCounts(page)).toMatchObject({ results: before.results + 1, publications: before.publications + 1 });
+            await settle(page);
+        });
+
+        test('fullscreen browser zoom publishes once, while an inner-only browser panel preserves scope', async ({ page }) => {
+            await mount(page, bundle);
+            await windowState(page, true);
+            await page.waitForTimeout(1100);
+            const before = await counts(page);
+            const cdp = await page.context().newCDPSession(page);
+            await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1.25, mobile: false });
+            await changedOnce(page, before);
+            const zoomed = await counts(page);
+            await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 650, deviceScaleFactor: 1.25, mobile: false });
+            expect(await quietCounts(page)).toMatchObject({ map: zoomed.map + 1 });
+            await settle(page);
+            expect((await counts(page)).results).toBe(zoomed.results);
+            expect((await counts(page)).url).toBe(zoomed.url);
+            const panel = await counts(page);
+            await cdp.send('Emulation.setDeviceMetricsOverride', { width: 650, height: 1000, deviceScaleFactor: 1.25, mobile: false,
+                screenOrientation: { type: 'portraitPrimary', angle: 0 } });
+            await changedOnce(page, panel);
+            await cdp.detach();
+        });
 
         test('phone list selection keeps the rotated landscape map interactive', async ({ browser }) => {
             const context = await browser.newContext({ ...devices['Pixel 7'] });
@@ -231,6 +384,115 @@ for (const dev of [true, false]) {
                 expect(resized.zoom).toBeCloseTo(control.zoom, 6);
                 expect(resized.center[0]).toBeCloseTo(control.center[0], 6);
                 expect(resized.center[1]).toBeCloseTo(control.center[1], 6);
+            });
+        }
+
+        for (const selector of ['.result-header .collapse-results', '.result-header .expand-results', '.collapsed-actions .collapse-results', '.overlay-close', '.overlay-move']) {
+            test(`fullscreen returns focus from a hidden ${selector} trigger to a visible equivalent`, async ({ page }) => {
+                await mount(page, bundle);
+                if (selector.startsWith('.collapsed')) await page.locator('.result-header .collapse-results').click();
+                if (selector.startsWith('.overlay')) { await page.locator('.result-header .expand-results').click(); await settle(page); }
+                await page.locator(selector).focus();
+                await windowState(page, true);
+                await windowState(page, false);
+                expect(await page.evaluate(() => document.activeElement !== document.body && (document.activeElement as HTMLElement).checkVisibility({ visibilityProperty: true }))).toBe(true);
+            });
+        }
+        test('mounting into existing browser fullscreen causes no focus handoff', async ({ page }) => {
+            const cdp = await page.context().newCDPSession(page);
+            const { windowId } = await cdp.send('Browser.getWindowForTarget');
+            await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'fullscreen' } });
+            await page.addInitScript(() => { (window as any).focusEvents = []; addEventListener('focusin', event => (window as any).focusEvents.push((event.target as Element).tagName)); });
+            await mount(page, bundle);
+            await page.waitForTimeout(1200); // Negative: delayed automatic focus must not occur.
+            expect(await page.evaluate(() => (window as any).focusEvents)).toEqual([]);
+            await cdp.detach();
+        });
+        test('real browser fullscreen keeps navigation overlays, modal focus and uploads usable', async ({ page }) => {
+            await mount(page, navBundle);
+            await page.locator('.create-trigger').click();
+            await windowState(page, true);
+            await expect(page.locator('nav:has(#nav-bar-links) [aria-label="Toggle theme"]')).toHaveCount(1);
+            expect(await page.locator('nav:has(#nav-bar-links) [aria-label="Toggle theme"]').evaluate(node => Boolean(node.closest('[inert]')))).toBe(true);
+            await page.locator('.create-panel button').last().click();
+            const dialog = page.locator('dialog[open]');
+            await expect(dialog.getByRole('button', { name: 'Close modal', exact: true })).toBeFocused();
+            await expect.poll(() => dialog.ariaSnapshot()).toContain('Close modal');
+            await dialog.getByRole('textbox').click();
+            await page.evaluate(() => new Promise(requestAnimationFrame));
+            // An overlay update must keep the handoff deferred; interacting
+            // inside the dialog must not discard its target after closing.
+            await dialog.evaluate(node => node.classList.add('focus-probe'));
+            await page.evaluate(() => new Promise(requestAnimationFrame));
+            await dialog.getByRole('button', { name: 'Close modal', exact: true }).click();
+            await expect(page.locator('.fullscreen-search-toggle')).toBeFocused();
+            await page.evaluate(() => (window as any).fixture.addUpload());
+            const cancel = page.getByRole('button', { name: 'Cancel upload', exact: true });
+            await expect(cancel).toBeVisible();
+            await cancel.click();
+            await expect(cancel).toHaveCount(0);
+        });
+        test('a selection dropdown hidden by fullscreen does not suppress focus handoff', async ({ page }) => {
+            await mount(page, bundle);
+            await page.locator('.trail-result').first().hover();
+            await page.locator('.trail-result input[type=checkbox]').first().check();
+            await page.locator('.selection-menu').click();
+            await expect(page.locator('.selection-toolbar [data-fullscreen-overlay]')).toBeVisible();
+            await windowState(page, true);
+            await expect(page.locator('.selection-toolbar [data-fullscreen-overlay]')).toBeHidden();
+            await expect(page.locator('.fullscreen-search-toggle')).toBeFocused();
+            await windowState(page, false);
+            expect(await page.evaluate(() => document.activeElement !== document.body && (document.activeElement as HTMLElement).checkVisibility({ visibilityProperty: true }))).toBe(true);
+        });
+        test('fullscreen restores focus to the main search when the filter-field trigger was removed', async ({ page }) => {
+            await mount(page, searchBundle);
+            await page.getByRole('searchbox').first().focus();
+            await page.locator('.general-filters .filter-chip').filter({ hasText: 'trail-search-place' }).click();
+            await page.locator('.place-input input').focus();
+            await windowState(page, true);
+            await expect(page.locator('.fullscreen-search-toggle')).toBeFocused();
+            await windowState(page, false);
+            await expect(page.locator('.search-heading input')).toBeFocused();
+            await expect(page.locator('.search-form')).not.toHaveClass(/expanded/);
+        });
+        for (const key of ['Shift', 'Control', 'Alt', 'Meta', 'a']) {
+            test(`${key} alone does not cancel focus handoff onto a visible control`, async ({ page }) => {
+                await installBrowserFullscreen(page);
+                await mount(page, bundle);
+                await page.getByTestId('fixture-search').focus();
+                for (const enabled of [true, false]) {
+                    await holdFullscreenTimers(page);
+                    await page.evaluate(enabled => (window as any).setTestBrowserFullscreen(enabled, true, false), enabled);
+                    await page.keyboard.press(key);
+                    await page.evaluate(() => (window as any).flushFullscreenTimers());
+                    await settle(page);
+                    await expect(page.locator(enabled ? '.fullscreen-search-toggle' : '[data-testid="fixture-search"]')).toBeFocused();
+                }
+            });
+        }
+        for (const action of ['Tab', 'click']) {
+            test(`a real ${action} focus choice wins over the delayed fullscreen handoff`, async ({ page }) => {
+                await installBrowserFullscreen(page);
+                await mount(page, bundle);
+                await page.getByTestId('fixture-search').focus();
+                await holdFullscreenTimers(page);
+                await page.evaluate(() => (window as any).setTestBrowserFullscreen(true, true, false));
+                await expect(page.locator('.fullscreen-search-toggle')).toBeVisible();
+                if (action === 'Tab') {
+                    await page.locator('.fullscreen-search-toggle').focus();
+                    await page.keyboard.press('Tab');
+                } else await page.locator('.fullscreen-search-toggle').click();
+                const chosen = await page.evaluate(() => {
+                    const element = document.activeElement as HTMLElement;
+                    element.dataset.focusChoice = 'true';
+                    return element.tagName;
+                });
+                expect(chosen).not.toBe('BODY');
+                expect(await page.locator('[data-focus-choice="true"]').evaluate(node => node.matches('.fullscreen-search-toggle'))).toBe(false);
+                await page.evaluate(() => new Promise(requestAnimationFrame));
+                await page.evaluate(() => (window as any).flushFullscreenTimers());
+                await settle(page);
+                await expect(page.locator('[data-focus-choice="true"]')).toBeFocused();
             });
         }
     });
