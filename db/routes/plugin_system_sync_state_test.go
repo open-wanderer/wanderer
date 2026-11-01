@@ -247,48 +247,86 @@ func TestSyncCapabilityHandlesSessionAndSwitchOff(t *testing.T) {
 	}
 }
 
-func TestSyncKeepsErrorFieldsUntouchedWhenSwitchedOffDuringTheSync(t *testing.T) {
-	f := newPluginInstanceFixture(t)
-	actors := core.NewBaseCollection("activitypub_actors")
-	actors.Fields.Add(&core.TextField{Name: "user"})
-	if err := f.app.Save(actors); err != nil {
-		t.Fatal(err)
-	}
-	actor := core.NewRecord(actors)
-	actor.Set("user", f.ownerID)
-	if err := f.app.Save(actor); err != nil {
-		t.Fatal(err)
-	}
-	instanceID := f.instance(t, true, time.Time{})
-	empty, _ := json.Marshal(pluginSystemListOutput{})
-	// The user switches the plugin off while the plugin is listing.
-	session := syncLimitTestSession{call: func(context.Context, string, []byte) ([]byte, error) {
-		record := f.stored(t, instanceID)
-		record.Set("enabled", false)
-		if err := f.app.Save(record); err != nil {
-			t.Fatal(err)
-		}
-		return empty, nil
-	}}
-	original := pluginRuntimeFor
-	pluginRuntimeFor = func(pluginsystem.LocalPlugin) (pluginsystem.Runtime, error) {
-		return &reopenTestRuntime{session: session}, nil
-	}
-	t.Cleanup(func() { pluginRuntimeFor = original })
-	plugin := pluginsystem.LocalPlugin{}
-	plugin.Manifest.ID = "komoot"
-	plugin.Manifest.Capabilities = []pluginsystem.CapabilityManifest{
-		{Name: "list_routes", Version: "v1", Export: "list_routes_v1"},
-		{Name: "get_route_detail", Version: "v1", Export: "get_route_detail_v1"},
-	}
+func TestSyncRestoresStatusWhenSwitchedOffDuringTheSync(t *testing.T) {
+	for _, outcome := range []string{"switch-off", "error", "completion", "disconnect"} {
+		t.Run(outcome, func(t *testing.T) {
+			f := newPluginInstanceFixture(t)
+			actors := core.NewBaseCollection("activitypub_actors")
+			actors.Fields.Add(&core.TextField{Name: "user"})
+			if err := f.app.Save(actors); err != nil {
+				t.Fatal(err)
+			}
+			actor := core.NewRecord(actors)
+			actor.Set("user", f.ownerID)
+			if err := f.app.Save(actor); err != nil {
+				t.Fatal(err)
+			}
+			instanceID := f.instance(t, true, time.Time{})
+			empty, _ := json.Marshal(pluginSystemListOutput{})
+			providerErr := errors.New("provider failed")
+			// Switch off after the last list result but before the final save.
+			if outcome == "completion" {
+				switchedOff := false
+				f.app.OnRecordUpdate().BindFunc(func(e *core.RecordEvent) error {
+					if e.Record.Collection().Name == "plugin_instances" && !e.Record.GetDateTime("last_sync_at").IsZero() && !switchedOff {
+						switchedOff = true
+						e.Record.Set("enabled", false)
+						e.Record.Set("status", "syncing")
+					}
+					return e.Next()
+				})
+			}
+			session := syncLimitTestSession{call: func(context.Context, string, []byte) ([]byte, error) {
+				record := f.stored(t, instanceID)
+				record.Set("enabled", false)
+				if outcome == "completion" {
+					return empty, nil
+				}
+				if outcome == "disconnect" {
+					record.Set("status", "needs_auth")
+				}
+				if err := f.app.Save(record); err != nil {
+					t.Fatal(err)
+				}
+				if outcome == "error" {
+					return nil, providerErr
+				}
+				return empty, nil
+			}}
+			original := pluginRuntimeFor
+			pluginRuntimeFor = func(pluginsystem.LocalPlugin) (pluginsystem.Runtime, error) {
+				return &reopenTestRuntime{session: session}, nil
+			}
+			t.Cleanup(func() { pluginRuntimeFor = original })
+			plugin := pluginsystem.LocalPlugin{}
+			plugin.Manifest.ID = "komoot"
+			plugin.Manifest.Capabilities = []pluginsystem.CapabilityManifest{
+				{Name: "list_routes", Version: "v1", Export: "list_routes_v1"},
+				{Name: "get_route_detail", Version: "v1", Export: "get_route_detail_v1"},
+			}
 
-	_, err := syncPluginInstance(t.Context(), f.app, nil, plugin, f.stored(t, instanceID))
-	if !errors.Is(err, errPluginInstanceSwitchedOff) {
-		t.Fatalf("sync of a switched-off plugin: %v", err)
-	}
-	stored := f.stored(t, instanceID)
-	if len(pluginsystem.JSONMapFromRecord(stored, "last_error")) != 0 || !stored.GetDateTime("retry_not_before").IsZero() {
-		t.Fatalf("switch-off recorded as an error: last_error=%v, retry_not_before=%v", stored.Get("last_error"), stored.GetDateTime("retry_not_before"))
+			_, err := syncPluginInstance(t.Context(), f.app, nil, plugin, f.stored(t, instanceID))
+			wantErr := errPluginInstanceSwitchedOff
+			if outcome == "error" {
+				wantErr = providerErr
+			} else if outcome == "completion" {
+				wantErr = nil
+			}
+			if !errors.Is(err, wantErr) {
+				t.Fatalf("sync returned %v, want %v", err, wantErr)
+			}
+			stored := f.stored(t, instanceID)
+			want := "configured"
+			if outcome == "disconnect" {
+				want = "needs_auth"
+			}
+			if stored.GetBool("enabled") || stored.GetString("status") != want {
+				t.Fatalf("switch-off left status=%q, enabled=%v", stored.GetString("status"), stored.GetBool("enabled"))
+			}
+			if outcome == "switch-off" && (len(pluginsystem.JSONMapFromRecord(stored, "last_error")) != 0 || !stored.GetDateTime("retry_not_before").IsZero()) {
+				t.Fatalf("switch-off recorded as an error: last_error=%v, retry_not_before=%v", stored.Get("last_error"), stored.GetDateTime("retry_not_before"))
+			}
+		})
 	}
 }
 
@@ -313,7 +351,7 @@ func TestResetInterruptedPluginSyncs(t *testing.T) {
 	if err := ResetInterruptedPluginSyncs(f.app); err != nil {
 		t.Fatal(err)
 	}
-	for id, want := range map[string]string{enabled: "configured", disabled: "disabled", untouched: "needs_reauth"} {
+	for id, want := range map[string]string{enabled: "configured", disabled: "configured", untouched: "needs_reauth"} {
 		if got := f.stored(t, id).GetString("status"); got != want {
 			t.Errorf("status %q, want %q", got, want)
 		}

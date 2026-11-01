@@ -148,7 +148,7 @@ func syncPluginInstancesOneByOne(ctx context.Context, app core.App, client meili
 // instances whose sync it cut off, so they do not show as syncing until their
 // next sync.
 func ResetInterruptedPluginSyncs(app core.App) error {
-	_, err := app.DB().NewQuery("UPDATE plugin_instances SET status = CASE WHEN enabled THEN 'configured' ELSE 'disabled' END WHERE status = 'syncing'").Execute()
+	_, err := app.DB().NewQuery("UPDATE plugin_instances SET status = 'configured' WHERE status = 'syncing'").Execute()
 	return err
 }
 
@@ -206,6 +206,27 @@ func syncFreshPluginInstance(ctx context.Context, app core.App, client meilisear
 // actor, creates the runtime, decrypts/refreshes auth, and dispatches every
 // enabled sync capability.
 func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.ServiceManager, plugin pluginsystem.LocalPlugin, instance *core.Record) (*pluginSystemSyncResult, error) {
+	previousStatus := instance.GetString("status")
+	defer func() {
+		err := app.RunInTransaction(func(txApp core.App) error {
+			fresh, err := txApp.FindRecordById("plugin_instances", instance.Id)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if fresh.GetBool("enabled") || fresh.GetString("status") != "syncing" {
+				return nil
+			}
+			// A switch-off can leave the sync's temporary status on the record.
+			fresh.Set("status", previousStatus)
+			return txApp.Save(fresh)
+		})
+		if err != nil {
+			app.Logger().Warn("failed to restore plugin instance status", "instance", instance.Id, "error", err)
+		}
+	}()
 	actor, err := app.FindFirstRecordByData("activitypub_actors", "user", instance.GetString("user"))
 	if err != nil {
 		setPluginInstanceStatus(app, instance, "error", "invalid_request", "activitypub actor not found")
@@ -274,7 +295,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		app.Logger().Info("plugin capability sync started", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "version", capability.Version, "export", capability.Export)
 		capResult, err := syncPluginCapability(ctx, app, client, sessions, plugin, capability, detailCapability, instance, actor, auth, pluginConfig, hostConfig, defaultPublic, createSummitLog)
 		if errors.Is(err, errPluginInstanceSwitchedOff) {
-			// The user's own change set the status; leave it as it is.
+			// Keep an explicit user status; the deferred cleanup clears syncing.
 			return nil, err
 		}
 		if err != nil {

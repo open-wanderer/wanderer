@@ -200,7 +200,7 @@ func PluginSystemOAuthRevoke(e *core.RequestEvent) error {
 	pluginsystem.ClearOAuthToken(auth)
 	instance.Set("auth", auth)
 	instance.Set("status", "needs_auth")
-	// Switching the instance off stops a running sync at its next batch and
+	// Switching the instance off stops a running sync before its next item and
 	// keeps it from setting the status back to configured when it ends.
 	instance.Set("enabled", false)
 	if err := e.App.Save(instance); err != nil {

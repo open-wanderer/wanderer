@@ -61,7 +61,7 @@
     let secretFields = $derived(new Set(plugin.auth.secretFields ?? plugin.auth.fields ?? []));
     let isOAuthPlugin = $derived(plugin.auth.type === "oauth2");
     let isSessionPlugin = $derived(plugin.auth.type === "session");
-    let isConnected = $derived(instance?.status === "configured");
+    let isConnected = $derived(instance?.status === "configured" || instance?.status === "syncing");
     let isSaving = $state(false);
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
@@ -496,7 +496,7 @@
         return {
             ...instance,
             plugin_id,
-            enabled: isOAuthPlugin && status !== "configured" ? false : (instance?.enabled ?? false),
+            enabled: isOAuthPlugin && status !== "configured" && status !== "syncing" ? false : (instance?.enabled ?? false),
             auth: submittedAuth,
             config,
             status,
