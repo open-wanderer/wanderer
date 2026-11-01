@@ -129,9 +129,9 @@ func syncPluginInstancesOneByOne(ctx context.Context, app core.App, client meili
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		result, skipped, err := syncFreshPluginInstance(ctx, app, client, plugin, instance.Id)
+		result, skipped, err := syncPluginInstanceLocked(ctx, app, client, plugin, instance.Id)
 		if skipped || errors.Is(err, errPluginInstanceSwitchedOff) {
-			app.Logger().Info("plugin sync skipping instance that is switched off, deleted or waiting for its retry time", "plugin", plugin.Manifest.ID, "instance", instance.Id)
+			app.Logger().Info("plugin sync skipping instance that is syncing, switched off, deleted or waiting for its retry time", "plugin", plugin.Manifest.ID, "instance", instance.Id)
 			continue
 		}
 		if err != nil {
@@ -171,6 +171,17 @@ var runPluginInstanceSync = syncPluginInstance
 // syncPluginInstance without a worker process.
 var pluginRuntimeFor = func(plugin pluginsystem.LocalPlugin) (pluginsystem.Runtime, error) {
 	return pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
+}
+
+// syncPluginInstanceLocked keeps the cron from overlapping another sync.
+// skipped also covers a held instance lock; see syncFreshPluginInstance.
+func syncPluginInstanceLocked(ctx context.Context, app core.App, client meilisearch.ServiceManager, plugin pluginsystem.LocalPlugin, instanceID string) (*pluginSystemSyncResult, bool, error) {
+	release, acquired := pluginsystem.TryLockInstance(instanceID)
+	if !acquired {
+		return nil, true, nil
+	}
+	defer release()
+	return syncFreshPluginInstance(ctx, app, client, plugin, instanceID)
 }
 
 // syncFreshPluginInstance re-reads the instance before syncing it, since the
@@ -259,11 +270,11 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		policy:  pluginInstancePolicy(plugin, config).WithHostAuth(auth),
 	}
 	if err := sessions.open(ctx); err != nil {
-		setPluginInstanceStatusForError(app, instance, err)
+		setPluginInstanceStatusAfterSyncError(ctx, app, instance, err)
 		return nil, err
 	}
 	defer func() {
-		_ = sessions.close(context.Background())
+		_ = sessions.close(ctx)
 	}()
 
 	if err := savePluginInstanceSyncState(app, instance, map[string]any{"status": "syncing"}); err != nil {
@@ -299,7 +310,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 			return nil, err
 		}
 		if err != nil {
-			setPluginInstanceStatusForError(app, instance, err)
+			setPluginInstanceStatusAfterSyncError(ctx, app, instance, err)
 			return nil, err
 		}
 		app.Logger().Info("plugin capability sync completed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "imported", capResult.Imported, "skipped", capResult.Skipped)
@@ -347,7 +358,7 @@ func (s *pluginSyncRuntimeSession) open(ctx context.Context) error {
 }
 
 func (s *pluginSyncRuntimeSession) reopen(ctx context.Context) error {
-	_ = s.close(context.Background())
+	_ = s.close(ctx)
 	return s.open(ctx)
 }
 
@@ -666,6 +677,16 @@ func setPluginInstanceStatusForError(app core.App, instance *core.Record, err er
 	if saveErr := savePluginInstanceSyncState(app, instance, fields); saveErr != nil {
 		app.Logger().Warn("failed to update plugin instance status", "instance", instance.Id, "error", saveErr)
 	}
+}
+
+// setPluginInstanceStatusAfterSyncError distinguishes a sync timeout from
+// a provider failure.
+func setPluginInstanceStatusAfterSyncError(ctx context.Context, app core.App, instance *core.Record, err error) {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		setPluginInstanceStatus(app, instance, "error", "sync_timeout", "the sync reached its time limit and was stopped")
+		return
+	}
+	setPluginInstanceStatusForError(app, instance, err)
 }
 
 func applyHostPolicy(item *pluginsystem.TrailImport, config map[string]any) {

@@ -6,6 +6,8 @@
         onclick: () => void;
         oninfo: () => void;
         ontoggle: (value: boolean) => void;
+        onsync?: () => void;
+        syncDisabled?: boolean;
         active: boolean;
         toggleDisabled?: boolean;
         settingsDisabled?: boolean;
@@ -20,6 +22,8 @@
         onclick,
         oninfo,
         ontoggle,
+        onsync,
+        syncDisabled = false,
         active = $bindable(),
         toggleDisabled = false,
         settingsDisabled = false,
@@ -65,7 +69,7 @@
         </div>
     </div>
     <div class="flex shrink-0 flex-col gap-2 md:items-start">
-        <div class="flex items-center justify-between gap-2 md:justify-end">
+        <div class="flex flex-wrap items-center justify-between gap-2 md:justify-end">
             <button
                 class="btn-icon"
                 type="button"
@@ -75,13 +79,18 @@
             >
                 <i class="fa fa-circle-info" aria-hidden="true"></i>
             </button>
+            {#if onsync}
+                <button class="btn-secondary" type="button" onclick={onsync} disabled={syncDisabled}
+                    ><i class="fa fa-rotate mr-2" aria-hidden="true"></i>{$_("plugin-sync-now")}</button
+                >
+            {/if}
             <button
                 class="btn-secondary"
                 type="button"
                 class:btn-disabled={settingsDisabled}
                 {onclick}
                 disabled={settingsDisabled}
-                ><i class="fa fa-cogs mr-2"></i>{$_("settings")}</button
+                ><i class="fa fa-cogs mr-2" aria-hidden="true"></i>{$_("settings")}</button
             >
             <div class="plugin-card-toggle">
                 <Toggle bind:value={active} onchange={ontoggle} disabled={toggleDisabled}></Toggle>

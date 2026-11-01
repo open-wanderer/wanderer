@@ -3,6 +3,7 @@ export interface PluginInstance {
     user: string;
     plugin_id: string;
     enabled: boolean;
+    busy?: boolean;
     auth?: Record<string, string>;
     config?: Record<string, unknown>;
     state?: Record<string, unknown>;
