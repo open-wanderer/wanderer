@@ -321,7 +321,7 @@
   "follow_roads_description": "Ajusta el traçat enregistrat a les carreteres i camins més propers.",
   "recalculate_heights": "Recalcula les altituds",
   "recalculate_heights_description": "Substitueix l'elevació enregistrada pel GPS per valors més precisos del mapa.",
-  "track_transform_failed": "Couldn't adjust the track. Check your connection and try again.",
+  "track_transform_failed": "No s'ha pogut ajustar la ruta. Comproveu la connexió i torneu-ho a provar.",
   "save": "Desa",
   "save_track": "Desa el traçat",
   "search": "Cerca",
@@ -660,11 +660,11 @@
   "@offline_trail_search_body": {
     "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
   },
-  "selected_location": "Selected location",
+  "selected_location": "Ubicació seleccionada",
   "@selected_location": {
     "description": "Heading of the map screen panel shown after tapping an empty spot on the map."
   },
-  "distance_from_your_location": "{distance} from your location",
+  "distance_from_your_location": "{distance} fins a la vostra ubicació",
   "@distance_from_your_location": {
     "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
     "placeholders": {
@@ -673,19 +673,19 @@
       }
     }
   },
-  "plan_route_from_here": "Plan route from here",
+  "plan_route_from_here": "Planifica la ruta des d'aquí",
   "@plan_route_from_here": {
     "description": "Button in the map screen's selected-location panel that opens the route planner centered on that location."
   },
-  "recent_searches": "Recent searches",
+  "recent_searches": "Cerques recents",
   "@recent_searches": {
     "description": "Heading above the search history shown on the search screens while the query is empty."
   },
-  "clear_search_history": "Clear search history",
+  "clear_search_history": "Esborra l'historial de cerca",
   "@clear_search_history": {
     "description": "Tooltip of the trashcan next to the search history heading, and title of its confirmation dialog."
   },
-  "clear_search_history_confirm": "Remove all recent searches?",
+  "clear_search_history_confirm": "Voleu suprimir totes les cerques recents?",
   "@clear_search_history_confirm": {
     "description": "Body of the dialog confirming that the whole search history is removed."
   }
