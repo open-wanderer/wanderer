@@ -386,6 +386,9 @@ func initData(app core.App, client meilisearch.ServiceManager) error {
 }
 
 func initPlugins(app core.App) {
+	if err := routes.ResetInterruptedPluginSyncs(app); err != nil {
+		app.Logger().Error(fmt.Sprintf("Error resetting interrupted plugin syncs: %v", err))
+	}
 	manager := pluginsystem.NewManager(app, "")
 	if err := manager.SyncInstalledPlugins(context.Background()); err != nil {
 		warning := fmt.Sprintf("Error discovering WASM plugins: %v", err)
