@@ -324,6 +324,7 @@
   "plugin-sync-started": "{plugin} sync started. New trails appear when it finishes.",
   "plugin-sync-too-soon": "{plugin} can't sync right now. Try again in {minutes} min.",
   "plugin-sync-running": "{plugin} is already syncing.",
+  "plugin-sync-off": "Sync now is turned off on this server. {plugin} syncs on its schedule.",
   "plugin-sync-error": "Could not start the {plugin} sync.",
   "plugin-donation-link": "Support this project",
   "plugin-homepage-link": "Visit homepage",

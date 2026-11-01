@@ -151,6 +151,11 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	if err != nil {
 		return nil, err
 	}
+	// The reference now makes later syncs skip this trail, so save its
+	// waypoints even if the sync is cancelled. Their photos get a bounded
+	// time of their own; photoFiles skips the rest once it runs out.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), importFinishTimeout)
+	defer cancel()
 
 	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id, trackIndex, mediaContext); err != nil {
 		return nil, err
@@ -480,9 +485,6 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 	if len(waypoints) == 0 {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 
 	collection, err := app.FindCollectionByNameOrId("waypoints")
 	if err != nil {
@@ -544,6 +546,10 @@ type pluginMediaLogContext struct {
 }
 
 var pluginMediaRetryDelays = []time.Duration{time.Second, 3 * time.Second}
+
+// importFinishTimeout bounds the waypoint photo downloads of a trail that is
+// already saved, since a cancelled sync no longer stops them.
+var importFinishTimeout = 5 * time.Minute
 
 func (b *pluginMediaBudget) remainingBytes() int64 {
 	remaining := util.DefaultPluginMaxImportMediaBytes - b.bytes

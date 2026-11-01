@@ -119,10 +119,7 @@
                 saved = await plugin_instances_create(instance);
             }
 
-            instances = [
-                ...instances.filter((existing) => existing.id != saved.id),
-                saved,
-            ];
+            instances = replaceInstance(saved);
 
             show_toast({
                 text: $_("settings-saved"),
@@ -157,6 +154,12 @@
         return saved;
     }
 
+    // Update responses carry no busy flag, so keep the one the list reported.
+    function replaceInstance(saved: PluginInstance) {
+        const busy = instances.find((existing) => existing.id == saved.id)?.busy;
+        return [...instances.filter((existing) => existing.id != saved.id), { ...saved, busy }];
+    }
+
     async function onPluginToggle(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
@@ -180,16 +183,13 @@
                 enabled: value,
                 status: plugin.auth.type === "oauth2" || value ? "configured" : "disabled",
             });
-            instances = [
-                ...instances.filter((existing) => existing.id != saved.id),
-                saved,
-            ];
+            instances = replaceInstance(saved);
             if (value) {
                 await maybePromptCategoryRemap(saved, plugin);
             }
             if (value && pluginCanSync(plugin)) {
                 // The first sync would otherwise wait for the nightly schedule.
-                void syncPlugin(plugin, saved, { quietWhenOff: true });
+                void syncPlugin(plugin, saved, { quiet: true });
             }
         } catch (e) {
             show_toast({
@@ -519,7 +519,7 @@
     async function syncPlugin(
         plugin: PluginProvider,
         instance: PluginInstance,
-        options: { quietWhenOff?: boolean } = {},
+        options: { quiet?: boolean } = {},
     ) {
         if (!instance.id) {
             return;
@@ -534,17 +534,22 @@
                 type: "success",
             });
         } catch (e) {
-            // An administrator can turn "Sync now" off (403). The plugin then
-            // syncs on schedule, which needs no message after switching it on.
-            if (options.quietWhenOff && e instanceof APIError && e.status === 403) {
+            const status = e instanceof APIError ? e.status : undefined;
+            if (status === 409) {
+                instances = instances.map((item) => item.id === instance.id ? { ...item, busy: true } : item);
+            }
+            // Switching a plugin on asked for no sync: when it cannot start now
+            // (turned off, already running or too soon), the schedule syncs it.
+            if (options.quiet && (status === 403 || status === 409 || status === 429)) {
                 return;
             }
             let text = $_("plugin-sync-error", { values });
-            if (e instanceof APIError && e.status === 429) {
-                const minutes = Math.max(1, Math.ceil((e.detail?.retryAfter ?? 60) / 60));
+            if (status === 403) {
+                text = $_("plugin-sync-off", { values });
+            } else if (status === 429) {
+                const minutes = Math.max(1, Math.ceil(((e as APIError).detail?.retryAfter ?? 60) / 60));
                 text = $_("plugin-sync-too-soon", { values: { ...values, minutes } });
-            } else if (e instanceof APIError && e.status === 409) {
-                instances = instances.map((item) => item.id === instance.id ? { ...item, busy: true } : item);
+            } else if (status === 409) {
                 text = $_("plugin-sync-running", { values });
             }
             show_toast({ text, icon: "close", type: "error" });

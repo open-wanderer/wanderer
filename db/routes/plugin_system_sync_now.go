@@ -61,9 +61,10 @@ var pluginSyncs = newPluginSyncLimiter(
 
 var pluginSyncTimeout = envDuration("POCKETBASE_PLUGIN_SYNC_TIMEOUT", defaultPluginSyncTimeout, time.Second)
 
-// manualSyncMaxRunning keeps one plugin worker free of manual syncs. Every
-// sync holds a worker for its whole run, and without a free one the cron and
-// short requests such as sending a trail would time out waiting.
+// manualSyncMaxRunning leaves at least one plugin worker free of manual syncs,
+// shared by the scheduled sync and other plugin requests such as sending a
+// trail. Every sync holds a worker for its whole run, so without a free one
+// those would time out waiting.
 func manualSyncMaxRunning(configured int, workers int) int {
 	return max(0, min(configured, workers-1))
 }
@@ -129,6 +130,10 @@ func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEve
 		if !instance.GetBool("enabled") {
 			return apis.NewBadRequestError("plugin instance is not enabled", nil)
 		}
+		// Answer "off" before any wait, so the browser never asks the user to retry.
+		if pluginSyncs.maxRunning <= 0 {
+			return apis.NewForbiddenError(errPluginSyncDisabled.Error(), nil)
+		}
 		if shouldSkipPluginInstance(instance) {
 			return tooManyPluginSyncs(e, time.Until(instance.GetDateTime("retry_not_before").Time()), "the provider asked to wait before the next sync")
 		}
@@ -178,10 +183,7 @@ func PluginSystemSync(client meilisearch.ServiceManager) func(e *core.RequestEve
 }
 
 func tooManyPluginSyncs(e *core.RequestEvent, retryAfter time.Duration, message string) error {
-	seconds := int(math.Ceil(retryAfter.Seconds()))
-	if seconds < 1 {
-		seconds = 1
-	}
+	seconds := max(1, int(math.Ceil(retryAfter.Seconds())))
 	e.Response.Header().Set("Retry-After", strconv.Itoa(seconds))
 	// The constructor treats data as validation errors, so set it afterwards.
 	// The web proxy drops headers; the browser reads the wait from the body.

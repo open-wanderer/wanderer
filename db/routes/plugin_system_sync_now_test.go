@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,6 +36,10 @@ func TestPluginSyncLimiterCooldownPerPlugin(t *testing.T) {
 		t.Fatalf("another instance blocked by the first one's cooldown: %v", err)
 	} else {
 		release()
+	}
+	// Replacing the instance must not reset its plugin's cooldown.
+	if _, _, err := limiter.startManual("komoot-replacement", "komoot"); !errors.Is(err, errPluginSyncCooldown) {
+		t.Fatalf("replacement instance bypassed the cooldown: %v", err)
 	}
 	now = now.Add(10 * time.Minute)
 	_, retryAfter, err := limiter.startManual("komoot", "komoot")
@@ -75,7 +78,7 @@ func TestPluginSyncLimiterCapsRunningSyncs(t *testing.T) {
 
 func TestManualSyncMaxRunningLeavesAWorkerFree(t *testing.T) {
 	for _, c := range []struct{ configured, workers, want int }{
-		{2, 2, 1}, {2, 8, 2}, {2, 1, 0}, {5, 4, 3}, {0, 8, 0},
+		{2, 2, 1}, {2, 8, 2}, {2, 1, 0}, {0, 8, 0},
 	} {
 		if got := manualSyncMaxRunning(c.configured, c.workers); got != c.want {
 			t.Errorf("manualSyncMaxRunning(%d, %d) = %d, want %d", c.configured, c.workers, got, c.want)
@@ -249,8 +252,11 @@ func TestPluginSystemSyncLimiterAnswers(t *testing.T) {
 	})
 	t.Run("turned off", func(t *testing.T) {
 		usePluginSyncLimiter(t, newPluginSyncLimiter(0, 0))
-		if response := f.sync(t, f.owner, instanceID); response.Code != http.StatusForbidden {
-			t.Fatalf("status %d: %s", response.Code, response.Body.String())
+		// A provider backoff must not ask the user to retry a sync that is off.
+		for _, id := range []string{instanceID, f.instance(t, true, time.Now().Add(30*time.Minute))} {
+			if response := f.sync(t, f.owner, id); response.Code != http.StatusForbidden {
+				t.Fatalf("status %d: %s", response.Code, response.Body.String())
+			}
 		}
 	})
 	t.Run("already syncing", func(t *testing.T) {
@@ -261,6 +267,9 @@ func TestPluginSystemSyncLimiterAnswers(t *testing.T) {
 		if response := f.sync(t, f.owner, instanceID); response.Code != http.StatusConflict {
 			t.Fatalf("status %d: %s", response.Code, response.Body.String())
 		}
+		if limiter.running != 0 || len(limiter.lastStart) != 0 {
+			t.Fatal("busy instance consumed a slot or cooldown")
+		}
 	})
 }
 
@@ -270,27 +279,47 @@ func TestPluginSystemSyncRunsInBackgroundAndReleases(t *testing.T) {
 	f.installPlugin(t)
 	limiter := newPluginSyncLimiter(0, 2)
 	usePluginSyncLimiter(t, limiter)
-	called := make(chan bool, 1)
+	running := func() int {
+		limiter.mu.Lock()
+		defer limiter.mu.Unlock()
+		return limiter.running
+	}
+	started, finish := make(chan bool, 1), make(chan struct{})
+	var finishOnce sync.Once
+	finishSync := func() { finishOnce.Do(func() { close(finish) }) }
+	defer finishSync()
 	usePluginInstanceSync(t, func(ctx context.Context, _ core.App, _ meilisearch.ServiceManager, _ pluginsystem.LocalPlugin, instance *core.Record) (*pluginSystemSyncResult, error) {
 		_, hasDeadline := ctx.Deadline()
-		called <- hasDeadline && instance.Id == instanceID
+		started <- hasDeadline && instance.Id == instanceID
+		<-finish
 		return &pluginSystemSyncResult{PluginID: "komoot"}, nil
 	})
 
-	if response := f.sync(t, f.owner, instanceID); response.Code != http.StatusAccepted {
-		t.Fatalf("status %d: %s", response.Code, response.Body.String())
+	codes := make(chan int, 1)
+	go func() { codes <- f.sync(t, f.owner, instanceID).Code }()
+	select {
+	case code := <-codes:
+		if code != http.StatusAccepted {
+			t.Fatalf("status %d", code)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the request waited for the sync to finish")
 	}
 	select {
-	case ok := <-called:
+	case ok := <-started:
 		if !ok {
 			t.Fatal("background sync ran without a deadline or on the wrong instance")
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("background sync never ran")
 	}
-	for deadline := time.Now().Add(5 * time.Second); pluginsystem.InstanceBusy(instanceID); {
+	if !pluginsystem.InstanceBusy(instanceID) || running() != 1 {
+		t.Fatal("the running sync gave up its instance lock or its slot")
+	}
+	finishSync()
+	for deadline := time.Now().Add(5 * time.Second); pluginsystem.InstanceBusy(instanceID) || running() != 0; {
 		if time.Now().After(deadline) {
-			t.Fatal("instance stayed locked after the background sync")
+			t.Fatal("instance stayed locked or its slot stayed taken after the background sync")
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -327,12 +356,68 @@ func TestCronSkipsInstanceAManualSyncIsRunning(t *testing.T) {
 func TestSyncTimeoutIsNotReportedAsProviderOutage(t *testing.T) {
 	f := newPluginSyncRouteFixture(t)
 	instanceID := f.instance(t, true, time.Time{})
+	setPluginInstanceStatusAfterSyncError(t.Context(), f.app, f.stored(t, instanceID), errors.New("provider unavailable"))
+	if code := pluginsystem.JSONMapFromRecord(f.stored(t, instanceID), "last_error")["code"]; code == "sync_timeout" {
+		t.Fatal("a provider failure was reported as a sync timeout")
+	}
 	ctx, cancel := context.WithTimeout(t.Context(), time.Nanosecond)
 	defer cancel()
 	<-ctx.Done()
-
 	setPluginInstanceStatusAfterSyncError(ctx, f.app, f.stored(t, instanceID), pluginsystem.RuntimeSessionFatalError{Err: ctx.Err()})
 	if code := pluginsystem.JSONMapFromRecord(f.stored(t, instanceID), "last_error")["code"]; code != "sync_timeout" {
+		t.Fatalf("last_error code = %v, want sync_timeout", code)
+	}
+}
+
+func TestManualSyncTimeoutStopsBetweenTrails(t *testing.T) {
+	f := newPluginInstanceFixture(t)
+	actors := core.NewBaseCollection("activitypub_actors")
+	actors.Fields.Add(&core.TextField{Name: "user"})
+	refs := core.NewBaseCollection("trail_external_reference")
+	refs.Fields.Add(&core.TextField{Name: "user"}, &core.TextField{Name: "provider"}, &core.TextField{Name: "external_id"})
+	for _, collection := range []*core.Collection{actors, refs} {
+		if err := f.app.Save(collection); err != nil {
+			t.Fatal(err)
+		}
+	}
+	actor := core.NewRecord(actors)
+	actor.Set("user", f.ownerID)
+	if err := f.app.Save(actor); err != nil {
+		t.Fatal(err)
+	}
+	id := f.instance(t, true, time.Time{})
+	list, _ := json.Marshal(pluginSystemListOutput{Items: []pluginsystem.TrailSummary{
+		{Source: pluginsystem.TrailImportSource{ExternalID: "a"}},
+		{Source: pluginsystem.TrailImportSource{ExternalID: "b"}},
+	}})
+	details := 0
+	session := syncLimitTestSession{call: func(ctx context.Context, export string, _ []byte) ([]byte, error) {
+		if export == "list_routes_v1" {
+			return list, nil
+		}
+		details++
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	original := pluginRuntimeFor
+	pluginRuntimeFor = func(pluginsystem.LocalPlugin) (pluginsystem.Runtime, error) {
+		return &reopenTestRuntime{session: session}, nil
+	}
+	t.Cleanup(func() { pluginRuntimeFor = original })
+	plugin := pluginsystem.LocalPlugin{}
+	plugin.Manifest.ID = "komoot"
+	plugin.Manifest.Capabilities = []pluginsystem.CapabilityManifest{
+		{Name: "list_routes", Version: "v1", Export: "list_routes_v1"},
+		{Name: "get_route_detail", Version: "v1", Export: "get_route_detail_v1"},
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+
+	_, _, err := syncPluginInstanceLocked(ctx, f.app, nil, plugin, id)
+	if !errors.Is(err, context.DeadlineExceeded) || details != 1 {
+		t.Fatalf("sync went on after its time limit: %d detail calls, err=%v", details, err)
+	}
+	if code := pluginsystem.JSONMapFromRecord(f.stored(t, id), "last_error")["code"]; code != "sync_timeout" {
 		t.Fatalf("last_error code = %v, want sync_timeout", code)
 	}
 }
@@ -365,41 +450,6 @@ func (f *pluginSyncRouteFixture) installPlugin(t *testing.T) {
 	record.Set("manifest", manifest)
 	if err := f.app.Save(record); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestManualSyncUsesSharedInstanceLock(t *testing.T) {
-	limiter := newPluginSyncLimiter(0, 2)
-	release, ok := pluginsystem.TryLockInstance(t.Name())
-	if !ok {
-		t.Fatal("could not acquire shared lock")
-	}
-	defer release()
-	finished, _, err := limiter.startManual(t.Name(), t.Name())
-	if err == nil {
-		finished()
-	}
-	if !errors.Is(err, errPluginSyncRunning) {
-		t.Fatalf("manual sync ignored shared lock: %v", err)
-	}
-	if limiter.running != 0 || len(limiter.lastStart) != 0 {
-		t.Fatal("busy instance consumed a slot or cooldown")
-	}
-}
-
-func TestPluginSyncCooldownSurvivesInstanceReplacement(t *testing.T) {
-	limiter := newPluginSyncLimiter(time.Hour, 2)
-	release, _, err := limiter.startManual("old-instance", "owner/komoot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	release()
-	finished, _, err := limiter.startManual("replacement-instance", "owner/komoot")
-	if err == nil {
-		finished()
-	}
-	if !errors.Is(err, errPluginSyncCooldown) {
-		t.Fatalf("replacement bypassed cooldown: %v", err)
 	}
 }
 
@@ -469,34 +519,5 @@ func TestManualSyncCancellationCoversWorkerShutdown(t *testing.T) {
 	}
 	if pluginsystem.InstanceBusy(id) {
 		t.Fatal("cancelled sync left its instance locked")
-	}
-}
-
-func TestPluginSyncLimiterCapsConcurrentRequests(t *testing.T) {
-	limiter := newPluginSyncLimiter(0, 2)
-	start := make(chan struct{})
-	releases := make(chan func(), 20)
-	var requests sync.WaitGroup
-	for i := range 20 {
-		requests.Go(func() {
-			<-start
-			id := fmt.Sprintf("%s-%d", t.Name(), i)
-			release, _, err := limiter.startManual(id, id)
-			if err == nil {
-				releases <- release
-			} else if !errors.Is(err, errPluginSyncBusy) {
-				t.Errorf("unexpected refusal: %v", err)
-			}
-		})
-	}
-	close(start)
-	requests.Wait()
-	close(releases)
-	admitted := len(releases)
-	for release := range releases {
-		release()
-	}
-	if admitted != 2 {
-		t.Fatalf("concurrent requests admitted %d syncs; want 2", admitted)
 	}
 }

@@ -117,3 +117,51 @@ for (const change of ['switch-off', 'unmount']) {
         await expect.poll(() => page.evaluate(() => (window as any).polledInstances[0]?.enabled)).toBe(false);
     });
 }
+
+test.describe('refused syncs', () => {
+    // The browser logs each refused sync request; this test refuses them on purpose.
+    test.use({ browserErrorAllowlist: [{
+        source: 'console.error',
+        message: /status of (403|429)/,
+        url: /\/api\/v1\/plugin-system\/sync$/,
+        issue: 'https://github.com/open-wanderer/wanderer/pull/1469',
+    }] });
+
+    test('a sync started by switching a plugin on stays quiet when it cannot start', async ({ page }) => {
+        const pageSource = await readFile('src/routes/settings/plugins/+page.svelte', 'utf8');
+        const instance = { id: 'example', user: 'tester', plugin_id: 'example', enabled: false, status: 'configured', busy: false };
+        const source = `
+            <script>
+                import Settings from 'fixture:plugin-page.svelte';
+                const data = {
+                    pluginInstances: [${JSON.stringify(instance)}],
+                    pluginProviders: [{ id: 'example', name: 'Example', type: 'trails', status: 'available', capabilities: ['list_routes.v1'], auth: { type: 'none' } }],
+                    categories: [], subcategories: []
+                };
+            </script>
+            <Settings {data} />
+        `;
+        const bundle = await buildTrailModalFixture(false, source, { '\0fixture:plugin-page.svelte': pageSource });
+        await mountTrailModalFixture(page, bundle);
+        let status = 429;
+        let starts = 0;
+        await page.route('**/api/v1/plugin-system/sync', async (route) => {
+            starts++;
+            await route.fulfill({ status, json: { message: 'refused', data: { retryAfter: 112 } } });
+        });
+        await page.route('**/api/v1/plugin-instance/example', (route) => route.fulfill({ json: { ...instance, enabled: true } }));
+        await page.route('**/api/v1/plugin-system/category-remap/preview', (route) => route.fulfill({ json: { count: 0 } }));
+        const errors = () => page.evaluate(() => ((window as any).toasts ?? []).filter((toast: any) => toast.type === 'error').map((toast: any) => toast.text));
+
+        await page.locator('.plugin-card-toggle label').click();
+        await expect.poll(() => starts).toBe(1);
+        // A click asks for the sync, so it explains each refusal. Its toast comes
+        // after any the switch-on sync would have shown.
+        const button = page.getByRole('button', { name: 'plugin-sync-now', exact: true });
+        await button.click();
+        await expect.poll(errors).toEqual(['plugin-sync-too-soon']);
+        status = 403;
+        await button.click();
+        await expect.poll(errors).toEqual(['plugin-sync-too-soon', 'plugin-sync-off']);
+    });
+});

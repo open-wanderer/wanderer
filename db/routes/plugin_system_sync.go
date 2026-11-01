@@ -459,6 +459,10 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				continue
 			}
 			// A batch can take minutes, so check again before each item's calls.
+			// A sync that reaches its time limit stops here, between trails.
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			if pluginInstanceSwitchedOff(app, instance.Id) {
 				return nil, errPluginInstanceSwitchedOff
 			}
