@@ -34,7 +34,7 @@ func newFeedUtilTestApp(t *testing.T) *core.BaseApp {
 		&core.AutodateField{Name: "created", OnCreate: true},
 		&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
 	)
-	collection.AddIndex("idx_feed_actor_item", true, "`actor`, `item`", "")
+	collection.AddIndex("idx_feed_actor_type_item", true, "`actor`, `type`, `item`", "")
 	if err := app.Save(collection); err != nil {
 		t.Fatalf("create feed collection: %v", err)
 	}

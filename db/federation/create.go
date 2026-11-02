@@ -613,6 +613,12 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return err
 	}
 
+	// A peer's comment reaches a user inbox and the instance inbox. A Create of
+	// one that is already stored changes nothing; edits arrive as Updates.
+	if !newComment && activity.Type == pub.CreateType {
+		return nil
+	}
+
 	record.Set("iri", commentObject.ID.String())
 	record.Set("text", commentObject.Content.First().Value)
 	record.Set("author", actor.Id)
@@ -624,9 +630,9 @@ func processCreateOrUpdateCommentActivity(activity pub.Activity, app core.App, a
 		return err
 	}
 
-	// A peer's comment can reach a user inbox and the instance inbox; only
-	// the first delivery of a Create or Update notifies.
-	if (!newComment && activity.Type == pub.CreateType) || !claimMentionNotifications(app, activity) {
+	// Each Create or Update notifies once, through whichever inbox it reaches
+	// first.
+	if !claimMentionNotifications(app, activity) {
 		return nil
 	}
 
@@ -709,6 +715,12 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
+	// A peer's summit log reaches a user inbox and the instance inbox. A Create of
+	// one that is already stored changes nothing; edits arrive as Updates.
+	if !newSummitLog && activity.Type == pub.CreateType {
+		return nil
+	}
+
 	var distance, duration, elevation_gain, elevation_loss float64
 	tags, err := pub.ToItemCollection(logObject.Tag)
 	if err != nil {
@@ -762,7 +774,8 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
-			if err != nil {
+			// An attachment without a URL has nothing to download.
+			if err != nil || attachment == nil || pub.IsNil(attachment.URL) {
 				continue
 			}
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
@@ -815,9 +828,9 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		return err
 	}
 
-	// A peer's summit log can reach a user inbox and the instance inbox; only
-	// the first delivery of a Create or Update notifies.
-	if (!newSummitLog && activity.Type == pub.CreateType) || !claimMentionNotifications(app, activity) {
+	// Each Create or Update notifies once, through whichever inbox it reaches
+	// first.
+	if !claimMentionNotifications(app, activity) {
 		return nil
 	}
 
