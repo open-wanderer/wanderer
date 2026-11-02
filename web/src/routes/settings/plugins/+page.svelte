@@ -483,7 +483,7 @@
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
     ) {
-        return plugin.auth.type === "oauth2" && instance?.status !== "configured";
+        return plugin.auth.type === "oauth2" && instance?.status !== "configured" && instance?.status !== "syncing";
     }
 
     function pluginSettingsModalKey(plugin: PluginProvider) {
