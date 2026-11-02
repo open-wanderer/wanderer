@@ -56,7 +56,7 @@ export async function GET(event: RequestEvent) {
 
         const [username, domain] = splitUsername(fullUsername, ORIGIN)
 
-        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=true`)
+        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(event.locals.pb.filter("preferred_username:lower={:username} && is_local=true && actor_type!='instance'", { username: username?.toLowerCase() ?? "" }))
 
         const followers: ListResult<Follow> = await event.locals.pb.collection("follows").getList(intPage, 10, { sort: "-created", filter: `followee='${actor.id}'&&status='accepted'`, expand: "follower" })
 

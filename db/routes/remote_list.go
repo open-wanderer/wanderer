@@ -98,6 +98,7 @@ func RemoteListGet(e *core.RequestEvent) error {
 					syncRecord := record.Fresh()
 					go func() {
 						defer listSyncing.Delete(iri)
+						defer recoverBackgroundSync(e.App, "lists", iri)
 						_, err := performFullListSync(e.App, bgCtx, &urlCopy, syncRecord)
 						switch {
 						case errors.Is(err, errRemoteGone):

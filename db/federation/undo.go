@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -33,7 +34,7 @@ func CreateUnfollowActivity(app core.App, follow *core.Record) error {
 	}
 
 	// find the original follow activity
-	followActivityRecord, err := app.FindFirstRecordByFilter("activitypub_activities", "actor={:actor}&&object={:object}&&type={:type}", dbx.Params{"actor": followerActor.GetString("iri"), "object": followeeActor.GetString("iri"), "type": string(pub.FollowType)})
+	followActivityRecord, err := findFollowActivityRecord(app, follow, followerActor.GetString("iri"), followeeActor.GetString("iri"))
 	if err != nil {
 		return err
 	}
@@ -125,7 +126,18 @@ func CreateUnlikeActivity(app core.App, like *core.Record) error {
 	activity := pub.UndoNew(pub.IRI(id), likeActivity)
 	activity.Actor = pub.IRI(actor.GetString("iri"))
 
-	return PostActivity(app, actor, activity, []string{trailAuthor.GetString("inbox")})
+	recipients := []string{trailAuthor.GetString("inbox")}
+
+	// Also deliver to peer instances; public trails only.
+	if trail.GetBool("public") {
+		peerInboxes, err := instanceFollowerInboxes(app)
+		if err != nil {
+			return err
+		}
+		recipients = append(recipients, peerInboxes...)
+	}
+
+	return PostActivity(app, actor, activity, recipients)
 }
 
 func ProcessUndoActivity(app core.App, actor *core.Record, activity pub.Activity) error {
@@ -166,6 +178,8 @@ func processUnfollowActivity(app core.App, actor *core.Record, activity pub.Acti
 	return undoFollow(app, actor, activity, nil)
 }
 
+// undoFollow removes the follows row an Undo{Follow} refers to, in one
+// transaction.
 func undoFollow(app core.App, actor *core.Record, activity pub.Activity, superseded func() bool) error {
 	// this was a local follow
 	if actor.GetBool("is_local") {
@@ -182,12 +196,59 @@ func undoFollow(app core.App, actor *core.Record, activity pub.Activity, superse
 		return err
 	}
 
-	follow, err := app.FindFirstRecordByFilter("follows", "follower={:follower} && followee={:followee}", dbx.Params{"follower": actor.Id, "followee": followee.Id})
-	if err != nil {
+	const filter = "follower={:follower} && followee={:followee}"
+	params := dbx.Params{"follower": actor.Id, "followee": followee.Id}
+
+	// Look the row up outside the writer, like every other undo; the
+	// transaction re-reads it before changing anything.
+	if _, err := app.FindFirstRecordByFilter("follows", filter, params); err != nil &&
+		(!errors.Is(err, sql.ErrNoRows) || !isLocalInstanceRecipient(followee)) {
 		return err
 	}
 
-	return removeUndoneRecord(app, follow, superseded)
+	return app.RunInTransaction(func(txApp core.App) error {
+		follow, err := txApp.FindFirstRecordByFilter("follows", filter, params)
+		if err != nil {
+			// The Undo overtook its Follow.
+			if errors.Is(err, sql.ErrNoRows) && isLocalInstanceRecipient(followee) {
+				return rememberUndoneFollow(txApp, actor, followee, followActivity)
+			}
+			return err
+		}
+
+		// An Undo for a superseded Follow does not remove the newer one.
+		if current := follow.GetString("activity_iri"); isSupersededFollow(current, followActivity) {
+			txApp.Logger().Info("ignoring Undo for a superseded Follow",
+				"undone", followActivity.GetID().String(), "current", current)
+			// It may also be a newer Follow that has not arrived yet.
+			if isLocalInstanceRecipient(followee) {
+				return rememberUndoneFollow(txApp, actor, followee, followActivity)
+			}
+			return nil
+		}
+
+		if superseded != nil && superseded() {
+			return errUndoSuperseded
+		}
+		return txApp.Delete(follow)
+	})
+}
+
+// rememberUndoneFollow stores an undone instance Follow that has not arrived
+// yet, so its late delivery is dropped as a replay instead of opening a
+// request its sender has cancelled. Only the sender's host may name it.
+func rememberUndoneFollow(txApp core.App, actor, followee *core.Record, follow *pub.Activity) error {
+	iri := follow.GetID().String()
+	if iri == "" || !sameHost(iri, actor.GetString("iri")) {
+		return nil
+	}
+	if _, err := txApp.FindFirstRecordByData("activitypub_activities", "iri", iri); err == nil {
+		return nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	txApp.Logger().Info("remembering a Follow undone before it arrived", "follow", iri, "actor", actor.GetString("iri"))
+	return storeFollowActivity(txApp, actor, followee, *follow)
 }
 
 func processUnlikeActivity(app core.App, actor *core.Record, activity pub.Activity) error {
@@ -200,7 +261,7 @@ func undoLike(app core.App, actor *core.Record, activity pub.Activity, supersede
 	}
 
 	likeActivity, ok := activity.Object.(*pub.Activity)
-	if !ok || likeActivity == nil {
+	if !ok || likeActivity == nil || likeActivity.Object == nil {
 		return fmt.Errorf("undo object must be a like activity")
 	}
 

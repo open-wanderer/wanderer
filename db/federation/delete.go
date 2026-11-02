@@ -16,13 +16,42 @@ import (
 )
 
 // ActorDeleteRecipients returns every inbox that should be told a local actor
-// is gone (see actorDeleteInboxes). Only local actors are ours to announce.
+// is gone. Only local actors are ours to announce. That is the followers and
+// the other parties of actorDeleteInboxes, plus every accepted peer instance
+// unconditionally: peers received the account's public content through
+// instance federation without following it, and the per-object Deletes are
+// skipped once the author row is gone, so this is the only notice they get.
+//
+// The two lookups are independent and the hook discards the whole audience on
+// an error, so a failure of one is logged and never costs the other its
+// notice. An error is returned only when both fail and there is nobody left to
+// tell; the hook then logs it and announces to no one.
 func ActorDeleteRecipients(app core.App, actor *core.Record) ([]string, error) {
 	if !actor.GetBool("is_local") {
 		return nil, nil
 	}
 
-	return actorDeleteInboxes(app, actor.Id, actor.GetString("iri"))
+	inboxes, inboxesErr := actorDeleteInboxes(app, actor.Id, actor.GetString("iri"))
+	peers, peersErr := instanceFollowerInboxes(app)
+
+	switch {
+	case inboxesErr != nil && peersErr != nil:
+		return nil, errors.Join(inboxesErr, peersErr)
+	case inboxesErr != nil:
+		app.Logger().Error(
+			"could not collect followers and other parties to announce actor deletion to",
+			"actor", actor.Id, "error", inboxesErr,
+		)
+		return peers, nil
+	case peersErr != nil:
+		app.Logger().Error(
+			"could not collect peer instances to announce actor deletion to",
+			"actor", actor.Id, "error", peersErr,
+		)
+		return inboxes, nil
+	}
+
+	return append(inboxes, peers...), nil
 }
 
 // DeleteActorActivities removes every activity record the actor produced:
@@ -220,7 +249,12 @@ func CreateCommentDeleteActivity(app core.App, client meilisearch.ServiceManager
 		return err
 	}
 
-	recipients = remoteInboxes(recipients)
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = remoteInboxes(append(recipients, instanceInboxes...))
 	if len(recipients) == 0 {
 		return nil
 	}
@@ -347,6 +381,13 @@ func CreateSummitLogDeleteActivity(app core.App, r *core.Record) error {
 	activity.CC = cc
 	activity.Published = time.Now()
 
+	// Also deliver to instance-actor peers so federated instances receive the deletion.
+	instanceInboxes, err := instanceFollowerInboxes(app)
+	if err != nil {
+		return err
+	}
+	recipients = append(recipients, instanceInboxes...)
+
 	err = PostActivity(app, author, activity, recipients)
 	if err != nil {
 		return err
@@ -440,6 +481,10 @@ func ProcessDeleteActivity(app core.App, actor *core.Record, activity pub.Activi
 		return nil
 	}
 
+	if pub.IsNil(activity.Object) {
+		return fmt.Errorf("activity has no object")
+	}
+
 	object := activity.Object.GetID().String()
 
 	var err error
@@ -524,6 +569,9 @@ func processDeleteTrailActivity(app core.App, actor *core.Record, activity pub.A
 	object := activity.Object.GetID().String()
 	trail, err := app.FindFirstRecordByData("trails", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -549,6 +597,9 @@ func processDeleteCommentActivity(app core.App, actor *core.Record, activity pub
 
 	comment, err := app.FindFirstRecordByData("comments", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -568,6 +619,9 @@ func processDeleteSummitLogActivity(app core.App, actor *core.Record, activity p
 
 	summitLog, err := app.FindFirstRecordByData("summit_logs", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 
@@ -583,6 +637,9 @@ func processDeleteListActivity(app core.App, actor *core.Record, activity pub.Ac
 	object := activity.Object.GetID().String()
 	list, err := app.FindFirstRecordByData("lists", "iri", object)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // already deleted — idempotent
+		}
 		return err
 	}
 

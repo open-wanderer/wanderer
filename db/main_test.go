@@ -609,6 +609,7 @@ func newSearchInitApp(t *testing.T) *core.BaseApp {
 		&core.TextField{Name: "domain"},
 		&core.TextField{Name: "icon"},
 		&core.BoolField{Name: "is_local"},
+		&core.TextField{Name: "actor_type"},
 	)
 	categories := core.NewBaseCollection("categories")
 	categories.Fields.Add(&core.TextField{Name: "name"}, &core.TextField{Name: "icon"})

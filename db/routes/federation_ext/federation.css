@@ -1,0 +1,689 @@
+:root {
+  --accent: #1055c9;
+  --accent-fade: rgba(16, 85, 201, 0.1);
+  --bg: #ffffff;
+  --surface: #f8f9fa;
+  --surface2: #e4e8ec;
+  --border: #e2e2e4;
+  --text: #16181a;
+  --text2: #9a9a9a;
+  --danger: #e1473d;
+}
+
+html.dark {
+  --bg: #1f1f1f;
+  --surface: #232323;
+  --surface2: #2f2f2f;
+  --border: #353849;
+  --text: #e4e5ea;
+  --text2: #6e7491;
+}
+
+[x-cloak] { display: none !important; }
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* SVG logo: inner fills must match the header bg so the cutout effect works */
+.app-header .logo-accent-fill {
+  fill: var(--accent);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Header ──────────────────────────────────────────── */
+.app-header {
+  height: 38px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+}
+
+.header-label {
+  color: rgba(255, 255, 255, 1);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.header-email {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.header-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.12s;
+}
+
+.header-link:hover {
+  color: #fff;
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+/* ── Page wrap ───────────────────────────────────────── */
+.page-wrap {
+  flex: 1;
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Page title bar ──────────────────────────────────── */
+.page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-title h1 {
+  font-size: 19px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title h1 i {
+  color: var(--accent);
+  font-size: 22px;
+}
+
+.count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  background: var(--border);
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+
+/* ── Card ────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.card-body {
+  padding: 20px 22px;
+}
+
+.card-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+}
+
+/* ── Inputs ──────────────────────────────────────────── */
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-fade);
+}
+
+.input::placeholder {
+  color: var(--text2);
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  height: 30px;
+  padding: 0 11px;
+  font-size: 12px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.btn-primary:not(:disabled):hover {
+  opacity: 0.87;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-outline:not(:disabled):hover {
+  background: var(--bg);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.btn-danger:not(:disabled):hover {
+  opacity: 0.87;
+}
+
+/* ── Spinners ────────────────────────────────────────── */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.55s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner-accent {
+  border-color: var(--border);
+  border-top-color: var(--accent);
+}
+
+/* ── Preview card ────────────────────────────────────── */
+.preview-card {
+  margin-top: 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.preview-domain {
+  font-weight: 600;
+}
+
+.preview-meta {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 3px;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Error text ──────────────────────────────────────── */
+.error-msg {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Peers table ─────────────────────────────────────── */
+.peers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.peers-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+}
+
+.peers-table thead th:last-child {
+  text-align: right;
+}
+
+.peers-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.peers-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.peers-table tbody tr:hover {
+  background: var(--surface2);
+}
+
+.peers-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.peers-table td:last-child:not(.state-cell) {
+  text-align: right;
+}
+
+.domain-cell {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* ── Badges ──────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.badge-purple {
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+}
+
+.badge-teal {
+  background: rgba(20, 184, 166, 0.12);
+  color: #0d9488;
+}
+
+.badge-amber {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.badge-green {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.badge-grey {
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+
+html.dark .badge-blue {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+html.dark .badge-purple {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c4b5fd;
+}
+
+html.dark .badge-teal {
+  background: rgba(20, 184, 166, 0.18);
+  color: #5eead4;
+}
+
+html.dark .badge-amber {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+html.dark .badge-green {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+/* ── Action cell ─────────────────────────────────────── */
+.action-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pending-label {
+  font-size: 12px;
+  color: var(--text2);
+  font-style: italic;
+}
+
+.row-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger);
+  text-align: right;
+}
+
+/* ── State rows (empty / loading) ───────────────────── */
+.state-cell {
+  padding: 52px 16px !important;
+  text-align: center;
+  color: var(--text2);
+}
+
+.state-icon {
+  font-size: 34px;
+  margin-bottom: 10px;
+  display: block;
+  color: var(--text2);
+}
+
+.state-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+/* ── Table footer ────────────────────────────────────── */
+.table-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* ── Login prompt ────────────────────────────────────── */
+.login-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 44px 36px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+
+.login-icon {
+  font-size: 38px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.login-card h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.login-card p {
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.login-note {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* ── Modal ───────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 28px 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.modal-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(225, 71, 61, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.modal-icon i {
+  font-size: 22px;
+  color: var(--danger);
+}
+
+.modal h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.modal p {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.modal p strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Fonts ───────────────────────────────────────────── */
+/* IBM Plex Sans is vendored under fonts/ (see THIRD_PARTY.md). */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/federation/assets/fonts/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/federation/assets/fonts/ibm-plex-sans-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/federation/assets/fonts/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+
+/* ── Icons ───────────────────────────────────────────── */
+/* The Remix Icon font is the one PocketBase bundles and serves from its own
+   origin. Only the codepoints this page uses are declared here;
+   TestFederationIconFontMatchesPocketBase fails if PocketBase changes them. */
+@font-face {
+  font-family: 'remixicon';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('/_/fonts/remixicon/remixicon.woff2') format('woff2');
+}
+
+[class^="ri-"],
+[class*=" ri-"] {
+  font-family: 'remixicon' !important;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ri-arrow-left-down-line:before { content: "\ea5e"; }
+.ri-arrow-left-line:before { content: "\ea60"; }
+.ri-arrow-left-right-line:before { content: "\ea62"; }
+.ri-arrow-right-up-line:before { content: "\ea70"; }
+.ri-check-line:before { content: "\eb7b"; }
+.ri-close-line:before { content: "\eb99"; }
+.ri-error-warning-line:before { content: "\eca1"; }
+.ri-fediverse-fill:before { content: "\f574"; }
+.ri-link-unlink-m:before { content: "\eeb0"; }
+.ri-refresh-line:before { content: "\f064"; }
+.ri-search-line:before { content: "\f0d1"; }
+.ri-share-line:before { content: "\f0fe"; }
+.ri-shield-keyhole-line:before { content: "\f107"; }
+.ri-time-line:before { content: "\f20f"; }
+
+/* ── Utility classes ─────────────────────────────────── */
+.btn-header {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-full {
+  width: 100%;
+  justify-content: center;
+}
+
+.spin-on {
+  animation: spin 0.55s linear infinite;
+}
+
+.spinner-sm {
+  width: 12px;
+  height: 12px;
+}
+
+.spinner-lg {
+  width: 22px;
+  height: 22px;
+  border-width: 3px;
+}
+
+.action-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
