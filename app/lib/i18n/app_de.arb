@@ -349,6 +349,10 @@
   "@shared": {
     "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
   },
+  "shortcut_new_trail": "New trail",
+  "@shortcut_new_trail": {
+    "description": "App shortcut shown when long-pressing the app icon on the home screen (Android) or Home Screen (iOS); opens the screen to plan, record or import a new trail. Keep it short: launchers truncate shortcut labels after about 10 to 25 characters."
+  },
   "show_on_map": "Auf der Karte anzeigen",
   "signout_unsynced_warning": "{count, plural, =1 {Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.} other {Du hast {count} Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.}}",
   "@signout_unsynced_warning": {
