@@ -698,6 +698,9 @@ class AppLocalizationsCs extends AppLocalizations {
   String get shared => 'Sdíleno';
 
   @override
+  String get shortcut_new_trail => 'New trail';
+
+  @override
   String get show_on_map => 'Zobrazit na mapě';
 
   @override

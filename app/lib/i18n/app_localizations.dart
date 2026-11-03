@@ -1306,6 +1306,12 @@ abstract class AppLocalizations {
   /// **'Shared'**
   String get shared;
 
+  /// App shortcut shown when long-pressing the app icon on the home screen (Android) or Home Screen (iOS); opens the screen to plan, record or import a new trail. Keep it short: launchers truncate shortcut labels after about 10 to 25 characters.
+  ///
+  /// In en, this message translates to:
+  /// **'New trail'**
+  String get shortcut_new_trail;
+
   /// No description provided for @show_on_map.
   ///
   /// In en, this message translates to:

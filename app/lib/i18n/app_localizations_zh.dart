@@ -684,6 +684,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shared => '共享';
 
   @override
+  String get shortcut_new_trail => 'New trail';
+
+  @override
   String get show_on_map => '地图中展示';
 
   @override

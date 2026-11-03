@@ -9,9 +9,12 @@
   substituted its placeholder, which is why the recording notification showed a
   plain circle instead of the Wanderer icon in release builds.
 
+  The ic_shortcut_* icons are in the same position: lib/services/app_shortcuts.dart
+  hands their names to quick_actions, which resolves them with getIdentifier().
+
   ic_launcher does not need listing here: the manifest references it statically,
   so the shrinker already resolves it (resources.txt: reachable=true).
 -->
 <resources
     xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_notification_icon" />
+    tools:keep="@drawable/ic_notification_icon,@drawable/ic_shortcut_*" />

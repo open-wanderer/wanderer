@@ -694,6 +694,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get shared => 'Condiviso';
 
   @override
+  String get shortcut_new_trail => 'New trail';
+
+  @override
   String get show_on_map => 'Mostra sulla mappa';
 
   @override

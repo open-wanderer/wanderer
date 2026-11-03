@@ -13,6 +13,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/auth_methods_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/pending_launch_location_provider.dart';
 import 'package:wanderer/provider/pending_trail_import_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 import 'package:wanderer/routes/global_search_screen.dart';
@@ -198,10 +199,16 @@ class Router extends _$Router {
 
         if (loggedIn && (isAtSplash || isAtAuthRoute)) {
           // An inbound file goes straight to the import screen, so the map is
-          // never built just to sit behind the import.
-          return ref.read(pendingTrailImportProvider) != null
-              ? '/trail/create'
-              : '/map';
+          // never built just to sit behind the import. An app shortcut lands
+          // on its own screen the same way. Taken either way, so a shortcut
+          // that loses to a file is not replayed on a later sign-in.
+          final launchLocation = ref
+              .read(pendingLaunchLocationProvider.notifier)
+              .take();
+          if (ref.read(pendingTrailImportProvider) != null) {
+            return '/trail/create';
+          }
+          return launchLocation ?? '/map';
         }
 
         return null;

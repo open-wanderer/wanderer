@@ -62,6 +62,7 @@ dependencies:
   xml: ^6.3.0
   cached_network_image: ^3.4.1
   flutter_cache_manager: ^3.4.1
+  quick_actions: ^1.1.1
 
 dependency_overrides:
   meta: ^1.18.0

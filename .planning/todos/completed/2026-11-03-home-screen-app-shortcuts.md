@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T00:00:00.000Z
-title: Add "New trail" and "My trails" home-screen app shortcuts (Android shortcuts + iOS Quick Actions)
+title: Add "New trail" and "Library" home-screen app shortcuts (Android shortcuts + iOS Quick Actions)
 area: app
 priority: medium
 files:
@@ -22,8 +22,11 @@ icon (the komoot pattern). Same set on iOS via Home Screen Quick Actions.
 - **Two static shortcuts only.** No per-trail/per-list pinning, no separate plan/record shortcuts.
 - **New trail** -> `/trail/create` (`TrailSourceSelectScreen`). Planner, recorder and import stay
   behind that screen; the source choice is not duplicated in the launcher.
-- **My trails** -> `/library`.
-- **Active recording wins.** If a recording is in progress, New trail returns to that recording
+- **Library** -> `/library` (reuses the tab's `library` string; renamed from "My trails" after device test).
+- **Active session wins** (recording or navigation, both shortcuts). Implemented as: an
+  `ActiveNavigationEntity` row exists -> the shortcut does nothing; the session screen cannot be left
+  while running, so foregrounding shows it, and `_maybeResume` reopens it on a cold start.
+- Originally scoped as **Active recording wins.** If a recording is in progress, New trail returns to that recording
   instead of opening the source selector. A second recorder start is a state we don't want to
   guard against. Resume plumbing already exists: `ActiveNavigationEntity` rows and
   `_maybeResume` / `_pushRecordingResume` in `main.dart`.
@@ -42,11 +45,13 @@ Mirror the inbound-share flow (`_handleShare`, `main.dart`):
 
 ## Checklist
 
-- [ ] Add `quick_actions` to `app/pubspec.yaml`
-- [ ] Register the two shortcuts at startup; re-register on locale change
-- [ ] ARB keys for both labels in `app_en.arb` (Crowdin does the rest)
-- [ ] Icons: Android drawables for each shortcut; iOS template images in the asset catalog
-- [ ] Pending launch target consumed by the router redirect (cold start + signed out)
-- [ ] New trail -> active recording resume when one exists
-- [ ] Widget/unit test for the target resolution (recording active vs not, signed out)
-- [ ] Manual check: cold start, warm start, signed out, mid-recording, pinned icon on Android
+- [x] Add `quick_actions` to `app/pubspec.yaml`
+- [x] Register the two shortcuts at startup; re-register on locale change
+- [x] ARB keys for both labels in `app_en.arb` (Crowdin does the rest)
+- [x] Icons: Android drawables for each shortcut; iOS template images in the asset catalog
+- [x] Pending launch target consumed by the router redirect (cold start + signed out)
+- [x] New trail -> active recording resume when one exists
+- [x] Unit tests: type -> route mapping, icon resources + shrinker keep rule, pending target taken once
+  (`test/services/app_shortcuts_test.dart`). The redirect and `_handleShortcut` are not covered:
+  `Router.build()` cannot be mounted in tests (see `router_inbound_uri_test.dart`).
+- [x] Manual check: cold start, warm start, signed out, mid-recording, pinned icon on Android

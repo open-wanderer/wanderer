@@ -693,6 +693,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shared => 'Общий доступ';
 
   @override
+  String get shortcut_new_trail => 'New trail';
+
+  @override
   String get show_on_map => 'Показать на карте';
 
   @override

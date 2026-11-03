@@ -694,6 +694,9 @@ class AppLocalizationsEu extends AppLocalizations {
   String get shared => 'Partekatuta';
 
   @override
+  String get shortcut_new_trail => 'New trail';
+
+  @override
   String get show_on_map => 'Erakutsi mapan';
 
   @override

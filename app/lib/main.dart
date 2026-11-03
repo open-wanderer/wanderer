@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:quick_actions/quick_actions.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:wanderer/components/toast_overlay.dart';
 import 'package:wanderer/entities/active_navigation_entity.dart';
@@ -30,6 +31,7 @@ import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
+import 'package:wanderer/services/app_shortcuts.dart';
 import 'package:wanderer/services/session_gap_backfill.dart';
 import 'package:wanderer/services/tracelet_position_source.dart';
 
@@ -38,6 +40,7 @@ import 'objectbox.g.dart';
 import 'provider/router_provider.dart';
 import 'provider/local_settings_provider.dart';
 import 'theme/theme.dart';
+import 'provider/pending_launch_location_provider.dart';
 import 'provider/pending_trail_import_provider.dart';
 
 void main() async {
@@ -156,6 +159,9 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
 
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
 
+  final _quickActions = const QuickActions();
+  Locale? _shortcutsLocale;
+
   VoidCallback? _resumeRouteWaiter;
   GoRouter? _resumeRouteWaiterRouter;
 
@@ -244,6 +250,9 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       // getInitialMedia() call.
       ReceiveSharingIntent.instance.reset();
     });
+
+    // App shortcuts: while running, and the one that launched the app.
+    unawaited(_quickActions.initialize(_handleShortcut).catchError((_) {}));
   }
 
   // The foreground trigger.
@@ -267,20 +276,44 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   /// Hands an inbound file to `TrailSourceSelectScreen` through
   /// [pendingTrailImportProvider], so it is imported from the same screen and
   /// with the same loading state as + → Import file.
-  ///
-  /// On a cold start the router is still on the `/` splash, and its redirect
-  /// lands on `/trail/create` instead of `/map` once auth settles. On an auth
-  /// route the same redirect takes over after login. Anywhere else the screen
-  /// is pushed on top, so whatever was open (an active recording included)
-  /// stays underneath.
   void _handleShare(List<SharedMediaFile> files) {
     // Single-trail import: take the first shared file, ignore any extras.
     ref.read(pendingTrailImportProvider.notifier).set(files.first.path);
+    // Already on the import screen: it picks the file up itself.
+    _openFromOutside('/trail/create');
+  }
 
-    // Release the splash's trail-reveal hold when a session is known: a share
-    // is usually a cold start, and making the import wait out a ~700ms
-    // animation is exactly the splash flash it exists to avoid. Signed out,
-    // the hold stays, so the reveal is not cut short only to land on /welcome.
+  /// Opens the screen an app shortcut points at — from the long-press menu on
+  /// the launcher icon, or a shortcut pinned to the home screen.
+  ///
+  /// A running recording or navigation session wins over every shortcut: its
+  /// screen cannot be left while it runs, so the app coming to the front
+  /// already shows it, and on a cold start [_maybeResume] reopens it. Opening
+  /// the source selector on top would let a second session start.
+  void _handleShortcut(String type) {
+    final location = shortcutLocation(type);
+    if (location == null) return;
+    if (active_nav.read(ref.read(objectBoxProvider)) != null) return;
+
+    final pending = ref.read(pendingLaunchLocationProvider.notifier)
+      ..set(location);
+    // Opened directly: nothing is left for the redirect to pick up.
+    if (!_openFromOutside(location)) pending.take();
+  }
+
+  /// Shows [location] for something handed to the app from outside it, and
+  /// returns whether that is left to the router redirect.
+  ///
+  /// On a cold start the router is still on the `/` splash, and its redirect
+  /// lands on the pending target instead of `/map` once auth settles. On an
+  /// auth route the same redirect takes over after login. Anywhere else the
+  /// screen is pushed on top, so whatever was open stays underneath — unless
+  /// it is already showing.
+  bool _openFromOutside(String location) {
+    // Release the splash's trail-reveal hold when a session is known: this is
+    // usually a cold start, and making the target wait out a ~700ms animation
+    // is exactly the splash flash it exists to avoid. Signed out, the hold
+    // stays, so the reveal is not cut short only to land on /welcome.
     final hasSession =
         ref.read(authProvider).value != null ||
         ref.read(objectBoxProvider).box<UserEntity>().getAll().isNotEmpty;
@@ -295,12 +328,24 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       '/select-server',
     };
     final router = ref.read(routerProvider);
-    final location = router.routerDelegate.currentConfiguration.uri.path;
-    // Already on the import screen: it picks the file up itself.
-    if (redirectHandled.contains(location) || location == '/trail/create') {
-      return;
-    }
-    router.push('/trail/create');
+    final current = router.routerDelegate.currentConfiguration.uri.path;
+    if (redirectHandled.contains(current)) return true;
+    if (current != location) router.push(location);
+    return false;
+  }
+
+  /// Registers the app shortcuts, titled in the current language. Called from
+  /// the app builder, so a language change re-titles them — pinned ones too,
+  /// as they share the type ids — and skipped while the locale is unchanged.
+  void _registerShortcuts(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    if (locale == _shortcutsLocale) return;
+    _shortcutsLocale = locale;
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return;
+    unawaited(
+      _quickActions.setShortcutItems(shortcutItems(l10n)).catchError((_) {}),
+    );
   }
 
   /// Checks for a persisted active-navigation row and reopens the session it
@@ -596,6 +641,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
       routerConfig: goRouter,
 
       builder: (context, child) {
+        _registerShortcuts(context);
         return ToastOverlay(child: child!);
       },
     );
