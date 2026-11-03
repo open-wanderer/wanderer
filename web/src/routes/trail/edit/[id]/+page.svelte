@@ -132,8 +132,17 @@
     let mapPopup: M.Popup | undefined;
     let mapTrail: Trail[] = $state([]);
     let lists = $state(untrack(() => data.lists));
-    // Whether the stored trail is public, for the federation hint.
+    // For the federation hints: whether the stored trail is public, and what
+    // the toggle started at, which for a new trail is the privacy default.
+    // Only moving the toggle away from where it started explains publishing.
     let savedPublic = $state(untrack(() => !!data.trail.id && data.trail.public));
+    let startPublic = $state(
+        untrack(() =>
+            data.trail.id
+                ? data.trail.public
+                : page.data.settings?.privacy?.trails === "public",
+        ),
+    );
 
     let waypointModal: WaypointModal;
     let waypointMergeModal: WaypointMergeModal;
@@ -361,6 +370,7 @@
 
                 savedAtLeastOnce = true;
                 savedPublic = !!form.public;
+                startPublic = !!form.public;
                 show_toast({
                     type: "success",
                     icon: "check",
@@ -2406,7 +2416,7 @@
             label={$formData.public ? $_("public") : $_("private")}
             icon={$formData.public ? "globe" : "lock"}
         ></Toggle>
-        {#if $formData.public && !savedPublic}
+        {#if $formData.public && !startPublic}
             <p class="text-sm text-gray-500">{$_("public-federation-hint")}</p>
         {:else if !$formData.public && savedPublic}
             <p class="text-sm text-gray-500">{$_("private-federation-hint")}</p>

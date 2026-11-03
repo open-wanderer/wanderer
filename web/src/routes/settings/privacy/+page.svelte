@@ -105,6 +105,9 @@
     selected={settings?.privacy?.trails == "public" ? 0 : 1}
     onchange={handleTrailsSelection}
 ></RadioGroup>
+{#if settings?.privacy?.trails == "public"}
+    <p class="mt-4 text-sm text-gray-500">{$_("public-federation-hint")}</p>
+{/if}
 
 <h4 class="text-xl font-medium mt-12 mb-4">
     {$_("list", { values: { n: 2 } })}
@@ -115,3 +118,6 @@
     selected={settings?.privacy?.lists == "public" ? 0 : 1}
     onchange={handleListsSelection}
 ></RadioGroup>
+{#if settings?.privacy?.lists == "public"}
+    <p class="mt-4 text-sm text-gray-500">{$_("public-federation-hint")}</p>
+{/if}

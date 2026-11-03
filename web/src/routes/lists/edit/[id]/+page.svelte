@@ -51,7 +51,18 @@
     let loading: boolean = $state(false);
 
     let newShares: TrailShare[] = [];
-    let publicList: boolean = $state(untrack(() => data.list?.public));
+    // For the federation hints: whether the stored list is public, and what
+    // the toggle started at, which for a new list is the privacy default.
+    let publicList: boolean = $state(
+        untrack(() => !!data.list?.id && !!data.list.public),
+    );
+    let startPublic: boolean = $state(
+        untrack(() =>
+            data.list?.id
+                ? !!data.list.public
+                : page.data.settings?.privacy?.lists === "public",
+        ),
+    );
 
     let shareConfirmModal: ConfirmModal;
     let publishConfirmModal: ConfirmModal;
@@ -138,6 +149,7 @@
                 text: $_("list-saved-successfully"),
             });
             publicList = $formData.public;
+            startPublic = $formData.public;
         } catch (e) {
             show_toast({
                 type: "error",
@@ -337,7 +349,7 @@
             label={$formData.public ? $_("public") : $_("private")}
             icon={$formData.public ? "globe" : "lock"}
         ></Toggle>
-        {#if $formData.public && !publicList}
+        {#if $formData.public && !startPublic}
             <p class="text-sm text-gray-500">{$_("public-federation-hint")}</p>
         {:else if !$formData.public && publicList}
             <p class="text-sm text-gray-500">{$_("private-federation-hint")}</p>
