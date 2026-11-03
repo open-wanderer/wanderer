@@ -67,15 +67,15 @@ export class PreviewLayer implements BaseLayer {
                     },
                 },
                 {
+                    // Category marker images are registered by the map before it adds this layer.
                     id: "preview-start-points",
-                    type: "circle",
+                    type: "symbol",
                     source: "preview-start-points",
                     filter: ["literal", options?.showStartMarker ?? false],
-                    paint: {
-                        "circle-color": "#242734",
-                        "circle-radius": 5,
-                        "circle-stroke-width": 2,
-                        "circle-stroke-color": "#fff",
+                    layout: {
+                        "icon-image": ["get", "marker_icon"],
+                        "icon-allow-overlap": true,
+                        "icon-ignore-placement": true,
                     },
                 },
                 {

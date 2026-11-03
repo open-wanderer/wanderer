@@ -17,6 +17,7 @@
     import MaplibreGraticule from "#lib/vendor/maplibre-graticule/maplibre-graticule.ts";
     import { CaretLayer } from "#lib/vendor/maplibre-layer-manager/caret-layer.ts";
     import { ClusterLayer } from "#lib/vendor/maplibre-layer-manager/cluster-layer.ts";
+    import { ensureTrailheadImages, withTrailheadIcons } from "#lib/util/trailhead_marker.ts";
     import { baseMapStyles } from "#lib/vendor/maplibre-layer-manager/layers.ts";
     import { LayerManager } from "#lib/vendor/maplibre-layer-manager/maplibre-layer-manager.ts";
     import type { OverpassPopupActionFactory } from "#lib/vendor/maplibre-layer-manager/overpass-layer.ts";
@@ -46,6 +47,7 @@
         showStyleSwitcher?: boolean;
         showFullscreen?: boolean;
         showTerrain?: boolean;
+        scalePosition?: M.ControlPosition;
         fitBounds?: "animate" | "instant" | "off";
         onmarkerdragend?:
             | ((marker: M.Marker, wpId?: string) => void)
@@ -93,6 +95,7 @@
         showStyleSwitcher = true,
         showFullscreen = false,
         showTerrain = false,
+        scalePosition = "top-left",
         fitBounds = "instant",
         elevationProfileContainer = undefined,
         mapOptions = undefined,
@@ -144,6 +147,7 @@
     ];
 
     let clusterPopup: M.Popup | null = null;
+    let clusterPopupTrail: string | undefined;
     let clusterHighlight: M.Marker | undefined;
 
     $effect(() => {
@@ -263,6 +267,8 @@
                         properties: {
                             trail: t.id,
                             bounding_box_diagonal: t.bounding_box_diagonal,
+                            category_icon: t.expand?.category?.icon ?? "",
+                            subcategory_id: t.subcategory ?? "",
                         },
                         geometry: {
                             type: "Point",
@@ -278,6 +284,8 @@
                         properties: {
                             trail: t.id,
                             bounding_box_diagonal: t.bounding_box_diagonal,
+                            category_icon: t.expand?.category?.icon ?? "",
+                            subcategory_id: t.subcategory ?? "",
                             color: trailColors[
                                 hashStringToIndex(
                                     t.id ?? "",
@@ -489,13 +497,21 @@
         }
     }
 
-    function addClusterLayer(geojson: FeatureCollection) {
+    let clusterLayerRequest = 0;
+    async function addClusterLayer(geojson: FeatureCollection) {
         if (!geojson || !map || !map.style) {
+            return;
+        }
+        const request = ++clusterLayerRequest;
+        const markers = withTrailheadIcons(geojson, page.data.subcategories);
+        await ensureTrailheadImages(map, markers);
+        // A newer cluster response or a removed map supersedes this one.
+        if (request !== clusterLayerRequest || !map?.style) {
             return;
         }
         layerManager.addLayer(
             "clusters",
-            new ClusterLayer(map, geojson, {
+            new ClusterLayer(map, markers, {
                 "unclustered-point": {
                     onEnter: (e) => {
                         if (map) map.getCanvas().style.cursor = "pointer";
@@ -513,32 +529,40 @@
         );
     }
 
-    function addPreviewLayer(geojson: FeatureCollection) {
+    let previewLayerRequest = 0;
+    async function addPreviewLayer(geojson: FeatureCollection) {
         if (!geojson || !map || !map.style) {
             return;
         }
+        const showStartMarker = page.data.settings?.behavior?.showTrailStartMarker ?? false;
+        const request = ++previewLayerRequest;
+        const lines = withTrailheadIcons(geojson, page.data.subcategories);
+        if (showStartMarker) await ensureTrailheadImages(map, lines);
+        // A newer preview response or a removed map supersedes this one.
+        if (request !== previewLayerRequest || !map?.style) {
+            return;
+        }
+        const listener = {
+            onEnter: (e: M.MapMouseEvent) => {
+                if (map) map.getCanvas().style.cursor = "pointer";
+                const trail = trails.find(
+                    (t) =>
+                        t.id ===
+                        (e as any).features[0].properties.trail,
+                );
+                if (!hasTrailDetails(trail)) return;
+                highlightCluster(trail, e.lngLat);
+            },
+            onLeave: () => {
+                if (map) map.getCanvas().style.cursor = "";
+                if (!showClusterPopups) unHighlightCluster();
+            },
+        };
         layerManager.addLayer(
             "preview",
-            new PreviewLayer(map, geojson, {
-                showStartMarker: page.data.settings?.behavior?.showTrailStartMarker ?? false,
-                listeners: {
-                    preview: {
-                        onEnter: (e) => {
-                            if (map) map.getCanvas().style.cursor = "pointer";
-                            const trail = trails.find(
-                                (t) =>
-                                    t.id ===
-                                    (e as any).features[0].properties.trail,
-                            );
-                            if (!hasTrailDetails(trail)) return;
-                            highlightCluster(trail, e.lngLat);
-                        },
-                        onLeave: () => {
-                            if (map) map.getCanvas().style.cursor = "";
-                            if (!showClusterPopups) unHighlightCluster();
-                        },
-                    },
-                },
+            new PreviewLayer(map, lines, {
+                showStartMarker,
+                listeners: { preview: listener, "preview-start-points": listener },
             }),
         );
     }
@@ -648,6 +672,10 @@
         if (!map || !map.style || !hasTrailDetails(trail)) {
             return;
         }
+        // Moving along a thin trail line leaves and re-enters it; keep the popup where it opened.
+        if (showClusterPopups && clusterPopup?.isOpen() && clusterPopupTrail === trail.id) {
+            return;
+        }
         clusterPopup?.remove();
         clusterHighlight?.remove();
         if (!lnglat && (!Number.isFinite(trail.lon) || !Number.isFinite(trail.lat))) return;
@@ -660,6 +688,7 @@
             return;
         }
         clusterPopup = createPopupFromTrail(trail);
+        clusterPopupTrail = trail.id;
         clusterPopup.setLngLat(position).addTo(map);
         clusterPopup.on("close", () => {
             unHighlightCluster(false);
@@ -671,7 +700,12 @@
         if (!clusterPopup || !map) {
             return;
         }
+        const trailLayers = ["unclustered-point", "preview", "preview-start-points"].filter((id) => map!.getLayer(id));
+        const onTrail = map
+            .queryRenderedFeatures(e.point, { layers: trailLayers })
+            .some((f) => (f.properties.trail ?? f.properties.id) === clusterPopupTrail);
         if (
+            !onTrail &&
             map.project(clusterPopup.getLngLat()).dist(map.project(e.lngLat)) >
             60
         ) {
@@ -971,7 +1005,7 @@
                 maxWidth: 120,
                 unit: page.data.settings?.unit ?? "metric",
             }),
-            "top-left",
+            scalePosition,
         );
 
         geolocateControl = new M.GeolocateControl({
@@ -1071,6 +1105,15 @@
                 return;
             }
             onclick?.(e);
+        });
+
+        // Touch screens cannot hover, so a tap on a trail shows its popup.
+        map.on("click", ["unclustered-point", "preview", "preview-start-points"], (e) => {
+            if (window.matchMedia("(hover: hover)").matches) return;
+            const properties = e.features?.[0]?.properties;
+            // Trail lines and their start points keep the trail ID in `trail`; trailheads in `id`.
+            const trail = trails.find((t) => t.id === (properties?.trail ?? properties?.id));
+            if (hasTrailDetails(trail)) highlightCluster(trail, e.lngLat);
         });
 
         map.on("contextmenu", (e) => {

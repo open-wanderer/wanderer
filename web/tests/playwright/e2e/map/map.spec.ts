@@ -33,14 +33,14 @@ async function openMap(page: Page) {
 }
 async function settledMapLayout(page: Page) {
     await expect(page.locator('#trail-map .maplibregl-ctrl-top-right .reset-map-view')).toBeVisible();
-    await expect(page.locator('.map-results')).toHaveAttribute('data-layout-ready', 'true');
-    await expect.poll(() => page.locator('#trail-map').evaluate(element => {
-        const height = (corner: string) => element.querySelector<HTMLElement>('.maplibregl-ctrl-' + corner)?.offsetHeight ?? 0;
-        const minimum = Math.max(160, Math.ceil(Math.max(height('top-left') + height('bottom-left'), height('top-right') + height('bottom-right')) + 14));
-        const applied = parseFloat((element.closest<HTMLElement>('.map-results')!).style.getPropertyValue('--overlay-min-height'));
-        return applied === minimum;
-    })).toBe(true);
+    await expect(page.locator('#trail-map')).toHaveAttribute('aria-busy', 'false');
 }
+// The search area leaves out the part of the map under the results panel.
+const uncoveredWidth = (page: Page) => page.evaluate(() => {
+    const map = document.querySelector('#trail-map')!.getBoundingClientRect();
+    const panel = document.querySelector('.results-panel')!.getBoundingClientRect();
+    return map.right - Math.max(map.left, panel.right + 16);
+});
 
 async function enterSearch(page: Page, query: string) {
     const searched = page.waitForRequest(request => isTrailSearch(request.url()) && request.postDataJSON()?.q === query);
@@ -174,7 +174,7 @@ test('restores the fresh default map view without resetting search and retains i
     await expect.poll(() => area(page.url())).toEqual(expected);
 });
 
-test('offers cards, list and table in the map view menu and remembers the choice', async ({ page, context }) => {
+test('offers cards and list in the map view menu and remembers the choice', async ({ page, context }) => {
     let searches = 0;
     await context.route('**/api/v1/search/trails', route => {
         ++searches;
@@ -189,7 +189,7 @@ test('offers cards, list and table in the map view menu and remembers the choice
         } });
     });
     await openMap(page);
-    await expect(page.locator('.trail-list .trail-card')).toBeVisible();
+    await expect(page.locator('.results-panel .trail-card')).toBeVisible();
     const loaded = searches;
     await page.locator('.maplibregl-canvas').evaluate(element => (window as any).retainedMapCanvas = element);
     await viewButton(page).click();
@@ -199,43 +199,26 @@ test('offers cards, list and table in the map view menu and remembers the choice
     await expect(menu.locator('input[value="map"]')).toHaveCount(0);
     await expect(menu.locator('input[value="top"]')).toHaveCount(0);
     await expect(menu.locator('input[value="left"], input[value="right"]')).toHaveCount(0);
+    await expect(menu.locator('input[value="table"], input[value="push"]')).toHaveCount(0);
     await menu.locator('input[value="list"]').check();
-    await expect(page.locator('.trail-list .result-items .trail-result > a > li')).toBeVisible();
-    await expect(page.locator('.trail-list .trail-card')).toHaveCount(0);
+    await expect(page.locator('.results-panel .result-items .trail-result > a > li')).toBeVisible();
+    await expect(page.locator('.results-panel .trail-card')).toHaveCount(0);
     expect(await page.locator('.maplibregl-canvas').evaluate(element => element === (window as any).retainedMapCanvas)).toBe(true);
     await page.waitForTimeout(300); // Negative check spans the viewport debounce.
     expect(searches).toBe(loaded);
     await page.keyboard.press('Escape');
-    await page.getByRole('separator').press('Home');
     await expect.poll(() => page.locator('.trail-results').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.reload();
-    await expect(page.locator('.trail-list .result-items .trail-result > a > li')).toBeVisible();
+    await expect(page.locator('.results-panel .result-items .trail-result > a > li')).toBeVisible();
     await viewButton(page).click();
     await expect(page.locator('.view-menu input[value="list"]')).toBeChecked();
     await page.locator('.view-menu input[value="cards"]').check();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.trail-list .trail-card')).toBeVisible();
+    await expect(page.locator('.results-panel .trail-card')).toBeVisible();
     await expect.poll(() => page.locator('.trail-results').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    await viewButton(page).click();
-    await page.locator('.view-menu input[value="table"]').check();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('.trail-list table')).toBeVisible();
-    await expect(page.locator('.trail-list tbody tr')).toHaveCount(1);
-    await expect(page.locator('.trail-list input[type="checkbox"]')).toHaveCount(2);
-    const ascending = page.waitForResponse(response => isTrailSearch(response.url()) && response.request().postDataJSON()?.options.sort?.[0] === 'name:asc');
-    await page.getByRole('columnheader', { name: /^Name/ }).click();
-    await ascending;
-    const descending = page.waitForResponse(response => isTrailSearch(response.url()) && response.request().postDataJSON()?.options.sort?.[0] === 'name:desc');
-    await page.getByRole('columnheader', { name: /^Name/ }).click();
-    await descending;
-    await page.reload();
-    await expect(page.locator('.trail-list table')).toBeVisible();
-    await viewButton(page).click();
-    await expect(page.locator('.view-menu input[value="table"]')).toBeChecked();
 });
 
-test('restores multi-select, loaded-result selection and bulk edits in every result view', async ({ page, context }) => {
-    await context.addInitScript(() => localStorage.setItem('mapResultsLayout', JSON.stringify({ expanded: true })));
+test('restores multi-select, loaded-result selection and bulk edits in cards and list', async ({ page, context }) => {
     const authCookie = (await context.cookies()).find(cookie => cookie.name === 'pb_auth')!;
     const actor = JSON.parse(decodeURIComponent(authCookie.value)).record.actor;
     expect(Boolean(actor)).toBe(true);
@@ -271,7 +254,7 @@ test('restores multi-select, loaded-result selection and bulk edits in every res
         return route.fulfill({ json: { id, difficulty: 'difficult', author: actor, photos: [], tags: [] } });
     });
     await openMap(page);
-    const cards = page.locator('.trail-list .trail-card');
+    const cards = page.locator('.results-panel .trail-card');
     await cards.first().hover();
     await expect(cards.first().locator('..').locator('..').getByRole('checkbox')).toHaveAttribute('aria-label', 'Select Selection trail 0');
     await cards.first().locator('..').locator('..').getByRole('checkbox').check();
@@ -306,55 +289,17 @@ test('restores multi-select, loaded-result selection and bulk edits in every res
     await firstResult.getByRole('checkbox').check();
     await page.locator('.result-items .trail-result > a').nth(1).click();
     await expect(page.locator('.selection-count')).toHaveText('2 selected');
-    await viewButton(page).click();
-    await page.locator('.view-menu input[value="table"]').check();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('tbody input:checked')).toHaveCount(2);
-    await expect(page.locator('tbody input[type="checkbox"]').first()).toHaveAttribute('aria-label', 'Select Selection trail 0');
-    await expect(page.locator('thead input[type="checkbox"]')).toHaveAttribute('aria-label', 'Select all loaded trails');
-    await page.locator('thead input[type="checkbox"]').check();
+    await page.getByRole('checkbox', { name: 'Select all loaded trails' }).check();
     await expect(page.locator('.selection-count')).toHaveText('4 selected');
-    await page.locator('tbody tr').first().click();
-    await expect(page.locator('.selection-count')).toHaveText('3 selected');
-    await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
-    await expect(page.locator('.selection-toolbar')).toHaveCount(0);
-    await page.locator('thead input[type="checkbox"]').check();
     await viewButton(page).click();
     await page.locator('.view-menu input[value="cards"]').check();
     await page.keyboard.press('Escape');
-    if (await page.locator('.map-results').evaluate(element => element.classList.contains('results-expanded'))) {
-        await page.locator('.overview-actions .expand-results').click();
-    }
-    await expect(page.locator('.map-results')).not.toHaveClass(/results-expanded/);
     await settledMapLayout(page);
-    const originalMap = (await page.locator('#trail-map').boundingBox())!;
     const loaded = searches;
     await page.getByRole('button', { name: 'Actions for selected trails' }).click();
     await page.locator('.selection-toolbar .menu').getByText('Adjust', { exact: true }).click();
     const dialog = page.locator('dialog[open]');
     await expect(dialog).toBeVisible();
-    const selected = await page.locator('.selection-count').textContent();
-    const lockedArea = new URL(page.url()).search;
-    const dialogPosition = await dialog.boundingBox();
-    // Some browser/OS shortcuts cannot be cancelled. The dialog still owns
-    // focus and its search area when the browser changes state underneath it.
-
-    await settledMapLayout(page);
-    await expect(dialog).toBeVisible();
-    expect(await dialog.boundingBox()).toEqual(dialogPosition);
-    expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
-
-    await settledMapLayout(page);
-    expect(await dialog.boundingBox()).toEqual(dialogPosition);
-    await page.locator('.map-results-container').evaluate(element => element.style.width = 'calc(100% + 20px)');
-    await expect.poll(() => page.locator('#trail-map').boundingBox().then(box => box!.width)).toBeGreaterThan(originalMap.width);
-    await settledMapLayout(page);
-    await expect(dialog).toBeVisible();
-    await expect(page.locator('.selection-count')).toHaveText(selected!);
-    expect(new URL(page.url()).search).toBe(lockedArea);
-    await page.waitForTimeout(300); // Negative check must outlast the 200 ms viewport debounce.
-    expect(searches).toBe(loaded);
-    await page.locator('.map-results-container').evaluate(element => element.style.width = '');
     await dialog.locator('label').filter({ hasText: 'Difficulty' }).locator('input').check();
     await dialog.locator('select').selectOption('difficult');
     await dialog.locator('.btn-primary').click();
@@ -372,300 +317,19 @@ test('restores multi-select, loaded-result selection and bulk edits in every res
     empty = true;
     await enterSearch(page, 'No matching trails');
     await expect(page.locator('.selection-toolbar')).toHaveCount(0);
-    await viewButton(page).click();
-    await page.locator('.view-menu input[value="table"]').check();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('thead input[type="checkbox"]')).not.toBeChecked();
 });
 
-test('keeps map search above the results despite a shared sidebar preference', async ({ page, context }) => {
+test('keeps map search over the map despite a shared sidebar and push preference', async ({ page, context }) => {
     await context.addInitScript(() => localStorage.setItem('searchLayout', JSON.stringify({ position: 'left', expansion: 'push' })));
     await openMap(page);
     await enterSearch(page, 'Keep filters');
     await expect(page.locator('.filter-sidebar')).toHaveCount(0);
-    await expect(page.locator('.map-search-toolbar [data-search-root]')).toHaveClass(/in-flow/);
+    await expect(page.locator('.map-search-toolbar [data-search-root]')).not.toHaveClass(/in-flow/);
     await viewButton(page).click();
-    await expect(page.locator('.view-menu input[value="left"], .view-menu input[value="right"]')).toHaveCount(0);
+    await expect(page.locator('.view-menu input[value="left"], .view-menu input[value="right"], .view-menu input[value="push"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
-
-
     await expect(searchInput(page)).toHaveValue('Keep filters');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('searchLayout')!))).toMatchObject({ position: 'left' });
-});
-
-test('keeps the map painted while resizing split results and searches only after release', async ({ page }) => {
-    let searches = 0;
-    page.on('request', request => { if (isTrailSearch(request.url())) ++searches; });
-    await openMap(page);
-    const loaded = searches;
-    const area = new URL(page.url()).search;
-    await page.evaluate(() => {
-        const map = document.querySelector<HTMLElement>('#trail-map')!;
-        const canvas = map.querySelector<HTMLCanvasElement>('.maplibregl-canvas')!;
-        const gl = canvas.getContext('webgl2')!;
-        let width = map.clientWidth;
-        let height = map.clientHeight;
-        (window as any).splitResizeFrames = [];
-        // Observe after the component's resize handler, before browser paint.
-        // A screenshot alone misses a blank frame repainted on the next RAF.
-        new ResizeObserver(([entry]) => {
-            if (entry.contentRect.width === width && entry.contentRect.height === height) return;
-            width = entry.contentRect.width;
-            height = entry.contentRect.height;
-            const pixel = new Uint8Array(4);
-            gl.readPixels(Math.floor(gl.drawingBufferWidth / 2), Math.floor(gl.drawingBufferHeight / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-            (window as any).splitResizeFrames.push([...pixel]);
-        }).observe(map);
-    });
-    const divider = page.getByRole('separator');
-    const edge = (await divider.boundingBox())!;
-    const width = Number(await divider.getAttribute('aria-valuenow'));
-    const x = edge.x + edge.width / 2;
-    const y = edge.y + edge.height / 2;
-    await page.mouse.move(x, y);
-    await page.mouse.down();
-    for (const delta of [48, 96, 144, 96]) {
-        const frames = await page.evaluate(() => (window as any).splitResizeFrames.length);
-        await page.mouse.move(x + delta, y, { steps: 3 });
-        await expect(divider).toHaveAttribute('aria-valuenow', String(width + delta));
-        await expect.poll(() => page.evaluate(() => (window as any).splitResizeFrames.length)).toBeGreaterThan(frames);
-        expect(await page.evaluate(() => (window as any).splitResizeFrames.at(-1))).toEqual([218, 229, 223, 255]);
-        await page.waitForTimeout(300); // Negative check spans the viewport debounce.
-        expect(searches).toBe(loaded);
-        expect(new URL(page.url()).search).toBe(area);
-    }
-    const searched = page.waitForRequest(request => isTrailSearch(request.url()));
-    await page.mouse.up();
-    await searched;
-    expect(await mapPixel(page)).toEqual([218, 229, 223, 255]);
-});
-
-test.describe('small-map rendering at fractional pixel density', () => {
-    test.use({ deviceScaleFactor: 1.5 });
-
-    test('fits the final canvas size and requests clusters at its zoom without changing results', async ({ page, context }) => {
-        let searches = 0;
-        const clusterZooms: number[] = [];
-        page.on('request', request => { if (isTrailSearch(request.url())) ++searches; });
-        await context.route('**/api/v1/search/trails/cluster', route => {
-            clusterZooms.push(route.request().postDataJSON().zoom);
-            return route.fulfill({ json: { type: 'FeatureCollection', features: [], totalHits: 0 } });
-        });
-        await openMap(page);
-        await expect.poll(() => clusterZooms.at(-1)).toBe(14);
-        const loaded = searches;
-        const area = new URL(page.url()).search;
-        const params = new URLSearchParams(area);
-        const mercatorY = (latitude: number) => Math.log(Math.tan(Math.PI / 4 + latitude * Math.PI / 360));
-        const widthAtZoomZero = (Number(params.get('tl_lon')) - Number(params.get('br_lon'))) / 360 * 512;
-        const heightAtZoomZero = (mercatorY(Number(params.get('tl_lat'))) - mercatorY(Number(params.get('br_lat')))) / (2 * Math.PI) * 512;
-        await page.locator('.expand-results').click();
-        const canvas = page.locator('#trail-map .maplibregl-canvas');
-        const size = await canvas.evaluate(element => {
-            const canvas = element as HTMLCanvasElement;
-            return { width: canvas.clientWidth, height: canvas.clientHeight, pixels: [canvas.width, canvas.height], dpr: devicePixelRatio };
-        });
-        expect(size.pixels).toEqual([Math.floor(size.width * size.dpr), Math.floor(size.height * size.dpr)]);
-        const expectedZoom = Math.log2(Math.min(size.width / widthAtZoomZero, size.height / heightAtZoomZero));
-        await expect.poll(() => clusterZooms.at(-1)).toBeCloseTo(expectedZoom, 5);
-        await page.waitForTimeout(300); // Negative check spans the viewport debounce.
-        expect(searches).toBe(loaded);
-        expect(new URL(page.url()).search).toBe(area);
-    });
-});
-
-test('expands results into columns with an interactive small map and restores the split', async ({ page, context }) => {
-    let searches = 0;
-    // Hover also preloads the linked detail page through SvelteKit.
-    await context.route(/\/api\/v1\/trail\/grid-trail-\d+\?/, route => route.fulfill({ json: {
-        id: new URL(route.request().url()).pathname.split('/').at(-1),
-        name: 'Panoramaweg', author: 'fixtureauthor00', photos: [], tags: [],
-        public: true, completed: false, difficulty: 'easy', expand: {},
-    } }));
-    await context.route('**/api/v1/search/trails', route => {
-        ++searches;
-        const { options } = route.request().postDataJSON();
-        return route.fulfill({ json: {
-            hits: Array.from({ length: 8 }, (_, i) => ({ id: 'grid-trail-' + i, name: 'Panoramaweg ' + i,
-                author: 'fixtureauthor00', public: true, completed: false, tags: [],
-                created: 1710000000, date: 1710000000, distance: 2400, duration: 3600,
-                elevation_gain: 100, elevation_loss: 100, difficulty: 0, location: 'Bern',
-                _geo: { lat: 46.95, lng: 7.44 } })),
-            totalHits: 8, totalPages: 1, page: options.page, hitsPerPage: options.hitsPerPage,
-        } });
-    });
-    await openMap(page);
-    await expect(page.locator('.trail-list .trail-card')).toHaveCount(8);
-    await expect(page.locator('.result-header .collapse-results')).toBeVisible();
-    await expect(page.locator('.result-header .expand-results')).toBeVisible();
-    await expect(page.locator('.map-divider')).toHaveCount(0);
-    const header = await page.locator('.result-header').boundingBox();
-    await page.locator('.trail-results').evaluate(element => { element.scrollTop = 200; });
-    expect(await page.locator('.result-header').boundingBox()).toEqual(header);
-    expect(await page.locator('.trail-results').evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-    await page.locator('.trail-results').evaluate(element => { element.scrollTop = 0; });
-    await page.locator('.trail-list .trail-card').first().hover();
-    await expect(page.locator('#trail-map .maplibregl-popup')).toBeVisible();
-    const loaded = searches;
-    const originalArea = new URL(page.url()).search;
-    await page.locator('.maplibregl-canvas').evaluate(element => (window as any).retainedMapCanvas = element);
-    await page.locator('.expand-results').click();
-    await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
-    await expect(page.locator('.result-header')).toHaveCount(0);
-    await expect(page.locator('.collapse-results')).toHaveCount(0);
-    await expect(page.locator('#trail-map .reset-map-view')).toBeInViewport({ ratio: 1 });
-    await expect(page.locator('#trail-map .maplibregl-popup')).toHaveCount(0);
-    await page.locator('.trail-list .trail-card').first().hover();
-    await expect(page.locator('#trail-map .maplibregl-popup')).toHaveCount(0);
-    await expect(page.locator('#trail-map .trail-hover-marker')).toBeVisible();
-    await searchInput(page).hover();
-    await expect(page.locator('#trail-map .trail-hover-marker')).toHaveCount(0);
-    await expect(page.getByRole('separator')).toBeHidden();
-    const layout = await page.locator('.map-results').evaluate(element => {
-        const list = element.querySelector('.trail-list')!.getBoundingClientRect();
-        const map = element.querySelector('#trail-map')!.getBoundingClientRect();
-        const cards = [...element.querySelectorAll('.trail-card')].map(card => card.getBoundingClientRect());
-        return { width: element.clientWidth, listWidth: list.width, mapWidth: map.width, mapHeight: map.height,
-            columns: new Set(cards.map(card => card.x)).size, maxCardWidth: Math.max(...cards.map(card => card.width)) };
-    });
-    expect(layout.listWidth).toBe(layout.width);
-    expect(layout.columns).toBeGreaterThan(1);
-    expect(layout.maxCardWidth).toBeLessThanOrEqual(576);
-    expect(layout.mapWidth).toBeLessThan(layout.width / 2);
-    expect(layout.mapHeight).toBeGreaterThanOrEqual(160);
-    const overview = (await page.locator('#trail-map').boundingBox())!;
-    const restore = (await page.locator('.map-pane .overview-actions .expand-results').boundingBox())!;
-    expect(restore.x).toBeGreaterThanOrEqual(overview.x);
-    expect(restore.x + restore.width).toBeLessThanOrEqual(overview.x + overview.width);
-    expect(Math.abs(restore.y + restore.height / 2 - overview.y)).toBeLessThanOrEqual(1);
-    await settledMapLayout(page);
-    await page.waitForTimeout(300); // A layout change must not schedule a later list search.
-    expect(searches).toBe(loaded);
-    expect(new URL(page.url()).search).toBe(originalArea);
-    expect(await page.locator('.maplibregl-canvas').evaluate(element => element === (window as any).retainedMapCanvas)).toBe(true);
-    const original = (await page.locator('#trail-map').boundingBox())!;
-    const handle = page.locator('.overlay-resize');
-    const grip = (await handle.boundingBox())!;
-    await page.mouse.move(grip.x + 16, grip.y + 16);
-    await page.mouse.down();
-    await page.mouse.move(grip.x - 84, grip.y - 44, { steps: 4 });
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ width: original.width + 100, height: original.height + 60 });
-    expect(await mapPixel(page)).toEqual([218, 229, 223, 255]); // Basemap stays painted during the drag.
-    await page.mouse.up();
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ width: original.width + 100, height: original.height + 60 });
-    await settledMapLayout(page);
-    await page.waitForTimeout(300); // A layout change must not schedule a later list search.
-    expect(searches).toBe(loaded);
-    await handle.press('ArrowLeft');
-    await handle.press('ArrowUp');
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ width: original.width + 116, height: original.height + 76 });
-    await page.locator('#trail-map .maplibregl-ctrl-zoom-in').click();
-    await expect.poll(() => searches).toBeGreaterThan(loaded);
-    await page.locator('.expand-results').click();
-    await expect(page.locator('.map-results')).not.toHaveClass(/results-expanded/);
-    await expect(page.getByRole('separator')).toHaveAttribute('aria-valuenow', '400');
-    await page.locator('.expand-results').click();
-    await page.reload();
-    await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
-    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ width: original.width + 116, height: original.height + 76 });
-
-
-    await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
-    await page.locator('.expand-results').click();
-    await page.locator('.trail-list .trail-card').first().hover();
-    await expect(page.locator('#trail-map .maplibregl-popup')).toBeVisible();
-});
-
-test('moves, hides and restores the overview without changing the search area', async ({ page }) => {
-    let searches = 0;
-    page.on('request', request => { if (isTrailSearch(request.url())) ++searches; });
-    await openMap(page);
-    await page.locator('.expand-results').click();
-    await expect(page.locator('.overlay-close')).toBeVisible();
-    await settledMapLayout(page);
-    const loaded = searches;
-    const area = new URL(page.url()).search;
-    const original = (await page.locator('#trail-map').boundingBox())!;
-    await page.locator('.maplibregl-canvas').evaluate(element => (window as any).retainedMapCanvas = element);
-    const move = (await page.locator('.overlay-move').boundingBox())!;
-    await page.mouse.move(move.x + move.width / 2, move.y + move.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(move.x + move.width / 2 - 120, move.y + move.height / 2 - 60, { steps: 4 });
-    await page.mouse.up();
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ x: original.x - 120, y: original.y - 60 });
-    for (const button of await page.locator('.overview-actions button').all()) {
-        const box = (await button.boundingBox())!;
-        expect(Math.abs(box.y + box.height / 2 - original.y + 60)).toBeLessThanOrEqual(1);
-        expect(box).toMatchObject({ width: 32, height: 32 });
-        await expect(button).toBeInViewport({ ratio: 1 });
-    }
-    await page.locator('.overlay-close').click();
-    await expect(page.locator('#trail-map')).toBeHidden();
-    await expect(page.locator('.overlay-reopen')).toBeFocused();
-    const screen = page.viewportSize()!;
-    expect(await page.locator('.overlay-reopen').boundingBox()).toMatchObject({
-        x: screen.width - 88, y: screen.height - 88, width: 64, height: 64,
-    });
-    await page.locator('#trail-map .maplibregl-ctrl-zoom-in').evaluate((button: HTMLButtonElement) => button.focus());
-    await expect(page.locator('.overlay-reopen')).toBeFocused();
-    await expect(page.locator('.map-results')).toHaveClass(/results-expanded/);
-    await page.locator('.overlay-reopen').click();
-    await expect(page.locator('#trail-map')).toBeVisible();
-    expect(await mapPixel(page)).toEqual([218, 229, 223, 255]);
-    expect(await page.locator('.maplibregl-canvas').evaluate(element => element === (window as any).retainedMapCanvas)).toBe(true);
-    await settledMapLayout(page);
-    await page.waitForTimeout(300); // A layout change must not schedule a later list search.
-    expect(searches).toBe(loaded);
-    expect(new URL(page.url()).search).toBe(area);
-    await page.locator('.overlay-close').click();
-    await page.reload();
-    await expect(page.locator('.overlay-reopen')).toBeVisible();
-    await expect(page.locator('#trail-map')).toBeHidden();
-
-    await expect(page.locator('.overlay-reopen')).toBeVisible();
-    await page.locator('.overlay-reopen').click();
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ x: original.x - 120, y: original.y - 60 });
-    await page.locator('.overview-actions .expand-results').click();
-    await expect(page.locator('.map-results')).not.toHaveClass(/results-expanded/);
-    await expect(page.locator('.result-header')).toBeVisible();
-});
-
-test('keeps all overview controls visible at the minimum size, with reset last', async ({ page, context }) => {
-    await context.addInitScript(() => localStorage.setItem('mapResultsLayout', JSON.stringify({
-        expanded: true, overlay: { width: 256, height: 160 },
-    })));
-    await openMap(page);
-    const controlsFit = () => page.locator('#trail-map').evaluate(element => {
-        const map = element.getBoundingClientRect();
-        const buttons = [...element.querySelectorAll<HTMLButtonElement>('.maplibregl-ctrl-top-right button')].filter(button => button.getClientRects().length);
-        const attribution = element.querySelector('.maplibregl-ctrl-bottom-right')?.getBoundingClientRect();
-        return {
-            inside: Boolean(attribution) && buttons.length >= 5 && buttons.every(button => {
-                const rect = button.getBoundingClientRect();
-                return rect.top >= map.top && rect.left >= map.left && rect.right <= map.right && rect.bottom < attribution!.top;
-            }),
-            resetLast: buttons.at(-1)?.classList.contains('reset-map-view') ?? false,
-        };
-    });
-    await expect.poll(controlsFit).toEqual({ inside: true, resetLast: true });
-    const handle = page.locator('.overlay-resize');
-    await handle.press('Home');
-    const minimum = (await page.locator('#trail-map').boundingBox())!;
-    expect(minimum.width).toBe(256);
-    expect(minimum.height).toBeGreaterThan(160);
-    const grip = (await handle.boundingBox())!;
-    await page.mouse.move(grip.x + 12, grip.y + 12);
-    await page.mouse.down();
-    await page.mouse.move(grip.x + 12, grip.y + 160, { steps: 4 });
-    await page.mouse.up();
-    await expect.poll(() => page.locator('#trail-map').boundingBox()).toMatchObject({ height: minimum.height });
-    await expect.poll(controlsFit).toEqual({ inside: true, resetLast: true });
-    await page.setViewportSize({ width: 1000, height: 420 });
-    await handle.press('Home');
-    await expect.poll(controlsFit).toEqual({ inside: true, resetLast: true });
-    await page.reload();
-    await expect.poll(controlsFit).toEqual({ inside: true, resetLast: true });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('searchLayout')!))).toMatchObject({ position: 'left', expansion: 'push' });
 });
 
 for (const granted of [true, false]) {
@@ -683,15 +347,16 @@ for (const granted of [true, false]) {
             await page.goto('/map');
             await expect(page.locator('.maplibregl-canvas')).toBeVisible();
             await expect.poll(() => new URL(page.url()).searchParams.has('tl_lat')).toBe(true);
-            const position = async () => {
+            const [lon, lat] = granted ? [10, 49] : [0, 0];
+            const contains = () => {
                 const params = new URL(page.url()).searchParams;
-                return [Number(params.get('tl_lon')) + Number(params.get('br_lon')), Number(params.get('tl_lat')) + Number(params.get('br_lat'))];
+                return Number(params.get('br_lon')) < lon && lon < Number(params.get('tl_lon'))
+                    && Number(params.get('br_lat')) < lat && lat < Number(params.get('tl_lat'));
             };
-            await expect.poll(position).toEqual(granted ? [expect.closeTo(20, 3), expect.closeTo(98, 2)] : [expect.closeTo(0, 3), expect.closeTo(0, 3)]);
+            await expect.poll(contains).toBe(true);
             const params = new URL(page.url()).searchParams;
-            const width = await page.locator('.maplibregl-canvas').evaluate(canvas => canvas.clientWidth);
             const longitudeSpan = Number(params.get('tl_lon')) - Number(params.get('br_lon'));
-            expect(Math.log2(width / (longitudeSpan / 360 * 512))).toBeCloseTo(granted ? 12 : 1, 4);
+            expect(Math.log2(await uncoveredWidth(page) / (longitudeSpan / 360 * 512))).toBeCloseTo(granted ? 12 : 1, 2);
         } finally {
             const restored = await page.request.post(endpoint, { data: { mapFocus: settings.mapFocus, location: settings.location ?? null } });
             expect(restored.ok()).toBe(true);
@@ -739,120 +404,12 @@ test('offers trails outside the viewport and centers a suggested place without a
     await expect(searchInput(page)).toHaveValue('');
     await expect.poll(() => {
         const params = new URL(page.url()).searchParams;
-        return Number(params.get('tl_lon')) + Number(params.get('br_lon'));
-    }).toBeCloseTo(20, 4);
+        return Number(params.get('br_lon')) < 10 && 10 < Number(params.get('tl_lon')) && Number(params.get('br_lat')) < 49 && 49 < Number(params.get('tl_lat'));
+    }).toBe(true);
     const params = new URL(page.url()).searchParams;
-    const width = await page.locator('.maplibregl-canvas').evaluate(canvas => canvas.clientWidth);
-    expect(Math.log2(width / ((Number(params.get('tl_lon')) - Number(params.get('br_lon'))) / 360 * 512))).toBeCloseTo(14, 4);
+    expect(Math.log2(await uncoveredWidth(page) / ((Number(params.get('tl_lon')) - Number(params.get('br_lon'))) / 360 * 512))).toBeCloseTo(14, 2);
     await expect(page.locator('[data-filter-key="location"]')).toHaveCount(0);
     expect(requests.at(-1).options.filter).not.toContain('_geoRadius');
-});
-
-test('holds selected list results when push search changes map height but queries a wider window', async ({ page, context }) => {
-    await context.addInitScript(() => localStorage.setItem('searchLayout', JSON.stringify({ position: 'top', expansion: 'push' })));
-    const listQueries: unknown[] = [];
-    const markerQueries: unknown[] = [];
-    await context.route('**/api/v1/search/trails', route => {
-        const body = route.request().postDataJSON();
-        listQueries.push(body);
-        return route.fulfill({ json: {
-            hits: [0, 1].map(index => ({ id: 'push-' + index, name: 'Push trail ' + index, author: 'fixtureauthor00', author_name: 'Fixture',
-                public: true, completed: false, tags: [], created: 1710000000, date: 1710000000, distance: 2400, duration: 3600,
-                elevation_gain: 100, elevation_loss: 100, difficulty: 0, location: 'Bern', _geo: { lat: 47, lng: 7.45 } })),
-            totalHits: 2, totalPages: 1, page: 1, hitsPerPage: 48,
-        } });
-    });
-    await context.route('**/api/v1/search/trails/cluster', route => {
-        markerQueries.push(route.request().postDataJSON());
-        return route.fulfill({ json: { type: 'FeatureCollection', features: [], totalHits: 0 } });
-    });
-    await context.route(/\/api\/v1\/trail\/push-\d+\?/, route => route.fulfill({ json: {
-        id: new URL(route.request().url()).pathname.split('/').at(-1), name: 'Push trail', author: 'fixtureauthor00',
-        photos: [], tags: [], public: true, completed: false, difficulty: 'easy', expand: {},
-    } }));
-    await openMap(page);
-    await settledMapLayout(page);
-    await page.locator('.trail-card').first().hover();
-    await page.getByRole('checkbox', { name: 'Select Push trail 0', exact: true }).check();
-    await page.locator('.trail-card').nth(1).getByText('Push trail 1', { exact: true }).click();
-    await expect(page.locator('.selection-count')).toHaveText('2 selected');
-    const count = listQueries.length;
-    const area = new URL(page.url()).search;
-    const markers = markerQueries.length;
-    await searchInput(page).click();
-    await expect(page.getByRole('region', { name: 'Filter by', exact: true })).toBeVisible();
-    await expect.poll(() => markerQueries.length).toBeGreaterThan(markers);
-    await page.waitForTimeout(300); // A height-only change must outlast the list debounce without a query.
-    expect(listQueries).toHaveLength(count);
-    expect(new URL(page.url()).search).toBe(area);
-    await expect(page.locator('.selection-count')).toHaveText('2 selected');
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect.poll(() => listQueries.length).toBeGreaterThan(count);
-});
-
-for (const theme of ['light', 'dark']) {
-    test(`map overlay buttons have an opaque contrasting surface and a focus ring in ${theme} mode`, async ({ page }) => {
-        await openMap(page);
-        await page.evaluate(theme => {
-            for (const element of [document.documentElement, document.body]) {
-                element.classList.remove('light', 'dark'); element.classList.add(theme);
-            }
-        }, theme);
-        const check = async (selector: string) => {
-            const button = page.locator(selector);
-            await expect(button).toBeVisible();
-            await page.mouse.move(0, 0);
-            await button.focus();
-            await expect.poll(() => button.evaluate(element => {
-                const style = getComputedStyle(element);
-                const channels = (color: string) => color.match(/[\d.]+/g)!.map(Number);
-                const background = channels(style.backgroundColor);
-                const foreground = channels(getComputedStyle(element.querySelector('i') ?? element).color);
-                const luminance = (rgb: number[]) => rgb.slice(0, 3).map(c => c / 255).map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i], 0);
-                const a = luminance(background), b = luminance(foreground);
-                return {
-                    opaque: background.length === 3 || background[3] === 1,
-                    contrast: (Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 3,
-                    focus: /0px 0px 0px 4px/.test(style.boxShadow),
-                    shadow: style.filter.includes('drop-shadow'),
-                };
-            })).toEqual({ opaque: true, contrast: true, focus: true, shadow: true });
-        };
-
-
-        await page.locator('.result-header .collapse-results').click();
-        await check('.collapsed-actions .collapse-results');
-        await page.locator('.collapsed-actions .collapse-results').click();
-        await page.locator('.result-header .expand-results').click();
-        await settledMapLayout(page);
-        for (const selector of ['.overview-actions .expand-results', '.overlay-close', '.overlay-move']) await check(selector);
-        await page.locator('.overlay-close').click();
-        await check('.overlay-reopen');
-    });
-}
-
-test.describe('touch map tools', () => {
-    test.use({ hasTouch: true, isMobile: true, userAgent: devices['Galaxy Tab S4 landscape'].userAgent, viewport: devices['Galaxy Tab S4 landscape'].viewport });
-    for (const theme of ['light', 'dark']) {
-        test(`keeps map tool surfaces after touch in ${theme} mode`, async ({ page }) => {
-            await openMap(page);
-            expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true);
-            await page.evaluate(theme => { for (const node of [document.documentElement, document.body]) { node.classList.remove('light', 'dark'); node.classList.add(theme); } }, theme);
-            const opaque = async (selector: string) => {
-                await page.locator(selector).tap();
-                await page.locator(selector).evaluate(async element => {
-                    getComputedStyle(element).backgroundColor;
-                    await Promise.all(element.getAnimations().map(animation => animation.finished));
-                });
-                await expect.poll(() => page.locator(selector).evaluate(element => getComputedStyle(element).backgroundColor))
-                    .toBe(theme === 'light' ? 'rgb(255, 255, 255)' : 'rgb(30, 32, 40)');
-            };
-            await page.locator('.result-header .expand-results').tap();
-            await settledMapLayout(page);
-            await opaque('.overlay-move');
-
-        });
-    }
 });
 
 test('keeps the camera after opening a trail, Back and reload', async ({ page, context }) => {
@@ -890,18 +447,51 @@ test('keeps the camera after opening a trail, Back and reload', async ({ page, c
 });
 
 
-test('phone map switches between results and a painted map without horizontal scrolling', async ({page}) => {
-    await page.setViewportSize({width:390,height:844});
+test('phone shows a full-screen painted map and toggles the list without horizontal scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await openMap(page);
     await settledMapLayout(page);
-    expect((await mapPixel(page)).slice(0,3)).toEqual([218,229,223]);
-    await page.locator('.map-view-toggle').click();
-    await expect(page.locator('#trail-map')).toBeHidden();
+    expect((await mapPixel(page)).slice(0, 3)).toEqual([218, 229, 223]);
+    await expect(page.locator('.results-panel')).toBeHidden();
+    const toggle = page.locator('.map-view-toggle');
+    await expect(toggle).toHaveText('List');
+    await toggle.click();
+    await expect(page.locator('.results-panel')).toBeVisible();
+    await expect(toggle).toHaveText('Map');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(await page.locator('.trail-results').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-    await page.locator('.map-view-toggle').click();
-    await expect(page.locator('#trail-map')).toBeVisible();
+    await toggle.click();
+    await expect(page.locator('.results-panel')).toBeHidden();
     await settledMapLayout(page);
-    expect((await mapPixel(page)).slice(0,3)).toEqual([218,229,223]);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect((await mapPixel(page)).slice(0, 3)).toEqual([218, 229, 223]);
+});
+
+test('floats the results panel and search bar over a full-width map', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openMap(page);
+    await settledMapLayout(page);
+    const map = (await page.locator('#trail-map').boundingBox())!;
+    const panel = (await page.locator('.results-panel').boundingBox())!;
+    const search = (await page.locator('.map-search-toolbar').boundingBox())!;
+    expect(map.width).toBe(await page.evaluate(() => document.documentElement.clientWidth));
+    expect(panel.x).toBeGreaterThan(map.x);
+    expect(panel.y + panel.height).toBeLessThan(map.y + map.height);
+    expect(search.x).toBeGreaterThan(panel.x + panel.width);
+    await expect(page.locator('.expand-results, [role="separator"]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Collapse trail list' }).click();
+    await expect(page.locator('.trail-results')).toBeHidden();
+    await expect(page.locator('.results-panel h2')).toBeVisible();
+    await page.getByRole('button', { name: 'Expand trail list' }).click();
+    await expect(page.locator('.trail-results')).toBeVisible();
+    await expect(page.locator('.map-view-toggle')).toBeHidden();
+    const controls = (await page.locator('#trail-map .maplibregl-ctrl-top-right .maplibregl-ctrl').first().boundingBox())!;
+    expect(controls.x).toBeGreaterThanOrEqual(search.x + search.width);
+    expect(Math.abs(controls.y - search.y)).toBeLessThan(2);
+    const scale = (await page.locator('#trail-map .maplibregl-ctrl-bottom-right .maplibregl-ctrl-scale').boundingBox())!;
+    const attribution = (await page.locator('#trail-map .maplibregl-ctrl-attrib').boundingBox())!;
+    expect(scale.y + scale.height).toBeLessThanOrEqual(attribution.y);
+    const params = new URL(page.url()).searchParams;
+    const longitudeSpan = Number(params.get('tl_lon')) - Number(params.get('br_lon'));
+    const pixels = longitudeSpan / 360 * 512 * 2 ** 14;
+    expect(Math.abs(pixels - await uncoveredWidth(page))).toBeLessThan(2);
 });

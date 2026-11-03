@@ -73,11 +73,11 @@ for (const dev of [true, false]) {
             await mountMapPageFixture(page, bundle);
             await initial(page);
             await page.evaluate(() => (window as any).fixture.apply({ q: 'replacement' }));
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'true');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'true');
             expect((await readResults(page)).trails).toEqual(result('initial').items);
             await expect(page.locator('.map-page')).not.toHaveAttribute('aria-busy');
             await resolve(page, 2, result('replacement'));
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'false');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'false');
         });
 
         test('clears refresh progress when returning to the loaded area before a replacement finishes', async ({ page }) => {
@@ -86,9 +86,9 @@ for (const dev of [true, false]) {
             await page.clock.install();
             await viewport(page, area(1));
             await page.clock.runFor(201);
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'true');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'true');
             await viewport(page, area());
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'false');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'false');
             await expect(page.getByRole('button', { name: 'trail-results-load-more', exact: true })).toBeEnabled();
             expect((await requests(page))[2].aborted).toBe(true);
             await resolve(page, 2, result('stale'));
@@ -102,45 +102,13 @@ for (const dev of [true, false]) {
             await page.clock.pauseAt(2000);
             await viewport(page, area(1));
             await page.clock.runFor(201);
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'true');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'true');
             await viewport(page, area(2));
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'true');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'true');
             await page.clock.runFor(201);
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'true');
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'true');
             await resolve(page, 4, result('latest'));
-            await expect(page.locator('.map-results-container')).toHaveAttribute('aria-busy', 'false');
-        });
-
-        test('refreshes only markers for header or visual viewport height changes', async ({ page }) => {
-            await mountMapPageFixture(page, bundle);
-            await initial(page);
-            const bounds = area(2);
-            await page.evaluate(bounds => (window as any).fixture.zoom(11, bounds), bounds);
-            await expect.poll(() => requests(page).then(value => value.length)).toBe(3);
-            expect((await requests(page))[2]).toMatchObject({ channel: 'map', northEast: bounds.northEast, southWest: bounds.southWest });
-            expect((await requests(page))[0].aborted).toBe(false);
-            expect((await readResults(page)).trails).toEqual(result('initial').items);
-            await page.waitForTimeout(250); // Negative check spans the viewport debounce.
-            expect(await requests(page)).toHaveLength(3);
-            await viewport(page, area(3));
-            await expect.poll(() => requests(page).then(value => value.length)).toBe(5);
-            expect((await requests(page))[3]).toMatchObject({ channel: 'results', bounds: area(3) });
-        });
-
-        test('debounces consecutive marker-only layout changes without replacing list results', async ({ page }) => {
-            await mountMapPageFixture(page, bundle);
-            await initial(page);
-            await page.clock.install({ time: 1000 });
-            await page.clock.pauseAt(2000);
-            await page.evaluate(bounds => (window as any).fixture.zoom(11, bounds), area(1));
-            await page.clock.runFor(100);
-            await page.evaluate(bounds => (window as any).fixture.zoom(11, bounds), area(2));
-            await page.clock.runFor(100);
-            expect(await requests(page)).toHaveLength(2);
-            await page.clock.runFor(101);
-            await expect.poll(() => requests(page).then(value => value.length)).toBe(3);
-            expect((await requests(page))[2]).toMatchObject({ channel: 'map', northEast: area(2).northEast });
-            expect((await readResults(page)).trails).toEqual(result('initial').items);
+            await expect(page.getByTestId('results')).toHaveAttribute('aria-busy', 'false');
         });
 
         test('retains an explicitly unset sharing filter in handed-over criteria and snapshots', async ({ page }) => {
@@ -152,25 +120,17 @@ for (const dev of [true, false]) {
             expect((await requests(page)).at(-1).filter).not.toHaveProperty('shared');
         });
 
-        test('uses only the saved expansion mode while ignoring stored trail criteria', async ({ page }) => {
+        test('ignores stored trail criteria and always overlays the filter panel on the map', async ({ page }) => {
             const stored = { q: 'trail-only', category: ['cycling'] };
             await mountMapPageFixture(page, bundle, { storage: { trailListFilter: stored, searchLayout: { position: 'left', expansion: 'push' } } });
             expect((await requests(page))[0]).toMatchObject({ channel: 'results', filter: { q: '', category: [], sort: 'created', sortOrder: '-' }, bounds: area(), page: 1 });
             expect((await requests(page))[1]).toMatchObject({ channel: 'map', northEast: area().northEast, southWest: area().southWest });
-            await expect(page.getByTestId('search-filter')).toContainText('"layout":"push"');
+            await expect(page.getByTestId('search-filter')).toContainText('"layout":"overlay"');
+            expect(await page.evaluate(() => typeof (window as any).fixture.position)).toBe('undefined');
             await page.evaluate(() => (window as any).fixture.apply({ q: 'map-only' }));
             expect(await page.evaluate(() => JSON.parse(localStorage.getItem('trailListFilter')!))).toEqual(stored);
             expect((await requests(page)).slice(2).map((r: any) => r.filter.q)).toEqual(['map-only', 'map-only']);
-        });
-
-        test('keeps search at the top despite a saved side position', async ({ page }) => {
-            await mountMapPageFixture(page, bundle, { storage: { searchLayout: { position: 'right', expansion: 'push' } } });
-            await initial(page);
-            await expect(page.getByTestId('search-filter')).toContainText('"layout":"push"');
-            expect(await page.evaluate(() => typeof (window as any).fixture.position)).toBe('undefined');
-            await expect(page.locator('.filter-sidebar')).toHaveCount(0);
-            expect(await requests(page)).toHaveLength(2);
-            expect(await page.evaluate(() => JSON.parse(localStorage.getItem('searchLayout')!))).toEqual({ position: 'right', expansion: 'push' });
+            expect(await page.evaluate(() => JSON.parse(localStorage.getItem('searchLayout')!))).toEqual({ position: 'left', expansion: 'push' });
         });
 
         test('switches the result presentation without publishing filters or refetching', async ({ page }) => {
@@ -181,9 +141,7 @@ for (const dev of [true, false]) {
             expect(await requests(page)).toHaveLength(2);
             expect(await page.evaluate(() => localStorage.getItem('mapResultsDisplay'))).toBe('list');
             await page.evaluate(() => (window as any).fixture.display('table'));
-            await expect.poll(() => readResults(page)).toMatchObject({ display: 'table', trails: result('initial').items });
-            expect(await requests(page)).toHaveLength(2);
-            expect(await page.evaluate(() => localStorage.getItem('mapResultsDisplay'))).toBe('table');
+            await expect.poll(() => readResults(page)).toMatchObject({ display: 'list' });
             expect(await page.evaluate(() => localStorage.getItem('trailListFilter'))).toBeNull();
         });
 
@@ -218,27 +176,6 @@ for (const dev of [true, false]) {
             expect((await readResults(page)).trails).toHaveLength(96);
             await resolve(page, 3, result('scoped'));
             await expect.poll(() => readResults(page)).toMatchObject({ trails: result('scoped').items });
-        });
-
-        test('refreshes clusters for the layout zoom without replacing loaded result pages or the search area', async ({ page }) => {
-            await mountMapPageFixture(page, bundle);
-            await initial(page);
-            await page.getByRole('button', { name: 'trail-results-load-more', exact: true }).click();
-            await resolve(page, 2, result('next', 2));
-            await expect.poll(() => readResults(page).then(value => value.trails.length)).toBe(96);
-            await page.clock.install();
-            await page.evaluate(() => (window as any).fixture.zoom(8));
-            await page.clock.runFor(201);
-            await expect.poll(() => requests(page)).toHaveLength(4);
-            expect((await requests(page))[3]).toMatchObject({ channel: 'map', zoom: 8, northEast: area().northEast, southWest: area().southWest });
-            expect((await readResults(page)).trails).toHaveLength(96);
-            await page.evaluate(() => (window as any).fixture.zoom(11));
-            expect((await requests(page))[3].aborted).toBe(true);
-            await resolve(page, 3, markers('obsolete-zoom'));
-            await page.clock.runFor(201);
-            await expect(page.getByTestId('map')).not.toContainText('obsolete-zoom');
-            expect(await requests(page)).toHaveLength(4);
-            expect((await readResults(page)).trails).toHaveLength(96);
         });
 
         test('ignores late viewport replies even when returning to the same bounds', async ({ page }) => {
@@ -298,38 +235,5 @@ for (const dev of [true, false]) {
             await expect.poll(() => requests(page).then(value => value.filter((r: any) => !r.aborted).slice(-2).map((r: any) => r.filter.q))).toEqual(['saved', 'saved']);
             expect(await page.evaluate(() => localStorage.getItem('trailListFilter'))).toBeNull();
         });
-
-
-    });
-}
-
-// Use the real page and real TrailMapResults, not the request-only rendering
-// stub above. setViewportSize dispatches the actual window resize; no manual
-// invocation of either component's resize handler is involved.
-for (const dev of [true, false]) {
-    test.describe(`map page with real map results in ${dev ? 'development' : 'production'}`, () => {
-        let bundle: string;
-        test.beforeAll(async () => { bundle = await buildMapPageFixture(dev, true); });
-        test.beforeEach(async ({ page }) => {
-            page.on('pageerror', error => { throw error; });
-        });
-        for (const lock of ['modal', 'scroll']) {
-            test(`page window resize under ${lock} lock refreshes only map data`, async ({ page }) => {
-                await mountMapPageFixture(page, bundle);
-                await resolve(page, 0, { items: [{ id: 'fixture-0', author: 'tester', name: 'Fixture trail' }], page: 1, totalPages: 1, totalHits: 1 });
-                await resolve(page, 1, { mapTrails: [], clusters: { type: 'FeatureCollection', features: [] } });
-                await page.getByTestId('map-card').first().hover();
-                await page.locator('.selection input').check();
-                if (lock === 'modal') await page.evaluate(() => (window as any).mapResultsFixture.openActionDialog());
-                else await page.evaluate(() => { document.body.style.position = 'fixed'; document.body.style.width = '100%'; });
-                const before = await page.evaluate(() => ({ publications: (window as any).fixture.publications.length, url: location.search, results: (window as any).fixture.requests.filter((r: any) => r.channel === 'results').length }));
-                await page.setViewportSize({ width: 1450, height: 900 });
-                await page.waitForTimeout(500);
-                expect(await page.evaluate(() => ({ publications: (window as any).fixture.publications.length, url: location.search, results: (window as any).fixture.requests.filter((r: any) => r.channel === 'results').length }))).toEqual(before);
-                expect(await page.evaluate(() => (window as any).fixture.requests.filter((r: any) => r.channel === 'map').length)).toBeGreaterThan(1);
-                expect(await page.evaluate(() => (window as any).mapResultsFixture.selected())).toEqual(['fixture-0']);
-                if (lock === 'modal') await expect(page.locator('dialog[open]')).toBeVisible();
-            });
-        }
     });
 }

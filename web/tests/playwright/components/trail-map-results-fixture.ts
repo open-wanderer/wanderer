@@ -11,14 +11,6 @@ const selectableItem = (testId: string) => `
 export const mapResultStubs = {
     [componentPath('trail/trail_card')]: selectableItem('map-card'),
     [componentPath('trail/trail_list_item')]: selectableItem('map-list-item'),
-    [componentPath('trail/trail_table')]: `
-        <script>let { trails, selection, onTrailSelect } = $props();</script>
-        <div data-testid="map-table">
-                {#each trails ?? [] as trail}
-                    <input type="checkbox" aria-label={'Select ' + trail.name} checked={selection?.has(trail) ?? false} onclick={() => onTrailSelect(trail)} />
-                {/each}
-        </div>
-    `,
     [componentPath('trail/trail_dropdown')]: `
         <script>
             import Dropdown from ${JSON.stringify(componentPath('base/dropdown'))};
@@ -53,15 +45,6 @@ export const mapResultStubs = {
                     this.camera = { ...this.camera, ...change };
                     onmoveend();
                 }
-                stop() { window.mapResultsFixture.moving = false; onmoveend(); }
-                resize() { if (window.mapResultsFixture.emitResizeMoves) onmoveend(); }
-                canvas = document.createElement("canvas");
-                getCanvas() { return this.canvas; }
-                _resizeInternal() { this.canvas.width = container.clientWidth; this.canvas.height = container.clientHeight; }
-                _update() {}
-                fire(type, data) { if (type === "moveend") onmoveend(data); return this; }
-                _render() { this.redraw(); }
-                redraw() { window.mapResultsFixture.redraws = (window.mapResultsFixture.redraws ?? 0) + 1; }
                 addControl(control) { container.querySelector('.maplibregl-ctrl-top-right').append(control.onAdd(this)); }
                 getCenter() { return { toArray: () => [...this.camera.center] }; }
                 getZoom() { return this.camera.zoom; }
@@ -81,6 +64,12 @@ export const mapResultStubs = {
                     return { getNorth: () => lat + .1, getSouth: () => lat - .1,
                         getEast: () => lng + (window.mapResultsFixture.sizedBounds ? container.clientWidth / 5000 : .1), getWest: () => lng - (window.mapResultsFixture.sizedBounds ? container.clientWidth / 5000 : .1) };
                 }
+                unproject([x, y]) {
+                    const bounds = this.getBounds();
+                    const west = bounds.getWest(), north = bounds.getNorth();
+                    return { lng: west + x / container.clientWidth * (bounds.getEast() - west),
+                        lat: north - y / container.clientHeight * (north - bounds.getSouth()) };
+                }
                 fitBounds(bounds, options = {}) {
                     const [[west, south], [east, north]] = Array.isArray(bounds) ? bounds : bounds.toArray();
                     window.mapResultsFixture.fitCount = (window.mapResultsFixture.fitCount ?? 0) + 1;
@@ -92,6 +81,7 @@ export const mapResultStubs = {
                         zoom = 3 + Math.log2(Math.min(container.clientWidth / (5000 * width), container.clientHeight / (5000 * height)));
                     }
                     window.mapResultsFixture.fittedSize = { width: container.clientWidth, height: container.clientHeight };
+                    window.mapResultsFixture.fitPadding = options.padding;
                     this.jumpTo({ center: [(west + east) / 2, (south + north) / 2], zoom, bearing: options.bearing ?? 0, pitch: options.pitch ?? this.camera.pitch });
                 }
             }
@@ -113,7 +103,8 @@ export const mapResultStubs = {
             export function unHighlightCluster() {}
         </script>
         <div data-testid="fake-map" bind:this={container} style="height: 100%; min-height: 1px; position: relative">
-            <div class="maplibregl-ctrl-top-right" style="position: absolute; top: 10px; right: 10px"></div>
+            <div class="maplibregl-ctrl-top-left" style="position: absolute"></div>
+            <div class="maplibregl-ctrl-top-right" style="position: absolute; right: 10px"></div>
             <div class="maplibregl-ctrl-bottom-right" style="position: absolute; bottom: 0; right: 0"></div>
         </div>
     `,

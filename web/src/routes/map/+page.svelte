@@ -5,7 +5,6 @@
     import TrailResultControls from "#lib/components/trail/trail_result_controls.svelte";
     import TrailMapResults, { type MapCamera } from "#lib/components/trail/trail_map_results.svelte";
     import type { Trail, TrailFilter } from "#lib/models/trail.ts";
-    import { loadSearchLayout, searchLayout, updateSearchLayout } from "#lib/stores/search_layout_store.ts";
     import { trails_search_filter, trails_search_map_data } from "#lib/stores/trail_store.ts";
     import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
     import { isTrailSearchBounds, trailSearchBoundsFromUrl, type TrailSearchBounds } from "#lib/util/trail_search_util.ts";
@@ -22,7 +21,6 @@
     let viewport = $state<TrailSearchBounds | undefined>(trailSearchBoundsFromUrl(page.url.searchParams));
     let zoom = 11;
     let restoredCamera = $state<MapCamera>();
-    let renderedViewport: TrailSearchBounds | undefined;
     const initialCenter = untrack(() => {
         const params = page.url.searchParams;
         if (!params.get("lat")?.trim() || !params.get("lon")?.trim()) return;
@@ -32,11 +30,11 @@
     });
     let mapResults: TrailMapResults | undefined = $state();
     let searchBar: TrailSearchBar | undefined = $state();
-    let resultDisplay = $state<"cards" | "list" | "table">("cards");
+    let resultDisplay = $state<"cards" | "list">("cards");
     let trails: Trail[] = $state([]);
     let mapTrails: Trail[] = $state([]);
     let clusters = $state<FeatureCollection>();
-    let pagination = $state({ page: 1, totalPages: 1 });
+    let pagination = $state({ page: 1, totalPages: 1, totalHits: 0 });
     let loading = $state(true);
     let refreshing = $state(false);
     let loadingMore = $state(false);
@@ -45,7 +43,6 @@
     let markerError = $state(false);
     let moreError = $state(false);
     let scheduled = $state<ReturnType<typeof setTimeout>>();
-    let scheduledRender: ReturnType<typeof setTimeout> | undefined;
     let searchController: AbortController | undefined;
     let mapController: AbortController | undefined;
     let loadedSearchKey = "";
@@ -60,7 +57,6 @@
     let displayOptions = $derived([
         { text: $_("card", { values: { n: 2 } }), value: "cards" },
         { text: $_("list", { values: { n: 1 } }), value: "list" },
-        { text: $_("table"), value: "table" },
     ]);
     let sortOptions = $derived([
         ...(filter.q.trim() ? [{ text: $_("trail-results-relevance"), value: "relevance" }] : []),
@@ -78,7 +74,6 @@
                 if (value.zoom !== undefined && Number.isFinite(value.zoom)) zoom = value.zoom;
                 restoredCamera = value.camera;
             }
-            renderedViewport = undefined;
             appliedPlace = placeKey(filter);
             if (mounted) {
                 cancelScheduled();
@@ -94,10 +89,9 @@
     };
     onMount(() => {
         mounted = true;
-        loadSearchLayout();
         try {
             const stored = localStorage.getItem("mapResultsDisplay");
-            if (stored === "cards" || stored === "list" || stored === "table") resultDisplay = stored;
+            if (stored === "cards" || stored === "list") resultDisplay = stored;
         } catch { /* Keep the default view when storage is unavailable. */ }
         const frame = requestAnimationFrame(() => { routerReady = true; syncUrl(); });
         return () => {
@@ -134,15 +128,13 @@
         return JSON.stringify([value, rounded]);
     }
     function mapKey() {
-        return JSON.stringify([searchKey(filter, renderedViewport ?? viewport), Math.round(zoom * 1e6) / 1e6]);
+        return JSON.stringify([searchKey(), Math.round(zoom * 1e6) / 1e6]);
     }
     function cancelScheduled() {
         if (scheduled !== undefined) clearTimeout(scheduled);
         scheduled = undefined;
     }
     function abortRequests() {
-        clearTimeout(scheduledRender);
-        scheduledRender = undefined;
         searchController?.abort();
         searchController = undefined;
         mapController?.abort();
@@ -153,18 +145,9 @@
         loadingMore = false;
         mapLoading = false;
     }
-    function pauseViewportRefresh() {
-        cancelScheduled();
-        clearTimeout(scheduledRender);
-        scheduledRender = undefined;
-    }
-    function onViewport(next: TrailSearchBounds, nextZoom: number, _entering = false, settled = false) {
-        clearTimeout(scheduledRender);
-        scheduledRender = undefined;
+    function onViewport(next: TrailSearchBounds, nextZoom: number) {
         const previous = searchKey();
-        const previousMap = mapKey();
         viewport = next;
-        renderedViewport = next;
         zoom = nextZoom;
         syncUrl();
         if (previous !== searchKey()) {
@@ -182,39 +165,13 @@
             pendingMapKey = "";
             mapLoading = false;
         }
+        cancelScheduled();
         if (key === loadedMapKey || key === pendingMapKey) {
-            cancelScheduled();
             if (loadedSearchKey !== searchKey() && pendingSearchKey !== searchKey()) void searchResults();
             return;
         }
-        if (!settled && previousMap === key && scheduled !== undefined) return;
-        mapController?.abort();
-        mapController = undefined;
-        pendingMapKey = "";
-        cancelScheduled();
-        if (settled) refresh();
-        else scheduled = setTimeout(refresh, 200);
-    }
-    function onMapRender(nextZoom: number, bounds?: TrailSearchBounds, settled = false) {
-        zoom = nextZoom;
-        if (bounds) renderedViewport = bounds;
-        if (pendingMapKey && pendingMapKey !== mapKey()) {
-            mapController?.abort();
-            mapController = undefined;
-            pendingMapKey = "";
-            mapLoading = false;
-        }
-        clearTimeout(scheduledRender);
-        scheduledRender = undefined;
-        if (settled) {
-            // Also consume a preceding pan timer, using the final rendered bounds.
-            refresh();
-            return;
-        }
-        scheduledRender = setTimeout(() => {
-            scheduledRender = undefined;
-            void refreshMapData();
-        }, 200);
+        // Camera moves can arrive in quick succession, e.g. a fit followed by a resize.
+        scheduled = setTimeout(refresh, 200);
     }
     function refresh() {
         cancelScheduled();
@@ -246,7 +203,7 @@
                 const ids = new Set(trails.map(trail => trail.id));
                 trails = [...trails, ...result.items.filter(trail => !ids.has(trail.id))];
             }
-            pagination = { page: result.page, totalPages: result.totalPages };
+            pagination = { page: result.page, totalPages: result.totalPages, totalHits: result.totalHits ?? 0 };
             loadedSearchKey = key;
         } catch {
             if (controller === searchController) {
@@ -272,7 +229,7 @@
         pendingMapKey = key;
         mapLoading = true;
         markerError = false;
-        const area = renderedViewport ?? viewport;
+        const area = viewport;
         const currentFilter = JSON.parse(JSON.stringify(filter)) as TrailFilter;
         try {
             const data = await trails_search_map_data(new LngLat(area.northEast.lng, area.northEast.lat),
@@ -323,68 +280,56 @@
         void searchResults(false);
     }
     function selectResultDisplay(display: string) {
-        if (display !== "cards" && display !== "list" && display !== "table") return;
+        if (display !== "cards" && display !== "list") return;
         resultDisplay = display;
         try { localStorage.setItem("mapResultsDisplay", display); } catch { /* Keep the view usable without storage. */ }
-    }
-    function sortTable(sort: string) {
-        const sortOrder = sort === filter.sort && filter.sortOrder === "+" ? "-" : "+";
-        applySearch({ ...filter, sort: sort as TrailFilter["sort"], sortOrder });
     }
 </script>
 
 <svelte:head><title>{$_("map")} | wanderer</title></svelte:head>
 
 <main class="map-page">
-    <div class="map-search-header">
-        <div class="map-search-toolbar">
-            <TrailSearchBar bind:this={searchBar} categories={page.data.categories} subcategories={page.data.subcategories}
-                bind:filter defaults={page.data.filter} onapply={applySearch} inlineControls
-                onplaceselect={location => mapResults?.focusLocation(location)} trailSuggestions
-                layout={$searchLayout.expansion} filterSections={page.data.settings?.behavior?.searchFilterSections} />
-            <TrailResultControls buttonsOnly sort={filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort}
-                order={filter.sortOrder} {sortOptions} onsort={(sort, sortOrder) => applySearch({ ...filter, sort: sort as TrailFilter["sort"], sortOrder })}
-                display={resultDisplay} {displayOptions} ondisplay={selectResultDisplay}
-                searchExpansion={$searchLayout.expansion} onsearchexpansion={expansion => updateSearchLayout({ expansion })} />
-        </div>
-    </div>
-    {#if resultError || markerError}
-        <p class="map-error" role="alert">{$_("trail-search-error")} <button type="button" onclick={refresh}>{$_("trail-search-retry")}</button></p>
-    {/if}
-    <div class="map-content">
-        <div class="map-results-container" aria-busy={loading || refreshing}>
-            <TrailMapResults bind:this={mapResults}
-                {trails} {mapTrails} {clusters} {loading} {mapLoading}
-                initialBounds={viewport} initialCamera={restoredCamera} {initialCenter} boundingBox={page.data.boundingBox}
-                settings={page.data.settings} display={resultDisplay} near={filter.near} onviewport={onViewport}
-                onzoom={onMapRender} onwindowresize={pauseViewportRefresh}
-                onupdate={handleTrailsUpdated} {filter} tableHeader={sortOptions.filter(option => option.value !== "elevation_loss" && option.value !== "relevance")} onsort={sortTable}>
-                {#snippet moreResults()}
-                    {#if hasMore}
-                        <div class="load-more">
-                            {#if moreError}<p role="alert">{$_("trail-search-error")}</p>{/if}
-                            <button type="button" disabled={loadingMore || refreshing || scheduled !== undefined} onclick={loadMore}>
-                                {$_(loadingMore ? "trail-results-loading-more" : moreError ? "trail-search-retry" : "trail-results-load-more")}
-                            </button>
-                        </div>
-                    {/if}
-                {/snippet}
-            </TrailMapResults>
-        </div>
-    </div>
+    <TrailMapResults bind:this={mapResults}
+        {trails} {mapTrails} {clusters} {loading} busy={refreshing} {mapLoading} totalHits={pagination.totalHits}
+        initialBounds={viewport} initialCamera={restoredCamera} {initialCenter} boundingBox={page.data.boundingBox}
+        settings={page.data.settings} display={resultDisplay} near={filter.near} onviewport={onViewport}
+        onupdate={handleTrailsUpdated}>
+        {#snippet toolbar()}
+            <div class="map-search-toolbar">
+                <TrailSearchBar bind:this={searchBar} categories={page.data.categories} subcategories={page.data.subcategories}
+                    bind:filter defaults={page.data.filter} onapply={applySearch} inlineControls
+                    onplaceselect={location => mapResults?.focusLocation(location)} trailSuggestions
+                    layout="overlay" filterSections={page.data.settings?.behavior?.searchFilterSections} />
+                <TrailResultControls buttonsOnly sort={filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort}
+                    order={filter.sortOrder} {sortOptions} onsort={(sort, sortOrder) => applySearch({ ...filter, sort: sort as TrailFilter["sort"], sortOrder })}
+                    display={resultDisplay} {displayOptions} ondisplay={selectResultDisplay} />
+            </div>
+            {#if resultError || markerError}
+                <p class="map-error" role="alert">{$_("trail-search-error")} <button type="button" onclick={refresh}>{$_("trail-search-retry")}</button></p>
+            {/if}
+        {/snippet}
+        {#snippet moreResults()}
+            {#if hasMore}
+                <div class="load-more">
+                    {#if moreError}<p role="alert">{$_("trail-search-error")}</p>{/if}
+                    <button type="button" disabled={loadingMore || refreshing || scheduled !== undefined} onclick={loadMore}>
+                        {$_(loadingMore ? "trail-results-loading-more" : moreError ? "trail-search-retry" : "trail-results-load-more")}
+                    </button>
+                </div>
+            {/if}
+        {/snippet}
+    </TrailMapResults>
 </main>
 
 <style>
-    .map-page { --trail-controls-inset: .6rem; --trail-controls-top: .3125rem; display: grid; gap: 1rem; margin-inline: auto; min-width: 0; width: calc(100% - 3rem); }
-    .map-search-header { min-width: 0; }
+    .map-page { --trail-controls-inset: .6rem; --trail-controls-top: .3125rem; min-width: 0; }
     .map-search-toolbar { min-width: 0; position: relative; }
-    .map-content { align-items: start; display: grid; gap: 1rem; min-width: 0; }
-    .map-results-container { min-width: 0; }
-    .map-results-container[aria-busy="true"] :global(.trail-results) { opacity: .55; }
+    .map-error { background: rgba(var(--menu-background)); border: 1px solid rgba(var(--input-border)); border-radius: .5rem; font-size: .9rem; margin-top: .5rem; padding: .5rem .75rem; width: fit-content; }
+    .map-error button { font-weight: 600; text-decoration: underline; }
     .load-more { display: grid; justify-content: center; padding: .5rem 0; }
     .load-more button { border: 1px solid rgba(var(--input-border)); border-radius: .5rem; cursor: pointer; padding: .7rem 1.3rem; }
     .load-more button:disabled { cursor: wait; opacity: .6; }
     @media (max-width: 639px) {
-        .map-page { --trail-controls-inset: .4rem; width: calc(100% - 1.5rem); }
+        .map-page { --trail-controls-inset: .4rem; }
     }
 </style>

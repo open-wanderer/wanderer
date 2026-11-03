@@ -157,7 +157,6 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                         export function restoreFilter() {}
                     </script>
                     <div data-search-root><input type="search" data-testid="fixture-search" aria-label="Fixture search" />
-                    <button data-testid="fixture-trigger">Full screen trigger</button>
                     <output data-testid="search-filter">{JSON.stringify({ filter, layout })}</output></div>
                 `;
                 else if (id === resolve(root, 'src/lib/components/trail/trail_result_controls.svelte')) component = `
@@ -173,12 +172,11 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                 else if (!realMapResults && id === resolve(root, 'src/lib/components/trail/trail_map_results.svelte')) component = `
                     <script>
                         import { onMount } from 'svelte';
-                        let { trails, mapTrails, clusters, loading, mapLoading, initialBounds, initialCenter, onviewport, onzoom, moreResults, display, onupdate } = $props();
-                        $effect(() => { window.fixture.updateTrails = onupdate; window.fixture.viewport = onviewport; window.fixture.zoom = onzoom; });
+                        let { trails, mapTrails, clusters, loading, busy, mapLoading, initialBounds, initialCenter, onviewport, toolbar, moreResults, display, onupdate } = $props();
+                        $effect(() => { window.fixture.updateTrails = onupdate; window.fixture.viewport = onviewport; });
                         onMount(() => onviewport(initialBounds ?? { northEast: { lat: 48, lng: 9 }, southWest: { lat: 46, lng: 7 } }, 11, true));
                         export function focusBounds(bounds) { window.fixture.focusedBounds.push(bounds); onviewport(bounds, 11, true); return true; }
 
-                        export function refreshLayout() {}
                         export function captureView() { return undefined; }
                         export function focusCamera() {}
                         export function focusLocation(location) {
@@ -190,7 +188,8 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                             onviewport({ northEast: { lat: place.lat + .1, lng: place.lon + .1 }, southWest: { lat: place.lat - .1, lng: place.lon - .1 } }, 14);
                         }
                     </script>
-                    <output data-testid="results">{JSON.stringify({ trails, loading, display })}</output>
+                    {@render toolbar()}
+                    <output data-testid="results" aria-busy={loading || busy}>{JSON.stringify({ trails, loading, display })}</output>
                     <output data-testid="map">{JSON.stringify({ mapTrails, clusters, mapLoading })}</output>
                     {@render moreResults()}
                 `;
