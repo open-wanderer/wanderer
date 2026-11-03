@@ -2,9 +2,9 @@
     import { page } from "$app/state";
     import RadioGroup, {
         type RadioItem,
-    } from "$lib/components/base/radio_group.svelte";
-    import type { Settings } from "$lib/models/settings";
-    import { settings_update } from "$lib/stores/settings_store";
+    } from "#lib/components/base/radio_group.svelte";
+    import type { Settings } from "#lib/models/settings.ts";
+    import { settings_update } from "#lib/stores/settings_store.ts";
     import { _ } from "svelte-i18n";
 
     let settings = $derived(page.data.settings as Settings);

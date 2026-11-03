@@ -1,16 +1,16 @@
 <script lang="ts">
-    import { invalidateAll } from "$app/navigation";
+    import { refreshAll } from "$app/navigation";
     import { page } from "$app/state";
-    import Button from "$lib/components/base/button.svelte";
-    import type { DropdownItem } from "$lib/components/base/dropdown.svelte";
-    import ProfileShareModal from "$lib/components/profile/profile_share_modal.svelte";
-    import { follows_create, follows_delete } from "$lib/stores/follow_store";
-    import { theme } from "$lib/stores/theme_store.js";
-    import { currentUser } from "$lib/stores/user_store";
+    import Button from "#lib/components/base/button.svelte";
+    import type { DropdownItem } from "#lib/components/base/dropdown.svelte";
+    import ProfileShareModal from "#lib/components/profile/profile_share_modal.svelte";
+    import { follows_create, follows_delete } from "#lib/stores/follow_store.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
     import { _ } from "svelte-i18n";
-    import errorDark from "$lib/assets/svgs/empty_states/error_dark.svg";
-    import errorLight from "$lib/assets/svgs/empty_states/error_light.svg";
-    import MetaTags from "$lib/components/base/meta_tags.svelte";
+    import errorDark from "#lib/assets/svgs/empty_states/error_dark.svg";
+    import errorLight from "#lib/assets/svgs/empty_states/error_light.svg";
+    import MetaTags from "#lib/components/base/meta_tags.svelte";
 
     let { data, children } = $props();
 
@@ -51,7 +51,7 @@
         } else {
             await follows_create(data.profile.id);
         }
-        await invalidateAll();
+        await refreshAll();
         followLoading = false;
     }
 </script>

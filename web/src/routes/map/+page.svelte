@@ -1,33 +1,33 @@
 <script lang="ts">
-    import { browser } from "$app/environment";
+    import { browser } from "$app/env";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import Search, {
         type SearchItem,
-    } from "$lib/components/base/search.svelte";
-    import type { SelectItem } from "$lib/components/base/select.svelte";
-    import Select from "$lib/components/base/select.svelte";
-    import SkeletonCard from "$lib/components/base/skeleton_card.svelte";
-    import EmptyStateSearch from "$lib/components/empty_states/empty_state_search.svelte";
-    import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import TrailCard from "$lib/components/trail/trail_card.svelte";
-    import TrailFilterPanel from "$lib/components/trail/trail_filter_panel.svelte";
-    import type { Settings } from "$lib/models/settings";
+    } from "#lib/components/base/search.svelte";
+    import type { SelectItem } from "#lib/components/base/select.svelte";
+    import Select from "#lib/components/base/select.svelte";
+    import SkeletonCard from "#lib/components/base/skeleton_card.svelte";
+    import EmptyStateSearch from "#lib/components/empty_states/empty_state_search.svelte";
+    import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
+    import TrailCard from "#lib/components/trail/trail_card.svelte";
+    import TrailFilterPanel from "#lib/components/trail/trail_filter_panel.svelte";
+    import type { Settings } from "#lib/models/settings.ts";
     import {
         defaultTrailSearchAttributes,
         type Trail,
         type TrailBoundingBox,
         type TrailFilter,
         type TrailSearchResult,
-    } from "$lib/models/trail";
-    import { categories } from "$lib/stores/category_store";
+    } from "#lib/models/trail.ts";
+    import { categories } from "#lib/stores/category_store.ts";
     import {
         searchMulti,
         type ListSearchResult,
         type LocationSearchResult,
-    } from "$lib/stores/search_store";
-    import { trails_search_bounding_box } from "$lib/stores/trail_store";
-    import { getIconForLocation } from "$lib/util/icon_util";
+    } from "#lib/stores/search_store.ts";
+    import { trails_search_bounding_box } from "#lib/stores/trail_store.ts";
+    import { getIconForLocation } from "#lib/util/icon_util.ts";
     import type { Snapshot } from "@sveltejs/kit";
     import type { FeatureCollection } from "geojson";
     import * as M from "maplibre-gl";
@@ -248,15 +248,15 @@
                 return;
             }
 
-            page.url.searchParams.set("tl_lat", north.toString());
-            page.url.searchParams.set("tl_lon", east.toString());
-            page.url.searchParams.set("br_lat", south.toString());
-            page.url.searchParams.set("br_lon", west.toString());
+            const url = new URL(page.url.href);
+            url.searchParams.set("tl_lat", north.toString());
+            url.searchParams.set("tl_lon", east.toString());
+            url.searchParams.set("br_lat", south.toString());
+            url.searchParams.set("br_lon", west.toString());
 
-            goto(`?${page.url.searchParams.toString()}`, {
-                replaceState: true,
-                noScroll: true,
-                keepFocus: true,
+            goto(`?${url.searchParams.toString()}`, {
+                replace: true,
+                reset: false,
             });
         }, 200);
     }

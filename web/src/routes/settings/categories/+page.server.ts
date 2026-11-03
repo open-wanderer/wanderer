@@ -1,4 +1,4 @@
-import { Collection } from "$lib/util/api_util";
+import { Collection } from "#lib/util/api_util.ts";
 import type { ServerLoad } from "@sveltejs/kit";
 
 type TrailCategoryUsageRecord = {

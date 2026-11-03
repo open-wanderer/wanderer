@@ -5,7 +5,7 @@
         resumeToast,
         toastStore,
         type Toast,
-    } from "$lib/stores/toast_store.svelte";
+    } from "#lib/stores/toast_store.svelte.ts";
     import { _ } from "svelte-i18n";
     import { fade } from "svelte/transition";
 </script>

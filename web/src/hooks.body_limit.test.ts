@@ -1,18 +1,19 @@
-import type { Handle, RequestEvent } from "@sveltejs/kit";
+import type { RequestEvent } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import { expect, it, vi } from "vitest";
 
-vi.mock("$env/dynamic/public", () => ({ env: { PUBLIC_POCKETBASE_URL: "http://backend.example" } }));
-vi.mock("$env/dynamic/private", () => ({ env: { MEILI_URL: "http://search.example" } }));
+vi.mock("$app/env/public", () => ({ PUBLIC_POCKETBASE_URL: "http://backend.example", PUBLIC_PRIVATE_INSTANCE: undefined, PUBLIC_DISABLE_SIGNUP: undefined }));
+vi.mock("$app/env/private", () => ({ MEILI_URL: "http://search.example", ORIGIN: undefined, BODY_SIZE_LIMIT: undefined }));
 vi.mock("svelte-i18n", () => ({ locale: { set: vi.fn() } }));
 vi.mock("@sveltejs/kit/hooks", () => ({ sequence: (...handlers: Handle[]): Handle => async ({ event, resolve }) => {
-    const next = (index: number, current: RequestEvent): ReturnType<Handle> => index === handlers.length
+    const next = async (index: number, current: RequestEvent): Promise<Response> => index === handlers.length
         ? resolve(current)
         : handlers[index]({ event: current, resolve: (input) => next(index + 1, input) });
     return next(0, event);
 } }));
 
 import { handle } from "./hooks.server";
-import { LOGIN_BODY_LIMIT } from "$lib/server/request_body";
+import { LOGIN_BODY_LIMIT } from "#lib/server/request_body.ts";
 
 it("rejects an anonymous chunked body before auth and route execution in the installed hook", async () => {
     const bytes = new TextEncoder().encode(JSON.stringify({ username: "alice", password: "password123", extra: "x".repeat(LOGIN_BODY_LIMIT) }));

@@ -22,7 +22,7 @@ describe("handleError", () => {
     it("preserves SvelteKit HTTP errors", () => {
         let httpError: unknown;
         try {
-            error(404, { message: "Actor not found" });
+            error(404, "Actor not found");
         } catch (caught) {
             httpError = caught;
         }
@@ -58,7 +58,7 @@ describe("handleError", () => {
         };
 
         try {
-            const request = await getRequest({
+            const request = getRequest({
                 request: incoming,
                 base: "http://localhost:3000",
                 bodySizeLimit: 512 * 1024,

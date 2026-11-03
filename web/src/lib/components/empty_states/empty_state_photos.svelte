@@ -1,7 +1,7 @@
 <script lang="ts">
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     import { _ } from "svelte-i18n";
     interface Props {

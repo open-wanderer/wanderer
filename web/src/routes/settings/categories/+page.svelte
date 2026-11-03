@@ -1,24 +1,24 @@
 <script lang="ts">
-    import ConfirmModal from "$lib/components/confirm_modal.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
-    import type { Category } from "$lib/models/category";
-    import type { UserCategoryPreference } from "$lib/models/category_preference";
-    import type { PluginInstance } from "$lib/models/plugin_instance";
-    import type { PluginProvider } from "$lib/models/plugin_provider";
-    import type { Subcategory } from "$lib/models/subcategory";
+    import ConfirmModal from "#lib/components/confirm_modal.svelte";
+    import Toggle from "#lib/components/base/toggle.svelte";
+    import type { Category } from "#lib/models/category.ts";
+    import type { UserCategoryPreference } from "#lib/models/category_preference.ts";
+    import type { PluginInstance } from "#lib/models/plugin_instance.ts";
+    import type { PluginProvider } from "#lib/models/plugin_provider.ts";
+    import type { Subcategory } from "#lib/models/subcategory.ts";
     import {
         categoryPreferences,
         category_preferences_index,
         category_preferences_reorder,
         category_preferences_save,
-    } from "$lib/stores/category_preference_store";
+    } from "#lib/stores/category_preference_store.ts";
     import {
         subcategoryPreferences,
         subcategory_preferences_index,
         subcategory_preferences_reorder,
         subcategory_preferences_save,
-    } from "$lib/stores/subcategory_preference_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    } from "#lib/stores/subcategory_preference_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         categoryMappingTargetFromUnknown,
         displayCategoryName,
@@ -31,8 +31,8 @@
         sortedCategoriesByPreference,
         sortedSubcategoriesByPreference,
         subcategoryVisible,
-    } from "$lib/util/category_util";
-    import { pluginTitle } from "$lib/util/plugin_i18n";
+    } from "#lib/util/category_util.ts";
+    import { pluginTitle } from "#lib/util/plugin_i18n.ts";
     import { tick } from "svelte";
     import { _, locale } from "svelte-i18n";
 

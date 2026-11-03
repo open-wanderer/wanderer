@@ -2,8 +2,8 @@
     import {
         NotificationType,
         type Notification,
-    } from "$lib/models/notification";
-    import { formatTimeSince } from "$lib/util/format_util";
+    } from "#lib/models/notification.ts";
+    import { formatTimeSince } from "#lib/util/format_util.ts";
     import { untrack } from "svelte";
     import { _ } from "svelte-i18n";
 

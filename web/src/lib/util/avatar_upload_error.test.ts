@@ -1,9 +1,9 @@
 import { get } from "svelte/store";
 import { _, addMessages, init, locale } from "svelte-i18n";
 import { beforeAll, describe, expect, it } from "vitest";
-import de from "$lib/i18n/locales/de.json";
-import en from "$lib/i18n/locales/en.json";
-import { APIError } from "$lib/util/api_util";
+import de from "#lib/i18n/locales/de.json";
+import en from "#lib/i18n/locales/en.json";
+import { APIError } from "#lib/util/api_util.ts";
 import { avatarUploadErrorMessage } from "./avatar_upload_error";
 
 function sizeError(maxSize: unknown, status = 400) {

@@ -1,9 +1,9 @@
 <script lang="ts">
     import { page } from "$app/state";
-    import MetaTags from "$lib/components/base/meta_tags.svelte";
-    import TrailInfoPanel from "$lib/components/trail/trail_info_panel.svelte";
-    import { trail } from "$lib/stores/trail_store";
-    import { getFileURL } from "$lib/util/file_util.js";
+    import MetaTags from "#lib/components/base/meta_tags.svelte";
+    import TrailInfoPanel from "#lib/components/trail/trail_info_panel.svelte";
+    import { trail } from "#lib/stores/trail_store.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
     import { _ } from "svelte-i18n";
 
     let { data } = $props();

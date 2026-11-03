@@ -1,8 +1,8 @@
-import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
-import type { StatisticActivity } from '$lib/models/statistic_activity';
-import type { Subcategory } from '$lib/models/subcategory';
-import type { SummitLog } from '$lib/models/summit_log';
-import type { Trail } from '$lib/models/trail';
+import { RecordListOptionsSchema } from '#lib/models/api/base_schema.ts';
+import type { StatisticActivity } from '#lib/models/statistic_activity.ts';
+import type { Subcategory } from '#lib/models/subcategory.ts';
+import type { SummitLog } from '#lib/models/summit_log.ts';
+import type { Trail } from '#lib/models/trail.ts';
 import {
     buildCompletedTrailFilter,
     buildSummitLogStatisticsFilter,
@@ -10,10 +10,10 @@ import {
     ProfileStatisticsFilterSchema,
     summitLogToStatisticActivity,
     type ProfileStatisticsFilter,
-} from '$lib/server/profile_statistics';
-import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
-import { Collection, handleError } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+} from '#lib/server/profile_statistics.ts';
+import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
+import { Collection, handleError } from '#lib/util/api_util.ts';
+import { error, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
 
 /**
@@ -67,13 +67,13 @@ import { ClientResponseError } from 'pocketbase';
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
     if (!handle) {
-        return error(400, { message: "Bad request" })
+        return error(400, "Bad request")
     }
     
     try {
         const { actor } = await getActorResponseForHandle(event, handle);
         if (!actor.id) {
-            return error(404, { message: "Actor not found" });
+            return error(404, "Actor not found");
         }
 
         const searchParams = Object.fromEntries(event.url.searchParams);
@@ -154,7 +154,7 @@ export async function GET(event: RequestEvent) {
             })
         }
 
-        return json(activities, {
+        return Response.json(activities, {
             headers: {
                 'Cache-Control': 'private, no-store',
                 Vary: 'Cookie, Authorization',

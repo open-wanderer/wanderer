@@ -1,7 +1,7 @@
-import { handleError } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { handleError } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
-import { LOGIN_BODY_LIMIT, readBoundedRequestText } from "$lib/server/request_body";
+import { LOGIN_BODY_LIMIT, readBoundedRequestText } from "#lib/server/request_body.ts";
 
 /**
  * @swagger
@@ -50,7 +50,7 @@ export async function POST(event: RequestEvent) {
 
 
         const r = await event.locals.pb.collection('users').authWithPassword(safeData.email ?? safeData.username!, data.password);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

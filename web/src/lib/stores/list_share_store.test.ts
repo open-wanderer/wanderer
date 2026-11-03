@@ -1,7 +1,7 @@
 import { get } from "svelte/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { List } from "$lib/models/list";
-import type { Trail } from "$lib/models/trail";
+import { List } from "#lib/models/list.ts";
+import type { Trail } from "#lib/models/trail.ts";
 import { list_share_create_for_actor, shares } from "./list_share_store";
 
 const owner = "owner0000000000";

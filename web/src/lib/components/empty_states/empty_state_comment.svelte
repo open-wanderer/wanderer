@@ -1,7 +1,7 @@
 <script lang="ts">
-    import emptyStateCommentDark from "$lib/assets/svgs/empty_states/empty_state_comment_dark.svg";
-    import emptyStateCommentLight from "$lib/assets/svgs/empty_states/empty_state_comment_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import emptyStateCommentDark from "#lib/assets/svgs/empty_states/empty_state_comment_dark.svg";
+    import emptyStateCommentLight from "#lib/assets/svgs/empty_states/empty_state_comment_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     import { _ } from "svelte-i18n";
     interface Props {

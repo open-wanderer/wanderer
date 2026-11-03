@@ -1,5 +1,5 @@
-import { handleError } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import { handleError } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -57,7 +57,7 @@ export async function GET(event: RequestEvent) {
         const r = await event.locals.pb.send("/plugins", {
             method: "GET",
         });
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

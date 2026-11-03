@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { _ } from "svelte-i18n";
-import { APIError } from "$lib/util/api_util";
+import { APIError } from "#lib/util/api_util.ts";
 
 type PluginErrorLike = {
     code?: unknown;

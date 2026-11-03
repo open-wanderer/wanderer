@@ -3,7 +3,7 @@ import * as M from "maplibre-gl";
 import { ElevationProfile, type ElevationProfileOptions } from "./elevationprofile";
 // @ts-ignore
 import type { GeoJsonObject, Position } from "geojson";
-import type { Waypoint } from "$lib/models/waypoint";
+import type { Waypoint } from "#lib/models/waypoint.ts";
 
 /**
  * Elevation profile control options

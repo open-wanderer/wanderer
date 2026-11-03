@@ -1,27 +1,27 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
-    import TrailListItem from "$lib/components/trail/trail_list_item.svelte";
+    import MergeDialog from "#lib/components/trail/trail_merge_dialog.svelte";
+    import TrailListItem from "#lib/components/trail/trail_list_item.svelte";
     import TrailMergeModal, {
         type MergeSelection,
         type MergeSettings,
-    } from "$lib/components/trail/trail_merge_modal.svelte";
-    import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import type { Trail } from "$lib/models/trail";
+    } from "#lib/components/trail/trail_merge_modal.svelte";
+    import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
+    import type { Trail } from "#lib/models/trail.ts";
     import {
         type TrailMergeSuggestGroup,
         trail_merge,
         trail_merge_suggest_groups,
-    } from "$lib/stores/trail_merge_api";
-    import { translateTrailMergeError } from "$lib/stores/trail_merge_i18n";
+    } from "#lib/stores/trail_merge_api.ts";
+    import { translateTrailMergeError } from "#lib/stores/trail_merge_i18n.ts";
     import {
         mergeStore,
         processMergeQueue,
         type Merge,
-    } from "$lib/stores/trail_merge_store.svelte";
-    import { trails_show } from "$lib/stores/trail_store";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import { APIError } from "$lib/util/api_util";
+    } from "#lib/stores/trail_merge_store.svelte.ts";
+    import { trails_show } from "#lib/stores/trail_store.ts";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
+    import { APIError } from "#lib/util/api_util.ts";
     import { _ } from "svelte-i18n";
     import { onMount } from "svelte";
 

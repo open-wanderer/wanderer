@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { StatisticActivity } from "$lib/models/statistic_activity";
-	import { range } from "$lib/util/array_util";
-	import { trailCategoryKey } from "$lib/util/category_util";
+	import type { StatisticActivity } from "#lib/models/statistic_activity.ts";
+	import { range } from "#lib/util/array_util.ts";
+	import { trailCategoryKey } from "#lib/util/category_util.ts";
 	import {
 		dateInputValue,
 		isSameDay,

@@ -1,6 +1,6 @@
-import type { List } from '$lib/models/list';
-import { Collection, handleError, uploadCreate } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { List } from '#lib/models/list.ts';
+import { Collection, handleError, uploadCreate } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -27,7 +27,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
 export async function PUT(event: RequestEvent) {
     try {
         const r = await uploadCreate<List>(event, Collection.lists)
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

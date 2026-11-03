@@ -1,7 +1,7 @@
-import { TagCreateSchema } from '$lib/models/api/tag_schema';
-import type { Tag } from '$lib/models/tag';
-import { handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { TagCreateSchema } from '#lib/models/api/tag_schema.ts';
+import type { Tag } from '#lib/models/tag.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -47,7 +47,7 @@ export async function POST(event: RequestEvent) {
             fetch: event.fetch,
             requestKey: null,
         });
-        return json(result);
+        return Response.json(result);
     } catch (e) {
         return handleError(e);
     }

@@ -1,3 +1,3 @@
-import { env } from "$env/dynamic/public";
+import { PUBLIC_MAP_MAX_POLYLINES } from "$app/env/public";
 
-export const MAP_MAX_POLYLINES = Number(env.PUBLIC_MAP_MAX_POLYLINES || 100);
+export const MAP_MAX_POLYLINES = Number(PUBLIC_MAP_MAX_POLYLINES || 100);

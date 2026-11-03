@@ -9,8 +9,8 @@
 </script>
 
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
-    import Select from "$lib/components/base/select.svelte";
+    import Modal from "#lib/components/base/modal.svelte";
+    import Select from "#lib/components/base/select.svelte";
     import CategoryPicker, {
         type CategoryPickerSelection,
     } from "./category_picker.svelte";

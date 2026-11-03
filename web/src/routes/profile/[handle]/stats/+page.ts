@@ -1,10 +1,10 @@
-import type { SummitLogFilter } from "$lib/models/summit_log";
-import { categories_index } from "$lib/stores/category_store";
-import { category_preferences_index } from "$lib/stores/category_preference_store";
-import { profile_stats_index } from "$lib/stores/profile_store";
-import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
-import { subcategories_index } from "$lib/stores/subcategory_store";
-import { monthDateRange } from "$lib/util/date_util";
+import type { SummitLogFilter } from "#lib/models/summit_log.ts";
+import { categories_index } from "#lib/stores/category_store.ts";
+import { category_preferences_index } from "#lib/stores/category_preference_store.ts";
+import { profile_stats_index } from "#lib/stores/profile_store.ts";
+import { subcategory_preferences_index } from "#lib/stores/subcategory_preference_store.ts";
+import { subcategories_index } from "#lib/stores/subcategory_store.ts";
+import { monthDateRange } from "#lib/util/date_util.ts";
 import { error, type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ params, fetch, parent, setHeaders }) => {

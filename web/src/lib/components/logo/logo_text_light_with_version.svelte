@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { version } from "$app/environment";
+    import { version } from "$app/env";
 </script>
 
 <svg

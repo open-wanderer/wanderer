@@ -1,17 +1,17 @@
 <script lang="ts">
-    import Modal from "$lib/components/base/modal.svelte";
-    import Select, { type SelectItem } from "$lib/components/base/select.svelte";
-    import { trails_show } from "$lib/stores/trail_store";
-    import type { Trail } from "$lib/models/trail";
+    import Modal from "#lib/components/base/modal.svelte";
+    import Select, { type SelectItem } from "#lib/components/base/select.svelte";
+    import { trails_show } from "#lib/stores/trail_store.ts";
+    import type { Trail } from "#lib/models/trail.ts";
     import {
         trail_merge_suggest_auto,
         trail_merge_suggest_manual,
         type TrailMergeSuggestCandidate,
-    } from "$lib/stores/trail_merge_api";
-    import { translateTrailMergeError } from "$lib/stores/trail_merge_i18n";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    } from "#lib/stores/trail_merge_api.ts";
+    import { translateTrailMergeError } from "#lib/stores/trail_merge_i18n.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { _ } from "svelte-i18n";
-    import { APIError } from "$lib/util/api_util";
+    import { APIError } from "#lib/util/api_util.ts";
 
     export interface MergeSelection {
         targetTrail: Trail;

@@ -111,6 +111,10 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 		return fmt.Errorf("ORIGIN not set")
 	}
 
+	if pub.IsNil(activity.Object) {
+		return fmt.Errorf("activity has no object")
+	}
+
 	object := activity.Object.GetID().String()
 
 	switch util.ObjectKindFromIRI(object) {

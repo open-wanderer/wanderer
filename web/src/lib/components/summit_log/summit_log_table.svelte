@@ -1,17 +1,17 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
-    import type { SummitLog } from "$lib/models/summit_log";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
+    import type { SummitLog } from "#lib/models/summit_log.ts";
     import { onMount, tick } from "svelte";
     import Modal from "../base/modal.svelte";
     import SummitLogTableRow from "./summit_log_table_row.svelte";
 
-    import type { Trail } from "$lib/models/trail";
-    import { gpx2trail } from "$lib/util/gpx_util";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { gpx2trail } from "#lib/util/gpx_util.ts";
     import * as M from "maplibre-gl";
     import { _ } from "svelte-i18n";
     import MapWithElevationMaplibre from "../trail/map_with_elevation_maplibre.svelte";
-    import { fetchGPX } from "$lib/stores/trail_store";
-    import { currentUser } from "$lib/stores/user_store";
+    import { fetchGPX } from "#lib/stores/trail_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
 
     interface Props {
         summitLogs?: SummitLog[];

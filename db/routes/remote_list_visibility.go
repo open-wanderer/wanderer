@@ -58,31 +58,35 @@ func prepareRemoteListVisibility(app core.App, ctx context.Context, data map[str
 					return
 				}
 				iri := trail.GetString("iri")
-				remoteURL, _ := canonicalRecordURL(iri, "trail")
-				query := remoteURL.Query()
-				query.Set("expand", "author")
-				query.Set("fields", "id,iri,public,expand.author.iri")
-				remoteURL.RawQuery = query.Encode()
-				probeCtx, stop := context.WithTimeout(fetchCtx, canonicalRemoteFetchTimeout)
-				response, err := fetchRemoteDocument(probeCtx, &client, remoteURL, "trail", canonicalRemoteBodyLimit)
-				stop()
-				if err != nil || response["public"] != true {
-					continue
-				}
-				responseIRI, _ := response["iri"].(string)
-				if !sameRemoteSyncObjectIRI(iri, responseIRI) && !(responseIRI == "" && remoteResponseIDMatchesObjectIRI("trails", iri, response)) {
-					continue
-				}
-				expand, _ := response["expand"].(map[string]any)
-				author, _ := expand["author"].(map[string]any)
-				authorIRI, _ := author["iri"].(string)
-				stored, err := app.FindRecordById("activitypub_actors", trail.GetString("author"))
-				if err != nil || stored.GetBool("is_local") || stored.GetString("iri") != authorIRI || !remoteSyncIRIMatchesOrigin(authorIRI, iri) {
-					continue
-				}
-				lock.Lock()
-				confirmed[trail.Id] = remoteTrailVisibility{iri: iri, author: stored.Id}
-				lock.Unlock()
+				// A trail that is not confirmed stays as it is.
+				func() {
+					defer recoverBackgroundSyncJob(app, "trails", iri, func() {})
+					remoteURL, _ := canonicalRecordURL(iri, "trail")
+					query := remoteURL.Query()
+					query.Set("expand", "author")
+					query.Set("fields", "id,iri,public,expand.author.iri")
+					remoteURL.RawQuery = query.Encode()
+					probeCtx, stop := context.WithTimeout(fetchCtx, canonicalRemoteFetchTimeout)
+					response, err := fetchRemoteDocument(probeCtx, &client, remoteURL, "trail", canonicalRemoteBodyLimit)
+					stop()
+					if err != nil || response["public"] != true {
+						return
+					}
+					responseIRI, _ := response["iri"].(string)
+					if !sameRemoteSyncObjectIRI(iri, responseIRI) && !(responseIRI == "" && remoteResponseIDMatchesObjectIRI("trails", iri, response)) {
+						return
+					}
+					expand, _ := response["expand"].(map[string]any)
+					author, _ := expand["author"].(map[string]any)
+					authorIRI, _ := author["iri"].(string)
+					stored, err := app.FindRecordById("activitypub_actors", trail.GetString("author"))
+					if err != nil || stored.GetBool("is_local") || stored.GetString("iri") != authorIRI || !remoteSyncIRIMatchesOrigin(authorIRI, iri) {
+						return
+					}
+					lock.Lock()
+					confirmed[trail.Id] = remoteTrailVisibility{iri: iri, author: stored.Id}
+					lock.Unlock()
+				}()
 			}
 		}()
 	}

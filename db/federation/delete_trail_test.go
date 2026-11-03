@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +34,16 @@ type trailDeleteFixture struct {
 func setupTrailDeleteTestApp(t *testing.T) *trailDeleteFixture {
 	t.Helper()
 
+	return newTrailDeleteFixture(t, true)
+}
+
+// newTrailDeleteFixture builds the trail and list deletion fixture.
+// withActorType decides whether the actors collection carries actor_type, which
+// the peer lookup joins on; leaving it out makes that lookup fail once a local
+// instance actor exists.
+func newTrailDeleteFixture(t *testing.T, withActorType bool) *trailDeleteFixture {
+	t.Helper()
+
 	t.Setenv("ORIGIN", "https://local.example")
 	t.Setenv("POCKETBASE_ENCRYPTION_KEY", summitLogTestKey)
 
@@ -50,6 +61,9 @@ func setupTrailDeleteTestApp(t *testing.T) *trailDeleteFixture {
 		&core.TextField{Name: "private_key"},
 		&core.BoolField{Name: "is_local"},
 	)
+	if withActorType {
+		actors.Fields.Add(&core.TextField{Name: "actor_type"})
+	}
 	if err := app.Save(actors); err != nil {
 		t.Fatal(err)
 	}
@@ -175,6 +189,47 @@ func (f *trailDeleteFixture) actor(t *testing.T, name string, local bool) *core.
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
 	}
+	return r
+}
+
+// localInstance returns this instance's own instance actor, creating it on
+// first use. actor_type is only set when the fixture has the column.
+func (f *trailDeleteFixture) localInstance(t *testing.T) *core.Record {
+	t.Helper()
+
+	iri := "https://local.example/api/v1/activitypub/instance"
+	if existing, err := f.app.FindFirstRecordByData("activitypub_actors", "iri", iri); err == nil {
+		return existing
+	}
+
+	r := core.NewRecord(f.actors)
+	r.Set("iri", iri)
+	r.Set("inbox", iri+"/inbox")
+	r.Set("is_local", true)
+	if f.actors.Fields.GetByName("actor_type") != nil {
+		r.Set("actor_type", "instance")
+	}
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// peer connects a remote instance actor delivering to the named counting inbox
+// to this instance: an accepted follow from the peer to the local instance
+// actor.
+func (f *trailDeleteFixture) peer(t *testing.T, name string) *core.Record {
+	t.Helper()
+
+	r := core.NewRecord(f.actors)
+	r.Set("iri", "https://"+name+".example/api/v1/activitypub/instance")
+	r.Set("inbox", f.in.url(name))
+	r.Set("is_local", false)
+	r.Set("actor_type", "instance")
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	f.follow(t, r, f.localInstance(t))
 	return r
 }
 
@@ -329,6 +384,17 @@ func (f *trailDeleteFixture) recorded(t *testing.T, typ string, trail *core.Reco
 	r.Set("type", typ)
 	r.Set("object", map[string]any{"id": trail.GetString("iri"), "type": "Note"})
 	r.Set("cc", cc)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// makePrivate flips a trail or list that went out while public to private, as
+// its author does before deleting it.
+func (f *trailDeleteFixture) makePrivate(t *testing.T, r *core.Record) {
+	t.Helper()
+
+	r.Set("public", false)
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
 	}
@@ -574,8 +640,8 @@ func TestCreateTrailDeleteActivity(t *testing.T) {
 		f.deliveries(t, "both", 1)
 	})
 
-	// A trail that is private by the time it is deleted was never handed to
-	// followers, but whoever else holds a copy still has to hear.
+	// A trail that was never handed out (no recorded Create or Update) was never
+	// handed to followers, but whoever else holds a copy still has to hear.
 	t.Run("PrivateTrailReachesHoldersNotFollowers", func(t *testing.T) {
 		f := setupTrailDeleteTestApp(t)
 
@@ -591,7 +657,8 @@ func TestCreateTrailDeleteActivity(t *testing.T) {
 		f.silence(t, "follower")
 	})
 
-	// A private trail nobody ever received is nobody's business.
+	// A private trail that was never handed out and nobody holds is nobody's
+	// business.
 	t.Run("PrivateUnsharedTrailSendsNothing", func(t *testing.T) {
 		f := setupTrailDeleteTestApp(t)
 
@@ -650,6 +717,174 @@ func TestCreateTrailDeleteActivity(t *testing.T) {
 		}
 		f.deliveries(t, "follower", 1)
 	})
+
+	// Deleting is the only retraction: a trail that was public when it went out
+	// and is private by now still reaches the followers it was handed to. The
+	// recorded Create is what proves it went out.
+	t.Run("WentPrivateReachesFollowers", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail)
+		f.makePrivate(t, trail)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "follower", 1)
+	})
+
+	// Created private, published through an Update, private again: the Update
+	// handed it out just as a Create would have.
+	t.Run("UpdateOnlyHistoryCounts", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+
+		trail := f.localTrail(t, b, false)
+		f.recorded(t, "Update", trail)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "follower", 1)
+	})
+
+	// A reply's Create names the comment as its object and the trail only in
+	// inReplyTo. It makes its mentioned actor a holder but does not mean the
+	// trail itself went out.
+	t.Run("ReplyDoesNotCountAsHandedOut", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+
+		trail := f.localTrail(t, b, false)
+		f.recordedReply(t, trail, f.actor(t, "mentioned", false))
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "mentioned", 1)
+		f.silence(t, "follower")
+	})
+
+	t.Run("WentPrivateFollowerWhoIsHolderToldOnce", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		both := f.actor(t, "both", false)
+		f.follow(t, both, b)
+
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail)
+		f.makePrivate(t, trail)
+		f.interaction(t, "comments", "author", both, trail)
+
+		f.sendTrailDelete(t, trail)
+		if got := f.in.wait("both", 2, 500*time.Millisecond); got != 1 {
+			t.Errorf("both received %d delivery(ies), want exactly 1", got)
+		}
+	})
+
+	// No follow-timestamp filter: whoever follows at deletion time is told,
+	// even a follower who joined after the trail went private.
+	t.Run("FollowerWhoJoinedAfterGoingPrivateIsTold", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail)
+		f.makePrivate(t, trail)
+		f.follow(t, f.actor(t, "latecomer", false), b)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "latecomer", 1)
+	})
+
+	t.Run("WentPrivateWithoutAudienceSendsNothing", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail)
+		f.makePrivate(t, trail)
+
+		f.sendTrailDelete(t, trail)
+		if _, err := f.app.FindFirstRecordByFilter("activitypub_activities", "type = 'Delete'", dbx.Params{}); err == nil {
+			t.Error("a Delete was recorded although nobody received the trail")
+		}
+	})
+
+	// An empty IRI matches nothing, and neither does a row whose object has no
+	// id, whichever IRI is asked for.
+	t.Run("EmptyIRICountsAsNeverPublic", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		r := core.NewRecord(f.activities)
+		r.Set("iri", "https://local.example/api/v1/activitypub/activity/"+security.RandomString(8))
+		r.Set("type", "Create")
+		r.Set("object", map[string]any{"type": "Note"})
+		if err := f.app.Save(r); err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := wasHandedOut(f.app, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got {
+			t.Error("an empty IRI must not count as handed out")
+		}
+
+		// The empty IRI returns before the database is touched, so only a real
+		// IRI consults the row above. A recorded Create of the trail itself is
+		// the control that the lookup does read rows.
+		trail := f.localTrail(t, f.actor(t, "b", true), true)
+		got, err = wasHandedOut(f.app, trail.GetString("iri"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got {
+			t.Error("a Create whose object has no id must not match any IRI")
+		}
+
+		f.recorded(t, "Create", trail)
+		got, err = wasHandedOut(f.app, trail.GetString("iri"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !got {
+			t.Error("a recorded Create of the trail must count as handed out")
+		}
+	})
+
+	// The Delete of a record that is private now is addressed exactly like the
+	// Delete of a public one: the followers collection, then the holders. No
+	// follower inbox is ever listed.
+	t.Run("WentPrivateRecordsFollowersCollectionAndHoldersInCC", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		a := f.actor(t, "a", false)
+		f.follow(t, f.actor(t, "follower", false), b)
+
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail, a)
+		f.makePrivate(t, trail)
+
+		f.sendTrailDelete(t, trail)
+
+		rec, err := f.app.FindFirstRecordByFilter("activitypub_activities", "type = 'Delete' && object = {:iri}", dbx.Params{"iri": trail.GetString("iri")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cc := rec.GetStringSlice("cc")
+		want := []string{b.GetString("iri") + "/followers", a.GetString("inbox")}
+		if len(cc) != len(want) || cc[0] != want[0] || cc[1] != want[1] {
+			t.Fatalf("cc = %v, want %v", cc, want)
+		}
+		f.deliveries(t, "follower", 1)
+		f.deliveries(t, "a", 1)
+	})
 }
 
 func TestCreateListDeleteActivity(t *testing.T) {
@@ -670,6 +905,8 @@ func TestCreateListDeleteActivity(t *testing.T) {
 		}
 	})
 
+	// A list that was never handed out (no recorded Create or Update) reaches
+	// only the actors it was shared with.
 	t.Run("PrivateListReachesShareesNotFollowers", func(t *testing.T) {
 		f := setupTrailDeleteTestApp(t)
 
@@ -679,6 +916,295 @@ func TestCreateListDeleteActivity(t *testing.T) {
 		f.interaction(t, "list_share", "actor", f.actor(t, "sharee", false), list)
 
 		f.sendListDelete(t, list)
+		f.deliveries(t, "sharee", 1)
+		f.silence(t, "follower")
+	})
+
+	// Lists mirror trails: public when it went out, private when deleted.
+	t.Run("WentPrivateListReachesFollowers", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+		list := f.localContent(t, f.lists, "list", b, true)
+		f.recorded(t, "Create", list)
+		f.makePrivate(t, list)
+
+		f.sendListDelete(t, list)
+		f.deliveries(t, "follower", 1)
+	})
+
+	t.Run("UpdateOnlyListHistoryCounts", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.follow(t, f.actor(t, "follower", false), b)
+		list := f.localContent(t, f.lists, "list", b, false)
+		f.recorded(t, "Update", list)
+
+		f.sendListDelete(t, list)
+		f.deliveries(t, "follower", 1)
+	})
+}
+
+// Instance peers receive every public record of every local user without
+// following anyone, so they are part of the audience of a record that was
+// public, and like followers they are delivery recipients only: the Delete
+// never names them.
+func TestDeleteAudiencePeers(t *testing.T) {
+	t.Run("PublicTrailReachesPeer", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.peer(t, "peer")
+		trail := f.localTrail(t, b, true)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "peer", 1)
+	})
+
+	// Same audience as a public record, no follow-timestamp or visibility
+	// filter: the peer got the Create while the trail was public.
+	t.Run("WentPrivateTrailReachesPeer", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.peer(t, "peer")
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail)
+		f.makePrivate(t, trail)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "peer", 1)
+	})
+
+	// Never public: the peer never received it, so a Delete would only
+	// disclose the IRI of an unpublished trail. Its holders are still told.
+	t.Run("NeverPublicTrailSkipsPeer", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.peer(t, "peer")
+		trail := f.localTrail(t, b, false)
+		f.interaction(t, "trail_share", "actor", f.actor(t, "sharee", false), trail)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "sharee", 1)
+		f.silence(t, "peer")
+	})
+
+	t.Run("WentPrivateListReachesPeer", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.peer(t, "peer")
+		list := f.localContent(t, f.lists, "list", b, true)
+		f.recorded(t, "Create", list)
+		f.makePrivate(t, list)
+
+		f.sendListDelete(t, list)
+		f.deliveries(t, "peer", 1)
+	})
+
+	t.Run("PeerNotInRecordedCC", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		f.peer(t, "peer")
+		trail := f.localTrail(t, b, true)
+
+		f.sendTrailDelete(t, trail)
+		f.deliveries(t, "peer", 1)
+
+		rec, err := f.app.FindFirstRecordByFilter("activitypub_activities", "type = 'Delete' && object = {:iri}", dbx.Params{"iri": trail.GetString("iri")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range rec.GetStringSlice("cc") {
+			if strings.Contains(entry, f.in.url("peer")) {
+				t.Fatalf("cc = %v, must not name the peer inbox", rec.GetStringSlice("cc"))
+			}
+		}
+	})
+
+	// The peer lookup is best-effort: the followers and holders collected
+	// before it must still be told when it fails. The actors table has no
+	// actor_type, so the lookup fails once the local instance actor exists.
+	t.Run("PeerLookupFailureKeepsTrailFollowers", func(t *testing.T) {
+		f := newTrailDeleteFixture(t, false)
+
+		b := f.actor(t, "b", true)
+		follower := f.actor(t, "follower", false)
+		f.follow(t, follower, b)
+		f.localInstance(t)
+		trail := f.localTrail(t, b, true)
+
+		app, logs := captureLogs(f.app)
+		audience, err := TrailDeleteRecipients(app, trail, true)
+		if err != nil {
+			t.Fatalf("a failing peer lookup must not fail the audience, got %v", err)
+		}
+		if len(audience.Followers) != 1 || audience.Followers[0] != follower.GetString("inbox") {
+			t.Fatalf("followers = %v, want the follower's inbox", audience.Followers)
+		}
+
+		out := logs.String()
+		for _, want := range []string{"level=ERROR", "could not collect peer instances", "record=" + trail.Id} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected the log to contain %q, got %q", want, out)
+			}
+		}
+
+		if err := CreateTrailDeleteActivity(f.app, trail, audience); err != nil {
+			t.Fatal(err)
+		}
+		f.deliveries(t, "follower", 1)
+	})
+
+	t.Run("PeerLookupFailureKeepsListFollowers", func(t *testing.T) {
+		f := newTrailDeleteFixture(t, false)
+
+		b := f.actor(t, "b", true)
+		follower := f.actor(t, "follower", false)
+		f.follow(t, follower, b)
+		f.localInstance(t)
+		list := f.localContent(t, f.lists, "list", b, true)
+
+		app, logs := captureLogs(f.app)
+		audience, err := ListDeleteRecipients(app, list, true)
+		if err != nil {
+			t.Fatalf("a failing peer lookup must not fail the audience, got %v", err)
+		}
+		if len(audience.Followers) != 1 || audience.Followers[0] != follower.GetString("inbox") {
+			t.Fatalf("followers = %v, want the follower's inbox", audience.Followers)
+		}
+
+		out := logs.String()
+		for _, want := range []string{"level=ERROR", "could not collect peer instances", "record=" + list.Id} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected the log to contain %q, got %q", want, out)
+			}
+		}
+
+		if err := CreateListDeleteActivity(f.app, list, audience); err != nil {
+			t.Fatal(err)
+		}
+		f.deliveries(t, "follower", 1)
+	})
+}
+
+// failingQueryBuilder fails every raw query whose SQL contains marker, as a
+// database that errors on that one statement would, and passes the rest
+// through. The holder queries read the same activity rows as wasHandedOut, so
+// no schema fault can break the one without the other.
+type failingQueryBuilder struct {
+	dbx.Builder
+	marker string
+}
+
+func (b failingQueryBuilder) NewQuery(sql string) *dbx.Query {
+	if strings.Contains(sql, b.marker) {
+		sql = "SELECT * FROM injected_query_failure"
+	}
+	return b.Builder.NewQuery(sql)
+}
+
+type failingQueryApp struct {
+	core.App
+	marker string
+}
+
+func (a *failingQueryApp) DB() dbx.Builder {
+	return failingQueryBuilder{Builder: a.App.DB(), marker: a.marker}
+}
+
+// failHandedOutLookup makes wasHandedOut, the only SELECT EXISTS query on the
+// delete path, fail.
+func failHandedOutLookup(app core.App) core.App {
+	return &failingQueryApp{App: app, marker: "SELECT EXISTS"}
+}
+
+// Who provably holds a copy is read without wasHandedOut, so a failing
+// wasHandedOut lookup must cost a private record's audience no more than the
+// followers it would have widened it by. The hook drops the whole audience on
+// an error, so the error is logged here and not returned.
+func TestDeleteAudienceHandedOutLookupFailure(t *testing.T) {
+	t.Run("PrivateTrailStillReachesHolder", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		follower := f.actor(t, "follower", false)
+		f.follow(t, follower, b)
+		sharee := f.actor(t, "sharee", false)
+
+		trail := f.localTrail(t, b, true)
+		f.recorded(t, "Create", trail)
+		f.makePrivate(t, trail)
+		f.interaction(t, "trail_share", "actor", sharee, trail)
+
+		app, logs := captureLogs(f.app)
+		app = failHandedOutLookup(app)
+		audience, err := TrailDeleteRecipients(app, trail, false)
+		if err != nil {
+			t.Fatalf("a failing handed-out lookup must not fail the audience, got %v", err)
+		}
+		if len(audience.Holders) != 1 || audience.Holders[0] != sharee.GetString("inbox") {
+			t.Fatalf("holders = %v, want the sharee's inbox", audience.Holders)
+		}
+		if len(audience.Followers) != 0 {
+			t.Fatalf("followers = %v, want none: it is unknown that the trail was ever public", audience.Followers)
+		}
+
+		out := logs.String()
+		for _, want := range []string{"level=ERROR", "could not tell whether the record was ever handed out", "record=" + trail.Id} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected the log to contain %q, got %q", want, out)
+			}
+		}
+
+		if err := CreateTrailDeleteActivity(f.app, trail, audience); err != nil {
+			t.Fatal(err)
+		}
+		f.deliveries(t, "sharee", 1)
+		f.silence(t, "follower")
+	})
+
+	t.Run("PrivateListStillReachesHolder", func(t *testing.T) {
+		f := setupTrailDeleteTestApp(t)
+
+		b := f.actor(t, "b", true)
+		follower := f.actor(t, "follower", false)
+		f.follow(t, follower, b)
+		sharee := f.actor(t, "sharee", false)
+
+		list := f.localContent(t, f.lists, "list", b, true)
+		f.recorded(t, "Create", list)
+		f.makePrivate(t, list)
+		f.interaction(t, "list_share", "actor", sharee, list)
+
+		app, logs := captureLogs(f.app)
+		app = failHandedOutLookup(app)
+		audience, err := ListDeleteRecipients(app, list, false)
+		if err != nil {
+			t.Fatalf("a failing handed-out lookup must not fail the audience, got %v", err)
+		}
+		if len(audience.Holders) != 1 || audience.Holders[0] != sharee.GetString("inbox") {
+			t.Fatalf("holders = %v, want the sharee's inbox", audience.Holders)
+		}
+		if len(audience.Followers) != 0 {
+			t.Fatalf("followers = %v, want none: it is unknown that the list was ever public", audience.Followers)
+		}
+
+		out := logs.String()
+		for _, want := range []string{"level=ERROR", "could not tell whether the record was ever handed out", "record=" + list.Id} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected the log to contain %q, got %q", want, out)
+			}
+		}
+
+		if err := CreateListDeleteActivity(f.app, list, audience); err != nil {
+			t.Fatal(err)
+		}
 		f.deliveries(t, "sharee", 1)
 		f.silence(t, "follower")
 	})

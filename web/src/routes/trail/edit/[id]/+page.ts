@@ -4,15 +4,15 @@ import {
     hasDuplicatePhotos,
     normalizeTrailDuplicateOptions,
     type TrailDuplicateOptions,
-} from "$lib/models/trail";
-import { categories_index } from "$lib/stores/category_store";
-import { category_preferences_index } from "$lib/stores/category_preference_store";
-import { lists_index } from "$lib/stores/list_store";
-import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
-import { subcategories_index } from "$lib/stores/subcategory_store";
-import { trails_show } from "$lib/stores/trail_store";
-import { currentUser } from "$lib/stores/user_store";
-import { designSelectableCategories } from "$lib/util/category_util";
+} from "#lib/models/trail.ts";
+import { categories_index } from "#lib/stores/category_store.ts";
+import { category_preferences_index } from "#lib/stores/category_preference_store.ts";
+import { lists_index } from "#lib/stores/list_store.ts";
+import { subcategory_preferences_index } from "#lib/stores/subcategory_preference_store.ts";
+import { subcategories_index } from "#lib/stores/subcategory_store.ts";
+import { trails_show } from "#lib/stores/trail_store.ts";
+import { currentUser } from "#lib/stores/user_store.ts";
+import { designSelectableCategories } from "#lib/util/category_util.ts";
 import { error, type Load } from "@sveltejs/kit";
 import { get } from "svelte/store";
 import { locale } from "svelte-i18n";

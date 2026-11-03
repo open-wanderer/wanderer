@@ -1,9 +1,9 @@
 import {
     PluginInstanceUpdateSchema,
-} from "$lib/models/api/plugin_instance_schema";
-import type { PluginInstance } from "$lib/models/plugin_instance";
-import { Collection, handleError, remove, show, update } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+} from "#lib/models/api/plugin_instance_schema.ts";
+import type { PluginInstance } from "#lib/models/plugin_instance.ts";
+import { Collection, handleError, remove, show, update } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -35,7 +35,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         const r = await show<PluginInstance>(event, Collection.plugin_instances);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }
@@ -97,7 +97,7 @@ export async function POST(event: RequestEvent) {
             PluginInstanceUpdateSchema,
             Collection.plugin_instances,
         );
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }
@@ -131,7 +131,7 @@ export async function POST(event: RequestEvent) {
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.plugin_instances);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

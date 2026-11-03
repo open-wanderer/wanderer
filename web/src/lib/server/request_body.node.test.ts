@@ -25,9 +25,9 @@ it.each([
         socketClosed = once(req.socket, "close");
         req.on("data", (chunk: Buffer) => { if (!res.writableFinished) consumedBeforeResponse += chunk.length; });
         try {
-            const request = await getRequest({ request: req, base: "http://127.0.0.1", bodySizeLimit: 64 * 1024 * 1024 });
+            const request = getRequest({ request: req, base: "http://127.0.0.1", bodySizeLimit: 64 * 1024 * 1024 });
             const event = { request, url: new URL(request.url), platform: { req } } as unknown as RequestEvent;
-            await setResponse(res, await limitRequestBodies({ event, resolve }));
+            setResponse(res, await limitRequestBodies({ event, resolve }));
         } catch (cause) {
             res.writeHead(500).end(String(cause));
         }
@@ -76,12 +76,12 @@ it.each([
     const server = createServer(async (req, res) => {
         const receivedAtStart = req.socket.bytesRead;
         try {
-            const request = await getRequest({ request: req, base: "http://127.0.0.1", bodySizeLimit: Infinity });
+            const request = getRequest({ request: req, base: "http://127.0.0.1", bodySizeLimit: Infinity });
             const event = { request, url: new URL(request.url), platform: { req }, params: { id: "abcdefghijklmn0" }, locals: {} } as unknown as RequestEvent;
             const response = await limitRequestBodies({ event, resolve: (input) => route(input) });
             receivedBeforeResponse = req.socket.bytesRead - receivedAtStart;
             response.headers.set("Connection", "close");
-            await setResponse(res, response);
+            setResponse(res, response);
         } catch (cause) {
             if (isHttpError(cause)) res.writeHead(cause.status, { "Content-Type": "application/json" }).end(JSON.stringify(cause.body));
             else res.writeHead(500).end(String(cause));

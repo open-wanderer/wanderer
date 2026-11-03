@@ -1,5 +1,5 @@
-import { handleError } from "$lib/util/api_util";
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { handleError } from "#lib/util/api_util.ts";
+import { error, type RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
 
 /**
@@ -38,7 +38,7 @@ export async function POST(event: RequestEvent) {
         }).parse(data)
 
         const r = await event.locals.pb.collection('users').requestPasswordReset(safeData.email);
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

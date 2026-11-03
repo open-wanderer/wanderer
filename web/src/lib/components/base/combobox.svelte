@@ -9,8 +9,8 @@
 <script lang="ts">
     import type { ChangeEventHandler } from "svelte/elements";
     import Chip from "./chip.svelte";
-    import { textMatchSegments } from "$lib/util/text_match";
-    import { visibleComboboxItems } from "$lib/util/combobox_util";
+    import { textMatchSegments } from "#lib/util/text_match.ts";
+    import { visibleComboboxItems } from "#lib/util/combobox_util.ts";
 
     interface Props {
         name?: string;

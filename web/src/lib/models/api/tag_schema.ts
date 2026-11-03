@@ -1,6 +1,6 @@
 import { z, ZodType } from "zod";
 import type { Tag } from "../tag";
-import { normalizeTagName } from "$lib/util/tag_name";
+import { normalizeTagName } from "#lib/util/tag_name.ts";
 
 // Match PocketBase's existing 5000-character limit (Unicode code points, not
 // UTF-16 units). Reject only C0/DEL; retain empty names, other Unicode,

@@ -1,12 +1,12 @@
-import { SummitLog, type SummitLogFilter } from "$lib/models/summit_log";
-import { APIError } from "$lib/util/api_util";
+import { SummitLog, type SummitLogFilter } from "#lib/models/summit_log.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type AuthRecord, type ListResult } from "pocketbase";
 import { get, writable, type Writable } from "svelte/store";
 import { currentUser } from "./user_store";
-import { isURL, objectToFormData } from "$lib/util/file_util";
+import { isURL, objectToFormData } from "#lib/util/file_util.ts";
 import { subcategories } from "./subcategory_store";
-import { buildPocketBaseCategoryFilter } from "$lib/util/trail_filter_util";
-import { nextDateValue } from "$lib/util/date_util";
+import { buildPocketBaseCategoryFilter } from "#lib/util/trail_filter_util.ts";
+import { nextDateValue } from "#lib/util/date_util.ts";
 
 export const summitLog: Writable<SummitLog> = writable(new SummitLog(new Date().toISOString().substring(0, 10)));
 export const summitLogs: Writable<SummitLog[]> = writable([]);

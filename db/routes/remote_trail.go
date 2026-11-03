@@ -162,6 +162,7 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 					syncRecord := record.Fresh()
 					go func() {
 						defer trailSyncing.Delete(iri)
+						defer recoverBackgroundSync(e.App, "trails", iri)
 						_, err := performFullSync(e.App, bgCtx, &urlCopy, syncRecord)
 						switch {
 						case errors.Is(err, errRemoteGone):

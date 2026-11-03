@@ -1,7 +1,7 @@
-import { SummitLogCreateSchema } from '$lib/models/api/summit_log_schema';
-import type { SummitLog } from '$lib/models/summit_log';
-import { Collection, create, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { SummitLogCreateSchema } from '#lib/models/api/summit_log_schema.ts';
+import type { SummitLog } from '#lib/models/summit_log.ts';
+import { Collection, create, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -43,7 +43,7 @@ export async function GET(event: RequestEvent) {
     try {
         const summitLogs = await list<SummitLog>(event, Collection.summit_logs);
         removeTimeFromDates(summitLogs.items)
-        return json(summitLogs)
+        return Response.json(summitLogs)
 
     } catch (e) {
         return handleError(e)
@@ -78,7 +78,7 @@ export async function GET(event: RequestEvent) {
 export async function PUT(event: RequestEvent) {
     try {
         const r = await create<SummitLog>(event, SummitLogCreateSchema, Collection.summit_logs)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e)
     }

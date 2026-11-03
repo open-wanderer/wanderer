@@ -1,4 +1,4 @@
-import type { icons } from "$lib/util/icon_util";
+import type { icons } from "#lib/util/icon_util.ts";
 import * as M from "maplibre-gl";
 
 class Waypoint {

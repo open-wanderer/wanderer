@@ -57,7 +57,7 @@ func setupAddressingTestApp(t *testing.T) *addressingFixture {
 		return fields
 	}
 
-	actors := add("activitypub_actors", append(text("iri", "inbox", "followers", "preferred_username", "domain", "private_key"),
+	actors := add("activitypub_actors", append(text("iri", "inbox", "followers", "preferred_username", "domain", "private_key", "actor_type"),
 		&core.BoolField{Name: "is_local"})...)
 	rel := func(name, collectionId string) core.Field {
 		return &core.RelationField{Name: name, CollectionId: collectionId, MaxSelect: 1}

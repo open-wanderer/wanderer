@@ -1,9 +1,9 @@
-import { env } from '$env/dynamic/private';
+import { ORIGIN } from '$app/env/private';
 import type { RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
 
-import type { Actor } from '$lib/models/activitypub/actor';
-import { isRemoteHandle } from '$lib/util/activitypub_util';
+import type { Actor } from '#lib/models/activitypub/actor.ts';
+import { isRemoteHandle } from '#lib/util/activitypub_util.ts';
 
 type GetActorOptions = {
     follows?: boolean;
@@ -15,7 +15,7 @@ type ActorResponse = {
 };
 
 export async function getActorResponseForHandle(event: RequestEvent, handle: string, options: GetActorOptions = {}): Promise<ActorResponse> {
-    const origin = env.ORIGIN!;
+    const origin = ORIGIN!;
     const remoteHandle = isRemoteHandle(handle, origin);
     if (remoteHandle && !event.locals.user) {
         throw new ClientResponseError({ status: 401, response: { message: "Unauthorized" } });

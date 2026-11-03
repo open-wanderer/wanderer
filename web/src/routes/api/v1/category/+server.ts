@@ -1,6 +1,6 @@
-import type { Category } from "$lib/models/category";
-import { Collection, handleError, list } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import type { Category } from "#lib/models/category.ts";
+import { Collection, handleError, list } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -56,7 +56,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<Category>(event, Collection.categories);
-        return json(r)
+        return Response.json(r)
     } catch (e) {
         return handleError(e)
     }

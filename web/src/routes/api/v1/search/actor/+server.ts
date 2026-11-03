@@ -1,8 +1,8 @@
-import type { Actor, ActorSearchResult } from '$lib/models/activitypub/actor';
-import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
-import { isValidPubHandle, splitUsername } from '$lib/util/activitypub_util';
-import { handleError } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import type { Actor, ActorSearchResult } from '#lib/models/activitypub/actor.ts';
+import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
+import { isValidPubHandle, splitUsername } from '#lib/util/activitypub_util.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import { error, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from "pocketbase"
 import type { SearchResponse } from "meilisearch";
 
@@ -121,7 +121,7 @@ export async function GET(event: RequestEvent) {
                     icon: actor.icon
                 };
 
-                return json(<SearchResponse>{
+                return Response.json(<SearchResponse>{
                     hits: [actorSearchResult],
                     processingTimeMs: 0,
                     query: q,
@@ -145,7 +145,7 @@ export async function GET(event: RequestEvent) {
         const r = await event.locals.ms.index("actors").search(q, { filter: filterText, limit: limit ?? 3 });
 
 
-        return json(r)
+        return Response.json(r)
 
 
     } catch (e) {

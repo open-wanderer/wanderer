@@ -1,5 +1,5 @@
-import { TagCreateSchema } from "$lib/models/api/tag_schema";
-import type { Tag } from "$lib/models/tag";
+import { TagCreateSchema } from "#lib/models/api/tag_schema.ts";
+import type { Tag } from "#lib/models/tag.ts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { tags_create } from "./tag_store";
 

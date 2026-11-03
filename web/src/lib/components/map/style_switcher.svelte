@@ -1,8 +1,8 @@
 <script lang="ts">
-    import type { StyleSwitcherControlOptions } from "$lib/vendor/maplibre-style-switcher/style-switcher-control";
+    import type { StyleSwitcherControlOptions } from "#lib/vendor/maplibre-style-switcher/style-switcher-control.ts";
     import { _ } from "svelte-i18n";
     import RadioGroup, { type RadioItem } from "../base/radio_group.svelte";
-    import { defaultMapState } from "$lib/vendor/maplibre-layer-manager/layers";
+    import { defaultMapState } from "#lib/vendor/maplibre-layer-manager/layers.ts";
     import { untrack } from "svelte";
 
     interface Props {

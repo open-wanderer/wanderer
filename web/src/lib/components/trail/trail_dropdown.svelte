@@ -1,24 +1,24 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import type { List } from "$lib/models/list";
-    import type { Trail, TrailDuplicateOptions } from "$lib/models/trail";
+    import type { List } from "#lib/models/list.ts";
+    import type { Trail, TrailDuplicateOptions } from "#lib/models/trail.ts";
     import {
         lists_add_trail,
         lists_index,
         lists_remove_trail,
-    } from "$lib/stores/list_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    } from "#lib/stores/list_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         trails_delete,
         trails_show,
         trails_update,
-    } from "$lib/stores/trail_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import { getFileURL, saveAs } from "$lib/util/file_util";
-    import { trail2gpx } from "$lib/util/gpx_util";
-    import { gpx } from "$lib/vendor/toGeoJSON/toGeoJSON";
+    } from "#lib/stores/trail_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
+    import { getFileURL, saveAs } from "#lib/util/file_util.ts";
+    import { trail2gpx } from "#lib/util/gpx_util.ts";
+    import { gpx } from "#lib/vendor/toGeoJSON/toGeoJSON.js";
     import JSZip from "jszip";
     import { type Snippet } from "svelte";
     import { _ } from "svelte-i18n";
@@ -36,12 +36,12 @@
         mergeStore,
         processMergeQueue,
         type Merge,
-    } from "$lib/stores/trail_merge_store.svelte";
+    } from "#lib/stores/trail_merge_store.svelte.ts";
     import TrailMergeModal from "./trail_merge_modal.svelte";
     import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
-    import MergeDialog from "$lib/components/trail/trail_merge_dialog.svelte";
-    import { trail_merge } from "$lib/stores/trail_merge_api";
-    import { hasSendCapablePlugin } from "$lib/stores/plugin_store";
+    import MergeDialog from "#lib/components/trail/trail_merge_dialog.svelte";
+    import { trail_merge } from "#lib/stores/trail_merge_api.ts";
+    import { hasSendCapablePlugin } from "#lib/stores/plugin_store.ts";
 
     export interface MergeResult {
         targetTrail: Trail;

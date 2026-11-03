@@ -2,21 +2,21 @@
     import {
         beforeNavigate,
         goto,
-        invalidateAll,
+        refreshAll,
     } from "$app/navigation";
 
     import { page } from "$app/state";
-    import { env } from "$env/dynamic/public";
-    import Toast from "$lib/components/base/toast.svelte";
-    import Footer from "$lib/components/footer.svelte";
-    import NavBar from "$lib/components/nav_bar.svelte";
-    import PageLoadingBar from "$lib/components/page_loading_bar.svelte";
-    import UploadDialog from "$lib/components/settings/upload_dialog.svelte";
-    import { getPb } from "$lib/pocketbase";
-    import { currentUser } from "$lib/stores/user_store";
-    import { load_plugin_data_once } from "$lib/stores/plugin_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { isRouteProtected } from "$lib/util/authorization_util";
+    import { PUBLIC_IS_DEMO } from "$app/env/public";
+    import Toast from "#lib/components/base/toast.svelte";
+    import Footer from "#lib/components/footer.svelte";
+    import NavBar from "#lib/components/nav_bar.svelte";
+    import PageLoadingBar from "#lib/components/page_loading_bar.svelte";
+    import UploadDialog from "#lib/components/settings/upload_dialog.svelte";
+    import { getPb } from "#lib/pocketbase.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { load_plugin_data_once } from "#lib/stores/plugin_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { isRouteProtected } from "#lib/util/authorization_util.ts";
     import { onMount, type Snippet } from "svelte";
     import { slide } from "svelte/transition";
     import { _ } from "svelte-i18n";
@@ -95,7 +95,7 @@
             queuedAuthSession = undefined;
 
             try {
-                await invalidateAll();
+                await refreshAll();
             } catch {
                 // A later auth or data change may retry a failed load.
                 if (
@@ -187,7 +187,7 @@
 
 <svelte:window onpageshow={handlePageShow} />
 
-{#if env.PUBLIC_IS_DEMO === "true" && !hideDemoHint}
+{#if PUBLIC_IS_DEMO === "true" && !hideDemoHint}
     <div
         class="flex items-center justify-between bg-amber-200 text-center p-4 text-sm text-black"
         out:slide

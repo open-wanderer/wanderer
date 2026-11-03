@@ -1,8 +1,8 @@
 <script lang="ts">
-    import type { List } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
-    import { currentUser } from "$lib/stores/user_store";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+    import type { List } from "#lib/models/list.ts";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
     import { _ } from "svelte-i18n";
     import { fly } from "svelte/transition";
 

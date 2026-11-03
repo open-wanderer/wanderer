@@ -1,5 +1,5 @@
-import { browser } from "$app/environment";
-import { env } from "$env/dynamic/public";
+import { browser } from "$app/env";
+import { PUBLIC_PRIVATE_INSTANCE } from "$app/env/public";
 
 const privateRoutes = [
   "/settings",
@@ -31,7 +31,7 @@ export function isRouteProtected(url: URL | undefined) {
 
   const path = url.pathname
 
-  if (env.PUBLIC_PRIVATE_INSTANCE == "true") {
+  if (PUBLIC_PRIVATE_INSTANCE == "true") {
     return !publicRoutes.some(allowedPath =>
       path === allowedPath || path.startsWith(allowedPath + '/')
     );

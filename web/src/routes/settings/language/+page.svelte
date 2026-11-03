@@ -2,12 +2,12 @@
     import { page } from "$app/state";
     import RadioGroup, {
         type RadioItem,
-    } from "$lib/components/base/radio_group.svelte";
+    } from "#lib/components/base/radio_group.svelte";
     import Select, {
         type SelectItem,
-    } from "$lib/components/base/select.svelte";
-    import type { Language } from "$lib/models/settings";
-    import { settings_update } from "$lib/stores/settings_store";
+    } from "#lib/components/base/select.svelte";
+    import type { Language } from "#lib/models/settings.ts";
+    import { settings_update } from "#lib/stores/settings_store.ts";
     import { _ } from "svelte-i18n";
 
     const settings = page.data.settings;

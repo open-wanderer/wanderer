@@ -1,16 +1,16 @@
 <script lang="ts">
-    import Button from "$lib/components/base/button.svelte";
-    import Editor from "$lib/components/base/editor.svelte";
-    import { settings_update } from "$lib/stores/settings_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte.js";
-    import { currentUser, users_update } from "$lib/stores/user_store";
+    import Button from "#lib/components/base/button.svelte";
+    import Editor from "#lib/components/base/editor.svelte";
+    import { settings_update } from "#lib/stores/settings_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { currentUser, users_update } from "#lib/stores/user_store.ts";
     import {
         designSelectableCategories,
         displayCategoryIcon,
         displayCategoryName,
-    } from "$lib/util/category_util";
-    import { getFileURL } from "$lib/util/file_util";
-    import { avatarUploadErrorMessage } from "$lib/util/avatar_upload_error";
+    } from "#lib/util/category_util.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
+    import { avatarUploadErrorMessage } from "#lib/util/avatar_upload_error.ts";
     import { untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
 

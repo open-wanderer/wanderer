@@ -1,31 +1,31 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import ActorSearch from "$lib/components/actor_search.svelte";
-    import type { DropdownItem } from "$lib/components/base/dropdown.svelte";
+    import ActorSearch from "#lib/components/actor_search.svelte";
+    import type { DropdownItem } from "#lib/components/base/dropdown.svelte";
     import Search, {
         type SearchItem,
-    } from "$lib/components/base/search.svelte";
-    import type { SelectItem } from "$lib/components/base/select.svelte";
-    import Select from "$lib/components/base/select.svelte";
-    import SkeletonCard from "$lib/components/base/skeleton_card.svelte";
-    import ConfirmModal from "$lib/components/confirm_modal.svelte";
-    import EmptyStateSearch from "$lib/components/empty_states/empty_state_search.svelte";
-    import ListCard from "$lib/components/list/list_card.svelte";
-    import ListPanel from "$lib/components/list/list_panel.svelte";
-    import ListShareModal from "$lib/components/list/list_share_modal.svelte";
-    import MapWithElevationMaplibre from "$lib/components/trail/map_with_elevation_maplibre.svelte";
-    import TrailInfoPanel from "$lib/components/trail/trail_info_panel.svelte";
-    import { List, type ListFilter } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
+    } from "#lib/components/base/search.svelte";
+    import type { SelectItem } from "#lib/components/base/select.svelte";
+    import Select from "#lib/components/base/select.svelte";
+    import SkeletonCard from "#lib/components/base/skeleton_card.svelte";
+    import ConfirmModal from "#lib/components/confirm_modal.svelte";
+    import EmptyStateSearch from "#lib/components/empty_states/empty_state_search.svelte";
+    import ListCard from "#lib/components/list/list_card.svelte";
+    import ListPanel from "#lib/components/list/list_panel.svelte";
+    import ListShareModal from "#lib/components/list/list_share_modal.svelte";
+    import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
+    import TrailInfoPanel from "#lib/components/trail/trail_info_panel.svelte";
+    import { List, type ListFilter } from "#lib/models/list.ts";
+    import type { Trail } from "#lib/models/trail.ts";
     import {
         lists_delete,
         lists_search_filter,
         lists_show,
-    } from "$lib/stores/list_store";
-    import { trails_show } from "$lib/stores/trail_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util.js";
+    } from "#lib/stores/list_store.ts";
+    import { trails_show } from "#lib/stores/trail_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
     import * as M from "maplibre-gl";
 
     import { onMount, untrack } from "svelte";

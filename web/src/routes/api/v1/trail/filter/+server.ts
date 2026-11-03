@@ -1,6 +1,6 @@
-import { type TrailFilterValues } from '$lib/models/trail';
-import { handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { type TrailFilterValues } from '#lib/models/trail.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -37,7 +37,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
  */
 export async function GET(event: RequestEvent) {
     if (!event.locals.pb.authStore.record) {
-        return json({
+        return Response.json({
             min_distance: 0,
             max_distance: 20000,
             min_elevation_gain: 0,
@@ -48,7 +48,7 @@ export async function GET(event: RequestEvent) {
     }
     try {
         const r = await event.locals.pb.collection('trails_filter').getOne<TrailFilterValues>(event.locals.user.actor)
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }

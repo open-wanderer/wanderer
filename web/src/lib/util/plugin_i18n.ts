@@ -1,4 +1,4 @@
-import type { ConfigField, ConfigFieldOption, LocalizedTextMap, PluginProvider } from "$lib/models/plugin_provider";
+import type { ConfigField, ConfigFieldOption, LocalizedTextMap, PluginProvider } from "#lib/models/plugin_provider.ts";
 
 export function localizedText(
     texts: LocalizedTextMap | undefined,

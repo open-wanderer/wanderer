@@ -1,10 +1,10 @@
-import GPX from "$lib/models/gpx/gpx";
-import type { Trail, TrailSearchResult } from "$lib/models/trail";
-import { searchLocationReverse } from "$lib/stores/search_store";
-import { trails_create } from "$lib/stores/trail_store";
-import { handleError } from "$lib/util/api_util";
-import { fromFile, gpx2trail } from "$lib/util/gpx_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+import GPX from "#lib/models/gpx/gpx.ts";
+import type { Trail, TrailSearchResult } from "#lib/models/trail.ts";
+import { searchLocationReverse } from "#lib/stores/search_store.ts";
+import { trails_create } from "#lib/stores/trail_store.ts";
+import { handleError } from "#lib/util/api_util.ts";
+import { fromFile, gpx2trail } from "#lib/util/gpx_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 import type { Meilisearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
 
@@ -46,7 +46,7 @@ import { ClientResponseError } from "pocketbase";
  */
 export async function PUT(event: RequestEvent) {
     if (!event.locals.user) {
-        return json({ message: "Unauthorized" }, { status: 401 });
+        return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     try {
@@ -114,7 +114,7 @@ export async function PUT(event: RequestEvent) {
             console.error(e)
             return handleError(e)
         }
-        return json(trail);
+        return Response.json(trail);
 
     } catch (e: any) {
         return handleError(e)

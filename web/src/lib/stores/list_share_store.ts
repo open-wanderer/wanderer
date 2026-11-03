@@ -1,8 +1,8 @@
-import type { Actor } from "$lib/models/activitypub/actor";
-import type { List } from "$lib/models/list";
-import { ListShare } from "$lib/models/list_share";
-import { TrailShare } from "$lib/models/trail_share";
-import { APIError } from "$lib/util/api_util";
+import type { Actor } from "#lib/models/activitypub/actor.ts";
+import type { List } from "#lib/models/list.ts";
+import { ListShare } from "#lib/models/list_share.ts";
+import { TrailShare } from "#lib/models/trail_share.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 import { trail_share_create, trail_share_index } from "./trail_share_store";

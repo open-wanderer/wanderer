@@ -1,11 +1,11 @@
-import { env } from "$env/dynamic/public";
-import { env as private_env } from "$env/dynamic/private";
+import { PUBLIC_POCKETBASE_URL } from "$app/env/public";
+import { ORIGIN } from "$app/env/private";
 
-import { error, json, type RequestEvent } from "@sveltejs/kit";
+import { error, type RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
-import { handleError } from "$lib/util/api_util";
+import { handleError } from "#lib/util/api_util.ts";
 
-const redirectURL = private_env.ORIGIN + "/login/redirect"
+const redirectURL = ORIGIN + "/login/redirect"
 
 /**
  * @swagger
@@ -30,11 +30,11 @@ export async function GET(event: RequestEvent) {
         const r = await event.locals.pb.collection('users').listAuthMethods();
 
         for (const provider of r.oauth2.providers) {
-            const imageURL = `${env.PUBLIC_POCKETBASE_URL}/_/images/oauth2/${provider.name.replace(/\s*\(\d+\)$/, '')}.svg`
+            const imageURL = `${PUBLIC_POCKETBASE_URL}/_/images/oauth2/${provider.name.replace(/\s*\(\d+\)$/, '')}.svg`
             provider['img' as keyof typeof provider] = await imageUrlToBase64(imageURL, event.fetch);
             provider['url' as keyof typeof provider] = `${provider.authURL}${redirectURL}`
         }
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }
@@ -56,7 +56,7 @@ export async function POST(event: RequestEvent) {
             safeData.codeVerifier,
             redirectURL,
         )
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }

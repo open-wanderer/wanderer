@@ -5,7 +5,7 @@ import { buildTrailModalFixture, mountTrailModalFixture } from './trail-modal-fi
 // relying only on string assertions from the server's DOM implementation.
 const fixture = `
     <script>
-        import Card from '$lib/components/waypoint/waypoint_card.svelte';
+        import Card from '#lib/components/waypoint/waypoint_card.svelte';
         let waypoint = $state({
             id: 'cached-waypoint', name: 'Cached waypoint', lat: 46, lon: 8,
             photos: [], description: window.cachedRichText

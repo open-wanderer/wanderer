@@ -1,6 +1,6 @@
 import { z, ZodType } from "zod";
 import type { Waypoint } from "../waypoint";
-import { icons } from "$lib/util/icon_util";
+import { icons } from "#lib/util/icon_util.ts";
 
 const WaypointCreateSchema = z.object({
     id: z.string().length(15).optional(),

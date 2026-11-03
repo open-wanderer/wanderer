@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
-    import type { Trail } from "$lib/models/trail";
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
-    import { formatDistance } from "$lib/util/format_util";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
+    import { formatDistance } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import PhotoGallery from "../photo_gallery.svelte";
 

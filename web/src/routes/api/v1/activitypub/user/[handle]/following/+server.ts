@@ -1,10 +1,10 @@
-import { env } from '$env/dynamic/private';
+import { ORIGIN } from '$app/env/private';
 
-import type { Actor } from '$lib/models/activitypub/actor';
-import type { Follow } from '$lib/models/follow';
-import { splitUsername } from '$lib/util/activitypub_util';
-import { handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { Actor } from '#lib/models/activitypub/actor.ts';
+import type { Follow } from '#lib/models/follow.ts';
+import { splitUsername } from '#lib/util/activitypub_util.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 import type { APOrderedCollectionPage, APRoot } from 'activitypub-types';
 import type { ListResult } from 'pocketbase';
 
@@ -49,14 +49,14 @@ export async function GET(event: RequestEvent) {
 
         let fullUsername = event.params.handle;
         if (!fullUsername) {
-            return json({ message: "Bad request" }, { status: 400 });
+            return Response.json({ message: "Bad request" }, { status: 400 });
         }
 
         fullUsername = fullUsername.replace(/^@/, "");
 
-        const [username, domain] = splitUsername(fullUsername, env.ORIGIN)
+        const [username, domain] = splitUsername(fullUsername, ORIGIN)
 
-        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=true`)
+        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(event.locals.pb.filter("preferred_username:lower={:username} && is_local=true && actor_type!='instance'", { username: username?.toLowerCase() ?? "" }))
 
         const followers: ListResult<Follow> = await event.locals.pb.collection("follows").getList(intPage, 10, { sort: "-created", filter: `follower='${actor.id}'&&status='accepted'`, expand: "followee" })
 
@@ -82,7 +82,7 @@ export async function GET(event: RequestEvent) {
 
         // Without ?page, serve the collection itself (required by GoToSocial).
         if (!event.url.searchParams.has("page")) {
-            return json({
+            return Response.json({
                 "@context": "https://www.w3.org/ns/activitystreams",
                 id: `${id}/following`,
                 type: "OrderedCollection",
@@ -91,7 +91,7 @@ export async function GET(event: RequestEvent) {
             }, { headers });
         }
 
-        return json(following, { headers });
+        return Response.json(following, { headers });
     } catch (e) {
         return handleError(e)
     }

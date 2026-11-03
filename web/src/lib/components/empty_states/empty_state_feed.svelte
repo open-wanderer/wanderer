@@ -1,7 +1,7 @@
 <script lang="ts">
-    import emptyStateFeedDark from "$lib/assets/svgs/empty_states/empty_state_feed_dark.svg";
-    import emptyStateFeedLight from "$lib/assets/svgs/empty_states/empty_state_feed_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import emptyStateFeedDark from "#lib/assets/svgs/empty_states/empty_state_feed_dark.svg";
+    import emptyStateFeedLight from "#lib/assets/svgs/empty_states/empty_state_feed_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 
     import { _ } from "svelte-i18n";
 </script>

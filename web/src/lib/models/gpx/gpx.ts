@@ -7,10 +7,10 @@ import TrackSegment from './track-segment';
 import { allDatesToISOString, haversineDistance, removeEmpty } from './utils';
 import Waypoint from './waypoint';
 import GpxMetricsComputation from './gpx-metrics-computation';
-import { encodePolyline } from '$lib/util/polyline_util';
-import { APIError } from '$lib/util/api_util';
+import { encodePolyline } from '#lib/util/polyline_util.ts';
+import { APIError } from '#lib/util/api_util.ts';
 import type { ValhallaHeightResponse } from '../valhalla';
-import { bbox } from '$lib/util/geojson_util';
+import { bbox } from '#lib/util/geojson_util.ts';
 
 const defaultAttributes = {
   version: '1.1',

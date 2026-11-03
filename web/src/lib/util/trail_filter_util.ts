@@ -1,5 +1,5 @@
-import type { TrailFilter } from "$lib/models/trail";
-import type { Subcategory } from "$lib/models/subcategory";
+import type { TrailFilter } from "#lib/models/trail.ts";
+import type { Subcategory } from "#lib/models/subcategory.ts";
 
 const NO_SUBCATEGORY_FILTER_PREFIX = "__no_subcategory__:";
 export const POCKETBASE_RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;

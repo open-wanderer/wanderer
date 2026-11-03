@@ -1,9 +1,9 @@
-import type { TrailFilter } from "$lib/models/trail";
-import { categories_index } from "$lib/stores/category_store";
-import { category_preferences_index } from "$lib/stores/category_preference_store";
-import { subcategory_preferences_index } from "$lib/stores/subcategory_preference_store";
-import { subcategories_index } from "$lib/stores/subcategory_store";
-import { trails_get_bounding_box, trails_get_filter_values } from "$lib/stores/trail_store";
+import type { TrailFilter } from "#lib/models/trail.ts";
+import { categories_index } from "#lib/stores/category_store.ts";
+import { category_preferences_index } from "#lib/stores/category_preference_store.ts";
+import { subcategory_preferences_index } from "#lib/stores/subcategory_preference_store.ts";
+import { subcategories_index } from "#lib/stores/subcategory_store.ts";
+import { trails_get_bounding_box, trails_get_filter_values } from "#lib/stores/trail_store.ts";
 import type { ServerLoad } from "@sveltejs/kit";
 
 export const load: ServerLoad = async ({ fetch }) => {

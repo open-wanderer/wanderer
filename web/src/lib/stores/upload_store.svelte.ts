@@ -1,4 +1,4 @@
-import { APIError } from "$lib/util/api_util";
+import { APIError } from "#lib/util/api_util.ts";
 
 export type Upload = {
     file: File;

@@ -1,15 +1,15 @@
-import type { FeedItem } from "$lib/models/feed";
-import type { ListFilter } from "$lib/models/list";
-import type { SummitLogFilter } from "$lib/models/summit_log";
-import { defaultTrailSearchAttributes, Trail, type TrailFilter, type TrailSearchResult } from "$lib/models/trail";
-import { APIError } from "$lib/util/api_util";
+import type { FeedItem } from "#lib/models/feed.ts";
+import type { ListFilter } from "#lib/models/list.ts";
+import type { SummitLogFilter } from "#lib/models/summit_log.ts";
+import { defaultTrailSearchAttributes, Trail, type TrailFilter, type TrailSearchResult } from "#lib/models/trail.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import type { Hits } from "meilisearch";
 import type { ListResult } from "pocketbase";
 import { searchResultToLists } from "./list_store";
 import type { ListSearchResult } from "./search_store";
 import { searchResultToTrailList } from "./trail_store";
-import type { Actor } from "$lib/models/activitypub/actor";
-import type { StatisticActivity } from "$lib/models/statistic_activity";
+import type { Actor } from "#lib/models/activitypub/actor.ts";
+import type { StatisticActivity } from "#lib/models/statistic_activity.ts";
 
 let feed: FeedItem[] = []
 

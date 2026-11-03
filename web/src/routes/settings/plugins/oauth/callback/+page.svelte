@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { plugin_oauth_callback } from "$lib/stores/plugin_instance_store";
+    import { plugin_oauth_callback } from "#lib/stores/plugin_instance_store.ts";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { onMount } from "svelte";

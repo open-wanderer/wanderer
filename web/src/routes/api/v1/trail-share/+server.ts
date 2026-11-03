@@ -1,8 +1,8 @@
-import type { Actor } from '$lib/models/activitypub/actor';
-import { TrailShareCreateSchema } from '$lib/models/api/trail_share_schema';
-import type { TrailShare } from '$lib/models/trail_share';
-import { Collection, create, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { Actor } from '#lib/models/activitypub/actor.ts';
+import { TrailShareCreateSchema } from '#lib/models/api/trail_share_schema.ts';
+import type { TrailShare } from '#lib/models/trail_share.ts';
+import { Collection, create, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -44,7 +44,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<TrailShare>(event, Collection.trail_share);
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         handleError(e)
     }
@@ -86,7 +86,7 @@ export async function PUT(event: RequestEvent) {
 
         const r = await event.locals.pb.collection(Collection.trail_share).create<TrailShare>(safeData)
 
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

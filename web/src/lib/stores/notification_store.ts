@@ -1,5 +1,5 @@
-import type { Notification } from "$lib/models/notification";
-import { APIError } from "$lib/util/api_util";
+import type { Notification } from "#lib/models/notification.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 
 let notifications: Notification[] = [];

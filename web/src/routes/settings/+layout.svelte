@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import type { SelectItem } from "$lib/components/base/select.svelte";
+    import type { SelectItem } from "#lib/components/base/select.svelte";
     import { _ } from "svelte-i18n";
     import type { Snippet } from "svelte";
     interface Props {

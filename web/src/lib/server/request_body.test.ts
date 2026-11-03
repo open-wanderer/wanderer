@@ -1,9 +1,11 @@
-import { env } from "$env/dynamic/private";
 import type { RequestEvent } from "@sveltejs/kit";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const env = vi.hoisted((): { BODY_SIZE_LIMIT?: string } => ({ BODY_SIZE_LIMIT: undefined }));
+vi.mock("$app/env/private", () => env);
 import { INBOX_BODY_LIMIT, LOGIN_BODY_LIMIT, REQUEST_BODY_LIMIT, UPLOAD_BODY_LIMIT, limitRequestBodies, readBoundedRequestBody } from "./request_body";
 
-afterEach(() => { delete env.BODY_SIZE_LIMIT; vi.restoreAllMocks(); });
+afterEach(() => { env.BODY_SIZE_LIMIT = undefined; vi.restoreAllMocks(); });
 
 function event(request: Request): RequestEvent {
     return { request, url: new URL(request.url) } as RequestEvent;
@@ -129,7 +131,7 @@ it.each([
     ["invalid", UPLOAD_BODY_LIMIT],
 ] as const)("handles upload configuration %s without failing the request", async (setting, limit) => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    if (setting === undefined) delete env.BODY_SIZE_LIMIT;
+    if (setting === undefined) env.BODY_SIZE_LIMIT = undefined;
     else env.BODY_SIZE_LIMIT = setting;
     for (const [length, status] of Number.isFinite(limit)
         ? [[limit, 200], [limit + 1, 413]]

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import GPX from "$lib/models/gpx/gpx";
-import Track from "$lib/models/gpx/track";
-import TrackSegment from "$lib/models/gpx/track-segment";
-import GPXWaypoint from "$lib/models/gpx/waypoint";
-import { Trail } from "$lib/models/trail";
-import { trails_show } from "$lib/stores/trail_store";
+import GPX from "#lib/models/gpx/gpx.ts";
+import Track from "#lib/models/gpx/track.ts";
+import TrackSegment from "#lib/models/gpx/track-segment.ts";
+import GPXWaypoint from "#lib/models/gpx/waypoint.ts";
+import { Trail } from "#lib/models/trail.ts";
+import { trails_show } from "#lib/stores/trail_store.ts";
 import { fromFile, trail2gpx } from "./gpx_util";
 import { joinContiguousTrackSegments, routeAnchorNamespace, routeToStoredGpx, splitTrackSegmentsAtAnchors } from "./gpx_segment_util";
 
-vi.mock("$lib/stores/trail_store", () => ({ trails_show: vi.fn() }));
+vi.mock("#lib/stores/trail_store.ts", () => ({ trails_show: vi.fn() }));
 
 function pt(lat: number | string, lon: number | string) {
     return new GPXWaypoint({ $: { lat: lat as number, lon: lon as number } });

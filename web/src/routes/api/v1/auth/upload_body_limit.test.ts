@@ -1,6 +1,6 @@
-import { isHttpError, json, type RequestEvent } from "@sveltejs/kit";
+import { isHttpError, type RequestEvent } from "@sveltejs/kit";
 import { expect, it, vi } from "vitest";
-import { limitRequestBodies } from "$lib/server/request_body";
+import { limitRequestBodies } from "#lib/server/request_body.ts";
 import { PUT as createTrail } from "../trail/form/+server";
 import { PUT as createLog } from "../summit-log/form/+server";
 import { PUT as createList } from "../list/form/+server";
@@ -129,7 +129,7 @@ it.each([
         const response = await limitRequestBodies({ event, resolve: async (input) => {
             try { return await route(input); }
             catch (cause) {
-                if (isHttpError(cause)) return json(cause.body, { status: cause.status });
+                if (isHttpError(cause)) return Response.json(cause.body, { status: cause.status });
                 throw cause;
             }
         } });

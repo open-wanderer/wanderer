@@ -1,8 +1,8 @@
 <script>
     import { page } from "$app/state";
-    import errorDark from "$lib/assets/svgs/empty_states/error_dark.svg";
-    import errorLight from "$lib/assets/svgs/empty_states/error_light.svg";
-    import { theme } from "$lib/stores/theme_store";
+    import errorDark from "#lib/assets/svgs/empty_states/error_dark.svg";
+    import errorLight from "#lib/assets/svgs/empty_states/error_light.svg";
+    import { theme } from "#lib/stores/theme_store.ts";
 </script>
 
 <svelte:head>

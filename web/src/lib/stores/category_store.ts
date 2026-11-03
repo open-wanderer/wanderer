@@ -1,5 +1,5 @@
-import type { Category } from "$lib/models/category";
-import { APIError } from "$lib/util/api_util";
+import type { Category } from "#lib/models/category.ts";
+import { APIError } from "#lib/util/api_util.ts";
 import { type ListResult } from "pocketbase";
 import { writable, type Writable } from "svelte/store";
 

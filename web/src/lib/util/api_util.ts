@@ -1,7 +1,7 @@
-import { error, isHttpError, json, type NumericRange, type RequestEvent } from "@sveltejs/kit";
+import { error, isHttpError, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodType } from "zod";
-import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "$lib/models/api/base_schema";
+import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "#lib/models/api/base_schema.ts";
 
 export class APIError extends Error {
     status: number;
@@ -247,23 +247,23 @@ export function handleError(e: any) {
     // Upload helpers reject anonymous requests before reading the body; API
     // clients expect that rejection as JSON rather than an error page.
     if (isHttpError(e, 401)) {
-        return json({ message: e.body.message }, { status: 401 })
+        return Response.json({ message: e.body.message }, { status: 401 })
     } else if (isHttpError(e)) {
         throw e;
     } else if (e instanceof ZodError) {
-        return json({ message: "invalid_params", detail: e.issues }, { status: 400 })
+        return Response.json({ message: "invalid_params", detail: e.issues }, { status: 400 })
     } else if (e instanceof ClientResponseError && e.status > 0) {
-        return json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
+        return Response.json({ ...e.response, message: e.message, detail: e.originalError.data }, { status: e.status })
     } else if (e instanceof SyntaxError) {
-        return json({ message: "invalid_json" }, { status: 400 })
+        return Response.json({ message: "invalid_json" }, { status: 400 })
     } else if (e instanceof Error) {
-        return json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
+        return Response.json({ message: e.message }, { status: "status" in e && e.status === 413 ? 413 : 500 })
     } else {
         const message = typeof e?.message === "string"
             ? e.message
             : typeof e === "string"
                 ? e
                 : "internal_server_error";
-        return json({ message, detail: e }, { status: 500 })
+        return Response.json({ message, detail: e }, { status: 500 })
     }
 }

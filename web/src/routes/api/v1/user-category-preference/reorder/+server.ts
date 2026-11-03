@@ -1,8 +1,8 @@
 import {
     UserCategoryPreferenceReorderSchema,
-} from "$lib/models/api/category_preference_schema";
-import { handleError } from "$lib/util/api_util";
-import { json, type RequestEvent } from "@sveltejs/kit";
+} from "#lib/models/api/category_preference_schema.ts";
+import { handleError } from "#lib/util/api_util.ts";
+import type { RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -39,7 +39,7 @@ import { json, type RequestEvent } from "@sveltejs/kit";
 export async function POST(event: RequestEvent) {
     try {
         if (!event.locals.user) {
-            return json({ message: "Unauthorized" }, { status: 401 });
+            return Response.json({ message: "Unauthorized" }, { status: 401 });
         }
 
         const data = await event.request.json();
@@ -54,7 +54,7 @@ export async function POST(event: RequestEvent) {
             },
         );
 
-        return json(response);
+        return Response.json(response);
     } catch (e) {
         return handleError(e);
     }

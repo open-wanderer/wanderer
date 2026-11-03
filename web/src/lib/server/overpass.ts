@@ -1,4 +1,4 @@
-import { resolveBaseUrl } from "$lib/server/url";
+import { resolveBaseUrl } from "#lib/server/url.ts";
 import type { RequestEvent } from "@sveltejs/kit";
 
 const OVERPASS_MAX_RETRIES = 2;

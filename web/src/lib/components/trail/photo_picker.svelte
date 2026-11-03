@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { show_toast } from "$lib/stores/toast_store.svelte";
-    import { getFileURL, readAsDataURLAsync } from "$lib/util/file_util";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { getFileURL, readAsDataURLAsync } from "#lib/util/file_util.ts";
     import { _ } from "svelte-i18n";
     import PhotoCard from "../photo_card.svelte";
 

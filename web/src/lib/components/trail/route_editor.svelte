@@ -2,9 +2,9 @@
     import type {
         RoutingOptions,
         ValhallaBicycleCostingOptions,
-    } from "$lib/models/valhalla";
-    import { valhallaStore } from "$lib/stores/valhalla_store.svelte";
-    import { formatSpeed } from "$lib/util/format_util";
+    } from "#lib/models/valhalla.ts";
+    import { valhallaStore } from "#lib/stores/valhalla_store.svelte.ts";
+    import { formatSpeed } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import { slide } from "svelte/transition";
     import Button from "../base/button.svelte";

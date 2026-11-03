@@ -1,6 +1,6 @@
-import type { SummitLog } from '$lib/models/summit_log';
-import { Collection, handleError, uploadCreate } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { SummitLog } from '#lib/models/summit_log.ts';
+import { Collection, handleError, uploadCreate } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -33,7 +33,7 @@ export async function PUT(event: RequestEvent) {
         const r = await uploadCreate<SummitLog>(event, Collection.summit_logs)
         r.date = r.date?.substring(0, 10) ?? "";
 
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

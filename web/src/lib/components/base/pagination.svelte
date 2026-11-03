@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { range } from "$lib/util/array_util";
+    import { range } from "#lib/util/array_util.ts";
 
     interface Props {
         page: number;

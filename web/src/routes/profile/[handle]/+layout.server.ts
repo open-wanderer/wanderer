@@ -1,7 +1,7 @@
-import { follows_a_b } from "$lib/stores/follow_store";
-import { profile_show } from "$lib/stores/profile_store";
-import { APIError } from "$lib/util/api_util";
-import { error, type NumericRange, type ServerLoad } from "@sveltejs/kit";
+import { follows_a_b } from "#lib/stores/follow_store.ts";
+import { profile_show } from "#lib/stores/profile_store.ts";
+import { APIError } from "#lib/util/api_util.ts";
+import { error, type ServerLoad } from "@sveltejs/kit";
 
 export const load: ServerLoad = async ({ params, locals, fetch }) => {
 
@@ -19,9 +19,7 @@ export const load: ServerLoad = async ({ params, locals, fetch }) => {
 
     } catch (e) {
         if (e instanceof APIError) {
-            error(e.status as NumericRange<400, 599>, {
-                message: e.status == 404 ? 'Not found' : e.message
-            });
+            error(e.status, e.status == 404 ? 'Not found' : e.message);
         } else {
             throw e
         }

@@ -1,8 +1,8 @@
-import type { Actor } from '$lib/models/activitypub/actor';
-import { ListShareCreateSchema } from '$lib/models/api/list_share_schema';
-import type { ListShare } from '$lib/models/list_share';
-import { Collection, create, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { Actor } from '#lib/models/activitypub/actor.ts';
+import { ListShareCreateSchema } from '#lib/models/api/list_share_schema.ts';
+import type { ListShare } from '#lib/models/list_share.ts';
+import { Collection, create, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -44,7 +44,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<ListShare>(event, Collection.list_share);
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }
@@ -86,7 +86,7 @@ export async function PUT(event: RequestEvent) {
 
         const r = await event.locals.pb.collection(Collection.list_share).create<ListShare>(safeData)
 
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

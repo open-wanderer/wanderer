@@ -24,7 +24,7 @@ for (const dev of [true, false]) {
             test.beforeAll(async () => {
                 bundle = await buildTrailModalFixture(dev, `
                     <script>
-                        import Page from '$lib/../routes/${route}/[handle]/[id]/+page.svelte';
+                        import Page from ${JSON.stringify(fileURLToPath(new URL(`../../../src/routes/${route}/[handle]/[id]/+page.svelte`, import.meta.url)))};
                         const tags = Object.freeze([
                             Object.freeze({ id: 'firsttag0000001', name: 'Berg Tour' }),
                             Object.freeze({ id: 'secondtag000001', name: 'See Ufer' }),

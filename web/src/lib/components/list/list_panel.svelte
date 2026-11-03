@@ -1,23 +1,23 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import type { List } from "$lib/models/list";
-    import type { Trail } from "$lib/models/trail";
-    import { theme } from "$lib/stores/theme_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL } from "$lib/util/file_util";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import type { List } from "#lib/models/list.ts";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsTextPreview,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import ShareInfo from "../share_info.svelte";
     import TrailListItem from "../trail/trail_list_item.svelte";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
 
     const DESCRIPTION_PREVIEW_LENGTH = 100;
 

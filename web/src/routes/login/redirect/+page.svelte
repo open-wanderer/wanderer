@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { oauth_login } from "$lib/stores/user_store";
+    import { oauth_login } from "#lib/stores/user_store.ts";
     import type { AuthProviderInfo } from "pocketbase";
     import { onMount } from "svelte";
 

@@ -84,6 +84,12 @@ type searchIndexSource struct {
 	// repairFields limits the nightly comparison to these fields; nil
 	// compares the whole document.
 	repairFields []string
+	// skip leaves out records that are never searchable, without logging
+	// them as failures.
+	skip func(*core.Record) bool
+	// searchable selects, in SQL, the records skip keeps; the orphan scan
+	// uses it to remove documents of skipped records without loading them.
+	searchable dbx.Expression
 }
 
 func searchIndexSources(app core.App) []searchIndexSource {
@@ -111,6 +117,9 @@ func searchIndexSources(app core.App) []searchIndexSource {
 			index: "actors", collection: "activitypub_actors", pageLabel: "actor", pageSize: 1000,
 			documents:    util.ActorSearchDocuments,
 			repairFields: []string{"preferred_username"},
+			// The instance actor federates the instance, it is not a profile.
+			skip:       util.IsInstanceActor,
+			searchable: dbx.NewExp("actor_type IS NOT 'instance'"),
 		},
 	}
 }
@@ -321,6 +330,9 @@ func searchDocuments(app core.App, source searchIndexSource, records []*core.Rec
 	built, errs := source.documents(records)
 	documents := make([]map[string]any, 0, len(records))
 	for i, r := range records {
+		if source.skip != nil && source.skip(r) {
+			continue
+		}
 		if errs[i] != nil {
 			app.Logger().Warn(fmt.Sprintf("Unable to index %s %s: %v", source.pageLabel, r.Id, errs[i]))
 			continue
@@ -861,8 +873,8 @@ func normalizeSearchDocument(document map[string]any) (map[string]any, error) {
 }
 
 // removeOrphanSearchDocuments deletes the documents whose record no longer
-// exists. All ids are read before anything is deleted, so the deletes do not
-// shift the pages being read.
+// exists or is one the source skips, such as an instance actor. All ids are read before anything is deleted, so the deletes
+// do not shift the pages being read.
 func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager, source searchIndexSource) (int, error) {
 	var orphans []string
 	for offset := int64(0); ; offset += searchRepairIDPageSize {
@@ -893,8 +905,11 @@ func removeOrphanSearchDocuments(app core.App, client meilisearch.ServiceManager
 			ids[i] = document.ID
 		}
 		var existing []string
-		err = app.DB().Select("id").From(source.collection).Where(dbx.In("id", ids...)).Column(&existing)
-		if err != nil {
+		query := app.DB().Select("id").From(source.collection).Where(dbx.In("id", ids...))
+		if source.searchable != nil {
+			query = query.AndWhere(source.searchable)
+		}
+		if err := query.Column(&existing); err != nil {
 			return 0, err
 		}
 		exists := make(map[string]bool, len(existing))

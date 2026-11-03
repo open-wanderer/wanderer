@@ -1,21 +1,21 @@
 <script lang="ts">
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import type { Trail } from "$lib/models/trail";
-    import { theme } from "$lib/stores/theme_store";
-    import { currentUser } from "$lib/stores/user_store";
-    import { getFileURL, isVideoURL } from "$lib/util/file_util";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
+    import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import {
         displayCategoryName,
         displaySubcategoryLabel,
         displayTrailCategoryBadgeIcon,
         displayTrailCategoryIcon,
-    } from "$lib/util/category_util";
+    } from "#lib/util/category_util.ts";
     import { _, locale } from "svelte-i18n";
     import type { MouseEventHandler } from "svelte/elements";
     import Chip from "../base/chip.svelte";

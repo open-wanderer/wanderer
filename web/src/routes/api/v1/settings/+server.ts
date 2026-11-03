@@ -1,7 +1,7 @@
-import { SettingsCreateSchema } from '$lib/models/api/settings_schema';
-import type { Settings } from '$lib/models/settings';
-import { Collection, create } from '$lib/util/api_util';
-import { error, json, type RequestEvent } from '@sveltejs/kit';
+import { SettingsCreateSchema } from '#lib/models/api/settings_schema.ts';
+import type { Settings } from '#lib/models/settings.ts';
+import { Collection, create } from '#lib/util/api_util.ts';
+import { error, type RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -32,8 +32,8 @@ export async function PUT(event: RequestEvent) {
     try {
         const r = await create<Settings>(event, SettingsCreateSchema, Collection.settings)
 
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
-        throw error(e.status, e)
+        throw error(e.status, e.message)
     }
 }

@@ -1,19 +1,19 @@
 <script lang="ts">
-    import emptyStateTrailDark from "$lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
-    import emptyStateTrailLight from "$lib/assets/svgs/empty_states/empty_state_trail_light.svg";
-    import type { List } from "$lib/models/list";
-    import { theme } from "$lib/stores/theme_store";
-    import { getFileURL } from "$lib/util/file_util";
+    import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
+    import emptyStateTrailLight from "#lib/assets/svgs/empty_states/empty_state_trail_light.svg";
+    import type { List } from "#lib/models/list.ts";
+    import { theme } from "#lib/stores/theme_store.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
     import {
         formatDistance,
         formatElevation,
         formatHTMLAsText,
         formatTimeHHMM,
-    } from "$lib/util/format_util";
+    } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import ShareInfo from "../share_info.svelte";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
-    import { currentUser } from "$lib/stores/user_store";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
 
     interface Props {
         list: List;

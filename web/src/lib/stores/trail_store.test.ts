@@ -1,4 +1,4 @@
-import type { TrailFilter } from "$lib/models/trail";
+import type { TrailFilter } from "#lib/models/trail.ts";
 import { describe, expect, it, vi } from "vitest";
 import { trails_search_filter } from "./trail_store";
 

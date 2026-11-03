@@ -1,4 +1,4 @@
-import type { PluginProvider } from "$lib/models/plugin_provider";
+import type { PluginProvider } from "#lib/models/plugin_provider.ts";
 import { describe, expect, it } from "vitest";
 import { pluginInformation, providerCategoryLabel } from "./plugin_i18n";
 

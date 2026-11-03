@@ -1,4 +1,4 @@
-import { browser } from "$app/environment";
+import { browser } from "$app/env";
 import { get, writable, type Writable } from "svelte/store";
 
 type Theme = "dark" | "light";

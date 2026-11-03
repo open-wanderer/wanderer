@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { theme } from "$lib/stores/theme_store";
+    import { theme } from "#lib/stores/theme_store.ts";
     import { untrack } from "svelte";
     import { T, useTask } from "@threlte/core";
     import { backInOut } from "svelte/easing";

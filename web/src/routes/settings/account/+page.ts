@@ -1,4 +1,4 @@
-import { api_tokens_index } from "$lib/stores/api_token_store";
+import { api_tokens_index } from "#lib/stores/api_token_store.ts";
 import { type Load } from "@sveltejs/kit";
 
 export const load: Load = async ({ params, fetch }) => {

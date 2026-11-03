@@ -1,31 +1,31 @@
 <script lang="ts">
-    import Datepicker from "$lib/components/base/datepicker.svelte";
-    import Modal from "$lib/components/base/modal.svelte";
-    import Select, { type SelectItem } from "$lib/components/base/select.svelte";
-    import SingleSelect from "$lib/components/base/single_select.svelte";
-    import TextField from "$lib/components/base/text_field.svelte";
-    import Toggle from "$lib/components/base/toggle.svelte";
-    import PluginMergeSettings from "$lib/components/settings/plugins/plugin_merge_settings.svelte";
-    import CategoryPicker from "$lib/components/trail/category_picker.svelte";
-    import type { Category } from "$lib/models/category";
-    import type { PluginInstance } from "$lib/models/plugin_instance";
-    import type { ConfigField, PluginProvider } from "$lib/models/plugin_provider";
-    import type { Subcategory } from "$lib/models/subcategory";
-    import { plugin_auth_validate, plugin_oauth_start } from "$lib/stores/plugin_instance_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    import Datepicker from "#lib/components/base/datepicker.svelte";
+    import Modal from "#lib/components/base/modal.svelte";
+    import Select, { type SelectItem } from "#lib/components/base/select.svelte";
+    import SingleSelect from "#lib/components/base/single_select.svelte";
+    import TextField from "#lib/components/base/text_field.svelte";
+    import Toggle from "#lib/components/base/toggle.svelte";
+    import PluginMergeSettings from "#lib/components/settings/plugins/plugin_merge_settings.svelte";
+    import CategoryPicker from "#lib/components/trail/category_picker.svelte";
+    import type { Category } from "#lib/models/category.ts";
+    import type { PluginInstance } from "#lib/models/plugin_instance.ts";
+    import type { ConfigField, PluginProvider } from "#lib/models/plugin_provider.ts";
+    import type { Subcategory } from "#lib/models/subcategory.ts";
+    import { plugin_auth_validate, plugin_oauth_start } from "#lib/stores/plugin_instance_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         categoryMappingTargetFromUnknown,
         categoryMappingTargetToPickerValue,
         type CategoryMappingTarget,
-    } from "$lib/util/category_util";
-    import { translatePluginAPIError } from "$lib/util/plugin_error_i18n";
+    } from "#lib/util/category_util.ts";
+    import { translatePluginAPIError } from "#lib/util/plugin_error_i18n.ts";
     import {
         configFieldDescription,
         configFieldLabel,
         configFieldOptionLabel,
         pluginTitle as localizedPluginTitle,
         providerCategoryLabel,
-    } from "$lib/util/plugin_i18n";
+    } from "#lib/util/plugin_i18n.ts";
     import { tick } from "svelte";
     import { _, locale } from "svelte-i18n";
 
@@ -61,7 +61,7 @@
     let secretFields = $derived(new Set(plugin.auth.secretFields ?? plugin.auth.fields ?? []));
     let isOAuthPlugin = $derived(plugin.auth.type === "oauth2");
     let isSessionPlugin = $derived(plugin.auth.type === "session");
-    let isConnected = $derived(instance?.status === "configured");
+    let isConnected = $derived(instance?.status === "configured" || instance?.status === "syncing");
     let isSaving = $state(false);
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
@@ -496,7 +496,7 @@
         return {
             ...instance,
             plugin_id,
-            enabled: isOAuthPlugin && status !== "configured" ? false : (instance?.enabled ?? false),
+            enabled: isOAuthPlugin && status !== "configured" && status !== "syncing" ? false : (instance?.enabled ?? false),
             auth: submittedAuth,
             config,
             status,

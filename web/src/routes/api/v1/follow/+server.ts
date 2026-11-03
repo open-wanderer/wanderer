@@ -1,8 +1,8 @@
-import type { Actor } from '$lib/models/activitypub/actor';
-import { FollowCreateSchema } from '$lib/models/api/follow_schema';
-import type { Follow } from '$lib/models/follow';
-import { Collection, handleError, list } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import type { Actor } from '#lib/models/activitypub/actor.ts';
+import { FollowCreateSchema } from '#lib/models/api/follow_schema.ts';
+import type { Follow } from '#lib/models/follow.ts';
+import { Collection, handleError, list } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -47,7 +47,7 @@ import { json, type RequestEvent } from '@sveltejs/kit';
 export async function GET(event: RequestEvent) {
     try {
         const follows = await list<Follow>(event, Collection.follows);
-        return json(follows)
+        return Response.json(follows)
     } catch (e) {
         return handleError(e)
     }
@@ -63,7 +63,7 @@ export async function PUT(event: RequestEvent) {
 
         const follow = await event.locals.pb.collection("follows").create({ follower: followerActor.id, followee: followeeActor.id, status: followeeActor.is_local ? "accepted" : "pending" })
 
-        return json(follow);
+        return Response.json(follow);
     } catch (e) {
         return handleError(e)
     }

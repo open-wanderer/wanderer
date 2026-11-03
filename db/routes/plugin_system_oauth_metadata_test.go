@@ -358,6 +358,20 @@ func TestOAuthMetadataOpenModalBeforeRevokeKeepsGrantRemoved(t *testing.T) {
 	}
 }
 
+func TestOAuthRevokeOutlastsARunningSync(t *testing.T) {
+	f := newOAuthMetadataFixture(t)
+	startedWith, _ := f.storedAuth(t)
+	f.request(t, http.MethodPost, "/api/plugin-system/oauth/revoke", map[string]any{"instanceId": f.instanceID})
+	// A sync that started before the revoke finishes after it.
+	if err := savePluginInstanceSyncState(f.app, startedWith, map[string]any{"status": "configured"}); err != nil {
+		t.Fatal(err)
+	}
+	stored, _ := f.storedAuth(t)
+	if stored.GetBool("enabled") || stored.GetString("status") != "needs_auth" {
+		t.Fatalf("after revoke and sync: enabled=%v, status=%q", stored.GetBool("enabled"), stored.GetString("status"))
+	}
+}
+
 func TestOAuthMetadataCallbackClearsPersistedFlow(t *testing.T) {
 	f := newOAuthMetadataFixture(t)
 	instance, auth := f.storedAuth(t)

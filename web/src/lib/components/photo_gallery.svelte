@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { isVideoURL } from "$lib/util/file_util";
-    import PhotoSwipeVideoPlugin from "$lib/vendor/photo-swipe-video-plugin";
+    import { isVideoURL } from "#lib/util/file_util.ts";
+    import PhotoSwipeVideoPlugin from "#lib/vendor/photo-swipe-video-plugin/index.ts";
     import type { DataSource } from "photoswipe";
     import PhotoSwipeLightbox from "photoswipe/lightbox";
-    import { pushState } from "$app/navigation";
+    import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { onMount, onDestroy } from "svelte";
 
@@ -62,8 +62,11 @@
             const pswp = lightbox.pswp;
 
             if (page.state.lightbox?.id !== galleryId) {
-                pushState("", {
-                    lightbox: { id: galleryId, index: pswp?.options.index ?? 0 },
+                goto(page.url.href, {
+                    shallow: true,
+                    state: {
+                        lightbox: { id: galleryId, index: pswp?.options.index ?? 0 },
+                    },
                 });
             }
             ownsHistoryEntry = true;

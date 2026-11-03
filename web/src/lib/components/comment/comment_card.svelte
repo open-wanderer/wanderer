@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { sanitizeHTML } from "$lib/util/sanitize_html";
-    import type { Comment } from "$lib/models/comment";
-    import { formatTimeSince } from "$lib/util/format_util";
+    import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
+    import type { Comment } from "#lib/models/comment.ts";
+    import { formatTimeSince } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
     import { untrack } from "svelte";
     import { fade } from "svelte/transition";
-    import { handleFromRecordWithIRI } from "$lib/util/activitypub_util";
+    import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
     import Editor from "../base/editor.svelte";
 
     interface Props {

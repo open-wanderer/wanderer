@@ -1,12 +1,12 @@
 import type { RequestEvent } from "@sveltejs/kit";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("$env/dynamic/public", () => ({ env: {} }));
-vi.mock("$env/dynamic/private", () => ({ env: { POCKETBASE_PROXY_SECRET: "proxy-secret" } }));
+vi.mock("$app/env/public", () => ({ PUBLIC_POCKETBASE_URL: undefined }));
+vi.mock("$app/env/private", () => ({ POCKETBASE_PROXY_SECRET: "proxy-secret", BODY_SIZE_LIMIT: undefined }));
 
 import { POST as login } from "./login/+server";
 import { POST as inbox } from "../activitypub/user/[handle]/inbox/+server";
-import { INBOX_BODY_LIMIT, LOGIN_BODY_LIMIT } from "$lib/server/request_body";
+import { INBOX_BODY_LIMIT, LOGIN_BODY_LIMIT } from "#lib/server/request_body.ts";
 
 function fixture(path: string, body: BodyInit, headers?: HeadersInit) {
     const init: RequestInit & { duplex: "half" } = { method: "POST", body, headers, duplex: "half" };

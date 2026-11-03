@@ -1,10 +1,10 @@
 <script lang="ts">
     import { afterNavigate, goto } from "$app/navigation";
     import { page } from "$app/state";
-    import LogoText from "$lib/components/logo/logo_text.svelte";
-    import { theme, toggleTheme } from "$lib/stores/theme_store";
-    import { currentUser, logout } from "$lib/stores/user_store";
-    import { getFileURL } from "$lib/util/file_util";
+    import LogoText from "#lib/components/logo/logo_text.svelte";
+    import { theme, toggleTheme } from "#lib/stores/theme_store.ts";
+    import { currentUser, logout } from "#lib/stores/user_store.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
     import type { AuthRecord } from "pocketbase";
     import { _ } from "svelte-i18n";
     import { backInOut, cubicOut } from "svelte/easing";

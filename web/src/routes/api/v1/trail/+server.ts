@@ -1,9 +1,9 @@
-import { RecordListOptionsSchema } from '$lib/models/api/base_schema';
-import { TrailCreateSchema } from '$lib/models/api/trail_schema';
-import type { Trail } from '$lib/models/trail';
-import { withTrailPreferencePocketBaseFilter } from '$lib/server/category_preference_filter';
-import { Collection, create, handleError } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { RecordListOptionsSchema } from '#lib/models/api/base_schema.ts';
+import { TrailCreateSchema } from '#lib/models/api/trail_schema.ts';
+import type { Trail } from '#lib/models/trail.ts';
+import { withTrailPreferencePocketBaseFilter } from '#lib/server/category_preference_filter.ts';
+import { Collection, create, handleError } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ export async function GET(event: RequestEvent) {
 
             t.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
         }
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }
@@ -115,7 +115,7 @@ export async function PUT(event: RequestEvent) {
     try {        
         const r = await create<Trail>(event, TrailCreateSchema, Collection.trails)
         enrichRecord(r);
-        return json(r);
+        return Response.json(r);
     } catch (e) {
         return handleError(e)
     }

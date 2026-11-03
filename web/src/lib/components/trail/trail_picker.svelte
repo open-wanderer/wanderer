@@ -1,9 +1,9 @@
 <script lang="ts">
     import * as M from "maplibre-gl";
-    import "$lib/util/maplibre_worker";
+    import "#lib/util/maplibre_worker.ts";
 
-    import GPX from "$lib/models/gpx/gpx";
-    import { fromFile } from "$lib/util/gpx_util";
+    import GPX from "#lib/models/gpx/gpx.ts";
+    import { fromFile } from "#lib/util/gpx_util.ts";
     import { onMount } from "svelte";
     interface Props {
         trailFile: File | Blob | undefined | null;

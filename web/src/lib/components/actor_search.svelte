@@ -1,7 +1,7 @@
 <script lang="ts">
-    import type { Actor, ActorSearchResult } from "$lib/models/activitypub/actor";
-    import { searchActors } from "$lib/stores/search_store";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    import type { Actor, ActorSearchResult } from "#lib/models/activitypub/actor.ts";
+    import { searchActors } from "#lib/stores/search_store.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { _ } from "svelte-i18n";
     import Search, { type SearchItem } from "./base/search.svelte";
 

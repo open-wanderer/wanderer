@@ -1,8 +1,8 @@
-import { RecordIdSchema } from '$lib/models/api/base_schema';
-import { UserUpdateSchema } from '$lib/models/api/user_schema';
-import type { User } from '$lib/models/user';
-import { Collection, handleError, remove, show } from '$lib/util/api_util';
-import { json, type RequestEvent } from '@sveltejs/kit';
+import { RecordIdSchema } from '#lib/models/api/base_schema.ts';
+import { UserUpdateSchema } from '#lib/models/api/user_schema.ts';
+import type { User } from '#lib/models/user.ts';
+import { Collection, handleError, remove, show } from '#lib/util/api_util.ts';
+import type { RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -37,7 +37,7 @@ export async function GET(event: RequestEvent) {
     try {
         const r = await show<User>(event, Collection.users)
 
-        return json(r)
+        return Response.json(r)
     } catch (e: any) {
         return handleError(e);
     }
@@ -84,11 +84,11 @@ export async function POST(event: RequestEvent) {
         const safeParams = RecordIdSchema.parse(params);
 
         if (safeParams.id !== event.locals.pb.authStore.record!.id) {
-            return json({ message: 'Forbidden' }, { status: 403 });
+            return Response.json({ message: 'Forbidden' }, { status: 403 });
         }
 
         if (data.email !== undefined) {
-            return json({ message: 'Use POST /api/v1/user/{id}/email for email changes' }, { status: 400 });
+            return Response.json({ message: 'Use POST /api/v1/user/{id}/email for email changes' }, { status: 400 });
         }
 
         const safeData = UserUpdateSchema.parse(data);
@@ -97,9 +97,9 @@ export async function POST(event: RequestEvent) {
 
         if (safeData.password) {
             const authR = await event.locals.pb.collection('users').authWithPassword(event.locals.pb.authStore.record!.email, safeData.password);
-            return json(authR.record)
+            return Response.json(authR.record)
         }
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }
@@ -129,7 +129,7 @@ export async function POST(event: RequestEvent) {
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.users)
-        return json(r);
+        return Response.json(r);
     } catch (e: any) {
         return handleError(e);
     }

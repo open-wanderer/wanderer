@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { addMessages, init, locale } from "svelte-i18n";
-import de from "$lib/i18n/locales/de.json";
-import en from "$lib/i18n/locales/en.json";
+import de from "#lib/i18n/locales/de.json";
+import en from "#lib/i18n/locales/en.json";
 import { pluginSetupErrorKey, translatePluginError } from "./plugin_error_i18n";
 
 describe("sync item limit error", () => {

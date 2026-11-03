@@ -153,10 +153,12 @@ func (a DeleteAudience) Empty() bool {
 }
 
 // TrailDeleteRecipients returns whom to tell that a trail is no longer
-// available: its followers if it was public, plus everyone who provably
-// holds a copy of it for another reason (see holderInboxes). public says
-// whether the trail was public when it was handed out; a trail that just
-// went private still has to reach the followers it was public to.
+// available: its followers and connected instances if it was public, plus
+// everyone who provably holds a copy of it for another reason (see
+// holderInboxes). public is the trail's current flag. A trail that is private
+// now still reaches its followers and instances when a Create or Update of it
+// was ever recorded, because it was public when that went out (see
+// wasHandedOut); one that was never handed out reaches only its holders.
 //
 // Only a local author's trail is ours to retract. Call this before the trail
 // is deleted: the comment, summit log, like and share rows it reads are
@@ -170,6 +172,17 @@ func ListDeleteRecipients(app core.App, list *core.Record, public bool) (DeleteA
 	return deleteRecipients(app, list, public, listHolderQuery)
 }
 
+// deleteRecipients collects the audience of a retraction. public is the
+// record's current flag. Turning a record private sends nothing, so deleting
+// is the only retraction there is and has to reach whoever received the record
+// while it was public, even when it is private by now. The record counts as
+// public for that purpose when a Create or Update of it was ever recorded.
+// There is no follow-timestamp filter: whoever follows now is told.
+//
+// The hook discards the whole audience on an error, so the lookups that only
+// widen it are best-effort: a failing wasHandedOut or peer lookup is logged and
+// costs the audience that part alone, never the followers and holders that
+// were collected without it.
 func deleteRecipients(app core.App, record *core.Record, public bool, holders string) (DeleteAudience, error) {
 	var audience DeleteAudience
 
@@ -184,10 +197,39 @@ func deleteRecipients(app core.App, record *core.Record, public bool, holders st
 		return audience, nil
 	}
 
+	if !public {
+		// Failing to tell whether the record was ever public leaves it
+		// private, the answer for a record that never was. Whoever provably
+		// holds a copy is collected below either way, and they would otherwise
+		// lose their notice to a query they have nothing to do with.
+		handedOut, err := wasHandedOut(app, record.GetString("iri"))
+		if err != nil {
+			app.Logger().Error(
+				"could not tell whether the record was ever handed out",
+				"collection", record.Collection().Name, "record", record.Id, "error", err,
+			)
+		}
+		public = handedOut
+	}
+
 	if public {
 		audience.Followers, err = followerInboxes(app, author.Id)
 		if err != nil {
 			return audience, err
+		}
+
+		// Instance-actor peers received the public object through instance
+		// federation, so they are told alongside the followers. The lookup is
+		// best-effort for the reason given above: an error would cost the
+		// followers and holders collected here their notice.
+		instanceInboxes, err := instanceFollowerInboxes(app)
+		if err != nil {
+			app.Logger().Error(
+				"could not collect peer instances to announce deletion to",
+				"collection", record.Collection().Name, "record", record.Id, "error", err,
+			)
+		} else {
+			audience.Followers = append(audience.Followers, instanceInboxes...)
 		}
 	}
 
@@ -198,6 +240,32 @@ func deleteRecipients(app core.App, record *core.Record, public bool, holders st
 	audience.Holders = remoteInboxes(others)
 
 	return audience, nil
+}
+
+// wasHandedOut reports whether a Create or Update of the object with this IRI
+// was ever recorded. Those are recorded only while the object is public, so a
+// recorded one means it went out to its author's followers and to connected
+// instances at least once. The row means it was addressed, not that anybody
+// received it, which is the conservative signal for a Delete. Nothing beyond
+// the type and the object id is checked: however a row is marked, it was sent.
+func wasHandedOut(app core.App, iri string) (bool, error) {
+	if iri == "" {
+		return false, nil
+	}
+
+	// json_extract(object, '$.id') matches idx_activitypub_activities_object_id.
+	var found bool
+	err := app.DB().NewQuery(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM activitypub_activities
+			WHERE json_extract(object, '$.id') = {:iri} AND type IN ('Create', 'Update')
+		)
+	`).Bind(dbx.Params{"iri": iri}).Row(&found)
+	if err != nil {
+		return false, err
+	}
+	return found, nil
 }
 
 // trailHolderQuery selects the remote inboxes holding a copy of a trail for a

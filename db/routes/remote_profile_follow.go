@@ -96,12 +96,16 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 			// so we can respect the context timeout
 			done := make(chan *core.Record, 1)
 			go func() {
+				// Exactly one value reaches done, also after a panic: the
+				// outer goroutine waits on the request context, not on the
+				// timeout, so a skipped send would hold the request open.
+				var found *core.Record
+				defer func() { done <- found }()
+				defer recoverBackgroundSync(e.App, "activitypub_actors", actorIRI)
 				// Pass false to sync to prevent deep recursion/heavy syncing if possible
 				res, err := federation.GetActorByIRI(e.App, timeoutCtx, actorIRI, false)
 				if err == nil {
-					done <- res
-				} else {
-					done <- nil
+					found = res
 				}
 			}()
 

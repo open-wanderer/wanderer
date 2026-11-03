@@ -1,6 +1,6 @@
-import type { UserCategoryPreference } from "$lib/models/category_preference";
-import type { UserSubcategoryPreference } from "$lib/models/subcategory_preference";
-import { Collection } from "$lib/util/api_util";
+import type { UserCategoryPreference } from "#lib/models/category_preference.ts";
+import type { UserSubcategoryPreference } from "#lib/models/subcategory_preference.ts";
+import { Collection } from "#lib/util/api_util.ts";
 import type { RequestEvent } from "@sveltejs/kit";
 
 type MeiliFilter = string | string[] | undefined;

@@ -1,5 +1,6 @@
-import { env } from "$env/dynamic/private";
-import { error, isHttpError, json, type Handle } from "@sveltejs/kit";
+import { BODY_SIZE_LIMIT } from "$app/env/private";
+import { error, isHttpError } from "@sveltejs/kit";
+import type { Handle } from "@sveltejs/kit/hooks";
 import type { IncomingMessage } from "node:http";
 import { UPLOAD_BODY_LIMIT, uploadBodyLimit } from "./upload_body_limit.js";
 
@@ -99,7 +100,7 @@ function requestLimit(url: URL, request: Request): { limit: number; upload: bool
         path === "/api/v1/trail/upload" ||
         /^\/api\/v1\/(trail|list|summit-log)\/form(?:\/[^/]+)?\/?$/.test(path) ||
         /^\/api\/v1\/(trail|list|summit-log|waypoint|user)\/[^/]+\/file\/?$/.test(path)
-    )) return { limit: uploadBodyLimit(env.BODY_SIZE_LIMIT), upload: true };
+    )) return { limit: uploadBodyLimit(BODY_SIZE_LIMIT), upload: true };
     return { limit: REQUEST_BODY_LIMIT, upload: false };
 }
 
@@ -122,14 +123,14 @@ export const limitRequestBodies: Handle = async ({ event, resolve }) => {
     };
     try {
         checkDeclaredLength(event.request, limit);
-        event.request = upload ? limitedUpload(event.request, limit, cancelBody) : new Request(event.request, {
+        const request = upload ? limitedUpload(event.request, limit, cancelBody) : new Request(event.request, {
             body: (await readBoundedRequestBody(event.request, limit, cancelBody)).buffer,
         });
-        const response = await resolve(event);
+        const response = await resolve({ ...event, request });
         if (cancellationDeferred) response.headers.set("Connection", "close");
         return response;
     } catch (cause) {
-        if (isHttpError(cause, 413) || isHttpError(cause, 400)) return json({ message: cause.body.message }, {
+        if (isHttpError(cause, 413) || isHttpError(cause, 400)) return Response.json({ message: cause.body.message }, {
             status: cause.status,
             headers: nodeRequest ? { Connection: "close" } : undefined,
         });

@@ -1,7 +1,7 @@
-import { APIError } from "$lib/util/api_util";
+import { APIError } from "#lib/util/api_util.ts";
 
-export function remoteContentError(error: APIError): App.Error {
-    const result: App.Error = { message: error.status === 404 ? "Not found" : error.message };
+export function remoteContentError(error: APIError): Omit<App.Error, "status"> {
+    const result: Omit<App.Error, "status"> = { message: error.status === 404 ? "Not found" : error.message };
     if (error.status !== 422) return result;
     const detail = error.detail?.code === "remote_document_limit" ? error.detail : error.detail?.data;
     if (detail?.code !== "remote_document_limit") return result;

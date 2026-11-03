@@ -1,12 +1,12 @@
 <script lang="ts">
-    import type { Trail } from "$lib/models/trail";
-    import { TrailLike } from "$lib/models/trail_like";
-    import { show_toast } from "$lib/stores/toast_store.svelte";
+    import type { Trail } from "#lib/models/trail.ts";
+    import { TrailLike } from "#lib/models/trail_like.ts";
+    import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
         trail_like_create,
         trail_like_delete,
-    } from "$lib/stores/trail_like_store";
-    import { currentUser } from "$lib/stores/user_store";
+    } from "#lib/stores/trail_like_store.ts";
+    import { currentUser } from "#lib/stores/user_store.ts";
     import confetti from "canvas-confetti";
     import { untrack } from "svelte";
     import { _ } from "svelte-i18n";

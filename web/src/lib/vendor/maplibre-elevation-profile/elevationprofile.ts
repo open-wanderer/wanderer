@@ -13,8 +13,8 @@ import zoomPlugin from "chartjs-plugin-zoom";
 // @ts-ignore
 import { CrosshairPlugin } from "chartjs-plugin-crosshair";
 
-import type { Waypoint } from "$lib/models/waypoint";
-import { formatTimeHHMM } from "$lib/util/format_util";
+import type { Waypoint } from "#lib/models/waypoint.ts";
+import { formatTimeHHMM } from "#lib/util/format_util.ts";
 import { haversineCumulatedDistanceWgs84, MIN_STORED_DISTANCE_METERS, smoothElevations, waypointTrackIndex } from "./tools";
 
 // The crosshair plugin only initializes `chart.crosshair` for charts with a

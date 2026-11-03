@@ -1,16 +1,16 @@
-import { json, type RequestEvent } from "@sveltejs/kit";
-import { proxyJsonResponse } from "$lib/server/http";
-import { fetchNominatim } from "$lib/server/nominatim";
+import type { RequestEvent } from "@sveltejs/kit";
+import { proxyJsonResponse } from "#lib/server/http.ts";
+import { fetchNominatim } from "#lib/server/nominatim.ts";
 
 export async function GET(event: RequestEvent) {
     const lat = event.url.searchParams.get("lat");
     const lon = event.url.searchParams.get("lon");
     if (!lat || !lon) {
-        return json({ message: "Missing query parameter: lat or lon" }, { status: 400 });
+        return Response.json({ message: "Missing query parameter: lat or lon" }, { status: 400 });
     }
 
     if (Number.isNaN(Number(lat)) || Number.isNaN(Number(lon))) {
-        return json({ message: "Invalid query parameter: lat or lon" }, { status: 400 });
+        return Response.json({ message: "Invalid query parameter: lat or lon" }, { status: 400 });
     }
 
     const params = new URLSearchParams({
@@ -31,6 +31,6 @@ export async function GET(event: RequestEvent) {
             cause: err.cause instanceof Error ? err.cause.message : err.cause,
         };
         console.error("Nominatim reverse request failed", detail);
-        return json({ message: "Nominatim request failed", detail }, { status: 502 });
+        return Response.json({ message: "Nominatim request failed", detail }, { status: 502 });
     }
 }

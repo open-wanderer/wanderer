@@ -3,7 +3,7 @@ import { buildTrailModalFixture } from './trail-modal-fixture';
 
 const source = `
     <script>
-        import Combobox from '$lib/components/base/combobox.svelte';
+        import Combobox from '#lib/components/base/combobox.svelte';
         let items = $state(window.fixtureItems);
         let selected = $state([]);
         let single = $state('');

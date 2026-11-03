@@ -1,4 +1,4 @@
-import type { LocationSearchResult } from "$lib/stores/search_store";
+import type { LocationSearchResult } from "#lib/stores/search_store.ts";
 
 export const icons = ["0",
     "1",

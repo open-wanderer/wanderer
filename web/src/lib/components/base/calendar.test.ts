@@ -1,7 +1,7 @@
 import { render } from "svelte/server";
 import { addMessages, init } from "svelte-i18n";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { StatisticActivity } from "$lib/models/statistic_activity";
+import type { StatisticActivity } from "#lib/models/statistic_activity.ts";
 import Calendar from "./calendar.svelte";
 
 beforeAll(() => {

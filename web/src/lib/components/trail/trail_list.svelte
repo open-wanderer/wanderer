@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Trail, TrailFilter } from "$lib/models/trail";
+    import type { Trail, TrailFilter } from "#lib/models/trail.ts";
     import { _ } from "svelte-i18n";
     import Pagination from "../base/pagination.svelte";
     import Select, { type SelectItem } from "../base/select.svelte";
@@ -11,7 +11,7 @@
     import SkeletonListItem from "../base/skeleton_list_item.svelte";
     import { onMount, tick } from "svelte";
     import type { Snippet } from "svelte";
-    import TrailDropdown from "$lib/components/trail/trail_dropdown.svelte";
+    import TrailDropdown from "#lib/components/trail/trail_dropdown.svelte";
     import { goto } from "$app/navigation";
 
     interface Props {
