@@ -81,10 +81,10 @@ func UpdateCommentHandler() func(e *core.RecordRequestEvent) error {
 func DeleteCommentHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 
-		// The Delete reads its audience back from the rows the purge removes.
+		// The Delete reads its audience back from the rows the strip rewrites.
 		err := errors.Join(
 			federation.CreateCommentDeleteActivity(e.App, client, e.Record),
-			federation.DeleteObjectActivities(e.App, e.Record.GetString("iri")),
+			federation.StripObjectActivities(e.App, e.Record.GetString("iri")),
 		)
 		if err != nil {
 			return err

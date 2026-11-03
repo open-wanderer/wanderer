@@ -6,9 +6,10 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-// A share's Announce embeds the whole trail. For a private trail it must not
-// show up in the public listing of activitypub_activities.
-func TestAnnounceOfPrivateTrailIsHidden(t *testing.T) {
+// A share's Announce embeds the whole trail and names who it was shared with
+// and with which permission. It never shows up in the public listing of
+// activitypub_activities, whether the trail is public or not.
+func TestAnnounceIsHidden(t *testing.T) {
 	for _, public := range []bool{false, true} {
 		t.Run(map[bool]string{false: "private", true: "public"}[public], func(t *testing.T) {
 			f := setupAddressingTestApp(t)
@@ -51,8 +52,8 @@ func TestAnnounceOfPrivateTrailIsHidden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := announce.GetBool("hidden"); got != !public {
-				t.Fatalf("hidden = %v for a trail with public = %v", got, public)
+			if !announce.GetBool("hidden") {
+				t.Fatalf("the Announce of a trail with public = %v is listed", public)
 			}
 		})
 	}

@@ -9,21 +9,28 @@ import (
 // Recorded Create, Update and Announce activities embed a snapshot of their
 // object, and activitypub_activities is publicly listed. A hidden flag takes
 // the snapshots of private trails and lists, and of the replies to them, out
-// of that listing; the rows stay, since the recipient queries read their cc
-// back when the object is deleted later. Snapshots of objects deleted before
-// deletions removed them are dropped: their Delete has already gone out.
+// of that listing, and every Announce: a share is addressed to its recipient
+// alone and tells who it went to with which permission. The rows stay, since
+// the recipient queries read their to and cc back when the object is deleted
+// later. Snapshots of objects deleted before
+// deletions stripped them are stripped now: the content goes, the addressing
+// stays, since an account's Delete(Actor) and a trail's Delete still read the
+// to and cc of a deleted reply (see federation.StripObjectActivities).
 
 const hidePrivateActivitySnapshots1791110004 = `
 	UPDATE activitypub_activities
 	SET hidden = TRUE
-	WHERE type IN ('Create', 'Update', 'Announce')
-		AND (
-			json_extract(object, '$.id') IN (
-				SELECT iri FROM trails WHERE public = FALSE AND iri != ''
-				UNION SELECT iri FROM lists WHERE public = FALSE AND iri != ''
-			)
-			OR json_extract(object, '$.inReplyTo') IN (
-				SELECT iri FROM trails WHERE public = FALSE AND iri != ''
+	WHERE type = 'Announce'
+		OR (
+			type IN ('Create', 'Update')
+			AND (
+				json_extract(object, '$.id') IN (
+					SELECT iri FROM trails WHERE public = FALSE AND iri != ''
+					UNION SELECT iri FROM lists WHERE public = FALSE AND iri != ''
+				)
+				OR json_extract(object, '$.inReplyTo') IN (
+					SELECT iri FROM trails WHERE public = FALSE AND iri != ''
+				)
 			)
 		)
 `
@@ -31,8 +38,14 @@ const hidePrivateActivitySnapshots1791110004 = `
 // Only trails, lists, comments and summit logs are ever recorded as the
 // object of these types. A summit log without an IRI was recorded with an
 // empty id and is left alone.
-const purgeDeletedActivitySnapshots1791110004 = `
-	DELETE FROM activitypub_activities
+const stripDeletedActivitySnapshots1791110004 = `
+	UPDATE activitypub_activities
+	SET hidden = TRUE,
+		object = CASE
+			WHEN json_extract(object, '$.inReplyTo') IS NULL
+				THEN json_object('id', json_extract(object, '$.id'), 'type', 'Tombstone')
+			ELSE json_object('id', json_extract(object, '$.id'), 'type', 'Tombstone', 'inReplyTo', json_extract(object, '$.inReplyTo'))
+		END
 	WHERE type IN ('Create', 'Update', 'Announce')
 		AND COALESCE(json_extract(object, '$.id'), '') != ''
 		AND json_extract(object, '$.id') NOT IN (
@@ -59,7 +72,7 @@ func hidePrivateActivitySnapshotsUp1791110004(app core.App) error {
 		return err
 	}
 
-	for _, query := range []string{hidePrivateActivitySnapshots1791110004, purgeDeletedActivitySnapshots1791110004} {
+	for _, query := range []string{hidePrivateActivitySnapshots1791110004, stripDeletedActivitySnapshots1791110004} {
 		if _, err := app.DB().NewQuery(query).Execute(); err != nil {
 			return err
 		}
