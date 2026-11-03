@@ -4,35 +4,35 @@
   "@about": {
     "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
   },
-  "about_changelog": "What's new",
+  "about_changelog": "Berriak",
   "@about_changelog": {
     "description": "About screen: link to the wanderer changelog website."
   },
-  "about_discord_subtitle": "Chat with the community",
+  "about_discord_subtitle": "Komunitatearekin hitz egin",
   "@about_discord_subtitle": {
     "description": "About screen: subtitle under the 'Discord' link."
   },
-  "about_github_subtitle": "Source code, issues and contributions",
+  "about_github_subtitle": "Iturburu kodea, jaulkipenak eta ekarpenak",
   "@about_github_subtitle": {
     "description": "About screen: subtitle under the 'GitHub' link."
   },
-  "about_license": "License",
+  "about_license": "Lizentzia",
   "@about_license": {
     "description": "About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses)."
   },
-  "about_licenses": "Open source licenses",
+  "about_licenses": "Kode irekiko lizentziak",
   "@about_licenses": {
     "description": "About screen: opens the list of licenses of the libraries the app uses."
   },
-  "about_privacy_policy": "Privacy policy",
+  "about_privacy_policy": "Pribatutasun politika",
   "@about_privacy_policy": {
     "description": "About screen: link to the privacy policy website."
   },
-  "about_report_bug": "Report a bug",
+  "about_report_bug": "Programazio errore baten berri ematea",
   "@about_report_bug": {
     "description": "About screen: opens the app bug report form on GitHub."
   },
-  "about_version": "Version {version}",
+  "about_version": "{version} bertsioa",
   "@about_version": {
     "description": "About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.",
     "placeholders": {
@@ -41,8 +41,8 @@
       }
     }
   },
-  "appearance": "Appearance",
-  "account": "Account",
+  "appearance": "Itxura",
+  "account": "Kontua",
   "account_delete_confirm": "Zure kontua ezabatzera zoaz. Zure ibilbide guztiak ere ezabatu egingo dira. Jarraitu nahi duzu?",
   "account_privacy": "Kontuaren pribatutasuna",
   "add_bio": "Gehitu bio",
@@ -51,7 +51,7 @@
   "@after": {
     "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
   },
-  "all": "All",
+  "all": "Dena",
   "@all": {
     "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
   },
@@ -61,9 +61,9 @@
     "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
   },
   "average_speed": "Batazbesteko abiadura",
-  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Permissions → Location and choose \"Allow all the time\".",
-  "background_location_confirm": "Open settings",
-  "background_location_title": "Keep recording in the background",
+  "background_location_body": "wanderer-ek kokapen-datuak biltzen ditu atzeko planoan, zure arrastoak grabatzen jarrai dezan pantaila itzalita dagoenean edo aplikazioa itxita dagoenean. Grabatutako pista zure gailuan geratuko da arrastoa gordetzea aukeratu arte.\n\nAndroid-ek sistemaren ezarpenetan bakarrik eskaintzen du hau: ireki Baimenak → Kokapena eta aukeratu \"Baimendu denbora guztia\".",
+  "background_location_confirm": "Ireki ezarpenak",
+  "background_location_title": "Segi grabatzen atzeko planoan",
   "basic_info": "Oinarrizko informazioa",
   "before": "Aurretik",
   "@before": {
@@ -74,8 +74,8 @@
     "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
   },
   "cancel": "Utzi",
-  "discard": "Discard",
-  "discard_trail_confirm": "Discard this trail and its changes?",
+  "discard": "Baztertu",
+  "discard_trail_confirm": "Baztertu ibilbide hau eta bere aldaketak?",
   "card": "{n, plural, =1 {txartel} other {txartel}}",
   "@card": {
     "placeholders": {
@@ -103,11 +103,11 @@
   "completed": "Osatuta",
   "completion_status": "Betetze-egoera",
   "confirm_deletion": "Baieztatu ezabapena",
-  "couldnt_start_navigation": "Couldn't start navigation. Check your connection and try again.",
-  "location_services_disabled": "Location services are disabled. Please enable GPS to use navigation.",
-  "location_permission_denied": "Location permission is required for navigation.",
-  "location_permission_permanently_denied": "Location permission is permanently denied. Please enable it in Settings.",
-  "location_unavailable": "Unable to determine your location. Please try again.",
+  "couldnt_start_navigation": "Nabigazioa ezin izan da hasi. Konprobatu zure konexioa eta saiatu berriro.",
+  "location_services_disabled": "Kokapen-zerbitzuak desaktibatuta daude. Mesedez, gaitu GPSa nabigazioa erabiltzeko.",
+  "location_permission_denied": "Kokapen-baimena behar da nabigatzeko.",
+  "location_permission_permanently_denied": "Kokapen-baimena betiko ukatuta geratzen da. Mesedez, aktibatu Ezarpenak atalean.",
+  "location_unavailable": "Ezin izan da zure kokapena zehaztu. Mesedez, saiatu berriro.",
   "copy_link": "Kopiatu Lotura",
   "create_waypoint": "Sortu bidepuntua",
   "creation_date": "Sorrera-data",
@@ -118,16 +118,16 @@
     "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
   },
   "delete": "Ezabatu",
-  "not_now": "Not now",
-  "open": "Open",
+  "not_now": "Orain ez",
+  "open": "Ireki",
   "@open": {
     "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
   },
   "delete_account": "Ezabako kontua",
   "delete_trail_confirm": "Ibilbide hau ezabatu nahi duzu? Akzio hau ezin da atzera bota.",
-  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
-  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
-  "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
+  "delete_blocked_while_uploading": "Ibilbide hau igotzen ari da une honetan. Itxaron igoera amaitu arte, eta saiatu berriro.",
+  "delete_unsynced_trail_confirm": "Ibilbide hau ezabatu? Oraindik ez da igo, beraz, hau ezin da desegin.",
+  "delete_needs_connection": "Ibilbide hau jadanik zerbitzarian dago. Internetera konektatu, ezabatzeko.",
   "description": "Deskribapena",
   "difficult": "Zaila",
   "difficulty": "Zailtasuna",
@@ -137,7 +137,7 @@
   "duration": "Iraupena",
   "easy": "Erraza",
   "edit": "Editatu",
-  "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
+  "edit_needs_connection": "Bidexka honen kopia zerbitzarian editatzen da. Konektatu Internetera editatzeko.",
   "edit_waypoint": "Editatu bidepuntua",
   "edited": "editatuta",
   "@edited": {
@@ -145,28 +145,28 @@
   },
   "elevation_gain": "Irabazitako altitudea",
   "elevation_loss": "Galdutako altitudea",
-  "elevation_profile": "Elevation Profile",
+  "elevation_profile": "Altuera Profila",
   "email": "Eposta",
-  "email_not_unique": "This email address is already in use.",
+  "email_not_unique": "Posta-elektroniko hau erabilita dago.",
   "email_updated": "Eposta eguneratuta",
-  "error_deleting_trail": "Error deleting trail",
+  "error_deleting_trail": "Errorea ibilbidea ezabatzean",
   "error_reading_file": "Errorea fitxategia irakurtzean",
-  "error_saving_settings": "Error saving settings",
+  "error_saving_settings": "Errorea ezarpenak gordetzean",
   "error_saving_trail": "Errorea ibilbidea gordetzean",
   "error_updating_password": "Errorea pasahitza eguneratzean",
   "explore": "Arakatu",
-  "exit_navigation": "Exit",
+  "exit_navigation": "Irten",
   "stop_navigation_confirm": "Stop navigation and return to the trail?",
-  "stop_recording": "Stop recording",
-  "stop_recording_confirm": "Stop recording?",
-  "search_this_area": "Search this area",
+  "stop_recording": "Grabazioa gelditu",
+  "stop_recording_confirm": "Grabazioa gelditu?",
+  "search_this_area": "Eremu hau bilatu",
   "filter_tags": "Iragazi etiketak",
-  "filter_trails": "Filter trails",
+  "filter_trails": "Iragazi ibilbideak",
   "finish": "Amaiera",
   "@finish": {
     "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
   },
-  "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
+  "finish_disabled_hint": "Gehitu gutxienez 2 aingura zure ibilbidea amaitzeko.",
   "follow": "Jarraitu",
   "followers": "Jarraitzaileak",
   "following": "Jarraitutakoak",
@@ -198,10 +198,10 @@
     }
   },
   "location": "Kokalekua",
-  "locations": "Locations",
-  "center_on_my_location": "Center on my location",
+  "locations": "Kokalekua",
+  "center_on_my_location": "Zentroa nire kokapenean",
   "location_tracking_notification_title": "wanderer",
-  "location_tracking_notification_text": "Recording your trail",
+  "location_tracking_notification_text": "Zure ibilbidea grabatzen",
   "location_tracking_notification_text_navigating": "Navigating {trail}",
   "@location_tracking_notification_text_navigating": {
     "placeholders": {
@@ -229,15 +229,15 @@
   "@name": {
     "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
   },
-  "navigate": "Navigate",
+  "navigate": "Nabigatu",
   "new_password": "Pasahitz berria",
   "new_password_success": "Pasahitz berria ezarri da",
   "new_trail": "Ibilaldi berria",
   "trail_source_planner": "Open trail planner",
   "trail_source_planner_description": "Draw a new route on the map, waypoint by waypoint.",
-  "trail_source_record": "Record trail",
+  "trail_source_record": "Ibilbidea grabatu",
   "trail_source_record_description": "Track your live coordinates and log your journey in real-time.",
-  "trail_source_import": "Import file",
+  "trail_source_import": "Inportatu fitxategia",
   "trail_source_import_description": "Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.",
   "trail_source_import_error": "Could not import file",
   "trail_source_offline_import_error": "Only GPX files can be imported offline",
@@ -411,11 +411,11 @@
   "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
   "units": "Unitateak",
-  "users": "Users",
+  "users": "Erabiltzaileak",
   "username": "Erabiltzaile-izena",
-  "username_not_unique": "This username is already taken. Please try another.",
+  "username_not_unique": "Erabiltzaile-izen hau dagoeneko hartuta dago. Mesedez, saiatu beste bat.",
   "visibilty_status": "Ikuspen-egoera",
-  "web": "Web",
+  "web": "Weba",
   "@web": {
     "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
   },
@@ -428,7 +428,7 @@
       }
     }
   },
-  "welcome_to": "Welcome to",
+  "welcome_to": "Ongi etorri",
   "@welcome_to": {
     "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
   },
