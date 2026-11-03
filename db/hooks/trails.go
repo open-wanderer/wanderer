@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -110,6 +111,15 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			}
 		}
 
+		// Before the search index: the record is stored either way, and a
+		// failed index update must not leave a private trail's snapshots
+		// listed. A later save would not catch up, Original() agrees by then.
+		if userActor.GetBool("is_local") {
+			if err := syncActivityVisibility(e); err != nil {
+				return err
+			}
+		}
+
 		err = util.UpdateTrail(e.App, record, userActor, client)
 		if err != nil {
 			return err
@@ -184,7 +194,10 @@ func DeleteTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 		}
 
 		audience, _ := record.GetRaw(trailDeleteRecipientsKey).(federation.DeleteAudience)
-		err = federation.CreateTrailDeleteActivity(e.App, record, audience)
+		err = errors.Join(
+			federation.CreateTrailDeleteActivity(e.App, record, audience),
+			federation.StripObjectActivities(e.App, record.GetString("iri")),
+		)
 		if err != nil {
 			return err
 		}

@@ -98,6 +98,10 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 	activityRecord.Set("object", object)
 	activityRecord.Set("actor", actor)
 	activityRecord.Set("published", time.Now())
+	// A share is addressed to its recipient alone, and its permission tag
+	// says how it was shared. Neither is for the public listing, whether the
+	// trail or list is public or not.
+	activityRecord.Set("hidden", true)
 
 	return app.Save(activityRecord)
 }

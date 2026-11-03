@@ -185,6 +185,7 @@ func newActorDeleteHooksTestApp(t *testing.T, withActorType bool) *pbtests.TestA
 		&core.JSONField{Name: "object"},
 		&core.TextField{Name: "actor"},
 		&core.TextField{Name: "published"},
+		&core.BoolField{Name: "hidden"},
 	)
 	if err := app.Save(activities); err != nil {
 		t.Fatal(err)
