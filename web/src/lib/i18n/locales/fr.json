@@ -486,6 +486,8 @@
   "priority": "Priority",
   "public-access": "Accès public",
   "public-share-everyone": "Avec ce lien, n'importe qui sur internet peut voir cet itinéraire",
+  "public-federation-hint": "Public content is also sent to your followers on other servers. Setting it back to private does not remove those copies. Only deleting it does.",
+  "private-federation-hint": "Copies already sent to other servers stay there. Only deleting removes them.",
   "public-share-limited": "Seules les personnes ayant un accès peuvent ouvrir ce lien",
   "public-transport": "Transport en commun",
   "radius": "Rayon",
