@@ -11,18 +11,18 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.10",
-    "@astrojs/node": "^11.1.6",
-    "@astrojs/starlight": "^0.42.3",
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/node": "^11.1.9",
+    "@astrojs/starlight": "^0.42.7",
     "@astrojs/starlight-tailwind": "^5.0.0",
-    "@astrojs/svelte": "^9.0.1",
+    "@astrojs/svelte": "^9.1.1",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.3.4",
+    "astro": "^7.4.2",
     "sharp": "^0.35.5",
-    "starlight-openapi": "^0.26.2",
-    "svelte": "^5.57.1",
+    "starlight-openapi": "^0.27.0",
+    "svelte": "^5.57.2",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3"
   }

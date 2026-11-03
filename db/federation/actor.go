@@ -75,6 +75,9 @@ func validateActorResponse(actor *pub.Actor) error {
 	return nil
 }
 
+// GetActorByHandle resolves a handle to a person actor, fetching a remote one
+// when it is not stored. Handles name people: an instance actor is never
+// returned, whatever its name, so @instance@host cannot reach one.
 func GetActorByHandle(app core.App, ctx context.Context, handle string, includeFollows bool) (*core.Record, error) {
 	username, domain := util.SplitHandle(handle)
 	if domain != "" && isLocalHandleDomain(domain) {
@@ -93,6 +96,9 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 
 	var dbActor *core.Record
 	dbActor, err := app.FindFirstRecordByFilter("activitypub_actors", filter, dbx.Params{"username": username, "domain": domain})
+	if err == nil && util.IsInstanceActor(dbActor) {
+		dbActor, err = nil, sql.ErrNoRows
+	}
 	if err != nil && err == sql.ErrNoRows {
 		if domain == "" {
 			return nil, ErrActorNotFound
@@ -110,11 +116,24 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 		}
 		dbActor.Set("iri", iri)
 
+		// The handle filter skipped any stored instance actor, but WebFinger can
+		// still name its IRI. Stop before assembleActor reuses that row and
+		// overwrites it with a fetched document.
+		if existing, _ := app.FindFirstRecordByData("activitypub_actors", "iri", iri); util.IsInstanceActor(existing) {
+			return nil, ErrActorNotFound
+		}
+
 	} else if err != nil {
 		return nil, err
 	}
 
-	return assembleActor(app, ctx, dbActor, includeFollows || dbActor.Id == "")
+	actor, err := assembleActor(app, ctx, dbActor, includeFollows || dbActor.Id == "")
+	// A fetched Application document makes an instance actor too; no handle
+	// resolves to one, however it was reached.
+	if util.IsInstanceActor(actor) {
+		return nil, ErrActorNotFound
+	}
+	return actor, err
 }
 
 func isLocalHandleDomain(domain string) bool {
@@ -256,6 +275,10 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 	}
 
 	private := false
+	if dbActor.GetBool("is_local") && dbActor.GetString("actor_type") == "instance" {
+		// The instance actor has no user record.
+		return dbActor, nil
+	}
 	if dbActor.GetBool("is_local") {
 		user, err := app.FindRecordById("users", dbActor.GetString("user"))
 		if err != nil {
@@ -361,6 +384,11 @@ func assembleActor(app core.App, ctx context.Context, dbActor *core.Record, incl
 		// A key confirmed at the origin ends the pre-upgrade key for good.
 		dbActor.Set("legacy_public_key", "")
 		dbActor.Set("last_fetched", time.Now())
+		if pubActor.Type == pub.ApplicationType {
+			dbActor.Set("actor_type", "instance")
+		} else {
+			dbActor.Set("actor_type", "person")
+		}
 
 		// A refreshed document starts a new count window. Keep an older total
 		// if its collection cannot be read. Only reads not yet attempted remain

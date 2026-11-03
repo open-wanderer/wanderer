@@ -75,6 +75,33 @@ func TestRepairSearchIndexes(t *testing.T) {
 		}
 	})
 
+	t.Run("an instance actor indexed before it was skipped is removed", func(t *testing.T) {
+		app, trails, actors := newSearchRepairApp(t, 1)
+		search, client := newMemorySearch(t)
+		search.store(t, "trails", trailDocuments(t, app, trails)...)
+		search.store(t, "actors", actorDocuments(t, actors)...)
+
+		collection, err := app.FindCollectionByNameOrId("activitypub_actors")
+		if err != nil {
+			t.Fatal(err)
+		}
+		instance := core.NewRecord(collection)
+		instance.Id = "instanceactor00"
+		instance.Set("preferred_username", "-instance")
+		instance.Set("actor_type", "instance")
+		instance.Set("is_local", true)
+		if err := app.UnsafeWithoutHooks().Save(instance); err != nil {
+			t.Fatal(err)
+		}
+		search.store(t, "actors", map[string]any{"id": instance.Id, "preferred_username": "-instance"})
+
+		runRepair(t, app, client)
+		writes, deletes := search.changes()
+		if len(writes) != 0 || len(deletes["trails"]) != 0 || !slices.Equal(deletes["actors"], []string{instance.Id}) {
+			t.Fatalf("writes = %v, deletes = %v; want only the instance actor %s removed", writes, deletes, instance.Id)
+		}
+	})
+
 	t.Run("actors are compared by name only", func(t *testing.T) {
 		app, trails, actors := newSearchRepairApp(t, 1)
 		search, client := newMemorySearch(t)

@@ -1,7 +1,10 @@
 package federation
 
 import (
+	"bytes"
+	"log/slog"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -16,14 +19,45 @@ import (
 // went out to are recorded on the activity, so they are read back from there.
 
 type recipientsFixture struct {
-	app    *pbtests.TestApp
-	actors *core.Collection
-	trails *core.Collection
-	lists  *core.Collection
+	app           *pbtests.TestApp
+	actors        *core.Collection
+	trails        *core.Collection
+	lists         *core.Collection
+	withActorType bool
+}
+
+// logCaptureApp routes the app's logger into a buffer, so a test can read what
+// the code under test logged. Mirrors searchInitLogApp in the main package.
+type logCaptureApp struct {
+	core.App
+	logger *slog.Logger
+}
+
+func (a *logCaptureApp) Logger() *slog.Logger {
+	return a.logger
+}
+
+func captureLogs(app core.App) (core.App, *bytes.Buffer) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	return &logCaptureApp{App: app, logger: logger}, &buf
 }
 
 func setupRecipientsTestApp(t *testing.T) *recipientsFixture {
 	t.Helper()
+
+	return newRecipientsFixture(t, true)
+}
+
+// newRecipientsFixture sets ORIGIN, so the peer lookup takes the clean "no
+// instance actor seeded" path instead of failing on a missing ORIGIN.
+// withActorType decides whether the actors collection has actor_type, which the
+// peer lookup joins on; leaving it out makes that lookup fail once a local
+// instance actor exists.
+func newRecipientsFixture(t *testing.T, withActorType bool) *recipientsFixture {
+	t.Helper()
+
+	t.Setenv("ORIGIN", "https://local.example")
 
 	app, err := pbtests.NewTestApp(t.TempDir())
 	if err != nil {
@@ -38,6 +72,9 @@ func setupRecipientsTestApp(t *testing.T) *recipientsFixture {
 		&core.TextField{Name: "inbox"},
 		&core.BoolField{Name: "is_local"},
 	)
+	if withActorType {
+		actors.Fields.Add(&core.TextField{Name: "actor_type"})
+	}
 	if err := app.Save(actors); err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +146,7 @@ func setupRecipientsTestApp(t *testing.T) *recipientsFixture {
 		t.Fatal(err)
 	}
 
-	return &recipientsFixture{app: app, actors: actors, trails: trails, lists: lists}
+	return &recipientsFixture{app: app, actors: actors, trails: trails, lists: lists, withActorType: withActorType}
 }
 
 // activity records an outgoing activity of actor the way create.go does: the
@@ -143,6 +180,26 @@ func (f *recipientsFixture) actor(t *testing.T, name string, local bool) *core.R
 	r.Set("iri", iri)
 	r.Set("inbox", iri+"/inbox")
 	r.Set("is_local", local)
+	if err := f.app.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// instanceActor creates an instance actor on host. The local one lives on
+// local.example, where acceptedPeerActors looks for it through ORIGIN.
+func (f *recipientsFixture) instanceActor(t *testing.T, host string, local bool) *core.Record {
+	t.Helper()
+
+	iri := "https://" + host + "/api/v1/activitypub/instance"
+
+	r := core.NewRecord(f.actors)
+	r.Set("iri", iri)
+	r.Set("inbox", iri+"/inbox")
+	r.Set("is_local", local)
+	if f.withActorType {
+		r.Set("actor_type", "instance")
+	}
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
 	}
@@ -216,6 +273,19 @@ func (f *recipientsFixture) actorOn(t *testing.T, collection, subjectField strin
 	r.Set(subjectField, subject.Id)
 	if err := f.app.Save(r); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// breakFollowerLookup drops list_share, which actorDeleteInboxes reads and the
+// peer lookup does not, and checks that the follower lookup now fails.
+func (f *recipientsFixture) breakFollowerLookup(t *testing.T, actor *core.Record) {
+	t.Helper()
+
+	if _, err := f.app.DB().NewQuery("DROP TABLE list_share").Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := actorDeleteInboxes(f.app, actor.Id, actor.GetString("iri")); err == nil {
+		t.Fatal("expected the follower lookup to fail without list_share")
 	}
 }
 
@@ -588,6 +658,226 @@ func TestActorDeleteRecipients(t *testing.T) {
 		}
 		if got != nil {
 			t.Fatalf("a remote actor's deletion is not ours to announce, got %v", got)
+		}
+	})
+
+	// Peers got the account's public content through instance federation
+	// without following it, so they are told whether or not they follow
+	// anyone, in whichever direction the connection was established.
+	t.Run("InboundAcceptedPeerIncluded", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		instance := f.instanceActor(t, "local.example", true)
+		peer := f.instanceActor(t, "peer.example", false)
+		f.follow(t, peer, instance, "accepted")
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, follower, peer)
+	})
+
+	t.Run("OutboundAcceptedPeerIncluded", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		instance := f.instanceActor(t, "local.example", true)
+		peer := f.instanceActor(t, "peer.example", false)
+		f.follow(t, instance, peer, "accepted")
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, follower, peer)
+	})
+
+	t.Run("MutualPeerOnce", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		instance := f.instanceActor(t, "local.example", true)
+		peer := f.instanceActor(t, "peer.example", false)
+		f.follow(t, peer, instance, "accepted")
+		f.follow(t, instance, peer, "accepted")
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// assertRecipients compares sorted slices, so a doubled entry fails it
+		// too; the explicit count keeps the intent readable.
+		count := 0
+		for _, inbox := range got {
+			if inbox == peer.GetString("inbox") {
+				count++
+			}
+		}
+		if count != 1 {
+			t.Fatalf("a mutual peer must be listed once, found %d times in %v", count, got)
+		}
+		assertRecipients(t, got, follower, peer)
+	})
+
+	t.Run("PendingAndRejectedPeersExcluded", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		instance := f.instanceActor(t, "local.example", true)
+		f.follow(t, f.instanceActor(t, "pending-in.example", false), instance, "pending")
+		f.follow(t, f.instanceActor(t, "rejected-in.example", false), instance, "rejected")
+		f.follow(t, instance, f.instanceActor(t, "pending-out.example", false), "pending")
+		f.follow(t, instance, f.instanceActor(t, "rejected-out.example", false), "rejected")
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, follower)
+	})
+
+	// Only an instance actor is a peer: a person that follows the instance
+	// actor has not been connected by an administrator.
+	t.Run("RemotePersonFollowingInstanceExcluded", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		instance := f.instanceActor(t, "local.example", true)
+		person := f.actor(t, "zed", false)
+		person.Set("actor_type", "person")
+		if err := f.app.Save(person); err != nil {
+			t.Fatal(err)
+		}
+		f.follow(t, person, instance, "accepted")
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, follower)
+	})
+
+	t.Run("LocalInstanceActorNotARecipient", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		instance := f.instanceActor(t, "local.example", true)
+		peer := f.instanceActor(t, "peer.example", false)
+		f.follow(t, peer, instance, "accepted")
+		f.follow(t, instance, peer, "accepted")
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if slices.Contains(got, instance.GetString("inbox")) {
+			t.Fatalf("the local instance actor must not be a recipient, got %v", got)
+		}
+		assertRecipients(t, got, follower, peer)
+	})
+
+	// An instance that has not been seeded with its actor yet has no peers,
+	// which is not a failure to report.
+	t.Run("NoInstanceActorNoPeers", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+
+		app, logs := captureLogs(f.app)
+		got, err := ActorDeleteRecipients(app, departing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRecipients(t, got, follower)
+		if logs.Len() != 0 {
+			t.Fatalf("expected nothing logged without an instance actor, got %q", logs.String())
+		}
+	})
+
+	// The peer lookup joins on actor_type; without the column it fails once a
+	// local instance actor exists. The followers must still be told, and the
+	// failure must not vanish silently.
+	t.Run("FollowersKeptWhenPeerLookupFails", func(t *testing.T) {
+		f := newRecipientsFixture(t, false)
+
+		departing := f.actor(t, "alice", true)
+		follower := f.actor(t, "carol", false)
+		f.follow(t, follower, departing, "accepted")
+		f.instanceActor(t, "local.example", true)
+
+		app, logs := captureLogs(f.app)
+		got, err := ActorDeleteRecipients(app, departing)
+		if err != nil {
+			t.Fatalf("a failing peer lookup must not fail the audience, got %v", err)
+		}
+		assertRecipients(t, got, follower)
+
+		out := logs.String()
+		for _, want := range []string{"level=ERROR", "could not collect peer instances", "actor=" + departing.Id} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected the log to contain %q, got %q", want, out)
+			}
+		}
+	})
+	// The follower lookup is one large UNION over every table the account
+	// touched; dropping list_share makes it fail without touching the follows
+	// and actors tables the peer lookup reads. The accepted peer is told
+	// regardless, and the failure must not vanish silently.
+	t.Run("PeersKeptWhenFollowerLookupFails", func(t *testing.T) {
+		f := setupRecipientsTestApp(t)
+
+		departing := f.actor(t, "alice", true)
+		instance := f.instanceActor(t, "local.example", true)
+		peer := f.instanceActor(t, "peer.example", false)
+		f.follow(t, peer, instance, "accepted")
+		f.breakFollowerLookup(t, departing)
+
+		app, logs := captureLogs(f.app)
+		got, err := ActorDeleteRecipients(app, departing)
+		if err != nil {
+			t.Fatalf("a failing follower lookup must not fail the audience, got %v", err)
+		}
+		assertRecipients(t, got, peer)
+
+		out := logs.String()
+		for _, want := range []string{"level=ERROR", "could not collect followers", "actor=" + departing.Id} {
+			if !strings.Contains(out, want) {
+				t.Fatalf("expected the log to contain %q, got %q", want, out)
+			}
+		}
+	})
+
+	// With both lookups failing nobody can be told. The error is returned for
+	// the hook to log, which then announces to no one.
+	t.Run("ErrorWhenBothLookupsFail", func(t *testing.T) {
+		f := newRecipientsFixture(t, false)
+
+		departing := f.actor(t, "alice", true)
+		f.instanceActor(t, "local.example", true)
+		f.breakFollowerLookup(t, departing)
+
+		got, err := ActorDeleteRecipients(f.app, departing)
+		if err == nil {
+			t.Fatalf("expected an error when both lookups fail, got recipients %v", got)
+		}
+		if len(got) != 0 {
+			t.Fatalf("recipients = %v, want none", got)
 		}
 	})
 }

@@ -46,7 +46,7 @@ export async function GET(event: RequestEvent) {
 
         const [username, domain] = splitUsername(fullUsername, ORIGIN)
 
-        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=1`)
+        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(event.locals.pb.filter("preferred_username:lower={:username} && is_local=true && actor_type!='instance'", { username: username?.toLowerCase() ?? "" }))
         const user: UserAnonymous = await event.locals.pb.collection("users_anonymous").getOne(actor.user!)
 
 

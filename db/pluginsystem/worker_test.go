@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	extism "github.com/extism/go-sdk"
 	"github.com/pocketbase/pocketbase/core"
@@ -366,4 +368,35 @@ func testPluginInstance(id string, pluginID string) *core.Record {
 	record.Id = id
 	record.Set("plugin_id", pluginID)
 	return record
+}
+
+// panickingWriteCloser panics on its first write only, so a second write shows
+// the session was used again.
+type panickingWriteCloser struct{ writes int }
+
+func (w *panickingWriteCloser) Write(p []byte) (int, error) {
+	w.writes++
+	if w.writes == 1 {
+		panic("write failed")
+	}
+	return len(p), nil
+}
+func (*panickingWriteCloser) Close() error { return nil }
+
+func TestWorkerCallPanicEndsTheSession(t *testing.T) {
+	stdin := &panickingWriteCloser{}
+	session := &workerRuntimeSession{
+		stdin:           stdin,
+		stdout:          io.NopCloser(strings.NewReader("")),
+		requestMaxBytes: defaultWorkerRequestMaxBytes,
+		exportTimeout:   time.Minute,
+	}
+	_, err := session.Call(context.Background(), "list_routes_v1", []byte("{}"))
+	if !IsRuntimeSessionFatalError(err) {
+		t.Fatalf("panic in the worker call: %v", err)
+	}
+	_, err = session.Call(context.Background(), "list_routes_v1", []byte("{}"))
+	if !IsRuntimeSessionFatalError(err) || !strings.Contains(err.Error(), "worker session is invalid") || stdin.writes != 1 {
+		t.Fatalf("session still used after a panic: writes=%d, err=%v", stdin.writes, err)
+	}
 }

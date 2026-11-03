@@ -115,6 +115,17 @@ func CheckRequestSignature(req *http.Request, body []byte, now time.Time) (*Requ
 	return sig, nil
 }
 
+// Covers reports whether the signature covers the header or pseudo-header,
+// named in lower case.
+func (sig *RequestSignature) Covers(header string) bool {
+	for _, signed := range sig.headers {
+		if signed == header {
+			return true
+		}
+	}
+	return false
+}
+
 func signatureTimeAdd(seconds, delta int64) int64 {
 	if seconds > math.MaxInt64-delta {
 		return math.MaxInt64

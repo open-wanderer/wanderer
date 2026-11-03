@@ -126,6 +126,7 @@ func setupSummitLogDeleteTestApp(t *testing.T) *summitLogFixture {
 		&core.TextField{Name: "iri"},
 		&core.TextField{Name: "inbox"},
 		&core.TextField{Name: "private_key"},
+		&core.TextField{Name: "actor_type"},
 		&core.BoolField{Name: "is_local"},
 	)
 	if err := app.Save(actors); err != nil {
