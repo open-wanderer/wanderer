@@ -486,6 +486,8 @@
   "priority": "Приоритет",
   "public-access": "Общий доступ",
   "public-share-everyone": "Каждый в интернете, у кого есть ссылка, сможет увидеть этот трек",
+  "public-federation-hint": "Public content is also sent to your followers on other servers. Setting it back to private does not remove those copies. Only deleting it does.",
+  "private-federation-hint": "Copies already sent to other servers stay there. Only deleting removes them.",
   "public-share-limited": "Только люди с доступом могут открыть ссылку",
   "public-transport": "Общественный транспорт",
   "radius": "Радиус",
