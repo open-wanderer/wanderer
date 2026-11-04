@@ -1,6 +1,10 @@
-import type { Comment } from '#lib/models/comment.ts';
-import { handleError } from '#lib/util/api_util.ts';
+import { ORIGIN } from '$app/env/private';
 import type { RequestEvent } from '@sveltejs/kit';
+import { ClientResponseError } from 'pocketbase';
+
+import type { Comment } from '#lib/models/comment.ts';
+import { isRemoteHandle } from '#lib/util/activitypub_util.ts';
+import { handleError } from '#lib/util/api_util.ts';
 
 /**
  * @swagger
@@ -45,11 +49,16 @@ import type { RequestEvent } from '@sveltejs/kit';
  *               $ref: '#/components/schemas/ListResult'
  *       400:
  *         description: Bad Request
+ *       401:
+ *         description: Unauthorized (remote handles require login)
  *       500:
  *         description: Internal Server Error
  */
 export async function GET(event: RequestEvent) {
     try {
+        if (!event.locals.user && isRemoteHandle(event.params.handle!, ORIGIN!)) {
+            throw new ClientResponseError({ status: 401, response: { message: "Unauthorized" } });
+        }
         let comments: Comment = await event.locals.pb.send(`/remote/profile/${event.params.handle}/follows?` + event.url.searchParams, {
             method: "GET",
             fetch: event.fetch,
