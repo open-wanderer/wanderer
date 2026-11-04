@@ -5,10 +5,10 @@ current_phase: 39
 current_phase_name: unified-tile-model
 status: executing
 stopped_at: Phase 40 context gathered
-last_updated: "2026-10-14T15:40:27.744Z"
-last_activity: 2026-10-05
+last_updated: "2026-11-04T13:18:47.348Z"
+last_activity: 2026-10-14
 last_activity_desc: "Completed quick task 261005-pwz: Sync status banner on the trail detail screen"
-state_head: 2ffb6b401b9238669fd2d74d10582b39845fca63
+state_head: a5a51a61da66745e5512e2e971a46abed71c5604
 progress:
   total_phases: 6
   completed_phases: 5
@@ -479,6 +479,7 @@ Recent decisions affecting current work:
 - v1.8 ROADMAP.md created 2026-07-31: 4 phases (33-36), continuing numbering from Phase 32. See Decisions above for the phase-split and sequencing rationale.
 - Phase 37 added 2026-08-02 (unscheduled): Way Types & Surfaces Breakdown (mobile-first), promoted from `.planning/todos/pending/2026-07-18-way-types-and-surfaces-breakdown.md`. **Deliberately NOT part of v1.8** — it is online-only trail enrichment sharing no requirement with REC-*/SYNC-*, so v1.8 remains 4 phases (33-36) and its progress counters are unchanged. Filed under a new "Unscheduled — after v1.8" section in ROADMAP.md; `/gsd-new-milestone` should claim it explicitly. **Blocked on Phase 36** by file overlap, not preference: `app/lib/models/trail.dart` (36-01 done, 36-07 pending — both sides regenerate freezed/g.dart), the `api/v1/trail` create/update handlers (36's SYNC-04 idempotency work), and `db/migrations/` against the same `trails` collection. Session-local research rescued to `.planning/phases/37-way-types-surfaces-breakdown-mobile-first/37-RESEARCH-SOURCE.md` before cleanup could reclaim it.
 - Phases 40–44 added 2026-10-06 (unscheduled): Image Pipeline Overhaul — 40 Photo Metadata Into the Database, 41 Upload-Time Image Variants, 42 Responsive Images on the Web, 43 Private Originals and Federated Variants, 44 App Image Variants. Promoted from `/gsd-explore` (`.planning/notes/image-pipeline-overhaul.md`) and spikes 001–003 (`.planning/spikes/`). Each phase is one PR layer of a single `gh stack` on `dev` (web + db work, unlike the app phases above); Phase 44 lands on the stack only once `feature/app` has merged into `dev`. Layer 0 stays a quick task (todo `2026-10-06-photo-location-reads-stripped-thumb`).
+- Phase 45 added: App Map Overlays and POIs (from /gsd-explore 2026-11-04)
 
 ### Pending Todos
 

@@ -603,6 +603,47 @@ before or with it.
 Plans:
 - [ ] TBD (run /gsd-plan-phase 44 to break down)
 
+### Phase 45: App Map Overlays and POIs
+
+**Goal**: App users can switch on the web's Waymarked Trails overlays and Overpass POI categories
+on the main map, trail detail and route planner while online, and tap a POI for a curated detail
+sheet, without the instance exceeding the public Overpass usage policy.
+**Milestone**: none. Server work ships as a new PR stacked on #1397 (app-merge stack 1394–1397),
+not inside those PRs; app work lands on `feature/app`.
+**Depends on:** PR #1397 (stack base). No phase dependency; base styles are out of scope pending a
+maintainer meeting.
+**Context:** `.planning/notes/app-map-overlays-pois.md`
+**Requirements**: none mapped
+
+**Scope:**
+1. Server: structured `/api/v1/pois?tile=x,y&category=...` SvelteKit endpoint that builds the
+   Overpass query itself; persistent per-(tile, category) cache with a multi-day TTL; single-flight
+   on concurrent misses; one upstream request at a time; 30 s backoff on 429/406 serving stale
+   cache; wanderer `User-Agent`. Move the web Overpass layer onto it. Document `OVERPASS_API_URL`
+   for larger instances.
+2. App: one global overlay/POI state; picker on main map, trail detail and route planner (not
+   navigation/recording); Waymarked Trails raster overlays inserted below trail/route layers;
+   POIs from the new endpoint with an ObjectBox TTL cache, fetched after the camera settles from
+   zoom 12 with a per-screen tile cap; SVG icons rasterized to bitmaps; curated POI sheet
+   (address, opening hours, website/phone, wheelchair, elevation, water/fee) with "Show all tags".
+3. Offline: layers hidden and toggles disabled while `onlineStatusProvider` is offline; selection
+   kept.
+4. Stretch: add a POI as a route-planner anchor (web precedent: `buildPoiAnchorAction`).
+
+**Success Criteria**:
+1. Two clients requesting the same (tile, category) produce one upstream Overpass request; a
+   cache hit survives a server restart.
+2. A 429 from Overpass triggers a 30 s pause during which cached tiles are still served.
+3. The web POI layer works unchanged for users after moving onto the new endpoint.
+4. Toggling an overlay or POI category in the app applies on all three screens and persists
+   across restarts; going offline hides the layers without losing the selection.
+5. Tapping a POI opens a sheet with formatted fields and a "Show all tags" fallback.
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 45 to break down)
+
 ---
 
 ## Progress
