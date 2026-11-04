@@ -17,7 +17,7 @@
     import { MediaQuery } from "svelte/reactivity";
 
     const PAGE_SIZE = 48;
-    type MapSnapshot = { filter: TrailFilter; viewport?: TrailSearchBounds; zoom?: number; camera?: MapCamera };
+    type MapSnapshot = { filter: TrailFilter; viewport?: TrailSearchBounds; zoom?: number; camera?: MapCamera; expanded?: boolean };
     let filter: TrailFilter = $state(untrack(() => page.state.mapSearchFilter
         ? { ...sanitizeTrailFilter(page.state.mapSearchFilter, page.data.filter), ...(page.state.mapSearchFilter.shared === undefined ? { shared: undefined } : {}) } : page.data.filter));
     let viewport = $state<TrailSearchBounds | undefined>(trailSearchBoundsFromUrl(page.url.searchParams));
@@ -34,7 +34,9 @@
     let mapResults: TrailMapResults | undefined = $state();
     let searchBar: TrailSearchBar | undefined = $state();
     let showMap = $state(true);
+    let expanded = $state(false);
     const mobile = new MediaQuery("(width < 768px)", false);
+    const expandedLayout = $derived(expanded && (!mobile.current || showMap));
     const mobileMap = $derived(mobile.current && showMap);
     let resultDisplay = $state<"cards" | "list" | "table">("cards");
     let trails: Trail[] = $state([]);
@@ -71,7 +73,7 @@
     ]);
 
     export const snapshot: Snapshot<MapSnapshot | TrailFilter> = {
-        capture: () => $state.snapshot({ filter, viewport, zoom, camera: mapResults?.captureView() }),
+        capture: () => $state.snapshot({ filter, viewport, zoom, camera: mapResults?.captureView(), expanded }),
         restore: value => {
             const savedFilter = "filter" in value ? value.filter : value;
             filter = { ...sanitizeTrailFilter(savedFilter, page.data.filter), ...(savedFilter.shared === undefined ? { shared: undefined } : {}) };
@@ -80,6 +82,7 @@
                 if (isTrailSearchBounds(value.viewport)) viewport = value.viewport;
                 if (value.zoom !== undefined && Number.isFinite(value.zoom)) zoom = value.zoom;
                 restoredCamera = value.camera;
+                expanded = value.expanded === true;
             }
             renderedViewport = undefined;
             appliedPlace = placeKey(filter);
@@ -98,6 +101,7 @@
     onMount(() => {
         mounted = true;
         loadSearchLayout();
+        window.addEventListener("keydown", handleEscape, true);
         try {
             const stored = localStorage.getItem("mapResultsDisplay");
             if (stored === "cards" || stored === "list" || stored === "table") resultDisplay = stored;
@@ -105,11 +109,23 @@
         const frame = requestAnimationFrame(() => { routerReady = true; syncUrl(); });
         return () => {
             mounted = false;
+            window.removeEventListener("keydown", handleEscape, true);
             cancelAnimationFrame(frame);
             cancelScheduled();
             abortRequests();
         };
     });
+
+    function handleEscape(event: KeyboardEvent) {
+        if (!expandedLayout || event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
+        if (document.querySelector("dialog:modal")) return;
+        const focused = document.activeElement;
+        if (focused?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+        // Read open state before child handlers close their panel on this Escape.
+        if (document.querySelector('.map-page .search-form.expanded, .map-search-toolbar [aria-expanded="true"], .map-page .dropdown .menu')) return;
+        // A new task runs after every keydown listener, also for real key presses.
+        setTimeout(() => { if (!event.defaultPrevented) expanded = false; }, 0);
+    }
 
     function placeKey(value: TrailFilter) {
         return Number.isFinite(value.near.lat) && Number.isFinite(value.near.lon)
@@ -310,13 +326,13 @@
 
 <svelte:head><title>{$_("map")} | wanderer</title></svelte:head>
 
-<main class="map-page" class:show-map={showMap}>
+<main class="map-page" class:show-map={showMap} class:expanded={expandedLayout}>
     <div class="map-search-header">
         <div class="map-search-toolbar">
             <TrailSearchBar bind:this={searchBar} categories={page.data.categories} subcategories={page.data.subcategories}
                 bind:filter defaults={page.data.filter} onapply={applySearch} inlineControls
                 onplaceselect={location => mapResults?.focusLocation(location)} trailSuggestions
-                layout={mobileMap ? "overlay" : $searchLayout.expansion} filterSections={page.data.settings?.behavior?.searchFilterSections} />
+                layout={expandedLayout || mobileMap ? "overlay" : $searchLayout.expansion} filterSections={page.data.settings?.behavior?.searchFilterSections} />
             <TrailResultControls buttonsOnly showResultOptions={!showMap} sort={filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort}
                 order={filter.sortOrder} {sortOptions} onsort={(sort, sortOrder) => applySearch({ ...filter, sort: sort as TrailFilter["sort"], sortOrder })}
                 display={resultDisplay} {displayOptions} ondisplay={selectResultDisplay}
@@ -330,14 +346,15 @@
                 {/snippet}
             </TrailResultControls>
         </div>
+        {#if resultError || markerError}
+            <p class="map-error" role="alert">{$_("trail-search-error")} <button type="button" onclick={refresh}>{$_("trail-search-retry")}</button></p>
+        {/if}
     </div>
-    {#if resultError || markerError}
-        <p class="map-error" role="alert">{$_("trail-search-error")} <button type="button" onclick={refresh}>{$_("trail-search-retry")}</button></p>
-    {/if}
     <div class="map-content">
         <div class="map-results-container" aria-busy={loading || refreshing}>
             <TrailMapResults bind:this={mapResults} bind:showMap
                 {trails} {mapTrails} {clusters} {loading} {mapLoading}
+                expanded={expandedLayout} onenlarge={() => expanded = !expanded}
                 initialBounds={viewport} initialCamera={restoredCamera} {initialCenter} boundingBox={page.data.boundingBox}
                 settings={page.data.settings} display={resultDisplay} near={filter.near} onviewport={onViewport}
                 onupdate={handleTrailsUpdated} {filter} tableHeader={sortOptions.filter(option => option.value !== "elevation_loss" && option.value !== "relevance")} onsort={sortTable}>
@@ -358,6 +375,14 @@
 
 <style>
     .map-page { --trail-controls-width: 5.5rem; --trail-controls-inset: .6rem; --trail-controls-top: .3125rem; display: grid; gap: 1rem; margin-inline: auto; min-width: 0; width: calc(100% - 3rem); }
+    :global(body:has(.map-page.expanded) .app-navbar),
+    :global(body:has(.map-page.expanded) .app-footer),
+    :global(body:has(.map-page.expanded) .instance-hint) { display: none; }
+    .map-page.expanded { box-sizing: border-box; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; isolation: isolate; padding: 1rem; position: relative; width: 100%; }
+    .expanded .map-search-header { margin-right: 3.25rem; position: relative; z-index: 5; }
+    .expanded .map-search-toolbar { border-radius: .5rem; box-shadow: 0 3px 16px rgb(0 0 0 / .2); }
+    .expanded .map-error { background: rgba(var(--menu-background)); border-radius: .5rem; margin-top: .5rem; padding: .5rem; }
+    .map-page.expanded .map-content, .map-page.expanded .map-results-container { height: 100%; min-height: 0; position: static; }
     .map-search-header { min-width: 0; }
     .map-search-toolbar { min-width: 0; position: relative; }
     .map-content { align-items: start; display: grid; gap: 1rem; min-width: 0; }

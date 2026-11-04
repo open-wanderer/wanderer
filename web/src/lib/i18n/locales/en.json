@@ -753,6 +753,8 @@
   "trail-search-place": "Place",
   "trail-results-load-more": "Load more",
   "trail-results-loading-more": "Loading more trails…",
+  "trail-map-enlarge": "Enlarge map",
+  "trail-map-shrink": "Shrink map",
   "trail-map-show-results": "Switch to results",
   "trail-map-show-map": "Switch to map",
   "trail-map-resize-results": "Resize results pane",

@@ -189,7 +189,7 @@
 
 {#if PUBLIC_IS_DEMO === "true" && !hideDemoHint}
     <div
-        class="flex items-center justify-between bg-amber-200 text-center p-4 text-sm text-black"
+        class="instance-hint flex items-center justify-between bg-amber-200 text-center p-4 text-sm text-black"
         out:slide
     >
         <div></div>
@@ -208,7 +208,7 @@
 
 {#if showWarning}
     <div
-        class="flex items-center justify-between bg-red-200 text-center p-4 text-sm text-black"
+        class="instance-hint flex items-center justify-between bg-red-200 text-center p-4 text-sm text-black"
         out:slide
     >
         <div></div>

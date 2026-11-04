@@ -25,6 +25,8 @@
     import TrailTable from "./trail_table.svelte";
 
     interface Props {
+        expanded?: boolean;
+        onenlarge?: () => void;
         trails: Trail[];
         mapTrails: Trail[];
         clusters?: FeatureCollection;
@@ -46,7 +48,7 @@
         onviewport: (bounds: TrailSearchBounds, zoom: number) => void;
         moreResults: Snippet;
     }
-    let { trails, mapTrails, clusters, loading, showMap = $bindable(true), display = "cards", tableHeader = [], filter, onsort, onupdate, active = true, mapLoading = false, initialBounds, initialCenter,
+    let { expanded = false, onenlarge, trails, mapTrails, clusters, loading, showMap = $bindable(true), display = "cards", tableHeader = [], filter, onsort, onupdate, active = true, mapLoading = false, initialBounds, initialCenter,
         boundingBox, settings, near, onviewport, moreResults, initialCamera }: Props = $props();
     const id = $props.id();
     let root: HTMLDivElement;
@@ -107,6 +109,8 @@
     let resumeRevision = 0;
     let locationRequest = 0;
     let pendingLocation: { lat: number; lon: number } | undefined;
+    let enlargeControl: ResetViewControl | undefined = $state.raw();
+    const enlargeAppearance = $derived({ label: $_(expanded ? "trail-map-shrink" : "trail-map-enlarge"), icon: expanded ? "fa-minimize" : "fa-maximize" });
     let resetViewControl: ResetViewControl | undefined = $state.raw();
     const resetViewAppearance = $derived(settings?.mapFocus === "location" && settings.location
         ? { label: $_("trail-map-reset-location"), icon: "fa-location-dot" }
@@ -122,6 +126,7 @@
     }
     const layoutStorageKey = "mapResultsLayout";
     const paneGap = 16;
+    const insetGap = 16;
     const minListWidth = 280;
     const minMapWidth = 320;
     let preferredWidth = $state(400);
@@ -147,10 +152,24 @@
         resetViewControl?.setAppearance(resetViewAppearance);
     });
 
+    $effect(() => { enlargeControl?.setAppearance(enlargeAppearance); });
+    $effect(() => {
+        if (expanded) root?.style.removeProperty("height");
+        else void tick().then(resizeLayout);
+    });
+    $effect(() => {
+        if (expanded || !root) return;
+        const searchSize = new ResizeObserver(resizeLayout);
+        const search = root.closest("main")?.querySelector("[data-search-root]");
+        if (search) searchSize.observe(search);
+        return () => searchSize.disconnect();
+    });
+
     function resizeLayout() {
         if (!active || !root?.clientWidth) return;
         containerWidth = root.clientWidth;
         wideViewport = window.matchMedia("(width >= 768px)").matches;
+        if (expanded) return;
         const viewport = window.visualViewport;
         const bottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
         const lockedScroll = document.body.style.position === "fixed" ? -parseFloat(document.body.style.top || "0") : window.scrollY;
@@ -168,6 +187,49 @@
         return {
             northEast: { lat: bounds.getNorth(), lng: global ? 180 : normalize(bounds.getEast()) },
             southWest: { lat: bounds.getSouth(), lng: global ? -180 : normalize(bounds.getWest()) },
+        };
+    }
+
+    /** The parts of the map covered by the results panel and the search bar. */
+    function insets() {
+        if (!expanded) return { left: 0, top: 0 };
+        const area = mapElement.getBoundingClientRect();
+        const panel = root.querySelector(".trail-list")!;
+        const toolbarElement = root.closest("main")?.querySelector(".map-search-toolbar");
+        const covered = (element: Element | null | undefined, edge: "right" | "bottom") => {
+            if (!element) return 0;
+            const box = element.getBoundingClientRect();
+            const overlaps = box.width && box.height && box.left < area.right && box.right > area.left && box.top < area.bottom && box.bottom > area.top;
+            if (!overlaps) return 0;
+            return edge === "right" ? box.right - area.left + insetGap : box.bottom - area.top + insetGap;
+        };
+        // On phones the list covers the whole map while it is shown; it never narrows the map area.
+        const wide = window.matchMedia("(width >= 768px)").matches;
+        // A collapsed list only covers the corner beside the search bar.
+        return { left: wide && !resultsCollapsed ? covered(panel, "right") : 0, top: covered(toolbarElement, "bottom") };
+    }
+    function fitPadding(margin: number) {
+        const { left, top } = insets();
+        return { left: left + margin, top: top + margin, right: margin, bottom: margin };
+    }
+
+    /** The bounds of the map area that is not covered by the floating panels. */
+    function visibleBounds(): TrailSearchBounds | undefined {
+        if (!map) return;
+        const { left, top } = insets();
+        if (!left && !top) return renderedBounds();
+        const { clientWidth: width, clientHeight: height } = mapElement;
+        const corners = [[left, top], [width, top], [width, height], [left, height]]
+            .map(([x, y]) => map!.unproject([x, y]));
+        const longitudes = corners.map(corner => corner.lng);
+        const latitudes = corners.map(corner => corner.lat);
+        const west = Math.min(...longitudes);
+        const east = Math.max(...longitudes);
+        const normalize = (longitude: number) => ((((longitude + 180) % 360) + 360) % 360) - 180;
+        const global = east - west >= 360;
+        return {
+            northEast: { lat: Math.min(90, Math.max(...latitudes)), lng: global ? 180 : normalize(east) },
+            southWest: { lat: Math.max(-90, Math.min(...latitudes)), lng: global ? -180 : normalize(west) },
         };
     }
 
@@ -216,15 +278,11 @@
         document.addEventListener("lostpointercapture", release);
         const rootSize = new ResizeObserver(() => { containerWidth = root.clientWidth; });
         rootSize.observe(root);
-        const searchSize = new ResizeObserver(resizeLayout);
-        const search = root.closest("main")?.querySelector("[data-search-root]");
-        if (search) searchSize.observe(search);
         return () => {
             ready = false;
             ++resumeRevision;
             ++locationRequest;
             rootSize.disconnect();
-            searchSize.disconnect();
             window.removeEventListener("resize", resizeLayout);
             window.visualViewport?.removeEventListener("resize", resizeLayout);
             window.removeEventListener("blur", blur);
@@ -235,7 +293,7 @@
 
     function notifyViewport() {
         if (!active || !ready || !map) return;
-        if (mapVisible() || !lastViewport) lastViewport = renderedBounds();
+        if (mapVisible() || !lastViewport) lastViewport = visibleBounds();
         if (lastViewport) onviewport(lastViewport, map.getZoom());
     }
 
@@ -250,7 +308,7 @@
         const east = bounds.northEast.lng < bounds.southWest.lng ? bounds.northEast.lng + 360 : bounds.northEast.lng;
         hiddenArea = undefined;
         cameraPositioned = true;
-        map.fitBounds([[bounds.southWest.lng, bounds.southWest.lat], [east, bounds.northEast.lat]], { animate: false, bearing: map.getBearing(), pitch: map.getPitch() });
+        map.fitBounds([[bounds.southWest.lng, bounds.southWest.lat], [east, bounds.northEast.lat]], { animate: false, ...(expanded ? { padding: fitPadding(0) } : {}), bearing: map.getBearing(), pitch: map.getPitch() });
         return true;
     }
 
@@ -262,7 +320,7 @@
             return;
         }
         map.fitBounds(M.LngLatBounds.fromLngLat(new M.LngLat(place.lon!, place.lat!), place.radius), {
-            padding: 32, maxZoom: 14, animate: false,
+            padding: expanded ? fitPadding(32) : 32, maxZoom: 14, animate: false,
         });
     }
 
@@ -272,7 +330,7 @@
         showMap = true;
         if (!ready || !map) { pendingLocation = location; return; }
         await tick();
-        map.jumpTo({ center: [location.lon, location.lat], zoom: 14 });
+        centerOn(location, 14);
     }
 
     function handleMapInit() {
@@ -280,6 +338,10 @@
         if (map && !resetViewControl) {
             resetViewControl = new ResetViewControl(resetViewport, resetViewAppearance);
             map.addControl(resetViewControl, "top-right");
+        }
+        if (map && onenlarge && !enlargeControl) {
+            enlargeControl = new ResetViewControl(() => onenlarge?.(), enlargeAppearance, "enlarge-map");
+            map.addControl(enlargeControl, "top-right");
         }
         if (map) defaultCamera = { center: map.getCenter().toArray(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
         if (active) initializeViewport();
@@ -289,12 +351,12 @@
         initialized = true;
         initializingViewport = true;
         if (pendingLocation) {
-            map?.jumpTo({ center: [pendingLocation.lon, pendingLocation.lat], zoom: 14 });
+            centerOn(pendingLocation, 14);
             pendingLocation = undefined;
         }
         else if (initialCamera) map?.jumpTo(initialCamera);
         else if (initialBounds) focusBounds(initialBounds);
-        else if (initialCenter) map?.jumpTo({ center: [initialCenter.lon, initialCenter.lat], zoom: 14 });
+        else if (initialCenter) centerOn(initialCenter, 14);
         else if (Number.isFinite(near.lat) && Number.isFinite(near.lon)) focusPlace(near, false);
         else focusDefaultViewport();
         if (!hiddenArea) cameraPositioned = true;
@@ -322,6 +384,13 @@
         notifyViewport();
     }
 
+    function centerOn(location: { lat: number; lon: number }, zoom: number) {
+        const center: [number, number] = [location.lon, location.lat];
+        if (!expanded) { map?.jumpTo({ center, zoom }); return; }
+        const { left, top } = insets();
+        map?.easeTo({ center, zoom, offset: [left / 2, top / 2], duration: 0 });
+    }
+
     function focusDefaultViewport() {
         // Ignore URL/snapshot bounds and place filters when explicitly returning
         // to the default view. Keep the search criteria themselves unchanged.
@@ -330,20 +399,20 @@
         const hasTrails = boundingBox.has_trails ?? (boundingBox.min_lon !== 0 || boundingBox.max_lon !== 0 || boundingBox.min_lat !== 0 || boundingBox.max_lat !== 0);
         if (settings?.mapFocus === "trails" && hasTrails) {
             if (boundingBox.min_lon === boundingBox.max_lon && boundingBox.min_lat === boundingBox.max_lat) {
-                map?.jumpTo({ center: [boundingBox.min_lon, boundingBox.min_lat], zoom: 12 });
+                centerOn({ lon: boundingBox.min_lon, lat: boundingBox.min_lat }, 12);
             } else {
-                map?.fitBounds([[boundingBox.min_lon, boundingBox.min_lat], [boundingBox.max_lon, boundingBox.max_lat]], { animate: false, padding: 32 });
+                map?.fitBounds([[boundingBox.min_lon, boundingBox.min_lat], [boundingBox.max_lon, boundingBox.max_lat]], { animate: false, padding: expanded ? fitPadding(32) : 32 });
             }
         } else if (settings?.mapFocus === "location" && settings.location) {
-            map?.jumpTo({ center: [settings.location.lon, settings.location.lat], zoom: 12 });
+            centerOn(settings.location, 12);
         } else {
             if (defaultCamera) map?.jumpTo(defaultCamera);
             const camera = () => map && JSON.stringify([map.getCenter().toArray(), map.getZoom(), map.getBearing(), map.getPitch()]);
             const requestedCamera = camera();
             navigator.geolocation?.getCurrentPosition(position => {
                 if (!ready || !map || request !== locationRequest || map.isMoving() || camera() !== requestedCamera) return;
-                map.jumpTo({ center: [position.coords.longitude, position.coords.latitude], zoom: 12 });
-                lastViewport = renderedBounds();
+                centerOn({ lon: position.coords.longitude, lat: position.coords.latitude }, 12);
+                lastViewport = visibleBounds();
                 notifyViewport();
             }, () => { /* Keep the default camera when location is unavailable. */ });
         }
@@ -379,13 +448,18 @@
         }
         if (current.target.hasPointerCapture(current.pointer)) current.target.releasePointerCapture(current.pointer);
         dragging = false;
-        if (!cancel) persistLayout();
+        if (!cancel) {
+            persistLayout();
+            if (expanded && listWidth !== current.width) void tick().then(notifyViewport);
+        }
     }
     async function toggleResults() {
         layoutMode = resultsCollapsed ? "split" : "map";
         persistLayout();
         await tick();
         root.querySelector<HTMLButtonElement>(".collapse-results")?.focus();
+        // The search area grows or shrinks with the list.
+        if (expanded) notifyViewport();
     }
     function resizeKey(event: KeyboardEvent) {
         if (event.key === "Escape" && drag) {
@@ -404,6 +478,7 @@
         layoutMode = "split";
         preferredWidth = Math.max(minimumListWidth, Math.min(maxListWidth, width));
         persistLayout();
+        if (expanded) void tick().then(notifyViewport);
     }
 
 </script>
@@ -423,7 +498,7 @@
     </button>
 {/snippet}
 
-<div bind:this={root} class="map-results" class:show-map={showMap} class:results-collapsed={resultsCollapsed} class:dragging
+<div bind:this={root} class="map-results" class:expanded class:show-map={showMap} class:results-collapsed={resultsCollapsed} class:dragging
     style:--results-width={`${listWidth}px`} style:--pane-gap={`${paneGap}px`}>
     <div id={`${id}-trail-list`} class="trail-list">
         {#if !resultsCollapsed}
@@ -494,7 +569,7 @@
     <div class="map-pane">
         <div id="trail-map" bind:this={mapElement} aria-busy={mapLoading}>
             <MapWithElevationMaplibre onmoveend={handleMoveEnd} oninit={handleMapInit}
-                scalePosition={wideViewport ? "top-left" : "bottom-right"}
+                scalePosition={wideViewport && !expanded ? "top-left" : "bottom-right"}
                 trails={mapTrails} serverClusters={clusters} showElevation={false} showTerrain={true}
                 showInfoPopup={true} showClusterPopups={true} activeTrail={-1} fitBounds="off" clusterTrails={true}
                 bind:map bind:this={mapWithElevation} />
@@ -506,6 +581,11 @@
 
 <style>
     .map-results { display: grid; gap: var(--pane-gap); grid-template-columns: var(--results-width) minmax(0, 1fr); height: calc(100dvh - 225px); min-height: 280px; position: relative; }
+    .map-results.expanded { display: block; height: 100%; min-height: 0; pointer-events: none; position: static; }
+    .expanded .trail-list { pointer-events: auto; }
+    .expanded .map-pane { display: block; inset: 0; pointer-events: auto; position: absolute; z-index: 0; }
+    .expanded #trail-map { border: 0; border-radius: 0; }
+    .expanded .collapsed-actions { left: auto; pointer-events: auto; position: relative; top: auto; width: max-content; }
     .trail-list { background: rgba(var(--background)); border: 1px solid rgba(var(--input-border)); border-radius: .9rem; box-sizing: border-box; display: flex; flex-direction: column; min-height: 0; min-width: 0; position: relative; }
     .result-header { align-items: center; background: rgba(var(--input-background)); border-bottom: 1px solid rgba(var(--input-border)); border-radius: .9rem .9rem 0 0; display: flex; flex-shrink: 0; font-size: .9rem; font-weight: 600; gap: .5rem; justify-content: space-between; padding: .25rem .5rem .25rem .75rem; }
     .selection-toolbar { align-items: center; border-bottom: 1px solid rgba(var(--input-border)); display: flex; flex-shrink: 0; gap: .5rem; padding: .5rem .75rem; position: relative; z-index: 4; }
@@ -540,17 +620,23 @@
     .collapsed-actions { left: 1rem; position: absolute; top: 3rem; z-index: 3; }
     .dragging { cursor: col-resize; user-select: none; }
     @media (width >= 768px) {
+        .map-results.expanded #trail-map :global(.maplibregl-ctrl-bottom-right) { max-width: 20rem; }
+        .expanded .trail-list { background: rgba(var(--menu-background), .96); box-shadow: 0 3px 16px rgb(0 0 0 / .2); height: 100%; width: var(--results-width); z-index: 1; }
         .results-collapsed .trail-list, .results-collapsed .selection-toolbar { display: contents; }
         .results-collapsed .trail-results, .results-collapsed .list-resize,
         .results-collapsed .selection-toolbar > :global(:not(dialog)) { display: none; }
     }
+    .expanded #trail-map :global(.maplibregl-ctrl-bottom-right) { align-items: flex-end; box-sizing: border-box; display: flex; gap: .5rem; max-width: 100%; padding: 0 .5rem .5rem; }
+    .expanded #trail-map :global(.maplibregl-ctrl-bottom-right > .maplibregl-ctrl) { clear: none; margin: 0; }
+    .expanded #trail-map :global(.maplibregl-ctrl-attrib) { flex-shrink: 1; min-width: 0; order: 0; overflow-wrap: anywhere; }
+    .expanded #trail-map :global(.maplibregl-ctrl-scale) { flex-shrink: 0; order: 1; }
     @media (width < 768px) {
-        .result-header, .list-resize, .collapsed-actions { display: none; }
-        .map-results { display: flex; flex-direction: column; gap: .5rem; }
         #trail-map :global(.maplibregl-ctrl-bottom-right) { align-items: flex-end; box-sizing: border-box; display: flex; gap: .5rem; max-width: 100%; padding: 0 .5rem .5rem; }
         #trail-map :global(.maplibregl-ctrl-bottom-right > .maplibregl-ctrl) { clear: none; margin: 0; }
         #trail-map :global(.maplibregl-ctrl-attrib) { flex-shrink: 1; min-width: 0; order: 0; overflow-wrap: anywhere; }
         #trail-map :global(.maplibregl-ctrl-scale) { flex-shrink: 0; order: 1; }
+        .result-header, .list-resize, .collapsed-actions { display: none; }
+        .map-results { display: flex; flex-direction: column; gap: .5rem; }
         .trail-list, .map-pane { flex: 1; min-height: 0; }
         .map-results:not(.show-map) .map-pane { display: none; }
         .map-results.show-map .trail-list,

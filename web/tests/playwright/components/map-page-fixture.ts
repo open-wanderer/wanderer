@@ -48,14 +48,20 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                 if (id === '\0fixture:user') return `import { writable } from 'svelte/store'; export const currentUser = writable({ id: 'tester', actor: 'tester', username: 'tester' }); export function logout() { sessionStorage.setItem('fixture:loggedOut', 'true'); }`;
                 if (id === '\0fixture:files') return 'export function getFileURL() { return undefined; }';
                 if (id === resolve(root, 'src/lib/stores/upload_store.svelte.ts')) return compileModule('export const uploadStore = $state({ enqueuedUploads: [], completedUploads: [], uploading: false }); export async function processUploadQueue() {}', { filename: 'fixture-upload.svelte.js', generate: 'client', dev }).js.code;
+                if ((realSearch || includeNav) && id === resolve(root, 'src/lib/stores/toast_store.svelte.ts')) return compileModule('export const toastStore = $state({toasts: []}); export function show_toast(toast) { toastStore.toasts.push({...toast, id: "fixture"}); } export function closeToast(toast) { toastStore.toasts = toastStore.toasts.filter(t => t.id !== toast.id); } export function pauseToast() {} export function resumeToast() {}', {filename: 'fixture-toast.svelte.js', generate: 'client', dev}).js.code;
+                if (realEngine && id === resolve(root, 'src/lib/stores/trail_merge_store.svelte.ts')) return compileModule('export const mergeStore = $state({enqueuedMerges: [], completedMerges: []}); export function processMergeQueue() {} window.showMergeStatus = () => mergeStore.completedMerges.push({trailSource: {id: "merge-source", name: "Merge source"}, trailTarget: {id: "merge-target", name: "Merge target"}, status: "error", progress: 0, error: "Try again"});', {filename:'fixture-merge.svelte.js', generate:'client', dev}).js.code;
                 if (id === '\0fixture:empty') return 'export default {};';
                 if (realEngine && id === '\0fixture:maplibre') return `const M = window.RealMapLibre; export default M; export const { ${engineExports.join(', ')} } = M;`;
-                if ((realSearch || includeNav) && id === resolve(root, 'src/lib/stores/toast_store.svelte.ts')) return 'export const toastStore = {toasts: []}; export function show_toast() {} export function closeToast() {} export function pauseToast() {} export function resumeToast() {}';
+
                 if (id === resolve(root, 'src/lib/stores/notification_store.ts')) return 'export async function notifications_index() { return {items: [], page: 1, totalPages: 1}; } export async function notifications_mark_as_seen() {}';
+                if (id === '\0fixture:enlarge-dialog.svelte') return compile(`<script>import Modal from '#lib/components/base/modal.svelte'; let modal; window.fixture.openDialog = () => modal.openModal();</script><Modal id="enlarge-dialog" title="Map dialog" bind:this={modal}>{#snippet content()}<input aria-label="Dialog value" />{/snippet}</Modal>`, {filename: 'enlarge-dialog.svelte', generate: 'client', dev, css: 'injected'}).js.code;
                 if (id === '\0fixture:entry') return `
                     import { mount, unmount } from 'svelte';
                     import Page from ${JSON.stringify(source)};
-                    ${includeNav ? `import NavBar from ${JSON.stringify(resolve(root, 'src/lib/components/nav_bar.svelte'))};
+                    ${includeNav ? `import EnlargeDialog from 'fixture:enlarge-dialog.svelte';
+                    import Footer from ${JSON.stringify(resolve(root, 'src/lib/components/footer.svelte'))};
+                    import { show_toast } from ${JSON.stringify(resolve(root, 'src/lib/stores/toast_store.svelte.ts'))};
+                    import NavBar from ${JSON.stringify(resolve(root, 'src/lib/components/nav_bar.svelte'))};
                     import Toast from ${JSON.stringify(resolve(root, 'src/lib/components/base/toast.svelte'))};
                     import UploadDialog from ${JSON.stringify(resolve(root, 'src/lib/components/settings/upload_dialog.svelte'))};
                     import { uploadStore } from ${JSON.stringify(resolve(root, 'src/lib/stores/upload_store.svelte.ts'))};` : ''}
@@ -73,10 +79,11 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                             signal: options.signal, resolve: data => resolve(Response.json(data)), reject });
                         if (window.fixture.autoResolve) resolve(Response.json(url === 'map'
                             ? { mapTrails: [], clusters: { type: 'FeatureCollection', features: [] } }
-                            : { items: [{ id: 'fixture-1', author: 'tester', name: 'Fixture trail' }], page: 1, totalPages: 1, totalHits: 1 }));
+                            : { items: window.fixture.resultItems ?? [{ id: 'fixture-1', author: 'tester', name: 'Fixture trail' }], page: 1, totalPages: 1, totalHits: 1 }));
                     }); };
-                    ${includeNav ? `document.documentElement.classList.add('light'); document.body.style.width = '100%'; mount(NavBar, { target: document.body, props: { user: { id: 'tester', username: 'tester', avatar: '' } } }); mount(Toast, { target: document.body }); mount(UploadDialog, { target: document.body }); window.fixture.addUpload = () => uploadStore.enqueuedUploads.push({ file: new File(['fixture'], 'fixture.gpx'), status: 'enqueued', progress: 0 }); window.fixture.completeUpload = () => uploadStore.completedUploads.push({ ...uploadStore.enqueuedUploads.shift(), status: 'success' });` : ''}
+                    ${includeNav ? `document.documentElement.classList.add('light'); document.body.style.width = '100%'; mount(NavBar, { target: document.body, props: { user: { id: 'tester', username: 'tester', avatar: '' } } }); mount(Toast, { target: document.body }); mount(EnlargeDialog, {target: document.body}); window.fixture.toast = () => show_toast({type: 'info', icon: 'info', text: 'Map toast'}, 60000); mount(UploadDialog, { target: document.body }); window.fixture.addUpload = () => uploadStore.enqueuedUploads.push({ file: new File(['fixture'], 'fixture.gpx'), status: 'enqueued', progress: 0 }); window.fixture.completeUpload = () => uploadStore.completedUploads.push({ ...uploadStore.enqueuedUploads.shift(), status: 'success' });` : ''}
                     let component = mount(Page, { target: document.body });
+                    ${includeNav ? `mount(Footer, {target: document.body});` : ""}
                     window.fixture.remount = async (value, mode = 'sync') => {
                         await unmount(component);
                         if (mode === 'popstate') window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
@@ -92,7 +99,7 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                 if (id === '\0fixture:maplibre') return 'export class LngLat { constructor(lng, lat) { this.lng = lng; this.lat = lat; } } export class LngLatBounds { constructor(sw, ne) { this.sw = sw; this.ne = ne; } toArray() { return [this.sw, this.ne]; } }';
                 if (id === '\0fixture:state.svelte.js') return compileModule(`
                     export const page = $state({ url: new URL(location.href), state: history.state ?? {}, route: { id: '/map' }, data: {
-                        categories: [], subcategories: [], settings: window.fixtureSettings ?? {}, boundingBox: {}, notifications: {items: [], page: 0, totalPages: 0},
+                        categories: [], subcategories: [], settings: window.fixtureSettings ?? {}, boundingBox: window.fixtureBoundingBox ?? {}, notifications: {items: [], page: 0, totalPages: 0},
                         filter: { q: '', category: [], subcategory: [], tags: [], difficulty: [0, 1, 2],
                             author: '', public: true, private: true, shared: true,
                             near: { radius: 2000 }, distanceMin: 0, distanceMax: 50000, distanceLimit: 50000,
@@ -146,7 +153,7 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                     component = mapResultStubs[id as keyof typeof mapResultStubs];
                     return compile(component, { filename: id, generate: 'client', dev, css: 'injected' }).js.code;
                 }
-                if (realMapResults && id.endsWith('/trail_merge_dialog.svelte')) return compile('<div></div>', { filename: id, generate: 'client', dev }).js.code;
+                if (realMapResults && !realEngine && id.endsWith('/trail_merge_dialog.svelte')) return compile('<div></div>', { filename: id, generate: 'client', dev }).js.code;
                 if (!realSearch && id === resolve(root, 'src/lib/components/trail/trail_search_bar.svelte')) component = `
                     <script>
                         let { filter = $bindable(), onapply, onplaceselect, layout } = $props();
@@ -201,7 +208,15 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                         component = component.replace('        map = new M.Map(finalMapOptions);', '        map = new M.Map(finalMapOptions); window.realMap = map;');
                         component = component.replace('            oninit?.(map!);', '            if (window.deferMapLoad) window.finishMapLoad = () => oninit?.(map!); else oninit?.(map!);');
                     }
-                    if (realMapResults && id === source) component = component.replace('onviewport={onViewport}', 'onviewport={(...args) => { window.fixture.publications.push(args); onViewport(...args); }}');
+                    if (realMapResults && id === source) {
+                        component = component.replace('onviewport={onViewport}', 'onviewport={(...args) => { window.fixture.publications.push(args); onViewport(...args); }}');
+                        // Invoke the real page's place-selection and radius-apply paths.
+                        component = component.replace('</script>', `$effect(() => {
+                            window.fixture.focusLocation = value => mapResults?.focusLocation(value);
+                            window.fixture.focusArea = value => mapResults?.focusBounds(value);
+                            window.fixture.applyNear = near => applySearch({...filter, near});
+                        });</script>`);
+                    }
                 }
                 else return;
                 return compile(component, { filename: id, generate: 'client', dev, css: 'injected' }).js.code;

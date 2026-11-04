@@ -162,7 +162,8 @@ test('restores the fresh default map view without resetting search and retains i
     await expect.poll(() => area(page.url())).toEqual(expected);
     await expect(searchInput(page)).toHaveValue('Keep this search');
     const buttons = page.locator('#trail-map .maplibregl-ctrl-top-right button');
-    await expect(buttons.last()).toHaveClass(/reset-map-view/);
+    await expect(buttons.last()).toHaveClass(/enlarge-map/);
+    await expect(buttons.nth(await buttons.count() - 2)).toHaveClass(/reset-map-view/);
     await page.reload();
     await expect(searchInput(page)).toHaveValue('Keep this search');
     await expect.poll(() => area(page.url())).toEqual(expected);
@@ -544,13 +545,21 @@ test.describe('touch map tools', () => {
 });
 
 test('keeps the camera after opening a trail, Back and reload', async ({ page, context }) => {
+    await page.setViewportSize({width:1280,height:720});
+    const searches: unknown[] = [], areas: {northEast:{lat:number,lng:number},southWest:{lat:number,lng:number}}[] = [];
     const trail = { id: 'snapshot-trail', name: 'Snapshot trail', author: 'fixtureauthor00', public: true,
         completed: false, tags: [], photos: [], difficulty: 0, expand: {}, distance: 2400, duration: 3600,
         elevation_gain: 100, elevation_loss: 100, created: 1710000000, date: 1710000000,
         _geo: { lat: 46.95, lng: 7.44 } };
-    await context.route('**/api/v1/search/trails', route => route.fulfill({ json: {
+    await context.route('**/api/v1/search/trails', route => {
+        searches.push(route.request().postDataJSON());
+        return route.fulfill({ json: {
         hits: [trail], totalHits: 1, totalPages: 1, page: 1, hitsPerPage: 48,
-    } }));
+    } }); });
+    await context.route('**/api/v1/search/trails/cluster', route => {
+        areas.push(route.request().postDataJSON());
+        return route.fulfill({json:{type:'FeatureCollection',features:[],totalHits:0}});
+    });
     await context.route(/\/api\/v1\/trail\/snapshot-trail\?/, route => route.fulfill({ json: { ...trail, difficulty: 'easy', created: '2026-10-01T12:00:00Z', date: '2026-10-01T12:00:00Z' } }));
     const readCamera = () => page.evaluate(() => {
         // Inspect the real router snapshot, captured from the live map. Calling
@@ -562,19 +571,58 @@ test('keeps the camera after opening a trail, Back and reload', async ({ page, c
         const current = index === undefined ? Object.values(snapshots).at(-1) : snapshots[index];
         return (current as any[])?.find(value => value?.camera)?.camera;
     });
+    const readArea = async () => {
+        const camera = await readCamera();
+        expect(camera.bearing).toBe(0); expect(camera.pitch).toBe(0);
+        const box = await page.evaluate(() => {
+            const map = document.querySelector('#trail-map')!, r=map.getBoundingClientRect();
+            return {width:map.clientWidth,height:map.clientHeight,
+                left:document.querySelector('.trail-list')!.getBoundingClientRect().right-r.left+16,
+                top:document.querySelector('.map-search-toolbar')!.getBoundingClientRect().bottom-r.top+16};
+        });
+        // Web Mercator projection of the real transport bounds using the live
+        // router camera. Component coverage also uses MapLibre.project directly.
+        const mercator = (lat:number) => (1-Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))/Math.PI)/2;
+        const world=512*2**camera.zoom, bounds=areas.at(-1)!;
+        const project = ({lat,lng}:{lat:number,lng:number}) => [
+            box.width/2+(lng-camera.center[0])/360*world,
+            box.height/2+(mercator(lat)-mercator(camera.center[1]))*world];
+        const ne=project(bounds.northEast), sw=project(bounds.southWest);
+        for (const [actual,expected] of [[ne[0],box.width],[ne[1],box.top],[sw[0],box.left],[sw[1],box.height]])
+            expect(Math.abs(actual-expected)).toBeLessThanOrEqual(1);
+        return bounds;
+    };
+    const oneSearch = async (action:()=>Promise<unknown>) => {
+        const before=searches.length, markers=areas.length;
+        await action();
+        await expect.poll(() => searches.length).toBe(before+1);
+        await expect.poll(() => areas.length).toBe(markers+1);
+        await page.waitForTimeout(450);
+        expect(searches).toHaveLength(before+1); expect(areas).toHaveLength(markers+1);
+    };
     await openMap(page);
 
     await settledMapLayout(page);
+    await oneSearch(() => page.locator(".enlarge-map").click());
+    await expect(page.locator(".map-page.expanded")).toBeVisible();
     const original = await readCamera();
+    const originalArea = await readArea();
     expect(original).toBeTruthy();
     await page.locator('.trail-result a').first().click();
     await expect(page).toHaveURL(/\/map\/trail\//);
-    await page.goBack();
+    await expect(page.locator("nav")).toBeVisible();
+    await oneSearch(() => page.goBack());
     await settledMapLayout(page);
+    await expect(page.locator(".map-page.expanded")).toBeVisible();
+    await expect(page.locator("nav")).toBeHidden();
     await expect.poll(readCamera).toMatchObject({ zoom: expect.closeTo(original.zoom, 8), center: original.center });
-    await page.reload();
+    expect(await readArea()).toEqual(originalArea);
+    await oneSearch(() => page.reload());
     await settledMapLayout(page);
+    await expect(page.locator(".map-page.expanded")).toBeVisible();
+    await expect(page.locator("nav")).toBeHidden();
     await expect.poll(readCamera).toMatchObject({ zoom: expect.closeTo(original.zoom, 8), center: original.center });
+    expect(await readArea()).toEqual(originalArea);
 });
 
 

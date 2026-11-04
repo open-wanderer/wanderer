@@ -5,14 +5,14 @@ export class ResetViewControl implements IControl {
     private button?: HTMLButtonElement;
     private icon?: HTMLElement;
 
-    constructor(private callback: () => void, private appearance: { label: string; icon: string }) {}
+    constructor(private callback: () => void, private appearance: { label: string; icon: string }, private buttonClass = "reset-map-view") {}
 
     onAdd(): HTMLElement {
         this.container = document.createElement("div");
         this.container.classList.add("maplibregl-ctrl", "maplibregl-ctrl-group");
         this.button = document.createElement("button");
         this.button.type = "button";
-        this.button.classList.add("reset-map-view");
+        this.button.classList.add(this.buttonClass);
         this.button.addEventListener("click", this.callback);
         this.icon = document.createElement("i");
         this.icon.setAttribute("aria-hidden", "true");

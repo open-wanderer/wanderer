@@ -4,7 +4,7 @@
 </script>
 
 <footer
-    class="bg-footer-background text-white w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-8 gap-x-12 p-12 mt-12 rounded-t-3xl"
+    class="app-footer bg-footer-background text-white w-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-8 gap-x-12 p-12 mt-12 rounded-t-3xl"
 >
     <div class="col-span-2 md:col-span-1">
         <LogoTextLightWithVersion></LogoTextLightWithVersion>
