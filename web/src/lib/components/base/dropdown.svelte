@@ -9,6 +9,7 @@
 </script>
 
 <script lang="ts">
+    import { closeDropdownOnEscape } from "#lib/util/dropdown_escape.ts";
     import { tick, type Snippet } from "svelte";
     import { fly } from "svelte/transition";
 
@@ -22,6 +23,10 @@
     let { items = [], size = "regular", children, onchange }: Props = $props();
 
     let isOpen = $state(false);
+    let dropdownRoot: HTMLDivElement;
+    function handleEscape(event: KeyboardEvent) {
+        if (isOpen) closeDropdownOnEscape(event, dropdownRoot, () => isOpen = false);
+    }
 
     let dropdownElement: HTMLUListElement | undefined = $state();
     let dropdownToggleElement: HTMLDivElement;
@@ -106,9 +111,9 @@
     }
 </script>
 
-<svelte:window onmouseup={handleWindowClick} />
+<svelte:window onmouseup={handleWindowClick} onkeydown={handleEscape} />
 
-<div class="dropdown relative">
+<div class="dropdown relative" bind:this={dropdownRoot}>
     <div class="dropdown-toggle" bind:this={dropdownToggleElement}>
         {#if children}{@render children({ toggleMenu })}{:else}
             <button

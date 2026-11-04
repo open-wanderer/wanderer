@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { closeDropdownOnEscape } from "#lib/util/dropdown_escape.ts";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import type { Notification } from "#lib/models/notification.ts";
@@ -25,6 +26,10 @@
 
     let loadingNextPage: boolean = $state(false);
     let isOpen = $state(false);
+    let dropdownRoot: HTMLDivElement;
+    function handleEscape(event: KeyboardEvent) {
+        if (isOpen) closeDropdownOnEscape(event, dropdownRoot, () => isOpen = false);
+    }
 
     let unreadCount = $derived(
         notifications.reduce((value, n) => (value += n.seen ? 0 : 1), 0),
@@ -99,9 +104,9 @@
     }
 </script>
 
-<svelte:window onmouseup={handleWindowClick} />
+<svelte:window onmouseup={handleWindowClick} onkeydown={handleEscape} />
 
-<div class="dropdown relative">
+<div class="dropdown relative" bind:this={dropdownRoot}>
     {#if unreadCount > 0}
         <div
             class="absolute pointer-events-none -top-[2px] left-5 text-xs rounded-full bg-content text-content-inverse px-1 text-center"
