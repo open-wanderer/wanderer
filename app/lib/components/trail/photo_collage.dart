@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:wanderer/components/base/wanderer_photo.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
-import 'package:wanderer/util/image_cache.dart';
-import 'dart:io';
 
 class PhotoCollage extends StatelessWidget {
   final List<String> webPhotos;
@@ -194,8 +193,8 @@ class PhotoSource {
 
   Widget buildImage({required BoxFit fit}) {
     if (url != null) {
-      return Image(
-        image: wandererImageProvider(url!),
+      return WandererPhoto.network(
+        url!,
         fit: fit,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -209,14 +208,14 @@ class PhotoSource {
             ),
           );
         },
-        errorBuilder: (_, _, _) => const _BrokenImagePlaceholder(),
+        errorBuilder: (_) => const _BrokenImagePlaceholder(),
       );
     }
     if (localFile != null) {
-      return Image.file(
-        File(localFile!),
+      return WandererPhoto.file(
+        localFile!,
         fit: fit,
-        errorBuilder: (_, _, _) => const _BrokenImagePlaceholder(),
+        errorBuilder: (_) => const _BrokenImagePlaceholder(),
       );
     }
     return const _BrokenImagePlaceholder();

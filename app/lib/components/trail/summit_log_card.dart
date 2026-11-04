@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
+import 'package:wanderer/components/base/wanderer_photo.dart';
 import 'package:wanderer/components/trail/photo_collage.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
@@ -13,7 +14,6 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/routes/photo_gallery_screen.dart';
 import 'package:wanderer/util/format.dart';
-import 'package:wanderer/util/image_cache.dart';
 
 class SummitLogCard extends ConsumerWidget {
   final SummitLog summitLog;
@@ -84,19 +84,15 @@ class SummitLogCard extends ConsumerWidget {
                         child: SizedBox(
                           width: 80,
                           height: 80,
-                          child: Image(
-                            image: wandererImageProvider(
-                              summitLog.photos.isNotEmpty
-                                  ? summitLog.getFileUrl(
-                                          user.serverUrl,
-                                          summitLog.photos.first,
-                                        ) ??
-                                        ''
-                                  : '',
-                            ),
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
-                                _buildPlaceholder(context),
+                          child: WandererPhoto.network(
+                            summitLog.photos.isNotEmpty
+                                ? summitLog.getFileUrl(
+                                        user.serverUrl,
+                                        summitLog.photos.first,
+                                      ) ??
+                                      ''
+                                : '',
+                            errorBuilder: _buildPlaceholder,
                           ),
                         ),
                       ),

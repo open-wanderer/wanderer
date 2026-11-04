@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
+import 'package:wanderer/components/base/wanderer_photo.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
@@ -14,7 +15,6 @@ import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format.dart';
-import 'package:wanderer/util/image_cache.dart';
 
 class TrailListItem extends ConsumerWidget {
   final TrailSummary trail;
@@ -33,25 +33,18 @@ class TrailListItem extends ConsumerWidget {
         ? trail.localPhotos.first
         : null;
 
-    ImageProvider? imageProvider;
+    final String? localFile =
+        trail.isLocal && localPath != null && File(localPath).existsSync()
+        ? localPath
+        : null;
 
-    if (trail.isLocal && localPath != null) {
-      final file = File(localPath);
-      if (file.existsSync()) {
-        imageProvider = FileImage(file);
-      }
-    }
-
-    if (imageProvider == null && trail.summaryThumbnail.isNotEmpty) {
-      final networkUrl = trail.getFileUrl(
-        user.serverUrl,
-        trail.summaryThumbnail,
-        thumb: "600x0",
-      );
-      if (networkUrl != null) {
-        imageProvider = wandererImageProvider(networkUrl);
-      }
-    }
+    final String? networkUrl = localFile == null
+        ? trail.getFileUrl(
+            user.serverUrl,
+            trail.summaryThumbnail,
+            thumb: "600x0",
+          )
+        : null;
 
     final String locale = Localizations.localeOf(context).toString();
 
@@ -78,7 +71,11 @@ class TrailListItem extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Thumbnail ──────────────────────────────────────────
-                  _Thumbnail(imageProvider: imageProvider, trail: trail),
+                  _Thumbnail(
+                    localFile: localFile,
+                    networkUrl: networkUrl,
+                    trail: trail,
+                  ),
 
                   const SizedBox(width: 12),
 
@@ -122,9 +119,8 @@ class TrailListItem extends ConsumerWidget {
                           children: [
                             if (trail.summaryDate != null) ...[
                               Text(
-                                dateFormatYMMMd(
-                                  locale,
-                                ).format(trail.summaryDate!),
+                                dateFormatYMMMd(locale)
+                                    .format(trail.summaryDate!),
                                 style: TextStyle(
                                   color: Theme.of(context).colorScheme.onSurface
                                       .withValues(alpha: 0.6),
@@ -226,10 +222,15 @@ class TrailListItem extends ConsumerWidget {
 // ── Private helpers ────────────────────────────────────────────────────────────
 
 class _Thumbnail extends StatelessWidget {
-  final ImageProvider? imageProvider;
+  final String? localFile;
+  final String? networkUrl;
   final TrailSummary trail;
 
-  const _Thumbnail({required this.imageProvider, required this.trail});
+  const _Thumbnail({
+    required this.localFile,
+    required this.networkUrl,
+    required this.trail,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -238,12 +239,10 @@ class _Thumbnail extends StatelessWidget {
       child: SizedBox(
         width: 90,
         height: 90,
-        child: imageProvider != null
-            ? Image(
-                image: imageProvider!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, _, _) => _placeholder(context),
-              )
+        child: localFile != null
+            ? WandererPhoto.file(localFile!, errorBuilder: _placeholder)
+            : networkUrl != null
+            ? WandererPhoto.network(networkUrl!, errorBuilder: _placeholder)
             : _placeholder(context),
       ),
     );
@@ -323,9 +322,8 @@ class _InlineIcon extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(context).colorScheme.onSurface
+                  .withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -374,9 +372,8 @@ class _StatsRow extends StatelessWidget {
         ),
         StatChip(
           icon: FontAwesomeIcons.clock,
-          label: Duration(
-            seconds: (trailDisplayDuration(trail) ?? 0).toInt(),
-          ).pretty(abbreviated: true, tersity: DurationTersity.minute),
+          label: Duration(seconds: (trailDisplayDuration(trail) ?? 0).toInt())
+              .pretty(abbreviated: true, tersity: DurationTersity.minute),
         ),
         StatChip(
           icon: FontAwesomeIcons.arrowTrendUp,

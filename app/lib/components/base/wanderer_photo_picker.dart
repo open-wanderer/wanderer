@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:wanderer/components/base/wanderer_photo.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
-import 'package:wanderer/util/image_cache.dart';
 
 /// A reusable photo picker for attaching images to a record.
 ///
@@ -123,12 +121,9 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
           children: [
             for (var i = 0; i < _webPhotos.length; i++)
               _Thumbnail(
-                image: Image(
-                  image: wandererImageProvider(
-                    widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ??
-                        _webPhotos[i],
-                  ),
-                  fit: BoxFit.cover,
+                image: WandererPhoto.network(
+                  widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ??
+                      _webPhotos[i],
                 ),
                 onRemove: widget.onWebPhotosChanged == null
                     ? null
@@ -140,7 +135,7 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
                 index: i,
                 onReorder: _reorderLocal,
                 child: _Thumbnail(
-                  image: Image.file(File(_localPhotos[i]), fit: BoxFit.cover),
+                  image: WandererPhoto.file(_localPhotos[i]),
                   onRemove: () => _removeLocal(i),
                   onExif: widget.onExifRequested == null
                       ? null

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
+import 'package:wanderer/components/base/wanderer_photo.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
 import 'package:wanderer/components/trail/sync_status_chip.dart';
 import 'package:wanderer/components/trail/trail_category_label.dart';
@@ -14,7 +15,6 @@ import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/format.dart';
-import 'package:wanderer/util/image_cache.dart';
 
 class TrailCard extends ConsumerWidget {
   final TrailSummary trail;
@@ -43,23 +43,25 @@ class TrailCard extends ConsumerWidget {
         ? trail.localPhotos.first
         : null;
 
-    ImageProvider? imageProvider;
+    WandererPhoto? photo;
 
     if (trail.isLocal && localPath != null) {
-      final file = File(localPath);
-      if (file.existsSync()) {
-        imageProvider = FileImage(file);
+      if (File(localPath).existsSync()) {
+        photo = WandererPhoto.file(localPath, errorBuilder: _buildPlaceholder);
       }
     }
 
-    if (imageProvider == null && trail.summaryThumbnail.isNotEmpty) {
+    if (photo == null && trail.summaryThumbnail.isNotEmpty) {
       final networkUrl = trail.getFileUrl(
         user.serverUrl,
         trail.summaryThumbnail,
         thumb: "600x0",
       );
       if (networkUrl != null) {
-        imageProvider = wandererImageProvider(networkUrl);
+        photo = WandererPhoto.network(
+          networkUrl,
+          errorBuilder: _buildPlaceholder,
+        );
       }
     }
 
@@ -79,9 +81,8 @@ class TrailCard extends ConsumerWidget {
             border: Border.all(
               color: selected
                   ? Theme.of(context).primaryColor
-                  : Theme.of(
-                      context,
-                    ).colorScheme.outlineVariant.withValues(alpha: 0.1),
+                  : Theme.of(context).colorScheme.outlineVariant
+                        .withValues(alpha: 0.1),
               width: selected ? 2 : 1,
             ),
             boxShadow: [
@@ -108,14 +109,7 @@ class TrailCard extends ConsumerWidget {
                       ),
                       child: AspectRatio(
                         aspectRatio: 16 / 9,
-                        child: imageProvider != null
-                            ? Image(
-                                image: imageProvider,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    _buildPlaceholder(context),
-                              )
-                            : _buildPlaceholder(context),
+                        child: photo ?? _buildPlaceholder(context),
                       ),
                     ),
 
@@ -180,9 +174,8 @@ class TrailCard extends ConsumerWidget {
                         Text(
                           dateFormatYMMMMd(locale).format(trail.summaryDate!),
                           style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: Theme.of(context).colorScheme.onSurface
+                                .withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),
@@ -380,9 +373,8 @@ class _StatsGrid extends StatelessWidget {
           ),
           StatChip(
             icon: FontAwesomeIcons.clock,
-            label: Duration(
-              seconds: (trailDisplayDuration(trail) ?? 0).toInt(),
-            ).pretty(abbreviated: true, tersity: DurationTersity.minute),
+            label: Duration(seconds: (trailDisplayDuration(trail) ?? 0).toInt())
+                .pretty(abbreviated: true, tersity: DurationTersity.minute),
           ),
           StatChip(
             icon: FontAwesomeIcons.arrowTrendUp,
