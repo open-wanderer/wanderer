@@ -486,6 +486,8 @@
   "priority": "Priorität",
   "public-access": "Öffentlicher Zugriff",
   "public-share-everyone": "Jeder im Internet mit dem Link kann diese Route sehen",
+  "public-federation-hint": "Öffentliche Inhalte werden auch an deine Follower auf anderen Servern geschickt. Stellst du sie wieder auf privat, bleiben diese Kopien bestehen. Nur Löschen entfernt sie.",
+  "private-federation-hint": "Bereits an andere Server geschickte Kopien bleiben dort bestehen. Nur Löschen entfernt sie.",
   "public-share-limited": "Nur Leute mit Zugriff können diese Route sehen",
   "public-transport": "Öffentlicher Verkehr",
   "radius": "Radius",
