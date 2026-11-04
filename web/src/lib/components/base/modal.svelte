@@ -98,7 +98,6 @@
     {id}
     bind:this={dialog}
     tabindex="-1"
-    aria-hidden="true"
     onclose={handleClose}
     class="{size} max-h-full rounded-xl text-content"
 >
