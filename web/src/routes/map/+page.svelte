@@ -35,6 +35,9 @@
     let searchBar: TrailSearchBar | undefined = $state();
     let showMap = $state(true);
     let expanded = $state(false);
+    let fullscreenOwned = $state(false);
+    let fullscreen = false;
+    let fullscreenDisplay: MediaQueryList | undefined;
     const mobile = new MediaQuery("(width < 768px)", false);
     const expandedLayout = $derived(expanded && (!mobile.current || showMap));
     const mobileMap = $derived(mobile.current && showMap);
@@ -73,7 +76,7 @@
     ]);
 
     export const snapshot: Snapshot<MapSnapshot | TrailFilter> = {
-        capture: () => $state.snapshot({ filter, viewport, zoom, camera: mapResults?.captureView(), expanded }),
+        capture: () => $state.snapshot({ filter, viewport, zoom, camera: mapResults?.captureView(), expanded: expanded && !fullscreenOwned }),
         restore: value => {
             const savedFilter = "filter" in value ? value.filter : value;
             filter = { ...sanitizeTrailFilter(savedFilter, page.data.filter), ...(savedFilter.shared === undefined ? { shared: undefined } : {}) };
@@ -83,6 +86,9 @@
                 if (value.zoom !== undefined && Number.isFinite(value.zoom)) zoom = value.zoom;
                 restoredCamera = value.camera;
                 expanded = value.expanded === true;
+                fullscreenOwned = false;
+                fullscreen = false;
+                updateFullscreenLayout();
             }
             renderedViewport = undefined;
             appliedPlace = placeKey(filter);
@@ -100,6 +106,10 @@
     };
     onMount(() => {
         mounted = true;
+        fullscreenDisplay = window.matchMedia("(display-mode: fullscreen)");
+        fullscreenDisplay.addEventListener("change", updateFullscreenLayout);
+        window.addEventListener("resize", updateFullscreenLayout);
+        updateFullscreenLayout();
         loadSearchLayout();
         window.addEventListener("keydown", handleEscape, true);
         try {
@@ -109,6 +119,8 @@
         const frame = requestAnimationFrame(() => { routerReady = true; syncUrl(); });
         return () => {
             mounted = false;
+            fullscreenDisplay?.removeEventListener("change", updateFullscreenLayout);
+            window.removeEventListener("resize", updateFullscreenLayout);
             window.removeEventListener("keydown", handleEscape, true);
             cancelAnimationFrame(frame);
             cancelScheduled();
@@ -116,8 +128,24 @@
         };
     });
 
+    function updateFullscreenLayout() {
+        const value = fullscreenDisplay?.matches ?? false;
+        if (value === fullscreen) return;
+        fullscreen = value;
+        if (value) {
+            if (!expanded) { expanded = true; fullscreenOwned = true; }
+        } else {
+            if (fullscreenOwned) expanded = false;
+            fullscreenOwned = false;
+        }
+    }
+    function toggleExpanded() {
+        expanded = !expanded;
+        fullscreenOwned = false;
+    }
+
     function handleEscape(event: KeyboardEvent) {
-        if (!expandedLayout || event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
+        if (fullscreenOwned || !expandedLayout || event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
         if (document.querySelector("dialog:modal")) return;
         const focused = document.activeElement;
         if (focused?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
@@ -354,7 +382,7 @@
         <div class="map-results-container" aria-busy={loading || refreshing}>
             <TrailMapResults bind:this={mapResults} bind:showMap
                 {trails} {mapTrails} {clusters} {loading} {mapLoading}
-                expanded={expandedLayout} onenlarge={() => expanded = !expanded}
+                expanded={expandedLayout} onenlarge={toggleExpanded}
                 initialBounds={viewport} initialCamera={restoredCamera} {initialCenter} boundingBox={page.data.boundingBox}
                 settings={page.data.settings} display={resultDisplay} near={filter.near} onviewport={onViewport}
                 onupdate={handleTrailsUpdated} {filter} tableHeader={sortOptions.filter(option => option.value !== "elevation_loss" && option.value !== "relevance")} onsort={sortTable}>
