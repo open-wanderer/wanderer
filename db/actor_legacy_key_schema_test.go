@@ -123,11 +123,25 @@ func TestLegacyActorKeyStaysInternal(t *testing.T) {
 			return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: http.NoBody, Header: http.Header{}}, nil
 		})}
 	}))
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/activitypub/actor?iri="+url.QueryEscape(actor.GetString("iri")), nil)
-	response := httptest.NewRecorder()
-	event := &core.RequestEvent{App: app}
-	event.Request, event.Response = request, response
-	if err := routes.ActivitypubActor(event); err != nil || response.Code != http.StatusOK || !strings.Contains(response.Body.String(), actor.Id) {
+	lookup := func(auth *core.Record) (*httptest.ResponseRecorder, error) {
+		event := &core.RequestEvent{App: app, Auth: auth}
+		event.Request = httptest.NewRequest(http.MethodGet, "/api/v1/activitypub/actor?iri="+url.QueryEscape(actor.GetString("iri")), nil)
+		response := httptest.NewRecorder()
+		event.Response = response
+		return response, routes.ActivitypubActor(event)
+	}
+	// Remote lookups are for signed-in users only.
+	if _, err := lookup(nil); err == nil {
+		t.Fatal("anonymous remote actor lookup was answered")
+	}
+	readerActor := core.NewRecord(actors)
+	readerActor.Load(map[string]any{"username": "reader", "preferred_username": "reader", "is_local": true, "user": user.Id,
+		"iri": "https://wanderer.example/api/v1/activitypub/user/reader"})
+	if err := app.SaveNoValidate(readerActor); err != nil {
+		t.Fatal(err)
+	}
+	response, err := lookup(user)
+	if err != nil || response.Code != http.StatusOK || !strings.Contains(response.Body.String(), actor.Id) {
 		t.Fatalf("cached actor lookup: %v %d %s", err, response.Code, response.Body.String())
 	}
 	exposed(t, "actor endpoint", response.Body.Bytes())

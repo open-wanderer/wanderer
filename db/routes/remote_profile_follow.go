@@ -21,6 +21,11 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 	if handle == "" {
 		return e.BadRequestError("Missing required parameter 'handle'", nil)
 	}
+	// Resolving a remote page stores every listed actor, so anonymous
+	// callers (crawlers) would fill activitypub_actors.
+	if e.Auth == nil && federation.IsRemoteHandle(handle) {
+		return e.UnauthorizedError("Unauthorized", nil)
+	}
 
 	followType := e.Request.URL.Query().Get("type")
 	if followType != "following" {

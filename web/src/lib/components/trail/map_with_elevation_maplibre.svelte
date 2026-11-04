@@ -801,8 +801,10 @@
         if (!id) {
             return;
         }
-        layerManager.layers[id].markers?.start?.remove();
-        layerManager.layers[id].markers?.end?.remove();
+        // The editor starts drawing before the map has added the trail's
+        // layer; there are no markers to remove yet.
+        layerManager.layers[id]?.markers?.start?.remove();
+        layerManager.layers[id]?.markers?.end?.remove();
     }
 
     function showWaypoints() {
