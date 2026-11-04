@@ -13,12 +13,17 @@ import (
 // are a cache and are fetched again on demand. The raw DELETE neither
 // cascades nor checks relations, so an actor any relation or recorded
 // activity still names is kept; deleting it would leave dangling ids.
+//
+// It sorts before 1782290000 so that the full-table UPDATEs of that migration
+// and of 1791713192 only see the remaining rows: inside the single migration
+// transaction their statement journals are held in memory. Instances that
+// already applied those still get it, as unapplied lower numbers run too.
 func init() {
-	m.Register(upPurgeUnreferencedRemoteActors1791713197, nil)
+	m.Register(upPurgeUnreferencedRemoteActors1782289999, nil)
 }
 
 // A temp table lives on one connection; the transaction pins it.
-func upPurgeUnreferencedRemoteActors1791713197(app core.App) error {
+func upPurgeUnreferencedRemoteActors1782289999(app core.App) error {
 	return app.RunInTransaction(purgeUnreferencedRemoteActors)
 }
 
@@ -70,22 +75,29 @@ func purgeUnreferencedRemoteActors(app core.App) error {
 		}
 	}
 
+	// Instance actors arrive with actor_type in 1782290000; a database that
+	// runs this purge before it holds none.
+	instanceFilter := ""
+	if actors.Fields.GetByName("actor_type") != nil {
+		instanceFilter = "AND actor_type != 'instance'"
+	}
+
 	const batchSize = 5000
 	var total int64
 	var batches int
 	for {
-		result, err := app.DB().NewQuery(`
+		result, err := app.DB().NewQuery(fmt.Sprintf(`
 			DELETE FROM activitypub_actors
 			WHERE rowid IN (
 				SELECT rowid
 				FROM activitypub_actors
 				WHERE is_local = 0
-				  AND actor_type != 'instance'
+				  %s
 				  AND id NOT IN (SELECT id FROM referenced_actors)
 				ORDER BY rowid
 				LIMIT {:limit}
 			)
-		`).Bind(dbx.Params{"limit": batchSize}).Execute()
+		`, instanceFilter)).Bind(dbx.Params{"limit": batchSize}).Execute()
 		if err != nil {
 			return err
 		}
