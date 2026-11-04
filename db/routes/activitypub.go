@@ -40,6 +40,15 @@ func ActivitypubActor(e *core.RequestEvent) error {
 	iri := e.Request.URL.Query().Get("iri")
 	follows := e.Request.URL.Query().Get("follows") == "true"
 
+	// A remote lookup stores the actor, so anonymous callers get local ones only.
+	remote := federation.IsRemoteHandle(resource)
+	if resource == "" {
+		remote = iri != "" && !util.IsLocalIRI(iri)
+	}
+	if e.Auth == nil && remote {
+		return e.UnauthorizedError("Unauthorized", nil)
+	}
+
 	var userActor *core.Record
 	var err error
 	if e.Auth != nil {

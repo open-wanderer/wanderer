@@ -136,6 +136,12 @@ func GetActorByHandle(app core.App, ctx context.Context, handle string, includeF
 	return actor, err
 }
 
+// IsRemoteHandle reports whether the handle names an actor on another server.
+func IsRemoteHandle(handle string) bool {
+	_, domain := util.SplitHandle(handle)
+	return domain != "" && !isLocalHandleDomain(domain)
+}
+
 func isLocalHandleDomain(domain string) bool {
 	origin, err := url.Parse(os.Getenv("ORIGIN"))
 	if err != nil || origin.Hostname() == "" {
