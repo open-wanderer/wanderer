@@ -1,0 +1,208 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v1.8",
+  "phases": [
+    {
+      "number": "1",
+      "name": "Backend API",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Navigation Screen",
+      "status": "complete"
+    },
+    {
+      "number": "3",
+      "name": "Stats Sheet",
+      "status": "complete"
+    },
+    {
+      "number": "4",
+      "name": "Serialization Fix + Entity Schema",
+      "status": "complete"
+    },
+    {
+      "number": "5",
+      "name": "Cache Write + Fallback + UI",
+      "status": "complete"
+    },
+    {
+      "number": "6",
+      "name": "Settings Navigation + Language & Units",
+      "status": "complete"
+    },
+    {
+      "number": "7",
+      "name": "Privacy",
+      "status": "complete"
+    },
+    {
+      "number": "8",
+      "name": "Account & Profile",
+      "status": "complete"
+    },
+    {
+      "number": "9",
+      "name": "Notifications",
+      "status": "complete"
+    },
+    {
+      "number": "10",
+      "name": "Category & Subcategory Data Layer",
+      "status": "complete"
+    },
+    {
+      "number": "11",
+      "name": "Trail Filter Subcategory Support",
+      "status": "complete"
+    },
+    {
+      "number": "12",
+      "name": "Settings Categories Screen",
+      "status": "complete"
+    },
+    {
+      "number": "13",
+      "name": "Glyph & Sprite Endpoint",
+      "status": "complete"
+    },
+    {
+      "number": "14",
+      "name": "Coordinate Type Migration",
+      "status": "complete"
+    },
+    {
+      "number": "15",
+      "name": "MapLibre Core, Trail Rendering & Offline Parity",
+      "status": "complete"
+    },
+    {
+      "number": "16",
+      "name": "List & Map Screens on MapLibre",
+      "status": "complete"
+    },
+    {
+      "number": "17",
+      "name": "Navigation on MapLibre",
+      "status": "complete"
+    },
+    {
+      "number": "18",
+      "name": "Retire flutter_map and the flomp Forks",
+      "status": "complete"
+    },
+    {
+      "number": "19",
+      "name": "Route Planner Core — Waypoint Editing & Routing Engine",
+      "status": "complete"
+    },
+    {
+      "number": "20",
+      "name": "Route Planner Views — Waypoint List, Elevation & Location Search",
+      "status": "complete"
+    },
+    {
+      "number": "21",
+      "name": "Route Planner Handoff & Entry Point",
+      "status": "complete"
+    },
+    {
+      "number": "22",
+      "name": "Region & Package Data Model",
+      "status": "complete"
+    },
+    {
+      "number": "23",
+      "name": "TileRepositoryManager — Download Engine",
+      "status": "complete"
+    },
+    {
+      "number": "24",
+      "name": "Settings — Offline Maps/Regions UI",
+      "status": "complete"
+    },
+    {
+      "number": "25",
+      "name": "Map Rendering — Region-Based Viewport Pipeline",
+      "status": "complete"
+    },
+    {
+      "number": "26",
+      "name": "Trail Download Guard",
+      "status": "complete"
+    },
+    {
+      "number": "27",
+      "name": "Legacy Cleanup",
+      "status": "complete"
+    },
+    {
+      "number": "28",
+      "name": "Region Catalog Data Model & Seeding",
+      "status": "complete"
+    },
+    {
+      "number": "29",
+      "name": "Polygon-Based Extraction & Region API",
+      "status": "complete"
+    },
+    {
+      "number": "30",
+      "name": "Admin Region Picker UI",
+      "status": "complete"
+    },
+    {
+      "number": "31",
+      "name": "Flutter Settings Hierarchy",
+      "status": "complete"
+    },
+    {
+      "number": "32",
+      "name": "On-Demand Polygon Fetch & Seed Slimming",
+      "status": "complete"
+    },
+    {
+      "number": "33",
+      "name": "Conversion Correctness",
+      "status": "complete"
+    },
+    {
+      "number": "34",
+      "name": "Dart Conversion Port",
+      "status": "complete"
+    },
+    {
+      "number": "35",
+      "name": "Offline Trail Creation",
+      "status": "complete"
+    },
+    {
+      "number": "36",
+      "name": "Local-First Recording & Automatic Upload",
+      "status": "complete"
+    },
+    {
+      "number": "38",
+      "name": "Downloaded Trails as State, Not Objects",
+      "status": "complete"
+    },
+    {
+      "number": "38.1",
+      "name": "Downloaded-Trail Blocker Closure (INSERTED)",
+      "status": "complete"
+    },
+    {
+      "number": "37",
+      "name": "Way Types & Surfaces Breakdown (mobile-first)",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 39 of 6 · executing"
+  },
+  "updated_at": "2026-11-04T13:18:25.848Z"
+}
