@@ -1,23 +1,39 @@
-// Package routeimage renders the placeholder image for trails without photos:
-// the route on the Polar Night background with the contour lines of the docs
-// hero. It needs no tiles, so it works offline and for every import path.
+// Package routeimage renders the placeholder image for trails and summit logs
+// without photos: the route on the Polar Night background with the contour
+// lines of the docs hero. It needs no tiles, so it works offline and for every
+// import path.
+//
+// The image is an SVG. The browser draws it sharp at every size, strokes keep
+// their width however small the image is shown, and it follows the page's
+// color scheme. Presentation attributes carry the light style for renderers
+// that ignore <style>; the dark style overrides them in a media query.
 package routeimage
 
 import (
-	"image"
-	"image/color"
-	"image/draw"
+	"fmt"
 	"math"
-
-	"golang.org/x/image/vector"
+	"strings"
 )
 
 const (
 	Width  = 1200
 	Height = 800
 
-	// padding is the share of each side kept free around the route.
+	// The route is fitted into the centred square, so square crops of the
+	// image (the trail list) keep all of it. padding is the share of the
+	// square kept free on each side.
 	padding = 0.14
+
+	// Stroke widths in screen pixels: non-scaling-stroke keeps them the same
+	// at every size the image is shown at.
+	routeWidth  = 2.5
+	casingWidth = 6.0
+	dotSize     = 8.0
+	ringSize    = 13.0
+
+	// tolerance is how far, in image units, the drawn route may stray from
+	// the recorded one.
+	tolerance = 0.5
 )
 
 type Point struct {
@@ -25,129 +41,101 @@ type Point struct {
 	Lon float64
 }
 
-type gradientStop struct {
-	at    float64
-	color color.NRGBA
-}
+const style = `@media (prefers-color-scheme: dark) {
+.bg0 { stop-color: #0b0d16 }
+.bg1 { stop-color: #12141c }
+.bg2 { stop-color: #1b1e2c }
+.bg3 { stop-color: #242734 }
+.contours { stroke: #fff; opacity: 0.625 }
+.casing { stroke: #0b0d16; stroke-opacity: 0.6 }
+.route, .end { stroke: #fff }
+.ring { stroke: #0b0d16 }
+}`
 
-var (
-	// The hero gradient of docs/src/pages/index.astro.
-	background = []gradientStop{
-		{0, color.NRGBA{0x0b, 0x0d, 0x16, 0xff}},
-		{0.30, color.NRGBA{0x12, 0x14, 0x1c, 0xff}},
-		{0.62, color.NRGBA{0x1b, 0x1e, 0x2c, 0xff}},
-		{1, color.NRGBA{0x24, 0x27, 0x34, 0xff}},
-	}
-
-	routeColor  = color.NRGBA{0xff, 0xff, 0xff, 0xff}
-	casingColor = color.NRGBA{0x0b, 0x0d, 0x16, 0x99}
-	startColor  = color.NRGBA{0x4a, 0xde, 0x80, 0xff}
-	endColor    = color.NRGBA{0xff, 0xff, 0xff, 0xff}
-	markerRing  = color.NRGBA{0x0b, 0x0d, 0x16, 0xff}
-)
-
-const (
-	routeWidth  = 4.0
-	casingWidth = 10.0
-	markerSize  = 8.0
-	ringWidth   = 3.0
-)
-
-// Render draws the trail. Each segment is drawn as its own line, so gaps
+// Render draws the route. Each segment is drawn as its own line, so gaps
 // between GPX segments stay gaps. seed picks the contour pattern; the same
 // seed always gives the same background.
-func Render(segments [][]Point, seed float64) *image.RGBA {
-	img := image.NewRGBA(image.Rect(0, 0, Width, Height))
-	drawGradient(img)
-	drawContours(img, seed)
+func Render(segments [][]Point, seed float64) []byte {
+	var b strings.Builder
+	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, Width, Height, Width, Height)
+	b.WriteString("<style>" + style + "</style>")
+	// The light gradient of the app's welcome screen; the dark one is the
+	// docs hero.
+	b.WriteString(`<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">` +
+		`<stop offset="0" class="bg0" stop-color="#f8f9fc"/>` +
+		`<stop offset="0.3" class="bg1" stop-color="#eff1f6"/>` +
+		`<stop offset="0.62" class="bg2" stop-color="#e2e5ee"/>` +
+		`<stop offset="1" class="bg3" stop-color="#d5d9e4"/>` +
+		`</linearGradient></defs>`)
+	fmt.Fprintf(&b, `<rect width="%d" height="%d" fill="url(#bg)"/>`, Width, Height)
+	writeContours(&b, seed)
 
 	lines := project(segments)
-	if len(lines) == 0 {
-		return img
+	if len(lines) > 0 {
+		d := pathData(lines)
+		writeStroke(&b, "casing", d, "#ffffff", casingWidth, ` stroke-opacity="0.7"`)
+		writeStroke(&b, "route", d, "#12141c", routeWidth, "")
+
+		first := lines[0][0]
+		lastLine := lines[len(lines)-1]
+		last := lastLine[len(lastLine)-1]
+		if first.dist(last) > 0.03*Height {
+			writeMarker(&b, last, "end", "#12141c")
+		}
+		writeMarker(&b, first, "start", "#4ade80")
 	}
 
-	var casing, route shape
-	for _, l := range lines {
-		casing.strokeRound(l, casingWidth)
-		route.strokeRound(l, routeWidth)
-	}
-	fill(img, casing, casingColor)
-	fill(img, route, routeColor)
-
-	first := lines[0][0]
-	lastLine := lines[len(lines)-1]
-	last := lastLine[len(lastLine)-1]
-	if first.dist(last) > 3*markerSize {
-		drawMarker(img, last, endColor)
-	}
-	drawMarker(img, first, startColor)
-
-	return img
+	b.WriteString("</svg>")
+	return []byte(b.String())
 }
 
-func drawMarker(img *image.RGBA, p vec, c color.NRGBA) {
-	var ring, dot shape
-	ring.circle(p, markerSize+ringWidth)
-	dot.circle(p, markerSize)
-	fill(img, ring, markerRing)
-	fill(img, dot, c)
+func writeStroke(b *strings.Builder, class, d, color string, width float64, extra string) {
+	fmt.Fprintf(b, `<path class="%s" d="%s" fill="none" stroke="%s" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"%s/>`,
+		class, d, color, num(width), extra)
 }
 
-func drawGradient(img *image.RGBA) {
-	for y := 0; y < Height; y++ {
-		c := gradientAt(float64(y) / float64(Height-1))
-		row := img.Pix[y*img.Stride : y*img.Stride+Width*4]
-		for x := 0; x < len(row); x += 4 {
-			row[x], row[x+1], row[x+2], row[x+3] = c.R, c.G, c.B, c.A
+// writeMarker draws a dot with a ring as zero-length lines with round caps,
+// so non-scaling-stroke keeps them the same size as the route.
+func writeMarker(b *strings.Builder, p vec, class, color string) {
+	d := fmt.Sprintf("M%s %sh0", num(p.x), num(p.y))
+	writeStroke(b, "ring", d, "#ffffff", ringSize, "")
+	writeStroke(b, class, d, color, dotSize, "")
+}
+
+func pathData(lines [][]vec) string {
+	var b strings.Builder
+	for _, line := range lines {
+		for i, p := range line {
+			switch i {
+			case 0:
+				b.WriteString("M")
+			case 1:
+				b.WriteString("L")
+			default:
+				b.WriteString(" ")
+			}
+			b.WriteString(num(p.x) + " " + num(p.y))
+		}
+		if len(line) == 1 {
+			b.WriteString("h0")
 		}
 	}
+	return b.String()
 }
 
-func gradientAt(t float64) color.NRGBA {
-	for i := 1; i < len(background); i++ {
-		a, b := background[i-1], background[i]
-		if t <= b.at {
-			f := (t - a.at) / (b.at - a.at)
-			mix := func(x, y uint8) uint8 { return uint8(math.Round(float64(x) + (float64(y)-float64(x))*f)) }
-			return color.NRGBA{mix(a.color.R, b.color.R), mix(a.color.G, b.color.G), mix(a.color.B, b.color.B), 0xff}
-		}
+// num prints a coordinate with one decimal, which is finer than any screen
+// the image is shown on.
+func num(v float64) string {
+	s := fmt.Sprintf("%.1f", v)
+	s = strings.TrimSuffix(s, ".0")
+	if s == "-0" {
+		return "0"
 	}
-	return background[len(background)-1].color
+	return s
 }
 
-// fill rasterizes s within its bounding box and composites c through it.
-// Overlapping polygons saturate instead of adding up, so a translucent color
-// is applied once even where strokes and joins overlap.
-func fill(img *image.RGBA, s shape, c color.NRGBA) {
-	minX, minY := math.Inf(1), math.Inf(1)
-	maxX, maxY := math.Inf(-1), math.Inf(-1)
-	for _, poly := range s {
-		for _, p := range poly {
-			minX, maxX = math.Min(minX, p.x), math.Max(maxX, p.x)
-			minY, maxY = math.Min(minY, p.y), math.Max(maxY, p.y)
-		}
-	}
-	box := image.Rect(int(math.Floor(minX)), int(math.Floor(minY)), int(math.Ceil(maxX)), int(math.Ceil(maxY))).Intersect(img.Bounds())
-	if box.Empty() {
-		return
-	}
-
-	r := vector.NewRasterizer(box.Dx(), box.Dy())
-	r.DrawOp = draw.Over
-	ox, oy := float64(box.Min.X), float64(box.Min.Y)
-	for _, poly := range s {
-		r.MoveTo(float32(poly[0].x-ox), float32(poly[0].y-oy))
-		for _, p := range poly[1:] {
-			r.LineTo(float32(p.x-ox), float32(p.y-oy))
-		}
-		r.ClosePath()
-	}
-	r.Draw(img, box, image.NewUniform(c), image.Point{})
-}
-
-// project maps the segments into pixel space with Web Mercator, fits them
-// into the padded frame and drops points closer than a pixel to their
-// predecessor.
+// project maps the segments into image space with Web Mercator, fits them
+// into the padded centre square and simplifies them to what can be seen.
 func project(segments [][]Point) [][]vec {
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
@@ -172,31 +160,21 @@ func project(segments [][]Point) [][]vec {
 	}
 
 	spanX, spanY := maxX-minX, maxY-minY
-	availX, availY := Width*(1-2*padding), Height*(1-2*padding)
-	scale := math.Min(availX/spanX, availY/spanY)
-	if math.IsInf(scale, 0) || math.IsNaN(scale) {
-		if spanX > 0 {
-			scale = availX / spanX
-		} else if spanY > 0 {
-			scale = availY / spanY
-		} else {
-			scale = 0
-		}
+	avail := Height * (1 - 2*padding)
+	scale := 0.0
+	if span := math.Max(spanX, spanY); span > 0 {
+		scale = avail / span
 	}
 	offX := (Width - spanX*scale) / 2
 	offY := (Height - spanY*scale) / 2
 
 	lines := make([][]vec, 0, len(merc))
 	for _, seg := range merc {
-		line := make([]vec, 0, len(seg))
-		for _, v := range seg {
-			p := vec{offX + (v.x-minX)*scale, offY + (v.y-minY)*scale}
-			if len(line) > 0 && line[len(line)-1].dist(p) < 1 {
-				continue
-			}
-			line = append(line, p)
+		line := make([]vec, len(seg))
+		for i, v := range seg {
+			line[i] = vec{offX + (v.x-minX)*scale, offY + (v.y-minY)*scale}
 		}
-		lines = append(lines, line)
+		lines = append(lines, simplify(line, tolerance))
 	}
 	return lines
 }

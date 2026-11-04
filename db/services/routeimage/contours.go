@@ -1,9 +1,9 @@
 package routeimage
 
 import (
-	"image"
-	"image/color"
+	"fmt"
 	"math"
+	"strings"
 )
 
 // A still frame of the contour canvas behind the docs hero
@@ -13,16 +13,22 @@ const (
 	contourNoise     = 0.0028
 	contourAmplitude = 0.095
 	contourStep      = 2.5
+	contourTolerance = 0.3
 )
 
-func drawContours(img *image.RGBA, t float64) {
+// writeContours draws the lines in the light style of the app's welcome
+// screen: black, at 1.6 times the hero's opacity, because dark strokes on a
+// light field need more weight to read. The dark style scales the group back
+// to the hero's white lines.
+func writeContours(b *strings.Builder, t float64) {
 	w, h := float64(Width), float64(Height)
 	steps := int(math.Ceil(w / contourStep))
 
-	for i := 0; i < contourLevels; i++ {
+	b.WriteString(`<g class="contours" fill="none" stroke="#000" stroke-linejoin="round">`)
+	for i := range contourLevels {
 		progress := float64(i) / (contourLevels - 1)
 		baseY := h * (0.05 + 0.92*progress)
-		opacity := 0.018 + progress*0.062
+		opacity := (0.018 + progress*0.062) * 1.6
 		lineW := 0.3 + progress*0.8
 
 		line := make([]vec, steps+1)
@@ -33,10 +39,12 @@ func drawContours(img *image.RGBA, t float64) {
 			line[j] = vec{x, baseY + fbm(nx, ny)*h*contourAmplitude}
 		}
 
-		var s shape
-		s.strokeOutline(line, lineW)
-		fill(img, s, color.NRGBA{0xff, 0xff, 0xff, uint8(math.Round(opacity * 255))})
+		// Unlike the route, the lines scale with the image, so the background
+		// fades instead of crowding when the image is shown small.
+		fmt.Fprintf(b, `<path d="%s" stroke-width="%s" stroke-opacity="%.3f"/>`,
+			pathData([][]vec{simplify(line, contourTolerance)}), num(lineW), opacity)
 	}
+	b.WriteString("</g>")
 }
 
 func hash(ix, iy float64) float64 {

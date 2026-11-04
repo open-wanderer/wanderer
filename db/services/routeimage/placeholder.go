@@ -1,10 +1,8 @@
 package routeimage
 
 import (
-	"bytes"
 	"fmt"
 	"hash/fnv"
-	"image/jpeg"
 	"io"
 	"slices"
 	"strings"
@@ -22,16 +20,23 @@ func IsPlaceholder(filename string) bool {
 	return strings.HasPrefix(filename, placeholderName+"_")
 }
 
+// WithoutPlaceholder lists the photos to attach to an activity. The
+// placeholder is left out: Mastodon and other servers can't show SVG, and
+// receiving wanderer instances render their own.
+func WithoutPlaceholder(photos []string) []string {
+	return slices.DeleteFunc(slices.Clone(photos), IsPlaceholder)
+}
+
 // Apply keeps the generated photo of a trail or summit log in step with its
-// route, before the record is written. It runs inside the save so that the
-// Create or Update activity sent for the record already carries the image: a
-// separate, later Update could reach a remote instance before the Create,
-// which would then clear the photos again.
+// route, before the record is written, so the image exists as soon as the
+// save returns.
 //
 // It drops the placeholder once the author adds photos of their own, and
 // renders one when the record has a route but no photos: on create, when
 // the route changes, and when the author removes the last photo. Records of
-// remote authors are left alone; their origin instance sends its own photos.
+// remote authors get one too: activities leave the placeholder out, because
+// other servers can't show SVG attachments, so every wanderer instance
+// renders its own from the federated route.
 func Apply(app core.App, record *core.Record) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -43,14 +48,6 @@ func Apply(app core.App, record *core.Record) (err error) {
 	if !needsPlaceholder(record) || !outdated(record) {
 		return nil
 	}
-	author, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
-	if err != nil {
-		return fmt.Errorf("find author: %w", err)
-	}
-	if !author.GetBool("is_local") {
-		return nil
-	}
-
 	content, err := readGPX(app, record)
 	if err != nil {
 		return err
@@ -64,11 +61,7 @@ func Apply(app core.App, record *core.Record) (err error) {
 		return nil
 	}
 
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, Render(segments, seed(content)), &jpeg.Options{Quality: 85}); err != nil {
-		return fmt.Errorf("encode: %w", err)
-	}
-	file, err := filesystem.NewFileFromBytes(buf.Bytes(), placeholderName+".jpg")
+	file, err := filesystem.NewFileFromBytes(Render(segments, seed(content)), placeholderName+".svg")
 	if err != nil {
 		return err
 	}

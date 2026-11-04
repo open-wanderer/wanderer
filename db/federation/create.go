@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"pocketbase/services/routeimage"
 	"pocketbase/util"
 
 	pub "github.com/go-ap/activitypub"
@@ -286,7 +287,7 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 		cc.Append(pub.IRI(inbox))
 	}
 
-	photos := summitLog.GetStringSlice("photos")
+	photos := routeimage.WithoutPlaceholder(summitLog.GetStringSlice("photos"))
 
 	gpx := ""
 	if summitLog.GetString("gpx") != "" {

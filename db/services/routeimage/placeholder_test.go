@@ -2,6 +2,8 @@ package routeimage
 
 import (
 	"bytes"
+	"encoding/xml"
+	"image"
 	"image/jpeg"
 	"io"
 	"strings"
@@ -111,7 +113,7 @@ func newRecord(t *testing.T, app core.App, collection string, local bool, gpxCon
 func upload(t *testing.T, name string) *filesystem.File {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, Render(nil, 0), nil); err != nil {
+	if err := jpeg.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil); err != nil {
 		t.Fatal(err)
 	}
 	f, err := filesystem.NewFileFromBytes(buf.Bytes(), name)
@@ -147,8 +149,8 @@ func storedFileExists(t *testing.T, app core.App, record *core.Record, name stri
 func onlyPlaceholder(t *testing.T, record *core.Record) string {
 	t.Helper()
 	photos := record.GetStringSlice("photos")
-	if len(photos) != 1 || !IsPlaceholder(photos[0]) || !strings.HasSuffix(photos[0], ".jpg") {
-		t.Fatalf("photos = %v, want one generated jpg", photos)
+	if len(photos) != 1 || !IsPlaceholder(photos[0]) || !strings.HasSuffix(photos[0], ".svg") {
+		t.Fatalf("photos = %v, want one generated svg", photos)
 	}
 	return photos[0]
 }
@@ -168,15 +170,19 @@ func TestPlaceholderOnCreate(t *testing.T) {
 			}
 			defer r.Close()
 			data, _ := io.ReadAll(r)
-			cfg, err := jpeg.DecodeConfig(bytes.NewReader(data))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if cfg.Width != Width || cfg.Height != Height {
-				t.Fatalf("size = %dx%d, want %dx%d", cfg.Width, cfg.Height, Width, Height)
+			checkSVG(t, data)
+			if !bytes.Contains(data, []byte(`class="route"`)) {
+				t.Fatal("the placeholder has no route")
 			}
 		})
 	}
+}
+
+// Activities leave the placeholder out, so every instance renders its own
+// for the trails it receives.
+func TestPlaceholderForRemoteAuthor(t *testing.T) {
+	app := setupApp(t)
+	onlyPlaceholder(t, newTrail(t, app, false, trackGPX))
 }
 
 func TestPlaceholderFromRouteOnlyGPX(t *testing.T) {
@@ -191,7 +197,6 @@ func TestNoPlaceholder(t *testing.T) {
 		gpx    string
 		photos []string
 	}{
-		{"remote author", false, trackGPX, nil},
 		{"author photo", true, trackGPX, []string{"summit.jpg"}},
 		{"no route", true, "", nil},
 		{"broken route", true, "<gpx", nil},
@@ -317,17 +322,68 @@ func TestSegmentsFallsBackToRoutes(t *testing.T) {
 }
 
 func TestRenderEdgeCases(t *testing.T) {
-	cases := map[string][][]Point{
-		"no segments":      nil,
-		"single point":     {{{46.6, 7.2}}},
-		"north-south only": {{{46.6, 7.2}, {46.7, 7.2}}},
-		"invalid points":   {{{91, 7.2}, {46.6, 181}}},
+	cases := map[string]struct {
+		segments [][]Point
+		route    bool
+	}{
+		"no segments":      {nil, false},
+		"single point":     {[][]Point{{{46.6, 7.2}}}, true},
+		"north-south only": {[][]Point{{{46.6, 7.2}, {46.7, 7.2}}}, true},
+		"invalid points":   {[][]Point{{{91, 7.2}, {46.6, 181}}}, false},
 	}
-	for name, segments := range cases {
+	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			if b := Render(segments, 1).Bounds(); b.Dx() != Width || b.Dy() != Height {
-				t.Fatalf("bounds = %v", b)
+			data := Render(c.segments, 1)
+			checkSVG(t, data)
+			if got := bytes.Contains(data, []byte(`class="route"`)); got != c.route {
+				t.Fatalf("has route = %v, want %v", got, c.route)
+			}
+			if bytes.Contains(data, []byte("NaN")) || bytes.Contains(data, []byte("Inf")) {
+				t.Fatal("the SVG holds an invalid number")
 			}
 		})
+	}
+}
+
+// The route is fitted into the centred square, so the square crop of the
+// trail list keeps all of it.
+func TestRouteFitsCentreSquare(t *testing.T) {
+	wide := [][]Point{{{46.6, 6.0}, {46.6, 9.0}}}
+	for _, line := range project(wide) {
+		for _, p := range line {
+			left := float64(Width-Height) / 2
+			if p.x < left || p.x > left+Height || p.y < 0 || p.y > Height {
+				t.Fatalf("point %v lies outside the centre square", p)
+			}
+		}
+	}
+}
+
+func TestSimplify(t *testing.T) {
+	line := []vec{{0, 0}, {1, 0.1}, {2, 0}, {3, 5}, {4, 0}}
+	got := simplify(line, 0.5)
+	want := []vec{{0, 0}, {2, 0}, {3, 5}, {4, 0}}
+	if len(got) != len(want) {
+		t.Fatalf("simplify = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("simplify = %v, want %v", got, want)
+		}
+	}
+}
+
+func checkSVG(t *testing.T, data []byte) {
+	t.Helper()
+	var root struct {
+		XMLName xml.Name
+		Width   int `xml:"width,attr"`
+		Height  int `xml:"height,attr"`
+	}
+	if err := xml.Unmarshal(data, &root); err != nil {
+		t.Fatalf("not well-formed XML: %v", err)
+	}
+	if root.XMLName.Local != "svg" || root.Width != Width || root.Height != Height {
+		t.Fatalf("root = %s %dx%d, want svg %dx%d", root.XMLName.Local, root.Width, root.Height, Width, Height)
 	}
 }
