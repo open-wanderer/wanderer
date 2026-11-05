@@ -25,17 +25,17 @@
     interface Props {
         trail: Trail;
         showDescription?: boolean;
+        compact?: boolean;
         selected: boolean;
         hovered: boolean;
-        onTrailSelect?: () => void;
     }
 
     let {
         trail,
         showDescription = true,
+        compact = false,
         selected = false,
         hovered = false,
-        onTrailSelect,
     }: Props = $props();
 
     let thumbnail = $derived(
@@ -50,12 +50,6 @@
               : emptyStateTrailDark,
     );
 
-    function handleInputClick(e: Event) {
-        e.stopPropagation();
-        onTrailSelect?.();
-        hovered = true;
-    }
-
     let expandedTags = $state(false);
 
     function toggleExpandTags(e: MouseEvent) {
@@ -68,20 +62,22 @@
 
 <li
     class="flex gap-8 p-4 rounded-xl border border-input-border cursor-pointer hover:bg-secondary-hover transition-colors items-center"
+    class:compact
+    class:hovered
     class:bg-secondary-hover={selected}
 >
     <div class="shrink-0">
         {#if isVideoURL(thumbnail)}
             <!-- svelte-ignore a11y_media_has_caption -->
             <video
-                class="h-28 w-28 object-cover rounded-xl"
+                class={`object-cover rounded-xl ${compact ? "h-16 w-16" : "h-28 w-28"}`}
                 autoplay
                 loop
                 src={thumbnail}
             ></video>
         {:else}
             <img
-                class="h-28 w-28 object-cover rounded-xl"
+                class={`object-cover rounded-xl ${compact ? "h-16 w-16" : "h-28 w-28"}`}
                 src={thumbnail}
                 alt=""
             />
@@ -232,18 +228,13 @@
                 {formatHTMLAsText(trail.description ?? "")}
             </p>
         {/if}
-        {#if hovered || selected}
-            <div
-                class="flex absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center bg-background text-content"
-            >
-                <input
-                    id="trail-selected"
-                    type="checkbox"
-                    class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
-                    bind:checked={selected}
-                    onclick={(e) => handleInputClick(e)}
-                />
-            </div>
-        {/if}
     </div>
 </li>
+
+<style>
+    @media (hover: hover) {
+        .hovered { background-color: rgba(var(--secondary-hover)); }
+    }
+    .compact { gap: .75rem; overflow-wrap: anywhere; padding: .75rem; }
+    .compact :global(.tooltip)::before { right: 0; }
+</style>

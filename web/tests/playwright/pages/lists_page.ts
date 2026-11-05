@@ -21,7 +21,7 @@ export class ListsPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.createListButton = page.getByLabel('New list');
+    this.createListButton = page.getByRole('link', { name: 'New List', exact: true });
     this.listForm = page.locator("#list-form");
 
     this.listFormAvatar = page.locator('#avatar')
@@ -54,6 +54,7 @@ export class ListsPage {
       this.page.goto('/lists', { waitUntil: 'domcontentloaded' }),
     ]);
     expect(searchResponse.status(), 'Overview search must succeed').toBe(200);
+    await expect(this.page.locator('.list-results')).toHaveAttribute('aria-busy', 'false');
     await expect(this.listItems.first().or(
       this.page.locator('#list-container').getByRole('img', {
         name: 'Empty State showing a wanderer going into the distance', exact: true,
@@ -110,8 +111,13 @@ export class ListsPage {
     }
   }
 
-  async create(name: string = "Test List") {
+  async openCreateList() {
+    await this.page.getByRole('button', { name: 'Create', exact: true }).click();
     await this.createListButton.click();
+  }
+
+  async create(name: string = "Test List") {
+    await this.openCreateList();
     await this.listFormName.fill(name);
     await this.listFormAvatar.setInputFiles([
       "./tests/playwright/fixtures/avatar.webp"

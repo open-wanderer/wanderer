@@ -10,6 +10,7 @@ function inboxHeaders() {
         date: "Wed, 30 Sep 2026 05:00:00 GMT",
         digest: "SHA-256=abc",
         "content-type": "application/activity+json",
+        "content-length": "2",
         signature: 'keyId="https://remote.example/users/a#main-key",headers="(request-target) host date digest"',
         connection: "upgrade",
         upgrade: "websocket",
@@ -43,6 +44,15 @@ describe("forwardableHeaders", () => {
         });
 
         it("succeeds with the forwarded headers", async () => {
+            const res = await fetch(url, { method: "POST", headers: forwardableHeaders(inboxHeaders()), body: "{}" });
+            expect(await res.text()).toBe("ok");
+        });
+
+        // The HTML sanitizer loads jsdom, whose undici becomes the dispatcher of
+        // Node's fetch and rejects a forwarded Content-Length next to the one
+        // fetch sets for the body.
+        it("succeeds once the HTML sanitizer is loaded", async () => {
+            await import("isomorphic-dompurify");
             const res = await fetch(url, { method: "POST", headers: forwardableHeaders(inboxHeaders()), body: "{}" });
             expect(await res.text()).toBe("ok");
         });

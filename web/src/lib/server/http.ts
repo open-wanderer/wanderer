@@ -17,15 +17,17 @@ export async function proxyJsonResponse(response: Response) {
 }
 
 // Hop-by-hop headers must not be forwarded; Node's fetch rejects some of
-// them, e.g. "Connection: upgrade".
-const HOP_BY_HOP = new Set([
+// them, e.g. "Connection: upgrade". Content-Length is set by fetch for the
+// body it sends; a forwarded copy doubles the value, which undici rejects.
+const NOT_FORWARDED = new Set([
     "connection", "keep-alive", "proxy-connection", "te", "trailer", "transfer-encoding", "upgrade", "expect",
+    "content-length",
 ]);
 
 export function forwardableHeaders(headers: Headers): Record<string, string> {
     const result: Record<string, string> = {};
     headers.forEach((value, key) => {
-        if (!HOP_BY_HOP.has(key)) {
+        if (!NOT_FORWARDED.has(key)) {
             result[key] = value;
         }
     });

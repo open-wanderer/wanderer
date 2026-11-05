@@ -1,5 +1,6 @@
 import type Meilisearch from 'meilisearch';
 import PocketBase from 'pocketbase';
+import type { TrailFilter } from '#lib/models/trail.ts';
 
 
 // See https://kit.svelte.dev/docs/types#app
@@ -14,6 +15,7 @@ declare global {
 		// interface PageData {}
 		interface PageState {
 			lightbox?: { id: string; index: number };
+			mapSearchFilter?: TrailFilter;
 		}
 		// interface Platform {}
 		interface Locals {

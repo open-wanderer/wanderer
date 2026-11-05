@@ -2,8 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { extname, resolve } from 'node:path';
-import { compile } from 'svelte/compiler';
-import { build } from 'vite';
+import { compile, compileModule } from 'svelte/compiler';
+import { build, transformWithOxc } from 'vite';
 import { expect, type Page } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -45,7 +45,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 if (id === '\0fixture:navigation') return 'export function goto() {}';
                 if (id === '\0fixture:i18n') return `
                     import { writable } from 'svelte/store';
-                    export const _ = writable(key => key);
+                    export const _ = writable((key, options) => key === 'trail-results-select-trail' ? 'Select ' + options.values.name : key);
                     export const locale = writable('en');
                 `;
                 if (id === resolve(root, 'src/lib/stores/user_store.ts')) return `
@@ -60,6 +60,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 if (id === resolve(root, 'src/lib/stores/search_store.ts')) return 'export async function searchActors() { return []; }';
                 if (id === '\0fixture:toast') return 'export function show_toast() {}';
 
+                if (id.endsWith('.svelte.ts')) return compileModule((await transformWithOxc(await readFile(id, 'utf8'), id, { lang: 'ts', target: 'esnext' })).code, { filename: id, generate: 'client', dev }).js.code;
                 let source: string;
                 if (id in sourceStubs) source = sourceStubs[id];
                 else if (id === '\0fixture:pair.svelte') source = pairSource ?? `
