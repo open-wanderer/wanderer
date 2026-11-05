@@ -1,7 +1,7 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/server/valhalla', () => ({ getValhallaUrl: () => null }));
+vi.mock('#lib/server/valhalla.ts', () => ({ getValhallaUrl: () => null }));
 
 import { POST as height } from './height/+server';
 import { POST as navigate } from './navigate/+server';

@@ -1,15 +1,15 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$lib/util/activitypub_server_util', () => ({
+vi.mock('#lib/util/activitypub_server_util.ts', () => ({
     getActorResponseForHandle: vi.fn(),
 }));
 
-vi.mock('$lib/server/category_preference_filter', () => ({
+vi.mock('#lib/server/category_preference_filter.ts', () => ({
     withTrailPreferenceMeiliFilter: vi.fn(async (_event: unknown, filter: unknown) => filter),
 }));
 
-import { getActorResponseForHandle } from '$lib/util/activitypub_server_util';
+import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
 import { GET } from './+server';
 
 const mockedGetActor = vi.mocked(getActorResponseForHandle);
@@ -18,7 +18,9 @@ function hit(field: string, value: number) {
     return { hits: [{ [field]: value }] };
 }
 
-function buildEvent(options: { handle?: string; anonymous?: boolean } = {}): RequestEvent {
+type TestEvent = Omit<RequestEvent, 'fetch'> & { fetch: RequestEvent['fetch'] };
+
+function buildEvent(options: { handle?: string; anonymous?: boolean } = {}): TestEvent {
     const url = new URL(
         `http://localhost/api/v1/trail/bounding-box${
             options.handle ? `?handle=${encodeURIComponent(options.handle)}` : ''
@@ -38,7 +40,7 @@ function buildEvent(options: { handle?: string; anonymous?: boolean } = {}): Req
             ms: { multiSearch },
         },
         fetch: vi.fn(),
-    } as unknown as RequestEvent;
+    } as unknown as TestEvent;
 }
 
 function remoteActor() {

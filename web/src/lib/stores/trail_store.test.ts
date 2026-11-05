@@ -86,7 +86,7 @@ describe("trail search radius", () => {
 describe("searchResultToTrailList", () => {
     it("keeps the moving time, which cards and lists prefer over the total duration", async () => {
         const { searchResultToTrailList } = await import("./trail_store");
-        const { trailDisplayDuration } = await import("$lib/util/format_util");
+        const { trailDisplayDuration } = await import("#lib/util/format_util.ts");
         const hit = {
             id: "trail000000001", name: "Ridge", author: "actor", author_name: "alice", author_avatar: "",
             created: 0, date: 0, public: true, completed: false, difficulty: 1, distance: 5000,

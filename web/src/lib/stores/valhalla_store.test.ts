@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import GPX from "$lib/models/gpx/gpx";
+import GPX from "#lib/models/gpx/gpx.ts";
 import { deleteFromRoute, setRoute, valhallaStore } from "./valhalla_store.svelte";
 
 /**

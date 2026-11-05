@@ -1,6 +1,6 @@
-import { RecordIdSchema } from '$lib/models/api/base_schema';
-import type { Settings } from '$lib/models/settings';
-import { Collection, handleError } from '$lib/util/api_util';
+import { RecordIdSchema } from '#lib/models/api/base_schema.ts';
+import type { Settings } from '#lib/models/settings.ts';
+import { Collection, handleError } from '#lib/util/api_util.ts';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**

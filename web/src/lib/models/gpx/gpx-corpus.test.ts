@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { gpx2trail } from "$lib/util/gpx_util";
+import { gpx2trail } from "#lib/util/gpx_util.ts";
 import GPX from "./gpx";
 
 // The corpus is a single, on-disk, language-neutral fixture set at the repo root,

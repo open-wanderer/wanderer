@@ -2,10 +2,10 @@ import {
   TraceRouteRequestSchema,
   type TraceRouteResponse,
   type TraceRouteShapePoint,
-} from '$lib/models/api/valhalla_trace_route_schema';
-import { getValhallaUrl } from '$lib/server/valhalla';
-import { handleError } from '$lib/util/api_util';
-import { decodePolyline } from '$lib/util/polyline_util';
+} from '#lib/models/api/valhalla_trace_route_schema.ts';
+import { getValhallaUrl } from '#lib/server/valhalla.ts';
+import { handleError } from '#lib/util/api_util.ts';
+import { decodePolyline } from '#lib/util/polyline_util.ts';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
 
 /**

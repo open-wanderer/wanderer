@@ -1,6 +1,6 @@
-import GPX from "$lib/models/gpx/gpx";
-import { handleError } from "$lib/util/api_util";
-import { FileTooLargeError, fromFile } from "$lib/util/gpx_util";
+import GPX from "#lib/models/gpx/gpx.ts";
+import { handleError } from "#lib/util/api_util.ts";
+import { FileTooLargeError, fromFile } from "#lib/util/gpx_util.ts";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
 

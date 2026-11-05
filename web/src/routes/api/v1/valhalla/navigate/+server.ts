@@ -1,9 +1,9 @@
-import { handleError } from '$lib/util/api_util';
-import { decodePolyline } from '$lib/util/polyline_util';
-import { NavigateRequestSchema } from '$lib/models/api/valhalla_navigate_schema';
+import { handleError } from '#lib/util/api_util.ts';
+import { decodePolyline } from '#lib/util/polyline_util.ts';
+import { NavigateRequestSchema } from '#lib/models/api/valhalla_navigate_schema.ts';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
-import type { NavigateManeuver } from '$lib/models/api/valhalla_navigate_schema';
-import { getValhallaUrl } from '$lib/server/valhalla';
+import type { NavigateManeuver } from '#lib/models/api/valhalla_navigate_schema.ts';
+import { getValhallaUrl } from '#lib/server/valhalla.ts';
 
 /**
  * @swagger
