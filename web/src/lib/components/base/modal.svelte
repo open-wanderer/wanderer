@@ -97,7 +97,7 @@
 </script>
 
 {@render children?.({ openModal })}
-<dialog aria-hidden="true"
+<dialog
     {id}
     bind:this={dialog}
     tabindex="-1"
