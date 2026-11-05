@@ -53,7 +53,15 @@ class CookieFileService extends HttpFileService {
 
     // The jar matches cookies by domain and path, so a remote actor's avatar
     // or a DiceBear fallback never receives this instance's session token.
-    final cookies = await jar.loadForRequest(Uri.parse(url));
+    //
+    // It does not enforce `Secure` (cookie_jar 4.0.9 returns unexpired Secure
+    // cookies for http URLs), and image URLs are not all ours: a federated
+    // actor picks its own icon URL, and `http://<this host>/x.png` would
+    // otherwise put the session token on the wire in cleartext.
+    final uri = Uri.parse(url);
+    final cookies = (await jar.loadForRequest(uri))
+        .where((c) => !c.secure || uri.isScheme('https'))
+        .toList();
     if (cookies.isEmpty) return super.get(url, headers: headers);
 
     return super.get(

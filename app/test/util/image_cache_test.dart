@@ -42,6 +42,44 @@ void main() {
     expect(requests.map((r) => r.headers['cookie']), [null, null]);
   });
 
+  group('Secure cookies', () {
+    setUp(() async {
+      final jar = CookieJar();
+      await jar.saveFromResponse(Uri.parse('https://wanderer.example/api/v1'), [
+        Cookie('pb_auth', 'token')
+          ..path = '/'
+          ..secure = true,
+      ]);
+      WandererImageCacheManager.cookieJar = jar;
+    });
+
+    test('are sent over https', () async {
+      await service.get('https://wanderer.example/api/v1/files/t/a/p.jpg');
+
+      expect(requests.single.headers['cookie'], 'pb_auth=token');
+    });
+
+    // A federated actor chooses its own icon URL, so an image fetch can be
+    // pointed at this instance's host over plain http.
+    test('are never sent over http', () async {
+      await service.get('http://wanderer.example/x.png');
+
+      expect(requests.single.headers['cookie'], isNull);
+    });
+  });
+
+  test('sends a non-Secure cookie to a plain http instance', () async {
+    final jar = CookieJar();
+    await jar.saveFromResponse(Uri.parse('http://wanderer.lan/api/v1'), [
+      Cookie('pb_auth', 'token')..path = '/',
+    ]);
+    WandererImageCacheManager.cookieJar = jar;
+
+    await service.get('http://wanderer.lan/api/v1/files/t/a/p.jpg');
+
+    expect(requests.single.headers['cookie'], 'pb_auth=token');
+  });
+
   test('sends no cookie before a jar is configured', () async {
     WandererImageCacheManager.cookieJar = null;
 
