@@ -7,18 +7,22 @@
 
     interface Props {
         label?: string;
+        placeholder?: string;
         value?: string;
         includeSelf?: boolean;
         clearAfterSelect?: boolean;
+        dismissOnEscape?: boolean;
         onclear?: () => void;
         onclick?: (item: SearchItem) => void;
     }
 
     let {
         label = "",
+        placeholder,
         value = $bindable(""),
         includeSelf = true,
         clearAfterSelect = true,
+        dismissOnEscape = false,
         onclear,
         onclick,
     }: Props = $props();
@@ -60,9 +64,10 @@
 <Search
     onupdate={(q) => updateActors(q)}
     onclick={(item) => onClick(item)}
-    placeholder={`${$_("username")}...`}
+    placeholder={placeholder ?? `${$_("username")}...`}
     items={searchItems}
     {clearAfterSelect}
+    {dismissOnEscape}
     {label}
     bind:value
 >

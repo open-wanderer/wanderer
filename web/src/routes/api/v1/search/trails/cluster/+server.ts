@@ -2,6 +2,7 @@ import { withTrailPreferenceMeiliFilter } from "#lib/server/category_preference_
 import { error, type RequestEvent } from "@sveltejs/kit";
 import Supercluster from "supercluster";
 import { MAP_MAX_POLYLINES } from "#lib/config/map.ts";
+import { buildTrailSearchBoundsFilter } from "#lib/util/trail_search_util.ts";
 
 function isFiniteNumber(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value);
@@ -24,30 +25,24 @@ export async function POST(event: RequestEvent) {
     }
 
     try {
-        let lonFilter = `max_lon >= ${southWest.lng} AND min_lon <= ${northEast.lng}`;
-        if (southWest.lng > northEast.lng) {
-            lonFilter = `(max_lon >= ${southWest.lng} OR min_lon <= ${northEast.lng})`;
-        }
-    
-        const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
-        
+        const geoFilter = buildTrailSearchBoundsFilter({ northEast, southWest });
+        const baseFilters = [geoFilter, filterText].filter(f => f && f !== "");
         const summaryQuery = {
             indexUid: "trails",
             q,
             filter: await withTrailPreferenceMeiliFilter(
                 event,
-                [geoFilter, filterText].filter(f => f && f !== ""),
+                baseFilters,
             ),
-            attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal"],
-            limit: 10000, 
+            attributesToRetrieve: ["id", "_geo", "bounding_box_diagonal", "category_icon", "subcategory_id"],
+            limit: 10000,
         };
-
-        const r = await event.locals.ms.multiSearch({
-            queries: [summaryQuery]
+        const response = await event.locals.ms.multiSearch({
+            queries: [summaryQuery],
         });
+        const hits = response.results[0].hits;
+        const totalHits = response.results[0].estimatedTotalHits ?? response.results[0].totalHits;
 
-        const hits = r.results[0].hits;
-        
         const clusteringMaxZoom = event.locals.settings?.behavior?.mapClusteringMaxZoom ?? 11;
         const forceClustering = zoom < clusteringMaxZoom;
 
@@ -61,7 +56,9 @@ export async function POST(event: RequestEvent) {
             type: "Feature",
             properties: {
                 id: h.id, 
-                bounding_box_diagonal: h.bounding_box_diagonal ?? 0
+                bounding_box_diagonal: h.bounding_box_diagonal ?? 0,
+                category_icon: h.category_icon ?? "",
+                subcategory_id: h.subcategory_id ?? "",
             },
             geometry: {
                 type: "Point",
@@ -112,7 +109,9 @@ export async function POST(event: RequestEvent) {
                 is_large: true,
                 point_count: 1,
                 point_count_abbreviated: "1",
-                bounding_box_diagonal: h.bounding_box_diagonal ?? 0
+                bounding_box_diagonal: h.bounding_box_diagonal ?? 0,
+                category_icon: h.category_icon ?? "",
+                subcategory_id: h.subcategory_id ?? "",
             },
             geometry: {
                 type: "Point",
@@ -123,7 +122,7 @@ export async function POST(event: RequestEvent) {
         return Response.json({
             type: "FeatureCollection",
             features: [...normalizedSmallFeatures, ...largeFeatures],
-            totalHits: r.results[0].estimatedTotalHits ?? r.results[0].totalHits
+            totalHits,
         });
     } catch (e: any) {
         console.error("Clustering error:", e);

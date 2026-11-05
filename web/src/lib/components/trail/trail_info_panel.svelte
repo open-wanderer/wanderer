@@ -81,6 +81,7 @@
         mode?: "overview" | "map" | "list";
         markers?: M.Marker[];
         activeTab?: number;
+        onback?: () => void;
     }
 
     let {
@@ -89,6 +90,7 @@
         mode = "map",
         markers = [],
         activeTab = 0,
+        onback,
     }: Props = $props();
 
     let summitLogModal: SummitLogModal;
@@ -492,11 +494,12 @@
 >
     <div class="trail-info-panel-header">
         <section class="relative">
-            {#if mode !== "list"}
+            {#if mode !== "list" || onback}
                 <button
+                    type="button"
                     aria-label="Back"
                     class="bg-black/40 text-white text-lg rounded-full w-10 h-10 hover:bg-black/50 transition-colors focus:ring-4 focus:ring-primary/70 top-6 left-6 absolute"
-                    onclick={() => history.back()}
+                    onclick={onback ?? (() => history.back())}
                 >
                     <i class="fa fa-arrow-left"></i>
                 </button>

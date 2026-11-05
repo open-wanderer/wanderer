@@ -81,8 +81,8 @@ type Geometry = {
 }
 
 
-export async function searchTrails(q: string, options: SearchParams): Promise<Hits<TrailSearchResult>> {
-    const r = await fetch("/api/v1/search/trails", {
+export async function searchTrails(q: string, options: SearchParams, f: typeof fetch = fetch): Promise<Hits<TrailSearchResult>> {
+    const r = await f("/api/v1/search/trails", {
         method: "POST",
         body: JSON.stringify({
             q,
@@ -103,6 +103,19 @@ export async function searchTrails(q: string, options: SearchParams): Promise<Hi
     return response.hits || []
 }
 
+export async function searchLists(q: string, options: SearchParams, f: FetchFunction = fetch): Promise<Hits<ListSearchResult>> {
+    const response = await f("/api/v1/search/lists", {
+        method: "POST",
+        body: JSON.stringify({ q, options }),
+    });
+    if (!response.ok) {
+        const result = await response.json();
+        throw new APIError(response.status, result.message, result.detail);
+    }
+    const result: SearchResponse<ListSearchResult> = await response.json();
+    return result.hits ?? [];
+}
+
 export async function searchLocations(q: string, limit?: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch): Promise<Hits<LocationSearchResult>> {
     if (!q.trim()) {
         return [];
@@ -113,6 +126,9 @@ export async function searchLocations(q: string, limit?: number, f: (url: Reques
             format: "geojson",
             addressdetails: "1",
         });
+    if (limit !== undefined) {
+        params.set("limit", limit.toString());
+    }
     const r = await fetchGeocoding("search", params, f);
     if (!r.ok) {
         const response = await r.json();
@@ -263,9 +279,10 @@ export async function searchMulti(options: MultiSearchParams): Promise<MultiSear
     return response.results
 }
 
-export async function searchActors(q: string, includeSelf: boolean = true): Promise<ActorSearchResult[]> {
+export async function searchActors(q: string, includeSelf: boolean = true, f: FetchFunction = fetch): Promise<ActorSearchResult[]> {
     try {
-        const r = await fetch(`/api/v1/search/actor?q=${q}&includeSelf=${includeSelf}`,)
+        const params = new URLSearchParams({ q, includeSelf: String(includeSelf) });
+        const r = await f(`/api/v1/search/actor?${params}`);
 
         if (!r.ok) {
             return []
@@ -278,4 +295,20 @@ export async function searchActors(q: string, includeSelf: boolean = true): Prom
 
         return []
     }
+}
+
+
+/** Resolve a saved author filter by its exact actor ID, without a text search. */
+export async function searchActorById(id: string, f: FetchFunction = fetch, signal?: AbortSignal): Promise<ActorSearchResult | null> {
+    const response = await f("/api/v1/search/actors", {
+        method: "POST",
+        signal,
+        body: JSON.stringify({
+            q: "",
+            options: { filter: `id = ${JSON.stringify(id)}`, limit: 1 },
+        }),
+    });
+    if (!response.ok) throw new Error(`Actor lookup failed: ${response.status}`);
+    const result: SearchResponse<ActorSearchResult> = await response.json();
+    return result.hits.find(actor => actor.id === id) ?? null;
 }
