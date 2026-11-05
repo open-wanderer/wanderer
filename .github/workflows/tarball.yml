@@ -1,0 +1,162 @@
+name: Build Wanderer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+
+  ##########################################################################
+  # PREPARE
+  ##########################################################################
+
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      matrix_arch: ${{ steps.matrix.outputs.arch }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Compute version
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build matrix
+        id: matrix
+        run: |
+          echo 'arch=["amd64","arm64"]' >> $GITHUB_OUTPUT
+
+
+  ##########################################################################
+  # BUILD
+  ##########################################################################
+
+  build:
+    needs: prepare
+
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.prepare.outputs.matrix_arch) }}
+
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      ARCH: ${{ matrix.arch }}
+
+    steps:
+
+      - uses: actions/checkout@v6
+
+
+      ######################################################################
+      # POCKETBASE
+      ######################################################################
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: ${{ github.workspace }}/db/go.mod
+          cache: true
+
+      - name: Build backend
+        working-directory: db
+        run: |
+          mkdir -p ../dist
+
+          CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} \
+            go build -o ../dist/pocketbase
+
+      ######################################################################
+      # WEB
+      ######################################################################
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+          npm prune --production
+
+      ######################################################################
+      # MEILISEARCH
+      ######################################################################
+
+      - name: Download Meilisearch
+        run: |
+          curl -fsSL https://install.meilisearch.com | sh
+          chmod +x meilisearch
+
+      ######################################################################
+      # PACKAGE
+      ######################################################################
+
+      - name: Package build
+        run: |
+          set -e
+
+          mkdir -p wanderer-build/db
+          mkdir -p wanderer-build/search
+          mkdir -p wanderer-build/web
+
+          cp -r web/build wanderer-build/web/build
+          cp -r web/node_modules wanderer-build/web/node_modules
+          cp web/package.json wanderer-build/web/package.json
+          
+          rsync -a db/ wanderer-build/db/
+          cp dist/pocketbase wanderer-build/db/pocketbase
+          
+          cp meilisearch wanderer-build/search/meilisearch
+
+          tar -czf wanderer-${VERSION}-${ARCH}.tar.gz wanderer-build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: wanderer-${{ env.VERSION }}-${{ env.ARCH }}
+          path: wanderer-${{ env.VERSION }}-${{ env.ARCH }}.tar.gz
+
+
+  ##########################################################################
+  # RELEASE
+  ##########################################################################
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: "Wanderer ${{ needs.prepare.outputs.version }}"
+          files: artifacts/**/*.tar.gz
