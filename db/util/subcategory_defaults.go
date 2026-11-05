@@ -250,8 +250,9 @@ func applyDefaultSubcategorySeed(record *core.Record, seed defaultSubcategorySee
 	// Retroactively backfill `valhalla_profile` onto a pre-existing default
 	// subcategory, but only when the key is absent — an operator-set value (or a
 	// value written by a previous seeding run) is never overwritten, which also
-	// makes a second SeedDefaultSubcategories call a no-op for settings.
-	if hasSettingsField && len(seed.settings) > 0 {
+	// makes a second SeedDefaultSubcategories call a no-op for settings. Settings
+	// that are not an object are left alone rather than replaced.
+	if hasSettingsField && len(seed.settings) > 0 && !isNonObjectSettings(record.Get("settings")) {
 		currentSettings := parseSettingsMap(record.Get("settings"))
 		settingsChanged := false
 		for key, value := range seed.settings {

@@ -1,6 +1,9 @@
 package migrations
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
 )
@@ -32,6 +35,8 @@ func init() {
 				"activitypub_actors has duplicate (preferred_username, domain) pairs; the index on them stays non-unique",
 				"pairs", duplicates,
 			)
+			// The logger only writes to the _logs table, and this never runs again.
+			fmt.Fprintf(os.Stderr, "Actor handle index: activitypub_actors has %d duplicate (preferred_username, domain) pairs; the index on them stays non-unique.\n", duplicates)
 			return nil
 		}
 

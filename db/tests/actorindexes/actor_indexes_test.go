@@ -1,6 +1,7 @@
 package actorindexes_test
 
 import (
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -12,10 +13,11 @@ import (
 )
 
 const (
-	userIndexMigration         = "1776767721_updated_activitypub_actors.go"
-	inboxIndexMigration        = "1778583029_updated_activitypub_actors.go"
-	userLookupIndexMigration   = "1791713195_activitypub_actors_user_lookup_index.go"
-	handleLookupIndexMigration = "1791713196_activitypub_actors_handle_lookup_index.go"
+	userIndexMigration          = "1776767721_updated_activitypub_actors.go"
+	inboxIndexMigration         = "1778583029_updated_activitypub_actors.go"
+	userLookupIndexMigration    = "1791713195_activitypub_actors_user_lookup_index.go"
+	handleLookupIndexMigration  = "1791713196_activitypub_actors_handle_lookup_index.go"
+	restoreHandleIndexMigration = "1791200002_restore_actor_handle_index.go"
 )
 
 // Migrations an instance on dev has not applied yet. Some carry timestamps
@@ -30,7 +32,7 @@ var upgradeMigrations = []string{
 	"1790300000_repair_activitypub_actors_indexes.go",
 	"1791200000_updated_settings_create_rule.go",
 	"1791200001_updated_profile_feed.go",
-	"1791200002_restore_actor_handle_index.go",
+	restoreHandleIndexMigration,
 	"1791200200_correlate_trail_bounds_view.go",
 	userLookupIndexMigration,
 	handleLookupIndexMigration,
@@ -189,6 +191,38 @@ func TestUpgradeKeepsTheOldestSettingsRecordPerUser(t *testing.T) {
 	}
 }
 
+// settings.user is optional and the create rule used to be public, so an
+// instance can hold any number of rows without a user. The unique index covers
+// them too, and a failure there stops the instance from starting.
+func TestUpgradeRemovesSettingsRecordsWithoutAUser(t *testing.T) {
+	app := newApp(t)
+	before, after := splitUpgradeMigrations(sortedMigrations())
+	applyMigrations(t, app, before)
+
+	user := saveRecord(t, app, "users", map[string]any{
+		"username": "owner", "password": "test-password", "email": "owner@example.com",
+	})
+	owned := saveRecord(t, app, "settings", map[string]any{"user": user.Id, "language": "en", "unit": "metric", "mapFocus": "trails"})
+	for range 2 {
+		saveRecord(t, app, "settings", map[string]any{"language": "en", "unit": "metric", "mapFocus": "trails"})
+	}
+
+	applyMigrations(t, app, after)
+
+	rows, err := app.FindAllRecords("settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Id != owned.Id {
+		t.Errorf("settings after upgrade = %v, want only %s", rows, owned.Id)
+	}
+
+	index := indexSQLOn(t, app, "settings", "idx_rhdd21t4cx")
+	if !strings.HasPrefix(index, "CREATE UNIQUE INDEX") {
+		t.Errorf("settings user index = %q, want it unique", index)
+	}
+}
+
 func TestUpgradeNamesUsersWithDuplicateActors(t *testing.T) {
 	app := newApp(t)
 	before, after := splitUpgradeMigrations(sortedMigrations())
@@ -213,6 +247,63 @@ func TestUpgradeNamesUsersWithDuplicateActors(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "user "+user.Id) {
 		t.Fatalf("apply %s: err = %v, want it to name user %s", migration.File, err, user.Id)
 	}
+}
+
+// Duplicate handles leave the index non-unique for good, so the warning has to
+// reach the console; it must not stop the instance from starting.
+func TestUpgradeWarnsOnTheConsoleAboutDuplicateHandles(t *testing.T) {
+	app := newApp(t)
+	migrations := sortedMigrations()
+	restore := slices.IndexFunc(migrations, func(m *core.Migration) bool { return m.File == restoreHandleIndexMigration })
+	applyMigrations(t, app, migrations[:restore])
+
+	// The state earlier versions of 1776767721 left behind.
+	actors, err := app.FindCollectionByNameOrId("activitypub_actors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actors.AddIndex("idx_actors_username_domain", false, "`preferred_username`, `domain`", "")
+	if err := app.Save(actors); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"first", "second"} {
+		saveRecord(t, app, "activitypub_actors", map[string]any{
+			"username": "twin", "preferred_username": "twin", "domain": "remote.example", "public_key": "test-key",
+			"iri": "https://remote.example/" + name, "inbox": "https://remote.example/" + name + "/inbox",
+		})
+	}
+
+	console := captureStderr(t, func() {
+		applyMigrations(t, app, migrations[restore:])
+	})
+
+	if !strings.Contains(console, "1 duplicate (preferred_username, domain) pairs") {
+		t.Errorf("console output = %q, want the duplicate handle warning", console)
+	}
+	index := indexSQL(t, app, "idx_actors_username_domain")
+	if strings.HasPrefix(index, "CREATE UNIQUE INDEX") {
+		t.Errorf("username/domain index = %q, want it to stay non-unique", index)
+	}
+}
+
+func captureStderr(t *testing.T, run func()) string {
+	t.Helper()
+	file, err := os.CreateTemp(t.TempDir(), "stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	original := os.Stderr
+	os.Stderr = file
+	defer func() { os.Stderr = original }()
+	run()
+
+	output, err := os.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(output)
 }
 
 func indexSQL(t *testing.T, app core.App, name string) string {

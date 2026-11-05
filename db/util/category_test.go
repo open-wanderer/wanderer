@@ -560,6 +560,67 @@ func TestSeedDefaultSubcategoriesDoesNotOverwriteValhallaProfile(t *testing.T) {
 	}
 }
 
+func TestSeedDefaultSubcategoriesLeavesNonObjectSettings(t *testing.T) {
+	for _, raw := range []string{`[1,2]`, `"str"`, `""`, `42`} {
+		t.Run(raw, func(t *testing.T) {
+			app := setupCategoryValidationTestApp(t)
+			defer app.Cleanup()
+
+			biking := createTestCategory(t, app, "Biking")
+			touring := createTestSubcategory(t, app, biking.Id, "Touring", "TOUR")
+			touring.Set("settings", types.JSONRaw(raw))
+			if err := app.Save(touring); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := SeedDefaultSubcategories(app); err != nil {
+				t.Fatalf("SeedDefaultSubcategories() error = %v", err)
+			}
+
+			updated, err := app.FindRecordById("subcategories", touring.Id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := updated.GetString("settings"); got != raw {
+				t.Fatalf("Touring settings = %s, want %s", got, raw)
+			}
+			// The rest of the seed still applies to the record.
+			translations, err := ParseCategoryTranslations(updated.Get("translations"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := translations["de"].Name; got != "Tourenrad" {
+				t.Fatalf("Touring de translation = %q, want Tourenrad", got)
+			}
+		})
+	}
+}
+
+func TestSeedDefaultSubcategoriesKeepsEmptyValhallaProfile(t *testing.T) {
+	app := setupCategoryValidationTestApp(t)
+	defer app.Cleanup()
+
+	biking := createTestCategory(t, app, "Biking")
+	touring := createTestSubcategory(t, app, biking.Id, "Touring", "TOUR")
+	touring.Set("settings", map[string]any{"valhalla_profile": ""})
+	if err := app.Save(touring); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SeedDefaultSubcategories(app); err != nil {
+		t.Fatalf("SeedDefaultSubcategories() error = %v", err)
+	}
+
+	updated, err := app.FindRecordById("subcategories", touring.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, exists := parseSettingsMap(updated.Get("settings"))["valhalla_profile"]
+	if !exists || got != "" {
+		t.Fatalf("Touring valhalla_profile = %v (exists %v), want an explicit empty value", got, exists)
+	}
+}
+
 func TestValidateSubcategoryRecord(t *testing.T) {
 	app := setupCategoryValidationTestApp(t)
 	defer app.Cleanup()
