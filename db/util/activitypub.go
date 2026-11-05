@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"pocketbase/services/routeimage"
 	"strconv"
 	"strings"
 	"time"
@@ -630,7 +631,7 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		tags.Append(hashtag)
 	}
 
-	photos := trail.GetStringSlice("photos")
+	photos := routeimage.WithoutPlaceholder(trail.GetStringSlice("photos"))
 
 	gpx := ""
 	if trail.GetString("gpx") != "" {
