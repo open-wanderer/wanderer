@@ -1,5 +1,5 @@
-import { env } from '$env/dynamic/private';
-import { handleError } from '$lib/util/api_util';
+import { MAP_ASSETS_URL, PROTOMAPS_API_KEY, TILE_SERVER_URL } from '$app/env/private';
+import { handleError } from '#lib/util/api_util.ts';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**
@@ -45,10 +45,10 @@ export async function GET(event: RequestEvent) {
         }
 
         // An empty value (e.g. `TILE_SERVER_URL=` in a compose file) counts as unset.
-        const tileUrl = env.TILE_SERVER_URL?.trim()
-            || `https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=${env.PROTOMAPS_API_KEY ?? ''}`;
+        const tileUrl = TILE_SERVER_URL?.trim()
+            || `https://api.protomaps.com/tiles/v4/{z}/{x}/{y}.mvt?key=${PROTOMAPS_API_KEY ?? ''}`;
 
-        const assetsBase = (env.MAP_ASSETS_URL?.trim() || "https://protomaps.github.io/basemaps-assets")
+        const assetsBase = (MAP_ASSETS_URL?.trim() || "https://protomaps.github.io/basemaps-assets")
             .replace(/\/$/, '');
 
         const glyphUrl = `${assetsBase}/fonts/{fontstack}/{range}.pbf`;

@@ -1,6 +1,6 @@
-import { RegionIdSchema } from '$lib/models/api/region_schema';
-import { proxyRegionArchive } from '$lib/server/region_archive';
-import { handleError } from '$lib/util/api_util';
+import { RegionIdSchema } from '#lib/models/api/region_schema.ts';
+import { proxyRegionArchive } from '#lib/server/region_archive.ts';
+import { handleError } from '#lib/util/api_util.ts';
 import { type RequestEvent } from '@sveltejs/kit';
 
 /**

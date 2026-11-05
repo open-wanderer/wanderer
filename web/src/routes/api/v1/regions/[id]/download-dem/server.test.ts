@@ -2,7 +2,9 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { describe, expect, it, vi } from 'vitest';
 import { GET } from './+server';
 
-function buildEvent(range?: string, id = 'de-nrw'): RequestEvent {
+type TestEvent = Omit<RequestEvent, 'fetch'> & { fetch: RequestEvent['fetch'] };
+
+function buildEvent(range?: string, id = 'de-nrw'): TestEvent {
   const url = `http://localhost/api/v1/regions/${id}/download-dem`;
   const request = new Request(url, {
     headers: range ? { Range: range } : undefined,
@@ -18,7 +20,7 @@ function buildEvent(range?: string, id = 'de-nrw'): RequestEvent {
       },
     },
     fetch: vi.fn(),
-  } as unknown as RequestEvent;
+  } as unknown as TestEvent;
 }
 
 describe('GET /api/v1/regions/[id]/download-dem', () => {

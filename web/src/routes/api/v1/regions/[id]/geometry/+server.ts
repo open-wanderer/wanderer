@@ -1,5 +1,5 @@
-import { RegionIdSchema } from '$lib/models/api/region_schema';
-import { handleError } from '$lib/util/api_util';
+import { RegionIdSchema } from '#lib/models/api/region_schema.ts';
+import { handleError } from '#lib/util/api_util.ts';
 import { json, type RequestEvent } from '@sveltejs/kit';
 
 /**

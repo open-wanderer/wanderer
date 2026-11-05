@@ -1,8 +1,12 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const env = vi.hoisted(() => ({} as Record<string, string | undefined>));
-vi.mock('$env/dynamic/private', () => ({ env }));
+const env = vi.hoisted((): Record<string, string | undefined> => ({
+  TILE_SERVER_URL: undefined,
+  PROTOMAPS_API_KEY: undefined,
+  MAP_ASSETS_URL: undefined,
+}));
+vi.mock('$app/env/private', () => env);
 
 import { GET } from './+server';
 
@@ -12,7 +16,7 @@ function event(): RequestEvent {
 
 describe('GET /api/v1/map/style-sources', () => {
   beforeEach(() => {
-    for (const key of Object.keys(env)) delete env[key];
+    for (const key of Object.keys(env)) env[key] = undefined;
   });
 
   it('treats empty values as unset', async () => {
