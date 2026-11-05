@@ -8,7 +8,8 @@ import (
 // Each user has exactly one settings record. Older instances can hold extra
 // rows because the collection's create rule used to be public, so those are
 // removed before the unique index is created. The oldest row is kept: it is the
-// one created at sign-up and the one unsorted lookups have been returning.
+// one created at sign-up and the one unsorted lookups have been returning. Rows
+// without a user belong to nobody and would collide in the index, so they go too.
 func init() {
 	m.Register(func(app core.App) error {
 		collection, err := app.FindCollectionByNameOrId("uavt73rsqcn1n13")
@@ -17,7 +18,7 @@ func init() {
 		}
 
 		result, err := app.DB().NewQuery(`
-			DELETE FROM settings WHERE id IN (
+			DELETE FROM settings WHERE user = '' OR id IN (
 				SELECT id FROM (
 					SELECT id, ROW_NUMBER() OVER (PARTITION BY user ORDER BY created, id) AS position
 					FROM settings
@@ -29,7 +30,7 @@ func init() {
 			return err
 		}
 		if removed, err := result.RowsAffected(); err == nil && removed > 0 {
-			app.Logger().Info("removed duplicate settings records", "count", removed)
+			app.Logger().Info("removed duplicate and ownerless settings records", "count", removed)
 		}
 
 		collection.AddIndex("idx_rhdd21t4cx", true, "`user`", "")
