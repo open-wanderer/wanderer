@@ -38,9 +38,9 @@ From here you can:
 
 ## Builds & scheduling
 
-A build pass runs automatically every night at 03:00 UTC. It builds newly enabled regions and rebuilds archives that are outdated: a vector archive once it is `REGION_ARCHIVE_REBUILD_DAYS` (default 7) days older than the current Protomaps daily build, and both archives when the region definition changed. The DEM archive is otherwise built once. While a region is being rebuilt, the previous archive keeps being served; the new file replaces it atomically only on success. If a rebuild fails, the region stays available with its previous archive and the next pass tries again.
+A build pass runs automatically every night at 03:00 UTC. It builds newly enabled regions, restores archives whose files are missing, and rebuilds archives that are outdated: a vector archive once it is `REGION_ARCHIVE_REBUILD_DAYS` (default 7) days older than the current Protomaps daily build, and both archives when the region definition changed. The DEM archive is otherwise built once. While a region is being rebuilt, the previous archive keeps being served; the new file replaces it atomically only on success. If a rebuild fails, the region stays available with its previous archive and the next pass tries again.
 
-Two environment variables on the `db` service control the process (also listed in the [environment configuration](/run/environment-configuration)):
+Three environment variables on the `db` service control the process (also listed in the [environment configuration](/run/environment-configuration)):
 
 | Environment Variable           | Description                                                              | Default    |
 | ------------------------------ | ------------------------------------------------------------------------ | ---------- |
@@ -48,11 +48,13 @@ Two environment variables on the `db` service control the process (also listed i
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration for a single archive extraction (Go duration string)    | 30m        |
 | REGION_ARCHIVE_REBUILD_DAYS    | Age in days at which a vector archive is rebuilt                          | 7          |
 
-Archives are stored in the `region_archives/` folder of the PocketBase data directory (`pb_data`, or the directory passed with `--dir`), one folder per region containing `vector.pmtiles` and `dem.pmtiles`. If you delete files there manually, the backend reconciles its records with the files on disk at the next start, and removes leftovers of builds that were interrupted.
+Archives are stored in the `region_archives/` folder of the PocketBase data directory (`pb_data`, or the directory passed with `--dir`), one folder per region containing `vector.pmtiles` and `dem.pmtiles`. If you delete files there manually, the next build pass rebuilds them for enabled regions. At every start the backend also removes records with no files left on disk, and leftovers of builds that were interrupted.
 
 :::caution
-Region archives can be large, from tens of megabytes for a small region to several gigabytes for large, densely mapped ones. Make sure the volume backing `pb_data` has enough free space before enabling many regions, and consider excluding `pb_data/region_archives` from your [backups](/run/backend-configuration/backup-server): the archives can always be rebuilt.
+Region archives can be large, from tens of megabytes for a small region to several gigabytes for large, densely mapped ones. Make sure the volume backing `pb_data` has enough free space before enabling many regions.
 :::
+
+[Backups](/run/backend-configuration/backup-server) made in the PocketBase dashboard leave the archives out, because they can always be rebuilt. Restoring such a backup removes the archives on disk, and the next build pass rebuilds them for every enabled region. If you back up `pb_data` manually, consider excluding `pb_data/region_archives` as well.
 
 Each build downloads only the enabled region's clipped extract (not the full planet file) from the upstream sources, but a region covering a whole country can still take a while; increase `REGION_ARCHIVE_EXTRACT_TIMEOUT` if builds of very large regions fail with a timeout. Regions are built **one after another** within a pass, so enabling many regions at once lengthens the pass rather than the load. Extraction runs as a `pmtiles extract` subprocess inside the `db` container (the [go-pmtiles](https://github.com/protomaps/go-pmtiles) binary ships in the image); if you run the backend from source, `pmtiles` must be on the `PATH` of the `db` process. The backend logs a warning at startup when it cannot find it.
 

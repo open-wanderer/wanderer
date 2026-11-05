@@ -17,10 +17,26 @@ import (
 // CacheDir returns the on-disk root under which every region's pre-built
 // archives are stored, one subdirectory per region id:
 // CacheDir/{id}/vector.pmtiles and CacheDir/{id}/dem.pmtiles. It lives inside
-// the PocketBase data directory so archives follow --dir and are included in
-// backups of it.
+// the PocketBase data directory so archives follow --dir.
 func CacheDir(app core.App) string {
 	return filepath.Join(app.DataDir(), "region_archives")
+}
+
+// BackupExcludeEntry returns CacheDir in the form core.BackupEvent.Exclude
+// expects, relative to the data dir. ok is false when CacheDir is not inside
+// the data dir, because a backup then never reaches it.
+func BackupExcludeEntry(app core.App) (entry string, ok bool) {
+	return relativeInside(app.DataDir(), CacheDir(app))
+}
+
+// relativeInside returns path relative to root, if path is strictly inside it.
+func relativeInside(root, path string) (string, bool) {
+	relative, err := filepath.Rel(root, path)
+	if err != nil || relative == "." || relative == ".." ||
+		strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return relative, true
 }
 
 // regionIDPattern is the allow-list a region id must satisfy before it is

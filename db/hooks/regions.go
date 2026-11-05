@@ -48,6 +48,19 @@ func ValidateRegionPathReferenceHandler() func(e *core.RecordEvent) error {
 	}
 }
 
+// ExcludeRegionArchivesFromBackupHandler keeps region archives out of PocketBase
+// backups. A backup zips the data dir inside a transaction that blocks database
+// writes, and every retained backup would hold another copy of files that can
+// always be rebuilt.
+func ExcludeRegionArchivesFromBackupHandler() func(e *core.BackupEvent) error {
+	return func(e *core.BackupEvent) error {
+		if entry, ok := regions.BackupExcludeEntry(e.App); ok {
+			e.Exclude = append(e.Exclude, entry)
+		}
+		return e.Next()
+	}
+}
+
 // CacheGeometryOnEnableHandler caches a leaf region's boundary geometry the
 // moment the region is enabled, by calling regions.ResolveGeometry — whose
 // persist branch fires precisely because the record is now enabled.

@@ -11,8 +11,9 @@ import (
 )
 
 // Region names used to be derived from CoMaps ids by stripping the parent's id,
-// which left 491 names such as "Styria_Graz" or "Russia_Altai Krai". The seed
-// now carries CoMaps' English display names ("Styria — Graz", "Altai Krai").
+// which left 795 names that differ from CoMaps' English display names, such as
+// "Styria_Graz" or "Russia_Altai Krai". The seed now carries the display names
+// ("Styria — Graz", "Altai Krai").
 // 1785000000 only seeds an empty table, so instances that were seeded before
 // get the new names here. A row is only renamed while it still has the
 // derived name, so names an admin changed are kept.
